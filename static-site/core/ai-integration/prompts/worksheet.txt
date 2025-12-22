@@ -1,0 +1,42 @@
+﻿# Worksheet Generator Template
+Subject: {subject}
+Topic: {topic}
+Education Level: {level}
+Duration: {duration} minutes
+Difficulty: {difficulty}
+
+Create a worksheet with the following structure:
+
+## Worksheet Title: {topic} - {level}
+
+### Learning Objectives
+1. 
+2. 
+3. 
+
+### Instructions
+Clear instructions for students on how to complete the worksheet.
+
+### Section 1: Basic Questions (Foundation)
+1. 
+2. 
+3. 
+
+### Section 2: Intermediate Questions (Development)
+1. 
+2. 
+3. 
+
+### Section 3: Advanced Questions (Challenge)
+1. 
+2. 
+3. 
+
+### Extension Activity
+An optional challenge for faster students.
+
+### Answer Key
+Provide complete answers with explanations for all questions.
+
+Format: Use clear numbering, include space for student answers, and make it printable.
+Difficulty should match {level} standards.

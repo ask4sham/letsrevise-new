@@ -1,0 +1,113 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>LetsRevise.com - AI-Powered Revision Content</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #2c3e50; 
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: #ecf0f1;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        h2 {
+            color: #34495e;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin: 30px 0;
+        }
+        .stat-box {
+            background: #3498db;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            flex: 1;
+            margin: 0 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #2ecc71;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #95a5a6;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LetsRevise.com</h1>
+        <p class="subtitle">AI-Powered Revision Content for UK Curriculum</p>
+        
+        <div class="section">
+            <h2>A-Level</h2>
+            <p><strong>1 topic</strong> in Biology</p>
+            <a class="cta-button" href="/a-level/biology/">View A-Level Content</a>
+        </div>
+        
+        <div class="section">
+            <h2>GCSE</h2>
+            <p><strong>2 topics</strong> in Maths and Science</p>
+            <a class="cta-button" href="/gcse/">View GCSE Content</a>
+        </div>
+        
+        <div class="section">
+            <h2>KS3</h2>
+            <p><strong>3 topics</strong> in Biology, Science, and Maths</p>
+            <a class="cta-button" href="/ks3/biology/">View KS3 Content</a>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <h3>8</h3>
+                <p>Topics Generated</p>
+            </div>
+            <div class="stat-box">
+                <h3>4,893</h3>
+                <p>Total Words</p>
+            </div>
+            <div class="stat-box">
+                <h3>6</h3>
+                <p>Subjects Covered</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>AI-Powered | Generated with AI - All content tailored to UK curriculum - Updated daily</p>
+            <p>© 2025 LetsRevise.com. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

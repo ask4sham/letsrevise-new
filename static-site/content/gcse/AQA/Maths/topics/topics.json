@@ -1,0 +1,25 @@
+﻿{
+    "exam_board":  "AQA",
+    "subject":  "Maths",
+    "level":  "gcse",
+    "topics":  [
+                   "Algebra"
+               ],
+    "ai_generated":  [
+                         {
+                             "timestamp":  "20251201-153656",
+                             "model":  "gpt-4",
+                             "file":  "revision_notes.md",
+                             "type":  "revision_notes",
+                             "topic":  "Algebra"
+                         },
+                         {
+                             "timestamp":  "20251201-155638",
+                             "model":  "gpt-4",
+                             "file":  "revision_notes.md",
+                             "type":  "revision_notes",
+                             "topic":  "Algebra"
+                         }
+                     ],
+    "last_updated":  "2025-12-01 15:56:38"
+}

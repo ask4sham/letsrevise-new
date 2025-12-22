@@ -1,0 +1,76 @@
+.rating-display {
+  display: inline-block;
+}
+
+.stars-container {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.star {
+  color: #ffd700; /* Gold color */
+  text-shadow: 0 0 1px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  display: inline-block;
+  line-height: 1;
+}
+
+.star.full {
+  color: #ffd700;
+  text-shadow: 0 0 3px rgba(255, 215, 0, 0.5);
+}
+
+.star.half {
+  position: relative;
+  color: #ccc; /* Gray for empty part */
+}
+
+.star.half::before {
+  content: '★';
+  position: absolute;
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  color: #ffd700; /* Gold for filled part */
+}
+
+.star.empty {
+  color: #e0e0e0; /* Light gray */
+}
+
+/* Interactive stars hover effect */
+.star.interactive:hover {
+  transform: scale(1.2);
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.8);
+}
+
+/* For ReviewForm - make stars larger and more visible */
+.review-form-stars .star {
+  font-size: 2.5em;
+  margin: 0 5px;
+  color: #e0e0e0; /* Default empty color */
+}
+
+.review-form-stars .star.filled {
+  color: #ffc107; /* Brighter gold/yellow */
+  text-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+}
+
+.review-form-stars .star:hover {
+  color: #ffc107;
+  transform: scale(1.3);
+}
+
+/* Size variations */
+.rating-display.text-lg .star {
+  font-size: 1.5rem;
+}
+
+.rating-display.text-2xl .star {
+  font-size: 2rem;
+}
+
+.rating-display.text-3xl .star {
+  font-size: 2.5rem;
+}

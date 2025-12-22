@@ -1,0 +1,26 @@
+﻿{
+    "exam_board":  "none",
+    "subject":  "biology",
+    "level":  "ks3",
+    "topics":  [
+                   "Cell structure",
+                   "Photosynthesis"
+               ],
+    "ai_generated":  [
+                         {
+                             "timestamp":  "20251201-154107",
+                             "model":  "gpt-4",
+                             "file":  "revision_notes.md",
+                             "type":  "revision_notes",
+                             "topic":  "Cell structure"
+                         },
+                         {
+                             "timestamp":  "20251201-155216",
+                             "model":  "gpt-4",
+                             "file":  "revision_notes.md",
+                             "type":  "revision_notes",
+                             "topic":  "Photosynthesis"
+                         }
+                     ],
+    "last_updated":  "2025-12-01 15:52:16"
+}

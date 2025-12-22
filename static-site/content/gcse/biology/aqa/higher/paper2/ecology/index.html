@@ -1,0 +1,441 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Ecology - AQA GCSE Biology Higher Tier - LetsRevise.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(90deg, #3498db, #9b59b6);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .topic-overview {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+        
+        .subtopics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .subtopic-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .subtopic-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        
+        .subtopic-title {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .subtopic-icon {
+            color: #3498db;
+            font-size: 1.5rem;
+        }
+        
+        .key-points {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        
+        .key-points li {
+            margin: 8px 0;
+            color: #555;
+        }
+        
+        .tier-badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .paper-badge {
+            display: inline-block;
+            background: #9b59b6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .exam-tip {
+            background: linear-gradient(90deg, #fff3cd, #ffeaa7);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px 0;
+            border-left: 4px solid #f1c40f;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(90deg, #3498db, #9b59b6);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .nav-btn.secondary {
+            background: #95a5a6;
+        }
+        
+        .required-practical {
+            background: linear-gradient(90deg, #e8f5e8, #d5f4d5);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #27ae60;
+        }
+        
+        @media (max-width: 768px) {
+            .subtopics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Ecology</h1>
+            <p class="subtitle">AQA GCSE Biology • Higher Tier • Paper 2</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                <span class="tier-badge">Higher Tier</span>
+                <span class="paper-badge">Paper 2</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📚 19 Subtopics</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div class="topic-overview">
+                <h2 style="color: #2c3e50; margin-bottom: 15px;">📋 Topic Overview</h2>
+                <p style="color: #555; line-height: 1.6;">
+                    Study the relationships between organisms and their environment. This topic covers ecosystems, biodiversity, human impacts on the environment, and sustainable management of resources. Higher tier students will explore more complex concepts and applications.
+                </p>
+                <div style="margin-top: 20px;">
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">🎯 Higher Tier Focus</h3>
+                    <p style="color: #555;">
+                        Higher tier requires deeper understanding, application of knowledge to unfamiliar contexts, and more complex calculations. You'll need to analyze data, evaluate information, and explain complex biological processes.
+                    </p>
+                </div>
+            </div>
+            
+            <h2 style="color: #2c3e50; margin: 30px 0 20px 0;">📖 Subtopics</h2>
+            
+            <div class="subtopics-grid">                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Levels of Organisation
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="levels-of-organisation/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">🔬</span>
+                        Required Practical: Ecosystems
+                    </div>
+                                        <div class="required-practical">
+                        <strong>Required Practical</strong> - This is a key practical you need to know for your exams.
+                    </div>                    <ul class="key-points">
+                        <li>Essential practical skill</li><li>May be assessed in exams</li><li>Follows standard scientific method</li><li>More complex analysis</li><li>Evaluation of methods</li>
+                    </ul>
+                    <a href="required-practical--ecosystems/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        How Materials are Cycled
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="how-materials-are-cycled/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Decomposition
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="decomposition/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">🔬</span>
+                        Required Practical: Decay
+                    </div>
+                                        <div class="required-practical">
+                        <strong>Required Practical</strong> - This is a key practical you need to know for your exams.
+                    </div>                    <ul class="key-points">
+                        <li>Essential practical skill</li><li>May be assessed in exams</li><li>Follows standard scientific method</li><li>More complex analysis</li><li>Evaluation of methods</li>
+                    </ul>
+                    <a href="required-practical--decay/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Impact of Environmental Change
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="impact-of-environmental-change/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Biodiversity
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="biodiversity/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Waste Management
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="waste-management/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Land Use
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="land-use/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Deforestation
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="deforestation/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Global Warming
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="global-warming/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Maintaining Biodiversity
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="maintaining-biodiversity/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Trophic Levels
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="trophic-levels/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Pyramids of Biomass
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="pyramids-of-biomass/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Transfer of Biomass
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="transfer-of-biomass/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Factors Affecting Food Security
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="factors-affecting-food-security/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Farming Techniques
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="farming-techniques/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Sustainable Fisheries
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="sustainable-fisheries/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Role of Biotechnology
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li><li>Extended content</li><li>Application to new situations</li>
+                    </ul>
+                    <a href="role-of-biotechnology/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>            </div>
+            
+            <div class="exam-tip">
+                <h3 style="color: #856404; margin-bottom: 10px;">💡 Higher Tier Exam Tip</h3>
+                <p style="color: #856404;">
+                    Understand pyramids of biomass and energy transfer in detail. Be able to evaluate human impacts on ecosystems and discuss sustainable solutions.
+                </p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">📊 Assessment Information</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 15px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #3498db; font-weight: bold;">8-12</div>
+                        <div style="color: #666;">Typical Marks</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #3498db; font-weight: bold;">15-25</div>
+                        <div style="color: #666;">Exam Time (min)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #3498db; font-weight: bold;">12-15%</div>
+                        <div style="color: #666;">Weighting</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="../" class="nav-btn secondary">← Back to Higher Tier</a>
+                <a href="#" class="nav-btn" onclick="startQuiz('Ecology')">Practice Questions →</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function startQuiz(topic) {
+            alert('Starting quiz on: ' + topic + ' (Higher Tier)');
+            // In a real implementation, this would load quiz questions
+        }
+        
+        // Add hover effects
+        document.querySelectorAll('.subtopic-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                const icon = this.querySelector('.subtopic-icon');
+                if (icon) {
+                    icon.style.transform = 'scale(1.2)';
+                    icon.style.transition = 'transform 0.3s';
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                const icon = this.querySelector('.subtopic-icon');
+                if (icon) {
+                    icon.style.transform = 'scale(1)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

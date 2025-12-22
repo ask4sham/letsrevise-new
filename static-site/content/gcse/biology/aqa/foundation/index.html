@@ -1,0 +1,399 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>AQA GCSE Biology - Foundation Tier - LetsRevise.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .topic-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border-left: 5px solid #27ae60;
+        }
+        
+        .topic-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            background: #e8f5e8;
+        }
+        
+        .topic-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .topic-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+        }
+        
+        .paper-badge {
+            background: #27ae60;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .paper-1 { background: #3498db; }
+        .paper-2 { background: #9b59b6; }
+        
+        .topic-description {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .subtopics {
+            margin: 15px 0;
+        }
+        
+        .subtopic {
+            display: inline-block;
+            background: white;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #2c3e50;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .start-btn {
+            display: inline-block;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .resources-quick {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .resource-btn {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            text-decoration: none;
+            color: #2c3e50;
+            font-weight: 500;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .resource-btn:hover {
+            border-color: #27ae60;
+            transform: translateY(-3px);
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .nav-btn.secondary {
+            background: #95a5a6;
+        }
+        
+        .tier-info {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #27ae60;
+        }
+        
+        @media (max-width: 768px) {
+            .topics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AQA GCSE Biology - Foundation Tier</h1>
+            <p class="subtitle">Grades 1-5 • Paper 1F & 2F • Topics and Resources</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📊 Grades 1-5</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📝 Foundation Papers Only</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🎯 Targeted Questions</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div class="tier-info">
+                <h3 style="color: #27ae60; margin-bottom: 10px;">Foundation Tier Information</h3>
+                <p style="color: #2c3e50;">
+                    You're studying the <strong>Foundation Tier</strong> which covers grades 1-5. 
+                    The content is focused on core concepts with straightforward questions. 
+                    You'll take <strong>Paper 1F</strong> and <strong>Paper 2F</strong>.
+                </p>
+            </div>
+            
+            <h2 style="color: #2c3e50; margin: 30px 0 20px 0;">📚 Foundation Tier Topics</h2>
+            
+            <div class="topics-grid">
+                <!-- Cell Biology -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Cell Biology</div>
+                        <div class="paper-badge paper-1">Paper 1</div>
+                    </div>
+                    <p class="topic-description">
+                        Basic structure of cells, cell division, and transport in cells.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Cell structure</span>
+                        <span class="subtopic">Cell division</span>
+                        <span class="subtopic">Transport in cells</span>
+                    </div>
+                    <a href="cell-biology/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <!-- Organisation -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Organisation</div>
+                        <div class="paper-badge paper-1">Paper 1</div>
+                    </div>
+                    <p class="topic-description">
+                        Principles of organisation, animal and plant organ systems.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Principles of organisation</span>
+                        <span class="subtopic">Animal tissues & organs</span>
+                        <span class="subtopic">Plant tissues & organs</span>
+                    </div>
+                    <a href="organisation/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <!-- Infection and Response -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Infection & Response</div>
+                        <div class="paper-badge paper-1">Paper 1</div>
+                    </div>
+                    <p class="topic-description">
+                        Communicable diseases, human defence systems, and drug development.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Communicable diseases</span>
+                        <span class="subtopic">Human defence systems</span>
+                        <span class="subtopic">Vaccination</span>
+                    </div>
+                    <a href="infection-response/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <!-- Bioenergetics -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Bioenergetics</div>
+                        <div class="paper-badge paper-1">Paper 1</div>
+                    </div>
+                    <p class="topic-description">
+                        Photosynthesis and respiration as key biological processes.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Photosynthesis</span>
+                        <span class="subtopic">Respiration</span>
+                    </div>
+                    <a href="bioenergetics/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <!-- Homeostasis and Response -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Homeostasis & Response</div>
+                        <div class="paper-badge paper-2">Paper 2</div>
+                    </div>
+                    <p class="topic-description">
+                        Maintaining internal environments and the human nervous system.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Homeostasis</span>
+                        <span class="subtopic">Human nervous system</span>
+                        <span class="subtopic">Hormonal coordination</span>
+                    </div>
+                    <a href="homeostasis/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <!-- Inheritance, Variation and Evolution -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Inheritance & Evolution</div>
+                        <div class="paper-badge paper-2">Paper 2</div>
+                    </div>
+                    <p class="topic-description">
+                        Reproduction, genetics, variation, and evolution.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Reproduction</span>
+                        <span class="subtopic">Genetics</span>
+                        <span class="subtopic">Variation</span>
+                    </div>
+                    <a href="inheritance/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <!-- Ecology -->
+                <div class="topic-card">
+                    <div class="topic-header">
+                        <div class="topic-title">Ecology</div>
+                        <div class="paper-badge paper-2">Paper 2</div>
+                    </div>
+                    <p class="topic-description">
+                        Adaptations, interdependence, and organisation of ecosystems.
+                    </p>
+                    <div class="subtopics">
+                        <span class="subtopic">Adaptations</span>
+                        <span class="subtopic">Organisation of ecosystems</span>
+                        <span class="subtopic">Biodiversity</span>
+                    </div>
+                    <a href="ecology/" class="start-btn">Start Topic →</a>
+                </div>
+            </div>
+            
+            <h2 style="color: #2c3e50; margin: 40px 0 20px 0;">📖 Quick Access Resources</h2>
+            
+            <div class="resources-quick">
+                <a href="#" class="resource-btn">📝 Revision Notes</a>
+                <a href="#" class="resource-btn">📋 Exam Questions</a>
+                <a href="#" class="resource-btn">🧠 Flashcards</a>
+                <a href="#" class="resource-btn">🎯 Target Test</a>
+                <a href="#" class="resource-btn">📄 Past Papers</a>
+                <a href="#" class="resource-btn">📊 Mock Exams</a>
+                <a href="#" class="resource-btn">🔧 Test Builder</a>
+                <a href="#" class="resource-btn">📈 Progress</a>
+            </div>
+            
+            <div style="background: linear-gradient(90deg, #fff3cd, #ffeaa7); padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h3 style="color: #856404; margin-bottom: 10px;">🎯 Foundation Tier Tips</h3>
+                <ul style="color: #856404; margin-left: 20px;">
+                    <li>Focus on understanding key terms and definitions</li>
+                    <li>Practice with foundation-tier specific questions</li>
+                    <li>Master the basic calculations and formulas</li>
+                    <li>Use command words appropriately in answers</li>
+                    <li>Remember: Foundation papers test core knowledge</li>
+                </ul>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="../" class="nav-btn secondary">← Back to AQA Biology</a>
+                <a href="../../" class="nav-btn">Switch to Higher Tier →</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Add topic card interactions
+        document.querySelectorAll('.topic-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                const badge = this.querySelector('.paper-badge');
+                if (badge) {
+                    badge.style.transform = 'scale(1.1)';
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                const badge = this.querySelector('.paper-badge');
+                if (badge) {
+                    badge.style.transform = 'scale(1)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

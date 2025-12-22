@@ -1,0 +1,154 @@
+﻿const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+
+// Generate referral code
+const generateReferralCode = () => {
+  return "TEACH-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+};
+
+// Register user
+const register = async (req, res) => {
+  try {
+    console.log("Registration attempt:", req.body);
+    
+    const { email, password, userType, firstName, lastName, institution, referredByCode } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("Password hashed successfully");
+
+    // Generate referral code for teachers
+    let referralCode = null;
+    if (userType === "teacher") {
+      referralCode = generateReferralCode();
+    }
+
+    // Find referrer if code provided
+    let referredBy = null;
+    if (referredByCode) {
+      const referrer = await User.findOne({ referralCode: referredByCode });
+      if (referrer) {
+        referredBy = referrer._id;
+      }
+    }
+
+    // Create user
+    const user = new User({
+      email,
+      password: hashedPassword,
+      userType,
+      firstName,
+      lastName,
+      institution: userType === "teacher" ? institution : null,
+      referralCode,
+      referredBy,
+      verificationStatus: userType === "teacher" ? "pending" : "verified"
+    });
+
+    console.log("User object created, attempting to save...");
+    await user.save();
+    console.log("User saved successfully:", user._id);
+
+    // Create JWT token
+    const token = jwt.sign(
+      { userId: user._id, userType: user.userType },
+      process.env.JWT_SECRET || "dev_secret",
+      { expiresIn: "7d" }
+    );
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        userType: user.userType,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        shamCoins: user.shamCoins,
+        referralCode: user.referralCode,
+        verificationStatus: user.verificationStatus
+      },
+      token
+    });
+    
+  } catch (error) {
+    console.error("Registration error details:", error);
+    res.status(500).json({ error: "Server error during registration: " + error.message });
+  }
+};
+
+// Login user - REAL IMPLEMENTATION
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    console.log("Login attempt for:", email);
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log("User not found:", email);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Check password
+    console.log("Checking password for user:", user._id);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      console.log("Invalid password for user:", user._id);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    console.log("Password valid, generating token for user:", user._id);
+    
+    // Create JWT token
+    const token = jwt.sign(
+      { userId: user._id, userType: user.userType },
+      process.env.JWT_SECRET || "dev_secret",
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        email: user.email,
+        userType: user.userType,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        shamCoins: user.shamCoins,
+        referralCode: user.referralCode,
+        verificationStatus: user.verificationStatus
+      },
+      token
+    });
+    
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Server error during login: " + error.message });
+  }
+};
+
+// Get current user profile
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json({ user });
+  } catch (error) {
+    console.error("Profile error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { register, login, getProfile };

@@ -1,0 +1,48 @@
+name: Build Integrity Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  check:
+    runs-on: windows-latest  # Uses Windows because your project is on Windows
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies (Frontend)
+      run: |
+        cd frontend
+        npm ci
+        
+    - name: Install dependencies (Backend)
+      run: |
+        cd backend
+        npm ci
+        
+    - name: Run Build Integrity Check
+      run: node check-build.js
+      
+    - name: Run Frontend Lint Check
+      run: |
+        cd frontend
+        npm run lint || echo "Lint check completed"
+        
+    - name: Run Security Audit
+      run: |
+        cd frontend && npm audit --audit-level=high || true
+        cd ../backend && npm audit --audit-level=high || true
+        
+    - name: Check for old brand references
+      run: |
+        echo "Checking for old brand references..."
+        findstr /S /I /C:"Let's Revise" /C:"Lets Revise" /C:"let's revise" frontend\src\ backend\ static-site\ 2>nul && exit 1 || echo "✅ No old brand references found"

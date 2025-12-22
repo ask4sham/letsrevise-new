@@ -1,0 +1,217 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LetsRevise - GCSE Revision Resources</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fdfcfb, #f3e9e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card ul {
+            list-style: none;
+            margin-left: 10px;
+        }
+        
+        .card li {
+            margin-bottom: 12px;
+            padding-left: 24px;
+            position: relative;
+        }
+        
+        .card li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #a78bfa;
+        }
+        
+        .card a {
+            color: #a78bfa;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .card a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        .highlight {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .highlight h2 {
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-top: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 255, 255, 0.3);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>LetsRevise</h1>
+            <p>Your gateway to comprehensive GCSE revision resources across all subjects and exam boards.</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="card">
+                <h2>📚 GCSE Biology</h2>
+                <p>Comprehensive resources for AQA GCSE Biology, Foundation and Higher tiers.</p>
+                <ul>
+                    <li><a href="/gcse/biology/aqa/foundation/cell-biology/">Cell Biology</a></li>
+                    <li><a href="/gcse/biology/aqa/foundation/paper1/cell-biology/animal---plant-cells/">Animal & Plant Cells</a></li>
+                    <li>Organisation</li>
+                    <li>Infection & Response</li>
+                    <li>Bioenergetics</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <h2>🧮 GCSE Maths</h2>
+                <p>Complete coverage of Edexcel and AQA GCSE Mathematics.</p>
+                <ul>
+                    <li>Number</li>
+                    <li>Algebra</li>
+                    <li>Ratio & Proportion</li>
+                    <li>Geometry</li>
+                    <li>Statistics & Probability</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <h2>🧪 GCSE Chemistry</h2>
+                <p>In-depth resources for AQA GCSE Chemistry topics.</p>
+                <ul>
+                    <li>Atomic Structure</li>
+                    <li>Bonding & Structure</li>
+                    <li>Quantitative Chemistry</li>
+                    <li>Chemical Changes</li>
+                    <li>Energy Changes</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="highlight">
+            <h2>🌟 Featured Content</h2>
+            <p>Check out our newly enhanced GCSE Biology content with interactive diagrams, quizzes, and exam-style questions!</p>
+            <a href="/gcse/biology/aqa/foundation/cell-biology/" class="btn">Explore Cell Biology →</a>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 LetsRevise. All rights reserved.</p>
+            <p>Follows AQA, Edexcel, and OCR GCSE specifications</p>
+            <p>Server running on: http://localhost:8080</p>
+        </div>
+    </div>
+</body>
+</html>

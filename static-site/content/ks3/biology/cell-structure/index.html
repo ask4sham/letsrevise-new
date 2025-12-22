@@ -1,0 +1,561 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Cell Structure - KS3 Biology - LetsRevise.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(90deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .diagrams-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin: 40px 0;
+        }
+        
+        @media (max-width: 900px) {
+            .diagrams-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .cell-diagram {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        
+        .cell-diagram:hover {
+            transform: translateY(-5px);
+        }
+        
+        .cell-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .cell-svg {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .organelle-list {
+            text-align: left;
+            margin-top: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+        
+        .organelle-item {
+            margin: 10px 0;
+            padding: 10px 15px;
+            background: #f1f8ff;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .organelle-item:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+        }
+        
+        .organelle-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .organelle-function {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .organelle-item.active .organelle-function {
+            display: block;
+        }
+        
+        .feature {
+            background: linear-gradient(90deg, #e3f2fd, #f1f8ff);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .feature h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .interactive-quiz {
+            background: linear-gradient(90deg, #fff3cd, #ffeaa7);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .quiz-question {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .quiz-option {
+            display: block;
+            margin: 10px 0;
+            padding: 12px 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quiz-option:hover {
+            border-color: #3498db;
+            background: #f1f8ff;
+        }
+        
+        .quiz-option.correct {
+            border-color: #2ecc71;
+            background: #d5f4e6;
+        }
+        
+        .quiz-option.incorrect {
+            border-color: #e74c3c;
+            background: #f8d7da;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .nav-btn.secondary {
+            background: #95a5a6;
+        }
+        
+        .nav-btn.secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .highlight {
+            background: linear-gradient(90deg, #ffeaa7, #fd79a8);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .comparison-table th {
+            background: #2c3e50;
+            color: white;
+        }
+        
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0 5px 5px 0;
+        }
+        
+        .tag-animal {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .tag-plant {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cell Structure</h1>
+            <p class="subtitle">Explore the microscopic world of animal and plant cells</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🔬 Interactive Diagrams</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📚 Organelle Functions</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🎯 Quick Quiz</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <p style="font-size: 1.1rem; color: #666; max-width: 800px; margin: 0 auto;">
+                    Cells are the <span class="highlight">basic building blocks</span> of all living organisms. 
+                    They work like tiny factories, each with specialized parts called <span class="highlight">organelles</span> that perform specific functions.
+                </p>
+            </div>
+            
+            <div class="diagrams-container">
+                <!-- Animal Cell -->
+                <div class="cell-diagram">
+                    <h2 class="cell-title">🐭 Animal Cell</h2>
+                    
+                    <!-- Simple SVG Diagram of Animal Cell -->
+                    <div class="cell-svg">
+                        <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Cell membrane -->
+                            <ellipse cx="200" cy="150" rx="180" ry="120" fill="#e3f2fd" stroke="#1976d2" stroke-width="3" stroke-dasharray="5,5"/>
+                            
+                            <!-- Nucleus -->
+                            <circle cx="140" cy="120" r="40" fill="#bbdefb" stroke="#1565c0" stroke-width="2"/>
+                            <text x="140" y="125" text-anchor="middle" font-size="14" fill="#0d47a1">Nucleus</text>
+                            
+                            <!-- Mitochondria -->
+                            <ellipse cx="250" cy="180" rx="25" ry="15" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2"/>
+                            <path d="M240 175 L260 185 L240 195" stroke="#2e7d32" stroke-width="2" fill="none"/>
+                            <text x="250" y="210" text-anchor="middle" font-size="12" fill="#1b5e20">Mitochondria</text>
+                            
+                            <!-- Ribosomes (small dots) -->
+                            <circle cx="180" cy="200" r="5" fill="#ffcc80"/>
+                            <circle cx="220" cy="110" r="5" fill="#ffcc80"/>
+                            <circle cx="160" cy="180" r="5" fill="#ffcc80"/>
+                            <text x="200" y="230" text-anchor="middle" font-size="10" fill="#e65100">Ribosomes</text>
+                            
+                            <!-- Golgi Apparatus -->
+                            <rect x="280" cy="100" width="30" height="50" rx="3" fill="#f8bbd0" stroke="#880e4f" stroke-width="2"/>
+                            <text x="295" y="160" text-anchor="middle" font-size="12" fill="#880e4f">Golgi</text>
+                            
+                            <!-- Endoplasmic Reticulum -->
+                            <path d="M250 100 Q270 90 290 100 Q310 110 290 120 Q270 130 250 120" 
+                                  fill="#fff9c4" stroke="#f57f17" stroke-width="2" fill-opacity="0.7"/>
+                            <text x="270" y="140" text-anchor="middle" font-size="12" fill="#f57f17">ER</text>
+                            
+                            <!-- Cytoplasm label -->
+                            <text x="200" y="280" text-anchor="middle" font-size="14" fill="#1976d2">Cytoplasm</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="organelle-list">
+                        <h3 style="margin-bottom: 15px; color: #1976d2;">Key Organelles:</h3>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Nucleus</strong>
+                                <span class="tag tag-animal">Control Center</span>
+                            </div>
+                            <div class="organelle-function">
+                                Contains DNA and controls all cell activities
+                            </div>
+                        </div>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Mitochondria</strong>
+                                <span class="tag tag-animal">Powerhouse</span>
+                            </div>
+                            <div class="organelle-function">
+                                Produces energy (ATP) through cellular respiration
+                            </div>
+                        </div>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Ribosomes</strong>
+                                <span class="tag tag-animal">Protein Factory</span>
+                            </div>
+                            <div class="organelle-function">
+                                Site of protein synthesis
+                            </div>
+                        </div>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Cell Membrane</strong>
+                                <span class="tag tag-animal">Gatekeeper</span>
+                            </div>
+                            <div class="organelle-function">
+                                Controls what enters and leaves the cell
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Plant Cell -->
+                <div class="cell-diagram">
+                    <h2 class="cell-title">🌿 Plant Cell</h2>
+                    
+                    <!-- Simple SVG Diagram of Plant Cell -->
+                    <div class="cell-svg">
+                        <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Cell wall -->
+                            <ellipse cx="200" cy="150" rx="190" ry="130" fill="none" stroke="#4caf50" stroke-width="4"/>
+                            
+                            <!-- Cell membrane -->
+                            <ellipse cx="200" cy="150" rx="170" ry="110" fill="#d5f4e6" stroke="#27ae60" stroke-width="2" stroke-dasharray="5,5"/>
+                            
+                            <!-- Chloroplasts -->
+                            <ellipse cx="130" cy="120" rx="30" ry="20" fill="#81c784" stroke="#2e7d32" stroke-width="2"/>
+                            <ellipse cx="130" cy="120" rx="20" ry="10" fill="#a5d6a7" stroke="#2e7d32" stroke-width="1"/>
+                            <text x="130" y="150" text-anchor="middle" font-size="12" fill="#1b5e20">Chloroplast</text>
+                            
+                            <!-- Large Vacuole -->
+                            <ellipse cx="250" cy="150" rx="50" ry="70" fill="#bbdefb" stroke="#1976d2" stroke-width="2" fill-opacity="0.5"/>
+                            <text x="250" y="150" text-anchor="middle" font-size="12" fill="#1565c0">Vacuole</text>
+                            
+                            <!-- Cell wall label -->
+                            <text x="200" y="50" text-anchor="middle" font-size="14" fill="#4caf50">Cell Wall</text>
+                            
+                            <!-- Nucleus -->
+                            <circle cx="160" cy="200" r="25" fill="#bbdefb" stroke="#1565c0" stroke-width="2"/>
+                            <text x="160" y="205" text-anchor="middle" font-size="12" fill="#0d47a1">Nucleus</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="organelle-list">
+                        <h3 style="margin-bottom: 15px; color: #27ae60;">Plant-Specific Organelles:</h3>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Chloroplasts</strong>
+                                <span class="tag tag-plant">Food Factory</span>
+                            </div>
+                            <div class="organelle-function">
+                                Contains chlorophyll for photosynthesis
+                            </div>
+                        </div>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Cell Wall</strong>
+                                <span class="tag tag-plant">Support</span>
+                            </div>
+                            <div class="organelle-function">
+                                Made of cellulose, provides structure and support
+                            </div>
+                        </div>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Large Vacuole</strong>
+                                <span class="tag tag-plant">Storage</span>
+                            </div>
+                            <div class="organelle-function">
+                                Stores cell sap, helps maintain cell shape
+                            </div>
+                        </div>
+                        
+                        <div class="organelle-item" onclick="toggleOrganelle(this)">
+                            <div class="organelle-label">
+                                <strong>Plasmodesmata</strong>
+                                <span class="tag tag-plant">Channels</span>
+                            </div>
+                            <div class="organelle-function">
+                                Allows communication between plant cells
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <h3>📊 Cell Comparison</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Animal Cell</th>
+                            <th>Plant Cell</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Cell Wall</strong></td>
+                            <td>❌ Absent</td>
+                            <td>✅ Present (cellulose)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Chloroplasts</strong></td>
+                            <td>❌ Absent</td>
+                            <td>✅ Present (for photosynthesis)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Vacuole</strong></td>
+                            <td>Small and numerous</td>
+                            <td>One large central vacuole</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Shape</strong></td>
+                            <td>Irregular, round</td>
+                            <td>Fixed, rectangular</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Energy Storage</strong></td>
+                            <td>Glycogen</td>
+                            <td>Starch</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="interactive-quiz">
+                <h3>🎯 Quick Quiz: Test Your Knowledge</h3>
+                <div class="quiz-question">
+                    1. Which organelle is known as the "powerhouse" of the cell?
+                </div>
+                <div class="quiz-option" onclick="checkAnswer(this, true)">Mitochondria</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Nucleus</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Ribosome</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Vacuole</div>
+                
+                <div class="quiz-question" style="margin-top: 30px;">
+                    2. Which structure is found only in plant cells?
+                </div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Cell Membrane</div>
+                <div class="quiz-option" onclick="checkAnswer(this, true)">Chloroplast</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Mitochondria</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Nucleus</div>
+            </div>
+            
+            <div style="text-align: center; margin: 40px 0;">
+                <p style="font-size: 1.1rem; color: #666;">
+                    💡 <strong>Did You Know?</strong> The average human body contains about 37.2 trillion cells!
+                </p>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="../" class="nav-btn secondary">← Back to KS3 Biology</a>
+                <a href="photosynthesis/" class="nav-btn">Next: Photosynthesis →</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Toggle organelle function display
+        function toggleOrganelle(element) {
+            element.classList.toggle('active');
+        }
+        
+        // Quiz answer checking
+        function checkAnswer(element, isCorrect) {
+            // Remove any existing classes
+            const options = element.parentElement.querySelectorAll('.quiz-option');
+            options.forEach(opt => {
+                opt.classList.remove('correct', 'incorrect');
+            });
+            
+            // Add appropriate class
+            if (isCorrect) {
+                element.classList.add('correct');
+                setTimeout(() => alert('✅ Correct! Well done!'), 300);
+            } else {
+                element.classList.add('incorrect');
+                setTimeout(() => alert('❌ Incorrect. Try again!'), 300);
+            }
+        }
+        
+        // Add hover effect to organelle items
+        document.querySelectorAll('.organelle-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                const label = this.querySelector('strong').textContent;
+                console.log(`Hovering over: ${label}`);
+            });
+        });
+    </script>
+</body>
+</html>

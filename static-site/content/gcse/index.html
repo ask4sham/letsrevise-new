@@ -1,0 +1,534 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>GCSE Revision - LetsRevise.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(90deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .exam-boards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .board-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .board-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        
+        .board-header {
+            padding: 25px;
+            text-align: center;
+            color: white;
+        }
+        
+        .aqa { background: linear-gradient(90deg, #D22630, #FF6B6B); }
+        .edexcel { background: linear-gradient(90deg, #00A651, #2ECC71); }
+        .ocr { background: linear-gradient(90deg, #4A90E2, #3498DB); }
+        .wjec { background: linear-gradient(90deg, #8E44AD, #9B59B6); }
+        
+        .board-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .board-content {
+            padding: 25px;
+        }
+        
+        .subject-list {
+            list-style: none;
+            margin: 15px 0;
+        }
+        
+        .subject-list li {
+            padding: 10px 15px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .subject-list li:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+        }
+        
+        .subject-link {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-decoration: none;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .arrow {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .quick-nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 50px 0;
+        }
+        
+        .nav-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+        }
+        
+        .nav-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .popular-subjects {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .subject-tag {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            color: #2c3e50;
+            font-weight: 500;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .subject-tag:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-3px);
+        }
+        
+        .level-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0 5px 5px 0;
+        }
+        
+        .foundation { background: #d5f4e6; color: #27ae60; }
+        .higher { background: #e3f2fd; color: #1976d2; }
+        
+        .resource-type {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .resource-icon {
+            margin-right: 15px;
+            font-size: 1.2rem;
+            width: 30px;
+            text-align: center;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .nav-btn.secondary {
+            background: #95a5a6;
+        }
+        
+        @media (max-width: 768px) {
+            .exam-boards {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-nav {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GCSE Revision Hub</h1>
+            <p class="subtitle">Select your exam board to access tailored revision resources</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🎯 Board-Specific Content</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📊 Foundation & Higher Tiers</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📚 All Major Exam Boards</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <p style="font-size: 1.1rem; color: #666; max-width: 800px; margin: 0 auto;">
+                    Choose your exam board to access specification-aligned revision materials, past papers, and practice questions.
+                </p>
+            </div>
+            
+            <div class="exam-boards">
+                <!-- AQA Card -->
+                <div class="board-card">
+                    <div class="board-header aqa">
+                        <div class="board-icon">🏆</div>
+                        <h2 style="margin: 0;">AQA</h2>
+                        <p style="opacity: 0.9; margin-top: 5px;">Assessment and Qualifications Alliance</p>
+                    </div>
+                    <div class="board-content">
+                        <h3 style="color: #D22630; margin-bottom: 15px;">Popular Subjects</h3>
+                        <ul class="subject-list">
+                            <li>
+                                <a href="/gcse/biology/aqa/" class="subject-link">
+                                    Biology
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/chemistry/aqa/" class="subject-link">
+                                    Chemistry
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/physics/aqa/" class="subject-link">
+                                    Physics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/maths/aqa/" class="subject-link">
+                                    Mathematics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                        </ul>
+                        <div style="margin-top: 20px;">
+                            <span class="level-badge foundation">Foundation</span>
+                            <span class="level-badge higher">Higher</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Edexcel Card -->
+                <div class="board-card">
+                    <div class="board-header edexcel">
+                        <div class="board-icon">📘</div>
+                        <h2 style="margin: 0;">Edexcel</h2>
+                        <p style="opacity: 0.9; margin-top: 5px;">Pearson Edexcel</p>
+                    </div>
+                    <div class="board-content">
+                        <h3 style="color: #00A651; margin-bottom: 15px;">Popular Subjects</h3>
+                        <ul class="subject-list">
+                            <li>
+                                <a href="/gcse/biology/edexcel/" class="subject-link">
+                                    Biology
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/chemistry/edexcel/" class="subject-link">
+                                    Chemistry
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/physics/edexcel/" class="subject-link">
+                                    Physics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/maths/edexcel/" class="subject-link">
+                                    Mathematics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                        </ul>
+                        <div style="margin-top: 20px;">
+                            <span class="level-badge foundation">Foundation</span>
+                            <span class="level-badge higher">Higher</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- OCR Card -->
+                <div class="board-card">
+                    <div class="board-header ocr">
+                        <div class="board-icon">🔬</div>
+                        <h2 style="margin: 0;">OCR</h2>
+                        <p style="opacity: 0.9; margin-top: 5px;">Oxford Cambridge and RSA</p>
+                    </div>
+                    <div class="board-content">
+                        <h3 style="color: #4A90E2; margin-bottom: 15px;">Popular Subjects</h3>
+                        <ul class="subject-list">
+                            <li>
+                                <a href="/gcse/biology/ocr/" class="subject-link">
+                                    Biology
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/chemistry/ocr/" class="subject-link">
+                                    Chemistry
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/physics/ocr/" class="subject-link">
+                                    Physics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/maths/ocr/" class="subject-link">
+                                    Mathematics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                        </ul>
+                        <div style="margin-top: 20px;">
+                            <span class="level-badge foundation">Foundation</span>
+                            <span class="level-badge higher">Higher</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- WJEC Card -->
+                <div class="board-card">
+                    <div class="board-header wjec">
+                        <div class="board-icon">🏴󠁧󠁢󠁷󠁬󠁳󠁿</div>
+                        <h2 style="margin: 0;">WJEC</h2>
+                        <p style="opacity: 0.9; margin-top: 5px;">Welsh Joint Education Committee</p>
+                    </div>
+                    <div class="board-content">
+                        <h3 style="color: #8E44AD; margin-bottom: 15px;">Popular Subjects</h3>
+                        <ul class="subject-list">
+                            <li>
+                                <a href="/gcse/biology/wjec/" class="subject-link">
+                                    Biology
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/chemistry/wjec/" class="subject-link">
+                                    Chemistry
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/physics/wjec/" class="subject-link">
+                                    Physics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/gcse/maths/wjec/" class="subject-link">
+                                    Mathematics
+                                    <span class="arrow">→</span>
+                                </a>
+                            </li>
+                        </ul>
+                        <div style="margin-top: 20px;">
+                            <span class="level-badge foundation">Foundation</span>
+                            <span class="level-badge higher">Higher</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quick-nav">
+                <!-- Most Popular Subjects -->
+                <div class="nav-section">
+                    <h3>📚 Most Popular Subjects</h3>
+                    <div class="popular-subjects">
+                        <a href="/gcse/biology/" class="subject-tag">Biology</a>
+                        <a href="/gcse/chemistry/" class="subject-tag">Chemistry</a>
+                        <a href="/gcse/physics/" class="subject-tag">Physics</a>
+                        <a href="/gcse/maths/" class="subject-tag">Mathematics</a>
+                        <a href="/gcse/english-literature/" class="subject-tag">English Literature</a>
+                        <a href="/gcse/english-language/" class="subject-tag">English Language</a>
+                        <a href="/gcse/history/" class="subject-tag">History</a>
+                        <a href="/gcse/geography/" class="subject-tag">Geography</a>
+                        <a href="/gcse/computer-science/" class="subject-tag">Computer Science</a>
+                        <a href="/gcse/business/" class="subject-tag">Business</a>
+                    </div>
+                </div>
+                
+                <!-- Resource Types -->
+                <div class="nav-section">
+                    <h3>📖 Available Resources</h3>
+                    <div class="resource-type">
+                        <div class="resource-icon">📝</div>
+                        <div>
+                            <strong>Revision Notes</strong>
+                            <div style="font-size: 0.9rem; color: #666;">Detailed topic summaries</div>
+                        </div>
+                    </div>
+                    <div class="resource-type">
+                        <div class="resource-icon">📋</div>
+                        <div>
+                            <strong>Exam Questions</strong>
+                            <div style="font-size: 0.9rem; color: #666;">Past paper questions by topic</div>
+                        </div>
+                    </div>
+                    <div class="resource-type">
+                        <div class="resource-icon">🧠</div>
+                        <div>
+                            <strong>Flashcards</strong>
+                            <div style="font-size: 0.9rem; color: #666;">Key terms and definitions</div>
+                        </div>
+                    </div>
+                    <div class="resource-type">
+                        <div class="resource-icon">🎯</div>
+                        <div>
+                            <strong>Target Test</strong>
+                            <div style="font-size: 0.9rem; color: #666;">Personalized practice tests</div>
+                        </div>
+                    </div>
+                    <div class="resource-type">
+                        <div class="resource-icon">📄</div>
+                        <div>
+                            <strong>Past Papers</strong>
+                            <div style="font-size: 0.9rem; color: #666;">Full exam papers with mark schemes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: linear-gradient(90deg, #fff3cd, #ffeaa7); padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h3 style="color: #856404; margin-bottom: 10px;">💡 How to Use This Hub</h3>
+                <p style="color: #856404;">
+                    1. <strong>Select your exam board</strong> (AQA, Edexcel, OCR, or WJEC)<br>
+                    2. <strong>Choose your subject</strong> and tier (Foundation or Higher)<br>
+                    3. <strong>Access board-specific resources</strong> aligned with your exam specification<br>
+                    4. <strong>Track your progress</strong> with our interactive tools
+                </p>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="/" class="nav-btn secondary">← Back to Home</a>
+                <a href="/ks3/biology/" class="nav-btn">View KS3 Content →</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Add hover effects to board cards
+        document.querySelectorAll('.board-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                const header = this.querySelector('.board-header');
+                header.style.transform = 'scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                const header = this.querySelector('.board-header');
+                header.style.transform = 'scale(1)';
+            });
+        });
+        
+        // Add click tracking for analytics (placeholder)
+        document.querySelectorAll('.subject-link').forEach(link => {
+            link.addEventListener('click', function() {
+                const subject = this.textContent.trim();
+                console.log(`Subject clicked: ${subject}`);
+            });
+        });
+    </script>
+</body>
+</html>

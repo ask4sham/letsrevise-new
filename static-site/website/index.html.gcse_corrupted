@@ -1,0 +1,407 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>LetsRevise.com - AI-Powered Revision Content</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        h1 { 
+            color: #2c3e50; 
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: linear-gradient(90deg, #4A90E2, #2ECC71);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .education-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .level-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .level-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            border-color: #4A90E2;
+        }
+        
+        .level-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .level-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+        
+        .level-icon {
+            font-size: 2rem;
+            color: #4A90E2;
+        }
+        
+        .topic-count {
+            background: #4A90E2;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .subject-list {
+            list-style: none;
+            margin: 15px 0;
+        }
+        
+        .subject-list li {
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .subject-list li:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+        }
+        
+        .subject-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .subject-topics {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .cta-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #4A90E2, #2ECC71);
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .exam-boards {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 40px 0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .boards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .board-badge {
+            padding: 15px;
+            text-align: center;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .board-badge:hover {
+            transform: scale(1.05);
+        }
+        
+        .aqa-badge { background: linear-gradient(90deg, #D22630, #FF6B6B); }
+        .edexcel-badge { background: linear-gradient(90deg, #00A651, #2ECC71); }
+        .ocr-badge { background: linear-gradient(90deg, #4A90E2, #3498DB); }
+        .wjec-badge { background: linear-gradient(90deg, #8E44AD, #9B59B6); }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: white;
+            padding: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .ai-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin: 10px 5px;
+            backdrop-filter: blur(10px);
+        }
+        
+        @media (max-width: 768px) {
+            .education-levels {
+                grid-template-columns: 1fr;
+            }
+            
+            .boards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LetsRevise.com</h1>
+            <p class="subtitle">AI-Powered Revision Content for UK Curriculum</p>
+            
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">Topics Generated</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">4,893</div>
+                    <div class="stat-label">Total Words</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">Subjects Covered</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <span class="ai-badge">AI-Powered</span>
+                <span class="ai-badge">UK Curriculum Aligned</span>
+                <span class="ai-badge">Updated Daily</span>
+            </div>
+        </header>
+        
+        <div class="education-levels">
+            <!-- A-Level Card -->
+            <div class="level-card">
+                <div class="level-header">
+                    <div>
+                        <div class="level-title">A-Level</div>
+                        <div style="color: #7f8c8d; font-size: 0.9rem;">Advanced Level (16-18)</div>
+                    </div>
+                    <div class="level-icon">🎓</div>
+                </div>
+                <div class="topic-count">1 topic</div>
+                
+                <ul class="subject-list">
+                    <li>
+                        <span class="subject-name">Biology</span>
+                        <span class="subject-topics">1 topic</span>
+                    </li>
+                </ul>
+                
+                <a href="/a-level/" class="cta-button">View A-Level Content →</a>
+            </div>
+            
+            <!-- GCSE Card -->
+            <div class="level-card">
+                <div class="level-header">
+                    <div>
+                        <div class="level-title">GCSE</div>
+                        <div style="color: #7f8c8d; font-size: 0.9rem;">General Certificate (14-16)</div>
+                    </div>
+                    <div class="level-icon">📚</div>
+                </div>
+                <div class="topic-count">4 exam boards</div>
+                
+                <ul class="subject-list">
+                    <li>
+                        <span class="subject-name">Biology</span>
+                        <span class="subject-topics">AQA, Edexcel, OCR, WJEC</span>
+                    </li>
+                    <li>
+                        <span class="subject-name">Chemistry</span>
+                        <span class="subject-topics">AQA, Edexcel</span>
+                    </li>
+                    <li>
+                        <span class="subject-name">Physics</span>
+                        <span class="subject-topics">AQA, OCR</span>
+                    </li>
+                    <li>
+                        <span class="subject-name">Mathematics</span>
+                        <span class="subject-topics">All boards</span>
+                    </li>
+                </ul>
+                
+                <a href="/gcse/" class="cta-button">View GCSE Content →</a>
+            </div>
+            
+            <!-- KS3 Card -->
+            <div class="level-card">
+                <div class="level-header">
+                    <div>
+                        <div class="level-title">KS3</div>
+                        <div style="color: #7f8c8d; font-size: 0.9rem;">Key Stage 3 (11-14)</div>
+                    </div>
+                    <div class="level-icon">🔬</div>
+                </div>
+                <div class="topic-count">3 topics</div>
+                
+                <ul class="subject-list">
+                    <li>
+                        <span class="subject-name">Biology</span>
+                        <span class="subject-topics">3 topics</span>
+                    </li>
+                    <li>
+                        <span class="subject-name">Science</span>
+                        <span class="subject-topics">2 topics</span>
+                    </li>
+                    <li>
+                        <span class="subject-name">Mathematics</span>
+                        <span class="subject-topics">1 topic</span>
+                    </li>
+                </ul>
+                
+                <a href="/ks3/biology/" class="cta-button">View KS3 Content →</a>
+            </div>
+        </div>
+        
+        <div class="exam-boards">
+            <h2 style="color: #2c3e50; margin-bottom: 10px;">Supported Exam Boards</h2>
+            <p style="color: #7f8c8d; margin-bottom: 20px;">Select your exam board to access specification-aligned content</p>
+            
+            <div class="boards-grid">
+                <div class="board-badge aqa-badge">AQA</div>
+                <div class="board-badge edexcel-badge">Edexcel</div>
+                <div class="board-badge ocr-badge">OCR</div>
+                <div class="board-badge wjec-badge">WJEC</div>
+            </div>
+            
+            <p style="margin-top: 20px; color: #7f8c8d; font-size: 0.9rem;">
+                Each board has specific Foundation and Higher tier content for all major subjects.
+            </p>
+        </div>
+        
+        <div style="text-align: center; margin: 50px 0;">
+            <h2 style="color: white; margin-bottom: 20px;">Start Your Revision Journey</h2>
+            <p style="color: rgba(255,255,255,0.8); max-width: 600px; margin: 0 auto;">
+                Access board-specific revision notes, exam questions, flashcards, and practice tests tailored to your exam specification.
+            </p>
+            <div style="margin-top: 30px;">
+                <a href="/gcse/" style="background: white; color: #4A90E2; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 0 10px;">Start with GCSE</a>
+                <a href="/ks3/biology/" style="background: rgba(255,255,255,0.2); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 0 10px;">Try KS3 Biology</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Generated with AI - All content tailored to UK curriculum - Updated daily</p>
+            <p>© 2025 LetsRevise.com. All rights reserved.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Add interactive effects
+        document.querySelectorAll('.board-badge').forEach(badge => {
+            badge.addEventListener('click', function() {
+                const board = this.textContent;
+                alert(`Navigating to ${board} content...`);
+                window.location.href = `/gcse/?board=${board.toLowerCase()}`;
+            });
+        });
+        
+        // Add hover animations to level cards
+        document.querySelectorAll('.level-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                const button = this.querySelector('.cta-button');
+                button.style.transform = 'translateY(-3px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                const button = this.querySelector('.cta-button');
+                button.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body>
+</html>

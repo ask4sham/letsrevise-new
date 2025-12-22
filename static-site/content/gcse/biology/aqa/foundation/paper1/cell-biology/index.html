@@ -1,0 +1,434 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Cell Biology - AQA GCSE Biology Foundation Tier - LetsRevise.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(90deg, #27ae60, #3498db);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .topic-overview {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border-left: 5px solid #27ae60;
+        }
+        
+        .subtopics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .subtopic-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .subtopic-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #27ae60;
+        }
+        
+        .subtopic-title {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .subtopic-icon {
+            color: #27ae60;
+            font-size: 1.5rem;
+        }
+        
+        .key-points {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        
+        .key-points li {
+            margin: 8px 0;
+            color: #555;
+        }
+        
+        .tier-badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .paper-badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .exam-tip {
+            background: linear-gradient(90deg, #fff3cd, #ffeaa7);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px 0;
+            border-left: 4px solid #f1c40f;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(90deg, #27ae60, #3498db);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .nav-btn.secondary {
+            background: #95a5a6;
+        }
+        
+        .required-practical {
+            background: linear-gradient(90deg, #e8f5e8, #d5f4d5);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #27ae60;
+        }
+        
+        @media (max-width: 768px) {
+            .subtopics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cell Biology</h1>
+            <p class="subtitle">AQA GCSE Biology • Foundation Tier • Paper 1</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                <span class="tier-badge">Foundation Tier</span>
+                <span class="paper-badge">Paper 1</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📚 18 Subtopics</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div class="topic-overview">
+                <h2 style="color: #2c3e50; margin-bottom: 15px;">📋 Topic Overview</h2>
+                <p style="color: #555; line-height: 1.6;">
+                    This topic covers the fundamental unit of life - the cell. You'll learn about different types of cells, cell structures, and how substances move in and out of cells. Understanding cell biology is essential for all other biology topics. Foundation tier focuses on core concepts and essential understanding.
+                </p>
+                <div style="margin-top: 20px;">
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">🎯 Foundation Tier Focus</h3>
+                    <p style="color: #555;">
+                        Foundation tier focuses on core knowledge, basic understanding, and straightforward applications. You'll need to recall facts, describe processes, and perform basic calculations.
+                    </p>
+                </div>
+            </div>
+            
+            <h2 style="color: #2c3e50; margin: 30px 0 20px 0;">📖 Subtopics</h2>
+            
+            <div class="subtopics-grid">                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Eukaryotes & Prokaryotes
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="eukaryotes---prokaryotes/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Animal & Plant Cells
+                    </div>
+                                        <ul class="key-points">
+                        <li>Basic unit of all living organisms</li><li>Contains genetic material</li><li>Site of chemical reactions</li>
+                    </ul>
+                    <a href="animal---plant-cells/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Cell Specialisation
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="cell-specialisation/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Cell Differentiation
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="cell-differentiation/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Microscopy
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="microscopy/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">🔬</span>
+                        Required Practical: Microscopy
+                    </div>
+                                        <div class="required-practical">
+                        <strong>Required Practical</strong> - This is a key practical you need to know for your exams.
+                    </div>                    <ul class="key-points">
+                        <li>Essential practical skill</li><li>May be assessed in exams</li><li>Follows standard scientific method</li>
+                    </ul>
+                    <a href="required-practical--microscopy/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Culturing Microorganisms
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="culturing-microorganisms/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">🔬</span>
+                        Required Practical: Growth
+                    </div>
+                                        <div class="required-practical">
+                        <strong>Required Practical</strong> - This is a key practical you need to know for your exams.
+                    </div>                    <ul class="key-points">
+                        <li>Essential practical skill</li><li>May be assessed in exams</li><li>Follows standard scientific method</li>
+                    </ul>
+                    <a href="required-practical--growth/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Chromosomes
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="chromosomes/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Mitosis & the Cell Cycle
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="mitosis---the-cell-cycle/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Stem Cells
+                    </div>
+                                        <ul class="key-points">
+                        <li>Basic unit of all living organisms</li><li>Contains genetic material</li><li>Site of chemical reactions</li>
+                    </ul>
+                    <a href="stem-cells/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Diffusion
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="diffusion/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Factors that Affect Diffusion
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="factors-that-affect-diffusion/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Diffusion in Multicellular Organisms
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="diffusion-in-multicellular-organisms/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Osmosis
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="osmosis/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">🔬</span>
+                        Required Practical: Osmosis
+                    </div>
+                                        <div class="required-practical">
+                        <strong>Required Practical</strong> - This is a key practical you need to know for your exams.
+                    </div>                    <ul class="key-points">
+                        <li>Essential practical skill</li><li>May be assessed in exams</li><li>Follows standard scientific method</li>
+                    </ul>
+                    <a href="required-practical--osmosis/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Active transport
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="active-transport/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>                <div class="subtopic-card">
+                    <div class="subtopic-title">
+                        <span class="subtopic-icon">📚</span>
+                        Transport Summary & Applications
+                    </div>
+                                        <ul class="key-points">
+                        <li>Core concept in biology</li><li>Important for exam success</li><li>Links to other topics</li>
+                    </ul>
+                    <a href="transport-summary---applications/" class="nav-btn" style="padding: 8px 15px; font-size: 0.9rem;">Learn More →</a>
+                </div>            </div>
+            
+            <div class="exam-tip">
+                <h3 style="color: #856404; margin-bottom: 10px;">💡 Foundation Tier Exam Tip</h3>
+                <p style="color: #856404;">
+                    Learn the basic functions of cell organelles and simple diffusion/osmosis examples. Remember that diffusion is movement from high to low concentration.
+                </p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">📊 Assessment Information</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 15px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #27ae60; font-weight: bold;">5-8</div>
+                        <div style="color: #666;">Typical Marks</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #27ae60; font-weight: bold;">15-25</div>
+                        <div style="color: #666;">Exam Time (min)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2rem; color: #27ae60; font-weight: bold;">12-15%</div>
+                        <div style="color: #666;">Weighting</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="../" class="nav-btn secondary">← Back to Foundation Tier</a>
+                <a href="#" class="nav-btn" onclick="startQuiz('Cell Biology')">Practice Questions →</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function startQuiz(topic) {
+            alert('Starting quiz on: ' + topic + ' (Foundation Tier)');
+            // In a real implementation, this would load quiz questions
+        }
+        
+        // Add hover effects
+        document.querySelectorAll('.subtopic-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                const icon = this.querySelector('.subtopic-icon');
+                if (icon) {
+                    icon.style.transform = 'scale(1.2)';
+                    icon.style.transition = 'transform 0.3s';
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                const icon = this.querySelector('.subtopic-icon');
+                if (icon) {
+                    icon.style.transform = 'scale(1)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

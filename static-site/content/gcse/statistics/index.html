@@ -1,0 +1,121 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>GCSE Statistics - LetsRevise.com</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh; padding: 20px; color: #333;
+        }
+        .container {
+            max-width: 1200px; margin: 0 auto; background: white;
+            border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        header {
+            background: linear-gradient(90deg, #2c3e50, #4a6491);
+            color: white; padding: 30px 40px; text-align: center;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .content { padding: 40px; }
+        .boards-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px; margin: 40px 0;
+        }
+        .board-card {
+            background: white; border-radius: 15px; overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08); transition: all 0.3s;
+        }
+        .board-card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
+        .board-header { padding: 25px; text-align: center; color: white; }
+        .board-content { padding: 25px; }
+        .view-btn {
+            display: block; background: #3498db; color: white; padding: 12px;
+            text-align: center; text-decoration: none; border-radius: 8px;
+            font-weight: 600; margin-top: 15px; transition: all 0.3s;
+        }
+        .view-btn:hover { background: #2980b9; transform: translateY(-2px); }
+        .nav-buttons {
+            display: flex; justify-content: space-between; margin-top: 40px;
+            padding-top: 30px; border-top: 2px solid #eee;
+        }
+        .nav-btn {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
+            font-weight: 600; display: inline-flex; align-items: center; gap: 10px;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3); }
+        .nav-btn.secondary { background: #95a5a6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GCSE Statistics</h1>
+            <p class="subtitle">Select your exam board to access tailored revision resources</p>
+        </header>
+        
+        <div class="content">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <p style="font-size: 1.1rem; color: #666; max-width: 800px; margin: 0 auto;">
+                    Choose your exam board to access specification-aligned revision materials for GCSE Statistics.
+                </p>
+            </div>
+            
+            <div class="boards-grid">
+                <!-- Board cards will be dynamically highlighted based on availability -->
+                <div class="board-card">
+                    <div class="board-header" style="background: linear-gradient(90deg, #D22630, #FF6B6B);">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🏆</div>
+                        <h2 style="margin: 0;">AQA</h2>
+                    </div>
+                    <div class="board-content">
+                        <p style="color: #666; margin-bottom: 15px;">AQA GCSE Statistics resources with Foundation and Higher tiers.</p>
+                        <a href="aqa/" class="view-btn">View AQA Resources →</a>
+                    </div>
+                </div>
+                
+                <div class="board-card">
+                    <div class="board-header" style="background: linear-gradient(90deg, #00A651, #2ECC71);">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">📘</div>
+                        <h2 style="margin: 0;">Edexcel</h2>
+                    </div>
+                    <div class="board-content">
+                        <p style="color: #666; margin-bottom: 15px;">Pearson Edexcel GCSE Statistics revision materials.</p>
+                        <a href="edexcel/" class="view-btn">View Edexcel Resources →</a>
+                    </div>
+                </div>
+                
+                <div class="board-card">
+                    <div class="board-header" style="background: linear-gradient(90deg, #4A90E2, #3498DB);">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🔬</div>
+                        <h2 style="margin: 0;">OCR</h2>
+                    </div>
+                    <div class="board-content">
+                        <p style="color: #666; margin-bottom: 15px;">OCR GCSE Statistics with complete topic coverage.</p>
+                        <a href="ocr/" class="view-btn">View OCR Resources →</a>
+                    </div>
+                </div>
+                
+                <div class="board-card">
+                    <div class="board-header" style="background: linear-gradient(90deg, #8E44AD, #9B59B6);">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🏴󠁧󠁢󠁷󠁬󠁳󠁿</div>
+                        <h2 style="margin: 0;">WJEC</h2>
+                    </div>
+                    <div class="board-content">
+                        <p style="color: #666; margin-bottom: 15px;">WJEC GCSE Statistics resources for Welsh schools.</p>
+                        <a href="wjec/" class="view-btn">View WJEC Resources →</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="/gcse/" class="nav-btn secondary">← Back to GCSE Hub</a>
+                <a href="/" class="nav-btn">Back to Home →</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+﻿{
+  "ai_providers": {
+    "openai": {
+      "model": "gpt-4",
+      "temperature": 0.7,
+      "max_tokens": 2000
+    },
+    "anthropic": {
+      "model": "claude-3-sonnet",
+      "temperature": 0.7,
+      "max_tokens": 4000
+    }
+  },
+  "content_types": {
+    "revision_notes": {
+      "format": "markdown",
+      "sections": ["overview", "key_concepts", "examples", "practice_questions", "common_mistakes"]
+    },
+    "worksheets": {
+      "format": "pdf_markdown",
+      "sections": ["instructions", "questions", "answer_key"]
+    },
+    "quizzes": {
+      "format": "json",
+      "question_types": ["multiple_choice", "short_answer", "true_false"]
+    }
+  },
+  "education_levels": {
+    "a-level": {
+      "depth": "advanced",
+      "complexity": "high",
+      "exam_focus": true
+    },
+    "gcse": {
+      "depth": "intermediate",
+      "complexity": "medium",
+      "exam_focus": true
+    },
+    "ks3": {
+      "depth": "foundational",
+      "complexity": "low",
+      "exam_focus": false
+    },
+    "ks2": {
+      "depth": "basic",
+      "complexity": "very_low",
+      "exam_focus": false
+    }
+  }
+}

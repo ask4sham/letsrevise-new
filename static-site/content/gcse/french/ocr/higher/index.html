@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>OCR GCSE French - Higher Tier - LetsRevise.com</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh; padding: 20px; color: #333;
+        }
+        .container {
+            max-width: 1200px; margin: 0 auto; background: white;
+            border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        header {
+            background: linear-gradient(90deg, #3498db, lighten(#3498db, 20%));
+            color: white; padding: 30px 40px; text-align: center;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .content { padding: 40px; }
+        .topic-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px; margin: 40px 0;
+        }
+        .topic-card {
+            background: #f8f9fa; border-radius: 15px; padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08); transition: all 0.3s;
+            border-left: 5px solid #3498db;
+        }
+        .topic-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
+        .start-btn {
+            display: inline-block; background: linear-gradient(90deg, #3498db, lighten(#3498db, 10%));
+            color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;
+            font-weight: 600; margin-top: 15px; transition: all 0.3s;
+        }
+        .start-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .nav-buttons {
+            display: flex; justify-content: space-between; margin-top: 40px;
+            padding-top: 30px; border-top: 2px solid #eee;
+        }
+        .nav-btn {
+            background: linear-gradient(90deg, #3498db, lighten(#3498db, 10%));
+            color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
+            font-weight: 600; display: inline-flex; align-items: center; gap: 10px;
+            transition: all 0.3s;
+        }
+        .nav-btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .nav-btn.secondary { background: #95a5a6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OCR GCSE French - Higher Tier</h1>
+            <p class="subtitle">🚀 Grades 4-9 • OCR Specification</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📊 Grades 4-9</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🎯 Higher Content</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">📚 Complete Coverage</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div style="background: #e8f5e8; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #3498db;">
+                <h3 style="color: #3498db; margin-bottom: 10px;">Higher Tier Information</h3>
+                <p style="color: #2c3e50;">
+                    You're studying the <strong>Higher Tier</strong> which covers grades 4-9. 
+                    This content is tailored specifically for the OCR French Higher Tier specification.
+                </p>
+            </div>
+            
+            <h2 style="color: #2c3e50; margin: 30px 0 20px 0;">📚 Higher Tier Topics</h2>
+            
+            <div class="topic-grid">
+                <div class="topic-card">
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">Topic 1: Introduction</h3>
+                    <p style="color: #666; margin-bottom: 15px;">Basic concepts and foundation knowledge for French.</p>
+                    <a href="topic1/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <div class="topic-card">
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">Topic 2: Core Principles</h3>
+                    <p style="color: #666; margin-bottom: 15px;">Essential principles and theories in French.</p>
+                    <a href="topic2/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <div class="topic-card">
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">Topic 3: Applications</h3>
+                    <p style="color: #666; margin-bottom: 15px;">Practical applications and case studies.</p>
+                    <a href="topic3/" class="start-btn">Start Topic →</a>
+                </div>
+                
+                <div class="topic-card">
+                    <h3 style="color: #2c3e50; margin-bottom: 10px;">Topic 4: Advanced Concepts</h3>
+                    <p style="color: #666; margin-bottom: 15px;">More complex ideas and extended content.</p>
+                    <a href="topic4/" class="start-btn">Start Topic →</a>
+                </div>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="../" class="nav-btn secondary">← Back to OCR French</a>
+                <a href="/gcse/" class="nav-btn">Back to GCSE Hub →</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

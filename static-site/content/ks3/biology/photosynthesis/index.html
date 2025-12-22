@@ -1,0 +1,485 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Photosynthesis - KS3 Biology - LetsRevise.com</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .process-diagram {
+            background: #f1f8f1;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(39, 174, 96, 0.1);
+        }
+        
+        .diagram-svg {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .chemical-equation {
+            background: linear-gradient(90deg, #fff3cd, #ffeaa7);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .input-output {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .io-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        
+        .io-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .io-card.input {
+            border-top: 5px solid #3498db;
+        }
+        
+        .io-card.output {
+            border-top: 5px solid #2ecc71;
+        }
+        
+        .io-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .experiment {
+            background: #e3f2fd;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .step-by-step {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+        
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        
+        .interactive-quiz {
+            background: linear-gradient(90deg, #e3f2fd, #bbdefb);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .quiz-question {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .quiz-option {
+            display: block;
+            margin: 10px 0;
+            padding: 15px 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quiz-option:hover {
+            border-color: #3498db;
+            background: #f1f8ff;
+        }
+        
+        .quiz-option.correct {
+            border-color: #2ecc71;
+            background: #d5f4e6;
+        }
+        
+        .quiz-option.incorrect {
+            border-color: #e74c3c;
+            background: #f8d7da;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .nav-btn.secondary {
+            background: #95a5a6;
+        }
+        
+        .nav-btn.secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .fact-box {
+            background: linear-gradient(90deg, #f1c40f, #f39c12);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .highlight {
+            background: linear-gradient(90deg, #ffeaa7, #fd79a8);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .leaf-diagram {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .leaf-diagram {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .leaf-part {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Photosynthesis</h1>
+            <p class="subtitle">How plants make their own food using sunlight</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">☀️ Light Energy</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🌿 Chlorophyll</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px;">🍃 Oxygen Production</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <p style="font-size: 1.1rem; color: #666; max-width: 800px; margin: 0 auto;">
+                    Photosynthesis is the process by which plants convert <span class="highlight">light energy</span> into <span class="highlight">chemical energy</span> stored in glucose. This process is essential for life on Earth as it produces oxygen and food.
+                </p>
+            </div>
+            
+            <div class="process-diagram">
+                <h2 style="color: #27ae60; margin-bottom: 20px;">🌱 The Photosynthesis Process</h2>
+                
+                <div class="diagram-svg">
+                    <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Sun -->
+                        <circle cx="100" cy="100" r="40" fill="#f1c40f" stroke="#f39c12" stroke-width="3"/>
+                        <line x1="100" y1="140" x2="100" y2="200" stroke="#f39c12" stroke-width="3" stroke-dasharray="5,5"/>
+                        <text x="100" y="80" text-anchor="middle" fill="#e67e22" font-size="18">Sunlight</text>
+                        
+                        <!-- Plant -->
+                        <path d="M350 300 L350 180 L330 220 L370 240 L350 180 L330 140 L370 160 L350 180" 
+                              fill="#27ae60" stroke="#2e7d32" stroke-width="2"/>
+                        <text x="350" y="140" text-anchor="middle" fill="#27ae60" font-size="18">Plant</text>
+                        
+                        <!-- Chloroplast -->
+                        <ellipse cx="550" cy="150" rx="60" ry="40" fill="#81c784" stroke="#2e7d32" stroke-width="2"/>
+                        <ellipse cx="550" cy="150" rx="40" ry="25" fill="#a5d6a7" stroke="#2e7d32" stroke-width="1"/>
+                        <text x="550" y="150" text-anchor="middle" fill="#1b5e20" font-size="16">Chloroplast</text>
+                        
+                        <!-- Arrows -->
+                        <path d="M200 100 Q300 100 300 150 L320 150" fill="none" stroke="#3498db" stroke-width="3" marker-end="url(#arrowhead)"/>
+                        <path d="M600 150 Q700 150 700 100 L680 100" fill="none" stroke="#2ecc71" stroke-width="3" marker-end="url(#arrowhead)"/>
+                        <path d="M600 150 Q700 150 700 200 L680 200" fill="none" stroke="#e74c3c" stroke-width="3" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- Input/Output labels -->
+                        <text x="200" y="90" text-anchor="middle" fill="#3498db" font-size="16">CO₂ + H₂O</text>
+                        <text x="700" y="90" text-anchor="middle" fill="#2ecc71" font-size="16">Glucose</text>
+                        <text x="700" y="210" text-anchor="middle" fill="#e74c3c" font-size="16">O₂</text>
+                        
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#3498db"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+                
+                <p style="color: #666; max-width: 600px; margin: 20px auto;">
+                    Plants take in <span style="color: #3498db; font-weight: bold;">carbon dioxide (CO₂)</span> and <span style="color: #3498db; font-weight: bold;">water (H₂O)</span>, 
+                    use <span style="color: #f39c12; font-weight: bold;">sunlight energy</span> captured by chlorophyll, and produce 
+                    <span style="color: #2ecc71; font-weight: bold;">glucose (C₆H₁₂O₆)</span> and <span style="color: #e74c3c; font-weight: bold;">oxygen (O₂)</span>.
+                </p>
+            </div>
+            
+            <div class="chemical-equation">
+                6CO₂ + 6H₂O + Light Energy → C₆H₁₂O₆ + 6O₂
+            </div>
+            
+            <div class="input-output">
+                <div class="io-card input">
+                    <div class="io-icon">🌬️</div>
+                    <h3>Inputs</h3>
+                    <ul style="text-align: left; margin-top: 15px;">
+                        <li><strong>Carbon Dioxide (CO₂):</strong> From the air</li>
+                        <li><strong>Water (H₂O):</strong> From the soil</li>
+                        <li><strong>Sunlight:</strong> Energy source</li>
+                        <li><strong>Chlorophyll:</strong> Green pigment</li>
+                    </ul>
+                </div>
+                
+                <div class="io-card output">
+                    <div class="io-icon">🌿</div>
+                    <h3>Outputs</h3>
+                    <ul style="text-align: left; margin-top: 15px;">
+                        <li><strong>Glucose (C₆H₁₂O₆):</strong> Food for the plant</li>
+                        <li><strong>Oxygen (O₂):</strong> Released into air</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="leaf-diagram">
+                <div class="leaf-part">
+                    <h3 style="color: #27ae60;">🍃 Leaf Structure</h3>
+                    <p style="margin: 15px 0;">Leaves are the main organs for photosynthesis:</p>
+                    <ul style="text-align: left; margin: 15px 0;">
+                        <li><strong>Cuticle:</strong> Waxy layer prevents water loss</li>
+                        <li><strong>Upper Epidermis:</strong> Protective layer</li>
+                        <li><strong>Palisade Cells:</strong> Contain chloroplasts</li>
+                        <li><strong>Spongy Cells:</strong> Allow gas exchange</li>
+                        <li><strong>Stomata:</strong> Pores for gas exchange</li>
+                    </ul>
+                </div>
+                
+                <div class="leaf-part">
+                    <h3 style="color: #27ae60;">🔬 Chloroplasts</h3>
+                    <p style="margin: 15px 0;">Chloroplasts are where photosynthesis happens:</p>
+                    <ul style="text-align: left; margin: 15px 0;">
+                        <li><strong>Thylakoids:</strong> Contain chlorophyll</li>
+                        <li><strong>Grana:</strong> Stacks of thylakoids</li>
+                        <li><strong>Stroma:</strong> Fluid where glucose is made</li>
+                        <li><strong>Chlorophyll:</strong> Green pigment absorbs light</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="step-by-step">
+                <h2 style="color: #2c3e50; margin-bottom: 25px;">📝 Process in Detail</h2>
+                
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h3>Light Absorption</h3>
+                        <p>Chlorophyll in chloroplasts absorbs sunlight energy, mainly blue and red light (green is reflected).</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h3>Water Splitting</h3>
+                        <p>Water molecules are split into hydrogen and oxygen using light energy. Oxygen is released as a waste product.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h3>Carbon Dioxide Fixation</h3>
+                        <p>Carbon dioxide from the air combines with hydrogen to form glucose, using energy from ATP.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div>
+                        <h3>Glucose Production</h3>
+                        <p>Glucose is produced and used by the plant for energy, growth, or stored as starch.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="fact-box">
+                <h2 style="margin-bottom: 15px;">💡 Did You Know?</h2>
+                <p style="font-size: 1.1rem;">
+                    Photosynthesis produces approximately <span class="highlight">130 terawatts</span> of energy annually - that's about 6 times more than global human power consumption!
+                </p>
+            </div>
+            
+            <div class="interactive-quiz">
+                <h2 style="color: #2c3e50; margin-bottom: 25px;">🧠 Test Your Knowledge</h2>
+                
+                <div class="quiz-question">
+                    1. What is the main pigment involved in photosynthesis?
+                </div>
+                <div class="quiz-option" onclick="checkAnswer(this, true)">Chlorophyll</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Hemoglobin</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Melanin</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Carotene</div>
+                
+                <div class="quiz-question" style="margin-top: 30px;">
+                    2. Which gas is released as a byproduct of photosynthesis?
+                </div>
+                <div class="quiz-option" onclick="checkAnswer(this, true)">Oxygen (O₂)</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Carbon Dioxide (CO₂)</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Nitrogen (N₂)</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Hydrogen (H₂)</div>
+                
+                <div class="quiz-question" style="margin-top: 30px;">
+                    3. Where does photosynthesis occur in plant cells?
+                </div>
+                <div class="quiz-option" onclick="checkAnswer(this, true)">Chloroplasts</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Mitochondria</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Nucleus</div>
+                <div class="quiz-option" onclick="checkAnswer(this, false)">Vacuole</div>
+            </div>
+            
+            <div class="nav-buttons">
+                <a href="../" class="nav-btn secondary">← Back to KS3 Biology</a>
+                <a href="../respiration/" class="nav-btn">Next: Respiration →</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Quiz answer checking
+        function checkAnswer(element, isCorrect) {
+            // Remove any existing classes from siblings
+            const parent = element.parentElement;
+            const options = parent.querySelectorAll('.quiz-option');
+            options.forEach(opt => {
+                opt.classList.remove('correct', 'incorrect');
+            });
+            
+            // Add appropriate class
+            if (isCorrect) {
+                element.classList.add('correct');
+                setTimeout(() => alert('✅ Correct! Well done!'), 300);
+            } else {
+                element.classList.add('incorrect');
+                setTimeout(() => alert('❌ Incorrect. Try again!'), 300);
+            }
+        }
+        
+        // Add interactive effects to step boxes
+        document.querySelectorAll('.step').forEach(step => {
+            step.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(10px)';
+                this.style.boxShadow = '0 5px 15px rgba(0,0,0,0.1)';
+            });
+            
+            step.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = '0 3px 10px rgba(0,0,0,0.05)';
+            });
+        });
+    </script>
+</body>
+</html>
