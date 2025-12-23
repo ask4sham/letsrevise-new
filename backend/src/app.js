@@ -11,3 +11,5 @@ module.exports = app;
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'letsrevise-backend' });
 });
+const apiRoutes = require('./routes');
+app.use('/api', apiRoutes);
