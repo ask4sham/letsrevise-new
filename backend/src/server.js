@@ -1,9 +1,9 @@
 const app = require('./app');
 const http = require('http');
+const { port } = require('./config/config');
 
-const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
-server.listen(PORT, () => {
-  console.log('Backend running on port ' + PORT);
+server.listen(port, () => {
+  console.log('Backend running on port ' + port);
 });
