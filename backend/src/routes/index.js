@@ -7,3 +7,5 @@ router.get('/', (req, res) => {
 });
 
 module.exports = router;
+const lessons = require('./lessons');
+router.use('/lessons', lessons);
