@@ -15,3 +15,5 @@ const apiRoutes = require('./routes');
 app.use('/api', apiRoutes);
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
+const notFound = require('./middleware/notFound');
+app.use(notFound);
