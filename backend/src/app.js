@@ -8,3 +8,6 @@ app.use(cors());
 // TODO: later we will plug routes here
 
 module.exports = app;
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'letsrevise-backend' });
+});
