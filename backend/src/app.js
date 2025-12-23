@@ -13,3 +13,5 @@ app.get('/health', (req, res) => {
 });
 const apiRoutes = require('./routes');
 app.use('/api', apiRoutes);
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
