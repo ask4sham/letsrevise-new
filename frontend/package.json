@@ -32,7 +32,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "set DISABLE_ESLINT_PLUGIN=true && react-scripts build",
+    "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
@@ -65,7 +65,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.17"
+    "tailwindcss": "^4.1.17",
+    "cross-env": "^7.0.3"
   },
   "repository": {
     "type": "git",
@@ -73,6 +74,5 @@
   },
   "bugs": {
     "url": "https://github.com/yourusername/letsrivise-frontend/issues"
-  },
-  "homepage": "https://letsrivise.com"
+  }
 }
