@@ -8,7 +8,34 @@ const User = require("../models/User");
 const Purchase = require("../models/Purchase");
 const auth = require("../middleware/auth");
 
-console.log("✅ lessons router file loaded");
+console.log("? lessons router file loaded");
+
+/* =========================================
+   GCSE TIER HELPERS
+   ========================================= */
+
+function normalizeTier(tier) {
+  if (tier === undefined || tier === null) return undefined;
+
+  const t = String(tier).trim().toLowerCase();
+
+  // allow a few common variants
+  if (t === "" || t === "none" || t === "all") return undefined;
+  if (t.includes("foundation")) return "foundation";
+  if (t.includes("higher")) return "higher";
+
+  // if someone sends exact enum already
+  if (t === "foundation" || t === "higher") return t;
+
+  // unknown value -> let schema validation reject it if GCSE
+  return t;
+}
+
+function sanitizeTierByLevel(level, tier) {
+  if (!level) return undefined;
+  if (String(level).toUpperCase() !== "GCSE") return undefined;
+  return normalizeTier(tier);
+}
 
 /* =========================================
    CREATE LESSON HANDLER (teachers only)
@@ -16,14 +43,14 @@ console.log("✅ lessons router file loaded");
 
 async function createLessonHandler(req, res) {
   try {
-    console.log("➡️ [Lessons] POST /api/lessons hit");
+    console.log("?? [Lessons] POST /api/lessons hit");
 
     if (!req.user) {
-      console.error("❌ [Lessons] No req.user on request");
+      console.error("? [Lessons] No req.user on request");
       return res.status(401).json({ msg: "No user on request" });
     }
 
-    console.log("✅ [Lessons] Authenticated user:", {
+    console.log("? [Lessons] Authenticated user:", {
       id: req.user._id || req.user.id,
       email: req.user.email,
       userType: req.user.userType,
@@ -66,7 +93,7 @@ async function createLessonHandler(req, res) {
     }
 
     if (Object.keys(missing).length > 0) {
-      console.log("❌ [Lessons] Validation failed, missing:", missing);
+      console.log("? [Lessons] Validation failed, missing:", missing);
       return res.status(400).json({
         msg: "Please fill in all required fields",
         missing,
@@ -112,18 +139,23 @@ async function createLessonHandler(req, res) {
       isPublished: false,
     };
 
-    // Optional extras – only set if present so we don't break older schemas
+    // Optional extras � only set if present so we don't break older schemas
     if (board) lessonData.board = board;
-    if (tier) lessonData.tier = tier;
+
+    const normalisedTier = sanitizeTierByLevel(level, tier);
+    if (normalisedTier) {
+      lessonData.tier = normalisedTier;
+    }
+
     if (Array.isArray(uploadedImages) && uploadedImages.length > 0) {
       lessonData.uploadedImages = uploadedImages;
     }
 
-    console.log("💾 [Lessons] Saving lesson with payload:", lessonData);
+    console.log("?? [Lessons] Saving lesson with payload:", lessonData);
 
     const lesson = new Lesson(lessonData);
     await lesson.save();
-    console.log("✅ [Lessons] Lesson saved:", lesson._id);
+    console.log("? [Lessons] Lesson saved:", lesson._id);
 
     // Award ShamCoins to the teacher
     let updatedShamCoins = 0;
@@ -134,19 +166,19 @@ async function createLessonHandler(req, res) {
         await dbUser.save();
         updatedShamCoins = dbUser.shamCoins;
         console.log(
-          "✅ [Lessons] Awarded 50 ShamCoins to teacher:",
+          "? [Lessons] Awarded 50 ShamCoins to teacher:",
           dbUser.email,
           "New balance:",
           updatedShamCoins
         );
       } else {
         console.warn(
-          "⚠️ [Lessons] Could not find teacher in DB to award ShamCoins:",
+          "?? [Lessons] Could not find teacher in DB to award ShamCoins:",
           req.user._id
         );
       }
     } catch (coinErr) {
-      console.error("⚠️ [Lessons] Failed to award ShamCoins:", coinErr);
+      console.error("?? [Lessons] Failed to award ShamCoins:", coinErr);
       // Don't fail the request just because coins update failed
     }
 
@@ -157,7 +189,7 @@ async function createLessonHandler(req, res) {
       updatedShamCoins,
     });
   } catch (err) {
-    console.error("❌ [Lessons] Lesson creation error details:");
+    console.error("? [Lessons] Lesson creation error details:");
     console.error("Error message:", err.message);
     console.error("Error stack:", err.stack);
     console.error("Full error object:", err);
@@ -329,9 +361,20 @@ router.put("/:id", auth, async (req, res) => {
     }
 
     const updates = req.body || {};
+
     Object.keys(updates).forEach((key) => {
+      // Prevent arbitrary publish toggling here � use the publish endpoint instead
+      if (key === "isPublished") return;
       lesson[key] = updates[key];
     });
+
+    const newLevel =
+      typeof updates.level === "string" ? updates.level : lesson.level;
+    const requestedTier = Object.prototype.hasOwnProperty.call(updates, "tier")
+      ? updates.tier
+      : lesson.tier;
+
+    lesson.tier = sanitizeTierByLevel(newLevel, requestedTier);
 
     await lesson.save();
     return res.json({ msg: "Lesson updated successfully", lesson });
@@ -534,21 +577,31 @@ router.post("/:id/purchase", auth, async (req, res) => {
 // Get all published lessons (students)
 router.get("/", auth, async (req, res) => {
   try {
-    const { subject, level, topic, teacher } = req.query;
+    const { subject, level, topic, teacher, tier } = req.query;
     const query = { isPublished: true };
 
     if (subject) query.subject = subject;
     if (level) query.level = level;
-    if (topic)
+    if (topic) {
       query.topic = {
         $regex: topic,
         $options: "i",
       };
-    if (teacher)
+    }
+    if (teacher) {
       query.teacherName = {
         $regex: teacher,
         $options: "i",
       };
+    }
+
+    // GCSE-only tier filter
+    if (tier && level && String(level).toUpperCase() === "GCSE") {
+      const normalisedTier = normalizeTier(tier);
+      if (normalisedTier) {
+        query.tier = normalisedTier;
+      }
+    }
 
     const lessons = await Lesson.find(query)
       .sort({ createdAt: -1 })

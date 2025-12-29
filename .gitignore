@@ -1,0 +1,14 @@
+# Env secrets
+.env
+*.env
+backend/.env
+
+# AI API Keys
+static-site/core/ai-integration/config/api-keys.json
+
+# Node
+node_modules
+
+# Build
+dist
+build
