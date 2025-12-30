@@ -2,6 +2,8 @@
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
+const API_BASE = "https://letsrevise-backend.onrender.com";
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -19,7 +21,7 @@ const LoginPage: React.FC = () => {
 
   const checkBackend = async () => {
     try {
-      await axios.get("http://localhost:5000/api/health");
+      await axios.get(`${API_BASE}/api/health`);
       setBackendStatus("✅ Backend connected");
     } catch (err) {
       setBackendStatus("❌ Backend not connected");
@@ -40,27 +42,26 @@ const LoginPage: React.FC = () => {
 
     try {
       console.log("Attempting login with:", formData);
-      const response = await axios.post("http://localhost:5000/api/auth/login", formData);
-      
+      const response = await axios.post(`${API_BASE}/api/auth/login`, formData);
+
       console.log("Login success:", response.data);
       console.log("User type in response:", response.data.user.userType);
       console.log("Full user object:", response.data.user);
-      
+
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-      
-      // PERMANENT FIX: Force page reload to ensure all components get fresh data
+
       const user = response.data.user;
       if (user.userType === "teacher") {
         window.location.href = "/teacher-dashboard";
       } else {
         window.location.href = "/dashboard";
       }
-      
+
     } catch (err: any) {
       console.error("Login error:", err);
       let errorMsg = "Login failed. ";
-      
+
       if (!err.response) {
         errorMsg += "Cannot connect to backend. Make sure backend is running.";
       } else if (err.response.status === 401) {
@@ -68,7 +69,7 @@ const LoginPage: React.FC = () => {
       } else {
         errorMsg += err.response?.data?.message || "Server error.";
       }
-      
+
       setError(errorMsg);
       setLoading(false);
     }
@@ -95,29 +96,29 @@ const LoginPage: React.FC = () => {
 
   // Auto login with test credentials
   const handleAutoLogin = async (type: "student" | "teacher") => {
-    const credentials = type === "student" 
-      ? { email: "student@example.com", password: "Password123" }
-      : { email: "teacher@example.com", password: "Password123" };
-    
+    const credentials =
+      type === "student"
+        ? { email: "student@example.com", password: "Password123" }
+        : { email: "teacher@example.com", password: "Password123" };
+
     setFormData(credentials);
     setError("");
     setLoading(true);
-    
+
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/login", credentials);
+      const response = await axios.post(`${API_BASE}/api/auth/login`, credentials);
       console.log("Auto-login response:", response.data);
       console.log("Auto-login user type:", response.data.user.userType);
-      
+
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-      
-      // PERMANENT FIX: Force page reload
+
       if (response.data.user.userType === "teacher") {
         window.location.href = "/teacher-dashboard";
       } else {
         window.location.href = "/dashboard";
       }
-      
+
     } catch (err: any) {
       console.error("Auto-login error:", err);
       setError("Auto-login failed. Please try manually.");
@@ -126,7 +127,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: "100vh",
       display: "flex",
       flexDirection: "column"
@@ -143,10 +144,10 @@ const LoginPage: React.FC = () => {
           <h2 style={{ textAlign: "center", marginBottom: "10px", color: "#333" }}>
             Login to Your Account
           </h2>
-          
+
           {backendStatus && (
-            <div style={{ 
-              textAlign: "center", 
+            <div style={{
+              textAlign: "center",
               marginBottom: "20px",
               padding: "8px",
               background: backendStatus.includes("✅") ? "#d4edda" : "#f8d7da",
@@ -157,20 +158,20 @@ const LoginPage: React.FC = () => {
               {backendStatus}
             </div>
           )}
-          
+
           {error && (
-            <div style={{ 
-              background: "#fee", 
-              color: "#c00", 
-              padding: "12px", 
-              borderRadius: "8px", 
+            <div style={{
+              background: "#fee",
+              color: "#c00",
+              padding: "12px",
+              borderRadius: "8px",
               marginBottom: "20px",
               border: "1px solid #fcc"
             }}>
               ⚠️ {error}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: "20px" }}>
               <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", color: "#333" }}>
@@ -192,7 +193,7 @@ const LoginPage: React.FC = () => {
                 placeholder="Enter your email"
               />
             </div>
-            
+
             <div style={{ marginBottom: "30px" }}>
               <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", color: "#333" }}>
                 Password
@@ -213,7 +214,7 @@ const LoginPage: React.FC = () => {
                 placeholder="Enter your password"
               />
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}
@@ -232,7 +233,7 @@ const LoginPage: React.FC = () => {
               {loading ? "Logging in..." : "Login"}
             </button>
           </form>
-          
+
           <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
             <button
               onClick={handleTestStudent}
@@ -298,7 +299,7 @@ const LoginPage: React.FC = () => {
               Auto Login Teacher
             </button>
           </div>
-          
+
           <div style={{ textAlign: "center", marginTop: "30px" }}>
             <p style={{ color: "#666" }}>
               Don't have an account?{" "}
