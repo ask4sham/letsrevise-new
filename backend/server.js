@@ -37,7 +37,34 @@ const PORT = process.env.PORT || 5000;
 // Connect to database
 connectDB();
 
-app.use(cors());
+/* ============================================================
+   CORS CONFIG
+============================================================ */
+
+// Allowed frontends (local + Netlify)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "https://profound-gumdrop-4c8d83.netlify.app",
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser tools (no origin) and allowed frontends
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.log("❌ CORS blocked origin:", origin);
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+// Handle preflight
+app.options("*", cors(corsOptions));
+
 app.use(express.json());
 
 // Simple request logger
@@ -93,12 +120,7 @@ app.post("/api/lessons", auth, async (req, res) => {
       return res.status(401).json({ msg: "No user on request" });
     }
 
-    console.log(
-      "✅ Auth:",
-      req.user.email,
-      "type:",
-      req.user.userType
-    );
+    console.log("✅ Auth:", req.user.email, "type:", req.user.userType);
 
     if (req.user.userType !== "teacher") {
       return res

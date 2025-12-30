@@ -2,13 +2,14 @@
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
-const API_BASE = "https://letsrevise-backend.onrender.com";
+// ✅ Hard-coded correct backend for now
+const API_BASE = "https://letsrevise-new.onrender.com";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
-    password: ""
+    password: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,7 +32,7 @@ const LoginPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -42,7 +43,10 @@ const LoginPage: React.FC = () => {
 
     try {
       console.log("Attempting login with:", formData);
-      const response = await axios.post(`${API_BASE}/api/auth/login`, formData);
+      const response = await axios.post(
+        `${API_BASE}/api/auth/login`,
+        formData
+      );
 
       console.log("Login success:", response.data);
       console.log("User type in response:", response.data.user.userType);
@@ -57,7 +61,6 @@ const LoginPage: React.FC = () => {
       } else {
         window.location.href = "/dashboard";
       }
-
     } catch (err: any) {
       console.error("Login error:", err);
       let errorMsg = "Login failed. ";
@@ -80,7 +83,7 @@ const LoginPage: React.FC = () => {
     console.log("Setting test student credentials");
     setFormData({
       email: "student@example.com",
-      password: "Password123"
+      password: "Password123",
     });
     setError("");
   };
@@ -89,7 +92,7 @@ const LoginPage: React.FC = () => {
     console.log("Setting test teacher credentials");
     setFormData({
       email: "teacher@example.com",
-      password: "Password123"
+      password: "Password123",
     });
     setError("");
   };
@@ -106,7 +109,11 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_BASE}/api/auth/login`, credentials);
+      console.log("Attempting login with:", credentials);
+      const response = await axios.post(
+        `${API_BASE}/api/auth/login`,
+        credentials
+      );
       console.log("Auto-login response:", response.data);
       console.log("Auto-login user type:", response.data.user.userType);
 
@@ -118,7 +125,6 @@ const LoginPage: React.FC = () => {
       } else {
         window.location.href = "/dashboard";
       }
-
     } catch (err: any) {
       console.error("Auto-login error:", err);
       setError("Auto-login failed. Please try manually.");
@@ -127,54 +133,85 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column"
-    }}>
-      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-        <div style={{
-          background: "white",
-          padding: "40px",
-          borderRadius: "15px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-          width: "100%",
-          maxWidth: "500px"
-        }}>
-          <h2 style={{ textAlign: "center", marginBottom: "10px", color: "#333" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <main
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            padding: "40px",
+            borderRadius: "15px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+            width: "100%",
+            maxWidth: "500px",
+          }}
+        >
+          <h2
+            style={{
+              textAlign: "center",
+              marginBottom: "10px",
+              color: "#333",
+            }}
+          >
             Login to Your Account
           </h2>
 
           {backendStatus && (
-            <div style={{
-              textAlign: "center",
-              marginBottom: "20px",
-              padding: "8px",
-              background: backendStatus.includes("✅") ? "#d4edda" : "#f8d7da",
-              color: backendStatus.includes("✅") ? "#155724" : "#721c24",
-              borderRadius: "5px",
-              fontSize: "0.9rem"
-            }}>
+            <div
+              style={{
+                textAlign: "center",
+                marginBottom: "20px",
+                padding: "8px",
+                background: backendStatus.includes("✅")
+                  ? "#d4edda"
+                  : "#f8d7da",
+                color: backendStatus.includes("✅") ? "#155724" : "#721c24",
+                borderRadius: "5px",
+                fontSize: "0.9rem",
+              }}
+            >
               {backendStatus}
             </div>
           )}
 
           {error && (
-            <div style={{
-              background: "#fee",
-              color: "#c00",
-              padding: "12px",
-              borderRadius: "8px",
-              marginBottom: "20px",
-              border: "1px solid #fcc"
-            }}>
+            <div
+              style={{
+                background: "#fee",
+                color: "#c00",
+                padding: "12px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                border: "1px solid #fcc",
+              }}
+            >
               ⚠️ {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", color: "#333" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
+                }}
+              >
                 Email
               </label>
               <input
@@ -186,16 +223,23 @@ const LoginPage: React.FC = () => {
                 style={{
                   width: "100%",
                   padding: "12px",
-                  border: "2px solid #e2e8f0",
+                  border: "2px solid "#e2e8f0",
                   borderRadius: "6px",
-                  fontSize: "1rem"
+                  fontSize: "1rem",
                 }}
                 placeholder="Enter your email"
               />
             </div>
 
             <div style={{ marginBottom: "30px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", color: "#333" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
+                }}
+              >
                 Password
               </label>
               <input
@@ -207,9 +251,9 @@ const LoginPage: React.FC = () => {
                 style={{
                   width: "100%",
                   padding: "12px",
-                  border: "2px solid #e2e8f0",
+                  border: "2px solid "#e2e8f0",
                   borderRadius: "6px",
-                  fontSize: "1rem"
+                  fontSize: "1rem",
                 }}
                 placeholder="Enter your password"
               />
@@ -227,14 +271,16 @@ const LoginPage: React.FC = () => {
                 borderRadius: "6px",
                 fontSize: "16px",
                 fontWeight: "bold",
-                cursor: loading ? "not-allowed" : "pointer"
+                cursor: loading ? "not-allowed" : "pointer",
               }}
             >
               {loading ? "Logging in..." : "Login"}
             </button>
           </form>
 
-          <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
+          <div
+            style={{ marginTop: "20px", display: "flex", gap: "10px" }}
+          >
             <button
               onClick={handleTestStudent}
               style={{
@@ -245,7 +291,7 @@ const LoginPage: React.FC = () => {
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
-                fontSize: "0.9rem"
+                fontSize: "0.9rem",
               }}
             >
               Fill Test Student
@@ -260,14 +306,16 @@ const LoginPage: React.FC = () => {
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
-                fontSize: "0.9rem"
+                fontSize: "0.9rem",
               }}
             >
               Fill Test Teacher
             </button>
           </div>
 
-          <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
+          <div
+            style={{ marginTop: "15px", display: "flex", gap: "10px" }}
+          >
             <button
               onClick={() => handleAutoLogin("student")}
               style={{
@@ -278,7 +326,7 @@ const LoginPage: React.FC = () => {
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
-                fontSize: "0.9rem"
+                fontSize: "0.9rem",
               }}
             >
               Auto Login Student
@@ -293,22 +341,34 @@ const LoginPage: React.FC = () => {
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
-                fontSize: "0.9rem"
+                fontSize: "0.9rem",
               }}
             >
               Auto Login Teacher
             </button>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: "30px" }}>
+          <div
+            style={{ textAlign: "center", marginTop: "30px" }}
+          >
             <p style={{ color: "#666" }}>
               Don't have an account?{" "}
-              <Link to="/register" style={{ color: "#007bff", fontWeight: "bold" }}>
+              <Link
+                to="/register"
+                style={{ color: "#007bff", fontWeight: "bold" }}
+              >
                 Register here
               </Link>
             </p>
-            <p style={{ marginTop: "10px", fontSize: "0.8rem", color: "#888" }}>
-              Test accounts: student@example.com / Password123 (Student) or teacher@example.com / Password123 (Teacher)
+            <p
+              style={{
+                marginTop: "10px",
+                fontSize: "0.8rem",
+                color: "#888",
+              }}
+            >
+              Test accounts: student@example.com / Password123 (Student) or
+              teacher@example.com / Password123 (Teacher)
             </p>
           </div>
         </div>
