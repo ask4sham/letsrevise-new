@@ -1,12 +1,11 @@
 ﻿import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import axios from "axios";
 
-// ✅ Render backend URL
+// Render backend URL
 const API_BASE = "https://letsrevise-new.onrender.com";
 
 const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -15,6 +14,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [backendStatus, setBackendStatus] = useState("");
 
+  // Check backend on component mount
   useEffect(() => {
     checkBackend();
   }, []);
@@ -35,38 +35,44 @@ const LoginPage: React.FC = () => {
     });
   };
 
+  const redirectAfterLogin = (userType: string) => {
+    // IMPORTANT: use hash routes so Netlify doesn't 404
+    if (userType === "teacher") {
+      window.location.href = "/#/teacher-dashboard";
+    } else {
+      window.location.href = "/#/dashboard";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${API_BASE}/api/auth/login`,
-        formData
-      );
+      const response = await axios.post(`${API_BASE}/api/auth/login`, formData);
 
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      const user = response.data.user;
-
-      if (user.userType === "teacher") {
-        window.location.href = "/teacher-dashboard";
-      } else {
-        window.location.href = "/dashboard";
-      }
+      redirectAfterLogin(response.data.user.userType);
     } catch (err: any) {
       let msg = "Login failed. ";
-      if (!err.response) msg += "Cannot connect to backend.";
-      else if (err.response.status === 401) msg += "Invalid email or password.";
-      else msg += err.response?.data?.message || "Server error.";
+
+      if (!err.response) {
+        msg += "Cannot connect to backend.";
+      } else if (err.response.status === 401) {
+        msg += "Invalid email or password.";
+      } else {
+        msg += err.response?.data?.message || "Server error.";
+      }
 
       setError(msg);
       setLoading(false);
     }
   };
 
+  // Fill form with test credentials (student)
   const handleTestStudent = () => {
     setFormData({
       email: "student@example.com",
@@ -75,6 +81,7 @@ const LoginPage: React.FC = () => {
     setError("");
   };
 
+  // Fill form with test credentials (teacher)
   const handleTestTeacher = () => {
     setFormData({
       email: "teacher@example.com",
@@ -83,6 +90,7 @@ const LoginPage: React.FC = () => {
     setError("");
   };
 
+  // Auto login with test credentials
   const handleAutoLogin = async (type: "student" | "teacher") => {
     const credentials =
       type === "student"
@@ -102,10 +110,8 @@ const LoginPage: React.FC = () => {
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      if (response.data.user.userType === "teacher")
-        window.location.href = "/teacher-dashboard";
-      else window.location.href = "/dashboard";
-    } catch {
+      redirectAfterLogin(response.data.user.userType);
+    } catch (err: any) {
       setError("Auto-login failed. Please try manually.");
       setLoading(false);
     }
@@ -138,7 +144,13 @@ const LoginPage: React.FC = () => {
             maxWidth: "500px",
           }}
         >
-          <h2 style={{ textAlign: "center", marginBottom: "10px", color: "#333" }}>
+          <h2
+            style={{
+              textAlign: "center",
+              marginBottom: "10px",
+              color: "#333",
+            }}
+          >
             Login to Your Account
           </h2>
 
@@ -148,7 +160,9 @@ const LoginPage: React.FC = () => {
                 textAlign: "center",
                 marginBottom: "20px",
                 padding: "8px",
-                background: backendStatus.includes("✅") ? "#d4edda" : "#f8d7da",
+                background: backendStatus.includes("✅")
+                  ? "#d4edda"
+                  : "#f8d7da",
                 color: backendStatus.includes("✅") ? "#155724" : "#721c24",
                 borderRadius: "5px",
                 fontSize: "0.9rem",
@@ -318,11 +332,20 @@ const LoginPage: React.FC = () => {
           <div style={{ textAlign: "center", marginTop: "30px" }}>
             <p style={{ color: "#666" }}>
               Don't have an account?{" "}
-              <Link to="/register" style={{ color: "#007bff", fontWeight: "bold" }}>
+              <Link
+                to="/register"
+                style={{ color: "#007bff", fontWeight: "bold" }}
+              >
                 Register here
               </Link>
             </p>
-            <p style={{ marginTop: "10px", fontSize: "0.8rem", color: "#888" }}>
+            <p
+              style={{
+                marginTop: "10px",
+                fontSize: "0.8rem",
+                color: "#888",
+              }}
+            >
               Test accounts: student@example.com / Password123 (Student) or
               teacher@example.com / Password123 (Teacher)
             </p>
