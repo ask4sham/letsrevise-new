@@ -1,81 +1,60 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import axios from "axios";
 
-// ✅ Same backend base URL as LoginPage
 const API_BASE = "https://letsrevise-new.onrender.com";
 
 const RegisterPage: React.FC = () => {
-  const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [backendStatus, setBackendStatus] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
-  // Optional: same health check as Login page
   useEffect(() => {
-    const checkBackend = async () => {
-      try {
-        await axios.get(`${API_BASE}/api/health`);
-        setBackendStatus("✅ Backend connected");
-      } catch {
-        setBackendStatus("❌ Backend not connected");
-      }
-    };
-
     checkBackend();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+  const checkBackend = async () => {
+    try {
+      await axios.get(`${API_BASE}/api/health`);
+      setBackendStatus("✅ Backend connected");
+    } catch {
+      setBackendStatus("❌ Backend not connected");
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    setMessage("");
     setLoading(true);
 
     try {
-      console.log("Attempting registration with:", formData);
+      console.log("Sending register request");
 
-      // 🔑 Call the backend register endpoint
-      const res = await axios.post(`${API_BASE}/api/auth/register`, formData);
+      const response = await axios.post(`${API_BASE}/api/auth/register`, {
+        email,
+        password,
 
-      console.log("Register success:", res.data);
+        // REQUIRED by backend
+        firstName: "Test",
+        lastName: "User",
+        userType: "student"
+      });
 
-      setSuccess("Registration successful! You can now log in.");
-      // small delay so you see the message
-      setTimeout(() => {
-        navigate("/login");
-      }, 1200);
+      console.log("Register success:", response.data);
+
+      setMessage("🎉 Registration successful! You can now log in.");
+      setLoading(false);
     } catch (err: any) {
       console.error("Register error:", err);
 
       let msg = "Registration failed. ";
 
-      if (!err.response) {
-        msg += "Cannot connect to backend.";
-      } else if (err.response.status === 400) {
-        // many APIs send validation / duplicate-email errors as 400
-        msg += err.response?.data?.msg || "Please check your details.";
-      } else if (err.response.status === 409) {
-        msg += "That email is already registered. Try logging in.";
-      } else {
-        msg += err.response?.data?.message || "Server error.";
-      }
+      if (!err.response) msg += "Cannot connect to backend.";
+      else msg += err.response?.data?.message || err.response?.data?.msg || "Server error.";
 
-      setError(msg);
-    } finally {
+      setMessage(msg);
       setLoading(false);
     }
   };
@@ -107,13 +86,7 @@ const RegisterPage: React.FC = () => {
             maxWidth: "500px",
           }}
         >
-          <h2
-            style={{
-              textAlign: "center",
-              marginBottom: "10px",
-              color: "#333",
-            }}
-          >
+          <h2 style={{ textAlign: "center", marginBottom: "10px", color: "#333" }}>
             Register Page
           </h2>
 
@@ -133,37 +106,22 @@ const RegisterPage: React.FC = () => {
             </div>
           )}
 
-          {error && (
+          {message && (
             <div
               style={{
-                background: "#fee",
-                color: "#c00",
+                background: message.includes("successful") ? "#d4edda" : "#fee",
+                color: message.includes("successful") ? "#155724" : "#c00",
                 padding: "12px",
                 borderRadius: "8px",
                 marginBottom: "20px",
                 border: "1px solid #fcc",
               }}
             >
-              ⚠️ {error}
+              {message}
             </div>
           )}
 
-          {success && (
-            <div
-              style={{
-                background: "#d4edda",
-                color: "#155724",
-                padding: "12px",
-                borderRadius: "8px",
-                marginBottom: "20px",
-                border: "1px solid #c3e6cb",
-              }}
-            >
-              ✅ {success}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleRegister}>
             <div style={{ marginBottom: "20px" }}>
               <label
                 style={{
@@ -177,10 +135,9 @@ const RegisterPage: React.FC = () => {
               </label>
               <input
                 type="email"
-                name="email"
                 required
-                value={formData.email}
-                onChange={handleChange}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "12px",
@@ -205,10 +162,9 @@ const RegisterPage: React.FC = () => {
               </label>
               <input
                 type="password"
-                name="password"
                 required
-                value={formData.password}
-                onChange={handleChange}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "12px",
@@ -216,7 +172,7 @@ const RegisterPage: React.FC = () => {
                   borderRadius: "6px",
                   fontSize: "1rem",
                 }}
-                placeholder="Enter a password"
+                placeholder="Enter password"
               />
             </div>
 
@@ -239,16 +195,11 @@ const RegisterPage: React.FC = () => {
             </button>
           </form>
 
-          <div style={{ textAlign: "center", marginTop: "30px" }}>
-            <p style={{ color: "#666" }}>
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                style={{ color: "#007bff", fontWeight: "bold" }}
-              >
-                Login here
-              </Link>
-            </p>
+          <div style={{ textAlign: "center", marginTop: "20px" }}>
+            Already have an account?{" "}
+            <Link to="/login" style={{ color: "#007bff", fontWeight: "bold" }}>
+              Login here
+            </Link>
           </div>
         </div>
       </main>
