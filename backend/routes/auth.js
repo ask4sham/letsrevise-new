@@ -78,203 +78,264 @@ router.post('/debug-login', async (req, res) => {
 // @route   POST api/auth/register
 // @desc    Register user
 // @access  Public
-router.post('/register', [
-  check('email', 'Please include a valid email').isEmail(),
-  check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    console.log('Validation errors:', errors.array());
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { email, password, userType, firstName, lastName, institution, referralCode } = req.body;
-  console.log(`\n📝 Registration attempt for: ${email} (${userType})`);
-
-  try {
-    // Check if user exists
-    let user = await User.findOne({ email });
-    if (user) {
-      console.log(`❌ User already exists: ${email}`);
-      return res.status(400).json({ msg: 'User already exists' });
+router.post(
+  '/register',
+  [
+    check('email', 'Please include a valid email').isEmail(),
+    check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Determine starting ShamCoins based on user type
-    // Students: 500, Teachers: 100, Admin: 0
-    const startingShamCoins = userType === 'student' ? 500 : (userType === 'admin' ? 0 : 100);
-
-    // Create user - validate that required fields are present
-    if (!firstName || !lastName) {
-      console.log('❌ Missing first/last name');
-      return res.status(400).json({ msg: 'First name and last name are required' });
-    }
-
-    user = new User({
+    const {
       email,
       password,
-      userType: userType || 'student',
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      institution: (userType === 'teacher' && institution) ? institution.trim() : undefined,
-      shamCoins: startingShamCoins
-    });
+      userType,
+      firstName,
+      lastName,
+      institution,          // legacy field from older frontend
+      schoolName,           // new field from current frontend
+      referralCode,
+      linkedStudentEmail    // for parent accounts
+    } = req.body;
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    user.password = hashedPassword;
-    
-    console.log(`Password hashed: ${hashedPassword.substring(0, 30)}...`);
+    // Normalise userType
+    const rawType = (userType || 'student').toString().toLowerCase();
+    const allowedTypes = ['student', 'teacher', 'parent', 'admin'];
 
-    // Handle referral code
-    if (referralCode) {
-      const referrer = await User.findOne({ referralCode });
-      if (referrer) {
-        referrer.shamCoins = (referrer.shamCoins || 0) + 50;
-        await referrer.save();
-        user.shamCoins += 100; // Extra bonus for using referral
-      }
+    let normalizedType = allowedTypes.includes(rawType) ? rawType : 'student';
+
+    // Do NOT allow public registration as admin
+    if (normalizedType === 'admin') {
+      console.log(`⚠️  Public registration attempted as admin for ${email}. Forcing userType=student.`);
+      normalizedType = 'student';
     }
 
-    await user.save();
-    console.log(`✅ User registered: ${email} as ${userType}`);
+    // Work out school name (support both old "institution" and new "schoolName")
+    const resolvedSchoolName =
+      (schoolName && schoolName.trim()) ||
+      (institution && institution.trim()) ||
+      null;
 
-    // Create JWT
-    const payload = {
-      user: {
-        id: user._id.toString(),
-        userType: user.userType
+    console.log(`\n📝 Registration attempt for: ${email} (${normalizedType})`);
+
+    try {
+      // Check if user exists
+      let user = await User.findOne({ email });
+      if (user) {
+        console.log(`❌ User already exists: ${email}`);
+        return res.status(400).json({ msg: 'User already exists' });
       }
-    };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'dev_secret',
-      { expiresIn: '7d' },
-      (err, token) => {
-        if (err) {
-          console.error('JWT error:', err);
-          return res.status(500).send('Server error');
+      // Create user - validate that required fields are present
+      if (!firstName || !lastName) {
+        console.log('❌ Missing first/last name');
+        return res
+          .status(400)
+          .json({ msg: 'First name and last name are required' });
+      }
+
+      // Determine starting ShamCoins based on user type
+      // Students: 500, Teachers: 100, Parents: 0
+      let startingShamCoins = 500;
+      if (normalizedType === 'teacher') startingShamCoins = 100;
+      if (normalizedType === 'parent') startingShamCoins = 0;
+
+      user = new User({
+        email,
+        password, // will be replaced with hashed version below
+        userType: normalizedType,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        schoolName: resolvedSchoolName,
+        shamCoins: startingShamCoins,
+        // keep existing default for verificationStatus if schema defines it,
+        // otherwise set to "pending" explicitly (harmless if field doesn't exist)
+        verificationStatus: 'pending'
+      });
+
+      // For parent accounts, optionally store linked student email
+      if (normalizedType === 'parent' && linkedStudentEmail) {
+        user.linkedStudentEmail = linkedStudentEmail.trim().toLowerCase();
+      }
+
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      user.password = hashedPassword;
+
+      console.log(`Password hashed: ${hashedPassword.substring(0, 30)}...`);
+
+      // Handle referral code
+      if (referralCode) {
+        const referrer = await User.findOne({ referralCode });
+        if (referrer) {
+          referrer.shamCoins = (referrer.shamCoins || 0) + 50;
+          await referrer.save();
+          user.shamCoins += 100; // Extra bonus for using referral
         }
-        console.log(`✅ Registration complete, token generated for ${email}`);
-        res.json({
-          token,
-          user: {
-            id: user._id.toString(),
-            email: user.email,
-            userType: user.userType,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            shamCoins: user.shamCoins || 0,
-            referralCode: user.referralCode
-          }
-        });
       }
-    );
 
-  } catch (err) {
-    console.error('❌ Registration error:', err.message);
-    console.error('Error stack:', err.stack);
-    // Check for validation errors
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(val => val.message);
-      console.log('Validation messages:', messages);
-      return res.status(400).json({ msg: messages.join(', ') });
+      await user.save();
+      console.log(`✅ User registered: ${email} as ${normalizedType}`);
+
+      // Create JWT
+      const payload = {
+        user: {
+          id: user._id.toString(),
+          userType: user.userType
+        }
+      };
+
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'dev_secret',
+        { expiresIn: '7d' },
+        (err, token) => {
+          if (err) {
+            console.error('JWT error:', err);
+            return res.status(500).send('Server error');
+          }
+          console.log(`✅ Registration complete, token generated for ${email}`);
+
+          // We now also include a message, but keep token + user the same for compatibility
+          return res.status(201).json({
+            msg: 'User registered successfully. Please check your email to verify your account.',
+            token,
+            user: {
+              id: user._id.toString(),
+              email: user.email,
+              userType: user.userType,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              shamCoins: user.shamCoins || 0,
+              referralCode: user.referralCode,
+              schoolName: user.schoolName || null,
+              verificationStatus: user.verificationStatus || 'pending'
+            }
+          });
+        }
+      );
+    } catch (err) {
+      console.error('❌ Registration error:', err.message);
+      console.error('Error stack:', err.stack);
+      // Check for validation errors
+      if (err.name === 'ValidationError') {
+        const messages = Object.values(err.errors).map((val) => val.message);
+        console.log('Validation messages:', messages);
+        return res.status(400).json({ msg: messages.join(', ') });
+      }
+      res.status(500).send('Server error');
     }
-    res.status(500).send('Server error');
   }
-});
+);
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', [
-  check('email', 'Please include a valid email').isEmail(),
-  check('password', 'Password is required').exists()
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    console.log('Login validation errors:', errors.array());
-    return res.status(400).json({ errors: errors.array() });
-  }
+router.post(
+  '/login',
+  [
+    check('email', 'Please include a valid email').isEmail(),
+    check('password', 'Password is required').exists()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Login validation errors:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-  const { email, password } = req.body;
-  console.log(`\n🔐 Login attempt for: ${email}`);
+    const { email, password } = req.body;
+    console.log(`\n🔐 Login attempt for: ${email}`);
 
-  try {
-    // Check if user exists - with multiple search methods
-    let user = await User.findOne({ email });
-    
-    if (!user) {
-      // Try case-insensitive search
-      user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
-      if (user) {
-        console.log(`⚠️  Found user with case-insensitive search: ${user.email}`);
+    try {
+      // Check if user exists - with multiple search methods
+      let user = await User.findOne({ email });
+
+      if (!user) {
+        // Try case-insensitive search
+        user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
+        if (user) {
+          console.log(
+            `⚠️  Found user with case-insensitive search: ${user.email}`
+          );
+        }
       }
-    }
-    
-    if (!user) {
-      console.log(`❌ User not found: ${email}`);
-      return res.status(400).json({ msg: 'Invalid credentials' });
-    }
 
-    console.log(`✅ User found: ${user.email} (${user.userType})`);
-    console.log(`Password hash: ${user.password.substring(0, 30)}...`);
-    
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    console.log(`Password match for ${email}: ${isMatch}`);
-    
-    if (!isMatch) {
-      // Try with trimmed password
-      const trimmedMatch = await bcrypt.compare(password.trim(), user.password);
-      console.log(`Password match (trimmed): ${trimmedMatch}`);
-      
-      if (!trimmedMatch) {
-        console.log(`❌ Password does not match for ${email}`);
+      if (!user) {
+        console.log(`❌ User not found: ${email}`);
         return res.status(400).json({ msg: 'Invalid credentials' });
       }
-    }
 
-    // Create JWT
-    const payload = {
-      user: {
-        id: user._id.toString(),
-        userType: user.userType
-      }
-    };
+      console.log(`✅ User found: ${user.email} (${user.userType})`);
+      console.log(`Password hash: ${user.password.substring(0, 30)}...`);
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'dev_secret',
-      { expiresIn: '7d' },
-      (err, token) => {
-        if (err) {
-          console.error('JWT error:', err);
-          return res.status(500).send('Server error');
+      // Check password
+      const isMatch = await bcrypt.compare(password, user.password);
+      console.log(`Password match for ${email}: ${isMatch}`);
+
+      if (!isMatch) {
+        // Try with trimmed password
+        const trimmedMatch = await bcrypt.compare(
+          password.trim(),
+          user.password
+        );
+        console.log(`Password match (trimmed): ${trimmedMatch}`);
+
+        if (!trimmedMatch) {
+          console.log(`❌ Password does not match for ${email}`);
+          return res.status(400).json({ msg: 'Invalid credentials' });
         }
-        console.log(`✅ Login successful for ${email}, userType: ${user.userType}`);
-        res.json({
-          token,
-          user: {
-            id: user._id.toString(),
-            email: user.email,
-            userType: user.userType,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            shamCoins: user.shamCoins || 0,
-            referralCode: user.referralCode
-          }
-        });
       }
-    );
 
-  } catch (err) {
-    console.error('❌ Login error:', err.message);
-    console.error('Error stack:', err.stack);
-    res.status(500).send('Server error');
+      // Create JWT
+      const payload = {
+        user: {
+          id: user._id.toString(),
+          userType: user.userType
+        }
+      };
+
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'dev_secret',
+        { expiresIn: '7d' },
+        (err, token) => {
+          if (err) {
+            console.error('JWT error:', err);
+            return res.status(500).send('Server error');
+          }
+          console.log(
+            `✅ Login successful for ${email}, userType: ${user.userType}`
+          );
+          res.json({
+            token,
+            user: {
+              id: user._id.toString(),
+              email: user.email,
+              userType: user.userType,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              shamCoins: user.shamCoins || 0,
+              referralCode: user.referralCode,
+              schoolName: user.schoolName || null,
+              verificationStatus: user.verificationStatus || 'pending'
+            }
+          });
+        }
+      );
+    } catch (err) {
+      console.error('❌ Login error:', err.message);
+      console.error('Error stack:', err.stack);
+      res.status(500).send('Server error');
+    }
   }
-});
+);
 
 // @route   GET api/auth/user
 // @desc    Get user data
@@ -287,9 +348,12 @@ router.get('/user', async (req, res) => {
       return res.status(401).json({ msg: 'No token' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret');
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'dev_secret'
+    );
     const user = await User.findById(decoded.user.id).select('-password');
-    
+
     res.json(user);
   } catch (err) {
     console.error(err.message);

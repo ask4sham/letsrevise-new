@@ -4,9 +4,18 @@ import axios from "axios";
 
 const API_BASE = "https://letsrevise-new.onrender.com";
 
+type UserType = "student" | "teacher" | "parent";
+
 const RegisterPage: React.FC = () => {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [schoolName, setSchoolName] = useState("");
+  const [userType, setUserType] = useState<UserType>("student");
+  const [linkedStudentEmail, setLinkedStudentEmail] = useState("");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [backendStatus, setBackendStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -32,32 +41,50 @@ const RegisterPage: React.FC = () => {
     try {
       console.log("Sending register request");
 
-      const response = await axios.post(`${API_BASE}/api/auth/register`, {
+      const payload: any = {
         email,
         password,
+        firstName,
+        lastName,
+        userType,
+        schoolName: schoolName || null,
+      };
 
-        // REQUIRED by backend
-        firstName: "Test",
-        lastName: "User",
-        userType: "student"
-      });
+      if (userType === "parent" && linkedStudentEmail.trim()) {
+        payload.linkedStudentEmail = linkedStudentEmail.trim();
+      }
+
+      const response = await axios.post(`${API_BASE}/api/auth/register`, payload);
 
       console.log("Register success:", response.data);
 
-      setMessage("🎉 Registration successful! You can now log in.");
+      const backendMsg =
+        response.data?.message ||
+        response.data?.msg ||
+        "Registration successful! Please check your email to verify your account.";
+
+      setMessage(`🎉 ${backendMsg}`);
       setLoading(false);
     } catch (err: any) {
       console.error("Register error:", err);
 
       let msg = "Registration failed. ";
 
-      if (!err.response) msg += "Cannot connect to backend.";
-      else msg += err.response?.data?.message || err.response?.data?.msg || "Server error.";
+      if (!err.response) {
+        msg += "Cannot connect to backend.";
+      } else {
+        msg +=
+          err.response?.data?.message ||
+          err.response?.data?.msg ||
+          "Server error.";
+      }
 
       setMessage(msg);
       setLoading(false);
     }
   };
+
+  const isParent = userType === "parent";
 
   return (
     <div
@@ -83,11 +110,17 @@ const RegisterPage: React.FC = () => {
             borderRadius: "15px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
             width: "100%",
-            maxWidth: "500px",
+            maxWidth: "600px",
           }}
         >
-          <h2 style={{ textAlign: "center", marginBottom: "10px", color: "#333" }}>
-            Register Page
+          <h2
+            style={{
+              textAlign: "center",
+              marginBottom: "10px",
+              color: "#333",
+            }}
+          >
+            Create an Account
           </h2>
 
           {backendStatus && (
@@ -109,8 +142,8 @@ const RegisterPage: React.FC = () => {
           {message && (
             <div
               style={{
-                background: message.includes("successful") ? "#d4edda" : "#fee",
-                color: message.includes("successful") ? "#155724" : "#c00",
+                background: message.includes("🎉") ? "#d4edda" : "#fee",
+                color: message.includes("🎉") ? "#155724" : "#c00",
                 padding: "12px",
                 borderRadius: "8px",
                 marginBottom: "20px",
@@ -122,7 +155,8 @@ const RegisterPage: React.FC = () => {
           )}
 
           <form onSubmit={handleRegister}>
-            <div style={{ marginBottom: "20px" }}>
+            {/* First name */}
+            <div style={{ marginBottom: "16px" }}>
               <label
                 style={{
                   display: "block",
@@ -131,7 +165,161 @@ const RegisterPage: React.FC = () => {
                   color: "#333",
                 }}
               >
-                Email
+                First Name
+              </label>
+              <input
+                type="text"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid "#e2e8f0",
+                  borderRadius: "6px",
+                  fontSize: "1rem",
+                }}
+                placeholder="First name"
+              />
+            </div>
+
+            {/* Last name */}
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
+                }}
+              >
+                Last Name
+              </label>
+              <input
+                type="text"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid #e2e8f0",
+                  borderRadius: "6px",
+                  fontSize: "1rem",
+                }}
+                placeholder="Last name"
+              />
+            </div>
+
+            {/* Role selection */}
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
+                }}
+              >
+                I am a...
+              </label>
+              <select
+                value={userType}
+                onChange={(e) => setUserType(e.target.value as UserType)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid #e2e8f0",
+                  borderRadius: "6px",
+                  fontSize: "1rem",
+                  background: "white",
+                }}
+              >
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="parent">Parent / Guardian</option>
+              </select>
+            </div>
+
+            {/* School name */}
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
+                }}
+              >
+                School Name
+              </label>
+              <input
+                type="text"
+                required={userType === "student" || userType === "teacher"}
+                value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid #e2e8f0",
+                  borderRadius: "6px",
+                  fontSize: "1rem",
+                }}
+                placeholder="School name (for verification)"
+              />
+            </div>
+
+            {/* Linked student email for parents */}
+            {isParent && (
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: "bold",
+                    color: "#333",
+                  }}
+                >
+                  Student’s Email (linked account)
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={linkedStudentEmail}
+                  onChange={(e) => setLinkedStudentEmail(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "2px solid "#e2e8f0",
+                    borderRadius: "6px",
+                    fontSize: "1rem",
+                  }}
+                  placeholder="student@example.com"
+                />
+                <p
+                  style={{
+                    marginTop: "6px",
+                    fontSize: "0.85rem",
+                    color: "#555",
+                  }}
+                >
+                  This links your parent account to an existing student so their
+                  details stay private.
+                </p>
+              </div>
+            )}
+
+            {/* Email */}
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
+                }}
+              >
+                Your Email (for login & verification)
               </label>
               <input
                 type="email"
@@ -149,7 +337,8 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            <div style={{ marginBottom: "30px" }}>
+            {/* Password */}
+            <div style={{ marginBottom: "24px" }}>
               <label
                 style={{
                   display: "block",

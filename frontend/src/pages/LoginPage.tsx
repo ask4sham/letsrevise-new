@@ -1,11 +1,12 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
-// Render backend URL
+// ✅ Render backend URL
 const API_BASE = "https://letsrevise-new.onrender.com";
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -14,7 +15,22 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [backendStatus, setBackendStatus] = useState("");
 
-  // Check backend on component mount
+  // Decide where to send the user based on their type
+  const redirectAfterLogin = (userType?: string) => {
+    console.log("Redirecting, userType:", userType);
+
+    if (userType === "teacher") {
+      // Full teacher dashboard
+      window.location.href = "/teacher-dashboard";
+    } else if (userType === "admin") {
+      // Admin dashboard (if you have this route)
+      window.location.href = "/admin-dashboard";
+    } else {
+      // Default = student
+      window.location.href = "/student-dashboard";
+    }
+  };
+
   useEffect(() => {
     checkBackend();
   }, []);
@@ -35,28 +51,25 @@ const LoginPage: React.FC = () => {
     });
   };
 
-  const redirectAfterLogin = (userType: string) => {
-    // IMPORTANT: use hash routes so Netlify doesn't 404
-    if (userType === "teacher") {
-      window.location.href = "/#/teacher-dashboard";
-    } else {
-      window.location.href = "/#/dashboard";
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
+      console.log("Attempting login with:", formData);
+
       const response = await axios.post(`${API_BASE}/api/auth/login`, formData);
+
+      console.log("Login success:", response.data);
+      console.log("User type in response:", response.data.user?.userType);
 
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      redirectAfterLogin(response.data.user.userType);
+      redirectAfterLogin(response.data.user?.userType);
     } catch (err: any) {
+      console.error("Login error:", err);
       let msg = "Login failed. ";
 
       if (!err.response) {
@@ -72,7 +85,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // Fill form with test credentials (student)
   const handleTestStudent = () => {
     setFormData({
       email: "student@example.com",
@@ -81,7 +93,6 @@ const LoginPage: React.FC = () => {
     setError("");
   };
 
-  // Fill form with test credentials (teacher)
   const handleTestTeacher = () => {
     setFormData({
       email: "teacher@example.com",
@@ -90,28 +101,34 @@ const LoginPage: React.FC = () => {
     setError("");
   };
 
-  // Auto login with test credentials
-  const handleAutoLogin = async (type: "student" | "teacher") => {
+  const handleAutoLogin = async (type: "student" | "teacher" | "admin") => {
     const credentials =
-      type === "student"
-        ? { email: "student@example.com", password: "Password123" }
-        : { email: "teacher@example.com", password: "Password123" };
+      type === "teacher"
+        ? { email: "teacher@example.com", password: "Password123" }
+        : type === "admin"
+        ? { email: "admin@example.com", password: "Password123" }
+        : { email: "student@example.com", password: "Password123" };
 
     setFormData(credentials);
     setError("");
     setLoading(true);
 
     try {
+      console.log("Attempting auto-login:", credentials);
       const response = await axios.post(
         `${API_BASE}/api/auth/login`,
         credentials
       );
 
+      console.log("Auto-login success:", response.data);
+      console.log("Auto-login user type:", response.data.user?.userType);
+
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      redirectAfterLogin(response.data.user.userType);
-    } catch (err: any) {
+      redirectAfterLogin(response.data.user?.userType);
+    } catch (err) {
+      console.error("Auto-login error:", err);
       setError("Auto-login failed. Please try manually.");
       setLoading(false);
     }
