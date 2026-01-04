@@ -2,7 +2,8 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const helmet = require("helmet"); // ✅ NEW: security headers
+const helmet = require("helmet"); // ✅ security headers
+const rateLimit = require("express-rate-limit"); // ✅ NEW: rate limiting
 const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 
 // ✅ Load .env first
@@ -60,7 +61,7 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 app.use(express.json());
-app.use(helmet()); // ✅ NEW: enable Helmet after JSON parsing
+app.use(helmet()); // ✅ enable Helmet after JSON parsing
 
 // Simple request logger
 app.use((req, res, next) => {
@@ -155,7 +156,15 @@ app.get("/api/_debug/info", (req, res) => {
    API ROUTES (SINGLE SOURCE OF TRUTH)
 ============================================================ */
 
-app.use("/api/auth", authRoutes);
+// ✅ NEW: Rate limit auth routes (login/register/etc.)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/earnings", earningsRoutes);
 app.use("/api/reviews", reviewRoutes);
