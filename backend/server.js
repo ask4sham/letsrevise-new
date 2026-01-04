@@ -10,11 +10,10 @@ const path = require("path");
 const fs = require("fs");
 const connectDB = require("./config/database");
 
-// --- MODELS & MIDDLEWARE NEEDED FOR DIRECT LESSON CREATION ---
-const Lesson = require("./models/Lesson");
-const User = require("./models/User");
-const auth = require("./middleware/auth");
-// --------------------------------------------------------------
+// ❌ REMOVED (as requested)
+// const Lesson = require("./models/Lesson");
+// const User = require("./models/User");
+// const auth = require("./middleware/auth");
 
 const authRoutes = require("./routes/auth");
 const lessonRoutes = require("./routes/lessons");
@@ -51,7 +50,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser tools (no origin) and allowed frontends
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -62,7 +60,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Handle preflight
 app.options("*", cors(corsOptions));
 
 app.use(express.json());
@@ -108,165 +105,11 @@ app.get("/api/health", (req, res) => {
 });
 
 /* ============================================================
-   🔴 DIRECT LESSON CREATION ROUTE
-   This bypasses the router bug for POST /api/lessons
-============================================================ */
-
-app.post("/api/lessons", auth, async (req, res) => {
-  try {
-    console.log("[CreateLesson] POST /api/lessons");
-    if (!req.user) {
-      console.error("❌ No user on request in lesson creation");
-      return res.status(401).json({ msg: "No user on request" });
-    }
-
-    console.log("✅ Auth:", req.user.email, "type:", req.user.userType);
-
-    if (req.user.userType !== "teacher") {
-      return res
-        .status(403)
-        .json({ msg: "Only teachers can create lessons" });
-    }
-
-    const {
-      title,
-      description,
-      content,
-      subject,
-      level,
-      topic,
-      tags,
-      estimatedDuration,
-      shamCoinPrice,
-      resources,
-      board,
-      tier,
-      externalResources,
-      uploadedImages,
-    } = req.body || {};
-
-    // ---- Validation ----
-    const missing = {};
-    if (!title) missing.title = true;
-    if (!description) missing.description = true;
-    if (!content) missing.content = true;
-    if (!subject) missing.subject = true;
-    if (!level) missing.level = true;
-    if (!topic) missing.topic = true;
-    if (estimatedDuration === undefined || estimatedDuration === null) {
-      missing.estimatedDuration = true;
-    }
-
-    if (Object.keys(missing).length > 0) {
-      console.log("❌ Validation failed, missing:", missing);
-      return res.status(400).json({
-        msg: "Please fill in all required fields",
-        missing,
-      });
-    }
-
-    // Normalise tags
-    const tagsArray =
-      typeof tags === "string"
-        ? tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : Array.isArray(tags)
-        ? tags
-        : [];
-
-    // Normalise resources
-    const resourcesArray = Array.isArray(resources)
-      ? resources
-      : typeof externalResources === "string"
-      ? externalResources
-          .split(",")
-          .map((u) => u.trim())
-          .filter(Boolean)
-      : [];
-
-    const lessonData = {
-      title,
-      description,
-      content,
-      teacherId: req.user._id,
-      teacherName:
-        `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() ||
-        req.user.email,
-      subject,
-      level,
-      topic,
-      tags: tagsArray,
-      estimatedDuration,
-      shamCoinPrice: shamCoinPrice || 0,
-      resources: resourcesArray,
-      isPublished: false,
-    };
-
-    // Optional extras
-    if (board) lessonData.board = board;
-    if (tier) lessonData.tier = tier;
-    if (Array.isArray(uploadedImages) && uploadedImages.length > 0) {
-      lessonData.uploadedImages = uploadedImages;
-    }
-
-    console.log("Saving lesson with payload:", lessonData);
-
-    const lesson = new Lesson(lessonData);
-    await lesson.save();
-    console.log("✅ Lesson saved:", lesson._id);
-
-    // Award ShamCoins to teacher
-    let updatedShamCoins = 0;
-    try {
-      const dbUser = await User.findById(req.user._id);
-      if (dbUser) {
-        dbUser.shamCoins = (dbUser.shamCoins || 0) + 50;
-        await dbUser.save();
-        updatedShamCoins = dbUser.shamCoins;
-        console.log(
-          "✅ Awarded 50 ShamCoins to teacher:",
-          dbUser.email,
-          "New balance:",
-          updatedShamCoins
-        );
-      } else {
-        console.warn(
-          "⚠️ Could not find teacher in DB to award ShamCoins:",
-          req.user._id
-        );
-      }
-    } catch (coinErr) {
-      console.error("⚠️ Failed to award ShamCoins:", coinErr);
-      // Don't fail the request because of this
-    }
-
-    return res.json({
-      success: true,
-      msg: "Lesson created successfully! You earned 50 ShamCoins!",
-      lesson,
-      updatedShamCoins,
-    });
-  } catch (err) {
-    console.error("❌ Lesson creation error (direct route):");
-    console.error("Error message:", err.message);
-    console.error("Error stack:", err.stack);
-
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-      message: err.message,
-    });
-  }
-});
-
-/* ============================================================
-   OTHER API ROUTES (unchanged)
+   API ROUTES
 ============================================================ */
 
 app.use("/api/auth", authRoutes);
-app.use("/api/lessons", lessonRoutes); // now handles only GET/PUT/DELETE/etc.
+app.use("/api/lessons", lessonRoutes);
 app.use("/api/earnings", earningsRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/users", userRoutes);
