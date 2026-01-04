@@ -10,11 +10,6 @@ const path = require("path");
 const fs = require("fs");
 const connectDB = require("./config/database");
 
-// ❌ REMOVED (as requested)
-// const Lesson = require("./models/Lesson");
-// const User = require("./models/User");
-// const auth = require("./middleware/auth");
-
 const authRoutes = require("./routes/auth");
 const lessonRoutes = require("./routes/lessons");
 const earningsRoutes = require("./routes/earnings");
@@ -40,7 +35,6 @@ connectDB();
    CORS CONFIG
 ============================================================ */
 
-// Allowed frontends (local + Netlify)
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
@@ -105,11 +99,11 @@ app.get("/api/health", (req, res) => {
 });
 
 /* ============================================================
-   API ROUTES
+   API ROUTES (SINGLE SOURCE OF TRUTH)
 ============================================================ */
 
 app.use("/api/auth", authRoutes);
-app.use("/api/lessons", lessonRoutes);
+app.use("/api/lessons", lessonRoutes); // ✅ ONLY lessons entry point
 app.use("/api/earnings", earningsRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/users", userRoutes);
