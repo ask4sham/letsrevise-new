@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const helmet = require("helmet"); // ✅ NEW: security headers
 const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 
 // ✅ Load .env first
@@ -27,6 +28,7 @@ const uploadsRoutes = require("./routes/uploads");
 const quizzesRoutes = require("./routes/quizzes");
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
 // Connect to database
@@ -58,6 +60,7 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 app.use(express.json());
+app.use(helmet()); // ✅ NEW: enable Helmet after JSON parsing
 
 // Simple request logger
 app.use((req, res, next) => {
