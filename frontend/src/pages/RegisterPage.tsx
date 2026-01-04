@@ -15,6 +15,10 @@ const RegisterPage: React.FC = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [backendStatus, setBackendStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,6 +40,12 @@ const RegisterPage: React.FC = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage("");
+
+    if (password !== confirmPassword) {
+      setMessage("❌ Passwords do not match. Please re-enter them.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -172,13 +182,7 @@ const RegisterPage: React.FC = () => {
                 required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid "#e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
+                style={inputStyle}
                 placeholder="First name"
               />
             </div>
@@ -200,13 +204,7 @@ const RegisterPage: React.FC = () => {
                 required
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
+                style={inputStyle}
                 placeholder="Last name"
               />
             </div>
@@ -227,11 +225,7 @@ const RegisterPage: React.FC = () => {
                 value={userType}
                 onChange={(e) => setUserType(e.target.value as UserType)}
                 style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
+                  ...inputStyle,
                   background: "white",
                 }}
               >
@@ -258,13 +252,7 @@ const RegisterPage: React.FC = () => {
                 required={userType === "student" || userType === "teacher"}
                 value={schoolName}
                 onChange={(e) => setSchoolName(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
+                style={inputStyle}
                 placeholder="School name (for verification)"
               />
             </div>
@@ -287,13 +275,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={linkedStudentEmail}
                   onChange={(e) => setLinkedStudentEmail(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid "#e2e8f0",
-                    borderRadius: "6px",
-                    fontSize: "1rem",
-                  }}
+                  style={inputStyle}
                   placeholder="student@example.com"
                 />
                 <p
@@ -326,19 +308,13 @@ const RegisterPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
+                style={inputStyle}
                 placeholder="you@example.com"
               />
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "16px" }}>
               <label
                 style={{
                   display: "block",
@@ -349,20 +325,58 @@ const RegisterPage: React.FC = () => {
               >
                 Password
               </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Enter password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  style={eyeButtonStyle}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  👁
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div style={{ marginBottom: "24px" }}>
+              <label
                 style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "bold",
+                  color: "#333",
                 }}
-                placeholder="Enter password"
-              />
+              >
+                Confirm Password
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Re-enter password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  style={eyeButtonStyle}
+                  aria-label={
+                    showConfirmPassword ? "Hide password" : "Show password"
+                  }
+                >
+                  👁
+                </button>
+              </div>
             </div>
 
             <button
@@ -394,6 +408,25 @@ const RegisterPage: React.FC = () => {
       </main>
     </div>
   );
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "12px",
+  border: "2px solid #e2e8f0",
+  borderRadius: "6px",
+  fontSize: "1rem",
+};
+
+const eyeButtonStyle: React.CSSProperties = {
+  position: "absolute",
+  right: 10,
+  top: "50%",
+  transform: "translateY(-50%)",
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  fontSize: "1rem",
 };
 
 export default RegisterPage;
