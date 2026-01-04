@@ -2,59 +2,126 @@
 console.log("🔐 Auth middleware (JWT)");
 
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const User = require("../models/User");
+
+function getJwtSecret() {
+  // ✅ normalize to avoid trailing newline/space mismatch across env/providers
+  const raw = process.env.JWT_SECRET;
+  const secret = typeof raw === "string" ? raw.trim() : "";
+  if (!secret) {
+    // Fail fast so the app never silently verifies with a different secret
+    throw new Error("JWT_SECRET is not set. Check backend .env and process env.");
+  }
+  return secret;
+}
+
+function secretFingerprint(secret) {
+  // Non-sensitive fingerprint to compare deployments/configs safely
+  const hash = crypto.createHash("sha256").update(secret).digest("hex");
+  return `len=${secret.length}, sha256=${hash.slice(0, 12)}…`;
+}
+
+function shouldDebugJwt() {
+  return process.env.DEBUG_JWT === "1" || process.env.DEBUG_JWT === "true";
+}
 
 module.exports = async function auth(req, res, next) {
   try {
-    // Expect: Authorization: Bearer <token>
-    const authHeader = req.header("Authorization") || "";
-    const token =
-      authHeader.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : null;
+    // ✅ Accept BOTH:
+    // - Authorization: Bearer <token>
+    // - x-auth-token: <token> (legacy/fallback)
+    const authHeader =
+      req.header("Authorization") ||
+      req.header("authorization") ||
+      req.headers.authorization ||
+      "";
+
+    const tokenFromBearer =
+      typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length).trim()
+        : null;
+
+    const tokenFromXAuth =
+      req.header("x-auth-token") || req.header("X-Auth-Token") || null;
+
+    const token = tokenFromBearer || tokenFromXAuth;
 
     if (!token) {
-      res.status(401).json({ msg: "No token, authorization denied" });
-      return;
+      return res.status(401).json({ msg: "No token, authorization denied" });
     }
 
-    const secret = process.env.JWT_SECRET || "your_jwt_secret";
+    const secret = getJwtSecret();
 
-    const decoded = jwt.verify(token, secret);
+    if (shouldDebugJwt()) {
+      const decodedHeader = jwt.decode(token, { complete: true })?.header;
+      console.log(
+        `🧾 JWT header: alg=${decodedHeader?.alg || "?"}, kid=${
+          decodedHeader?.kid || "-"
+        }`
+      );
+      console.log(`🔑 JWT_SECRET fingerprint (VERIFY): ${secretFingerprint(secret)}`);
+      console.log(`🌐 VERIFY host=${req.get("host")} path=${req.originalUrl}`);
+    }
 
-    // Support common payload shapes:
-    // - { userId: "..." }
-    // - { id: "..." }
-    // - { user: { id: "..." } }
+    // Verify token
+    const decoded = jwt.verify(token, secret, { algorithms: ["HS256"] });
+
+    // Support common payload shapes
     const userId =
-      decoded.userId || decoded.id || decoded.user?.id || decoded.user?._id || decoded._id;
+      decoded.userId ||
+      decoded.id ||
+      decoded.user?.id ||
+      decoded.user?._id ||
+      decoded._id;
 
     if (!userId) {
-      res.status(401).json({ msg: "Token valid but user id missing in payload" });
-      return;
+      return res
+        .status(401)
+        .json({ msg: "Token valid but user id missing in payload" });
     }
 
-    // Get user from database to get userType
-    const user = await User.findById(userId).select('userType firstName lastName email');
-    
+    // Get user from database to get userType and ensure user still exists
+    const user = await User.findById(userId).select(
+      "userType firstName lastName email"
+    );
+
     if (!user) {
-      res.status(401).json({ msg: "User not found in database" });
-      return;
+      return res.status(401).json({ msg: "User not found in database" });
     }
 
+    // Keep req.user predictable
     req.user = {
-      userId,
+      userId: String(userId),
+      _id: String(userId),
       userType: user.userType,
-      _id: userId,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      ...decoded,
+      tokenPayload: decoded,
     };
 
-    console.log(`✅ Auth: ${user.userType} ${user.email} authenticated`);
-    next();
+    if (shouldDebugJwt()) {
+      console.log(`✅ Auth OK: ${user.userType} ${user.email}`);
+    }
+
+    return next();
   } catch (err) {
-    console.error("Auth error:", err.message);
-    res.status(401).json({ msg: "Token is not valid" });
-    // Don't return here, just send the response
+    // Show exact verify failure cause (safe)
+    console.error(
+      "❌ JWT VERIFY FAILED:",
+      JSON.stringify(
+        { name: err?.name, message: err?.message },
+        null,
+        2
+      )
+    );
+
+    const msg =
+      err?.name === "JsonWebTokenError" || err?.name === "TokenExpiredError"
+        ? `Token invalid: ${err.message}`
+        : "Token is not valid";
+
+    return res.status(401).json({ msg });
   }
 };
