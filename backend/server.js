@@ -107,6 +107,12 @@ function jwtSecretFingerprint() {
   };
 }
 
+function debugEnabled() {
+  return (
+    process.env.DEBUG_ENDPOINTS === "1" || process.env.DEBUG_ENDPOINTS === "true"
+  );
+}
+
 /* ============================================================
    HEALTHCHECK
 ============================================================ */
@@ -116,18 +122,24 @@ app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     message: "LetsRevise API is running",
-    commit: getCommit(), // ✅ NEW: proves what is deployed
+    commit: getCommit(), // ✅ proves what is deployed
   });
 });
 
 /* ============================================================
-   ✅ GLOBAL DEBUG (bypasses router confusion)
+   ✅ GLOBAL DEBUG (guarded in production)
    GET /api/_debug/info
 ============================================================ */
 
 app.get("/api/_debug/info", (req, res) => {
+  if (!debugEnabled()) {
+    return res
+      .status(404)
+      .json({ msg: "API route not found", path: req.originalUrl });
+  }
+
   const fp = jwtSecretFingerprint();
-  res.json({
+  return res.json({
     SERVER_DEBUG_ACTIVE: true,
     host: req.get("host"),
     commit: getCommit(),
