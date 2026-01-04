@@ -60,7 +60,9 @@ module.exports = async function auth(req, res, next) {
           decodedHeader?.kid || "-"
         }`
       );
-      console.log(`🔑 JWT_SECRET fingerprint (VERIFY): ${secretFingerprint(secret)}`);
+      console.log(
+        `🔑 JWT_SECRET fingerprint (VERIFY): ${secretFingerprint(secret)}`
+      );
       console.log(`🌐 VERIFY host=${req.get("host")} path=${req.originalUrl}`);
     }
 
@@ -110,16 +112,17 @@ module.exports = async function auth(req, res, next) {
     // Show exact verify failure cause (safe)
     console.error(
       "❌ JWT VERIFY FAILED:",
-      JSON.stringify(
-        { name: err?.name, message: err?.message },
-        null,
-        2
-      )
+      JSON.stringify({ name: err?.name, message: err?.message }, null, 2)
     );
+
+    // ✅ NEW: hide detailed JWT errors in production
+    const isProd = process.env.NODE_ENV === "production";
 
     const msg =
       err?.name === "JsonWebTokenError" || err?.name === "TokenExpiredError"
-        ? `Token invalid: ${err.message}`
+        ? isProd
+          ? "Token is not valid"
+          : `Token invalid: ${err.message}`
         : "Token is not valid";
 
     return res.status(401).json({ msg });
