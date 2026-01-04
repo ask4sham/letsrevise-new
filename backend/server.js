@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 
 // ✅ Load .env first
 dotenv.config();
@@ -87,6 +88,26 @@ if (fs.existsSync(contentRootPath)) {
 }
 
 /* ============================================================
+   DEBUG HELPERS (safe)
+============================================================ */
+
+function getCommit() {
+  return process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || "unknown";
+}
+
+function jwtSecretFingerprint() {
+  const raw = process.env.JWT_SECRET;
+  const secret = typeof raw === "string" ? raw.trim() : "";
+  if (!secret) return { ok: false, fingerprint: "JWT_SECRET missing" };
+
+  const hash = crypto.createHash("sha256").update(secret).digest("hex");
+  return {
+    ok: true,
+    fingerprint: `len=${secret.length}, sha256=${hash.slice(0, 12)}…`,
+  };
+}
+
+/* ============================================================
    HEALTHCHECK
 ============================================================ */
 
@@ -95,6 +116,23 @@ app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     message: "LetsRevise API is running",
+    commit: getCommit(), // ✅ NEW: proves what is deployed
+  });
+});
+
+/* ============================================================
+   ✅ GLOBAL DEBUG (bypasses router confusion)
+   GET /api/_debug/info
+============================================================ */
+
+app.get("/api/_debug/info", (req, res) => {
+  const fp = jwtSecretFingerprint();
+  res.json({
+    SERVER_DEBUG_ACTIVE: true,
+    host: req.get("host"),
+    commit: getCommit(),
+    jwtSecretOk: fp.ok,
+    jwtSecretFingerprint: fp.fingerprint,
   });
 });
 
@@ -103,7 +141,7 @@ app.get("/api/health", (req, res) => {
 ============================================================ */
 
 app.use("/api/auth", authRoutes);
-app.use("/api/lessons", lessonRoutes); // ✅ ONLY lessons entry point
+app.use("/api/lessons", lessonRoutes);
 app.use("/api/earnings", earningsRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/users", userRoutes);
