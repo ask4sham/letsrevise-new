@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const helmet = require("helmet"); // ✅ security headers
-const rateLimit = require("express-rate-limit"); // ✅ NEW: rate limiting
+const rateLimit = require("express-rate-limit"); // ✅ rate limiting
 const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 
 // ✅ Load .env first
@@ -63,11 +63,13 @@ app.options("*", cors(corsOptions));
 app.use(express.json());
 app.use(helmet()); // ✅ enable Helmet after JSON parsing
 
-// Simple request logger
-app.use((req, res, next) => {
-  console.log(`\n[LOG] ${new Date().toISOString()} ${req.method} ${req.url}`);
-  next();
-});
+// Simple request logger (dev only)
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`\n[LOG] ${new Date().toISOString()} ${req.method} ${req.url}`);
+    next();
+  });
+}
 
 /* ============================================================
    STATIC FILES
@@ -156,7 +158,7 @@ app.get("/api/_debug/info", (req, res) => {
    API ROUTES (SINGLE SOURCE OF TRUTH)
 ============================================================ */
 
-// ✅ NEW: Rate limit auth routes (login/register/etc.)
+// ✅ Rate limit auth routes (login/register/etc.)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 50, // per IP per window
