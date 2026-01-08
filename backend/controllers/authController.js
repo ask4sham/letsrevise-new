@@ -1,21 +1,22 @@
-﻿const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+﻿// backend/controllers/authController.js
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 /**
  * IMPORTANT (Production):
- * We must NEVER fall back to a hardcoded secret.
- * If JWT_SECRET is missing, the service must fail loudly so we don't issue
- * tokens that will never verify (causing 401s like "Token is not valid").
+ * - Never fall back to a hardcoded secret.
+ * - Normalize (trim) the secret the SAME way everywhere (sign + verify),
+ *   otherwise you'll get "invalid signature" in production.
  */
 function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
+  const raw = process.env.JWT_SECRET;
+  const secret = typeof raw === "string" ? raw.trim() : "";
 
-  if (!secret || typeof secret !== 'string' || secret.trim().length < 16) {
-    // 16+ chars is a basic safety bar to avoid weak secrets.
-    // Adjust if you intentionally use shorter secrets (not recommended).
+  // Keep your safety bar, but apply it to the trimmed value
+  if (!secret || secret.length < 16) {
     throw new Error(
-      'JWT_SECRET is missing or too short. Set a strong JWT_SECRET in the Render Environment settings.'
+      "JWT_SECRET is missing or too short. Set a strong JWT_SECRET in the Render Environment settings."
     );
   }
 
@@ -25,16 +26,24 @@ function getJwtSecret() {
 // Register new user
 exports.register = async (req, res) => {
   try {
-    const { email, password, userType, firstName, lastName, institution, referredBy } = req.body;
+    const {
+      email,
+      password,
+      userType,
+      firstName,
+      lastName,
+      institution,
+      referredBy,
+    } = req.body;
 
-    console.log('Registration attempt for:', email);
+    console.log("Registration attempt for:", email);
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: "User with this email already exists",
       });
     }
 
@@ -43,9 +52,9 @@ exports.register = async (req, res) => {
 
     // Generate referral code for teachers
     let referralCode = undefined;
-    if (userType === 'teacher') {
+    if (userType === "teacher") {
       const generateCode = () => {
-        const prefix = 'TEACH-';
+        const prefix = "TEACH-";
         const random = Math.random().toString(36).substring(2, 10).toUpperCase();
         return prefix + random;
       };
@@ -67,11 +76,11 @@ exports.register = async (req, res) => {
       firstName,
       lastName,
       referralCode,
-      ...(userType === 'teacher' && { institution }),
+      ...(userType === "teacher" && { institution }),
       ...(referredBy && { referredBy }),
       shamCoins: referredBy ? 150 : 100,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     });
 
     // Handle referral bonus for referrer
@@ -86,17 +95,17 @@ exports.register = async (req, res) => {
     }
 
     await user.save();
-    console.log('User saved successfully:', user.email);
+    console.log("User saved successfully:", user.email);
 
-    // Create JWT token (NO fallback secret)
+    // Create JWT token (NO fallback secret; TRIMMED secret)
     const token = jwt.sign(
       {
         userId: user._id,
         userType: user.userType,
-        email: user.email
+        email: user.email,
       },
       getJwtSecret(),
-      { expiresIn: '7d' }
+      { expiresIn: "7d" }
     );
 
     // Return user data without password
@@ -111,38 +120,38 @@ exports.register = async (req, res) => {
       referralCode: user.referralCode,
       institution: user.institution,
       referredBy: user.referredBy,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
     };
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: "User registered successfully",
       token,
-      user: userResponse
+      user: userResponse,
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
 
     // Handle specific MongoDB errors
     if (error.code === 11000) {
       if (error.keyPattern && error.keyPattern.email) {
         return res.status(400).json({
           success: false,
-          message: 'Email already exists'
+          message: "Email already exists",
         });
       }
       if (error.keyPattern && error.keyPattern.referralCode) {
         return res.status(400).json({
           success: false,
-          message: 'Referral code conflict. Please try again.'
+          message: "Referral code conflict. Please try again.",
         });
       }
     }
 
     res.status(500).json({
       success: false,
-      message: 'Server error during registration',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: "Server error during registration",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -157,7 +166,7 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: "Invalid email or password",
       });
     }
 
@@ -166,19 +175,19 @@ exports.login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: "Invalid email or password",
       });
     }
 
-    // Create JWT token (NO fallback secret)
+    // Create JWT token (NO fallback secret; TRIMMED secret)
     const token = jwt.sign(
       {
         userId: user._id,
         userType: user.userType,
-        email: user.email
+        email: user.email,
       },
       getJwtSecret(),
-      { expiresIn: '7d' }
+      { expiresIn: "7d" }
     );
 
     // Return user data without password
@@ -192,21 +201,21 @@ exports.login = async (req, res) => {
       shamCoins: user.shamCoins,
       referralCode: user.referralCode,
       institution: user.institution,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
     };
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       token,
-      user: userResponse
+      user: userResponse,
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error during login',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: "Server error during login",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -214,25 +223,28 @@ exports.login = async (req, res) => {
 // Get user profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    // NOTE: your middleware sets req.user.userId (and also req.user._id).
+    // Keep backward-compat: try both.
+    const id = req.userId || req.user?.userId || req.user?._id;
+    const user = await User.findById(id).select("-password");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     res.json({
       success: true,
-      user
+      user,
     });
   } catch (error) {
-    console.error('Profile error:', error);
+    console.error("Profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching profile',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: "Server error fetching profile",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -241,7 +253,7 @@ exports.getProfile = async (req, res) => {
 exports.test = (req, res) => {
   res.json({
     success: true,
-    message: 'Auth API is working!',
-    timestamp: new Date().toISOString()
+    message: "Auth API is working!",
+    timestamp: new Date().toISOString(),
   });
 };
