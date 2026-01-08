@@ -2,6 +2,26 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+/**
+ * IMPORTANT (Production):
+ * We must NEVER fall back to a hardcoded secret.
+ * If JWT_SECRET is missing, the service must fail loudly so we don't issue
+ * tokens that will never verify (causing 401s like "Token is not valid").
+ */
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret || typeof secret !== 'string' || secret.trim().length < 16) {
+    // 16+ chars is a basic safety bar to avoid weak secrets.
+    // Adjust if you intentionally use shorter secrets (not recommended).
+    throw new Error(
+      'JWT_SECRET is missing or too short. Set a strong JWT_SECRET in the Render Environment settings.'
+    );
+  }
+
+  return secret;
+}
+
 // Register new user
 exports.register = async (req, res) => {
   try {
@@ -12,9 +32,9 @@ exports.register = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'User with this email already exists' 
+        message: 'User with this email already exists'
       });
     }
 
@@ -29,7 +49,7 @@ exports.register = async (req, res) => {
         const random = Math.random().toString(36).substring(2, 10).toUpperCase();
         return prefix + random;
       };
-      
+
       let isUnique = false;
       while (!isUnique) {
         referralCode = generateCode();
@@ -68,14 +88,14 @@ exports.register = async (req, res) => {
     await user.save();
     console.log('User saved successfully:', user.email);
 
-    // Create JWT token
+    // Create JWT token (NO fallback secret)
     const token = jwt.sign(
-      { 
-        userId: user._id, 
+      {
+        userId: user._id,
         userType: user.userType,
-        email: user.email 
+        email: user.email
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
@@ -100,27 +120,26 @@ exports.register = async (req, res) => {
       token,
       user: userResponse
     });
-
   } catch (error) {
     console.error('Registration error:', error);
-    
+
     // Handle specific MongoDB errors
     if (error.code === 11000) {
       if (error.keyPattern && error.keyPattern.email) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: 'Email already exists' 
+          message: 'Email already exists'
         });
       }
       if (error.keyPattern && error.keyPattern.referralCode) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: 'Referral code conflict. Please try again.' 
+          message: 'Referral code conflict. Please try again.'
         });
       }
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       success: false,
       message: 'Server error during registration',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -136,29 +155,29 @@ exports.login = async (req, res) => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Invalid email or password' 
+        message: 'Invalid email or password'
       });
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Invalid email or password' 
+        message: 'Invalid email or password'
       });
     }
 
-    // Create JWT token
+    // Create JWT token (NO fallback secret)
     const token = jwt.sign(
-      { 
-        userId: user._id, 
+      {
+        userId: user._id,
         userType: user.userType,
-        email: user.email 
+        email: user.email
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
@@ -182,10 +201,9 @@ exports.login = async (req, res) => {
       token,
       user: userResponse
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Server error during login',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -197,11 +215,11 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
-    
+
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'User not found' 
+        message: 'User not found'
       });
     }
 
@@ -209,10 +227,9 @@ exports.getProfile = async (req, res) => {
       success: true,
       user
     });
-
   } catch (error) {
     console.error('Profile error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Server error fetching profile',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -222,7 +239,7 @@ exports.getProfile = async (req, res) => {
 
 // Test endpoint
 exports.test = (req, res) => {
-  res.json({ 
+  res.json({
     success: true,
     message: 'Auth API is working!',
     timestamp: new Date().toISOString()
