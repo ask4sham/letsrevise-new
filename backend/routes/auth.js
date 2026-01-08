@@ -8,6 +8,8 @@ const User = require("../models/User");
 const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
 
+console.log("✅ LOADED: backend/routes/auth.js (JWT signer)");
+
 function normEmail(v) {
   return (v || "").toString().trim().toLowerCase();
 }
@@ -343,9 +345,7 @@ router.post(
       };
 
       const jwtSecret = getJwtSecret();
-      if (shouldDebugJwt()) {
-        console.log(`🔑 JWT_SECRET fingerprint (SIGN/register): ${secretFingerprint(jwtSecret)}`);
-      }
+      console.log(`🔑 JWT_SECRET fingerprint (SIGN/register): ${secretFingerprint(jwtSecret)}`);
 
       jwt.sign(payload, jwtSecret, { expiresIn: "7d" }, (err, token) => {
         if (err) {
@@ -440,9 +440,7 @@ router.post(
       };
 
       const jwtSecret = getJwtSecret();
-      if (shouldDebugJwt()) {
-        console.log(`🔑 JWT_SECRET fingerprint (SIGN/login): ${secretFingerprint(jwtSecret)}`);
-      }
+      console.log(`🔑 JWT_SECRET fingerprint (SIGN/login): ${secretFingerprint(jwtSecret)}`);
 
       jwt.sign(payload, jwtSecret, { expiresIn: "7d" }, (err, token) => {
         if (err) {
