@@ -1,39 +1,64 @@
-﻿import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+﻿// /frontend/src/pages/LoginPage.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-// ✅ Render backend URL
-const API_BASE = "https://letsrevise-new.onrender.com";
+// ✅ Backend URL (Netlify uses env var)
+const RAW_API_BASE =
+  process.env.REACT_APP_API_URL || "http://localhost:5000";
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+
+type Role = "student" | "teacher" | "parent" | "admin";
+
+function useQueryRole(): Role | null {
+  const { search } = useLocation();
+  return useMemo(() => {
+    const role = new URLSearchParams(search).get("role") as Role | null;
+    if (!role) return null;
+    return ["student", "teacher", "parent", "admin"].includes(role)
+      ? role
+      : null;
+  }, [search]);
+}
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const roleFromQuery = useQueryRole();
+
+  const [activeRole, setActiveRole] = useState<Role>(
+    roleFromQuery || "student"
+  );
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [backendStatus, setBackendStatus] = useState("");
 
-  // Decide where to send the user based on their type
+  // ✅ HASH-SAFE redirect (CRITICAL FIX)
   const redirectAfterLogin = (userType?: string) => {
-    console.log("Redirecting, userType:", userType);
-
     if (userType === "teacher") {
-      // Full teacher dashboard
-      window.location.href = "/teacher-dashboard";
+      navigate("/teacher-dashboard", { replace: true });
+    } else if (userType === "parent") {
+      navigate("/parent-dashboard", { replace: true });
     } else if (userType === "admin") {
-      // Admin dashboard (if you have this route)
-      window.location.href = "/admin-dashboard";
+      navigate("/admin-dashboard", { replace: true });
     } else {
-      // Default = student
-      window.location.href = "/student-dashboard";
+      navigate("/student-dashboard", { replace: true });
     }
   };
 
   useEffect(() => {
     checkBackend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (roleFromQuery) setActiveRole(roleFromQuery);
+  }, [roleFromQuery]);
 
   const checkBackend = async () => {
     try {
@@ -57,316 +82,114 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log("Attempting login with:", formData);
+      const response = await axios.post(
+        `${API_BASE}/api/auth/login`,
+        formData
+      );
 
-      const response = await axios.post(`${API_BASE}/api/auth/login`, formData);
+      const token = response.data?.token;
+      if (token) localStorage.setItem("token", token);
 
-      console.log("Login success:", response.data);
-      console.log("User type in response:", response.data.user?.userType);
-
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-
-      redirectAfterLogin(response.data.user?.userType);
-    } catch (err: any) {
-      console.error("Login error:", err);
-      let msg = "Login failed. ";
-
-      if (!err.response) {
-        msg += "Cannot connect to backend.";
-      } else if (err.response.status === 401) {
-        msg += "Invalid email or password.";
-      } else {
-        msg += err.response?.data?.message || "Server error.";
+      if (response.data?.user) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify(response.data.user)
+        );
       }
 
+      redirectAfterLogin(
+        response.data.user?.userType || activeRole
+      );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.msg ||
+        err?.response?.data?.message ||
+        "Login failed";
+
       setError(msg);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleTestStudent = () => {
-    setFormData({
-      email: "student@example.com",
-      password: "Password123",
-    });
-    setError("");
-  };
+  const handleFill = (role: Role) => {
+    setActiveRole(role);
 
-  const handleTestTeacher = () => {
-    setFormData({
-      email: "teacher@example.com",
-      password: "Password123",
-    });
-    setError("");
-  };
-
-  const handleAutoLogin = async (type: "student" | "teacher" | "admin") => {
-    const credentials =
-      type === "teacher"
+    const creds =
+      role === "teacher"
         ? { email: "teacher@example.com", password: "Password123" }
-        : type === "admin"
+        : role === "parent"
+        ? { email: "parent@example.com", password: "Password123" }
+        : role === "admin"
         ? { email: "admin@example.com", password: "Password123" }
         : { email: "student@example.com", password: "Password123" };
 
-    setFormData(credentials);
+    setFormData(creds);
     setError("");
-    setLoading(true);
+  };
 
-    try {
-      console.log("Attempting auto-login:", credentials);
-      const response = await axios.post(
-        `${API_BASE}/api/auth/login`,
-        credentials
-      );
-
-      console.log("Auto-login success:", response.data);
-      console.log("Auto-login user type:", response.data.user?.userType);
-
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-
-      redirectAfterLogin(response.data.user?.userType);
-    } catch (err) {
-      console.error("Auto-login error:", err);
-      setError("Auto-login failed. Please try manually.");
-      setLoading(false);
-    }
+  const handleAutoLogin = (role: Role) => {
+    handleFill(role);
+    setTimeout(() => {
+      handleSubmit({ preventDefault() {} } as any);
+    }, 0);
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div style={{ minHeight: "100vh", display: "flex" }}>
       <main
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "20px",
         }}
       >
-        <div
-          style={{
-            background: "white",
-            padding: "40px",
-            borderRadius: "15px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-            width: "100%",
-            maxWidth: "500px",
-          }}
-        >
-          <h2
-            style={{
-              textAlign: "center",
-              marginBottom: "10px",
-              color: "#333",
-            }}
-          >
-            Login to Your Account
-          </h2>
+        <div style={{ width: 420 }}>
+          <h2>Login to Your Account</h2>
 
-          {backendStatus && (
-            <div
-              style={{
-                textAlign: "center",
-                marginBottom: "20px",
-                padding: "8px",
-                background: backendStatus.includes("✅")
-                  ? "#d4edda"
-                  : "#f8d7da",
-                color: backendStatus.includes("✅") ? "#155724" : "#721c24",
-                borderRadius: "5px",
-                fontSize: "0.9rem",
-              }}
-            >
-              {backendStatus}
-            </div>
-          )}
+          {backendStatus && <p>{backendStatus}</p>}
 
           {error && (
-            <div
-              style={{
-                background: "#fee",
-                color: "#c00",
-                padding: "12px",
-                borderRadius: "8px",
-                marginBottom: "20px",
-                border: "1px solid #fcc",
-              }}
-            >
-              ⚠️ {error}
+            <div style={{ color: "red", marginBottom: 10 }}>
+              {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: "20px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
-                placeholder="Enter your email"
-              />
-            </div>
-
-            <div style={{ marginBottom: "30px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
-                placeholder="Enter your password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "14px",
-                background: loading ? "#999" : "#007bff",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontSize: "16px",
-                fontWeight: "bold",
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
-            >
-              {loading ? "Logging in..." : "Login"}
+            <input
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Email"
+              required
+            />
+            <input
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Password"
+              required
+            />
+            <button disabled={loading}>
+              {loading ? "Logging in…" : "Login"}
             </button>
           </form>
 
-          <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
-            <button
-              onClick={handleTestStudent}
-              style={{
-                flex: 1,
-                padding: "10px",
-                background: "#28a745",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
-              Fill Test Student
-            </button>
-            <button
-              onClick={handleTestTeacher}
-              style={{
-                flex: 1,
-                padding: "10px",
-                background: "#fd7e14",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
-              Fill Test Teacher
-            </button>
-          </div>
-
-          <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
-            <button
-              onClick={() => handleAutoLogin("student")}
-              style={{
-                flex: 1,
-                padding: "10px",
-                background: "#20c997",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
+          <div style={{ marginTop: 10 }}>
+            <button onClick={() => handleAutoLogin("student")}>
               Auto Login Student
             </button>
-            <button
-              onClick={() => handleAutoLogin("teacher")}
-              style={{
-                flex: 1,
-                padding: "10px",
-                background: "#e83e8c",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-              }}
-            >
+            <button onClick={() => handleAutoLogin("teacher")}>
               Auto Login Teacher
             </button>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: "30px" }}>
-            <p style={{ color: "#666" }}>
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                style={{ color: "#007bff", fontWeight: "bold" }}
-              >
-                Register here
-              </Link>
-            </p>
-            <p
-              style={{
-                marginTop: "10px",
-                fontSize: "0.8rem",
-                color: "#888",
-              }}
-            >
-              Test accounts: student@example.com / Password123 (Student) or
-              teacher@example.com / Password123 (Teacher)
-            </p>
-          </div>
+          <p>
+            Don’t have an account?{" "}
+            <Link to="/register">Register here</Link>
+          </p>
         </div>
       </main>
     </div>
