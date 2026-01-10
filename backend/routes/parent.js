@@ -118,14 +118,13 @@ async function getApprovedChildIdsForParent(parentId) {
  */
 router.get("/children", auth, requireParent, async (req, res) => {
   try {
-    // ✅ Align with your middleware/auth.js shape
     const parentId = req.user?.userId || req.user?._id;
-
     if (!parentId) return res.status(401).json({ msg: "Unauthorized" });
 
     const parent = await User.findById(parentId).select("userType").lean();
     if (!parent) return res.status(404).json({ msg: "Parent not found" });
-    if (parent.userType !== "parent") return res.status(403).json({ msg: "Parent access only" });
+    if (parent.userType !== "parent")
+      return res.status(403).json({ msg: "Parent access only" });
 
     const childObjectIds = await getApprovedChildIdsForParent(parentId);
 
@@ -158,8 +157,7 @@ router.get("/children", auth, requireParent, async (req, res) => {
 
 /**
  * GET /api/parent/children/:childId/progress
- * Parent-safe progress derived from quiz attempts only
- * ✅ Authorization is now based on APPROVED link requests
+ * Phase 1 — Parent-safe signals ONLY
  */
 router.get("/children/:childId/progress", auth, requireParent, async (req, res) => {
   try {
@@ -180,15 +178,18 @@ router.get("/children/:childId/progress", auth, requireParent, async (req, res) 
       .lean();
 
     if (!approvedLink) {
-      return res.status(403).json({ msg: "Parent not authorised to access this child" });
+      return res
+        .status(403)
+        .json({ msg: "Parent not authorised to access this child" });
     }
 
-    const child = await User.findById(childId).select("_id userType").lean();
+    const child = await User.findById(childId)
+      .select("_id userType")
+      .lean();
     if (!child || child.userType !== "student") {
       return res.status(404).json({ msg: "Student not found" });
     }
 
-    // If Supabase is not available, return neutral and NO subjects.
     if (!supabase || typeof supabase.from !== "function") {
       return res.json({
         childId: String(child._id),
@@ -219,7 +220,7 @@ router.get("/children/:childId/progress", auth, requireParent, async (req, res) 
     }
 
     const validAttempts = attempts.filter(isValidAttempt);
-    if (validAttempts.length === 0) {
+    if (!validAttempts.length) {
       return res.json({
         childId: String(child._id),
         overall: { status: "neutral", trend: "stable" },
@@ -259,34 +260,44 @@ router.get("/children/:childId/progress", auth, requireParent, async (req, res) 
       const previous = group.slice(10, 20);
 
       const recentPct = computeAccuracyPercent(recent);
-      const previousPct = previous.length ? computeAccuracyPercent(previous) : recentPct;
+      const previousPct = previous.length
+        ? computeAccuracyPercent(previous)
+        : recentPct;
 
       const trend = computeTrend(recentPct, previousPct);
-      const status = statusFromAccuracy(computeAccuracyPercent(group), trend);
+      const status = statusFromAccuracy(
+        computeAccuracyPercent(group),
+        trend
+      );
 
       subjects.push({ name, status, trend });
     }
 
-    if (subjects.length === 0) {
-      return res.json({
-        childId: String(child._id),
-        overall: { status: "neutral", trend: "stable" },
-        subjects: [],
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
     const strengths = subjects.filter((s) => s.status === "strength").length;
-    const needs = subjects.filter((s) => s.status === "needs_attention").length;
+    const needs = subjects.filter(
+      (s) => s.status === "needs_attention"
+    ).length;
 
     const overallStatus =
-      strengths > needs ? "strength" : needs > strengths ? "needs_attention" : "neutral";
+      strengths > needs
+        ? "strength"
+        : needs > strengths
+        ? "needs_attention"
+        : "neutral";
 
-    const improving = subjects.filter((s) => s.trend === "improving").length;
-    const declining = subjects.filter((s) => s.trend === "declining").length;
+    const improving = subjects.filter(
+      (s) => s.trend === "improving"
+    ).length;
+    const declining = subjects.filter(
+      (s) => s.trend === "declining"
+    ).length;
 
     const overallTrend =
-      improving - declining >= 2 ? "improving" : declining - improving >= 2 ? "declining" : "stable";
+      improving - declining >= 2
+        ? "improving"
+        : declining - improving >= 2
+        ? "declining"
+        : "stable";
 
     return res.json({
       childId: String(child._id),
@@ -296,6 +307,48 @@ router.get("/children/:childId/progress", auth, requireParent, async (req, res) 
     });
   } catch (err) {
     console.error("Parent progress error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/**
+ * GET /api/parent/children/:childId/summary
+ * Phase 2 — Parent-safe SUMMARY (placeholder, no raw scores)
+ */
+router.get("/children/:childId/summary", auth, requireParent, async (req, res) => {
+  try {
+    const parentId = req.user?.userId || req.user?._id;
+    const { childId } = req.params;
+
+    if (!parentId) return res.status(401).json({ msg: "Unauthorized" });
+    if (!isValidObjectIdString(String(childId))) {
+      return res.status(400).json({ msg: "Invalid childId" });
+    }
+
+    const approvedLink = await ParentLinkRequest.findOne({
+      parentId: new mongoose.Types.ObjectId(parentId),
+      studentId: new mongoose.Types.ObjectId(childId),
+      status: "approved",
+    })
+      .select("_id")
+      .lean();
+
+    if (!approvedLink) {
+      return res
+        .status(403)
+        .json({ msg: "Parent not authorised to access this child" });
+    }
+
+    return res.json({
+      childId: String(childId),
+      weeklyMinutesBand: "0–15",
+      currentStreak: 0,
+      lastActive: null,
+      topSubjects: [],
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Parent summary error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });
