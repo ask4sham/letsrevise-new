@@ -5,16 +5,8 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
 
-function getJwtSecret() {
-  // ✅ normalize to avoid trailing newline/space mismatch across env/providers
-  const raw = process.env.JWT_SECRET;
-  const secret = typeof raw === "string" ? raw.trim() : "";
-  if (!secret) {
-    // Fail fast so the app never silently verifies with a different secret
-    throw new Error("JWT_SECRET is not set. Check backend .env and process env.");
-  }
-  return secret;
-}
+// ✅ SINGLE SOURCE OF TRUTH (same as signing)
+const { getJwtSecret } = require("../utils/jwtSecret");
 
 function secretFingerprint(secret) {
   // Non-sensitive fingerprint to compare deployments/configs safely
@@ -51,18 +43,15 @@ module.exports = async function auth(req, res, next) {
       return res.status(401).json({ msg: "No token, authorization denied" });
     }
 
+    // ✅ same selection/trim rule used everywhere (SIGN + VERIFY)
     const secret = getJwtSecret();
 
     if (shouldDebugJwt()) {
       const decodedHeader = jwt.decode(token, { complete: true })?.header;
       console.log(
-        `🧾 JWT header: alg=${decodedHeader?.alg || "?"}, kid=${
-          decodedHeader?.kid || "-"
-        }`
+        `🧾 JWT header: alg=${decodedHeader?.alg || "?"}, kid=${decodedHeader?.kid || "-"}`
       );
-      console.log(
-        `🔑 JWT_SECRET fingerprint (VERIFY): ${secretFingerprint(secret)}`
-      );
+      console.log(`🔑 JWT_SECRET fingerprint (VERIFY): ${secretFingerprint(secret)}`);
       console.log(`🌐 VERIFY host=${req.get("host")} path=${req.originalUrl}`);
     }
 
@@ -109,13 +98,11 @@ module.exports = async function auth(req, res, next) {
 
     return next();
   } catch (err) {
-    // Show exact verify failure cause (safe)
     console.error(
       "❌ JWT VERIFY FAILED:",
       JSON.stringify({ name: err?.name, message: err?.message }, null, 2)
     );
 
-    // ✅ NEW: hide detailed JWT errors in production
     const isProd = process.env.NODE_ENV === "production";
 
     const msg =

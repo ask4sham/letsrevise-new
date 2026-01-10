@@ -28,6 +28,9 @@ const contentTreeRoutes = require("./routes/content-tree");
 const uploadsRoutes = require("./routes/uploads");
 const quizzesRoutes = require("./routes/quizzes");
 
+// ✅ NEW: parent-link approval routes
+const parentLinkRoutes = require("./routes/parentLink");
+
 const app = express();
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
@@ -114,9 +117,7 @@ function jwtSecretFingerprint() {
 }
 
 function debugEnabled() {
-  return (
-    process.env.DEBUG_ENDPOINTS === "1" || process.env.DEBUG_ENDPOINTS === "true"
-  );
+  return process.env.DEBUG_ENDPOINTS === "1" || process.env.DEBUG_ENDPOINTS === "true";
 }
 
 /* ============================================================
@@ -139,9 +140,7 @@ app.get("/api/health", (req, res) => {
 
 app.get("/api/_debug/info", (req, res) => {
   if (!debugEnabled()) {
-    return res
-      .status(404)
-      .json({ msg: "API route not found", path: req.originalUrl });
+    return res.status(404).json({ msg: "API route not found", path: req.originalUrl });
   }
 
   const fp = jwtSecretFingerprint();
@@ -179,8 +178,15 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/content-tree", contentTreeRoutes);
+
+// ✅ NEW: approval endpoints for parent-link flow
+app.use("/api/parent-link", parentLinkRoutes);
+
 console.log("Mounting /api/quizzes routes...");
 app.use("/api/quizzes", quizzesRoutes);
+
+// ✅ Parent routes (this is what makes /api/parent/children/:childId/progress work)
+app.use("/api/parent", require("./routes/parent"));
 
 // Helpful API 404
 app.use("/api", (req, res) => {
@@ -219,9 +225,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health: http://localhost:${PORT}/api/health`);
   console.log(`Quizzes: http://localhost:${PORT}/api/quizzes`);
-  console.log(
-    `Content Tree API: http://localhost:${PORT}/api/content-tree?stage=ks3`
-  );
+  console.log(`Content Tree API: http://localhost:${PORT}/api/content-tree?stage=ks3`);
   console.log(`Uploads: http://localhost:${PORT}/uploads`);
   console.log(`Static site served from: ${staticSitePath}`);
   console.log(`Open browser at: http://localhost:${PORT}`);

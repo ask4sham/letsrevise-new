@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import axios from "axios";
 
-const API_BASE = "https://letsrevise-new.onrender.com";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 type UserType = "student" | "teacher" | "parent";
 

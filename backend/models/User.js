@@ -88,6 +88,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+    // ✅ Parent → linked children (students)
+  // Optional. Safe for existing users.
+  children: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
   purchasedLessons: [{
     lessonId: {
       type: mongoose.Schema.Types.ObjectId,

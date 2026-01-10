@@ -6,9 +6,7 @@ const router = express.Router();
 console.log("✅ quizzes router file loaded");
 
 const { supabase } = require("../supabaseClient");
-// Note: auth middleware intentionally not used yet to avoid previous export issues.
-// Later we can do:
-// const { requireAuth, requireTeacher } = require("../middleware/auth");
+const auth = require("../middleware/auth"); // ✅ use JWT auth for attempt saving
 
 // ----------------- DEBUG TEST ROUTE (no auth) -----------------
 router.get("/test", (req, res) => {
@@ -120,7 +118,6 @@ router.get("/", async (req, res) => {
 });
 
 // ----------------- GET /api/quizzes/stats/all -----------------
-// Aggregated stats for all quizzes, based on quiz_attempts table
 router.get("/stats/all", async (req, res) => {
   try {
     console.log("➡️ GET /api/quizzes/stats/all hit");
@@ -205,7 +202,6 @@ router.get("/stats/all", async (req, res) => {
 });
 
 // ----------------- GET /api/quizzes/attempts -----------------
-// List attempts for a specific student (for "My quiz history" page)
 router.get("/attempts", async (req, res) => {
   try {
     console.log("➡️ GET /api/quizzes/attempts hit");
@@ -225,10 +221,9 @@ router.get("/attempts", async (req, res) => {
       });
     }
 
-    // Fetch attempts for this user
     const { data: attempts, error } = await supabase
       .from("quiz_attempts")
-      .select("id, quiz_id, total_questions, correct_answers, created_at")
+      .select("id, quiz_id, total_questions, correct_answers, created_at, user_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -265,8 +260,7 @@ router.get("/attempts", async (req, res) => {
     const result = attempts.map((a) => {
       const totalQ = a.total_questions || 0;
       const correct = a.correct_answers || 0;
-      const score =
-        totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0;
+      const score = totalQ > 0 ? Math.round((correct / totalQ) * 100) : 0;
 
       return {
         id: a.id,
@@ -276,6 +270,7 @@ router.get("/attempts", async (req, res) => {
         correct_answers: correct,
         score_percent: score,
         created_at: a.created_at,
+        user_id: a.user_id,
       };
     });
 
@@ -323,6 +318,8 @@ router.get("/:id", async (req, res) => {
 });
 
 // ----------------- POST /api/quizzes -----------------
+// NOTE: This route uses req.user but currently isn't protected by auth.
+// We'll leave as-is for now to avoid breaking flows.
 router.post("/", async (req, res) => {
   try {
     console.log("➡️ POST /api/quizzes hit");
@@ -393,7 +390,8 @@ router.post("/", async (req, res) => {
 });
 
 // ----------------- POST /api/quizzes/:id/attempt -----------------
-router.post("/:id/attempt", async (req, res) => {
+// ✅ NOW PROTECTED: user_id is derived from JWT, not from client payload
+router.post("/:id/attempt", auth, async (req, res) => {
   try {
     const rawId = req.params.id;
     console.log("➡️ POST /api/quizzes/:id/attempt hit. Raw id:", rawId);
@@ -405,7 +403,7 @@ router.post("/:id/attempt", async (req, res) => {
     }
 
     const id = String(rawId).trim();
-    const { total_questions, correct_answers, user_id } = req.body || {};
+    const { total_questions, correct_answers } = req.body || {};
 
     if (
       typeof total_questions !== "number" ||
@@ -421,12 +419,21 @@ router.post("/:id/attempt", async (req, res) => {
       });
     }
 
+    // ✅ Use Mongo user id from JWT (this matches Parent linking childId)
+    const userIdFromJwt = req.user?.userId || req.user?._id || req.user?.id;
+
+    if (!userIdFromJwt) {
+      return res.status(401).json({ error: "Unauthorised: user not found in token" });
+    }
+
+    const finalUserId = String(userIdFromJwt);
+
     const { data, error } = await supabase
       .from("quiz_attempts")
       .insert([
         {
           quiz_id: id,
-          user_id: user_id ? String(user_id) : null,
+          user_id: finalUserId, // ✅ never null now
           total_questions,
           correct_answers,
         },

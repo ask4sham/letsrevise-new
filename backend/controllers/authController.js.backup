@@ -12,7 +12,7 @@ const generateReferralCode = () => {
 const register = async (req, res) => {
   try {
     console.log("Registration attempt:", req.body);
-    
+
     const { email, password, userType, firstName, lastName, institution, referredByCode } = req.body;
 
     // Check if user already exists
@@ -50,7 +50,7 @@ const register = async (req, res) => {
       institution: userType === "teacher" ? institution : null,
       referralCode,
       referredBy,
-      verificationStatus: userType === "teacher" ? "pending" : "verified"
+      verificationStatus: userType === "teacher" ? "pending" : "verified",
     });
 
     console.log("User object created, attempting to save...");
@@ -74,11 +74,10 @@ const register = async (req, res) => {
         lastName: user.lastName,
         shamCoins: user.shamCoins,
         referralCode: user.referralCode,
-        verificationStatus: user.verificationStatus
+        verificationStatus: user.verificationStatus,
       },
-      token
+      token,
     });
-    
   } catch (error) {
     console.error("Registration error details:", error);
     res.status(500).json({ error: "Server error during registration: " + error.message });
@@ -89,7 +88,7 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     console.log("Login attempt for:", email);
 
     // Find user
@@ -108,7 +107,7 @@ const login = async (req, res) => {
     }
 
     console.log("Password valid, generating token for user:", user._id);
-    
+
     // Create JWT token
     const token = jwt.sign(
       { userId: user._id, userType: user.userType },
@@ -126,11 +125,10 @@ const login = async (req, res) => {
         lastName: user.lastName,
         shamCoins: user.shamCoins,
         referralCode: user.referralCode,
-        verificationStatus: user.verificationStatus
+        verificationStatus: user.verificationStatus,
       },
-      token
+      token,
     });
-    
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Server error during login: " + error.message });
@@ -140,10 +138,18 @@ const login = async (req, res) => {
 // Get current user profile
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select("-password");
+    // ✅ FIX: our JWT middleware sets req.user.{userId,_id}, not req.userId
+    const userId = req.user?.userId || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+
     res.json({ user });
   } catch (error) {
     console.error("Profile error:", error);

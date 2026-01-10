@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from "react";
+﻿// /frontend/src/components/layout/Header.tsx
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
 const Header: React.FC = () => {
@@ -48,6 +49,9 @@ const Header: React.FC = () => {
     const { firstName, lastName } = user;
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "U";
   };
+
+  const isParent = user?.userType === "parent";
+  const dashboardLink = isParent ? "/parent-dashboard" : "/dashboard";
 
   return (
     <header
@@ -136,9 +140,10 @@ const Header: React.FC = () => {
           >
             {isLoggedIn ? (
               <>
+                {/* ✅ Parent goes to /parent-dashboard, everyone else to /dashboard */}
                 <li>
                   <Link
-                    to="/dashboard"
+                    to={dashboardLink}
                     style={{
                       color: "#667eea",
                       textDecoration: "none",
@@ -153,7 +158,8 @@ const Header: React.FC = () => {
                   </Link>
                 </li>
 
-                {user?.userType === "student" && (
+                {/* ✅ STUDENT LINKS (hide from parent) */}
+                {!isParent && user?.userType === "student" && (
                   <>
                     <li>
                       <Link
@@ -190,7 +196,8 @@ const Header: React.FC = () => {
                   </>
                 )}
 
-                {user?.userType === "teacher" && (
+                {/* ✅ TEACHER LINKS (hide from parent) */}
+                {!isParent && user?.userType === "teacher" && (
                   <>
                     <li>
                       <Link
@@ -227,7 +234,8 @@ const Header: React.FC = () => {
                   </>
                 )}
 
-                {user?.userType === "admin" && (
+                {/* ✅ ADMIN LINK (hide from parent) */}
+                {!isParent && user?.userType === "admin" && (
                   <li>
                     <Link
                       to="/admin"
@@ -246,24 +254,27 @@ const Header: React.FC = () => {
                   </li>
                 )}
 
-                <li>
-                  <Link
-                    to="/subscription"
-                    style={{
-                      color: "#667eea",
-                      textDecoration: "none",
-                      fontWeight: "500",
-                      fontSize: "1rem",
-                      padding: "8px 16px",
-                      borderRadius: "4px",
-                      transition: "all 0.3s ease",
-                    }}
-                  >
-                    Subscription
-                  </Link>
-                </li>
+                {/* ✅ Subscription (hide from parent) */}
+                {!isParent && (
+                  <li>
+                    <Link
+                      to="/subscription"
+                      style={{
+                        color: "#667eea",
+                        textDecoration: "none",
+                        fontWeight: "500",
+                        fontSize: "1rem",
+                        padding: "8px 16px",
+                        borderRadius: "4px",
+                        transition: "all 0.3s ease",
+                      }}
+                    >
+                      Subscription
+                    </Link>
+                  </li>
+                )}
 
-                {/* User Profile Dropdown */}
+                {/* User Profile Dropdown (keep, but hide Settings for parent) */}
                 <li style={{ position: "relative" }}>
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}
@@ -330,6 +341,7 @@ const Header: React.FC = () => {
                       </div>
 
                       <div style={{ padding: "10px 0" }}>
+                        {/* ✅ Parent: “My Profile” is enough */}
                         <Link
                           to="/profile"
                           style={{
@@ -345,20 +357,23 @@ const Header: React.FC = () => {
                           👤 My Profile
                         </Link>
 
-                        <Link
-                          to="/settings"
-                          style={{
-                            display: "block",
-                            padding: "10px 20px",
-                            color: "#333",
-                            textDecoration: "none",
-                            fontSize: "0.875rem",
-                            transition: "all 0.3s ease",
-                          }}
-                          onClick={() => setShowDropdown(false)}
-                        >
-                          ⚙️ Settings
-                        </Link>
+                        {/* ✅ Settings hidden for parent */}
+                        {!isParent && (
+                          <Link
+                            to="/settings"
+                            style={{
+                              display: "block",
+                              padding: "10px 20px",
+                              color: "#333",
+                              textDecoration: "none",
+                              fontSize: "0.875rem",
+                              transition: "all 0.3s ease",
+                            }}
+                            onClick={() => setShowDropdown(false)}
+                          >
+                            ⚙️ Settings
+                          </Link>
+                        )}
 
                         <button
                           onClick={handleLogout}

@@ -8,26 +8,13 @@ const User = require("../models/User");
 const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
 
+// ✅ SINGLE SOURCE OF TRUTH for JWT secret (trimmed / normalized)
+const { getJwtSecret } = require("../utils/jwtSecret");
+
 console.log("✅ LOADED: backend/routes/auth.js (JWT signer)");
 
 function normEmail(v) {
   return (v || "").toString().trim().toLowerCase();
-}
-
-/**
- * IMPORTANT:
- * Use the SAME secret normalization rule everywhere (sign + verify).
- * Your middleware trims JWT_SECRET before verify.
- * If signing does NOT trim, tokens can become "invalid" (signature mismatch)
- * when Render env values contain trailing spaces/newlines.
- */
-function getJwtSecret() {
-  const raw = process.env.JWT_SECRET;
-  const secret = typeof raw === "string" ? raw.trim() : "";
-  if (!secret) {
-    throw new Error("JWT_SECRET is not set. Check Render env vars.");
-  }
-  return secret;
 }
 
 function shouldDebugJwt() {
@@ -206,7 +193,8 @@ router.post(
     }
 
     // Work out school name (support both old "institution" and new "schoolName")
-    const resolvedSchoolName = (schoolName && schoolName.trim()) || (institution && institution.trim()) || null;
+    const resolvedSchoolName =
+      (schoolName && schoolName.trim()) || (institution && institution.trim()) || null;
 
     const normalizedEmail = normEmail(email);
     const normalizedLinkedStudentEmail =
@@ -336,7 +324,7 @@ router.post(
         console.log("🔗 Parent link request created/exists (no children[] write yet):", linkInfo);
       }
 
-      // Create JWT (NO FALLBACK; same trim rule as middleware)
+      // Create JWT (same rule as middleware, via utils)
       const payload = {
         user: {
           id: user._id.toString(),
@@ -344,10 +332,15 @@ router.post(
         },
       };
 
-      const jwtSecret = getJwtSecret();
-      console.log(`🔑 JWT_SECRET fingerprint (SIGN/register): ${secretFingerprint(jwtSecret)}`);
+      // ✅ your requested form:
+      // const token = jwt.sign(payload, getJwtSecret(), { expiresIn: "..." });
+      // but we keep callback style to preserve your existing behavior/structure.
+      const secret = getJwtSecret();
+      if (shouldDebugJwt()) {
+        console.log(`🔑 JWT_SECRET fingerprint (SIGN/register): ${secretFingerprint(secret)}`);
+      }
 
-      jwt.sign(payload, jwtSecret, { expiresIn: "7d" }, (err, token) => {
+      jwt.sign(payload, secret, { expiresIn: "7d" }, (err, token) => {
         if (err) {
           console.error("JWT error:", err);
           return res.status(500).send("Server error");
@@ -392,7 +385,10 @@ router.post(
 // @access  Public
 router.post(
   "/login",
-  [check("email", "Please include a valid email").isEmail(), check("password", "Password is required").exists()],
+  [
+    check("email", "Please include a valid email").isEmail(),
+    check("password", "Password is required").exists(),
+  ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -431,7 +427,7 @@ router.post(
         }
       }
 
-      // Create JWT (NO FALLBACK; same trim rule as middleware)
+      // Create JWT (same rule as middleware, via utils)
       const payload = {
         user: {
           id: user._id.toString(),
@@ -439,10 +435,12 @@ router.post(
         },
       };
 
-      const jwtSecret = getJwtSecret();
-      console.log(`🔑 JWT_SECRET fingerprint (SIGN/login): ${secretFingerprint(jwtSecret)}`);
+      const secret = getJwtSecret();
+      if (shouldDebugJwt()) {
+        console.log(`🔑 JWT_SECRET fingerprint (SIGN/login): ${secretFingerprint(secret)}`);
+      }
 
-      jwt.sign(payload, jwtSecret, { expiresIn: "7d" }, (err, token) => {
+      jwt.sign(payload, secret, { expiresIn: "7d" }, (err, token) => {
         if (err) {
           console.error("JWT error:", err);
           return res.status(500).send("Server error");

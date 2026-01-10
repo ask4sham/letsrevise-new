@@ -1,26 +1,34 @@
-﻿// backend/controllers/authController.js
-const User = require("../models/User");
+﻿const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 /**
  * IMPORTANT (Production):
- * - Never fall back to a hardcoded secret.
- * - Normalize (trim) the secret the SAME way everywhere (sign + verify),
- *   otherwise you'll get "invalid signature" in production.
+ * - NEVER fall back to a hardcoded secret.
+ * - MUST use the SAME normalization rule as middleware (trim).
  */
 function getJwtSecret() {
   const raw = process.env.JWT_SECRET;
   const secret = typeof raw === "string" ? raw.trim() : "";
 
-  // Keep your safety bar, but apply it to the trimmed value
+  // keep the safety bar, but after trim
   if (!secret || secret.length < 16) {
     throw new Error(
-      "JWT_SECRET is missing or too short. Set a strong JWT_SECRET in the Render Environment settings."
+      "JWT_SECRET is missing or too short. Set a strong JWT_SECRET in Render Environment."
     );
   }
 
   return secret;
+}
+
+function shouldDebugJwt() {
+  return process.env.DEBUG_JWT === "1" || process.env.DEBUG_JWT === "true";
+}
+
+function secretFingerprint(secret) {
+  const hash = crypto.createHash("sha256").update(secret).digest("hex");
+  return `len=${secret.length}, sha256=${hash.slice(0, 12)}…`;
 }
 
 // Register new user
@@ -55,7 +63,10 @@ exports.register = async (req, res) => {
     if (userType === "teacher") {
       const generateCode = () => {
         const prefix = "TEACH-";
-        const random = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const random = Math.random()
+          .toString(36)
+          .substring(2, 10)
+          .toUpperCase();
         return prefix + random;
       };
 
@@ -97,14 +108,23 @@ exports.register = async (req, res) => {
     await user.save();
     console.log("User saved successfully:", user.email);
 
-    // Create JWT token (NO fallback secret; TRIMMED secret)
+    // Create JWT token (NO fallback secret)
+    const jwtSecret = getJwtSecret();
+    if (shouldDebugJwt()) {
+      console.log(
+        `🔑 JWT_SECRET fingerprint (SIGN/register): ${secretFingerprint(
+          jwtSecret
+        )}`
+      );
+    }
+
     const token = jwt.sign(
       {
         userId: user._id,
         userType: user.userType,
         email: user.email,
       },
-      getJwtSecret(),
+      jwtSecret,
       { expiresIn: "7d" }
     );
 
@@ -151,7 +171,8 @@ exports.register = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error during registration",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -179,14 +200,21 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Create JWT token (NO fallback secret; TRIMMED secret)
+    // Create JWT token (NO fallback secret)
+    const jwtSecret = getJwtSecret();
+    if (shouldDebugJwt()) {
+      console.log(
+        `🔑 JWT_SECRET fingerprint (SIGN/login): ${secretFingerprint(jwtSecret)}`
+      );
+    }
+
     const token = jwt.sign(
       {
         userId: user._id,
         userType: user.userType,
         email: user.email,
       },
-      getJwtSecret(),
+      jwtSecret,
       { expiresIn: "7d" }
     );
 
@@ -215,7 +243,8 @@ exports.login = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error during login",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -223,10 +252,7 @@ exports.login = async (req, res) => {
 // Get user profile
 exports.getProfile = async (req, res) => {
   try {
-    // NOTE: your middleware sets req.user.userId (and also req.user._id).
-    // Keep backward-compat: try both.
-    const id = req.userId || req.user?.userId || req.user?._id;
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(req.userId).select("-password");
 
     if (!user) {
       return res.status(404).json({
@@ -244,7 +270,8 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error fetching profile",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      error:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

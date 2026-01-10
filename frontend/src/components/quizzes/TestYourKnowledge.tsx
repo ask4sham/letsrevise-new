@@ -1,3 +1,4 @@
+// frontend/src/quizzes/TestYourKnowledge.tsx
 import React, { useEffect, useState } from "react";
 
 type QuizQuestion = {
@@ -28,6 +29,18 @@ type LessonLike = {
 
 interface Props {
   lesson: LessonLike | null;
+}
+
+// ✅ Use the same env pattern as the rest of the app (and avoid trailing slashes)
+const RAW_API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+
+function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem("token");
+  } catch {
+    return null;
+  }
 }
 
 const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
@@ -89,7 +102,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
         params.append("is_published", "true");
         if (moduleKey) params.append("module", moduleKey);
 
-        const url = `http://localhost:5000/api/quizzes?${params.toString()}`;
+        const url = `${API_BASE}/api/quizzes?${params.toString()}`;
         console.log("[TestYourKnowledge] Fetching:", url);
 
         const res = await fetch(url);
@@ -156,34 +169,28 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
 
   const saveAttempt = async (correct: number, total: number) => {
     if (!activeQuiz) return;
-    try {
-      let userId: string | null = null;
-      if (typeof window !== "undefined") {
-        const userStr = window.localStorage.getItem("user");
-        if (userStr) {
-          try {
-            const parsed = JSON.parse(userStr);
-            if (parsed && parsed._id) userId = String(parsed._id);
-          } catch (e) {
-            console.error("Failed to parse user from localStorage:", e);
-          }
-        }
-      }
 
-      await fetch(
-        `http://localhost:5000/api/quizzes/${activeQuiz.id}/attempt`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            total_questions: total,
-            correct_answers: correct,
-            user_id: userId,
-          }),
-        }
-      );
+    try {
+      const token = getAuthToken();
+
+      const res = await fetch(`${API_BASE}/api/quizzes/${activeQuiz.id}/attempt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          total_questions: total,
+          correct_answers: correct,
+          // ✅ user_id intentionally NOT sent anymore.
+          // Backend derives it from JWT to prevent null/forged IDs.
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("Failed to save quiz attempt:", res.status, text);
+      }
     } catch (err) {
       console.error("Failed to save quiz attempt:", err);
     }
@@ -241,8 +248,8 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
           textAlign: "center",
         }}
       >
-        Topic: <strong>{displayTopic}</strong> ·{" "}
-        {displayLevel.toUpperCase()} {displaySubject.toUpperCase()}{" "}
+        Topic: <strong>{displayTopic}</strong> · {displayLevel.toUpperCase()}{" "}
+        {displaySubject.toUpperCase()}{" "}
         {displayExamBoard ? `(${displayExamBoard.toUpperCase()})` : null}
       </p>
 
@@ -253,9 +260,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
       )}
 
       {!loading && !error && quizzes.length === 0 && (
-        <p style={{ fontSize: "0.9rem" }}>
-          No quizzes available for this lesson yet.
-        </p>
+        <p style={{ fontSize: "0.9rem" }}>No quizzes available for this lesson yet.</p>
       )}
 
       {!loading && !error && quizzes.length > 0 && (
@@ -314,9 +319,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
                 border: "1px solid #ddd",
               }}
             >
-              <h3 style={{ marginTop: 0, fontSize: "1rem" }}>
-                {activeQuiz.title}
-              </h3>
+              <h3 style={{ marginTop: 0, fontSize: "1rem" }}>{activeQuiz.title}</h3>
 
               {totalQuestions > 0 && (
                 <p
@@ -382,8 +385,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
                     {currentQuestion.options.map((opt, idx) => {
                       const selectedIndex = answers[currentIndex];
                       const isSelected = selectedIndex === idx;
-                      const isCorrect =
-                        currentQuestion.correctIndex === idx;
+                      const isCorrect = currentQuestion.correctIndex === idx;
 
                       let background = "white";
                       let borderColor = "#cbd5e0";
@@ -394,11 +396,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
                       } else if (showAnswer && isCorrect) {
                         background = "#d4edda";
                         borderColor = "#38a169";
-                      } else if (
-                        showAnswer &&
-                        isSelected &&
-                        !isCorrect
-                      ) {
+                      } else if (showAnswer && isSelected && !isCorrect) {
                         background = "#f8d7da";
                         borderColor = "#e53e3e";
                       }
@@ -453,9 +451,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
                         border: "none",
                         cursor: "pointer",
                         background:
-                          answers[currentIndex] === -1
-                            ? "#cbd5e0"
-                            : "#3182ce",
+                          answers[currentIndex] === -1 ? "#cbd5e0" : "#3182ce",
                         color: "white",
                       }}
                       onClick={handleCheckAnswer}
@@ -474,9 +470,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
                       onClick={handleNext}
                       disabled={!showAnswer}
                     >
-                      {currentIndex + 1 === totalQuestions
-                        ? "Finish"
-                        : "Next question"}
+                      {currentIndex + 1 === totalQuestions ? "Finish" : "Next question"}
                     </button>
                     <button
                       style={{

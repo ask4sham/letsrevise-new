@@ -1,4 +1,5 @@
-﻿import React, { ReactNode } from "react";
+﻿// /frontend/src/App.tsx
+import React, { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
@@ -17,6 +18,7 @@ import SubscriptionPage from "./pages/SubscriptionPage";
 import TeacherPayoutPage from "./pages/TeacherPayoutPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import ParentDashboard from "./pages/ParentDashboard";
 
 // ✅ DEMO lesson page (keep)
 import LessonDemoPage from "./pages/LessonDemoPage";
@@ -51,6 +53,41 @@ import QuizStatsPage from "./pages/QuizStatsPage";
 import "./App.css";
 
 /* =========================
+   Auth helpers (SYNC)
+========================= */
+
+type UserType = "student" | "teacher" | "parent" | "admin";
+
+function readAuthFromStorage(): { token: string; user: any } | null {
+  try {
+    if (typeof window === "undefined") return null;
+
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+
+    if (!token || !userStr) return null;
+
+    const user = JSON.parse(userStr);
+    if (!user || typeof user !== "object") return null;
+
+    return { token, user };
+  } catch (e) {
+    console.error("Failed to read auth from localStorage:", e);
+    return null;
+  }
+}
+
+function clearAuthStorage() {
+  try {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("postLoginRedirect");
+  } catch {
+    // ignore
+  }
+}
+
+/* =========================
    ProtectedRoute (SYNC, NO STATE)
 ========================= */
 
@@ -59,6 +96,7 @@ interface ProtectedRouteProps {
   requireTeacher?: boolean;
   requireStudent?: boolean;
   requireAdmin?: boolean;
+  requireParent?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -66,34 +104,28 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireTeacher = false,
   requireStudent = false,
   requireAdmin = false,
+  requireParent = false,
 }) => {
-  // Read auth info synchronously every time
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  const userStr =
-    typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const auth = readAuthFromStorage();
 
-  if (!token || !userStr) {
+  if (!auth) {
+    clearAuthStorage();
     return <Navigate to="/login" replace />;
   }
 
-  let user: any;
-  try {
-    user = JSON.parse(userStr);
-  } catch (e) {
-    console.error("Failed to parse user from localStorage:", e);
+  const userType: UserType | undefined = auth.user?.userType;
+
+  // If userType is missing/invalid, treat as logged out
+  if (!userType || !["student", "teacher", "parent", "admin"].includes(userType)) {
+    clearAuthStorage();
     return <Navigate to="/login" replace />;
   }
 
-  if (requireTeacher && user.userType !== "teacher") {
-    return <Navigate to="/dashboard" replace />;
-  }
-  if (requireStudent && user.userType !== "student") {
-    return <Navigate to="/dashboard" replace />;
-  }
-  if (requireAdmin && user.userType !== "admin") {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Role gates
+  if (requireTeacher && userType !== "teacher") return <Navigate to="/dashboard" replace />;
+  if (requireStudent && userType !== "student") return <Navigate to="/dashboard" replace />;
+  if (requireAdmin && userType !== "admin") return <Navigate to="/dashboard" replace />;
+  if (requireParent && userType !== "parent") return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 };
@@ -103,26 +135,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 ========================= */
 
 const RoleBasedRedirect: React.FC = () => {
-  const userStr =
-    typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const auth = readAuthFromStorage();
 
-  if (!userStr) {
-    return <Dashboard />;
+  // This route is already protected, but keep it safe
+  if (!auth) {
+    clearAuthStorage();
+    return <Navigate to="/login" replace />;
   }
 
-  let user: any;
-  try {
-    user = JSON.parse(userStr);
-  } catch (e) {
-    console.error("Failed to parse user for RoleBasedRedirect:", e);
-    return <Dashboard />;
-  }
+  const userType: UserType | undefined = auth.user?.userType;
 
-  if (user.userType === "teacher")
-    return <Navigate to="/teacher-dashboard" replace />;
-  if (user.userType === "student")
-    return <Navigate to="/student-dashboard" replace />;
-  if (user.userType === "admin") return <Navigate to="/admin" replace />;
+  if (userType === "teacher") return <Navigate to="/teacher-dashboard" replace />;
+  if (userType === "student") return <Navigate to="/student-dashboard" replace />;
+  if (userType === "parent") return <Navigate to="/parent-dashboard" replace />;
+  if (userType === "admin") return <Navigate to="/admin" replace />;
 
   return <Dashboard />;
 };
@@ -133,10 +159,7 @@ const RoleBasedRedirect: React.FC = () => {
 
 function App() {
   return (
-    <div
-      className="App"
-      style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
-    >
+    <div className="App" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header />
       <main style={{ flex: 1 }}>
         <Routes>
@@ -182,7 +205,6 @@ function App() {
             }
           />
 
-          {/* ✅ Create Quiz route (teacher only) */}
           <Route
             path="/create-quiz"
             element={
@@ -192,7 +214,6 @@ function App() {
             }
           />
 
-          {/* ✅ Quiz Stats route (teacher only) */}
           <Route
             path="/quiz-stats"
             element={
@@ -284,6 +305,7 @@ function App() {
             }
           />
 
+          {/* ✅ Admin Dashboard (canonical) */}
           <Route
             path="/admin"
             element={
@@ -293,7 +315,16 @@ function App() {
             }
           />
 
-          {/* Admin lesson view route */}
+          {/* ✅ FIX 404: Admin Dashboard alias route (matches /#/admin-dashboard) */}
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/admin/lesson/:id"
             element={
@@ -303,7 +334,6 @@ function App() {
             }
           />
 
-          {/* My Profile (current user) */}
           <Route
             path="/profile"
             element={
@@ -313,7 +343,6 @@ function App() {
             }
           />
 
-          {/* Edit My Profile */}
           <Route
             path="/edit-profile"
             element={
@@ -323,7 +352,6 @@ function App() {
             }
           />
 
-          {/* Admin profile view */}
           <Route
             path="/profile/:id"
             element={
@@ -333,7 +361,6 @@ function App() {
             }
           />
 
-          {/* Settings route (current user) */}
           <Route
             path="/settings"
             element={
@@ -348,6 +375,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <SubscriptionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/parent-dashboard"
+            element={
+              <ProtectedRoute requireParent>
+                <ParentDashboard />
               </ProtectedRoute>
             }
           />

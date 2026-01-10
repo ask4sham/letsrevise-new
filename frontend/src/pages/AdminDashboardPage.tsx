@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 interface PlatformStats {
   users: {
@@ -89,7 +90,10 @@ type Msg = { type: "success" | "error"; text: string };
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "users" | "lessons" | "transactions">("dashboard");
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "users" | "lessons" | "transactions"
+  >("dashboard");
+
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -97,8 +101,21 @@ const AdminDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<Msg | null>(null);
 
-  const [userFilters, setUserFilters] = useState({ page: 1, limit: 20, userType: "", search: "" });
-  const [lessonFilters, setLessonFilters] = useState({ page: 1, limit: 20, status: "", subject: "", search: "" });
+  const [userFilters, setUserFilters] = useState({
+    page: 1,
+    limit: 20,
+    userType: "",
+    search: "",
+  });
+
+  const [lessonFilters, setLessonFilters] = useState({
+    page: 1,
+    limit: 20,
+    status: "",
+    subject: "",
+    search: "",
+  });
+
   const [transactionFilters, setTransactionFilters] = useState({
     page: 1,
     limit: 50,
@@ -107,9 +124,6 @@ const AdminDashboardPage: React.FC = () => {
     dateFrom: "",
     dateTo: "",
   });
-
-  // keep URL hash stable (no Links here)
-  const token = useMemo(() => localStorage.getItem("token") || "", []);
 
   useEffect(() => {
     // Check if user is admin
@@ -132,11 +146,12 @@ const AdminDashboardPage: React.FC = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/admin/stats", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) setStats(data.stats);
+      // Uses /src/services/api.ts (baseURL + Authorization interceptor)
+      const res = await api.get("/admin/stats");
+      const data = res.data;
+
+      if (data?.success) setStats(data.stats);
+      else setMessage({ type: "error", text: data?.msg || "Failed to load admin stats" });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       setMessage({ type: "error", text: "Failed to load admin stats" });
@@ -147,18 +162,18 @@ const AdminDashboardPage: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        page: userFilters.page.toString(),
-        limit: userFilters.limit.toString(),
-        ...(userFilters.userType && { userType: userFilters.userType }),
-        ...(userFilters.search && { search: userFilters.search }),
-      });
+      const params: any = {
+        page: userFilters.page,
+        limit: userFilters.limit,
+      };
+      if (userFilters.userType) params.userType = userFilters.userType;
+      if (userFilters.search) params.search = userFilters.search;
 
-      const response = await fetch(`http://localhost:5000/api/admin/users?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) setUsers(data.users);
+      const res = await api.get("/admin/users", { params });
+      const data = res.data;
+
+      if (data?.success) setUsers(data.users);
+      else setMessage({ type: "error", text: data?.msg || "Failed to load users" });
     } catch (error) {
       console.error("Error fetching users:", error);
       setMessage({ type: "error", text: "Failed to load users" });
@@ -167,19 +182,19 @@ const AdminDashboardPage: React.FC = () => {
 
   const fetchLessons = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        page: lessonFilters.page.toString(),
-        limit: lessonFilters.limit.toString(),
-        ...(lessonFilters.status && { status: lessonFilters.status }),
-        ...(lessonFilters.subject && { subject: lessonFilters.subject }),
-        ...(lessonFilters.search && { search: lessonFilters.search }),
-      });
+      const params: any = {
+        page: lessonFilters.page,
+        limit: lessonFilters.limit,
+      };
+      if (lessonFilters.status) params.status = lessonFilters.status;
+      if (lessonFilters.subject) params.subject = lessonFilters.subject;
+      if (lessonFilters.search) params.search = lessonFilters.search;
 
-      const response = await fetch(`http://localhost:5000/api/admin/lessons?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) setLessons(data.lessons);
+      const res = await api.get("/admin/lessons", { params });
+      const data = res.data;
+
+      if (data?.success) setLessons(data.lessons);
+      else setMessage({ type: "error", text: data?.msg || "Failed to load lessons" });
     } catch (error) {
       console.error("Error fetching lessons:", error);
       setMessage({ type: "error", text: "Failed to load lessons" });
@@ -188,20 +203,24 @@ const AdminDashboardPage: React.FC = () => {
 
   const fetchTransactions = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        page: transactionFilters.page.toString(),
-        limit: transactionFilters.limit.toString(),
-        ...(transactionFilters.type && { type: transactionFilters.type }),
-        ...(transactionFilters.status && { status: transactionFilters.status }),
-        ...(transactionFilters.dateFrom && { dateFrom: transactionFilters.dateFrom }),
-        ...(transactionFilters.dateTo && { dateTo: transactionFilters.dateTo }),
-      });
+      const params: any = {
+        page: transactionFilters.page,
+        limit: transactionFilters.limit,
+      };
+      if (transactionFilters.type) params.type = transactionFilters.type;
+      if (transactionFilters.status) params.status = transactionFilters.status;
+      if (transactionFilters.dateFrom) params.dateFrom = transactionFilters.dateFrom;
+      if (transactionFilters.dateTo) params.dateTo = transactionFilters.dateTo;
 
-      const response = await fetch(`http://localhost:5000/api/admin/transactions?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.success) setTransactions(data.transactions);
+      const res = await api.get("/admin/transactions", { params });
+      const data = res.data;
+
+      if (data?.success) setTransactions(data.transactions);
+      else
+        setMessage({
+          type: "error",
+          text: data?.msg || "Failed to load transactions",
+        });
     } catch (error) {
       console.error("Error fetching transactions:", error);
       setMessage({ type: "error", text: "Failed to load transactions" });
@@ -212,21 +231,14 @@ const AdminDashboardPage: React.FC = () => {
     const reason = status === "rejected" ? window.prompt("Reason for rejection:") : "";
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/verify`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status, reason }),
-      });
+      const res = await api.put(`/admin/users/${userId}/verify`, { status, reason });
+      const data = res.data;
 
-      const data = await response.json();
-      if (data.success) {
+      if (data?.success) {
         setMessage({ type: "success", text: data.msg });
         fetchUsers();
       } else {
-        setMessage({ type: "error", text: data.msg });
+        setMessage({ type: "error", text: data?.msg || "Failed to update verification status" });
       }
     } catch (error) {
       console.error("Error verifying teacher:", error);
@@ -238,21 +250,14 @@ const AdminDashboardPage: React.FC = () => {
     if (!window.confirm(`Change user role to ${role}?`)) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/role`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ role }),
-      });
+      const res = await api.put(`/admin/users/${userId}/role`, { role });
+      const data = res.data;
 
-      const data = await response.json();
-      if (data.success) {
+      if (data?.success) {
         setMessage({ type: "success", text: data.msg });
         fetchUsers();
       } else {
-        setMessage({ type: "error", text: data.msg });
+        setMessage({ type: "error", text: data?.msg || "Failed to update user role" });
       }
     } catch (error) {
       console.error("Error updating role:", error);
@@ -264,21 +269,14 @@ const AdminDashboardPage: React.FC = () => {
     const reason = status === "flagged" ? window.prompt("Reason for flagging:") : "";
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/lessons/${lessonId}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status, reason }),
-      });
+      const res = await api.put(`/admin/lessons/${lessonId}/status`, { status, reason });
+      const data = res.data;
 
-      const data = await response.json();
-      if (data.success) {
+      if (data?.success) {
         setMessage({ type: "success", text: data.msg });
         fetchLessons();
       } else {
-        setMessage({ type: "error", text: data.msg });
+        setMessage({ type: "error", text: data?.msg || "Failed to update lesson status" });
       }
     } catch (error) {
       console.error("Error updating lesson status:", error);
@@ -311,7 +309,9 @@ const AdminDashboardPage: React.FC = () => {
     <div style={{ padding: "1rem", maxWidth: "1400px", margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem", fontWeight: "bold" }}>Admin Dashboard</h1>
+        <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem", fontWeight: "bold" }}>
+          Admin Dashboard
+        </h1>
         <p style={{ color: "#666" }}>Platform administration and management</p>
       </div>
 
@@ -330,7 +330,13 @@ const AdminDashboardPage: React.FC = () => {
           {message.text}
           <button
             onClick={() => setMessage(null)}
-            style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+            style={{
+              float: "right",
+              background: "none",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+            }}
             aria-label="Close message"
           >
             ×
@@ -349,7 +355,10 @@ const AdminDashboardPage: React.FC = () => {
         <button onClick={() => setActiveTab("lessons")} style={safeTabButtonStyle("lessons")}>
           Lessons
         </button>
-        <button onClick={() => setActiveTab("transactions")} style={safeTabButtonStyle("transactions")}>
+        <button
+          onClick={() => setActiveTab("transactions")}
+          style={safeTabButtonStyle("transactions")}
+        >
           Transactions
         </button>
       </div>
@@ -365,48 +374,120 @@ const AdminDashboardPage: React.FC = () => {
               marginBottom: "2rem",
             }}
           >
-            <div style={{ backgroundColor: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "1.5rem", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#1976d2" }}>{stats.users.total}</div>
+            <div
+              style={{
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "1.5rem",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#1976d2" }}>
+                {stats.users.total}
+              </div>
               <div style={{ color: "#666" }}>Total Users</div>
               <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
                 Teachers: {stats.users.teachers} | Students: {stats.users.students}
               </div>
             </div>
 
-            <div style={{ backgroundColor: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "1.5rem", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#198754" }}>{stats.lessons.total}</div>
+            <div
+              style={{
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "1.5rem",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#198754" }}>
+                {stats.lessons.total}
+              </div>
               <div style={{ color: "#666" }}>Total Lessons</div>
               <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-                Purchases: {stats.lessons.totalPurchases} | Rating: {stats.lessons.averageRating.toFixed(1)}★
+                Purchases: {stats.lessons.totalPurchases} | Rating:{" "}
+                {stats.lessons.averageRating.toFixed(1)}★
               </div>
             </div>
 
-            <div style={{ backgroundColor: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "1.5rem", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#dc3545" }}>{formatCurrency(stats.revenue.total)}</div>
+            <div
+              style={{
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "1.5rem",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#dc3545" }}>
+                {formatCurrency(stats.revenue.total)}
+              </div>
               <div style={{ color: "#666" }}>Total Revenue</div>
               <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-                Today: {formatCurrency(stats.revenue.today)} | Month: {formatCurrency(stats.revenue.monthly)}
+                Today: {formatCurrency(stats.revenue.today)} | Month:{" "}
+                {formatCurrency(stats.revenue.monthly)}
               </div>
             </div>
 
-            <div style={{ backgroundColor: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "1.5rem", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#ffc107" }}>{stats.platform.activeUsers}</div>
+            <div
+              style={{
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "1.5rem",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#ffc107" }}>
+                {stats.platform.activeUsers}
+              </div>
               <div style={{ color: "#666" }}>Active Users (7 days)</div>
-              <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>Total SC: {formatCurrency(stats.platform.totalShamCoins)}</div>
+              <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
+                Total SC: {formatCurrency(stats.platform.totalShamCoins)}
+              </div>
             </div>
           </div>
 
-          <div style={{ backgroundColor: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "1.5rem", marginBottom: "2rem" }}>
+          <div
+            style={{
+              backgroundColor: "white",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              padding: "1.5rem",
+              marginBottom: "2rem",
+            }}
+          >
             <h3 style={{ marginTop: 0 }}>Subscription Breakdown</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "1rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               {Object.entries(stats.subscriptions).map(([plan, data]) => (
                 <div key={plan} style={{ textAlign: "center" }}>
                   <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>{data.count}</div>
                   <div
                     style={{
                       padding: "0.25rem 0.75rem",
-                      backgroundColor: plan === "free" ? "#e2e3e5" : plan === "basic" ? "#d1ecf1" : plan === "premium" ? "#d4edda" : "#f8d7da",
-                      color: plan === "free" ? "#383d41" : plan === "basic" ? "#0c5460" : plan === "premium" ? "#155724" : "#721c24",
+                      backgroundColor:
+                        plan === "free"
+                          ? "#e2e3e5"
+                          : plan === "basic"
+                          ? "#d1ecf1"
+                          : plan === "premium"
+                          ? "#d4edda"
+                          : "#f8d7da",
+                      color:
+                        plan === "free"
+                          ? "#383d41"
+                          : plan === "basic"
+                          ? "#0c5460"
+                          : plan === "premium"
+                          ? "#155724"
+                          : "#721c24",
                       borderRadius: "20px",
                       fontSize: "0.875rem",
                       textTransform: "capitalize",
@@ -422,15 +503,32 @@ const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ backgroundColor: "white", border: "1px solid #ddd", borderRadius: "8px", padding: "1.5rem" }}>
+          <div
+            style={{
+              backgroundColor: "white",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              padding: "1.5rem",
+            }}
+          >
             <h3 style={{ marginTop: 0 }}>Platform Earnings</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#198754" }}>{formatCurrency(stats.lessons.platformEarnings)}</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#198754" }}>
+                  {formatCurrency(stats.lessons.platformEarnings)}
+                </div>
                 <div style={{ color: "#666" }}>From Lesson Sales</div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#198754" }}>{formatCurrency(stats.revenue.total)}</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#198754" }}>
+                  {formatCurrency(stats.revenue.total)}
+                </div>
                 <div style={{ color: "#666" }}>Total Revenue</div>
               </div>
             </div>
@@ -459,12 +557,27 @@ const AdminDashboardPage: React.FC = () => {
                 placeholder="Search by name or email..."
                 value={userFilters.search}
                 onChange={(e) => setUserFilters({ ...userFilters, search: e.target.value, page: 1 })}
-                style={{ flex: 1, minWidth: "200px", padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                style={{
+                  flex: 1,
+                  minWidth: "200px",
+                  padding: "0.5rem",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                }}
               />
             </div>
 
             <div style={{ border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr", backgroundColor: "#f8f9fa", padding: "1rem", borderBottom: "1px solid #ddd", fontWeight: "bold" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                  backgroundColor: "#f8f9fa",
+                  padding: "1rem",
+                  borderBottom: "1px solid #ddd",
+                  fontWeight: "bold",
+                }}
+              >
                 <div>Name</div>
                 <div>Email</div>
                 <div>Type</div>
@@ -474,11 +587,26 @@ const AdminDashboardPage: React.FC = () => {
               </div>
 
               {users.map((u) => (
-                <div key={u.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr", padding: "1rem", borderBottom: "1px solid #ddd", alignItems: "center" }}>
-                  <div>{u.firstName} {u.lastName}</div>
+                <div
+                  key={u.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                    padding: "1rem",
+                    borderBottom: "1px solid #ddd",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    {u.firstName} {u.lastName}
+                  </div>
                   <div>{u.email}</div>
                   <div>
-                    <select value={u.userType} onChange={(e) => handleUpdateRole(u.id, e.target.value)} style={{ padding: "0.25rem", border: "1px solid #ddd", borderRadius: "4px" }}>
+                    <select
+                      value={u.userType}
+                      onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                      style={{ padding: "0.25rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
                       <option value="student">Student</option>
                       <option value="teacher">Teacher</option>
                       <option value="admin">Admin</option>
@@ -489,10 +617,32 @@ const AdminDashboardPage: React.FC = () => {
                     {u.userType === "teacher" ? (
                       u.verificationStatus === "pending" ? (
                         <div style={{ display: "flex", gap: "0.5rem" }}>
-                          <button onClick={() => handleVerifyTeacher(u.id, "verified")} style={{ padding: "0.25rem 0.5rem", backgroundColor: "#198754", color: "white", border: "none", borderRadius: "4px", fontSize: "0.875rem", cursor: "pointer" }}>
+                          <button
+                            onClick={() => handleVerifyTeacher(u.id, "verified")}
+                            style={{
+                              padding: "0.25rem 0.5rem",
+                              backgroundColor: "#198754",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              fontSize: "0.875rem",
+                              cursor: "pointer",
+                            }}
+                          >
                             Verify
                           </button>
-                          <button onClick={() => handleVerifyTeacher(u.id, "rejected")} style={{ padding: "0.25rem 0.5rem", backgroundColor: "#dc3545", color: "white", border: "none", borderRadius: "4px", fontSize: "0.875rem", cursor: "pointer" }}>
+                          <button
+                            onClick={() => handleVerifyTeacher(u.id, "rejected")}
+                            style={{
+                              padding: "0.25rem 0.5rem",
+                              backgroundColor: "#dc3545",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              fontSize: "0.875rem",
+                              cursor: "pointer",
+                            }}
+                          >
                             Reject
                           </button>
                         </div>
@@ -502,8 +652,18 @@ const AdminDashboardPage: React.FC = () => {
                             padding: "0.25rem 0.75rem",
                             borderRadius: "20px",
                             fontSize: "0.875rem",
-                            backgroundColor: u.verificationStatus === "verified" ? "#d4edda" : u.verificationStatus === "rejected" ? "#f8d7da" : "#fff3cd",
-                            color: u.verificationStatus === "verified" ? "#155724" : u.verificationStatus === "rejected" ? "#721c24" : "#856404",
+                            backgroundColor:
+                              u.verificationStatus === "verified"
+                                ? "#d4edda"
+                                : u.verificationStatus === "rejected"
+                                ? "#f8d7da"
+                                : "#fff3cd",
+                            color:
+                              u.verificationStatus === "verified"
+                                ? "#155724"
+                                : u.verificationStatus === "rejected"
+                                ? "#721c24"
+                                : "#856404",
                           }}
                         >
                           {u.verificationStatus}
@@ -517,10 +677,17 @@ const AdminDashboardPage: React.FC = () => {
                   <div>{formatCurrency(u.shamCoins)}</div>
 
                   <div>
-                    {/* Button only — no Link */}
                     <button
                       onClick={() => navigate(`/profile/${u.id}`)}
-                      style={{ padding: "0.25rem 0.5rem", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", fontSize: "0.875rem", cursor: "pointer" }}
+                      style={{
+                        padding: "0.25rem 0.5rem",
+                        backgroundColor: "#6c757d",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        fontSize: "0.875rem",
+                        cursor: "pointer",
+                      }}
                     >
                       View
                     </button>
@@ -553,12 +720,27 @@ const AdminDashboardPage: React.FC = () => {
                 placeholder="Search by title..."
                 value={lessonFilters.search}
                 onChange={(e) => setLessonFilters({ ...lessonFilters, search: e.target.value, page: 1 })}
-                style={{ flex: 1, minWidth: "200px", padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                style={{
+                  flex: 1,
+                  minWidth: "200px",
+                  padding: "0.5rem",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                }}
               />
             </div>
 
             <div style={{ border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr", backgroundColor: "#f8f9fa", padding: "1rem", borderBottom: "1px solid #ddd", fontWeight: "bold" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr",
+                  backgroundColor: "#f8f9fa",
+                  padding: "1rem",
+                  borderBottom: "1px solid #ddd",
+                  fontWeight: "bold",
+                }}
+              >
                 <div>Title</div>
                 <div>Teacher</div>
                 <div>Subject</div>
@@ -569,13 +751,26 @@ const AdminDashboardPage: React.FC = () => {
               </div>
 
               {lessons.map((l) => (
-                <div key={l.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr", padding: "1rem", borderBottom: "1px solid #ddd", alignItems: "center" }}>
+                <div
+                  key={l.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 1fr",
+                    padding: "1rem",
+                    borderBottom: "1px solid #ddd",
+                    alignItems: "center",
+                  }}
+                >
                   <div>{l.title}</div>
                   <div>{l.teacher?.name || "Unknown"}</div>
                   <div>{l.subject}</div>
                   <div>{formatCurrency(l.shamCoinPrice)}</div>
                   <div>
-                    <select value={l.status} onChange={(e) => handleUpdateLessonStatus(l.id, e.target.value)} style={{ padding: "0.25rem", border: "1px solid #ddd", borderRadius: "4px" }}>
+                    <select
+                      value={l.status}
+                      onChange={(e) => handleUpdateLessonStatus(l.id, e.target.value)}
+                      style={{ padding: "0.25rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
                       <option value="draft">Draft</option>
                       <option value="published">Published</option>
                       <option value="archived">Archived</option>
@@ -584,11 +779,17 @@ const AdminDashboardPage: React.FC = () => {
                   </div>
                   <div>{formatCurrency(l.revenue?.total ?? 0)}</div>
                   <div>
-                    {/* ✅ FIX: Admin View must NOT go to /lesson/:id (UUID mismatch).
-                        It must go to /admin/lesson/:id */}
                     <button
                       onClick={() => navigate(`/admin/lesson/${l.id}`, { state: { lesson: l } })}
-                      style={{ padding: "0.25rem 0.5rem", backgroundColor: "#6c757d", color: "white", border: "none", borderRadius: "4px", fontSize: "0.875rem", cursor: "pointer" }}
+                      style={{
+                        padding: "0.25rem 0.5rem",
+                        backgroundColor: "#6c757d",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        fontSize: "0.875rem",
+                        cursor: "pointer",
+                      }}
                     >
                       View
                     </button>
@@ -605,7 +806,11 @@ const AdminDashboardPage: React.FC = () => {
         <div>
           <div style={{ marginBottom: "1.5rem" }}>
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
-              <select value={transactionFilters.type} onChange={(e) => setTransactionFilters({ ...transactionFilters, type: e.target.value, page: 1 })} style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}>
+              <select
+                value={transactionFilters.type}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, type: e.target.value, page: 1 })}
+                style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
+              >
                 <option value="">All Types</option>
                 <option value="purchase">Purchase</option>
                 <option value="subscription">Subscription</option>
@@ -613,19 +818,42 @@ const AdminDashboardPage: React.FC = () => {
                 <option value="deposit">Deposit</option>
               </select>
 
-              <select value={transactionFilters.status} onChange={(e) => setTransactionFilters({ ...transactionFilters, status: e.target.value, page: 1 })} style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}>
+              <select
+                value={transactionFilters.status}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, status: e.target.value, page: 1 })}
+                style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
+              >
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="failed">Failed</option>
               </select>
 
-              <input type="date" value={transactionFilters.dateFrom} onChange={(e) => setTransactionFilters({ ...transactionFilters, dateFrom: e.target.value, page: 1 })} style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }} />
-              <input type="date" value={transactionFilters.dateTo} onChange={(e) => setTransactionFilters({ ...transactionFilters, dateTo: e.target.value, page: 1 })} style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }} />
+              <input
+                type="date"
+                value={transactionFilters.dateFrom}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, dateFrom: e.target.value, page: 1 })}
+                style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
+              />
+              <input
+                type="date"
+                value={transactionFilters.dateTo}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, dateTo: e.target.value, page: 1 })}
+                style={{ padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
+              />
             </div>
 
             <div style={{ border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr", backgroundColor: "#f8f9fa", padding: "1rem", borderBottom: "1px solid #ddd", fontWeight: "bold" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                  backgroundColor: "#f8f9fa",
+                  padding: "1rem",
+                  borderBottom: "1px solid #ddd",
+                  fontWeight: "bold",
+                }}
+              >
                 <div>Date</div>
                 <div>User</div>
                 <div>Type</div>
@@ -635,22 +863,47 @@ const AdminDashboardPage: React.FC = () => {
               </div>
 
               {transactions.map((t) => (
-                <div key={t._id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr", padding: "1rem", borderBottom: "1px solid #ddd", alignItems: "center" }}>
+                <div
+                  key={t._id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                    padding: "1rem",
+                    borderBottom: "1px solid #ddd",
+                    alignItems: "center",
+                  }}
+                >
                   <div>{formatDate(t.date)}</div>
                   <div>
                     <div>{t.userName}</div>
                     <div style={{ fontSize: "0.875rem", color: "#666" }}>{t.userEmail}</div>
                   </div>
                   <div>{t.type}</div>
-                  <div style={{ color: t.amount > 0 ? "#198754" : "#dc3545", fontWeight: "bold" }}>{formatCurrency(Math.abs(t.amount))}</div>
+                  <div style={{ color: t.amount > 0 ? "#198754" : "#dc3545", fontWeight: "bold" }}>
+                    {formatCurrency(Math.abs(t.amount))}
+                  </div>
                   <div>
                     <span
                       style={{
                         padding: "0.25rem 0.75rem",
                         borderRadius: "20px",
                         fontSize: "0.875rem",
-                        backgroundColor: t.status === "completed" ? "#d4edda" : t.status === "pending" ? "#fff3cd" : t.status === "failed" ? "#f8d7da" : "#e2e3e5",
-                        color: t.status === "completed" ? "#155724" : t.status === "pending" ? "#856404" : t.status === "failed" ? "#721c24" : "#383d41",
+                        backgroundColor:
+                          t.status === "completed"
+                            ? "#d4edda"
+                            : t.status === "pending"
+                            ? "#fff3cd"
+                            : t.status === "failed"
+                            ? "#f8d7da"
+                            : "#e2e3e5",
+                        color:
+                          t.status === "completed"
+                            ? "#155724"
+                            : t.status === "pending"
+                            ? "#856404"
+                            : t.status === "failed"
+                            ? "#721c24"
+                            : "#383d41",
                       }}
                     >
                       {t.status}
