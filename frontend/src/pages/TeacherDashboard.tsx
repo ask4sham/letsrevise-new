@@ -522,6 +522,21 @@ const TeacherDashboard: React.FC = () => {
               >
                 📝 Assessment Papers
               </Link>
+
+              <Link
+                to="/teacher/exam-question-bank"
+                style={{
+                  padding: "10px 14px",
+                  background: "#4f46e5",
+                  color: "white",
+                  textDecoration: "none",
+                  borderRadius: "8px",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                }}
+              >
+                📋 Exam Question Bank
+              </Link>
             </div>
           </div>
         </div>
@@ -837,6 +852,23 @@ const TeacherDashboard: React.FC = () => {
               }}
             >
               📝 Assessment Papers
+            </Link>
+
+            <Link
+              to="/teacher/exam-question-bank"
+              style={{
+                padding: "12px 24px",
+                background: "#4f46e5",
+                color: "white",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📋 Exam Question Bank
             </Link>
 
             <button

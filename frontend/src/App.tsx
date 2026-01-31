@@ -1,4 +1,4 @@
-﻿// /frontend/src/App.tsx
+// /frontend/src/App.tsx
 import React, { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/layout/Header";
@@ -59,6 +59,7 @@ import AssessmentPaperAttemptPage from "./pages/AssessmentPaperAttemptPage";
 import AssessmentPaperResultsPage from "./pages/AssessmentPaperResultsPage";
 import StudentAssessmentsPage from "./pages/StudentAssessmentsPage";
 import AssessmentPapersList from "./pages/AssessmentPapersList"; // ✅ ADDED
+import TeacherExamQuestionBankPage from "./pages/TeacherExamQuestionBankPage";
 
 import "./App.css";
 
@@ -322,6 +323,15 @@ function App() {
             element={
               <ProtectedRoute requireTeacher>
                 <EditLessonPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/exam-question-bank"
+            element={
+              <ProtectedRoute requireTeacher>
+                <TeacherExamQuestionBankPage />
               </ProtectedRoute>
             }
           />
