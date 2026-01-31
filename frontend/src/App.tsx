@@ -29,7 +29,7 @@ import SubjectOptionsPage from "./pages/SubjectOptionsPage";
 // ✅ Real browse lessons page
 import BrowseLessonsPage from "./pages/BrowseLessonsPage";
 
-// ✅ Admin “View” profile route page
+// ✅ Admin "View" profile route page
 import ProfilePage from "./pages/ProfilePage";
 
 // ✅ My Profile page (current user)
@@ -38,7 +38,7 @@ import UserProfilePage from "./pages/UserProfilePage";
 // ✅ Edit My Profile page
 import EditProfilePage from "./pages/EditProfilePage";
 
-// ✅ Admin “View Lesson” route page (for /admin/lesson/:id)
+// ✅ Admin "View Lesson" route page (for /admin/lesson/:id)
 import AdminLessonViewPage from "./pages/AdminLessonViewPage";
 
 // ✅ Settings page (new)
@@ -49,6 +49,16 @@ import CreateQuizPage from "./pages/CreateQuizPage";
 
 // ✅ NEW: Quiz Stats page (teacher only)
 import QuizStatsPage from "./pages/QuizStatsPage";
+
+// ✅ NEW: Teacher flashcards editor page
+import FlashcardsEditorPage from "./pages/FlashcardsEditorPage";
+
+// ✅ NEW: Assessment pages - ALL in src/pages/
+import AssessmentPaperStartPage from "./pages/AssessmentPaperStartPage";
+import AssessmentPaperAttemptPage from "./pages/AssessmentPaperAttemptPage";
+import AssessmentPaperResultsPage from "./pages/AssessmentPaperResultsPage";
+import StudentAssessmentsPage from "./pages/StudentAssessmentsPage";
+import AssessmentPapersList from "./pages/AssessmentPapersList"; // ✅ ADDED
 
 import "./App.css";
 
@@ -97,6 +107,9 @@ interface ProtectedRouteProps {
   requireStudent?: boolean;
   requireAdmin?: boolean;
   requireParent?: boolean;
+
+  // ✅ NEW: allows either teacher OR admin (needed for /edit-lesson/:id)
+  requireTeacherOrAdmin?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -105,6 +118,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireStudent = false,
   requireAdmin = false,
   requireParent = false,
+  requireTeacherOrAdmin = false,
 }) => {
   const auth = readAuthFromStorage();
 
@@ -119,6 +133,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!userType || !["student", "teacher", "parent", "admin"].includes(userType)) {
     clearAuthStorage();
     return <Navigate to="/login" replace />;
+  }
+
+  // ✅ Combined gate (teacher OR admin)
+  if (requireTeacherOrAdmin && userType !== "teacher" && userType !== "admin") {
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Role gates
@@ -250,10 +269,21 @@ function App() {
             }
           />
 
+          {/* ✅ NEW: Teacher/Admin Flashcards Editor for a lesson */}
+          <Route
+            path="/lessons/:id/flashcards"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <FlashcardsEditorPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ LOCKED IN: teacher OR admin can open the editor */}
           <Route
             path="/edit-lesson/:id"
             element={
-              <ProtectedRoute requireTeacher>
+              <ProtectedRoute requireTeacherOrAdmin>
                 <EditLessonPage />
               </ProtectedRoute>
             }
@@ -303,6 +333,61 @@ function App() {
                 <TeacherPayoutPage />
               </ProtectedRoute>
             }
+          />
+
+          {/* ✅ Restored: Main assessments page */}
+          <Route
+            path="/assessments"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentAssessmentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ ADDED: Assessment Papers List page - NOW FOR ALL AUTHENTICATED USERS */}
+          <Route
+            path="/assessments/papers"
+            element={
+              <ProtectedRoute>
+                <AssessmentPapersList />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ FIXED: Assessment paper routes - ALL using :id for consistency */}
+          <Route
+            path="/assessments/papers/:id/start"
+            element={
+              <ProtectedRoute requireStudent>
+                <AssessmentPaperStartPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/assessments/papers/:id/attempt"
+            element={
+              <ProtectedRoute requireStudent>
+                <AssessmentPaperAttemptPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ Assessment Results route - Using :id for consistency */}
+          <Route
+            path="/assessments/papers/:id/results"
+            element={
+              <ProtectedRoute requireStudent>
+                <AssessmentPaperResultsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ optional: keep old path alive so old links don't break */}
+          <Route
+            path="/assessments/papers/builder"
+            element={<Navigate to="/assessments/papers" replace />}
           />
 
           {/* ✅ Admin Dashboard (canonical) */}
@@ -386,6 +471,25 @@ function App() {
                 <ParentDashboard />
               </ProtectedRoute>
             }
+          />
+
+          {/* ✅ TEMPORARY TEST ROUTE */}
+          <Route 
+            path="/assessments-test" 
+            element={
+              <div style={{ padding: 40 }}>
+                <h2>ASSESSMENTS ROUTE OK</h2>
+                <p>If you can see this, routing is working!</p>
+                <div style={{ marginTop: 20 }}>
+                  <h3>Test Links:</h3>
+                  <ul>
+                    <li><a href="/assessments/papers/test123/start">/assessments/papers/test123/start</a></li>
+                    <li><a href="/assessments/papers/test123/attempt">/assessments/papers/test123/attempt</a></li>
+                    <li><a href="/assessments/papers/test123/results">/assessments/papers/test123/results</a></li>
+                  </ul>
+                </div>
+              </div>
+            } 
           />
 
           <Route path="/404" element={<NotFoundPage />} />

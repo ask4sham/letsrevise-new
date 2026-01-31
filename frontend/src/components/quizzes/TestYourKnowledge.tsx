@@ -1,6 +1,21 @@
 // frontend/src/quizzes/TestYourKnowledge.tsx
 import React, { useEffect, useState } from "react";
 
+// ✅ Define the actual Question type from your Lesson type
+type ActualQuestion = {
+  id: string;
+  type: "mcq" | "short" | "exam";
+  question: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation?: string;
+  tags?: string[];
+  difficulty?: number;
+  marks?: number;
+  markScheme?: string[];
+};
+
+// ✅ Keep the old QuizQuestion type for external quizzes
 type QuizQuestion = {
   questionText: string;
   options: string[];
@@ -19,17 +34,50 @@ type Quiz = {
   questions: QuizQuestion[];
 };
 
+// ✅ Update LessonLike to match actual Lesson structure
 type LessonLike = {
   level?: string;
   subject?: string;
-  topic?: string; // display label
-  examBoardName?: string | null; // display label
+  topic?: string;
+  examBoardName?: string | null;
+  quiz?: {
+    timeSeconds?: number;
+    questions?: ActualQuestion[];
+  };
   [key: string]: any;
 };
 
 interface Props {
   lesson: LessonLike | null;
 }
+
+// ✅ Helper to convert ActualQuestion to QuizQuestion for display
+const convertToQuizQuestion = (actualQuestion: ActualQuestion): QuizQuestion => {
+  // For MCQ questions, parse correctAnswer to get correctIndex
+  let correctIndex = 0;
+  if (actualQuestion.type === "mcq" && actualQuestion.options && actualQuestion.options.length > 0) {
+    // Try to parse correctAnswer as index or find matching option
+    const index = parseInt(actualQuestion.correctAnswer, 10);
+    if (!isNaN(index) && index >= 0 && index < actualQuestion.options.length) {
+      correctIndex = index;
+    } else {
+      // Fallback: find index of matching option text
+      const foundIndex = actualQuestion.options.findIndex(
+        option => option.trim().toLowerCase() === actualQuestion.correctAnswer.trim().toLowerCase()
+      );
+      if (foundIndex >= 0) {
+        correctIndex = foundIndex;
+      }
+    }
+  }
+
+  return {
+    questionText: actualQuestion.question,
+    options: actualQuestion.options || [],
+    correctIndex,
+    explanation: actualQuestion.explanation
+  };
+};
 
 // ✅ Use the same env pattern as the rest of the app (and avoid trailing slashes)
 const RAW_API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -44,11 +92,19 @@ function getAuthToken(): string | null {
 }
 
 const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
+  // ✅ SINGLE SOURCE OF TRUTH: Get questions from lesson.quiz
+  const lessonQuestions = lesson?.quiz?.questions ?? [];
+  
+  // ✅ Convert lesson questions to display format if needed
+  const displayQuestions = lessonQuestions.length > 0 
+    ? lessonQuestions.map(convertToQuizQuestion)
+    : [];
+  
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Taking-quiz state
+  // Taking-quiz state - now using displayQuestions if available
   const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -56,7 +112,25 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
   const [finished, setFinished] = useState(false);
   const [numCorrect, setNumCorrect] = useState(0);
 
-  const activeQuiz = quizzes.find((q) => q.id === activeQuizId) || null;
+  // ✅ Use lesson's questions if we have them, otherwise use external quizzes
+  const useLessonQuiz = displayQuestions.length > 0;
+  
+  // If using lesson quiz, create a mock quiz object
+  const lessonQuiz: Quiz = {
+    id: 'lesson-quiz',
+    title: 'Lesson Quiz',
+    description: 'Quiz from this lesson',
+    level: lesson?.level || null,
+    subject: lesson?.subject || null,
+    exam_board: lesson?.examBoardName || null,
+    module: lesson?.topic || null,
+    questions: displayQuestions
+  };
+
+  const activeQuiz = useLessonQuiz 
+    ? lessonQuiz 
+    : quizzes.find((q) => q.id === activeQuizId) || null;
+    
   const totalQuestions = activeQuiz?.questions?.length || 0;
   const currentQuestion =
     activeQuiz && activeQuiz.questions[currentIndex]
@@ -69,7 +143,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
   const displayExamBoard = lesson?.examBoardName || "";
   const displayTopic = lesson?.topic || "Not set";
 
-  // ✅ Normalised keys used for API query
+  // ✅ Normalised keys used for API query (only if we need external quizzes)
   const levelKey = displayLevel.toLowerCase();
 
   const subjectKey = (() => {
@@ -86,7 +160,8 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
       : undefined;
 
   useEffect(() => {
-    if (!levelKey || !subjectKey || !boardKey) {
+    // Only fetch external quizzes if lesson has no questions
+    if (useLessonQuiz || !levelKey || !subjectKey || !boardKey) {
       return;
     }
 
@@ -130,20 +205,49 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
     };
 
     fetchQuizzes();
-  }, [levelKey, subjectKey, boardKey, moduleKey]);
+  }, [levelKey, subjectKey, boardKey, moduleKey, useLessonQuiz]);
 
-  // If we don’t even know level/subject/board, don’t show block
+  // If we don't even know level/subject/board, don't show block
   if (!displayLevel || !displaySubject || !displayExamBoard) {
     return null;
   }
 
-  const startQuiz = (quizId: string) => {
-    const quiz = quizzes.find((q) => q.id === quizId) || null;
-    const length = quiz?.questions?.length || 0;
+  // ✅ Check lesson's own quiz questions first
+  if (lessonQuestions.length === 0) {
+    return (
+      <section
+        style={{
+          marginTop: "2rem",
+          padding: "1.5rem",
+          borderRadius: "12px",
+          border: "1px solid #e0e0e0",
+          background: "#fafafa",
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: "0.5rem", textAlign: "center" }}>
+          Test your knowledge
+        </h2>
+        <p
+          style={{
+            marginTop: 0,
+            fontSize: "0.9rem",
+            color: "#555",
+            textAlign: "center",
+          }}
+        >
+          Topic: <strong>{displayTopic}</strong> · {displayLevel.toUpperCase()}{" "}
+          {displaySubject.toUpperCase()}{" "}
+          {displayExamBoard ? `(${displayExamBoard.toUpperCase()})` : null}
+        </p>
+        <p style={{ fontSize: "0.9rem" }}>No quizzes available for this lesson yet.</p>
+      </section>
+    );
+  }
 
+  const startQuiz = (quizId: string) => {
     setActiveQuizId(quizId);
     setCurrentIndex(0);
-    setAnswers(length > 0 ? new Array(length).fill(-1) : []);
+    setAnswers(totalQuestions > 0 ? new Array(totalQuestions).fill(-1) : []);
     setShowAnswer(false);
     setFinished(false);
     setNumCorrect(0);
@@ -182,8 +286,6 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
         body: JSON.stringify({
           total_questions: total,
           correct_answers: correct,
-          // ✅ user_id intentionally NOT sent anymore.
-          // Backend derives it from JWT to prevent null/forged IDs.
         }),
       });
 
@@ -253,61 +355,78 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
         {displayExamBoard ? `(${displayExamBoard.toUpperCase()})` : null}
       </p>
 
-      {loading && <p>Loading quizzes…</p>}
+      {loading && !useLessonQuiz && <p>Loading quizzes…</p>}
 
       {error && !loading && (
         <p style={{ color: "red", fontSize: "0.9rem" }}>{error}</p>
       )}
 
-      {!loading && !error && quizzes.length === 0 && (
-        <p style={{ fontSize: "0.9rem" }}>No quizzes available for this lesson yet.</p>
-      )}
-
-      {!loading && !error && quizzes.length > 0 && (
+      {!loading && !error && (
         <>
-          <ul
-            style={{
-              listStyle: "none",
-              paddingLeft: 0,
-              marginBottom: "1rem",
-            }}
-          >
-            {quizzes.map((quiz) => (
-              <li
-                key={quiz.id}
+          {useLessonQuiz ? (
+            // ✅ Show lesson quiz button
+            <div style={{ marginBottom: "1rem" }}>
+              <button
                 style={{
-                  padding: "0.75rem 0",
-                  borderBottom: "1px solid #e6e6e6",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  padding: "0.4rem 0.9rem",
+                  borderRadius: "999px",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  background: "#667eea",
+                  color: "white",
                 }}
+                onClick={() => startQuiz('lesson-quiz')}
               >
-                <div>
-                  <div style={{ fontWeight: 600 }}>{quiz.title}</div>
-                  {quiz.description && (
-                    <div style={{ fontSize: "0.85rem", color: "#666" }}>
-                      {quiz.description}
-                    </div>
-                  )}
-                </div>
-                <button
+                Start Lesson Quiz ({displayQuestions.length} questions)
+              </button>
+            </div>
+          ) : (
+            // Show external quizzes list
+            <ul
+              style={{
+                listStyle: "none",
+                paddingLeft: 0,
+                marginBottom: "1rem",
+              }}
+            >
+              {quizzes.map((quiz) => (
+                <li
+                  key={quiz.id}
                   style={{
-                    padding: "0.4rem 0.9rem",
-                    borderRadius: "999px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    background: "#667eea",
-                    color: "white",
+                    padding: "0.75rem 0",
+                    borderBottom: "1px solid #e6e6e6",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
-                  onClick={() => startQuiz(quiz.id)}
                 >
-                  Start quiz
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{quiz.title}</div>
+                    {quiz.description && (
+                      <div style={{ fontSize: "0.85rem", color: "#666" }}>
+                        {quiz.description}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    style={{
+                      padding: "0.4rem 0.9rem",
+                      borderRadius: "999px",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      background: "#667eea",
+                      color: "white",
+                    }}
+                    onClick={() => startQuiz(quiz.id)}
+                  >
+                    Start quiz
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {activeQuiz && (
             <div

@@ -70,7 +70,7 @@ async function sendParentLinkEmail({ to, parentName, approveUrl, rejectUrl }) {
           Reject
         </a>
       </p>
-      <p>If you didn’t expect this, you can ignore this email.</p>
+      <p>If you didn't expect this, you can ignore this email.</p>
     </div>
   `;
 
@@ -178,6 +178,7 @@ router.post(
       schoolName, // new field from current frontend
       referralCode,
       linkedStudentEmail, // for parent accounts
+      yearGroup, // ✅ NEW: student year group (7..13)
     } = req.body;
 
     // Normalise userType
@@ -216,6 +217,18 @@ router.post(
         return res.status(400).json({ msg: "First name and last name are required" });
       }
 
+      // ✅ Student yearGroup validation (7..13)
+      let parsedYearGroup = null;
+      if (normalizedType === "student") {
+        const n = Number(yearGroup);
+        if (!Number.isFinite(n) || n < 7 || n > 13) {
+          return res.status(400).json({
+            msg: "Year group is required for students (7 to 13).",
+          });
+        }
+        parsedYearGroup = n;
+      }
+
       // For parent accounts, if they provided a student email, ensure it exists (and is a student)
       let linkedStudent = null;
       if (normalizedType === "parent" && normalizedLinkedStudentEmail) {
@@ -245,6 +258,9 @@ router.post(
         schoolName: resolvedSchoolName,
         shamCoins: startingShamCoins,
         verificationStatus: "pending",
+
+        // ✅ Persist student yearGroup (User model derives stageKey automatically)
+        ...(normalizedType === "student" ? { yearGroup: parsedYearGroup } : {}),
       });
 
       // Hash password
@@ -302,7 +318,7 @@ router.post(
           studentId: studentId.toString(),
         });
 
-        const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim();
+        const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000S0").trim();
         const approveUrl = `${baseUrl}/parent-link/approve?token=${encodeURIComponent(token)}`;
         const rejectUrl = `${baseUrl}/parent-link/reject?token=${encodeURIComponent(token)}`;
 
@@ -332,15 +348,22 @@ router.post(
         },
       };
 
-      // ✅ your requested form:
-      // const token = jwt.sign(payload, getJwtSecret(), { expiresIn: "..." });
-      // but we keep callback style to preserve your existing behavior/structure.
-      const secret = getJwtSecret();
-      if (shouldDebugJwt()) {
-        console.log(`🔑 JWT_SECRET fingerprint (SIGN/register): ${secretFingerprint(secret)}`);
+      // ✅ CHANGED: Use JWT_SECRET_KEY directly from environment
+      const jwtSecretKey = process.env.JWT_SECRET_KEY;
+      if (!jwtSecretKey) {
+        console.error("❌ JWT_SECRET_KEY environment variable is not set");
+        return res.status(500).json({ msg: "Server configuration error" });
       }
 
-      jwt.sign(payload, secret, { expiresIn: "7d" }, (err, token) => {
+      if (shouldDebugJwt()) {
+        console.log(`🔑 JWT_SECRET_KEY fingerprint (SIGN/register): ${secretFingerprint(jwtSecretKey)}`);
+      }
+
+      // ✅ CHANGED: Sign with JWT_SECRET_KEY
+      jwt.sign(payload, jwtSecretKey, { 
+        algorithm: "HS256",
+        expiresIn: "7d" 
+      }, (err, token) => {
         if (err) {
           console.error("JWT error:", err);
           return res.status(500).send("Server error");
@@ -360,6 +383,10 @@ router.post(
             referralCode: user.referralCode,
             schoolName: user.schoolName || null,
             verificationStatus: user.verificationStatus || "pending",
+
+            // ✅ NEW (non-breaking): these allow frontend gating reliably
+            yearGroup: user.yearGroup ?? null,
+            stageKey: user.stageKey ?? null,
           },
           // extra, non-breaking field (frontend can ignore)
           link: linkInfo,
@@ -435,12 +462,22 @@ router.post(
         },
       };
 
-      const secret = getJwtSecret();
-      if (shouldDebugJwt()) {
-        console.log(`🔑 JWT_SECRET fingerprint (SIGN/login): ${secretFingerprint(secret)}`);
+      // ✅ CHANGED: Use JWT_SECRET_KEY directly from environment
+      const jwtSecretKey = process.env.JWT_SECRET_KEY;
+      if (!jwtSecretKey) {
+        console.error("❌ JWT_SECRET_KEY environment variable is not set");
+        return res.status(500).json({ msg: "Server configuration error" });
       }
 
-      jwt.sign(payload, secret, { expiresIn: "7d" }, (err, token) => {
+      if (shouldDebugJwt()) {
+        console.log(`🔑 JWT_SECRET_KEY fingerprint (SIGN/login): ${secretFingerprint(jwtSecretKey)}`);
+      }
+
+      // ✅ CHANGED: Sign with JWT_SECRET_KEY
+      jwt.sign(payload, jwtSecretKey, { 
+        algorithm: "HS256",
+        expiresIn: "7d" 
+      }, (err, token) => {
         if (err) {
           console.error("JWT error:", err);
           return res.status(500).send("Server error");
@@ -460,6 +497,10 @@ router.post(
             referralCode: user.referralCode,
             schoolName: user.schoolName || null,
             verificationStatus: user.verificationStatus || "pending",
+
+            // ✅ NEW (non-breaking): reliable gating for lessons
+            yearGroup: user.yearGroup ?? null,
+            stageKey: user.stageKey ?? null,
           },
         });
       });
@@ -482,8 +523,13 @@ router.get("/user", async (req, res) => {
       return res.status(401).json({ msg: "No token" });
     }
 
-    // Verify with the same normalized secret (NO FALLBACK)
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
+    // ✅ CHANGED: Verify with JWT_SECRET_KEY
+    const jwtSecretKey = process.env.JWT_SECRET_KEY;
+    if (!jwtSecretKey) {
+      return res.status(500).json({ msg: "Server configuration error" });
+    }
+
+    const decoded = jwt.verify(token, jwtSecretKey, { algorithms: ["HS256"] });
     const userId = decoded.user?.id || decoded.userId || decoded.id;
 
     if (!userId) {
@@ -492,6 +538,7 @@ router.get("/user", async (req, res) => {
 
     const user = await User.findById(userId).select("-password");
 
+    // ✅ Ensure yearGroup + stageKey are returned for gating
     res.json(user);
   } catch (err) {
     console.error(err.message);

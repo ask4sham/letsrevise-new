@@ -8,6 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
+    "test:assessment": "jest tests/assessmentAttempts.integration.test.js",
+    "test:assessment:watch": "jest --watch tests/assessmentAttempts.integration.test.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -59,5 +61,26 @@
     "url": "https://github.com/yourusername/letsrivise-backend/issues"
   },
   "homepage": "https://github.com/yourusername/letsrivise-backend#readme",
-  "private": true
+  "private": true,
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/",
+      "/coverage/"
+    ],
+    "collectCoverageFrom": [
+      "backend/**/*.js",
+      "!backend/tests/**",
+      "!backend/**/*.test.js",
+      "!backend/**/*.spec.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/tests/**/*.spec.js"
+    ],
+    "setupFilesAfterEnv": [
+      "./tests/setup.js"
+    ]
+  }
 }

@@ -69,6 +69,7 @@ function tokenise(s) {
     "have","has","had","do","does","did",
     "of","to","in","on","for","with",
     "cells","cell"
+    // "not", "no", and "without" REMOVED from stopwords - they are important for negation detection
   ]);
 
   return normaliseShortText(s)
@@ -86,7 +87,14 @@ function fuzzyHasToken(userTokens, targetToken) {
 function hasNegationNear(words, idx, window = 3) {
   const start = Math.max(0, idx - window);
   const end = Math.min(words.length - 1, idx + window);
-  const neg = new Set(["no", "not", "dont", "don't", "doesnt", "doesn't", "without", "lack", "lacks"]);
+  const neg = new Set([
+    "no", "not", 
+    "dont", "don't", 
+    "doesnt", "doesn't", "didnt", "didn't",
+    "cant", "can't", "cannot",
+    "wont", "won't",
+    "without", "lack", "lacks"
+  ]);
   for (let i = start; i <= end; i++) {
     if (neg.has(words[i])) return true;
   }
@@ -153,7 +161,14 @@ function isShortAnswerCorrect(userText, correctText) {
     // If student negates nucleus but doesn't clearly separate subjects,
     // we use proximity: look for negation near eukaryotic and prokaryotic separately.
     // Find a negation token position in the student answer
-    const negIdx = anyFuzzyIndex(uTokens, ["not", "no", "without"]);
+    const negIdx = anyFuzzyIndex(uTokens, [
+      "not", "no", "without",
+      "dont", "don't", 
+      "doesnt", "doesn't", "didnt", "didn't",
+      "cant", "can't", "cannot",
+      "wont", "won't",
+      "lack", "lacks"
+    ]);
 
     // If there is negation, it must be closer to "prokaryotic" than "eukaryotic"
     // (prevents the window-based false negative you're seeing)
@@ -973,7 +988,7 @@ router.get("/:id/results", auth, async (req, res) => {
           type: "unknown",
           options: [],
           marks: itemDoc?.marks || 1,
-          correctAnswer: null,
+          correctAnswer: null, // Added correctAnswer field
           correctIndex: -1,
           explanation: "",
           userAnswer: null,
@@ -1003,7 +1018,7 @@ router.get("/:id/results", auth, async (req, res) => {
           type: itemDoc.type,
           options: [], // short answers have no options
           marks: itemDoc.marks || 1,
-          correctAnswer: itemDoc.correctAnswer,
+          correctAnswer: itemDoc.correctAnswer, // Added correctAnswer field
           correctIndex: -1, // not applicable
           explanation: itemDoc.explanation,
           userAnswer: answer
@@ -1026,7 +1041,7 @@ router.get("/:id/results", auth, async (req, res) => {
           type: itemDoc.type,
           options: itemDoc.options || [],
           marks: itemDoc.marks || 1,
-          correctAnswer: itemDoc.correctAnswer,
+          correctAnswer: itemDoc.correctAnswer, // Added correctAnswer field
           correctIndex: -1,
           explanation: itemDoc.explanation,
           userAnswer: answer
@@ -1066,7 +1081,7 @@ router.get("/:id/results", auth, async (req, res) => {
         type: itemDoc.type,
         options: itemDoc.options || [],
         marks: itemDoc.marks || 1,
-        correctAnswer: itemDoc.correctAnswer,
+        correctAnswer: itemDoc.correctAnswer, // Added correctAnswer field
         correctIndex: correctAnswerIndex, // Store the calculated correct index
         explanation: itemDoc.explanation,
         userAnswer: answer

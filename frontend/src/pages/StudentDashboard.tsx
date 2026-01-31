@@ -1,6 +1,25 @@
+// frontend/src/pages/StudentDashboard.tsx
+
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
+
+const API_BASE = "http://localhost:5000";
+
+/**
+ * ✅ StudentDashboard (Option A, same logic as BrowseLessons)
+ * - Shows ONLY published lessons
+ * - Locks the student to their stage/level (KS3/GCSE/A-Level)
+ * - Subject / Topic / Board filters + Search
+ *
+ * UX changes:
+ * - Subject dropdown shows a fuller list (seeded with common subjects + subjects seen in gated lessons)
+ * - Topic is now TYPEABLE (with suggestions via <datalist>)
+ *
+ * Legacy Supabase is OFF by default (wipe slate clean).
+ */
+const ENABLE_LEGACY_SUPABASE = false;
 
 type ExamBoardRow = { name: string };
 
@@ -15,29 +34,67 @@ type SupabaseLessonRow = {
   teacher_id: string | null;
   is_published: boolean | null;
   created_at: string | null;
-  // GCSE tier (optional)
   tier?: string | null;
   exam_board?: ExamBoardRow[] | ExamBoardRow | null;
 };
 
+type MongoLessonRaw = {
+  _id?: any;
+  id?: any;
+  title?: any;
+  description?: any;
+  content?: any;
+  subject?: any;
+  level?: any;
+  topic?: any;
+  board?: any;
+  tier?: any;
+  isPublished?: any;
+  createdAt?: any;
+  pages?: any[];
+  teacherName?: any;
+  teacherId?: any;
+  estimatedDuration?: any;
+  shamCoinPrice?: any;
+  views?: any;
+  averageRating?: any;
+};
+
 type StudentLessonCard = {
-  id: string; // UUID
+  id: string;
+
   title: string;
   description: string;
+
   subject: string;
+  topic: string;
+
+  // Lesson level label shown on cards (e.g., "GCSE", "A-Level", "KS3")
   level: string;
+
+  // Legacy-ish fields used by existing UI
   stage: string;
   years: string | number | null;
+
   teacherName: string;
   teacherId: string;
+
   estimatedDuration: number;
   shamCoinPrice: number;
   views: number;
   averageRating: number;
   createdAt: string;
-  examBoardName: string | null;
-  tier: string; // '' | foundation | higher
+
+  // Board filter value (includes "Not set")
+  examBoardName: string;
+
+  tier: string; // '' | foundation | higher | etc
 };
+
+function safeStr(v: any, fallback = "") {
+  const s = v === undefined || v === null ? "" : String(v);
+  return s.trim() ? s : fallback;
+}
 
 function getBoardName(exam_board: ExamBoardRow[] | ExamBoardRow | null | undefined): string | null {
   if (Array.isArray(exam_board)) return exam_board[0]?.name ?? null;
@@ -51,26 +108,178 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-const EXAM_BOARDS = ["AQA", "OCR", "Edexcel", "WJEC"] as const;
+function isMongoObjectId(value: string) {
+  return /^[a-f0-9]{24}$/i.test(value);
+}
+
+function normalizeTier(tier: string) {
+  const t = safeStr(tier, "").toLowerCase();
+  if (!t) return "";
+  if (t.includes("foundation")) return "foundation";
+  if (t.includes("higher")) return "higher";
+  if (t.includes("advanced")) return "advanced";
+  return t;
+}
+
+function normalizeLevelLabel(level: string) {
+  const v = safeStr(level, "");
+  const l = v.toLowerCase();
+
+  if (!l) return "Not set";
+  if (l.includes("ks3")) return "KS3";
+  if (l.includes("gcse")) return "GCSE";
+  if (l.includes("a-level") || l.includes("alevel") || l.includes("a level")) return "A-Level";
+
+  return v;
+}
+
+function normalizeBoardName(board: string) {
+  const b = safeStr(board, "");
+  return b.trim() ? b : "Not set";
+}
+
+function normalizeForCompare(s: string) {
+  return safeStr(s, "").trim().toLowerCase();
+}
+
+/**
+ * Student stage gating helpers (same as BrowseLessons)
+ * Normalized key: "ks3" | "gcse" | "a-level" | ""
+ */
+function normalizeStageKey(s: string) {
+  const v = safeStr(s, "").toLowerCase();
+  if (!v) return "";
+  if (v.includes("ks3")) return "ks3";
+  if (v.includes("gcse") || v.includes("gcse")) return "gcse";
+  if (v.includes("a-level") || v.includes("alevel") || v.includes("a level")) return "a-level";
+  return v;
+}
+
+function stageLabel(stageKey: string) {
+  if (stageKey === "ks3") return "KS3";
+  if (stageKey === "gcse") return "GCSE";
+  if (stageKey === "a-level") return "A-Level";
+  return "";
+}
+
+function stageKeyToLessonLevel(stageKey: string): string {
+  return stageLabel(stageKey) || "";
+}
+
+function lessonMatchesStage(lessonLevel: string, stageKey: string) {
+  if (!stageKey) return true;
+  const lvl = safeStr(lessonLevel, "").toLowerCase();
+  if (!lvl) return false;
+
+  if (stageKey === "gcse") return lvl.includes("gcse");
+  if (stageKey === "ks3") return lvl.includes("ks3");
+  if (stageKey === "a-level") return lvl.includes("a-level") || lvl.includes("alevel") || lvl.includes("a level");
+  return false;
+}
+
+function buildPreview(desc: string, content: string, max = 160) {
+  const d = safeStr(desc, "");
+  if (d.trim()) return d.trim().slice(0, max) + (d.trim().length > max ? "…" : "");
+  const c = safeStr(content, "");
+  if (!c.trim()) return "No description yet.";
+  const t = c.trim();
+  return t.slice(0, max) + (t.length > max ? "…" : "");
+}
+
+function buildDescriptionFromLegacy(notes: string, examBoardName: string | null) {
+  const safeNotes = safeStr(notes, "");
+  if (examBoardName) return `Exam board: ${examBoardName}`;
+  if (!safeNotes.trim()) return "No description yet.";
+  const trimmed = safeNotes.trim();
+  return trimmed.slice(0, 160) + (trimmed.length > 160 ? "…" : "");
+}
+
+const BASE_EXAM_BOARDS = ["AQA", "OCR", "Edexcel", "WJEC", "Not set"] as const;
+
+// Seed "all subjects" list for the dropdown (plus whatever exists in Mongo).
+// Add/remove freely without breaking anything.
+const BASE_SUBJECTS = [
+  "Biology",
+  "Chemistry",
+  "Physics",
+  "Science",
+  "Mathematics",
+  "Further Mathematics",
+  "English Language",
+  "English Literature",
+  "Geography",
+  "History",
+  "Computer Science",
+  "Business",
+  "Economics",
+  "Psychology",
+  "Sociology",
+  "Religious Studies",
+  "Spanish",
+  "French",
+  "German",
+  "Art",
+  "Music",
+  "PE",
+] as const;
 
 const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // ✅ UPDATED: localStorage-backed state for advanced/deeper knowledge
+  const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
+    return localStorage.getItem("advancedMode") === "true";
+  });
 
   const [lessons, setLessons] = useState<StudentLessonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
+  // Filters (match BrowseLessons UX)
   const [filters, setFilters] = useState({
     subject: "",
-    level: "",
+    topic: "",
+    board: "",
     tier: "",
-    examBoard: "",
     search: "",
   });
 
+  // Topic suggestion narrowing (within selected subject) — still useful even with typeable Topic
+  const [topicNarrow, setTopicNarrow] = useState("");
+
+  // Determine user type best-effort
+  const userType = useMemo(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return String(u?.userType || u?.type || "").toLowerCase();
+    } catch {
+      return "";
+    }
+  }, []);
+
+  const isStudent = userType === "student" || userType === "";
+
+  const studentStageKey = useMemo(() => {
+    const lsStage = safeStr(localStorage.getItem("selectedStage"), "");
+    if (lsStage) return normalizeStageKey(lsStage);
+
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      const stageFromUser = safeStr(u?.stage || u?.level || u?.selectedStage, "");
+      return normalizeStageKey(stageFromUser);
+    } catch {
+      return "";
+    }
+  }, []);
+
+  const lockedLevelLabel = useMemo(() => {
+    return isStudent && studentStageKey ? stageLabel(studentStageKey) : "";
+  }, [isStudent, studentStageKey]);
+
   useEffect(() => {
     fetchUserData();
-    fetchPublishedLessonsFromSupabase();
+    loadPublishedLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -86,27 +295,98 @@ const StudentDashboard: React.FC = () => {
     }
   };
 
-  const fetchPublishedLessonsFromSupabase = async () => {
+  const fetchPublishedLessonsFromMongo = async (): Promise<StudentLessonCard[]> => {
     try {
-      setLoading(true);
+      const token = localStorage.getItem("token");
+
+      // Option A: if student stage known, we can pass level, but server also enforces level for students.
+      const levelParam = isStudent && studentStageKey ? stageKeyToLessonLevel(studentStageKey) : "";
+
+      const res = await axios.get(`${API_BASE}/api/lessons`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        params: levelParam ? { level: levelParam } : undefined,
+      });
+
+      const arr = Array.isArray(res.data) ? (res.data as MongoLessonRaw[]) : [];
+
+      const mapped: StudentLessonCard[] = arr
+        .filter((l) => Boolean((l as any)?.isPublished) === true)
+        .map((l) => {
+          const id = safeStr(l._id || l.id, "");
+          const title = safeStr(l.title, "Untitled Lesson");
+
+          const subject = safeStr(l.subject, "Not set");
+          const topic = safeStr(l.topic, "Not set");
+
+          const level = normalizeLevelLabel(safeStr(l.level, "Not set"));
+          const tier = normalizeTier(safeStr((l as any).tier, ""));
+
+          // Board comes from Mongo "board"
+          const examBoardName = normalizeBoardName(safeStr((l as any).board, ""));
+
+          const preview = buildPreview(safeStr(l.description, ""), safeStr(l.content, ""), 160);
+
+          return {
+            id,
+            title,
+            description: preview,
+            subject,
+            topic,
+            level,
+
+            // Keep legacy-ish fields safe
+            stage: level,
+            years: null,
+
+            teacherName: safeStr((l as any).teacherName, "Teacher"),
+            teacherId: safeStr((l as any).teacherId?._id || (l as any).teacherId, ""),
+
+            estimatedDuration: Number.isFinite(Number((l as any).estimatedDuration))
+              ? Number((l as any).estimatedDuration)
+              : 0,
+            shamCoinPrice: Number.isFinite(Number((l as any).shamCoinPrice))
+              ? Number((l as any).shamCoinPrice)
+              : 0,
+            views: Number.isFinite(Number((l as any).views)) ? Number((l as any).views) : 0,
+            averageRating: Number.isFinite(Number((l as any).averageRating))
+              ? Number((l as any).averageRating)
+              : 0,
+            createdAt: safeStr((l as any).createdAt, new Date().toISOString()),
+
+            examBoardName,
+            tier,
+          };
+        })
+        .filter((x) => Boolean(x.id));
+
+      return mapped;
+    } catch (err) {
+      console.error("Mongo lessons fetch failed:", err);
+      return [];
+    }
+  };
+
+  const fetchPublishedLessonsFromSupabase = async (): Promise<StudentLessonCard[]> => {
+    try {
+      if (!ENABLE_LEGACY_SUPABASE) return [];
 
       const { data, error } = await supabase
         .from("lessons")
         .select(
           `
-            id,
-            title,
-            subject,
-            level,
-            stage,
-            years,
-            lesson_notes,
-            teacher_id,
-            is_published,
-            created_at,
-            tier,
-            exam_board:exam_boards(name)
-          `
+          id,
+          title,
+          subject,
+          level,
+          stage,
+          years,
+          lesson_notes,
+          teacher_id,
+          is_published,
+          created_at,
+          tier,
+          exam_board:exam_boards(name)
+        `
         )
         .eq("is_published", true)
         .order("created_at", { ascending: false })
@@ -114,35 +394,30 @@ const StudentDashboard: React.FC = () => {
 
       if (error) {
         console.error("Supabase error fetching lessons:", error);
-        setLessons([]);
-        return;
+        return [];
       }
 
       const raw = (data ?? []) as unknown as SupabaseLessonRow[];
 
-      const mapped: StudentLessonCard[] = raw.map((l) => {
-        const examBoardName = getBoardName(l.exam_board ?? null);
+      return raw.map((l) => {
+        const examBoardNameRaw = getBoardName(l.exam_board ?? null);
+        const examBoardName = normalizeBoardName(examBoardNameRaw ?? "");
 
         const safeTitle = String(l.title ?? "Untitled Lesson");
         const safeNotes = String(l.lesson_notes ?? "");
         const safeSubject = String(l.subject ?? "Not set");
-        const safeLevel = String(l.level ?? "Not set");
-        const safeStage = String(l.stage ?? "Not set");
-        const safeCreatedAt = String(l.created_at ?? new Date().toISOString());
-        const safeTier = String(l.tier ?? "").toLowerCase();
 
-        const description =
-          examBoardName
-            ? `Exam board: ${examBoardName}`
-            : safeNotes.trim().length > 0
-            ? safeNotes.trim().slice(0, 160) + (safeNotes.trim().length > 160 ? "…" : "")
-            : "No description yet.";
+        const safeLevel = normalizeLevelLabel(String(l.level ?? "Not set"));
+        const safeStage = String(l.stage ?? safeLevel);
+        const safeCreatedAt = String(l.created_at ?? new Date().toISOString());
+        const safeTier = normalizeTier(String(l.tier ?? ""));
 
         return {
           id: String(l.id),
           title: safeTitle,
-          description,
+          description: buildDescriptionFromLegacy(safeNotes, examBoardNameRaw),
           subject: safeSubject,
+          topic: "Not set",
           level: safeLevel,
           stage: safeStage,
           years: l.years ?? null,
@@ -157,78 +432,177 @@ const StudentDashboard: React.FC = () => {
           tier: safeTier,
         };
       });
-
-      setLessons(mapped);
     } catch (err) {
       console.error("Error fetching lessons from Supabase:", err);
-      setLessons([]);
+      return [];
+    }
+  };
+
+  const loadPublishedLessons = async () => {
+    try {
+      setLoading(true);
+
+      const [mongo, legacy] = await Promise.all([
+        fetchPublishedLessonsFromMongo(),
+        fetchPublishedLessonsFromSupabase(),
+      ]);
+
+      const merged = [...mongo, ...legacy].sort((a, b) => {
+        const da = new Date(a.createdAt).getTime();
+        const db = new Date(b.createdAt).getTime();
+        return db - da;
+      });
+
+      setLessons(merged);
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * ✅ Stage-gated lessons (Option A)
+   */
+  const gatedLessons = useMemo(() => {
+    let base = lessons;
+
+    // Stage gate (existing behavior)
+    if (isStudent && studentStageKey) {
+      base = base.filter((l) => lessonMatchesStage(l.level, studentStageKey));
+    }
+
+    // ✅ UPDATED: Advanced mode toggle (now using localStorage-backed state)
+    // If Advanced mode is OFF: hide lessons marked as "advanced"
+    // If Advanced mode is ON: show everything
+    if (!advancedMode) {
+      base = base.filter((l) => safeStr(l.tier, "").toLowerCase() !== "advanced");
+    }
+
+    return base;
+  }, [lessons, isStudent, studentStageKey, advancedMode]);
+
+  /**
+   * Subjects dropdown:
+   * - Seed with a broader list (BASE_SUBJECTS)
+   * - Also include whatever subjects exist in gatedLessons
+   */
+  const subjectOptions = useMemo(() => {
+    const set = new Set<string>();
+    (BASE_SUBJECTS as unknown as string[]).forEach((s) => set.add(s));
+    gatedLessons.forEach((l) => set.add(safeStr(l.subject, "Not set")));
+    set.delete("Not set");
+    const arr = Array.from(set).sort((a, b) => a.localeCompare(b));
+    // If lessons have truly unknown subject, still allow selecting it
+    if (gatedLessons.some((l) => normalizeForCompare(l.subject) === "not set")) arr.push("Not set");
+    return arr;
+  }, [gatedLessons]);
+
+  /**
+   * Topic suggestions (for datalist)
+   * - scoped to selected subject (if chosen)
+   * - also narrowed by topicNarrow input
+   */
+  const topicOptions = useMemo(() => {
+    const set = new Set<string>();
+
+    gatedLessons.forEach((l) => {
+      if (filters.subject && safeStr(l.subject, "") !== filters.subject) return;
+      set.add(safeStr(l.topic, "Not set"));
+    });
+
+    let arr = Array.from(set).sort((a, b) => a.localeCompare(b));
+
+    const q = topicNarrow.trim().toLowerCase();
+    if (q) arr = arr.filter((t) => t.toLowerCase().includes(q));
+
+    return arr;
+  }, [gatedLessons, filters.subject, topicNarrow]);
+
+  const boardOptions = useMemo(() => {
+    const set = new Set<string>(BASE_EXAM_BOARDS as unknown as string[]);
+    gatedLessons.forEach((l) => set.add(normalizeBoardName(l.examBoardName)));
+
+    const arr = Array.from(set);
+    arr.sort((a, b) => {
+      const an = a.toLowerCase() === "not set";
+      const bn = b.toLowerCase() === "not set";
+      if (an && !bn) return 1;
+      if (!an && bn) return -1;
+      return a.localeCompare(b);
+    });
+    return arr;
+  }, [gatedLessons]);
+
+  /**
+   * Final filtered list:
+   * 1) Stage gating (already applied in gatedLessons)
+   * 2) Subject / Topic (typed) / Board / Tier
+   * 3) Search
+   */
   const filteredLessons = useMemo(() => {
-    let filtered = [...lessons];
+    const q = filters.search.trim().toLowerCase();
+    const typedTopic = filters.topic.trim();
 
-    if (filters.subject) {
-      filtered = filtered.filter((lesson) => lesson.subject === filters.subject);
-    }
+    return gatedLessons.filter((lesson) => {
+      if (filters.subject && lesson.subject !== filters.subject) return false;
 
-    if (filters.level) {
-      filtered = filtered.filter((lesson) => lesson.level === filters.level);
-    }
+      // ✅ Topic is typeable: treat it as a contains-match (case-insensitive)
+      if (typedTopic) {
+        const hay = normalizeForCompare(lesson.topic);
+        const needle = normalizeForCompare(typedTopic);
+        if (!hay.includes(needle)) return false;
+      }
 
-    // GCSE tier filter – only applies when Level = GCSE
-    if (filters.level === "GCSE" && filters.tier) {
-      const desired = filters.tier.toLowerCase();
-      filtered = filtered.filter(
-        (lesson) =>
-          lesson.level === "GCSE" &&
-          (lesson.tier || "").toLowerCase() === desired
-      );
-    }
+      // If NOT in advanced mode, hide lessons that contain stretch blocks
+      if (!advancedMode) {
+        const hasStretch =
+          Array.isArray((lesson as any).pages) &&
+          (lesson as any).pages.some((p: any) =>
+            Array.isArray(p?.blocks) && p.blocks.some((b: any) => b?.type === "stretch")
+          );
 
-    // Exam board filter
-    if (filters.examBoard) {
-      filtered = filtered.filter(
-        (lesson) => (lesson.examBoardName || "") === filters.examBoard
-      );
-    }
+        if (hasStretch) return false;
+      }
 
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter((lesson) =>
-        [
-          lesson.title,
-          lesson.description,
-          lesson.subject,
-          lesson.level,
-          lesson.stage,
-          String(lesson.years ?? ""),
-          lesson.teacherName,
-          lesson.examBoardName ?? "",
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(searchLower)
-      );
-    }
+      if (filters.board) {
+        const b = normalizeBoardName(lesson.examBoardName);
+        if (b !== filters.board) return false;
+      }
 
-    return filtered;
-  }, [filters, lessons]);
+      // GCSE tier filter (only when level is GCSE)
+      if (normalizeLevelLabel(lesson.level) === "GCSE" && filters.tier) {
+        const desired = filters.tier.toLowerCase();
+        if ((lesson.tier || "").toLowerCase() !== desired) return false;
+      }
 
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>
-  ) => {
+      if (!q) return true;
+
+      const haystack = [
+        lesson.title,
+        lesson.description,
+        lesson.subject,
+        lesson.topic,
+        lesson.level,
+        lesson.examBoardName,
+        lesson.teacherName,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [gatedLessons, filters, advancedMode]);
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
 
-    // If level changes, reset tier when not GCSE
-    if (name === "level") {
+    // When subject changes, reset topic (because topics are scoped by subject)
+    if (name === "subject") {
       setFilters((prev) => ({
         ...prev,
-        level: value,
-        tier: value === "GCSE" ? prev.tier : "",
+        subject: value,
+        topic: "",
       }));
+      setTopicNarrow("");
       return;
     }
 
@@ -238,9 +612,12 @@ const StudentDashboard: React.FC = () => {
     }));
   };
 
-  // Get Access / Purchase goes to the lesson page (MVP)
   const handlePurchase = async (lessonId: string) => {
     navigate(`/lesson/${lessonId}`);
+  };
+
+  const handleExamPractice = () => {
+    navigate("/assessments/papers"); // Changed from "/assessments" to "/assessments/papers"
   };
 
   if (loading) {
@@ -274,11 +651,28 @@ const StudentDashboard: React.FC = () => {
           <div>
             <h1 style={{ color: "#333", marginBottom: "5px" }}>👨‍🎓 Student Dashboard</h1>
             <p style={{ color: "#666" }}>
-              Welcome back, {user?.firstName}! Browse and purchase lessons from expert
-              teachers.
+              Welcome back, {user?.firstName}!{" "}
+              {lockedLevelLabel ? `You are browsing ${lockedLevelLabel} lessons only.` : ""}
             </p>
+            
+            {advancedMode && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "rgba(124,58,237,0.10)",
+                  border: "2px solid rgba(124,58,237,0.35)",
+                  color: "#4c1d95",
+                  fontWeight: 900,
+                }}
+              >
+                🔥 Advanced mode enabled (Deeper knowledge)
+              </div>
+            )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
             <div
               style={{
                 background: "white",
@@ -292,9 +686,99 @@ const StudentDashboard: React.FC = () => {
             >
               💰 {user?.shamCoins || 0} ShamCoins
             </div>
+
+            {/* ✅ UPDATED: Exam Practice Link - Now goes to /assessments/papers */}
+            <button
+              onClick={handleExamPractice}
+              style={{
+                padding: "10px 16px",
+                background: "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📝 Exam Practice
+            </button>
+
             <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
               Back to Main Dashboard
             </Link>
+          </div>
+        </div>
+
+        {/* Quick Actions Section */}
+        <div
+          style={{
+            background: "white",
+            padding: "25px",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            marginBottom: "30px",
+          }}
+        >
+          <h3 style={{ color: "#333", marginBottom: "20px" }}>Quick Actions</h3>
+          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
+            <button
+              onClick={() => navigate("/browse-lessons")}
+              style={{
+                padding: "12px 24px",
+                background: "#48bb78",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              🔍 Browse Lessons
+            </button>
+            
+            {/* ✅ UPDATED: Exam Practice button in Quick Actions - Now goes to /assessments/papers */}
+            <button
+              onClick={handleExamPractice}
+              style={{
+                padding: "12px 24px",
+                background: "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📝 Exam Practice
+            </button>
+            
+            <button
+              onClick={() => navigate("/progress")}
+              style={{
+                padding: "12px 24px",
+                background: "#667eea",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📊 View Progress
+            </button>
           </div>
         </div>
 
@@ -308,137 +792,135 @@ const StudentDashboard: React.FC = () => {
             marginBottom: "30px",
           }}
         >
-          <h3 style={{ color: "#333", marginBottom: "20px" }}>Filter Lessons</h3>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: "20px",
+            }}
+          >
+            <h3 style={{ color: "#333", margin: 0 }}>Filter Lessons</h3>
+
+            {/* ✅ UPDATED: Toggle button with localStorage persistence */}
+            <button
+              type="button"
+              onClick={() => {
+                setAdvancedMode((v) => {
+                  const newValue = !v;
+                  localStorage.setItem("advancedMode", String(newValue));
+                  return newValue;
+                });
+              }}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid rgba(0,0,0,0.18)",
+                background: advancedMode ? "#111827" : "#3b82f6",
+                color: "white",
+                fontWeight: 800,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {advancedMode ? "Deeper knowledge: ON" : "Deeper knowledge"}
+            </button>
+          </div>
+
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
               gap: "15px",
+              alignItems: "end",
             }}
           >
             {/* Subject */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  color: "#666",
-                  fontWeight: "bold",
-                }}
-              >
+              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
                 Subject
               </label>
               <select
                 name="subject"
                 value={filters.subject}
                 onChange={handleFilterChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                }}
+                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
               >
                 <option value="">All Subjects</option>
-                <option value="Mathematics">Mathematics</option>
-                <option value="Physics">Physics</option>
-                <option value="Chemistry">Chemistry</option>
-                <option value="Biology">Biology</option>
-                <option value="English">English</option>
-                <option value="History">History</option>
-                <option value="Geography">Geography</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Economics">Economics</option>
-                <option value="Business">Business</option>
+                {subjectOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* Level */}
+            {/* Topic (TYPEABLE) */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  color: "#666",
-                  fontWeight: "bold",
-                }}
-              >
+              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
+                Topic
+              </label>
+              <input
+                name="topic"
+                value={filters.topic}
+                onChange={handleFilterChange}
+                list="topic-options"
+                placeholder="Type a topic…"
+                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
+              />
+              <datalist id="topic-options">
+                {topicOptions.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+            </div>
+
+            {/* Level (locked for students, Option A) */}
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
                 Level
               </label>
               <select
-                name="level"
-                value={filters.level}
-                onChange={handleFilterChange}
+                name="levelLocked"
+                value={lockedLevelLabel || "All Levels"}
+                disabled={Boolean(lockedLevelLabel)}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e2e8f0",
                   borderRadius: "6px",
+                  background: Boolean(lockedLevelLabel) ? "#f8fafc" : "white",
+                  color: Boolean(lockedLevelLabel) ? "#6b7280" : "#111827",
                 }}
               >
-                <option value="">All Levels</option>
-                <option value="KS3">KS3</option>
-                <option value="GCSE">GCSE</option>
-                <option value="A-Level">A-Level</option>
+                {lockedLevelLabel ? (
+                  <option value={lockedLevelLabel}>{lockedLevelLabel}</option>
+                ) : (
+                  <>
+                    <option value="All Levels">All Levels</option>
+                    <option value="KS3">KS3</option>
+                    <option value="GCSE">GCSE</option>
+                    <option value="A-Level">A-Level</option>
+                  </>
+                )}
               </select>
             </div>
 
-            {/* Tier – only when GCSE selected */}
-            {filters.level === "GCSE" && (
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    color: "#666",
-                    fontWeight: "bold",
-                  }}
-                >
-                  Tier
-                </label>
-                <select
-                  name="tier"
-                  value={filters.tier}
-                  onChange={handleFilterChange}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <option value="">All tiers</option>
-                  <option value="foundation">Foundation</option>
-                  <option value="higher">Higher</option>
-                </select>
-              </div>
-            )}
-
             {/* Exam Board */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  color: "#666",
-                  fontWeight: "bold",
-                }}
-              >
+              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
                 Exam Board
               </label>
               <select
-                name="examBoard"
-                value={filters.examBoard}
+                name="board"
+                value={filters.board}
                 onChange={handleFilterChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                }}
+                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
               >
                 <option value="">All boards</option>
-                {EXAM_BOARDS.map((b) => (
+                {boardOptions.map((b) => (
                   <option key={b} value={b}>
                     {b}
                   </option>
@@ -446,32 +928,71 @@ const StudentDashboard: React.FC = () => {
               </select>
             </div>
 
+            {/* Narrow topics input (within subject) */}
+            <div style={{ gridColumn: "span 2" }}>
+              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
+                Narrow topics (within subject)
+              </label>
+              <input
+                type="text"
+                value={topicNarrow}
+                onChange={(e) => setTopicNarrow(e.target.value)}
+                placeholder="Narrow topic suggestions (within the selected subject)..."
+                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
+              />
+            </div>
+
             {/* Search */}
             <div style={{ gridColumn: "span 2" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  color: "#666",
-                  fontWeight: "bold",
-                }}
-              >
+              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
                 Search
               </label>
               <input
                 type="text"
                 name="search"
-                placeholder="Search by title, subject, stage, board..."
+                placeholder="Search title, subject, topic, level, board..."
                 value={filters.search}
                 onChange={handleFilterChange}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                }}
+                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
               />
+              <button
+                type="button"
+                onClick={() => {
+                  loadPublishedLessons();
+                }}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(0,0,0,0.18)",
+                  background: "#3b82f6",
+                  color: "white",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  marginTop: 10,
+                }}
+              >
+                Search
+              </button>
             </div>
+
+            {/* Tier (only when locked/filtered level is GCSE) */}
+            {lockedLevelLabel === "GCSE" && (
+              <div>
+                <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
+                  Tier
+                </label>
+                <select
+                  name="tier"
+                  value={filters.tier}
+                  onChange={handleFilterChange}
+                  style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
+                >
+                  <option value="">All tiers</option>
+                  <option value="foundation">Foundation</option>
+                  <option value="higher">Higher</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -487,6 +1008,7 @@ const StudentDashboard: React.FC = () => {
           <h2 style={{ color: "#333", margin: 0 }}>Available Lessons</h2>
           <div style={{ color: "#666" }}>
             {filteredLessons.length} lesson{filteredLessons.length !== 1 ? "s" : ""}
+            {advancedMode && " (Advanced mode active)"}
           </div>
         </div>
 
@@ -503,9 +1025,12 @@ const StudentDashboard: React.FC = () => {
           >
             <div style={{ fontSize: "4rem", color: "#e2e8f0", marginBottom: "20px" }}>🔍</div>
             <h3 style={{ color: "#666", marginBottom: "10px" }}>No lessons found</h3>
-            <p style={{ color: "#999" }}>
-              Try changing your filters or check back later for new lessons.
-            </p>
+            <p style={{ color: "#999" }}>Try changing your filters or check back later for new lessons.</p>
+            {advancedMode && (
+              <p style={{ color: "#7c3aed", marginTop: "10px" }}>
+                Note: Advanced mode is active. Try disabling it to see more basic lessons.
+              </p>
+            )}
           </div>
         ) : (
           <div
@@ -517,7 +1042,7 @@ const StudentDashboard: React.FC = () => {
           >
             {filteredLessons.map((lesson) => {
               const isPurchased = user?.purchasedLessons?.some(
-                (p: any) => p.lessonId === lesson.id
+                (p: any) => String(p.lessonId) === String(lesson.id)
               );
 
               const canAfford = (user?.shamCoins || 0) >= lesson.shamCoinPrice;
@@ -551,13 +1076,7 @@ const StudentDashboard: React.FC = () => {
                     }}
                   >
                     <h3 style={{ margin: 0, fontSize: "1.25rem" }}>{lesson.title}</h3>
-                    <p
-                      style={{
-                        margin: "5px 0 0 0",
-                        opacity: 0.9,
-                        fontSize: "0.9rem",
-                      }}
-                    >
+                    <p style={{ margin: "5px 0 0 0", opacity: 0.9, fontSize: "0.9rem" }}>
                       By {lesson.teacherName}
                     </p>
                   </div>
@@ -577,14 +1096,7 @@ const StudentDashboard: React.FC = () => {
                       {lesson.description}
                     </p>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "8px",
-                        marginBottom: "15px",
-                      }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "15px" }}>
                       <span
                         style={{
                           padding: "4px 10px",
@@ -596,6 +1108,7 @@ const StudentDashboard: React.FC = () => {
                       >
                         {lesson.subject}
                       </span>
+
                       <span
                         style={{
                           padding: "4px 10px",
@@ -607,6 +1120,7 @@ const StudentDashboard: React.FC = () => {
                       >
                         {lesson.level}
                       </span>
+
                       <span
                         style={{
                           padding: "4px 10px",
@@ -616,8 +1130,9 @@ const StudentDashboard: React.FC = () => {
                           color: "#c53030",
                         }}
                       >
-                        {lesson.stage} • Year {String(lesson.years ?? "—")}
+                        {lesson.topic}
                       </span>
+
                       <span
                         style={{
                           padding: "4px 10px",
@@ -627,25 +1142,47 @@ const StudentDashboard: React.FC = () => {
                           color: "#92400e",
                         }}
                       >
-                        {lesson.examBoardName ?? "Board not set"}
+                        {lesson.examBoardName}
                       </span>
-                      {lesson.level === "GCSE" && lesson.tier && (
+
+                      {lesson.tier && (
                         <span
                           style={{
                             padding: "4px 10px",
-                            background: "#e9d5ff",
+                            background: lesson.tier === "advanced" ? "rgba(124,58,237,0.20)" : "#e9d5ff",
                             borderRadius: "20px",
                             fontSize: "0.8rem",
-                            color: "#6b21a8",
+                            color: lesson.tier === "advanced" ? "#5b21b6" : "#6b21a8",
+                            fontWeight: lesson.tier === "advanced" ? 700 : 400,
                           }}
                         >
                           {lesson.tier === "foundation"
                             ? "Foundation Tier"
                             : lesson.tier === "higher"
                             ? "Higher Tier"
+                            : lesson.tier === "advanced"
+                            ? "🔥 Advanced"
                             : lesson.tier}
                         </span>
                       )}
+
+                      {Array.isArray((lesson as any).pages) &&
+                        (lesson as any).pages.some((p: any) =>
+                          Array.isArray(p?.blocks) && p.blocks.some((b: any) => b?.type === "stretch")
+                        ) && (
+                          <span
+                            style={{
+                              padding: "4px 10px",
+                              background: "rgba(124,58,237,0.12)",
+                              borderRadius: "20px",
+                              fontSize: "0.8rem",
+                              color: "#5b21b6",
+                              fontWeight: 700,
+                            }}
+                          >
+                            🔍 Advanced available
+                          </span>
+                        )}
                     </div>
 
                     <div
@@ -657,21 +1194,11 @@ const StudentDashboard: React.FC = () => {
                       }}
                     >
                       <div>
-                        <div
-                          style={{
-                            fontSize: "1.5rem",
-                            fontWeight: "bold",
-                            color: "#333",
-                          }}
-                        >
+                        <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#333" }}>
                           {lesson.shamCoinPrice}{" "}
-                          <span style={{ fontSize: "1rem", color: "#666" }}>
-                            ShamCoins
-                          </span>
+                          <span style={{ fontSize: "1rem", color: "#666" }}>ShamCoins</span>
                         </div>
-                        <div style={{ fontSize: "0.8rem", color: "#666" }}>
-                          ⭐ {lesson.averageRating}/5
-                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "#666" }}>⭐ {lesson.averageRating}/5</div>
                       </div>
 
                       <div style={{ display: "flex", gap: "10px" }}>
@@ -696,16 +1223,11 @@ const StudentDashboard: React.FC = () => {
                           disabled={isPurchased || !canAfford}
                           style={{
                             padding: "8px 16px",
-                            background: isPurchased
-                              ? "#a0aec0"
-                              : !canAfford
-                              ? "#f56565"
-                              : "#48bb78",
+                            background: isPurchased ? "#a0aec0" : !canAfford ? "#f56565" : "#48bb78",
                             color: "white",
                             border: "none",
                             borderRadius: "6px",
-                            cursor:
-                              isPurchased || !canAfford ? "not-allowed" : "pointer",
+                            cursor: isPurchased || !canAfford ? "not-allowed" : "pointer",
                             fontSize: "0.9rem",
                             fontWeight: "bold",
                             minWidth: "120px",
@@ -722,7 +1244,7 @@ const StudentDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Purchased Lessons (legacy-safe) */}
+        {/* Purchased Lessons */}
         {user?.purchasedLessons && user.purchasedLessons.length > 0 && (
           <div style={{ marginTop: "50px" }}>
             <div
@@ -735,8 +1257,7 @@ const StudentDashboard: React.FC = () => {
             >
               <h2 style={{ color: "#333", margin: 0 }}>My Purchased Lessons</h2>
               <div style={{ color: "#666" }}>
-                {user.purchasedLessons.length} lesson
-                {user.purchasedLessons.length !== 1 ? "s" : ""}
+                {user.purchasedLessons.length} lesson{user.purchasedLessons.length !== 1 ? "s" : ""}
               </div>
             </div>
 
@@ -757,7 +1278,7 @@ const StudentDashboard: React.FC = () => {
               >
                 {user.purchasedLessons.map((purchase: any) => {
                   const lessonId = String(purchase.lessonId ?? "");
-                  const canOpen = isUuid(lessonId);
+                  const canOpen = isUuid(lessonId) || isMongoObjectId(lessonId);
 
                   return (
                     <div
@@ -770,55 +1291,18 @@ const StudentDashboard: React.FC = () => {
                         opacity: canOpen ? 1 : 0.75,
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <h4
-                            style={{
-                              margin: "0 0 5px 0",
-                              color: "#333",
-                            }}
-                          >
+                          <h4 style={{ margin: "0 0 5px 0", color: "#333" }}>
                             {purchase.lesson?.title || "Lesson"}
                           </h4>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: "0.9rem",
-                              color: "#666",
-                            }}
-                          >
+                          <p style={{ margin: 0, fontSize: "0.9rem", color: "#666" }}>
                             Purchased:{" "}
-                            {purchase.timestamp
-                              ? new Date(purchase.timestamp).toLocaleDateString()
-                              : "—"}
+                            {purchase.timestamp ? new Date(purchase.timestamp).toLocaleDateString() : "—"}
                           </p>
-                          <p
-                            style={{
-                              margin: "5px 0 0 0",
-                              fontSize: "0.9rem",
-                              color: "#48bb78",
-                            }}
-                          >
+                          <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", color: "#48bb78" }}>
                             Price: {purchase.price ?? 0} ShamCoins
                           </p>
-                          {!canOpen && (
-                            <p
-                              style={{
-                                margin: "8px 0 0 0",
-                                fontSize: "0.85rem",
-                                color: "#b45309",
-                              }}
-                            >
-                              Legacy purchase (old id). Will work after we migrate purchases
-                              to Supabase.
-                            </p>
-                          )}
                         </div>
 
                         {canOpen ? (
@@ -865,14 +1349,7 @@ const StudentDashboard: React.FC = () => {
         )}
 
         {/* Footer Info */}
-        <div
-          style={{
-            marginTop: "40px",
-            textAlign: "center",
-            color: "#666",
-            fontSize: "0.9rem",
-          }}
-        >
+        <div style={{ marginTop: "40px", textAlign: "center", color: "#666", fontSize: "0.9rem" }}>
           <p>Need more ShamCoins? Complete assignments or refer friends to earn more!</p>
           <p>Purchases will be re-enabled after we migrate the purchase flow to Supabase.</p>
         </div>

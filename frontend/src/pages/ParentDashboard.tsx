@@ -6,6 +6,10 @@
 // ============================
 // /frontend/src/pages/ParentDashboard.tsx
 
+// IMPORTANT: This page MUST use the shared API client from services/api.ts
+// Do NOT use raw axios or hardcoded URLs (prevents auth/env drift issues).
+
+
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
 
