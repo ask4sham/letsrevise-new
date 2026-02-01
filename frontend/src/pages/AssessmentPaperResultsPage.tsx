@@ -309,21 +309,23 @@ const AssessmentPaperResultsPage: React.FC = () => {
             const correctAnswerText = question.type === "short"
               ? question.correctAnswer || "—"
               : (() => {
-                  const ci = question.correctIndex as number;
-                  if (ci >= 0 && question.options?.[ci] != null) {
-                    const label = ci < 26 ? String.fromCharCode(65 + ci) : `Option ${ci + 1}`;
-                    return `${label}: ${question.options[ci]}`;
+                  const cIdx = typeof question.correctIndex === "number" ? question.correctIndex : -1;
+                  if (cIdx >= 0 && Array.isArray(question.options) && question.options[cIdx] != null) {
+                    const label = cIdx < 26 ? String.fromCharCode(65 + cIdx) : String(cIdx + 1);
+                    return `${label}: ${question.options[cIdx]}`;
                   }
                   return question.correctAnswer ?? "—";
                 })();
             const yourAnswerTextMcq =
-              hasAnswer && typeof selectedIndex === "number" && question.options
+              hasAnswer && typeof selectedIndex === "number" && Array.isArray(question.options) && selectedIndex >= 0 && selectedIndex < question.options.length
                 ? (() => {
                     const opt = question.options[selectedIndex];
-                    const label = selectedIndex >= 0 && selectedIndex < 26 ? String.fromCharCode(65 + selectedIndex) : `Option ${selectedIndex + 1}`;
-                    return opt != null ? `${label}: ${opt}` : `Option ${selectedIndex + 1}`;
+                    const label = selectedIndex < 26 ? String.fromCharCode(65 + selectedIndex) : String(selectedIndex + 1);
+                    return opt != null && opt !== "" ? `${label}: ${opt}` : `${label}: —`;
                   })()
                 : "Not answered";
+            const ci = typeof question.correctIndex === "number" ? question.correctIndex : -1;
+            const hasValidCorrect = ci >= 0 && Array.isArray(question.options) && question.options[ci] != null;
 
             return (
               <div
@@ -426,6 +428,47 @@ const AssessmentPaperResultsPage: React.FC = () => {
                       <div style={{ fontSize: "1.05rem", fontWeight: 600, color: "#065f46", whiteSpace: "pre-wrap" }}>
                         {correctAnswerText}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* MCQ options list: read-only, correct = green + ✓, wrong choice = red + ✗ */}
+                {question.type === "mcq" && Array.isArray(question.options) && question.options.length > 0 && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <div style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.5rem", fontWeight: 700 }}>
+                      Options
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {question.options.map((opt, i) => {
+                        const label = i < 26 ? String.fromCharCode(65 + i) : String(i + 1);
+                        const isCorrectOption = hasValidCorrect && i === ci;
+                        const isChosenWrong = !question.isCorrect && hasAnswer && typeof selectedIndex === "number" && i === selectedIndex;
+                        const bg = isCorrectOption ? "#f0fdf4" : isChosenWrong ? "#fef2f2" : "#f8fafc";
+                        const border = isCorrectOption ? "1px solid #bbf7d0" : isChosenWrong ? "1px solid #fecaca" : "1px solid #e2e8f0";
+                        const color = isCorrectOption ? "#065f46" : isChosenWrong ? "#991b1b" : "#374151";
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.75rem",
+                              padding: "0.75rem 1rem",
+                              borderRadius: "8px",
+                              backgroundColor: bg,
+                              border,
+                              fontSize: "1rem",
+                              color,
+                              fontWeight: isCorrectOption || isChosenWrong ? 600 : 400,
+                            }}
+                          >
+                            <span style={{ minWidth: "1.25rem", fontWeight: 700 }}>{label}.</span>
+                            <span style={{ flex: 1 }}>{opt != null && opt !== "" ? opt : "—"}</span>
+                            {isCorrectOption && <span style={{ color: "#059669", fontWeight: 800 }}>✓</span>}
+                            {isChosenWrong && <span style={{ color: "#dc2626", fontWeight: 800 }}>✗</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
