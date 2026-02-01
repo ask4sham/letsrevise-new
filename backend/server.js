@@ -46,6 +46,9 @@ const assessmentItemsRoutes = require("./routes/assessmentItems");
 // ✅ NEW: assessment attempts routes
 const assessmentAttemptsRoutes = require("./routes/assessmentAttempts");
 
+// ✅ NEW: exam question bank (teacher only)
+const examQuestionsRoutes = require("./routes/examQuestions");
+
 // ✅ NEW: parent-link approval routes
 const parentLinkRoutes = require("./routes/parentLink");
 
@@ -240,6 +243,8 @@ app.use("/api/assessment-items", assessmentItemsRoutes);
 
 // ✅ Add assessment attempts routes
 app.use("/api/assessment-attempts", assessmentAttemptsRoutes);
+
+app.use("/api/exam-questions", examQuestionsRoutes);
 
 app.use("/api/parent-link", parentLinkRoutes);
 app.use("/api/parent", require("./routes/parent"));
