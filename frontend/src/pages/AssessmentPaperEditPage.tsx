@@ -24,9 +24,10 @@ type Paper = {
 
 type BankQuestion = {
   _id: string;
-  subject: string;
+  subject?: string;
+  topic?: string;
   type: string;
-  question: string;
+  question?: string;
   marks: number;
   options?: string[];
 };
@@ -64,7 +65,9 @@ const AssessmentPaperEditPage: React.FC = () => {
     try {
       setBankLoading(true);
       const res = await api.get("/exam-questions");
-      setBankQuestions(Array.isArray(res.data?.questions) ? res.data.questions : []);
+      const raw = res.data?.questions ?? res.data?.data ?? res.data;
+      const list = Array.isArray(raw) ? raw : [];
+      setBankQuestions(list);
       setSelectedIds(new Set());
     } catch (err) {
       setBankQuestions([]);
@@ -262,18 +265,29 @@ const AssessmentPaperEditPage: React.FC = () => {
                   ) : (
                     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                       {bankQuestions.map((q) => {
-                        const alreadyOnPaper = attachedBankIds.has(q._id);
-                        const selected = selectedIds.has(q._id);
-                        const opts = q.options || [];
+                        const qId = q._id != null ? String(q._id) : "";
+                        const alreadyOnPaper = attachedBankIds.has(qId);
+                        const selected = selectedIds.has(qId);
+                        const qText = (q.question != null && typeof q.question === "string" ? q.question : "").trim();
+                        const topicText = (q.topic != null && typeof q.topic === "string" ? q.topic : "").trim();
+                        const primaryText = qText || topicText || "(No question text)";
+                        const typeStr = q.type != null ? String(q.type) : "question";
+                        const marksNum = q.marks != null ? Number(q.marks) : 1;
+                        const secondaryText = `${typeStr} • ${marksNum} mark${marksNum !== 1 ? "s" : ""}`;
+                        const opts = Array.isArray(q.options) ? q.options : [];
                         const optionsPreview =
-                          q.type === "mcq" && opts.length > 0
-                            ? opts.length <= 4
-                              ? opts.map((o, i) => `${String.fromCharCode(65 + i)}: ${(o || "").slice(0, 20)}${(o || "").length > 20 ? "…" : ""}`).join(" · ")
-                              : opts.slice(0, 4).map((o, i) => `${String.fromCharCode(65 + i)}: ${(o || "").slice(0, 15)}…`).join(" · ") + ` (+${opts.length - 4} more)`
+                          typeStr === "mcq" && opts.length > 0
+                            ? opts
+                                .slice(0, 5)
+                                .map(
+                                  (o, i) =>
+                                    `${String.fromCharCode(65 + i)}: ${(o != null ? String(o) : "").slice(0, 40)}${(o != null ? String(o) : "").length > 40 ? "…" : ""}`
+                                )
+                                .join("  ·  ")
                             : null;
                         return (
                           <li
-                            key={q._id}
+                            key={qId}
                             style={{
                               padding: "0.75rem",
                               marginBottom: "0.25rem",
@@ -282,33 +296,33 @@ const AssessmentPaperEditPage: React.FC = () => {
                             }}
                           >
                             <label
-                              htmlFor={`bank-q-${q._id}`}
+                              htmlFor={`bank-q-${qId}`}
                               style={{
                                 display: "flex",
                                 alignItems: "flex-start",
                                 gap: "0.75rem",
                                 cursor: alreadyOnPaper ? "default" : "pointer",
-                                color: "#0f172a",
+                                color: "#111",
                               }}
                             >
                               <input
-                                id={`bank-q-${q._id}`}
+                                id={`bank-q-${qId}`}
                                 type="checkbox"
                                 checked={selected}
-                                onChange={() => toggleBankSelection(q._id)}
+                                onChange={() => toggleBankSelection(qId)}
                                 disabled={alreadyOnPaper}
                                 style={{ marginTop: "0.35rem", flexShrink: 0 }}
                               />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "0.25rem" }}>
-                                  {q.question?.trim() || "(No question text)"}
+                              <div style={{ flex: 1, minWidth: 0, color: "#111" }}>
+                                <div style={{ fontWeight: 600, color: "#111", marginBottom: "0.25rem" }}>
+                                  {primaryText}
                                 </div>
-                                <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-                                  {q.type} · {q.marks ?? 1} mark{q.marks !== 1 ? "s" : ""}
-                                  {optionsPreview && (
-                                    <span style={{ display: "block", marginTop: "0.25rem", color: "#64748b" }}>
+                                <div style={{ fontSize: "0.85rem", color: "#111" }}>
+                                  {secondaryText}
+                                  {optionsPreview != null && (
+                                    <div style={{ marginTop: "0.25rem", fontSize: "0.8rem", color: "#111" }}>
                                       {optionsPreview}
-                                    </span>
+                                    </div>
                                   )}
                                   {alreadyOnPaper && (
                                     <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "#059669" }}>
