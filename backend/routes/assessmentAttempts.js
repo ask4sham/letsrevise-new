@@ -1072,17 +1072,18 @@ router.get("/:id/results", auth, async (req, res) => {
       }
 
       const isCorrect = correctAnswerIndex !== -1 && answer?.selectedIndex === correctAnswerIndex;
+      const marksAwarded = isCorrect ? (itemDoc.marks || 1) : 0;
 
       return {
         _id: wrapper._id,
-        itemId: itemIdStr, // Include the actual AssessmentItem ID
+        itemId: itemIdStr,
         title: itemDoc.title || `Question ${index + 1}`,
         question: itemDoc.question,
         type: itemDoc.type,
         options: itemDoc.options || [],
         marks: itemDoc.marks || 1,
-        correctAnswer: itemDoc.correctAnswer, // Added correctAnswer field
-        correctIndex: correctAnswerIndex, // Store the calculated correct index
+        correctAnswer: itemDoc.correctAnswer,
+        correctIndex: correctAnswerIndex,
         explanation: itemDoc.explanation,
         userAnswer: answer
           ? {
@@ -1091,6 +1092,7 @@ router.get("/:id/results", auth, async (req, res) => {
             }
           : null,
         isCorrect,
+        marksAwarded,
       };
     });
 

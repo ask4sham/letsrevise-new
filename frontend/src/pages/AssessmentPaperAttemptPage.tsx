@@ -181,14 +181,15 @@ const AssessmentPaperAttemptPage: React.FC = () => {
 
         setPaper(loadedPaper);
 
-        // Convert attempt answers to local state
+        // Convert attempt answers to local state (keys normalized to string for MCQ selectedIndex / short textAnswer)
         const answersMap: Record<string, number | null> = {};
         const shortAnswersMap: Record<string, string> = {};
 
         loadedAttempt.answers.forEach((answer) => {
-          answersMap[answer.questionId] = answer.selectedIndex;
+          const qId = String(answer.questionId);
+          answersMap[qId] = answer.selectedIndex ?? null;
           if (typeof answer.textAnswer === "string") {
-            shortAnswersMap[answer.questionId] = answer.textAnswer;
+            shortAnswersMap[qId] = answer.textAnswer;
           }
         });
 
@@ -688,29 +689,20 @@ const AssessmentPaperAttemptPage: React.FC = () => {
             {currentItem.question}
           </div>
 
-          {/* Answer options */}
+          {/* Answer options — MCQ: radio group with labels A, B, C, D, E; selectedIndex stored in answers */}
           {isMcqType(currentItem.type) ? (
-            <div style={{ marginTop: "1.25rem" }}>
+            <div style={{ marginTop: "1.25rem" }} role="radiogroup" aria-label="Choose one answer">
               {currentItem.options && currentItem.options.length > 0 ? (
                 currentItem.options.map((option, i) => {
                   const selected = answers[currentItem._id] === i;
+                  const label = String.fromCharCode(65 + Math.min(i, 25)); // A, B, C, D, E, ...
 
                   return (
-                    <div
+                    <label
                       key={i}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleAnswer(currentItem._id, i)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleAnswer(currentItem._id, i);
-                        }
-                      }}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "space-between",
                         gap: "1rem",
                         padding: "1.25rem 1.25rem",
                         marginBottom: "0.9rem",
@@ -721,41 +713,39 @@ const AssessmentPaperAttemptPage: React.FC = () => {
                         boxShadow: selected ? "0 8px 20px rgba(29,78,216,0.18)" : "0 2px 10px rgba(0,0,0,0.06)",
                         outline: "none",
                       }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.boxShadow = "0 0 0 3px #93c5fd";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.boxShadow = selected
-                          ? "0 8px 20px rgba(29,78,216,0.18)"
-                          : "0 2px 10px rgba(0,0,0,0.06)";
-                      }}
                     >
-                      {/* LEFT: Answer text (big + readable) */}
-                      <div
+                      <input
+                        type="radio"
+                        name={`q-${currentItem._id}`}
+                        checked={selected}
+                        onChange={() => handleAnswer(currentItem._id, i)}
+                        value={i}
+                        style={{ width: "22px", height: "22px", flexShrink: 0 }}
+                        aria-label={`Option ${label}`}
+                      />
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: "#374151",
+                          minWidth: "1.5rem",
+                          fontSize: "1.1rem",
+                        }}
+                      >
+                        {label}.
+                      </span>
+                      <span
                         style={{
                           textAlign: "left",
                           fontSize: "1.25rem",
                           lineHeight: 1.6,
                           fontWeight: 600,
                           color: "#0f172a",
+                          flex: 1,
                         }}
                       >
                         {option}
-                      </div>
-
-                      {/* RIGHT: Radio indicator */}
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          width: "26px",
-                          height: "26px",
-                          borderRadius: "50%",
-                          border: `3px solid ${selected ? "#1d4ed8" : "#334155"}`,
-                          backgroundColor: selected ? "#1d4ed8" : "white",
-                          flexShrink: 0,
-                        }}
-                      />
-                    </div>
+                      </span>
+                    </label>
                   );
                 })
               ) : (
