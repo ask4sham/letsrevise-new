@@ -305,10 +305,25 @@ const AssessmentPaperResultsPage: React.FC = () => {
             const selectedIndex = !isShort ? question.userAnswer?.selectedIndex : undefined;
             const userTextAnswer = isShort ? question.userAnswer?.textAnswer ?? "" : "";
 
-            // Get correct answer text for display
+            // Your answer / correct answer text: short = raw text; MCQ = "Label: option text"
             const correctAnswerText = question.type === "short"
               ? question.correctAnswer || "—"
-              : question.options[question.correctIndex as number] ?? `Option ${(question.correctIndex as number) + 1}`;
+              : (() => {
+                  const ci = question.correctIndex as number;
+                  if (ci >= 0 && question.options?.[ci] != null) {
+                    const label = ci < 26 ? String.fromCharCode(65 + ci) : `Option ${ci + 1}`;
+                    return `${label}: ${question.options[ci]}`;
+                  }
+                  return question.correctAnswer ?? "—";
+                })();
+            const yourAnswerTextMcq =
+              hasAnswer && typeof selectedIndex === "number" && question.options
+                ? (() => {
+                    const opt = question.options[selectedIndex];
+                    const label = selectedIndex >= 0 && selectedIndex < 26 ? String.fromCharCode(65 + selectedIndex) : `Option ${selectedIndex + 1}`;
+                    return opt != null ? `${label}: ${opt}` : `Option ${selectedIndex + 1}`;
+                  })()
+                : "Not answered";
 
             return (
               <div
@@ -385,15 +400,14 @@ const AssessmentPaperResultsPage: React.FC = () => {
                   >
                     {isShort
                       ? (hasAnswer ? userTextAnswer : "Not answered")
-                      : (hasAnswer && typeof selectedIndex === "number"
-                          ? question.options[selectedIndex] ?? `Option ${selectedIndex + 1}`
-                          : "Not answered")}
+                      : yourAnswerTextMcq}
                   </div>
                 </div>
 
-                {/* Correct answer: always show for short (model answer); for MCQ show when available */}
+                {/* Correct answer: always show for short (model answer); for MCQ always show when options + correctIndex */}
                 {((question.type === "short" && question.correctAnswer != null) ||
-                  (question.type !== "short" && (question.correctAnswer || (question.correctIndex !== undefined && question.correctIndex !== null)))) && (
+                  (question.type === "mcq" && question.correctIndex !== undefined && question.correctIndex !== null && Array.isArray(question.options)) ||
+                  (question.type !== "short" && question.type !== "mcq" && (question.correctAnswer || (question.correctIndex !== undefined && question.correctIndex !== null)))) && (
                   <div style={{ marginTop: "1rem" }}>
                     <div style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.5rem", fontWeight: 700 }}>
                       Correct answer
