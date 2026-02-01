@@ -30,6 +30,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     subject: "Biology",
     examBoard: "AQA",
@@ -59,7 +60,23 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     fetchQuestions();
   }, []);
 
+  function validateForm(): string | null {
+    const q = form.questionText.trim();
+    if (!q) return "Question text is required.";
+    if (form.marks < 1) return "Marks must be at least 1.";
+    const answer = form.correctAnswerMarkScheme.trim();
+    if (form.questionType === "mcq" && !answer) return "Correct answer is required for MCQ.";
+    if (form.questionType === "short" && !answer) return "Correct answer or mark scheme is required for short answer.";
+    return null;
+  }
+
   const handleSaveDraft = async () => {
+    const err = validateForm();
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    setFormError(null);
     try {
       setSaving(true);
       const markScheme = form.correctAnswerMarkScheme
@@ -73,7 +90,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         topic: form.topic || undefined,
         type: form.questionType,
         marks: form.marks,
-        question: form.questionText,
+        question: form.questionText.trim(),
         correctAnswer: form.correctAnswerMarkScheme.trim() || null,
         markScheme: markScheme.length ? markScheme : [],
         options: [],
@@ -132,7 +149,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={() => setModalOpen(true)}
+          onClick={() => { setModalOpen(true); setFormError(null); }}
           style={{
             padding: "10px 18px",
             background: "#4f46e5",
@@ -237,6 +254,12 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>Create Question</h2>
+
+            {formError && (
+              <div style={{ marginBottom: "1rem", padding: "10px 12px", background: "#fef2f2", color: "#991b1b", borderRadius: "8px", fontSize: "0.9rem" }}>
+                {formError}
+              </div>
+            )}
 
             <div style={{ display: "grid", gap: "1rem" }}>
               <div>
