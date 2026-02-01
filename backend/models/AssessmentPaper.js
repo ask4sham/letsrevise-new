@@ -102,6 +102,10 @@ const AssessmentPaperSchema = new mongoose.Schema(
       type: [AssessmentPaperItemSchema],
       default: [],
     },
+    questionBankIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "ExamQuestion" }],
+      default: [],
+    },
     totalMarks: {
       type: Number,
     },
@@ -115,11 +119,11 @@ const AssessmentPaperSchema = new mongoose.Schema(
 AssessmentPaperSchema.index({ subject: 1, examBoard: 1, level: 1, kind: 1, isPublished: 1 });
 AssessmentPaperSchema.index({ createdBy: 1, createdAt: -1 });
 
-// ✅ UPDATED: Validation for items - no next parameter, returns true/false
+// Allow empty items if questionBankIds has entries; otherwise items must have valid itemIds
 AssessmentPaperSchema.path("items").validate(function (items) {
-  if (!Array.isArray(items) || items.length === 0) return false;
-
-  // every item must have a valid ObjectId in itemId
+  if (!Array.isArray(items)) return false;
+  const hasBank = Array.isArray(this.questionBankIds) && this.questionBankIds.length > 0;
+  if (items.length === 0) return hasBank;
   return items.every((it) => mongoose.Types.ObjectId.isValid(String(it.itemId)));
 }, "Invalid itemId in items");
 

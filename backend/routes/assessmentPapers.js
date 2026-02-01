@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 
 const AssessmentPaper = require("../models/AssessmentPaper");
 const AssessmentItem = require("../models/AssessmentItem");
+const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
 
 console.log("✅ assessmentPapers router file loaded");
@@ -155,13 +156,13 @@ router.get("/", async (req, res) => {
     // Execute query - select only safe fields
     const total = await AssessmentPaper.countDocuments(query);
     const papers = await AssessmentPaper.find(query)
-      .select('_id title subject examBoard level tier kind timeSeconds totalMarks isPublished createdAt questionCount items')
+      .select("_id title subject examBoard level tier kind timeSeconds totalMarks isPublished createdAt items questionBankIds")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
       .lean();
 
-    // Return safe metadata only (NO items array, correctIndex, explanation)
+    // Return safe metadata only (NO items array content, correctIndex, explanation)
     const safePapers = papers.map((paper) => ({
       _id: paper._id,
       title: paper.title,
@@ -174,7 +175,7 @@ router.get("/", async (req, res) => {
       totalMarks: paper.totalMarks,
       isPublished: paper.isPublished,
       createdAt: paper.createdAt,
-      questionCount: paper.items ? paper.items.length : 0, // Safe: just the count, not the items
+      questionCount: (paper.items?.length || 0) + (paper.questionBankIds?.length || 0),
     }));
 
     return res.json({
@@ -269,6 +270,37 @@ router.get("/:id", async (req, res) => {
       });
       
       // Sort by order
+      populatedItems.sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+
+    // Merge bank questions (ExamQuestion) into items — same shape as AssessmentItem for attempt/results
+    if (paper.questionBankIds && paper.questionBankIds.length > 0) {
+      const bankQuestions = await ExamQuestion.find({ _id: { $in: paper.questionBankIds } }).lean();
+      const bankMap = new Map(bankQuestions.map((q) => [String(q._id), q]));
+      const maxOrder = Array.isArray(populatedItems) && populatedItems.length > 0
+        ? Math.max(...populatedItems.map((it) => it.order || 0))
+        : 0;
+      const       bankItems = paper.questionBankIds
+        .map((id, i) => {
+          const q = bankMap.get(String(id));
+          if (!q) return null;
+          return {
+            _id: q._id,
+            itemId: q._id,
+            title: q.topic || (q.question && q.question.slice(0, 50)) || "Question",
+            question: q.question,
+            type: q.type,
+            options: q.options || [],
+            marks: q.marks ?? 1,
+            correctAnswer: q.correctAnswer,
+            correctIndex: q.correctIndex,
+            explanation: q.explanation,
+            order: maxOrder + i + 1,
+            source: "bank",
+          };
+        })
+        .filter(Boolean);
+      populatedItems = Array.isArray(populatedItems) ? [...populatedItems, ...bankItems] : bankItems;
       populatedItems.sort((a, b) => (a.order || 0) - (b.order || 0));
     }
 
@@ -589,6 +621,71 @@ router.put("/:id", auth, async (req, res) => {
     if (err.message && err.message.includes("Duplicate itemId")) {
       return res.status(400).json({ success: false, msg: err.message });
     }
+    return res.status(500).json({ success: false, msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   PATCH /api/assessment-papers/:id/questions
+   Add/remove exam question bank refs (teacher only)
+   ========================================= */
+
+router.patch("/:id/questions", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (!isTeacherOrAdmin(user)) {
+      return res.status(403).json({ success: false, msg: "Teacher or admin access required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, msg: "Invalid paper ID" });
+    }
+
+    const paper = await AssessmentPaper.findById(id);
+    if (!paper) {
+      return res.status(404).json({ success: false, msg: "Paper not found" });
+    }
+
+    if (isTeacher(user) && !isAdmin(user)) {
+      const paperCreatorId = String(paper.createdBy);
+      const userId = String(user.userId || user._id);
+      if (paperCreatorId !== userId) {
+        return res.status(403).json({ success: false, msg: "You can only edit your own papers" });
+      }
+    }
+
+    const { addExamQuestionIds = [], removeExamQuestionIds = [] } = req.body;
+    if (!Array.isArray(addExamQuestionIds) || !Array.isArray(removeExamQuestionIds)) {
+      return res.status(400).json({ success: false, msg: "addExamQuestionIds and removeExamQuestionIds must be arrays" });
+    }
+
+    const toAdd = addExamQuestionIds
+      .filter((sid) => mongoose.Types.ObjectId.isValid(String(sid)))
+      .map((sid) => mongoose.Types.ObjectId(sid));
+    const toRemove = new Set(removeExamQuestionIds.map((sid) => String(sid)));
+
+    let bankIds = Array.isArray(paper.questionBankIds) ? paper.questionBankIds.map((oid) => String(oid)) : [];
+    bankIds = bankIds.filter((oid) => !toRemove.has(oid));
+    const existing = new Set(bankIds);
+    toAdd.forEach((oid) => {
+      const s = String(oid);
+      if (!existing.has(s)) {
+        existing.add(s);
+        bankIds.push(s);
+      }
+    });
+
+    paper.questionBankIds = bankIds.map((sid) => mongoose.Types.ObjectId(sid));
+    await paper.save();
+
+    return res.json({
+      success: true,
+      paper: { _id: paper._id, questionBankIds: paper.questionBankIds },
+    });
+  } catch (err) {
+    console.error("Error in PATCH /api/assessment-papers/:id/questions:", err);
     return res.status(500).json({ success: false, msg: "Server error", error: err.message });
   }
 });

@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const AssessmentAttempt = require("../models/AssessmentAttempt");
 const AssessmentPaper = require("../models/AssessmentPaper");
 const AssessmentItem = require("../models/AssessmentItem");
+const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
 
 console.log("✅ assessmentAttempts router file loaded");
@@ -585,11 +586,13 @@ router.put("/:id/answer", auth, async (req, res) => {
       attempt.timeUsedSeconds = Math.max(attempt.timeUsedSeconds, clampedToDuration);
     }
 
-    // Determine question type (MCQ vs short)
-    const item = await AssessmentItem.findById(questionId).select("type options").lean();
-    
+    // Resolve question: AssessmentItem (paper items) or ExamQuestion (question bank)
+    let item = await AssessmentItem.findById(questionId).select("type options").lean();
     if (!item) {
-      return res.status(404).json({ success: false, msg: "Assessment item not found" });
+      item = await ExamQuestion.findById(questionId).select("type options").lean();
+    }
+    if (!item) {
+      return res.status(404).json({ success: false, msg: "Question not found" });
     }
 
     // ✅ HARD RULE: short-answer questions must NEVER validate selectedIndex
@@ -736,30 +739,37 @@ router.post("/:id/submit", auth, async (req, res) => {
 
     attempt.timeUsedSeconds = finalTimeUsedSeconds;
 
-    // Load paper with populated items to get full question data including options and correctAnswer
+    // Load paper with populated items and questionBankIds for unified marking
     const paper = await AssessmentPaper.findById(attempt.paperId)
       .populate({
         path: "items.itemId",
-        select: "type options correctAnswer correctIndex content",
+        select: "type options correctAnswer correctIndex content marks",
       })
-      .select("items")
+      .select("items questionBankIds")
       .lean();
 
     if (!paper) {
       return res.status(404).json({ success: false, msg: "Paper not found" });
     }
 
-    const totalQuestions = (paper.items || []).length;
+    // Build unified list: AssessmentItem from items + ExamQuestion from questionBankIds
+    const itemDocsFromItems = (paper.items || [])
+      .map((w) => w.itemId)
+      .filter(Boolean);
+    let bankDocs = [];
+    if (paper.questionBankIds && paper.questionBankIds.length > 0) {
+      bankDocs = await ExamQuestion.find({ _id: { $in: paper.questionBankIds } })
+        .select("type options correctAnswer correctIndex marks question")
+        .lean();
+    }
+    const allItemDocs = [...itemDocsFromItems, ...bankDocs];
+    const totalQuestions = allItemDocs.length;
 
     let answered = 0;
     let correct = 0;
 
-    // Process each item in the paper to calculate score
-    for (const wrapper of paper.items || []) {
-      const itemDoc = wrapper.itemId;
-      if (!itemDoc) continue;
-
-      const itemIdStr = String(itemDoc._id); // actual AssessmentItem _id
+    for (const itemDoc of allItemDocs) {
+      const itemIdStr = String(itemDoc._id);
 
       // Find the user's answer for this question
       const userAnswer = attempt.answers.find((a) => String(a.questionId) === itemIdStr);
@@ -944,13 +954,13 @@ router.get("/:id/results", auth, async (req, res) => {
       });
     }
 
-    // Get paper with populated items to fetch question details
+    // Get paper with populated items and bank questions for results
     const paper = await AssessmentPaper.findById(attempt.paperId)
       .populate({
         path: "items.itemId",
         select: "title question type options marks explanation correctAnswer correctIndex",
       })
-      .select("items")
+      .select("items questionBankIds")
       .lean();
 
     if (!paper) {
@@ -960,15 +970,22 @@ router.get("/:id/results", auth, async (req, res) => {
       });
     }
 
-    // Sort items by order (assuming paper.items has order field)
-    const sortedItems = [...(paper.items || [])].sort((a, b) => {
-      // Find order from paper items array
-      const itemA = paper.items?.find((item) => String(item._id) === String(a._id));
-      const itemB = paper.items?.find((item) => String(item._id) === String(b._id));
-      const orderA = itemA?.order || 0;
-      const orderB = itemB?.order || 0;
-      return orderA - orderB;
-    });
+    let sortedItems = [...(paper.items || [])];
+    if (paper.questionBankIds && paper.questionBankIds.length > 0) {
+      const bankQuestions = await ExamQuestion.find({ _id: { $in: paper.questionBankIds } })
+        .select("title question type options marks explanation correctAnswer correctIndex")
+        .lean();
+      const bankMap = new Map(bankQuestions.map((q) => [String(q._id), q]));
+      const maxOrder = sortedItems.length > 0
+        ? Math.max(...sortedItems.map((it) => it.order || 0))
+        : 0;
+      const bankWrappers = paper.questionBankIds.map((id, i) => ({
+        itemId: bankMap.get(String(id)) || null,
+        order: maxOrder + i + 1,
+      })).filter((w) => w.itemId);
+      sortedItems = [...sortedItems, ...bankWrappers];
+    }
+    sortedItems.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     // Create a map of attempt answers by questionId for quick lookup
     const answerMap = new Map();

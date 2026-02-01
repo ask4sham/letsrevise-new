@@ -268,18 +268,23 @@ const AssessmentPapersList: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Action Button - Disabled for teachers */}
+                  {/* Action: Edit for teachers, Start for students */}
                   {isTeacher ? (
-                    <div className="w-full">
-                      <button
-                        disabled
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+                    <div className="w-full space-y-2">
+                      <Link
+                        to={`/assessments/papers/${paper._id}/edit`}
+                        className="block w-full"
                       >
-                        <span className="font-semibold">Preview Only</span>
-                        <FileText className="w-4 h-4" />
-                      </button>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        Teachers cannot start attempts
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                          <span className="font-semibold">Edit paper</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </Link>
+                      <p className="text-xs text-gray-500 text-center">
+                        Add questions from Question Bank
                       </p>
                     </div>
                   ) : (

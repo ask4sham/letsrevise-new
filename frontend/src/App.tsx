@@ -60,6 +60,7 @@ import AssessmentPaperResultsPage from "./pages/AssessmentPaperResultsPage";
 import StudentAssessmentsPage from "./pages/StudentAssessmentsPage";
 import AssessmentPapersList from "./pages/AssessmentPapersList"; // ✅ ADDED
 import TeacherExamQuestionBankPage from "./pages/TeacherExamQuestionBankPage";
+import AssessmentPaperEditPage from "./pages/AssessmentPaperEditPage";
 
 import "./App.css";
 
@@ -390,6 +391,15 @@ function App() {
             element={
               <ProtectedRoute requireStudent>
                 <AssessmentPaperResultsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/assessments/papers/:id/edit"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <AssessmentPaperEditPage />
               </ProtectedRoute>
             }
           />
