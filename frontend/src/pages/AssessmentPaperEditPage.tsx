@@ -264,35 +264,60 @@ const AssessmentPaperEditPage: React.FC = () => {
                       {bankQuestions.map((q) => {
                         const alreadyOnPaper = attachedBankIds.has(q._id);
                         const selected = selectedIds.has(q._id);
+                        const opts = q.options || [];
+                        const optionsPreview =
+                          q.type === "mcq" && opts.length > 0
+                            ? opts.length <= 4
+                              ? opts.map((o, i) => `${String.fromCharCode(65 + i)}: ${(o || "").slice(0, 20)}${(o || "").length > 20 ? "…" : ""}`).join(" · ")
+                              : opts.slice(0, 4).map((o, i) => `${String.fromCharCode(65 + i)}: ${(o || "").slice(0, 15)}…`).join(" · ") + ` (+${opts.length - 4} more)`
+                            : null;
                         return (
                           <li
                             key={q._id}
                             style={{
-                              padding: "0.5rem 0",
-                              borderBottom: "1px solid #f3f4f6",
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: "0.5rem",
+                              padding: "0.75rem",
+                              marginBottom: "0.25rem",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
                             }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => toggleBankSelection(q._id)}
-                              disabled={alreadyOnPaper}
-                              style={{ marginTop: "0.25rem" }}
-                            />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <span style={{ fontWeight: 600 }}>{q.question?.slice(0, 80) || q._id}</span>
-                              <span style={{ marginLeft: "0.5rem", color: "#6b7280", fontSize: "0.85rem" }}>
-                                {q.type} · {q.marks ?? 1}m
-                              </span>
-                              {alreadyOnPaper && (
-                                <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "#059669" }}>
-                                  (on paper)
-                                </span>
-                              )}
-                            </div>
+                            <label
+                              htmlFor={`bank-q-${q._id}`}
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "0.75rem",
+                                cursor: alreadyOnPaper ? "default" : "pointer",
+                                color: "#0f172a",
+                              }}
+                            >
+                              <input
+                                id={`bank-q-${q._id}`}
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggleBankSelection(q._id)}
+                                disabled={alreadyOnPaper}
+                                style={{ marginTop: "0.35rem", flexShrink: 0 }}
+                              />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "0.25rem" }}>
+                                  {q.question?.trim() || "(No question text)"}
+                                </div>
+                                <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                                  {q.type} · {q.marks ?? 1} mark{q.marks !== 1 ? "s" : ""}
+                                  {optionsPreview && (
+                                    <span style={{ display: "block", marginTop: "0.25rem", color: "#64748b" }}>
+                                      {optionsPreview}
+                                    </span>
+                                  )}
+                                  {alreadyOnPaper && (
+                                    <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "#059669" }}>
+                                      (on paper)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </label>
                           </li>
                         );
                       })}
