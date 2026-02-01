@@ -17,6 +17,7 @@ type ExamQuestion = {
   marks: number;
   question: string;
   options?: string[];
+  correctIndex?: number | null;
   correctAnswer?: string | null;
   markScheme?: string[];
   status: string;
@@ -40,6 +41,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     marks: 1,
     questionText: "",
     correctAnswerMarkScheme: "",
+    mcqOptions: ["", "", "", "", ""] as string[],
+    correctIndex: 0,
   });
 
   const fetchQuestions = async () => {
@@ -64,8 +67,14 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     const q = form.questionText.trim();
     if (!q) return "Question text is required.";
     if (form.marks < 1) return "Marks must be at least 1.";
+    if (form.questionType === "mcq") {
+      const opts = form.mcqOptions.map((s) => s.trim()).filter(Boolean);
+      if (opts.length < 2) return "MCQ requires at least 2 options.";
+      if (opts.length > 5) return "MCQ allows at most 5 options.";
+      if (form.correctIndex < 0 || form.correctIndex >= opts.length) return "Please select the correct option.";
+      return null;
+    }
     const answer = form.correctAnswerMarkScheme.trim();
-    if (form.questionType === "mcq" && !answer) return "Correct answer is required for MCQ.";
     if (form.questionType === "short" && !answer) return "Correct answer or mark scheme is required for short answer.";
     return null;
   }
@@ -83,6 +92,13 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         .split("\n")
         .map((s) => s.trim())
         .filter(Boolean);
+      const mcqOpts = form.questionType === "mcq"
+        ? form.mcqOptions.map((s) => s.trim()).filter(Boolean)
+        : [];
+      const correctIdx = form.questionType === "mcq" ? form.correctIndex : undefined;
+      const correctAnswerVal = form.questionType === "mcq"
+        ? (mcqOpts[correctIdx!] ?? null)
+        : (form.correctAnswerMarkScheme.trim() || null);
       await api.post("/exam-questions", {
         subject: form.subject,
         examBoard: form.examBoard || undefined,
@@ -91,9 +107,10 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         type: form.questionType,
         marks: form.marks,
         question: form.questionText.trim(),
-        correctAnswer: form.correctAnswerMarkScheme.trim() || null,
-        markScheme: markScheme.length ? markScheme : [],
-        options: [],
+        correctAnswer: correctAnswerVal,
+        correctIndex: correctIdx,
+        markScheme: form.questionType === "mcq" ? [] : (markScheme.length ? markScheme : []),
+        options: form.questionType === "mcq" ? mcqOpts : [],
       });
       setModalOpen(false);
       setForm({
@@ -105,6 +122,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         marks: 1,
         questionText: "",
         correctAnswerMarkScheme: "",
+        mcqOptions: ["", "", "", "", ""],
+        correctIndex: 0,
       });
       await fetchQuestions();
     } catch (err: any) {
@@ -189,6 +208,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Type</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Marks</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Question</th>
+                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Options</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Status</th>
               </tr>
             </thead>
@@ -199,6 +219,13 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                   <td style={{ padding: "12px", color: "#374151" }}>{q.type}</td>
                   <td style={{ padding: "12px", color: "#374151" }}>{q.marks}</td>
                   <td style={{ padding: "12px", color: "#374151", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={q.question}>{q.question || "—"}</td>
+                  <td style={{ padding: "12px", color: "#374151", fontSize: "0.875rem", maxWidth: "200px" }}>
+                    {q.type === "mcq" && Array.isArray(q.options) && q.options.length > 0
+                      ? q.options.map((opt, i) => (
+                          <span key={i} style={{ display: "block" }}>{String.fromCharCode(65 + i)}: {opt}</span>
+                        ))
+                      : "—"}
+                  </td>
                   <td style={{ padding: "12px", color: "#374151" }}>{q.status}</td>
                 </tr>
               ))}
@@ -340,16 +367,51 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
                 />
               </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct answer / mark scheme</label>
-                <textarea
-                  value={form.correctAnswerMarkScheme}
-                  onChange={(e) => setForm((f) => ({ ...f, correctAnswerMarkScheme: e.target.value }))}
-                  placeholder="Model answer or mark scheme points..."
-                  rows={3}
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
-                />
-              </div>
+              {form.questionType === "mcq" && (
+                <>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Options (2–5)</label>
+                    {["A", "B", "C", "D", "E"].map((letter, i) => (
+                      <input
+                        key={letter}
+                        type="text"
+                        value={form.mcqOptions[i] ?? ""}
+                        onChange={(e) => setForm((f) => {
+                          const next = [...(f.mcqOptions ?? ["", "", "", "", ""])];
+                          next[i] = e.target.value;
+                          return { ...f, mcqOptions: next };
+                        })}
+                        placeholder={`Option ${letter}`}
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", marginBottom: "6px" }}
+                      />
+                    ))}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct option</label>
+                    <select
+                      value={form.correctIndex}
+                      onChange={(e) => setForm((f) => ({ ...f, correctIndex: parseInt(e.target.value, 10) }))}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                    >
+                      {["A", "B", "C", "D", "E"].map((letter, i) => (
+                        <option key={letter} value={i}>Option {letter}{form.mcqOptions[i]?.trim() ? ` — ${form.mcqOptions[i].trim().slice(0, 40)}${(form.mcqOptions[i].trim().length > 40 ? "…" : "")}` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+              {form.questionType !== "mcq" && (
+                <div>
+                  <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Correct answer / mark scheme</label>
+                  <textarea
+                    value={form.correctAnswerMarkScheme}
+                    onChange={(e) => setForm((f) => ({ ...f, correctAnswerMarkScheme: e.target.value }))}
+                    placeholder="Model answer or mark scheme points..."
+                    rows={3}
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }}
+                  />
+                </div>
+              )}
               <div>
                 <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Image (placeholder)</label>
                 <div

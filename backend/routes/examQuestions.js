@@ -67,7 +67,7 @@ router.put("/:id", auth, async (req, res) => {
     if (!question) {
       return res.status(404).json({ success: false, msg: "Question not found" });
     }
-    const { subject, examBoard, level, topic, type, marks, question: qText, options, correctAnswer, markScheme, content, status } = req.body;
+    const { subject, examBoard, level, topic, type, marks, question: qText, options, correctIndex, correctAnswer, markScheme, content, status } = req.body;
     if (subject !== undefined) question.subject = subject;
     if (examBoard !== undefined) question.examBoard = examBoard;
     if (level !== undefined) question.level = level;
@@ -76,6 +76,7 @@ router.put("/:id", auth, async (req, res) => {
     if (marks !== undefined) question.marks = marks;
     if (qText !== undefined) question.question = qText;
     if (options !== undefined) question.options = options;
+    if (correctIndex !== undefined) question.correctIndex = correctIndex;
     if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
     if (markScheme !== undefined) question.markScheme = markScheme;
     if (content !== undefined) question.content = content;
