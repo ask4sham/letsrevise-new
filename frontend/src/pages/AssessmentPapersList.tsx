@@ -25,16 +25,14 @@ const AssessmentPapersList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMode, setSelectedMode] = useState<string>("");
+  const [selectedMode, setSelectedMode] = useState<string>("practice_set");
   const [userType, setUserType] = useState<string>("");
 
   useEffect(() => {
     const fetchPapers = async () => {
       try {
         setLoading(true);
-        const url = selectedMode
-          ? `http://localhost:5000/api/assessment-papers?kind=${encodeURIComponent(selectedMode)}`
-          : "http://localhost:5000/api/assessment-papers";
+        const url = `http://localhost:5000/api/assessment-papers?kind=${encodeURIComponent(selectedMode)}`;
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -76,8 +74,7 @@ const AssessmentPapersList: React.FC = () => {
     const matchesSearch = paper.title
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    const matchesMode =
-      selectedMode === "" || paper.kind === selectedMode;
+    const matchesMode = paper.kind === selectedMode;
     return matchesSearch && matchesMode;
   });
 
@@ -223,8 +220,7 @@ const AssessmentPapersList: React.FC = () => {
                 onChange={(e) => setSelectedMode(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">All Types</option>
-                <option value="mock_exam">Exams</option>
+                <option value="mock_exam">Exam Papers</option>
                 <option value="past_paper">Practice Papers</option>
                 <option value="practice_set">Quizzes</option>
               </select>
