@@ -243,8 +243,8 @@ const AssessmentPaperEditPage: React.FC = () => {
         >
           <div
             style={{
-              width: "100%",
-              maxWidth: "560px",
+              width: "90vw",
+              maxWidth: "1100px",
               maxHeight: "80vh",
               overflow: "auto",
               background: "white",
@@ -295,31 +295,6 @@ const AssessmentPaperEditPage: React.FC = () => {
                             }}
                           >
                             <div className="flex items-start gap-3 w-full">
-                              <div
-                                style={{
-                                  width: 48,
-                                  height: 48,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <input
-                                  id={`bank-q-${qId}`}
-                                  type="checkbox"
-                                  checked={selected}
-                                  onChange={() => toggleBankSelection(qId)}
-                                  disabled={alreadyOnPaper}
-                                  style={{
-                                    appearance: "auto",
-                                    width: 16,
-                                    height: 16,
-                                    background: "none",
-                                    borderRadius: 2,
-                                  }}
-                                />
-                              </div>
-
                               <div className="flex-1 text-left">
                                 <div
                                   className="font-medium text-gray-900"
@@ -342,6 +317,23 @@ const AssessmentPaperEditPage: React.FC = () => {
                                     {optionsPreview}
                                   </div>
                                 )}
+                              </div>
+
+                              <div className="ml-auto flex items-start justify-end w-10">
+                                <input
+                                  id={`bank-q-${qId}`}
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleBankSelection(qId)}
+                                  disabled={alreadyOnPaper}
+                                  style={{
+                                    appearance: "auto",
+                                    width: 16,
+                                    height: 16,
+                                    background: "none",
+                                    borderRadius: 2,
+                                  }}
+                                />
                               </div>
                             </div>
                           </div>
