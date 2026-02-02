@@ -3,12 +3,19 @@ import React, { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
+import {
+  type LessonBlockType,
+  BLOCK_META,
+  getBlockStyle,
+  getBlockButtonStyle,
+  toLegacyBlockType,
+  BLOCK_TYPES_FOR_BUTTONS,
+} from "../types/lessonBlocks";
 
 type HeroType = "none" | "image" | "video" | "animation";
-type LessonPageBlockType = "text" | "keyIdea" | "keyWords" | "examTip" | "commonMistake";
 
 type LessonPageBlock = {
-  type: LessonPageBlockType;
+  type: LessonBlockType;
   content: string;
 };
 
@@ -374,12 +381,12 @@ const CreateLessonPage: React.FC = () => {
     );
   };
 
-  const addBlock = (pageId: string, type: LessonPageBlockType) => {
+  const addBlock = (pageId: string, type: LessonBlockType, initialContent?: string) => {
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
         const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
-        blocks.push({ type, content: "" });
+        blocks.push({ type, content: initialContent ?? "" });
         return { ...p, blocks };
       })
     );
@@ -651,17 +658,16 @@ const CreateLessonPage: React.FC = () => {
       setSuccess("");
 
       // ============================
-      // Step 4.2 — Sanitize content right before creating
+      // Step 4.2 — Sanitize content right before creating (block types sent as legacy to API)
       // ============================
-      const sanitizedPages: LessonPage[] = normalizeOrders(pages).map((p) => ({
+      const sanitizedPages = normalizeOrders(pages).map((p) => ({
         pageId: p.pageId,
         title: safeStr(p.title, `Page ${p.order}`),
         order: p.order,
         pageType: safeStr(p.pageType, ""),
-        // legacy compat: always none (UI removed)
-        hero: { type: "none", src: "", caption: "" },
+        hero: { type: "none" as const, src: "", caption: "" },
         blocks: (p.blocks || []).map((b) => ({
-          type: b.type,
+          type: toLegacyBlockType(b.type),
           content: sanitizeTeacherMarkdown(String(b.content || "")),
         })),
         checkpoint: p.checkpoint
@@ -702,36 +708,6 @@ const CreateLessonPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // ---------------------------
-  // UI helpers (same look as EditLessonPage)
-  // ---------------------------
-  const blockLabel = (t: LessonPageBlockType) => {
-    if (t === "keyIdea") return "Key idea";
-    if (t === "keyWords") return "Key words";
-    if (t === "examTip") return "Exam tip";
-    if (t === "commonMistake") return "Misconception";
-    return "Text";
-  };
-
-  const blockStyle = (t: LessonPageBlockType): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      padding: 12,
-      borderRadius: 10,
-      border: "1px solid rgba(15,23,42,0.06)",
-      background: "#fff",
-      boxShadow: "0 1px 4px rgba(15,23,42,0.03)",
-    };
-    if (t === "keyIdea")
-      return { ...base, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(59,130,246,0.03)" };
-    if (t === "keyWords")
-      return { ...base, border: "1px solid rgba(100,116,139,0.2)", background: "rgba(100,116,139,0.04)" };
-    if (t === "examTip")
-      return { ...base, border: "1px solid rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.03)" };
-    if (t === "commonMistake")
-      return { ...base, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.03)" };
-    return base;
   };
 
   // ---------------------------
@@ -1015,36 +991,18 @@ const CreateLessonPage: React.FC = () => {
                     </div>
 
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-                      <button
-                        onClick={() => addBlock(pg.pageId, "text")}
-                        style={ui.btnSecondary}
-                      >
-                        + Text
-                      </button>
-                      <button
-                        onClick={() => addBlock(pg.pageId, "keyIdea")}
-                        style={{ ...ui.btnSecondary, borderColor: "rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.06)" }}
-                      >
-                        + Key idea
-                      </button>
-                      <button
-                        onClick={() => addBlock(pg.pageId, "keyWords")}
-                        style={{ ...ui.btnSecondary, borderColor: "rgba(100,116,139,0.35)", background: "rgba(100,116,139,0.06)" }}
-                      >
-                        + Key words
-                      </button>
-                      <button
-                        onClick={() => addBlock(pg.pageId, "examTip")}
-                        style={{ ...ui.btnSecondary, borderColor: "rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.06)" }}
-                      >
-                        + Exam tip
-                      </button>
-                      <button
-                        onClick={() => addBlock(pg.pageId, "commonMistake")}
-                        style={{ ...ui.btnSecondary, borderColor: "rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}
-                      >
-                        + Misconception
-                      </button>
+                      {BLOCK_TYPES_FOR_BUTTONS.map((blockType) => {
+                        const meta = BLOCK_META[blockType];
+                        return (
+                          <button
+                            key={blockType}
+                            onClick={() => addBlock(pg.pageId, blockType)}
+                            style={{ ...ui.btnSecondary, ...getBlockButtonStyle(blockType) }}
+                          >
+                            + {meta.label}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -1073,9 +1031,9 @@ const CreateLessonPage: React.FC = () => {
                         const isUploading = uploadingKey === key;
 
                         return (
-                          <div key={key} style={blockStyle(b.type)}>
+                          <div key={key} style={getBlockStyle(b.type)}>
                             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{blockLabel(b.type)}</div>
+                              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{BLOCK_META[b.type].label}</div>
                               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <button
                                   onClick={() => moveBlock(pg.pageId, idx, -1)}
@@ -1309,6 +1267,20 @@ const CreateLessonPage: React.FC = () => {
                       <div style={{ marginBottom: 8 }}>{formData.description.slice(0, 120)}{formData.description.length > 120 ? "…" : ""}</div>
                     )}
                     <div style={{ marginTop: 8 }}>{orderedPages.length} page{orderedPages.length !== 1 ? "s" : ""}</div>
+                    {orderedPages.length > 0 && (orderedPages[0].blocks?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                        {(orderedPages[0].blocks || []).map((b, idx) => (
+                          <div key={`prev-${idx}`} style={getBlockStyle(b.type)}>
+                            <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#334155", marginBottom: 4 }}>
+                              {BLOCK_META[b.type].icon} {BLOCK_META[b.type].label}
+                            </div>
+                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                              {safeStr(b.content, "").slice(0, 80)}{safeStr(b.content, "").length > 80 ? "…" : ""}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <span>Lesson title and content will appear here.</span>

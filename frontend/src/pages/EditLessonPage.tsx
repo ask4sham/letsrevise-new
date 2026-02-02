@@ -4,9 +4,18 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
+import {
+  type LessonBlockType,
+  BLOCK_META,
+  getBlockStyle,
+  getBlockButtonStyle,
+  normalizeBlockType,
+  toLegacyBlockType,
+  BLOCK_TYPES_FOR_BUTTONS,
+} from "../types/lessonBlocks";
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch";
+  type: LessonBlockType;
   content: string;
 }
 
@@ -495,7 +504,7 @@ const EditLessonPage: React.FC = () => {
             : { type: "none", src: "", caption: "" },
           blocks: Array.isArray((p as any).blocks)
             ? (p as any).blocks.map((b: any) => ({
-                type: (b?.type as LessonPageBlock["type"]) || "text",
+                type: normalizeBlockType(b?.type),
                 content: safeStr(b?.content, ""),
               }))
             : [{ type: "text", content: "" }],
@@ -662,7 +671,7 @@ const EditLessonPage: React.FC = () => {
     });
   };
 
-  const addBlock = (pageId: string, type: LessonPageBlock["type"]) => {
+  const addBlock = (pageId: string, type: LessonBlockType) => {
     setLesson((prev) => {
       if (!prev) return prev;
       const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
@@ -1579,7 +1588,7 @@ const EditLessonPage: React.FC = () => {
       const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
         blocks: (p.blocks || []).map((b: any) => ({
-          ...b,
+          type: toLegacyBlockType(b.type),
           content: sanitizeTeacherMarkdown(String(b.content || "")),
         })),
       }));
@@ -1639,7 +1648,7 @@ const EditLessonPage: React.FC = () => {
       const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
         blocks: (p.blocks || []).map((b: any) => ({
-          ...b,
+          type: toLegacyBlockType(b.type),
           content: sanitizeTeacherMarkdown(String(b.content || "")),
         })),
       }));
@@ -1721,49 +1730,6 @@ const EditLessonPage: React.FC = () => {
         {props.children}
       </a>
     ),
-  };
-
-  const blockLabel = (t: LessonPageBlock["type"]) => {
-    if (t === "keyIdea") return "Key idea";
-    if (t === "examTip") return "Exam tip";
-    if (t === "commonMistake") return "Common mistake";
-    if (t === "stretch") return "Deeper knowledge";
-    return "Text";
-  };
-
-  const blockStyle = (t: LessonPageBlock["type"]): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      padding: 12,
-      borderRadius: 12,
-      border: "2px solid rgba(0,0,0,0.14)",
-      background: "white",
-      boxShadow: "0 10px 22px rgba(0,0,0,0.06)",
-    };
-    if (t === "keyIdea")
-      return {
-        ...base,
-        border: "2px solid rgba(59,130,246,0.35)",
-        background: "rgba(59,130,246,0.06)",
-      };
-    if (t === "examTip")
-      return {
-        ...base,
-        border: "2px solid rgba(16,185,129,0.35)",
-        background: "rgba(16,185,129,0.06)",
-      };
-    if (t === "commonMistake")
-      return {
-        ...base,
-        border: "2px solid rgba(239,68,68,0.35)",
-        background: "rgba(239,68,68,0.06)",
-      };
-    if (t === "stretch")
-      return {
-        ...base,
-        border: "2px solid rgba(124,58,237,0.35)",
-        background: "rgba(124,58,237,0.06)",
-      };
-    return base;
   };
 
   if (loading) {
@@ -2205,71 +2171,18 @@ const EditLessonPage: React.FC = () => {
                       </div>
 
                       <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => addBlock(currentPage!.pageId, "text")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(0,0,0,0.14)",
-                            background: "white",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Text
-                        </button>
-                        <button
-                          onClick={() => addBlock(currentPage!.pageId, "keyIdea")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(59,130,246,0.25)",
-                            background: "rgba(59,130,246,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Key idea
-                        </button>
-                        <button
-                          onClick={() => addBlock(currentPage!.pageId, "examTip")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(16,185,129,0.25)",
-                            background: "rgba(16,185,129,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Exam tip
-                        </button>
-                        <button
-                          onClick={() => addBlock(currentPage!.pageId, "commonMistake")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(239,68,68,0.25)",
-                            background: "rgba(239,68,68,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Mistake
-                        </button>
-                        <button
-                          onClick={() => addBlock(currentPage!.pageId, "stretch")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(124,58,237,0.25)",
-                            background: "rgba(124,58,237,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Deeper knowledge
-                        </button>
+                        {BLOCK_TYPES_FOR_BUTTONS.map((blockType) => {
+                          const meta = BLOCK_META[blockType];
+                          return (
+                            <button
+                              key={blockType}
+                              onClick={() => addBlock(currentPage!.pageId, blockType)}
+                              style={getBlockButtonStyle(blockType)}
+                            >
+                              + {meta.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -2314,9 +2227,9 @@ const EditLessonPage: React.FC = () => {
                       const isUploading = uploadingKey === key;
 
                       return (
-                        <div key={key} style={blockStyle(b.type)}>
+                        <div key={key} style={getBlockStyle(b.type)}>
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                            <div style={{ fontWeight: 900 }}>{blockLabel(b.type)}</div>
+                            <div style={{ fontWeight: 900 }}>{BLOCK_META[b.type].label}</div>
 
                             <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                               <button
@@ -2600,25 +2513,21 @@ const EditLessonPage: React.FC = () => {
                     {currentPage?.title || `Page ${currentPage?.order}`}
                   </div>
 
-                  {(currentPage?.blocks || []).map((b, idx) => (
-                    <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
-                      <div style={{ fontWeight: 900, marginBottom: 6, color: "#111827" }}>
-                        {blockLabel(b.type)}
+                  {(currentPage?.blocks || []).map((b, idx) => {
+                    const meta = BLOCK_META[b.type];
+                    return (
+                      <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
+                        <div style={{ fontWeight: 900, marginBottom: 6, color: "#111827" }}>
+                          {meta.icon} {meta.label}
+                        </div>
+                        <div style={getBlockStyle(b.type)}>
+                          <ReactMarkdown components={markdownComponents as any}>
+                            {safeStr(b.content, "")}
+                          </ReactMarkdown>
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          padding: 12,
-                          borderRadius: 12,
-                          border: "2px solid rgba(0,0,0,0.12)",
-                          background: "white",
-                        }}
-                      >
-                        <ReactMarkdown components={markdownComponents as any}>
-                          {safeStr(b.content, "")}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div style={previewBox}>
