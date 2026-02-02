@@ -49,6 +49,77 @@ const SUBJECTS = [
   "Economics",
 ] as const;
 
+// Shared UI styles: clean, modern, youth-friendly (styling only)
+const ui = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(160deg, #f8fafc 0%, #f1f5f9 50%, #eef2ff 100%)",
+    padding: "24px 20px 48px",
+  },
+  shell: { maxWidth: 960, margin: "0 auto" },
+  card: {
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.95)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    boxShadow: "0 4px 24px rgba(15,23,42,0.06)",
+    padding: 20,
+  },
+  section: {
+    borderRadius: 14,
+    background: "#fff",
+    border: "1px solid rgba(15,23,42,0.06)",
+    boxShadow: "0 2px 12px rgba(15,23,42,0.04)",
+    padding: 18,
+  },
+  sidebar: {
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.9)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    boxShadow: "0 2px 12px rgba(15,23,42,0.04)",
+    padding: 14,
+  },
+  sectionTitle: { fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", marginBottom: 12 },
+  label: { fontWeight: 600, fontSize: "0.875rem", color: "#334155", marginBottom: 6 },
+  input: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(15,23,42,0.12)",
+    background: "#fff",
+    outline: "none",
+  },
+  separator: { height: 1, background: "rgba(15,23,42,0.06)", margin: "16px 0" },
+  btnPrimary: {
+    padding: "10px 18px",
+    borderRadius: 10,
+    border: "none",
+    background: "linear-gradient(135deg, #6366f1 0%, #22c55e 100%)",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: "0.9rem",
+  },
+  btnSecondary: {
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(15,23,42,0.12)",
+    background: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "0.875rem",
+  },
+  btnDanger: {
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(239,68,68,0.3)",
+    background: "rgba(239,68,68,0.06)",
+    color: "#b91c1c",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "0.875rem",
+  },
+};
+
 function safeStr(v: any, fallback = "") {
   const s = v === undefined || v === null ? "" : String(v);
   return s.trim() ? s : fallback;
@@ -624,30 +695,18 @@ const CreateLessonPage: React.FC = () => {
 
   const blockStyle = (t: LessonPageBlockType): React.CSSProperties => {
     const base: React.CSSProperties = {
-      padding: 12,
+      padding: 14,
       borderRadius: 12,
-      border: "2px solid rgba(0,0,0,0.14)",
-      background: "white",
-      boxShadow: "0 10px 22px rgba(0,0,0,0.06)",
+      border: "1px solid rgba(15,23,42,0.08)",
+      background: "#fff",
+      boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
     };
     if (t === "keyIdea")
-      return {
-        ...base,
-        border: "2px solid rgba(59,130,246,0.35)",
-        background: "rgba(59,130,246,0.06)",
-      };
+      return { ...base, border: "1px solid rgba(59,130,246,0.25)", background: "rgba(59,130,246,0.04)" };
     if (t === "examTip")
-      return {
-        ...base,
-        border: "2px solid rgba(16,185,129,0.35)",
-        background: "rgba(16,185,129,0.06)",
-      };
+      return { ...base, border: "1px solid rgba(16,185,129,0.25)", background: "rgba(16,185,129,0.04)" };
     if (t === "commonMistake")
-      return {
-        ...base,
-        border: "2px solid rgba(239,68,68,0.35)",
-        background: "rgba(239,68,68,0.06)",
-      };
+      return { ...base, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.04)" };
     return base;
   };
 
@@ -655,66 +714,48 @@ const CreateLessonPage: React.FC = () => {
   // Render
   // ---------------------------
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-        padding: "18px",
-      }}
-    >
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+    <div style={ui.page}>
+      <div style={ui.shell}>
         <div
           style={{
-            marginBottom: 12,
+            marginBottom: 16,
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             gap: 12,
             flexWrap: "wrap",
           }}
         >
           <Link
             to="/teacher-dashboard"
-            style={{ color: "#667eea", textDecoration: "none" }}
+            style={{ color: "#6366f1", textDecoration: "none", fontWeight: 600, fontSize: "0.9rem" }}
           >
             ← Back to Teacher Dashboard
           </Link>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             {uploadMsg ? (
-              <span style={{ fontWeight: 900, color: "#15803d" }}>
+              <span style={{ fontWeight: 600, color: "#15803d", fontSize: "0.875rem" }}>
                 {uploadMsg}
               </span>
             ) : null}
-
             {error ? (
-              <span style={{ fontWeight: 800, color: "#b91c1c" }}>
+              <span style={{ fontWeight: 600, color: "#b91c1c", fontSize: "0.875rem" }}>
                 {error}
               </span>
             ) : null}
-
             {success ? (
-              <span style={{ fontWeight: 800, color: "#15803d" }}>
+              <span style={{ fontWeight: 600, color: "#15803d", fontSize: "0.875rem" }}>
                 {success}
               </span>
             ) : null}
-
             <button
               onClick={handleSubmit}
               disabled={loading}
               style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "2px solid rgba(0,0,0,0.18)",
-                background: loading ? "#e5e7eb" : "white",
+                ...ui.btnPrimary,
+                opacity: loading ? 0.7 : 1,
                 cursor: loading ? "not-allowed" : "pointer",
-                fontWeight: 900,
               }}
             >
               {loading ? "Creating..." : "Create Lesson"}
@@ -722,69 +763,32 @@ const CreateLessonPage: React.FC = () => {
           </div>
         </div>
 
-        <div
-          style={{
-            border: "4px solid rgba(17,24,39,0.35)",
-            borderRadius: 18,
-            background: "rgba(255,255,255,0.78)",
-            boxShadow: "0 18px 46px rgba(0,0,0,0.14)",
-            padding: 16,
-          }}
-        >
+        <div style={ui.card}>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "280px minmax(0, 1fr)",
-              gap: 18,
+              gridTemplateColumns: "240px minmax(0, 1fr)",
+              gap: 20,
               alignItems: "start",
             }}
           >
-            {/* LEFT: pages nav */}
+            {/* LEFT: Pages sidebar */}
             <aside
               style={{
                 position: "sticky",
                 top: 16,
                 alignSelf: "start",
-                background: "white",
-                borderRadius: 14,
-                padding: 14,
-                boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
-                border: "2px solid rgba(0,0,0,0.16)",
+                ...ui.sidebar,
               }}
             >
-              <div
-                style={{ fontWeight: 900, color: "#111827", marginBottom: 6 }}
-              >
-                Teacher editor
-              </div>
-
-              <div
-                style={{
-                  color: "#6b7280",
-                  fontSize: "0.92rem",
-                  marginBottom: 12,
-                }}
-              >
-                Create pages/blocks. Use "Upload image / video" inside blocks to
-                insert media exactly where your cursor is.
-              </div>
-
-              <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>
-                Pages
+              <div style={{ ...ui.sectionTitle, marginBottom: 4 }}>Pages</div>
+              <div style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: 12 }}>
+                Add pages, then edit content below. Use "Upload image / video" in blocks to insert media.
               </div>
 
               <button
                 onClick={addPage}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "2px solid rgba(0,0,0,0.16)",
-                  background: "white",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                  marginBottom: 10,
-                }}
+                style={{ ...ui.btnPrimary, width: "100%", marginBottom: 12 }}
               >
                 + Add page
               </button>
@@ -794,71 +798,34 @@ const CreateLessonPage: React.FC = () => {
                   <div
                     key={p.pageId || idx}
                     style={{
-                      border: "2px solid rgba(0,0,0,0.14)",
-                      borderRadius: 12,
+                      borderRadius: 10,
                       padding: 10,
-                      background: "white",
+                      background: "rgba(255,255,255,0.8)",
+                      border: "1px solid rgba(15,23,42,0.06)",
                     }}
                   >
-                    <div
-                      style={{
-                        fontWeight: 900,
-                        color: "#111827",
-                        marginBottom: 6,
-                      }}
-                    >
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", marginBottom: 8 }}>
                       {p.title || `Page ${p.order}`}
                     </div>
-
-                    <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", gap: 6 }}>
                       <button
                         onClick={() => movePage(p.pageId, -1)}
                         disabled={p.order === 1}
-                        style={{
-                          flex: 1,
-                          padding: "6px 8px",
-                          borderRadius: 8,
-                          border: "2px solid rgba(0,0,0,0.12)",
-                          background: "white",
-                          cursor: p.order === 1 ? "not-allowed" : "pointer",
-                          fontWeight: 800,
-                          opacity: p.order === 1 ? 0.5 : 1,
-                        }}
+                        style={{ ...ui.btnSecondary, flex: 1, padding: "6px 8px" }}
                       >
                         ↑
                       </button>
                       <button
                         onClick={() => movePage(p.pageId, 1)}
                         disabled={p.order === orderedPages.length}
-                        style={{
-                          flex: 1,
-                          padding: "6px 8px",
-                          borderRadius: 8,
-                          border: "2px solid rgba(0,0,0,0.12)",
-                          background: "white",
-                          cursor:
-                            p.order === orderedPages.length ? "not-allowed" : "pointer",
-                          fontWeight: 800,
-                          opacity: p.order === orderedPages.length ? 0.5 : 1,
-                        }}
+                        style={{ ...ui.btnSecondary, flex: 1, padding: "6px 8px" }}
                       >
                         ↓
                       </button>
                       <button
                         onClick={() => removePage(p.pageId)}
                         disabled={orderedPages.length === 1}
-                        style={{
-                          flex: 1,
-                          padding: "6px 8px",
-                          borderRadius: 8,
-                          border: "2px solid rgba(239,68,68,0.35)",
-                          background: "rgba(239,68,68,0.06)",
-                          cursor:
-                            orderedPages.length === 1 ? "not-allowed" : "pointer",
-                          fontWeight: 900,
-                          color: "#b91c1c",
-                          opacity: orderedPages.length === 1 ? 0.5 : 1,
-                        }}
+                        style={{ ...ui.btnDanger, flex: 1, padding: "6px 8px" }}
                       >
                         🗑
                       </button>
@@ -869,50 +836,29 @@ const CreateLessonPage: React.FC = () => {
             </aside>
 
             {/* MIDDLE: lesson details + page editors */}
-            <main>
+            <main style={{ minWidth: 0 }}>
               {/* Lesson details */}
-              <div
-                style={{
-                  background: "white",
-                  borderRadius: 14,
-                  padding: 14,
-                  boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
-                  border: "2px solid rgba(0,0,0,0.16)",
-                }}
-              >
-                <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>
-                  Lesson details
-                </div>
+              <div style={ui.section}>
+                <div style={ui.sectionTitle}>Lesson details</div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Title *</div>
+                    <div style={ui.label}>Title *</div>
                     <input
                       name="title"
                       value={formData.title}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                      }}
+                      style={ui.input}
                     />
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Exam board *</div>
+                    <div style={ui.label}>Exam board *</div>
                     <select
                       name="board"
                       value={formData.board}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                        background: "white",
-                      }}
+                      style={ui.input}
                     >
                       <option value="">Select board…</option>
                       {EXAM_BOARDS.map((b) => (
@@ -924,18 +870,12 @@ const CreateLessonPage: React.FC = () => {
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Subject *</div>
+                    <div style={ui.label}>Subject *</div>
                     <select
                       name="subject"
                       value={formData.subject}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                        background: "white",
-                      }}
+                      style={ui.input}
                     >
                       {SUBJECTS.map((s) => (
                         <option key={s} value={s}>
@@ -946,7 +886,7 @@ const CreateLessonPage: React.FC = () => {
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Level *</div>
+                    <div style={ui.label}>Level *</div>
                     <select
                       name="level"
                       value={formData.level}
@@ -958,13 +898,7 @@ const CreateLessonPage: React.FC = () => {
                           tier: value === "GCSE" ? prev.tier : "",
                         }));
                       }}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                        background: "white",
-                      }}
+                      style={ui.input}
                     >
                       <option value="KS3">KS3</option>
                       <option value="GCSE">GCSE</option>
@@ -974,18 +908,12 @@ const CreateLessonPage: React.FC = () => {
 
                   {formData.level === "GCSE" ? (
                     <label style={{ display: "block" }}>
-                      <div style={{ fontWeight: 800, marginBottom: 6 }}>GCSE Tier *</div>
+                      <div style={ui.label}>GCSE Tier *</div>
                       <select
                         name="tier"
                         value={formData.tier}
                         onChange={onChange}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          border: "2px solid rgba(0,0,0,0.14)",
-                          background: "white",
-                        }}
+                        style={ui.input}
                       >
                         <option value="">Select tier…</option>
                         <option value="foundation">Foundation</option>
@@ -997,216 +925,128 @@ const CreateLessonPage: React.FC = () => {
                   )}
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Topic *</div>
+                    <div style={ui.label}>Topic *</div>
                     <input
                       name="topic"
                       value={formData.topic}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                      }}
+                      style={ui.input}
                     />
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Estimated duration (mins)</div>
+                    <div style={ui.label}>Estimated duration (mins)</div>
                     <input
                       name="estimatedDuration"
                       type="number"
                       value={formData.estimatedDuration}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                      }}
+                      style={ui.input}
                     />
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>ShamCoin price</div>
+                    <div style={ui.label}>ShamCoin price</div>
                     <input
                       name="shamCoinPrice"
                       type="number"
                       value={formData.shamCoinPrice}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                      }}
+                      style={ui.input}
                     />
                   </label>
                 </div>
 
-                <label style={{ display: "block", marginTop: 10 }}>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Description *</div>
+                <label style={{ display: "block", marginTop: 14 }}>
+                  <div style={ui.label}>Description *</div>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={onChange}
                     rows={3}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "2px solid rgba(0,0,0,0.14)",
-                      resize: "vertical",
-                    }}
+                    style={{ ...ui.input, resize: "vertical" }}
                   />
                 </label>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
-                    marginTop: 10,
-                  }}
-                >
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Tags (comma separated)</div>
+                    <div style={ui.label}>Tags (comma separated)</div>
                     <input
                       name="tags"
                       value={formData.tags}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                      }}
+                      style={ui.input}
                     />
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>External resources (comma URLs)</div>
+                    <div style={ui.label}>External resources (comma URLs)</div>
                     <input
                       name="externalResources"
                       value={formData.externalResources}
                       onChange={onChange}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                      }}
+                      style={ui.input}
                     />
                   </label>
                 </div>
               </div>
 
-              {/* Pages (inline like EditLessonPage) */}
-              <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Editing Page cards */}
+              <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 18 }}>
                 {orderedPages.map((pg) => (
-                  <div
-                    key={pg.pageId}
-                    style={{
-                      background: "white",
-                      borderRadius: 14,
-                      padding: 14,
-                      boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
-                      border: "2px solid rgba(0,0,0,0.16)",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 900, color: "#111827" }}>
-                        Editing: {pg.title || `Page ${pg.order}`}
-                      </div>
-
-                      <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => addBlock(pg.pageId, "text")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(0,0,0,0.14)",
-                            background: "white",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Text
-                        </button>
-                        <button
-                          onClick={() => addBlock(pg.pageId, "keyIdea")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(59,130,246,0.25)",
-                            background: "rgba(59,130,246,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Key idea
-                        </button>
-                        <button
-                          onClick={() => addBlock(pg.pageId, "examTip")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(16,185,129,0.25)",
-                            background: "rgba(16,185,129,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Exam tip
-                        </button>
-                        <button
-                          onClick={() => addBlock(pg.pageId, "commonMistake")}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(239,68,68,0.25)",
-                            background: "rgba(239,68,68,0.06)",
-                            cursor: "pointer",
-                            fontWeight: 900,
-                          }}
-                        >
-                          + Mistake
-                        </button>
-                      </div>
+                  <div key={pg.pageId} style={ui.section}>
+                    <div style={{ ...ui.sectionTitle, marginBottom: 12 }}>
+                      Editing Page: {pg.title || `Page ${pg.order}`}
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+                      <button
+                        onClick={() => addBlock(pg.pageId, "text")}
+                        style={ui.btnSecondary}
+                      >
+                        + Text
+                      </button>
+                      <button
+                        onClick={() => addBlock(pg.pageId, "keyIdea")}
+                        style={{ ...ui.btnSecondary, borderColor: "rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.06)" }}
+                      >
+                        + Key idea
+                      </button>
+                      <button
+                        onClick={() => addBlock(pg.pageId, "examTip")}
+                        style={{ ...ui.btnSecondary, borderColor: "rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.06)" }}
+                      >
+                        + Exam tip
+                      </button>
+                      <button
+                        onClick={() => addBlock(pg.pageId, "commonMistake")}
+                        style={{ ...ui.btnSecondary, borderColor: "rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}
+                      >
+                        + Mistake
+                      </button>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                       <label style={{ display: "block" }}>
-                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Page title</div>
+                        <div style={ui.label}>Page title</div>
                         <input
                           value={safeStr(pg.title, "")}
                           onChange={(e) => updatePage(pg.pageId, { title: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(0,0,0,0.14)",
-                          }}
+                          style={ui.input}
                         />
                       </label>
-
                       <label style={{ display: "block" }}>
-                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Page type</div>
+                        <div style={ui.label}>Page type</div>
                         <input
                           value={safeStr(pg.pageType, "")}
                           onChange={(e) => updatePage(pg.pageId, { pageType: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(0,0,0,0.14)",
-                          }}
+                          style={ui.input}
                         />
                       </label>
                     </div>
 
                     {/* Blocks */}
-                    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
                       {(pg.blocks || []).map((b, idx) => {
                         const key = `${pg.pageId}:${idx}`;
                         const isUploading = uploadingKey === key;
@@ -1214,67 +1054,32 @@ const CreateLessonPage: React.FC = () => {
                         return (
                           <div key={key} style={blockStyle(b.type)}>
                             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                              <div style={{ fontWeight: 900 }}>{blockLabel(b.type)}</div>
-
+                              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{blockLabel(b.type)}</div>
                               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <button
                                   onClick={() => moveBlock(pg.pageId, idx, -1)}
                                   disabled={idx === 0}
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(0,0,0,0.14)",
-                                    background: "white",
-                                    cursor: idx === 0 ? "not-allowed" : "pointer",
-                                    fontWeight: 900,
-                                    opacity: idx === 0 ? 0.5 : 1,
-                                  }}
+                                  style={{ ...ui.btnSecondary, padding: "6px 10px", opacity: idx === 0 ? 0.5 : 1 }}
                                 >
                                   ↑
                                 </button>
                                 <button
                                   onClick={() => moveBlock(pg.pageId, idx, 1)}
                                   disabled={idx === (pg.blocks?.length || 0) - 1}
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(0,0,0,0.14)",
-                                    background: "white",
-                                    cursor:
-                                      idx === (pg.blocks?.length || 0) - 1 ? "not-allowed" : "pointer",
-                                    fontWeight: 900,
-                                    opacity: idx === (pg.blocks?.length || 0) - 1 ? 0.5 : 1,
-                                  }}
+                                  style={{ ...ui.btnSecondary, padding: "6px 10px", opacity: idx === (pg.blocks?.length || 0) - 1 ? 0.5 : 1 }}
                                 >
                                   ↓
                                 </button>
-
                                 <button
                                   onClick={() => triggerBlockUpload(pg.pageId, idx)}
                                   disabled={isUploading}
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(0,0,0,0.14)",
-                                    background: "white",
-                                    cursor: isUploading ? "not-allowed" : "pointer",
-                                    fontWeight: 900,
-                                  }}
+                                  style={{ ...ui.btnSecondary, padding: "6px 10px" }}
                                 >
                                   {isUploading ? "Uploading..." : "Upload image / video"}
                                 </button>
-
                                 <button
                                   onClick={() => removeBlock(pg.pageId, idx)}
-                                  style={{
-                                    padding: "6px 10px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(239,68,68,0.35)",
-                                    background: "rgba(239,68,68,0.06)",
-                                    cursor: "pointer",
-                                    fontWeight: 900,
-                                    color: "#b91c1c",
-                                  }}
+                                  style={{ ...ui.btnDanger, padding: "6px 10px" }}
                                 >
                                   Delete
                                 </button>
@@ -1382,20 +1187,13 @@ const CreateLessonPage: React.FC = () => {
                               placeholder="Write markdown here... (images/videos you upload will be inserted at your cursor)"
                               rows={6}
                               style={{
-                                width: "100%",
+                                ...ui.input,
                                 marginTop: 10,
-                                padding: "10px 12px",
-                                borderRadius: 12,
-                                border: "2px solid rgba(0,0,0,0.14)",
                                 resize: "vertical",
-                                fontFamily:
-                                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                                background: "white",
+                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
                               }}
                             />
-                            
-                            {/* ✅ Added UI hint about paste functionality */}
-                            <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
+                            <div style={{ marginTop: 8, color: "#64748b", fontSize: "0.8rem" }}>
                               Tip: paste from Word/Google Docs — bullets (•) become <b>- lists</b>, and headings above bullets become <b>### headings</b>.
                             </div>
                           </div>
@@ -1404,61 +1202,34 @@ const CreateLessonPage: React.FC = () => {
                     </div>
 
                     {/* Checkpoint */}
-                    <div
-                      style={{
-                        marginTop: 14,
-                        background: "white",
-                        borderRadius: 14,
-                        padding: 14,
-                        boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
-                        border: "2px solid rgba(0,0,0,0.16)",
-                      }}
-                    >
-                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Checkpoint</div>
-
+                    <div style={{ marginTop: 16, ...ui.section }}>
+                      <div style={ui.sectionTitle}>Checkpoint</div>
                       <label style={{ display: "block" }}>
-                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Question</div>
+                        <div style={ui.label}>Question</div>
                         <input
                           value={safeStr(pg.checkpoint?.question, "")}
                           onChange={(e) => updateCheckpoint(pg.pageId, { question: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(0,0,0,0.14)",
-                          }}
+                          style={ui.input}
                         />
                       </label>
-
-                      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         {[0, 1, 2, 3].map((i) => (
                           <label key={i} style={{ display: "block" }}>
-                            <div style={{ fontWeight: 800, marginBottom: 6 }}>Option {i + 1}</div>
+                            <div style={ui.label}>Option {i + 1}</div>
                             <input
                               value={safeStr(pg.checkpoint?.options?.[i], "")}
                               onChange={(e) => updateCheckpointOption(pg.pageId, i, e.target.value)}
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 10,
-                                border: "2px solid rgba(0,0,0,0.14)",
-                              }}
+                              style={ui.input}
                             />
                           </label>
                         ))}
                       </div>
-
-                      <label style={{ display: "block", marginTop: 10 }}>
-                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Answer (text must match one option)</div>
+                      <label style={{ display: "block", marginTop: 12 }}>
+                        <div style={ui.label}>Answer (text must match one option)</div>
                         <input
                           value={safeStr(pg.checkpoint?.answer, "")}
                           onChange={(e) => updateCheckpoint(pg.pageId, { answer: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "2px solid rgba(0,0,0,0.14)",
-                          }}
+                          style={ui.input}
                         />
                       </label>
                     </div>
