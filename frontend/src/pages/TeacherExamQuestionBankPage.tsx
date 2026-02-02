@@ -30,6 +30,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -79,6 +80,46 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     return null;
   }
 
+  const defaultForm = {
+    subject: "Biology",
+    examBoard: "AQA",
+    level: "GCSE",
+    topic: "",
+    questionType: "mcq" as (typeof QUESTION_TYPES)[number],
+    marks: 1,
+    questionText: "",
+    correctAnswerMarkScheme: "",
+    mcqOptions: ["", "", "", "", ""] as string[],
+    correctIndex: 0,
+  };
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    setFormError(null);
+    setForm(defaultForm);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (q: ExamQuestion) => {
+    const opts = Array.isArray(q.options) ? q.options : [];
+    const mcqOptions = [...opts, "", "", "", "", ""].slice(0, 5) as [string, string, string, string, string];
+    setForm({
+      subject: q.subject || "Biology",
+      examBoard: q.examBoard || "AQA",
+      level: q.level || "GCSE",
+      topic: q.topic || "",
+      questionType: (q.type || "mcq") as (typeof QUESTION_TYPES)[number],
+      marks: q.marks ?? 1,
+      questionText: q.question || "",
+      correctAnswerMarkScheme: Array.isArray(q.markScheme) ? q.markScheme.join("\n") : (q.correctAnswer != null ? String(q.correctAnswer) : ""),
+      mcqOptions,
+      correctIndex: q.correctIndex != null && q.correctIndex >= 0 ? q.correctIndex : 0,
+    });
+    setFormError(null);
+    setEditingId(q._id);
+    setModalOpen(true);
+  };
+
   const handleSaveDraft = async () => {
     const err = validateForm();
     if (err) {
@@ -99,7 +140,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       const correctAnswerVal = form.questionType === "mcq"
         ? (mcqOpts[correctIdx!] ?? null)
         : (form.correctAnswerMarkScheme.trim() || null);
-      await api.post("/exam-questions", {
+      const payload = {
         subject: form.subject,
         examBoard: form.examBoard || undefined,
         level: form.level || undefined,
@@ -111,20 +152,15 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         correctIndex: correctIdx,
         markScheme: form.questionType === "mcq" ? [] : (markScheme.length ? markScheme : []),
         options: form.questionType === "mcq" ? mcqOpts : [],
-      });
+      };
+      if (editingId) {
+        await api.put(`/exam-questions/${editingId}`, payload);
+        setEditingId(null);
+      } else {
+        await api.post("/exam-questions", payload);
+      }
       setModalOpen(false);
-      setForm({
-        subject: "Biology",
-        examBoard: "AQA",
-        level: "GCSE",
-        topic: "",
-        questionType: "mcq",
-        marks: 1,
-        questionText: "",
-        correctAnswerMarkScheme: "",
-        mcqOptions: ["", "", "", "", ""],
-        correctIndex: 0,
-      });
+      setForm(defaultForm);
       await fetchQuestions();
     } catch (err: any) {
       alert(err?.message || "Failed to save question");
@@ -168,7 +204,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={() => { setModalOpen(true); setFormError(null); }}
+          onClick={openCreateModal}
           style={{
             padding: "10px 18px",
             background: "#4f46e5",
@@ -210,6 +246,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Question</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Options</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Status</th>
+                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -227,6 +264,23 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                       : "—"}
                   </td>
                   <td style={{ padding: "12px", color: "#374151" }}>{q.status}</td>
+                  <td style={{ padding: "12px", color: "#374151" }}>
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(q)}
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: "0.875rem",
+                        background: "#f3f4f6",
+                        color: "#374151",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -265,7 +319,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             padding: "20px",
             zIndex: 9999,
           }}
-          onClick={() => setModalOpen(false)}
+          onClick={() => { setModalOpen(false); setEditingId(null); setForm(defaultForm); }}
         >
           <div
             style={{
@@ -280,7 +334,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>Create Question</h2>
+            <h2 style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>{editingId ? "Edit Question" : "Create Question"}</h2>
 
             {formError && (
               <div style={{ marginBottom: "1rem", padding: "10px 12px", background: "#fef2f2", color: "#991b1b", borderRadius: "8px", fontSize: "0.9rem" }}>
@@ -433,7 +487,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "1.5rem" }}>
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => { setModalOpen(false); setEditingId(null); setForm(defaultForm); }}
                 style={{
                   padding: "8px 16px",
                   background: "white",
