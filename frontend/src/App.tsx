@@ -1,6 +1,6 @@
 // /frontend/src/App.tsx
 import React, { ReactNode } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import HomePage from "./pages/HomePage";
@@ -175,10 +175,28 @@ const RoleBasedRedirect: React.FC = () => {
 };
 
 /* =========================
+   Hide Footer on editor/creation routes (immersive UX)
+========================= */
+
+const EDITOR_ROUTE_PATTERNS = [
+  (path: string) => path === "/create-lesson",
+  (path: string) => /^\/edit-lesson\/[^/]+$/.test(path),
+  (path: string) => /^\/lessons\/[^/]+\/flashcards$/.test(path),
+  (path: string) => /^\/assessments\/papers\/[^/]+\/edit$/.test(path),
+];
+
+function isEditorRoute(pathname: string): boolean {
+  return EDITOR_ROUTE_PATTERNS.some((fn) => fn(pathname));
+}
+
+/* =========================
    App
 ========================= */
 
 function App() {
+  const { pathname } = useLocation();
+  const showFooter = !isEditorRoute(pathname);
+
   return (
     <div className="App" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header />
@@ -516,7 +534,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      <Footer />
+      {showFooter && <Footer />}
     </div>
   );
 }
