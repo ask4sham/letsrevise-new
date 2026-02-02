@@ -16,7 +16,7 @@ interface AssessmentPaper {
   _id: string;
   title: string;
   timeSeconds: number;
-  kind: "exam" | "practice" | "quiz";
+  kind: "mock_exam" | "past_paper" | "practice_set";
   questionCount: number;
 }
 
@@ -25,28 +25,28 @@ const AssessmentPapersList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMode, setSelectedMode] = useState<string>("all");
+  const [selectedMode, setSelectedMode] = useState<string>("");
   const [userType, setUserType] = useState<string>("");
 
   useEffect(() => {
     const fetchPapers = async () => {
       try {
         setLoading(true);
-        const response = await fetch(
-          "http://localhost:5000/api/assessment-papers", // Changed to direct backend URL
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
+        const url = selectedMode
+          ? `http://localhost:5000/api/assessment-papers?kind=${encodeURIComponent(selectedMode)}`
+          : "http://localhost:5000/api/assessment-papers";
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
 
         if (!response.ok) {
           throw new Error(`Failed to fetch: ${response.status}`);
         }
 
         const data = await response.json();
-        setPapers(data.papers || []); // Changed to data.papers || []
+        setPapers(data.papers || []);
         setError(null);
       } catch (err: any) {
         setError(err.message || "Failed to load assessment papers");
@@ -68,7 +68,7 @@ const AssessmentPapersList: React.FC = () => {
     }
 
     fetchPapers();
-  }, []);
+  }, [selectedMode]);
 
   const isTeacher = userType === "teacher";
 
@@ -77,7 +77,7 @@ const AssessmentPapersList: React.FC = () => {
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesMode =
-      selectedMode === "all" || paper.kind === selectedMode;
+      selectedMode === "" || paper.kind === selectedMode;
     return matchesSearch && matchesMode;
   });
 
@@ -97,11 +97,11 @@ const AssessmentPapersList: React.FC = () => {
 
   const getModeColor = (mode: string) => {
     switch (mode) {
-      case "exam":
+      case "mock_exam":
         return "bg-red-100 text-red-800";
-      case "practice":
+      case "past_paper":
         return "bg-blue-100 text-blue-800";
-      case "quiz":
+      case "practice_set":
         return "bg-green-100 text-green-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -110,14 +110,27 @@ const AssessmentPapersList: React.FC = () => {
 
   const getModeIcon = (mode: string) => {
     switch (mode) {
-      case "exam":
+      case "mock_exam":
         return <FileText className="w-4 h-4" />;
-      case "practice":
+      case "past_paper":
         return <BarChart3 className="w-4 h-4" />;
-      case "quiz":
+      case "practice_set":
         return <Calendar className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  const getKindLabel = (kind: string) => {
+    switch (kind) {
+      case "mock_exam":
+        return "Exams";
+      case "past_paper":
+        return "Practice Papers";
+      case "practice_set":
+        return "Quizzes";
+      default:
+        return kind;
     }
   };
 
@@ -210,10 +223,10 @@ const AssessmentPapersList: React.FC = () => {
                 onChange={(e) => setSelectedMode(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Types</option>
-                <option value="exam">Exams</option>
-                <option value="practice">Practice Papers</option>
-                <option value="quiz">Quizzes</option>
+                <option value="">All Types</option>
+                <option value="mock_exam">Exams</option>
+                <option value="past_paper">Practice Papers</option>
+                <option value="practice_set">Quizzes</option>
               </select>
             </div>
           </div>
@@ -227,7 +240,7 @@ const AssessmentPapersList: React.FC = () => {
               No papers found
             </h3>
             <p className="text-gray-500">
-              {searchTerm || selectedMode !== "all"
+              {searchTerm || selectedMode !== ""
                 ? "Try adjusting your search or filter"
                 : "No assessment papers are available yet"}
             </p>
@@ -248,7 +261,7 @@ const AssessmentPapersList: React.FC = () => {
                       )}`}
                     >
                       {getModeIcon(paper.kind)}
-                      {paper.kind.charAt(0).toUpperCase() + paper.kind.slice(1)}
+                      {getKindLabel(paper.kind)}
                     </span>
                     <span className="text-sm text-gray-500">
                       {paper.questionCount} questions
