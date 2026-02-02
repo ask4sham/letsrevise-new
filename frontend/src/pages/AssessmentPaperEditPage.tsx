@@ -243,8 +243,8 @@ const AssessmentPaperEditPage: React.FC = () => {
         >
           <div
             style={{
-              width: "90vw",
-              maxWidth: "1100px",
+              width: "72vw",
+              maxWidth: "880px",
               maxHeight: "80vh",
               overflow: "auto",
               background: "white",
@@ -259,7 +259,10 @@ const AssessmentPaperEditPage: React.FC = () => {
               <p>Loading…</p>
             ) : (
               <>
-                <div style={{ marginBottom: "1rem", maxHeight: "80vh", overflow: "auto" }}>
+                <div
+                  className="text-left"
+                  style={{ textAlign: "left", marginBottom: "1rem", maxHeight: "80vh", overflow: "auto" }}
+                >
                   {bankQuestions.length === 0 ? (
                     <p style={{ color: "#6b7280" }}>No questions in your bank.</p>
                   ) : (
@@ -294,8 +297,8 @@ const AssessmentPaperEditPage: React.FC = () => {
                               background: "white",
                             }}
                           >
-                            <div className="flex items-start gap-3 w-full">
-                              <div className="flex-1 text-left">
+                            <div className="grid grid-cols-[1fr_48px] items-start w-full">
+                              <div className="text-left">
                                 <div
                                   className="font-medium text-gray-900"
                                   style={{ fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.5 }}
@@ -319,7 +322,7 @@ const AssessmentPaperEditPage: React.FC = () => {
                                 )}
                               </div>
 
-                              <div className="ml-auto flex items-start justify-end w-10">
+                              <div className="flex justify-end pt-1">
                                 <input
                                   id={`bank-q-${qId}`}
                                   type="checkbox"
