@@ -535,7 +535,7 @@ const TeacherDashboard: React.FC = () => {
                   textAlign: "center",
                 }}
               >
-                📋 Exam Question Bank
+                📋 Create Questions
               </Link>
             </div>
           </div>
@@ -868,7 +868,7 @@ const TeacherDashboard: React.FC = () => {
                 gap: "8px",
               }}
             >
-              📋 Exam Question Bank
+              📋 Create Questions
             </Link>
 
             <button
