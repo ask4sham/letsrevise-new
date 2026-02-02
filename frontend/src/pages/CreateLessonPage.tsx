@@ -1,5 +1,5 @@
 // frontend/src/pages/CreateLesson.tsx
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
@@ -189,6 +189,48 @@ const CreateLessonPage: React.FC = () => {
     },
   ]);
 
+  // Auto-save functionality
+  const [lastSaved, setLastSaved] = useState<string>("");
+  const autoSaveKey = "lesson_draft_autosave";
+
+  // Load draft on mount
+  useEffect(() => {
+    try {
+      const draft = localStorage.getItem(autoSaveKey);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (window.confirm("Found a previously saved draft. Load it?")) {
+          setFormData(parsed.formData);
+          setPages(parsed.pages);
+          setLastSaved(`Loaded draft from ${new Date(parsed.timestamp).toLocaleTimeString()}`);
+          setTimeout(() => setLastSaved(""), 3000);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load draft:", err);
+    }
+  }, []);
+
+  // Auto-save on changes
+  useEffect(() => {
+    const saveDraft = () => {
+      try {
+        const draft = {
+          formData,
+          pages,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(autoSaveKey, JSON.stringify(draft));
+        setLastSaved(new Date().toLocaleTimeString());
+      } catch (err) {
+        console.error("Auto-save failed:", err);
+      }
+    };
+
+    const timeoutId = setTimeout(saveDraft, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [formData, pages]);
+
   const orderedPages = useMemo(() => sortPages(pages), [pages]);
 
   const normalizeOrders = (arr: LessonPage[]) =>
@@ -211,7 +253,7 @@ const CreateLessonPage: React.FC = () => {
       ...prev,
       [name]:
         name === "estimatedDuration" || name === "shamCoinPrice"
-          ? Number(value)
+          ? Math.max(0, Number(value))
           : (value as any),
     }));
   };
@@ -239,7 +281,7 @@ const CreateLessonPage: React.FC = () => {
   };
 
   const removePage = (pageId: string) => {
-    if (!window.confirm("Delete this page?")) return;
+    if (!window.confirm("Delete this page? This action cannot be undone.")) return;
 
     setPages((prev) => {
       const next = prev.filter((p) => p.pageId !== pageId);
@@ -294,6 +336,8 @@ const CreateLessonPage: React.FC = () => {
   };
 
   const removeBlock = (pageId: string, blockIndex: number) => {
+    if (!window.confirm("Delete this block?")) return;
+    
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
@@ -394,6 +438,13 @@ const CreateLessonPage: React.FC = () => {
   ) => {
     if (!file) return;
 
+    // File size validation (10MB max)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`File size too large. Maximum allowed size is 10MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+      return;
+    }
+
     const ok =
       file.type.startsWith("image/") || file.type.startsWith("video/");
     if (!ok) {
@@ -405,6 +456,7 @@ const CreateLessonPage: React.FC = () => {
     const token = safeStr(localStorage.getItem("token"), "");
     if (!token) {
       alert("You must be signed in to upload media.");
+      navigate("/login");
       return;
     }
 
@@ -418,7 +470,7 @@ const CreateLessonPage: React.FC = () => {
 
     try {
       setUploadingKey(key);
-      setUploadMsg("");
+      setUploadMsg(`Uploading ${file.name}...`);
 
       const { error } = await supabase.storage
         .from(MEDIA_BUCKET)
@@ -503,28 +555,69 @@ const CreateLessonPage: React.FC = () => {
   };
 
   // ---------------------------
+  // Auto-save management
+  // ---------------------------
+  const clearDraft = () => {
+    if (window.confirm("Clear all unsaved changes?")) {
+      localStorage.removeItem(autoSaveKey);
+      setLastSaved("Draft cleared");
+      setTimeout(() => setLastSaved(""), 2000);
+    }
+  };
+
+  // ---------------------------
   // Validation + Submit
   // ---------------------------
   const validate = () => {
     if (!formData.title.trim()) return "Lesson Title is required.";
+    if (formData.title.length < 3) return "Lesson Title must be at least 3 characters.";
+    if (formData.title.length > 100) return "Lesson Title must be less than 100 characters.";
+    
     if (!formData.description.trim()) return "Short Description is required.";
+    if (formData.description.length < 10) return "Description must be at least 10 characters.";
+    if (formData.description.length > 500) return "Description must be less than 500 characters.";
+    
     if (!formData.subject.trim()) return "Subject is required.";
     if (!formData.level.trim()) return "Level is required.";
     if (!formData.board.trim())
-      return "Board is required (AQA/OCR/Edexcel/WJEC).";
+      return "Exam board is required (AQA/OCR/Edexcel/WJEC).";
     if (!formData.topic.trim()) return "Topic / Unit is required.";
+    if (formData.topic.length > 100) return "Topic must be less than 100 characters.";
 
     if (formData.level === "GCSE" && !formData.tier.trim()) {
       return "Tier is required for GCSE lessons (Foundation or Higher).";
     }
 
+    if (formData.estimatedDuration < 1 || formData.estimatedDuration > 480) {
+      return "Estimated duration must be between 1 and 480 minutes.";
+    }
+
+    if (formData.shamCoinPrice < 0 || formData.shamCoinPrice > 10000) {
+      return "ShamCoin price must be between 0 and 10,000.";
+    }
+
     const p = normalizeOrders(pages);
     if (p.length === 0) return "Add at least 1 page.";
+    
+    if (p.length > 20) return "Maximum 20 pages allowed.";
 
     const anyContent = p.some((pg) =>
       (pg.blocks || []).some((b) => safeStr(b.content, "").length > 0)
     );
     if (!anyContent) return "Add some content in the page blocks.";
+
+    // Validate each page
+    for (const pg of p) {
+      if (!pg.title.trim()) return `Page ${pg.order} title is required.`;
+      if (pg.title.length > 100) return `Page ${pg.order} title must be less than 100 characters.`;
+      
+      // Validate blocks
+      for (const block of pg.blocks || []) {
+        if (block.content.length > 10000) {
+          return `Content in page "${pg.title}" is too long. Maximum 10,000 characters per block.`;
+        }
+      }
+    }
 
     // checkpoint sanity (optional)
     const badCheckpoint = p.find((pg) => {
@@ -550,6 +643,7 @@ const CreateLessonPage: React.FC = () => {
     if (msg) {
       setError(msg);
       setSuccess("");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -582,15 +676,15 @@ const CreateLessonPage: React.FC = () => {
       }));
 
       const payload: any = {
-        title: formData.title,
-        description: formData.description,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
         subject: formData.subject,
         level: formData.level,
         board: formData.board,
-        topic: formData.topic,
-        tags: formData.tags,
+        topic: formData.topic.trim(),
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
         content: "Structured lesson (see pages)",
-        externalResources: formData.externalResources,
+        externalResources: formData.externalResources.split(',').map(url => url.trim()).filter(url => url.length > 0),
         estimatedDuration: formData.estimatedDuration,
         shamCoinPrice: formData.shamCoinPrice,
         pages: sanitizedPages, // Use sanitized pages instead of raw pages
@@ -598,15 +692,18 @@ const CreateLessonPage: React.FC = () => {
 
       if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
 
-      await api.post(`/lessons`, payload);
-
-      setSuccess("✅ Lesson created successfully!");
-      setTimeout(() => navigate("/teacher-dashboard"), 700);
+      const response = await api.post(`/lessons`, payload);
+      
+      // Clear draft on successful creation
+      localStorage.removeItem(autoSaveKey);
+      
+      setSuccess("✅ Lesson created successfully! Redirecting...");
+      setTimeout(() => navigate(`/lesson/${response.data._id}`), 1500);
     } catch (err: any) {
       console.error(err);
-      setError(
-        err?.response?.data?.message || err?.message || "Failed to create lesson."
-      );
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to create lesson.";
+      setError(errorMessage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -652,29 +749,45 @@ const CreateLessonPage: React.FC = () => {
   };
 
   // ---------------------------
+  // Character counters
+  // ---------------------------
+  const titleCharCount = formData.title.length;
+  const descriptionCharCount = formData.description.length;
+
+  // ---------------------------
   // Render
   // ---------------------------
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-        padding: "18px",
+        background:
+          "radial-gradient(1200px circle at 10% 10%, rgba(99,102,241,0.14), transparent 55%), radial-gradient(900px circle at 90% 20%, rgba(16,185,129,0.12), transparent 55%), radial-gradient(900px circle at 40% 95%, rgba(236,72,153,0.10), transparent 55%), linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
+        padding: "24px",
       }}
     >
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
         <div
           style={{
-            marginBottom: 12,
+            marginBottom: 20,
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             gap: 12,
             flexWrap: "wrap",
           }}
         >
           <Link
             to="/teacher-dashboard"
-            style={{ color: "#667eea", textDecoration: "none" }}
+            style={{
+              color: "#0f172a",
+              textDecoration: "none",
+              fontWeight: 700,
+              padding: "8px 12px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.7)",
+              border: "1px solid rgba(15,23,42,0.10)",
+            }}
           >
             ← Back to Teacher Dashboard
           </Link>
@@ -687,6 +800,12 @@ const CreateLessonPage: React.FC = () => {
               flexWrap: "wrap",
             }}
           >
+            {lastSaved && (
+              <span style={{ fontWeight: 600, color: "#6b7280", fontSize: "0.9rem" }}>
+                Auto-saved: {lastSaved}
+              </span>
+            )}
+            
             {uploadMsg ? (
               <span style={{ fontWeight: 900, color: "#15803d" }}>
                 {uploadMsg}
@@ -706,15 +825,34 @@ const CreateLessonPage: React.FC = () => {
             ) : null}
 
             <button
+              onClick={clearDraft}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 999,
+                border: "1px solid rgba(239,68,68,0.35)",
+                background: "rgba(239,68,68,0.06)",
+                color: "#b91c1c",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Clear Draft
+            </button>
+
+            <button
               onClick={handleSubmit}
               disabled={loading}
               style={{
                 padding: "10px 14px",
-                borderRadius: 10,
-                border: "2px solid rgba(0,0,0,0.18)",
-                background: loading ? "#e5e7eb" : "white",
+                borderRadius: 999,
+                border: "1px solid rgba(99,102,241,0.35)",
+                background: loading
+                  ? "rgba(226,232,240,0.9)"
+                  : "linear-gradient(135deg,#6366f1 0%, #22c55e 100%)",
+                color: loading ? "#334155" : "white",
                 cursor: loading ? "not-allowed" : "pointer",
-                fontWeight: 900,
+                fontWeight: 800,
+                boxShadow: "0 10px 25px rgba(2,6,23,0.10)",
               }}
             >
               {loading ? "Creating..." : "Create Lesson"}
@@ -724,11 +862,12 @@ const CreateLessonPage: React.FC = () => {
 
         <div
           style={{
-            border: "4px solid rgba(17,24,39,0.35)",
-            borderRadius: 18,
+            borderRadius: 22,
             background: "rgba(255,255,255,0.78)",
-            boxShadow: "0 18px 46px rgba(0,0,0,0.14)",
-            padding: 16,
+            border: "1px solid rgba(15,23,42,0.10)",
+            boxShadow: "0 20px 60px rgba(2,6,23,0.12)",
+            backdropFilter: "blur(10px)",
+            padding: 18,
           }}
         >
           <div
@@ -770,7 +909,7 @@ const CreateLessonPage: React.FC = () => {
               </div>
 
               <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>
-                Pages
+                Pages ({orderedPages.length})
               </div>
 
               <button
@@ -798,6 +937,22 @@ const CreateLessonPage: React.FC = () => {
                       borderRadius: 12,
                       padding: 10,
                       background: "white",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                    onClick={() => {
+                      const element = document.getElementById(`page-${p.pageId}`);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "none";
                     }}
                   >
                     <div
@@ -809,10 +964,16 @@ const CreateLessonPage: React.FC = () => {
                     >
                       {p.title || `Page ${p.order}`}
                     </div>
+                    <div style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: 8 }}>
+                      {p.blocks?.length || 0} block{p.blocks?.length !== 1 ? 's' : ''}
+                    </div>
 
                     <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
                       <button
-                        onClick={() => movePage(p.pageId, -1)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          movePage(p.pageId, -1);
+                        }}
                         disabled={p.order === 1}
                         style={{
                           flex: 1,
@@ -828,7 +989,10 @@ const CreateLessonPage: React.FC = () => {
                         ↑
                       </button>
                       <button
-                        onClick={() => movePage(p.pageId, 1)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          movePage(p.pageId, 1);
+                        }}
                         disabled={p.order === orderedPages.length}
                         style={{
                           flex: 1,
@@ -845,7 +1009,10 @@ const CreateLessonPage: React.FC = () => {
                         ↓
                       </button>
                       <button
-                        onClick={() => removePage(p.pageId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePage(p.pageId);
+                        }}
                         disabled={orderedPages.length === 1}
                         style={{
                           flex: 1,
@@ -886,16 +1053,19 @@ const CreateLessonPage: React.FC = () => {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <label style={{ display: "block" }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Title *</div>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                      Title * <span style={{ fontSize: "0.85rem", fontWeight: 400, color: "#6b7280" }}>({titleCharCount}/100)</span>
+                    </div>
                     <input
                       name="title"
                       value={formData.title}
                       onChange={onChange}
+                      maxLength={100}
                       style={{
                         width: "100%",
                         padding: "10px 12px",
                         borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
+                        border: `2px solid ${titleCharCount > 100 ? "#ef4444" : "rgba(0,0,0,0.14)"}`,
                       }}
                     />
                   </label>
@@ -1002,6 +1172,7 @@ const CreateLessonPage: React.FC = () => {
                       name="topic"
                       value={formData.topic}
                       onChange={onChange}
+                      maxLength={100}
                       style={{
                         width: "100%",
                         padding: "10px 12px",
@@ -1016,6 +1187,8 @@ const CreateLessonPage: React.FC = () => {
                     <input
                       name="estimatedDuration"
                       type="number"
+                      min="1"
+                      max="480"
                       value={formData.estimatedDuration}
                       onChange={onChange}
                       style={{
@@ -1032,6 +1205,9 @@ const CreateLessonPage: React.FC = () => {
                     <input
                       name="shamCoinPrice"
                       type="number"
+                      min="0"
+                      max="10000"
+                      step="1"
                       value={formData.shamCoinPrice}
                       onChange={onChange}
                       style={{
@@ -1045,17 +1221,20 @@ const CreateLessonPage: React.FC = () => {
                 </div>
 
                 <label style={{ display: "block", marginTop: 10 }}>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Description *</div>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                    Description * <span style={{ fontSize: "0.85rem", fontWeight: 400, color: "#6b7280" }}>({descriptionCharCount}/500)</span>
+                  </div>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={onChange}
+                    maxLength={500}
                     rows={3}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
                       borderRadius: 10,
-                      border: "2px solid rgba(0,0,0,0.14)",
+                      border: `2px solid ${descriptionCharCount > 500 ? "#ef4444" : "rgba(0,0,0,0.14)"}`,
                       resize: "vertical",
                     }}
                   />
@@ -1075,6 +1254,7 @@ const CreateLessonPage: React.FC = () => {
                       name="tags"
                       value={formData.tags}
                       onChange={onChange}
+                      placeholder="algebra, equations, solving"
                       style={{
                         width: "100%",
                         padding: "10px 12px",
@@ -1090,6 +1270,7 @@ const CreateLessonPage: React.FC = () => {
                       name="externalResources"
                       value={formData.externalResources}
                       onChange={onChange}
+                      placeholder="https://example.com/resource1, https://example.com/resource2"
                       style={{
                         width: "100%",
                         padding: "10px 12px",
@@ -1106,6 +1287,7 @@ const CreateLessonPage: React.FC = () => {
                 {orderedPages.map((pg) => (
                   <div
                     key={pg.pageId}
+                    id={`page-${pg.pageId}`}
                     style={{
                       background: "white",
                       borderRadius: 14,
@@ -1177,10 +1359,11 @@ const CreateLessonPage: React.FC = () => {
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                       <label style={{ display: "block" }}>
-                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Page title</div>
+                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Page title *</div>
                         <input
                           value={safeStr(pg.title, "")}
                           onChange={(e) => updatePage(pg.pageId, { title: e.target.value })}
+                          maxLength={100}
                           style={{
                             width: "100%",
                             padding: "10px 12px",
@@ -1195,6 +1378,7 @@ const CreateLessonPage: React.FC = () => {
                         <input
                           value={safeStr(pg.pageType, "")}
                           onChange={(e) => updatePage(pg.pageId, { pageType: e.target.value })}
+                          placeholder="Introduction, Example, Practice, Summary"
                           style={{
                             width: "100%",
                             padding: "10px 12px",
@@ -1256,12 +1440,12 @@ const CreateLessonPage: React.FC = () => {
                                     padding: "6px 10px",
                                     borderRadius: 10,
                                     border: "2px solid rgba(0,0,0,0.14)",
-                                    background: "white",
+                                    background: isUploading ? "rgba(226,232,240,0.9)" : "white",
                                     cursor: isUploading ? "not-allowed" : "pointer",
                                     fontWeight: 900,
                                   }}
                                 >
-                                  {isUploading ? "Uploading..." : "Upload image / video"}
+                                  {isUploading ? "Uploading..." : "Upload media"}
                                 </button>
 
                                 <button
@@ -1381,6 +1565,7 @@ const CreateLessonPage: React.FC = () => {
                               }}
                               placeholder="Write markdown here... (images/videos you upload will be inserted at your cursor)"
                               rows={6}
+                              maxLength={10000}
                               style={{
                                 width: "100%",
                                 marginTop: 10,
@@ -1394,9 +1579,13 @@ const CreateLessonPage: React.FC = () => {
                               }}
                             />
                             
-                            {/* ✅ Added UI hint about paste functionality */}
-                            <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-                              Tip: paste from Word/Google Docs — bullets (•) become <b>- lists</b>, and headings above bullets become <b>### headings</b>.
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>
+                                Tip: paste from Word/Google Docs — bullets (•) become <b>- lists</b>, and headings above bullets become <b>### headings</b>.
+                              </div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                {b.content.length}/10000 characters
+                              </div>
                             </div>
                           </div>
                         );
@@ -1414,13 +1603,14 @@ const CreateLessonPage: React.FC = () => {
                         border: "2px solid rgba(0,0,0,0.16)",
                       }}
                     >
-                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Checkpoint</div>
+                      <div style={{ fontWeight: 900, marginBottom: 10 }}>Checkpoint (Optional)</div>
 
                       <label style={{ display: "block" }}>
                         <div style={{ fontWeight: 800, marginBottom: 6 }}>Question</div>
                         <input
                           value={safeStr(pg.checkpoint?.question, "")}
                           onChange={(e) => updateCheckpoint(pg.pageId, { question: e.target.value })}
+                          placeholder="Enter a question for this checkpoint..."
                           style={{
                             width: "100%",
                             padding: "10px 12px",
@@ -1437,6 +1627,7 @@ const CreateLessonPage: React.FC = () => {
                             <input
                               value={safeStr(pg.checkpoint?.options?.[i], "")}
                               onChange={(e) => updateCheckpointOption(pg.pageId, i, e.target.value)}
+                              placeholder={`Option ${i + 1}`}
                               style={{
                                 width: "100%",
                                 padding: "10px 12px",
@@ -1449,10 +1640,11 @@ const CreateLessonPage: React.FC = () => {
                       </div>
 
                       <label style={{ display: "block", marginTop: 10 }}>
-                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Answer (text must match one option)</div>
+                        <div style={{ fontWeight: 800, marginBottom: 6 }}>Answer (text must match one option exactly)</div>
                         <input
                           value={safeStr(pg.checkpoint?.answer, "")}
                           onChange={(e) => updateCheckpoint(pg.pageId, { answer: e.target.value })}
+                          placeholder="Enter the correct answer"
                           style={{
                             width: "100%",
                             padding: "10px 12px",
@@ -1461,9 +1653,41 @@ const CreateLessonPage: React.FC = () => {
                           }}
                         />
                       </label>
+                      
+                      {pg.checkpoint?.question && (
+                        <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(59,130,246,0.06)", borderRadius: 8, border: "1px solid rgba(59,130,246,0.2)" }}>
+                          <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "#1e40af" }}>
+                            Checkpoint Preview: Students will see this question after completing this page.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
+              </div>
+              
+              {/* Submit button at bottom */}
+              <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: loading
+                      ? "rgba(226,232,240,0.9)"
+                      : "linear-gradient(135deg,#6366f1 0%, #22c55e 100%)",
+                    color: loading ? "#334155" : "white",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    fontWeight: 800,
+                    fontSize: "1.1rem",
+                    boxShadow: "0 10px 25px rgba(2,6,23,0.15)",
+                    minWidth: 200,
+                  }}
+                >
+                  {loading ? "Creating Lesson..." : "Publish Lesson"}
+                </button>
               </div>
             </main>
           </div>
