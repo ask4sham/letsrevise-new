@@ -290,9 +290,10 @@ const AssessmentPapersList: React.FC = () => {
                       >
                         <button
                           type="button"
+                          title="Add or remove questions from this paper"
                           className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                         >
-                          <span className="font-semibold">Edit paper</span>
+                          <span className="font-semibold">Manage questions</span>
                           <ArrowRight className="w-4 h-4" />
                         </button>
                       </Link>
