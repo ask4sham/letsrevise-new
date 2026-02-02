@@ -263,7 +263,7 @@ const AssessmentPaperEditPage: React.FC = () => {
                   {bankQuestions.length === 0 ? (
                     <p style={{ color: "#6b7280" }}>No questions in your bank.</p>
                   ) : (
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    <div>
                       {bankQuestions.map((q) => {
                         const qId = q._id != null ? String(q._id) : "";
                         const alreadyOnPaper = attachedBankIds.has(qId);
@@ -286,13 +286,12 @@ const AssessmentPaperEditPage: React.FC = () => {
                                 .join("  ·  ")
                             : null;
                         return (
-                          <li
+                          <div
                             key={qId}
                             style={{
                               padding: "0.75rem",
-                              marginBottom: "0.25rem",
                               borderBottom: "1px solid #e5e7eb",
-                              backgroundColor: "white",
+                              background: "white",
                             }}
                           >
                             {/* CHANGED: Updated layout for better text width usage */}
@@ -328,10 +327,10 @@ const AssessmentPaperEditPage: React.FC = () => {
                                 )}
                               </div>
                             </div>
-                          </li>
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
                   )}
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
