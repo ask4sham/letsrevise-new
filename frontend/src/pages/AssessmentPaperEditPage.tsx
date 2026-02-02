@@ -259,7 +259,7 @@ const AssessmentPaperEditPage: React.FC = () => {
               <p>Loading…</p>
             ) : (
               <>
-                <div style={{ marginBottom: "1rem", maxHeight: "40vh", overflow: "auto" }}>
+                <div style={{ marginBottom: "1rem", maxHeight: "80vh", overflow: "auto" }}>
                   {bankQuestions.length === 0 ? (
                     <p style={{ color: "#6b7280" }}>No questions in your bank.</p>
                   ) : (
@@ -321,11 +321,14 @@ const AssessmentPaperEditPage: React.FC = () => {
                               </div>
 
                               <div className="flex-1 text-left">
-                                <div className="font-medium text-gray-900">
+                                <div
+                                  className="font-medium text-gray-900"
+                                  style={{ fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.5 }}
+                                >
                                   {primaryText}
                                 </div>
 
-                                <div className="text-sm text-gray-500">
+                                <div className="text-gray-500" style={{ fontSize: "0.95rem", fontWeight: 500 }}>
                                   {secondaryText}
                                   {alreadyOnPaper && (
                                     <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "#059669" }}>
