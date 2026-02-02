@@ -294,17 +294,31 @@ const AssessmentPaperEditPage: React.FC = () => {
                               background: "white",
                             }}
                           >
-                            {/* CHANGED: Updated layout for better text width usage */}
                             <div className="flex items-start gap-3 w-full">
-                              <input
-                                id={`bank-q-${qId}`}
-                                type="checkbox"
-                                checked={selected}
-                                onChange={() => toggleBankSelection(qId)}
-                                disabled={alreadyOnPaper}
-                                className="h-4 w-4 mt-1 flex-shrink-0"
-                                style={{ appearance: "auto" }}
-                              />
+                              <div
+                                style={{
+                                  width: 48,
+                                  height: 48,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <input
+                                  id={`bank-q-${qId}`}
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleBankSelection(qId)}
+                                  disabled={alreadyOnPaper}
+                                  style={{
+                                    appearance: "auto",
+                                    width: 16,
+                                    height: 16,
+                                    background: "none",
+                                    borderRadius: 2,
+                                  }}
+                                />
+                              </div>
 
                               <div className="flex-1 text-left">
                                 <div className="font-medium text-gray-900">
