@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
 
 type HeroType = "none" | "image" | "video" | "animation";
-type LessonPageBlockType = "text" | "keyIdea" | "examTip" | "commonMistake";
+type LessonPageBlockType = "text" | "keyIdea" | "keyWords" | "examTip" | "commonMistake";
 
 type LessonPageBlock = {
   type: LessonPageBlockType;
@@ -49,74 +49,94 @@ const SUBJECTS = [
   "Economics",
 ] as const;
 
-// Shared UI styles: clean, modern, youth-friendly (styling only)
+// Shared UI: Phase 2 – youthful modern polish (one radius + spacing scale)
+const radius = 10;
+const space = 12;
 const ui = {
   page: {
     minHeight: "100vh",
-    background: "linear-gradient(160deg, #f8fafc 0%, #f1f5f9 50%, #eef2ff 100%)",
-    padding: "24px 20px 48px",
+    padding: "6px 10px 14px",
+    background:
+      "linear-gradient(165deg, #f8fafc 0%, #f1f5f9 40%, #ede9fe 100%), radial-gradient(800px 600px at 10% 10%, rgba(99,102,241,0.08) 0%, transparent 50%), radial-gradient(600px 500px at 90% 20%, rgba(34,197,94,0.06) 0%, transparent 45%), radial-gradient(500px 400px at 70% 80%, rgba(236,72,153,0.05) 0%, transparent 45%)",
   },
-  shell: { maxWidth: 960, margin: "0 auto" },
+  shell: { maxWidth: 1200, margin: "0 auto" },
   card: {
-    borderRadius: 16,
+    borderRadius: radius,
+    background: "rgba(255,255,255,0.88)",
+    border: "1px solid rgba(255,255,255,0.6)",
+    boxShadow: "0 4px 24px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)",
+    padding: space,
+    backdropFilter: "blur(12px)",
+  },
+  lessonDetailsSection: {
+    borderRadius: radius,
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(15,23,42,0.04)",
+    boxShadow: "0 2px 12px rgba(15,23,42,0.03)",
+    padding: space,
+  },
+  pageEditorSection: {
+    borderRadius: radius,
     background: "rgba(255,255,255,0.95)",
-    border: "1px solid rgba(15,23,42,0.08)",
-    boxShadow: "0 4px 24px rgba(15,23,42,0.06)",
-    padding: 20,
+    border: "1px solid rgba(15,23,42,0.06)",
+    boxShadow: "0 4px 20px rgba(15,23,42,0.05)",
+    padding: space,
   },
   section: {
-    borderRadius: 14,
-    background: "#fff",
-    border: "1px solid rgba(15,23,42,0.06)",
-    boxShadow: "0 2px 12px rgba(15,23,42,0.04)",
-    padding: 18,
+    borderRadius: radius,
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(15,23,42,0.04)",
+    boxShadow: "0 2px 10px rgba(15,23,42,0.03)",
+    padding: space,
   },
   sidebar: {
-    borderRadius: 12,
+    borderRadius: radius,
     background: "rgba(255,255,255,0.9)",
-    border: "1px solid rgba(15,23,42,0.06)",
+    border: "1px solid rgba(15,23,42,0.05)",
     boxShadow: "0 2px 12px rgba(15,23,42,0.04)",
-    padding: 14,
+    padding: 10,
   },
-  sectionTitle: { fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", marginBottom: 12 },
-  label: { fontWeight: 600, fontSize: "0.875rem", color: "#334155", marginBottom: 6 },
+  sectionTitle: { fontWeight: 700, fontSize: "0.9rem", color: "#0f172a", marginBottom: 8 },
+  label: { fontWeight: 600, fontSize: "0.8125rem", color: "#475569", marginBottom: 4 },
+  labelPrimary: { fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", marginBottom: 6 },
   input: {
     width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(15,23,42,0.12)",
-    background: "#fff",
+    padding: "8px 10px",
+    borderRadius: radius,
+    border: "1px solid rgba(15,23,42,0.08)",
+    background: "rgba(255,255,255,0.95)",
     outline: "none",
   },
-  separator: { height: 1, background: "rgba(15,23,42,0.06)", margin: "16px 0" },
   btnPrimary: {
     padding: "10px 18px",
-    borderRadius: 10,
+    borderRadius: radius,
     border: "none",
-    background: "linear-gradient(135deg, #6366f1 0%, #22c55e 100%)",
+    background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #22c55e 100%)",
     color: "#fff",
     cursor: "pointer",
     fontWeight: 700,
     fontSize: "0.9rem",
+    boxShadow: "0 2px 8px rgba(99,102,241,0.35)",
   },
   btnSecondary: {
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: "1px solid rgba(15,23,42,0.12)",
-    background: "#fff",
+    padding: "8px 12px",
+    borderRadius: radius,
+    border: "1px solid rgba(15,23,42,0.08)",
+    background: "rgba(255,255,255,0.7)",
+    color: "#475569",
     cursor: "pointer",
     fontWeight: 600,
-    fontSize: "0.875rem",
+    fontSize: "0.8125rem",
   },
   btnDanger: {
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: "1px solid rgba(239,68,68,0.3)",
+    padding: "8px 12px",
+    borderRadius: radius,
+    border: "1px solid rgba(239,68,68,0.2)",
     background: "rgba(239,68,68,0.06)",
     color: "#b91c1c",
     cursor: "pointer",
     fontWeight: 600,
-    fontSize: "0.875rem",
+    fontSize: "0.8125rem",
   },
 };
 
@@ -225,6 +245,7 @@ const CreateLessonPage: React.FC = () => {
   // Upload UI
   const [uploadingKey, setUploadingKey] = useState<string>(""); // pageId:blockIndex
   const [uploadMsg, setUploadMsg] = useState<string>("");
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
 
   // refs for cursor insertion + file picking
   const blockTextareasRef = useRef<Record<string, HTMLTextAreaElement | null>>(
@@ -688,25 +709,28 @@ const CreateLessonPage: React.FC = () => {
   // ---------------------------
   const blockLabel = (t: LessonPageBlockType) => {
     if (t === "keyIdea") return "Key idea";
+    if (t === "keyWords") return "Key words";
     if (t === "examTip") return "Exam tip";
-    if (t === "commonMistake") return "Common mistake";
+    if (t === "commonMistake") return "Misconception";
     return "Text";
   };
 
   const blockStyle = (t: LessonPageBlockType): React.CSSProperties => {
     const base: React.CSSProperties = {
-      padding: 14,
-      borderRadius: 12,
-      border: "1px solid rgba(15,23,42,0.08)",
+      padding: 12,
+      borderRadius: 10,
+      border: "1px solid rgba(15,23,42,0.06)",
       background: "#fff",
-      boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+      boxShadow: "0 1px 4px rgba(15,23,42,0.03)",
     };
     if (t === "keyIdea")
-      return { ...base, border: "1px solid rgba(59,130,246,0.25)", background: "rgba(59,130,246,0.04)" };
+      return { ...base, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(59,130,246,0.03)" };
+    if (t === "keyWords")
+      return { ...base, border: "1px solid rgba(100,116,139,0.2)", background: "rgba(100,116,139,0.04)" };
     if (t === "examTip")
-      return { ...base, border: "1px solid rgba(16,185,129,0.25)", background: "rgba(16,185,129,0.04)" };
+      return { ...base, border: "1px solid rgba(16,185,129,0.2)", background: "rgba(16,185,129,0.03)" };
     if (t === "commonMistake")
-      return { ...base, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.04)" };
+      return { ...base, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.03)" };
     return base;
   };
 
@@ -716,98 +740,89 @@ const CreateLessonPage: React.FC = () => {
   return (
     <div style={ui.page}>
       <div style={ui.shell}>
+        {/* Top bar: Back + Create Lesson only */}
         <div
           style={{
-            marginBottom: 16,
+            marginBottom: 8,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            gap: 12,
+            gap: 8,
             flexWrap: "wrap",
           }}
         >
           <Link
             to="/teacher-dashboard"
-            style={{ color: "#6366f1", textDecoration: "none", fontWeight: 600, fontSize: "0.9rem" }}
+            style={{ color: "#6366f1", textDecoration: "none", fontWeight: 600, fontSize: "0.875rem" }}
           >
             ← Back to Teacher Dashboard
           </Link>
-
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            {uploadMsg ? (
-              <span style={{ fontWeight: 600, color: "#15803d", fontSize: "0.875rem" }}>
-                {uploadMsg}
-              </span>
-            ) : null}
-            {error ? (
-              <span style={{ fontWeight: 600, color: "#b91c1c", fontSize: "0.875rem" }}>
-                {error}
-              </span>
-            ) : null}
-            {success ? (
-              <span style={{ fontWeight: 600, color: "#15803d", fontSize: "0.875rem" }}>
-                {success}
-              </span>
-            ) : null}
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              style={{
-                ...ui.btnPrimary,
-                opacity: loading ? 0.7 : 1,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
-            >
-              {loading ? "Creating..." : "Create Lesson"}
-            </button>
-          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              ...ui.btnPrimary,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? "Creating..." : "Create Lesson"}
+          </button>
         </div>
+        {/* Status line: error/success/upload (compact) */}
+        {(error || success || uploadMsg) ? (
+          <div style={{ marginBottom: 8, fontSize: "0.8125rem", color: error ? "#b91c1c" : "#15803d" }}>
+            {error || success || uploadMsg}
+          </div>
+        ) : null}
 
         <div style={ui.card}>
           <div
+            className="create-lesson-editor-grid"
             style={{
               display: "grid",
-              gridTemplateColumns: "240px minmax(0, 1fr)",
-              gap: 20,
+              gridTemplateColumns: "200px minmax(0, 1fr) 260px",
+              gap: space,
               alignItems: "start",
             }}
           >
-            {/* LEFT: Pages sidebar */}
+            {/* LEFT: Pages sidebar (compact, stable width) */}
             <aside
               style={{
                 position: "sticky",
-                top: 16,
+                top: 10,
                 alignSelf: "start",
+                minWidth: 0,
                 ...ui.sidebar,
               }}
             >
-              <div style={{ ...ui.sectionTitle, marginBottom: 4 }}>Pages</div>
-              <div style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: 12 }}>
-                Add pages, then edit content below. Use "Upload image / video" in blocks to insert media.
+              <div style={{ ...ui.sectionTitle, marginBottom: 2 }}>Pages</div>
+              <div style={{ color: "#64748b", fontSize: "0.75rem", marginBottom: 8 }}>
+                Add pages → edit in main area.
               </div>
 
               <button
                 onClick={addPage}
-                style={{ ...ui.btnPrimary, width: "100%", marginBottom: 12 }}
+                style={{ ...ui.btnSecondary, width: "100%", marginBottom: 8 }}
               >
                 + Add page
               </button>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {orderedPages.map((p, idx) => (
                   <div
                     key={p.pageId || idx}
                     style={{
-                      borderRadius: 10,
-                      padding: 10,
-                      background: "rgba(255,255,255,0.8)",
+                      borderRadius: radius,
+                      padding: 8,
+                      background: "rgba(248,250,252,0.8)",
                       border: "1px solid rgba(15,23,42,0.06)",
                     }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a", marginBottom: 8 }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#0f172a", marginBottom: 6 }}>
                       {p.title || `Page ${p.order}`}
                     </div>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 4 }}>
                       <button
                         onClick={() => movePage(p.pageId, -1)}
                         disabled={p.order === 1}
@@ -837,13 +852,13 @@ const CreateLessonPage: React.FC = () => {
 
             {/* MIDDLE: lesson details + page editors */}
             <main style={{ minWidth: 0 }}>
-              {/* Lesson details */}
-              <div style={ui.section}>
+              {/* Lesson details (lighter weight so Page editor is main canvas) */}
+              <div style={ui.lessonDetailsSection}>
                 <div style={ui.sectionTitle}>Lesson details</div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                   <label style={{ display: "block" }}>
-                    <div style={ui.label}>Title *</div>
+                    <div style={ui.labelPrimary}>Title *</div>
                     <input
                       name="title"
                       value={formData.title}
@@ -853,7 +868,7 @@ const CreateLessonPage: React.FC = () => {
                   </label>
 
                   <label style={{ display: "block" }}>
-                    <div style={ui.label}>Exam board *</div>
+                    <div style={ui.labelPrimary}>Exam board *</div>
                     <select
                       name="board"
                       value={formData.board}
@@ -957,18 +972,18 @@ const CreateLessonPage: React.FC = () => {
                   </label>
                 </div>
 
-                <label style={{ display: "block", marginTop: 14 }}>
+                <label style={{ display: "block", width: "100%" }}>
                   <div style={ui.label}>Description *</div>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={onChange}
                     rows={3}
-                    style={{ ...ui.input, resize: "vertical" }}
+                    style={{ ...ui.input, resize: "vertical", width: "100%" }}
                   />
                 </label>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
                   <label style={{ display: "block" }}>
                     <div style={ui.label}>Tags (comma separated)</div>
                     <input
@@ -991,10 +1006,10 @@ const CreateLessonPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Editing Page cards */}
-              <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Editing Page cards (main canvas – stronger emphasis) */}
+              <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
                 {orderedPages.map((pg) => (
-                  <div key={pg.pageId} style={ui.section}>
+                  <div key={pg.pageId} style={ui.pageEditorSection}>
                     <div style={{ ...ui.sectionTitle, marginBottom: 12 }}>
                       Editing Page: {pg.title || `Page ${pg.order}`}
                     </div>
@@ -1013,6 +1028,12 @@ const CreateLessonPage: React.FC = () => {
                         + Key idea
                       </button>
                       <button
+                        onClick={() => addBlock(pg.pageId, "keyWords")}
+                        style={{ ...ui.btnSecondary, borderColor: "rgba(100,116,139,0.35)", background: "rgba(100,116,139,0.06)" }}
+                      >
+                        + Key words
+                      </button>
+                      <button
                         onClick={() => addBlock(pg.pageId, "examTip")}
                         style={{ ...ui.btnSecondary, borderColor: "rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.06)" }}
                       >
@@ -1022,7 +1043,7 @@ const CreateLessonPage: React.FC = () => {
                         onClick={() => addBlock(pg.pageId, "commonMistake")}
                         style={{ ...ui.btnSecondary, borderColor: "rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}
                       >
-                        + Mistake
+                        + Misconception
                       </button>
                     </div>
 
@@ -1046,7 +1067,7 @@ const CreateLessonPage: React.FC = () => {
                     </div>
 
                     {/* Blocks */}
-                    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                       {(pg.blocks || []).map((b, idx) => {
                         const key = `${pg.pageId}:${idx}`;
                         const isUploading = uploadingKey === key;
@@ -1202,7 +1223,7 @@ const CreateLessonPage: React.FC = () => {
                     </div>
 
                     {/* Checkpoint */}
-                    <div style={{ marginTop: 16, ...ui.section }}>
+                    <div style={{ marginTop: 12, ...ui.section }}>
                       <div style={ui.sectionTitle}>Checkpoint</div>
                       <label style={{ display: "block" }}>
                         <div style={ui.label}>Question</div>
@@ -1236,7 +1257,64 @@ const CreateLessonPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Advanced (optional) – collapsed by default */}
+              <div style={{ marginTop: space, border: "1px solid rgba(15,23,42,0.05)", borderRadius: radius, overflow: "hidden", background: "rgba(255,255,255,0.6)" }}>
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen((o) => !o)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    background: "rgba(248,250,252,0.8)",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: "0.875rem",
+                    color: "#475569",
+                  }}
+                >
+                  <span>Advanced (optional)</span>
+                  <span style={{ fontSize: "0.75rem" }}>{advancedOpen ? "▼" : "▶"}</span>
+                </button>
+                {advancedOpen && (
+                  <div style={{ padding: space, background: "rgba(255,255,255,0.9)", borderTop: "1px solid rgba(15,23,42,0.05)" }}>
+                    <p style={{ margin: 0, fontSize: "0.8125rem", color: "#64748b" }}>
+                      Revision materials, flashcards, quiz questions, and student review settings can be added here in a future update.
+                    </p>
+                  </div>
+                )}
+              </div>
             </main>
+
+            {/* RIGHT: Preview */}
+            <aside
+              style={{
+                position: "sticky",
+                top: 10,
+                alignSelf: "start",
+                minWidth: 0,
+                ...ui.sidebar,
+              }}
+            >
+              <div style={{ ...ui.sectionTitle, marginBottom: 8 }}>Preview</div>
+              <div style={{ fontSize: "0.8125rem", color: "#64748b", lineHeight: 1.5 }}>
+                {formData.title ? (
+                  <>
+                    <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>{formData.title}</div>
+                    {formData.description && (
+                      <div style={{ marginBottom: 8 }}>{formData.description.slice(0, 120)}{formData.description.length > 120 ? "…" : ""}</div>
+                    )}
+                    <div style={{ marginTop: 8 }}>{orderedPages.length} page{orderedPages.length !== 1 ? "s" : ""}</div>
+                  </>
+                ) : (
+                  <span>Lesson title and content will appear here.</span>
+                )}
+              </div>
+            </aside>
           </div>
         </div>
       </div>
