@@ -56,11 +56,11 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
     },
   },
   keyWords: {
-    label: "Key Words",
+    label: "Key words",
     icon: "🔑",
     style: {
-      border: "1px solid rgba(15,23,42,0.06)",
-      background: "#fff",
+      border: "1px solid rgba(139,92,246,0.2)",
+      background: "rgba(139,92,246,0.03)",
     },
   },
   examTips: {
@@ -182,8 +182,9 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" };
     case "deeperKnowledge":
       return { ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.06)" };
-    case "text":
     case "keyWords":
+      return { ...base, border: "2px solid rgba(139,92,246,0.35)", background: "rgba(139,92,246,0.06)" };
+    case "text":
     default:
       return { ...base, border: "2px solid rgba(0,0,0,0.14)", background: "white" };
   }
