@@ -295,43 +295,39 @@ const AssessmentPaperEditPage: React.FC = () => {
                               backgroundColor: "white",
                             }}
                           >
-                            <label
-                              htmlFor={`bank-q-${qId}`}
-                              style={{
-                                display: "flex",
-                                alignItems: "flex-start",
-                                gap: "0.75rem",
-                                cursor: alreadyOnPaper ? "default" : "pointer",
-                                color: "#111",
-                              }}
-                            >
+                            {/* CHANGED: Updated layout for better text width usage */}
+                            <div className="flex items-start gap-3 w-full">
                               <input
                                 id={`bank-q-${qId}`}
                                 type="checkbox"
                                 checked={selected}
                                 onChange={() => toggleBankSelection(qId)}
                                 disabled={alreadyOnPaper}
-                                style={{ marginTop: "0.35rem", flexShrink: 0 }}
+                                className="h-4 w-4 mt-1 flex-shrink-0"
+                                style={{ appearance: "auto" }}
                               />
-                              <div style={{ flex: 1, minWidth: 0, color: "#111" }}>
-                                <div style={{ fontWeight: 600, color: "#111", marginBottom: "0.25rem" }}>
+
+                              <div className="flex-1 text-left">
+                                <div className="font-medium text-gray-900">
                                   {primaryText}
                                 </div>
-                                <div style={{ fontSize: "0.85rem", color: "#111" }}>
+
+                                <div className="text-sm text-gray-500">
                                   {secondaryText}
-                                  {optionsPreview != null && (
-                                    <div style={{ marginTop: "0.25rem", fontSize: "0.8rem", color: "#111" }}>
-                                      {optionsPreview}
-                                    </div>
-                                  )}
                                   {alreadyOnPaper && (
                                     <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "#059669" }}>
                                       (on paper)
                                     </span>
                                   )}
                                 </div>
+                                
+                                {optionsPreview != null && (
+                                  <div style={{ marginTop: "0.25rem", fontSize: "0.8rem", color: "#111" }}>
+                                    {optionsPreview}
+                                  </div>
+                                )}
                               </div>
-                            </label>
+                            </div>
                           </li>
                         );
                       })}
