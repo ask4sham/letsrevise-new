@@ -1,4 +1,4 @@
-﻿// /backend/middleware/auth.js
+// /backend/middleware/auth.js
 console.log("🔐 Auth middleware (JWT)");
 
 const jwt = require("jsonwebtoken");
@@ -94,17 +94,19 @@ module.exports = function auth(req, res, next) {
         .json({ msg: "Token valid but user id missing in payload" });
     }
 
-    // Get user from database to get userType and ensure user still exists
-    const user = await User.findById(userId).select(
-      "userType firstName lastName email"
-    );
+    // Get full user from database so downstream code (entitlement, subscriptions, etc.)
+    // always sees up-to-date fields like subscription and purchasedLessons.
+    const user = await User.findById(userId).lean();
 
     if (!user) {
       return res.status(401).json({ msg: "User not found in database" });
     }
 
-    // Keep req.user predictable
+    // Keep req.user predictable while also hydrating from Mongo:
+    // - Spread the DB user document first (subscription, purchasedLessons, etc.)
+    // - Then override IDs with stable string forms + attach tokenPayload.
     req.user = {
+      ...user,
       userId: String(userId),
       _id: String(userId),
       userType: user.userType,
