@@ -70,37 +70,37 @@ const ui = {
   card: {
     borderRadius: radius,
     background: "rgba(255,255,255,0.88)",
-    border: "1px solid rgba(255,255,255,0.6)",
-    boxShadow: "0 4px 24px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)",
+    border: "1.5px solid rgba(15,23,42,0.28)",
+    boxShadow: "0 2px 10px rgba(15,23,42,0.06)",
     padding: space,
     backdropFilter: "blur(12px)",
   },
   lessonDetailsSection: {
     borderRadius: radius,
     background: "rgba(255,255,255,0.92)",
-    border: "1px solid rgba(15,23,42,0.04)",
-    boxShadow: "0 2px 12px rgba(15,23,42,0.03)",
+    border: "1.5px solid rgba(15,23,42,0.22)",
+    boxShadow: "0 2px 10px rgba(15,23,42,0.06)",
     padding: space,
   },
   pageEditorSection: {
     borderRadius: radius,
     background: "rgba(255,255,255,0.95)",
-    border: "1px solid rgba(15,23,42,0.06)",
-    boxShadow: "0 4px 20px rgba(15,23,42,0.05)",
+    border: "1.5px solid rgba(15,23,42,0.22)",
+    boxShadow: "0 2px 10px rgba(15,23,42,0.06)",
     padding: space,
   },
   section: {
     borderRadius: radius,
     background: "rgba(255,255,255,0.92)",
-    border: "1px solid rgba(15,23,42,0.04)",
-    boxShadow: "0 2px 10px rgba(15,23,42,0.03)",
+    border: "1.5px solid rgba(15,23,42,0.22)",
+    boxShadow: "0 2px 10px rgba(15,23,42,0.06)",
     padding: space,
   },
   sidebar: {
     borderRadius: radius,
     background: "rgba(255,255,255,0.9)",
-    border: "1px solid rgba(15,23,42,0.05)",
-    boxShadow: "0 2px 12px rgba(15,23,42,0.04)",
+    border: "1.5px solid rgba(15,23,42,0.28)",
+    boxShadow: "0 2px 10px rgba(15,23,42,0.06)",
     padding: 10,
   },
   sectionTitle: { fontWeight: 700, fontSize: "0.9rem", color: "#0f172a", marginBottom: 8 },
@@ -110,7 +110,7 @@ const ui = {
     width: "100%",
     padding: "8px 10px",
     borderRadius: radius,
-    border: "1px solid rgba(15,23,42,0.08)",
+    border: "1.5px solid rgba(15,23,42,0.22)",
     background: "rgba(255,255,255,0.95)",
     outline: "none",
   },
@@ -128,7 +128,7 @@ const ui = {
   btnSecondary: {
     padding: "8px 12px",
     borderRadius: radius,
-    border: "1px solid rgba(15,23,42,0.08)",
+    border: "1.5px solid rgba(15,23,42,0.22)",
     background: "rgba(255,255,255,0.7)",
     color: "#475569",
     cursor: "pointer",
@@ -714,7 +714,9 @@ const CreateLessonPage: React.FC = () => {
   // Render
   // ---------------------------
   return (
-    <div style={ui.page}>
+    <>
+      <style>{`.create-lesson-page input:focus, .create-lesson-page select:focus, .create-lesson-page textarea:focus { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); outline: none; }`}</style>
+      <div className="create-lesson-page" style={ui.page}>
       <div style={ui.shell}>
         {/* Top bar: Back + Create Lesson only */}
         <div
@@ -792,7 +794,7 @@ const CreateLessonPage: React.FC = () => {
                       borderRadius: radius,
                       padding: 8,
                       background: "rgba(248,250,252,0.8)",
-                      border: "1px solid rgba(15,23,42,0.06)",
+                      border: "1.5px solid rgba(15,23,42,0.22)",
                     }}
                   >
                     <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#0f172a", marginBottom: 6 }}>
@@ -1217,7 +1219,7 @@ const CreateLessonPage: React.FC = () => {
               </div>
 
               {/* Advanced (optional) – collapsed by default */}
-              <div style={{ marginTop: space, border: "1px solid rgba(15,23,42,0.05)", borderRadius: radius, overflow: "hidden", background: "rgba(255,255,255,0.6)" }}>
+              <div style={{ marginTop: space, border: "1.5px solid rgba(15,23,42,0.22)", borderRadius: radius, overflow: "hidden", background: "rgba(255,255,255,0.6)" }}>
                 <button
                   type="button"
                   onClick={() => setAdvancedOpen((o) => !o)}
@@ -1239,7 +1241,7 @@ const CreateLessonPage: React.FC = () => {
                   <span style={{ fontSize: "0.75rem" }}>{advancedOpen ? "▼" : "▶"}</span>
                 </button>
                 {advancedOpen && (
-                  <div style={{ padding: space, background: "rgba(255,255,255,0.9)", borderTop: "1px solid rgba(15,23,42,0.05)" }}>
+                  <div style={{ padding: space, background: "rgba(255,255,255,0.9)", borderTop: "1.5px solid rgba(15,23,42,0.22)" }}>
                     <p style={{ margin: 0, fontSize: "0.8125rem", color: "#64748b" }}>
                       Revision materials, flashcards, quiz questions, and student review settings can be added here in a future update.
                     </p>
@@ -1291,6 +1293,7 @@ const CreateLessonPage: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
