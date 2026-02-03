@@ -9,6 +9,7 @@ const Purchase = require("../models/Purchase");
 const VisualModel = require("../models/VisualModel");
 const auth = require("../middleware/auth");
 const { canAccessContent } = require("../utils/canAccessContent");
+const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 
 // ✅ ADDED: Import for revision validation
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -1267,18 +1268,19 @@ router.get("/:id", auth, async (req, res) => {
     // ✅ Non-breaking: attach visuals to pages if available (Photosynthesis MVP)
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
+    const fullPages = Array.isArray(lesson.pages) ? lesson.pages : [];
+    const lessonForAccess = { ...lesson, isFreePreview: fullPages.length > 0 };
+
     // ✅ Server-side entitlement: all lesson content checks must live here,
     // not just in the frontend, so rules stay consistent across clients.
     let access = { allowed: true };
     if (!isAdminUser && !isOwner) {
-      access = canAccessContent({ user: req.user, lesson });
+      access = canAccessContent({ user: req.user, lesson: lessonForAccess });
     }
 
     if (access.allowed === false) {
       return res.status(403).json({ message: "Subscription required" });
     }
-
-    const fullPages = Array.isArray(lesson.pages) ? lesson.pages : [];
 
     // Preview access: expose metadata + first page only, with no quizzes/flashcards.
     if (access.allowed === "preview") {
@@ -1287,6 +1289,7 @@ router.get("/:id", auth, async (req, res) => {
         ...lesson,
         status,
         isPublished,
+        isFreePreview: true,
         pages: firstPageOnly,
         flashcards: [],
         quiz: undefined,
@@ -1561,6 +1564,74 @@ router.post("/:id/purchase", auth, async (req, res) => {
   }
 });
 
+/*
+ * POST /api/lessons/:id/unlock — Unlock full lesson with 1 ShamCoin (students only).
+ *
+ * Manual test steps:
+ * 1. Log in as a student with shamCoins >= 1.
+ * 2. Open a lesson that shows "Free preview" (preview mode).
+ * 3. Click "Unlock full lesson (1 ShamCoin)".
+ * 4. Expect: lesson refetches and shows full content; card on dashboard shows "Unlocked".
+ * 5. With 0 ShamCoins, expect 400 "Not enough ShamCoins" and UI message + Subscribe link.
+ * 6. With active subscription or already purchased, expect 200 { alreadyHasAccess: true } and no deduction.
+ */
+router.post("/:id/unlock", auth, async (req, res) => {
+  try {
+    if (req.user.userType !== "student") {
+      return res.status(403).json({ msg: "Only students can unlock lessons" });
+    }
+
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+
+    const lesson = await Lesson.findById(lessonId).lean();
+    if (!lesson) {
+      return res.status(404).json({ msg: "Lesson not found" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(500).json({ error: "User not found" });
+    }
+
+    if (isSubscriptionActive(user)) {
+      return res.status(200).json({ success: true, alreadyHasAccess: true });
+    }
+
+    const alreadyPurchased = Array.isArray(user.purchasedLessons) && user.purchasedLessons.some(
+      (pl) => String(pl?.lessonId ?? pl) === String(lesson._id)
+    );
+    if (alreadyPurchased) {
+      return res.status(200).json({ success: true, alreadyHasAccess: true });
+    }
+
+    const coins = user.shamCoins != null ? user.shamCoins : 0;
+    if (coins < 1) {
+      return res.status(400).json({ message: "Not enough ShamCoins" });
+    }
+
+    user.shamCoins = coins - 1;
+    user.purchasedLessons = user.purchasedLessons || [];
+    user.purchasedLessons.push({
+      lessonId: lesson._id,
+      price: 1,
+      purchasedAt: new Date(),
+    });
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      shamCoins: user.shamCoins,
+      purchasedLessons: user.purchasedLessons,
+    });
+  } catch (err) {
+    console.error("Unlock error:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
 /* =========================================
    ✅ Option A: Get all published lessons (students)
    - Enforces student's level on the server
@@ -1667,9 +1738,25 @@ router.get("/", auth, async (req, res) => {
       ];
     }
 
-    const lessons = await Lesson.find(query)
+    let lessons = await Lesson.find(query)
       .sort({ createdAt: -1 })
-      .limit(200);
+      .limit(200)
+      .lean();
+
+    // Attach hasAccess and isFreePreview per lesson (entitlement from backend only).
+    const fullUser = await User.findById(getAuthUserId(req))
+      .select("userType subscriptionV2 subscription purchasedLessons")
+      .lean();
+    const isFreePreviewLesson = (l) => Array.isArray(l.pages) && l.pages.length > 0;
+    lessons = lessons.map((l) => {
+      const lessonForAccess = { _id: l._id, id: l._id, isFreePreview: isFreePreviewLesson(l) };
+      const access = fullUser ? canAccessContent({ user: fullUser, lesson: lessonForAccess }) : { allowed: false };
+      return {
+        ...l,
+        hasAccess: access.allowed === true,
+        isFreePreview: isFreePreviewLesson(l),
+      };
+    });
 
     return res.json(lessons);
   } catch (err) {

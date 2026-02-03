@@ -297,6 +297,10 @@ const LessonViewPage: React.FC = () => {
   // ✅ AI generation state
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Unlock (1 ShamCoin) flow: error message when 400 "Not enough ShamCoins"
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+
   // ✅ Only enable legacy reviews when lessonId is a Mongo ObjectId.
   const reviewsEnabled = isMongoObjectId(id);
 
@@ -792,6 +796,35 @@ const LessonViewPage: React.FC = () => {
         alert(`❌ ${error.response.data.error}`);
       else if (error.message) alert(`❌ ${error.message}`);
       else alert("❌ Purchase failed. Please try again.");
+    }
+  };
+
+  const handleUnlock = async () => {
+    if (!lesson?.id || unlocking) return;
+    setUnlockError(null);
+    setUnlocking(true);
+    try {
+      const res = await api.post(`/lessons/${lesson.id}/unlock`);
+      const data = (res as any)?.data;
+      if (data?.shamCoins !== undefined && data?.purchasedLessons) {
+        const updatedUser = { ...user, shamCoins: data.shamCoins, purchasedLessons: data.purchasedLessons };
+        setUser(updatedUser);
+        try {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        } catch (_) {}
+      }
+      setUnlockError(null);
+      await fetchLessonSmart();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || err?.response?.data?.msg || "";
+      if (status === 400 && msg === "Not enough ShamCoins") {
+        setUnlockError("Not enough ShamCoins");
+      } else {
+        setUnlockError(err?.message || "Unlock failed. Please try again.");
+      }
+    } finally {
+      setUnlocking(false);
     }
   };
 
@@ -1916,6 +1949,42 @@ const LessonViewPage: React.FC = () => {
                     >
                       You're viewing a preview. Unlock the complete lesson to access all pages, flashcards, and quiz questions.
                     </p>
+                    {unlockError && (
+                      <div
+                        style={{
+                          marginBottom: "12px",
+                          padding: "12px",
+                          borderRadius: "10px",
+                          backgroundColor: unlockError === "Not enough ShamCoins" ? "#fef2f2" : "#f8fafc",
+                          border: unlockError === "Not enough ShamCoins" ? "1px solid #fecaca" : "1px solid #e2e8f0",
+                          color: unlockError === "Not enough ShamCoins" ? "#991b1b" : "#475569",
+                        }}
+                      >
+                        {unlockError === "Not enough ShamCoins" ? (
+                          <>
+                            <p style={{ margin: "0 0 10px 0", fontWeight: 600 }}>Not enough ShamCoins to unlock this lesson.</p>
+                            <Link to="/subscription">
+                              <button
+                                type="button"
+                                style={{
+                                  padding: "8px 16px",
+                                  borderRadius: "8px",
+                                  border: "none",
+                                  backgroundColor: "#4f46e5",
+                                  color: "white",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Subscribe to get ShamCoins
+                              </button>
+                            </Link>
+                          </>
+                        ) : (
+                          <p style={{ margin: 0 }}>{unlockError}</p>
+                        )}
+                      </div>
+                    )}
                     <div
                       style={{
                         display: "flex",
@@ -1925,28 +1994,27 @@ const LessonViewPage: React.FC = () => {
                       }}
                     >
                       <button
-                        onClick={() => {
-                          // TODO: Implement unlock with ShamCoin purchase
-                        }}
+                        onClick={handleUnlock}
+                        disabled={unlocking}
                         style={{
                           padding: "12px 24px",
                           borderRadius: "10px",
                           border: "none",
-                          backgroundColor: "#f97316",
+                          backgroundColor: unlocking ? "#94a3b8" : "#f97316",
                           color: "white",
                           fontSize: "1rem",
                           fontWeight: 700,
-                          cursor: "pointer",
+                          cursor: unlocking ? "not-allowed" : "pointer",
                           transition: "background-color 0.2s ease",
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#ea580c";
+                          if (!unlocking) e.currentTarget.style.backgroundColor = "#ea580c";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "#f97316";
+                          if (!unlocking) e.currentTarget.style.backgroundColor = "#f97316";
                         }}
                       >
-                        Unlock full lesson (1 ShamCoin)
+                        {unlocking ? "Unlocking…" : "Unlock full lesson (1 ShamCoin)"}
                       </button>
                       <Link
                         to="/subscription"
@@ -2397,6 +2465,42 @@ const LessonViewPage: React.FC = () => {
             >
               You're viewing a preview. Unlock the complete lesson to access all pages, flashcards, and quiz questions.
             </p>
+            {unlockError && (
+              <div
+                style={{
+                  marginBottom: "12px",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  backgroundColor: unlockError === "Not enough ShamCoins" ? "#fef2f2" : "#f8fafc",
+                  border: unlockError === "Not enough ShamCoins" ? "1px solid #fecaca" : "1px solid #e2e8f0",
+                  color: unlockError === "Not enough ShamCoins" ? "#991b1b" : "#475569",
+                }}
+              >
+                {unlockError === "Not enough ShamCoins" ? (
+                  <>
+                    <p style={{ margin: "0 0 10px 0", fontWeight: 600 }}>Not enough ShamCoins to unlock this lesson.</p>
+                    <Link to="/subscription">
+                      <button
+                        type="button"
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: "8px",
+                          border: "none",
+                          backgroundColor: "#4f46e5",
+                          color: "white",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Subscribe to get ShamCoins
+                      </button>
+                    </Link>
+                  </>
+                ) : (
+                  <p style={{ margin: 0 }}>{unlockError}</p>
+                )}
+              </div>
+            )}
             <div
               style={{
                 display: "flex",
@@ -2406,28 +2510,27 @@ const LessonViewPage: React.FC = () => {
               }}
             >
               <button
-                onClick={() => {
-                  // TODO: Implement unlock with ShamCoin purchase
-                }}
+                onClick={handleUnlock}
+                disabled={unlocking}
                 style={{
                   padding: "12px 24px",
                   borderRadius: "10px",
                   border: "none",
-                  backgroundColor: "#f97316",
+                  backgroundColor: unlocking ? "#94a3b8" : "#f97316",
                   color: "white",
                   fontSize: "1rem",
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: unlocking ? "not-allowed" : "pointer",
                   transition: "background-color 0.2s ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#ea580c";
+                  if (!unlocking) e.currentTarget.style.backgroundColor = "#ea580c";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#f97316";
+                  if (!unlocking) e.currentTarget.style.backgroundColor = "#f97316";
                 }}
               >
-                Unlock full lesson (1 ShamCoin)
+                {unlocking ? "Unlocking…" : "Unlock full lesson (1 ShamCoin)"}
               </button>
               <Link
                 to="/subscription"
