@@ -8,6 +8,7 @@ const User = require("../models/User");
 const Purchase = require("../models/Purchase");
 const VisualModel = require("../models/VisualModel");
 const auth = require("../middleware/auth");
+const { canAccessContent } = require("../utils/canAccessContent");
 
 // ✅ ADDED: Import for revision validation
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -1266,11 +1267,39 @@ router.get("/:id", auth, async (req, res) => {
     // ✅ Non-breaking: attach visuals to pages if available (Photosynthesis MVP)
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
+    // ✅ Server-side entitlement: all lesson content checks must live here,
+    // not just in the frontend, so rules stay consistent across clients.
+    let access = { allowed: true };
+    if (!isAdminUser && !isOwner) {
+      access = canAccessContent({ user: req.user, lesson });
+    }
+
+    if (access.allowed === false) {
+      return res.status(403).json({ message: "Subscription required" });
+    }
+
+    const fullPages = Array.isArray(lesson.pages) ? lesson.pages : [];
+
+    // Preview access: expose metadata + first page only, with no quizzes/flashcards.
+    if (access.allowed === "preview") {
+      const firstPageOnly = fullPages.length > 0 ? [fullPages[0]] : [];
+      return res.json({
+        ...lesson,
+        status,
+        isPublished,
+        pages: firstPageOnly,
+        flashcards: [],
+        quiz: undefined,
+        content: typeof lesson.content === "string" ? lesson.content : "",
+      });
+    }
+
+    // Full access (owner/admin or fully entitled user).
     return res.json({
       ...lesson,
       status,
       isPublished,
-      pages: Array.isArray(lesson.pages) ? lesson.pages : [],
+      pages: fullPages,
       content: typeof lesson.content === "string" ? lesson.content : "",
     });
   } catch (err) {
