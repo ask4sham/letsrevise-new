@@ -92,6 +92,9 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
 
+    /** Phase D1: exactly-once trial flag; set by grantTrialIfEligible only. */
+    trialUsed: { type: Boolean, default: false },
+
     /**
      * Phase B subscription model (optional, non-breaking)
      * - Supports plan + status + explicit expiry
@@ -101,7 +104,7 @@ const userSchema = new mongoose.Schema(
     subscriptionV2: {
       plan: {
         type: String,
-        enum: ["monthly", "annual", "dev"],
+        enum: ["monthly", "annual", "dev", "trial"],
       },
       status: {
         type: String,
