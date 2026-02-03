@@ -18,6 +18,8 @@ interface Lesson {
   board: string;
   tier: string;
   isPublished: boolean;
+  // Phase B: whether this lesson exposes a free preview slice
+  isFreePreview?: boolean;
   createdAt: string;
   updatedAt: string;
   teacherId: string;
@@ -411,6 +413,42 @@ const BrowseLessons: React.FC = () => {
           </div>
         </div>
 
+        {/* Subscription CTA for conversion */}
+        <div
+          style={{
+            marginBottom: "20px",
+            padding: "12px 16px",
+            borderRadius: 10,
+            backgroundColor: "#eef2ff",
+            border: "1px solid rgba(129,140,248,0.4)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ color: "#3730a3", fontWeight: 600, fontSize: "0.95rem" }}>
+            Subscribe to unlock all lessons and full content.
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/subscription")}
+            style={{
+              padding: "0.5rem 1.1rem",
+              backgroundColor: "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: 999,
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            View plans
+          </button>
+        </div>
+
         {/* Filters Section */}
         <div
           style={{
@@ -775,6 +813,7 @@ const BrowseLessons: React.FC = () => {
                     e.currentTarget.style.transform = "translateY(0)";
                     e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
                   }}
+                    onClick={() => navigate(`/lessons/${lesson._id || lesson.id}`)}
                 >
                   {/* Lesson Header */}
                   <div
@@ -791,7 +830,25 @@ const BrowseLessons: React.FC = () => {
                   </div>
 
                   {/* Lesson Content */}
-                  <div style={{ padding: "20px", flexGrow: 1 }}>
+                    <div style={{ padding: "20px", flexGrow: 1 }}>
+                      {/* Status chip: Preview vs Locked */}
+                      <div style={{ marginBottom: "10px", display: "flex", justifyContent: "space-between" }}>
+                        <span
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            background: lesson.isFreePreview ? "#dcfce7" : "#e5e7eb",
+                            color: lesson.isFreePreview ? "#166534" : "#4b5563",
+                            border: lesson.isFreePreview
+                              ? "1px solid rgba(22,101,52,0.35)"
+                              : "1px solid rgba(75,85,99,0.25)",
+                          }}
+                        >
+                          {lesson.isFreePreview ? "Preview" : "Locked"}
+                        </span>
+                      </div>
                     <p
                       style={{
                         color: "#718096",
