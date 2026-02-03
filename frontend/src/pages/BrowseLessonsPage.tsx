@@ -18,8 +18,9 @@ interface Lesson {
   board: string;
   tier: string;
   isPublished: boolean;
-  // Phase B: whether this lesson exposes a free preview slice
+  // Phase C4: backend-provided entitlement (no client entitlement logic)
   isFreePreview?: boolean;
+  hasAccess?: boolean;
   createdAt: string;
   updatedAt: string;
   teacherId: string;
@@ -774,26 +775,23 @@ const BrowseLessons: React.FC = () => {
             }}
           >
             {filteredLessons.map((lesson) => {
-              const isPurchased = user?.purchasedLessons?.some(
-                (p: any) => String(p.lessonId) === String(lesson._id || lesson.id)
-              );
+              // Phase C4: one state per card from backend only (isFreePreview, optional hasAccess)
+              const isFreePreview = Boolean(lesson.isFreePreview);
+              const isUnlocked = Boolean(lesson.hasAccess) && !isFreePreview;
+              const isLocked = !isFreePreview && !isUnlocked;
 
-              const canAfford = (user?.shamCoins || 0) >= lesson.shamCoinPrice;
-              const buttonText = isPurchased
-                ? "Purchased"
-                : !canAfford
-                ? "Not Enough Coins"
-                : lesson.shamCoinPrice === 0
-                ? "Get Access"
-                : `Purchase (${lesson.shamCoinPrice} coins)`;
+              const badgeLabel = isUnlocked ? "Unlocked" : isFreePreview ? "Free preview" : "Locked";
+              const badgeEmoji = isUnlocked ? "🔓" : isFreePreview ? "🆓" : "🔒";
 
               const hasStretchBlocks = lesson.pages?.some((page) =>
                 page.blocks?.some((block: any) => block.type === "stretch")
               );
 
+              const lessonId = lesson._id || lesson.id;
+
               return (
                 <div
-                  key={lesson._id || lesson.id}
+                  key={lessonId}
                   style={{
                     background: "white",
                     borderRadius: "12px",
@@ -813,7 +811,6 @@ const BrowseLessons: React.FC = () => {
                     e.currentTarget.style.transform = "translateY(0)";
                     e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
                   }}
-                    onClick={() => navigate(`/lessons/${lesson._id || lesson.id}`)}
                 >
                   {/* Lesson Header */}
                   <div
@@ -831,22 +828,24 @@ const BrowseLessons: React.FC = () => {
 
                   {/* Lesson Content */}
                     <div style={{ padding: "20px", flexGrow: 1 }}>
-                      {/* Status chip: Preview vs Locked */}
-                      <div style={{ marginBottom: "10px", display: "flex", justifyContent: "space-between" }}>
+                      {/* Phase C4: single state badge */}
+                      <div style={{ marginBottom: "10px" }}>
                         <span
                           style={{
                             padding: "4px 10px",
-                            borderRadius: 999,
-                            fontSize: "0.75rem",
+                            borderRadius: "20px",
+                            fontSize: "0.8rem",
                             fontWeight: 600,
-                            background: lesson.isFreePreview ? "#dcfce7" : "#e5e7eb",
-                            color: lesson.isFreePreview ? "#166534" : "#4b5563",
-                            border: lesson.isFreePreview
+                            background: isUnlocked ? "#dcfce7" : isFreePreview ? "#e0f2fe" : "#e5e7eb",
+                            color: isUnlocked ? "#166534" : isFreePreview ? "#0369a1" : "#4b5563",
+                            border: isUnlocked
                               ? "1px solid rgba(22,101,52,0.35)"
+                              : isFreePreview
+                              ? "1px solid rgba(3,105,161,0.35)"
                               : "1px solid rgba(75,85,99,0.25)",
                           }}
                         >
-                          {lesson.isFreePreview ? "Preview" : "Locked"}
+                          {badgeEmoji} {badgeLabel}
                         </span>
                       </div>
                     <p
@@ -971,44 +970,77 @@ const BrowseLessons: React.FC = () => {
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", gap: "10px" }}>
-                        <Link to={`/lesson/${lesson._id || lesson.id}`}>
-                          <button
-                            style={{
-                              padding: "8px 16px",
-                              background: "#e2e8f0",
-                              color: "#4a5568",
-                              border: "none",
-                              borderRadius: "6px",
-                              cursor: "pointer",
-                              fontSize: "0.9rem",
-                              fontWeight: "500",
-                            }}
-                          >
-                            Preview
-                          </button>
-                        </Link>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            !isPurchased && canAfford && handlePurchase(lesson._id || lesson.id);
-                          }}
-                          disabled={isPurchased || !canAfford}
-                          style={{
-                            padding: "8px 16px",
-                            background: isPurchased ? "#a0aec0" : !canAfford ? "#f56565" : "#48bb78",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
-                            cursor: isPurchased || !canAfford ? "not-allowed" : "pointer",
-                            fontSize: "0.9rem",
-                            fontWeight: "bold",
-                            minWidth: "120px",
-                          }}
-                        >
-                          {buttonText}
-                        </button>
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                        {isUnlocked && (
+                          <Link to={`/lesson/${lessonId}`} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              style={{
+                                padding: "8px 16px",
+                                background: "#48bb78",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontSize: "0.9rem",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              View lesson
+                            </button>
+                          </Link>
+                        )}
+                        {isFreePreview && (
+                          <Link to={`/lesson/${lessonId}`} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              style={{
+                                padding: "8px 16px",
+                                background: "#e2e8f0",
+                                color: "#4a5568",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontSize: "0.9rem",
+                                fontWeight: "500",
+                              }}
+                            >
+                              Preview
+                            </button>
+                          </Link>
+                        )}
+                        {isLocked && (
+                          <>
+                            <button
+                              disabled
+                              style={{
+                                padding: "8px 16px",
+                                background: "#a0aec0",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "not-allowed",
+                                fontSize: "0.9rem",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Locked
+                            </button>
+                            <Link to="/subscription" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                style={{
+                                  padding: "8px 16px",
+                                  background: "transparent",
+                                  color: "#4f46e5",
+                                  border: "1px solid #4f46e5",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  fontSize: "0.9rem",
+                                }}
+                              >
+                                Subscribe
+                              </button>
+                            </Link>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
