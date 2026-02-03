@@ -67,6 +67,9 @@ interface Lesson {
   // ✅ NEW
   pages?: LessonPage[];
   
+  // ✅ Phase C3: Preview mode flag from backend
+  isFreePreview?: boolean;
+  
   // ✅ ADDED: Revision fields
   flashcards?: Array<{
     id: string;
@@ -557,6 +560,7 @@ const LessonViewPage: React.FC = () => {
           : 0,
         createdAt: safeStr(data.createdAt, new Date().toISOString()),
         pages: Array.isArray(data.pages) ? data.pages : [],
+        isFreePreview: Boolean(data.isFreePreview),
         // ✅ ADDED: Revision data with proper array validation
         flashcards: Array.isArray(data.flashcards) ? data.flashcards : [],
         // ✅ FIXED: Ensure quiz.questions is always an array
@@ -566,18 +570,12 @@ const LessonViewPage: React.FC = () => {
         },
       };
 
-      // Detect backend \"preview\" responses for students:
-      // - student viewer
-      // - paid lesson (shamCoinPrice > 0)
-      // - only a single page
-      // - no flashcards and no quiz questions
+      // Phase C3: Detect preview mode from backend flag
+      // Preview mode when: pages.length === 1 AND lesson.isFreePreview === true
       const previewFromBackend =
-        isStudent &&
-        Number(mapped.shamCoinPrice) > 0 &&
-        Array.isArray(data.pages) &&
-        data.pages.length === 1 &&
-        (!Array.isArray(data.flashcards) || data.flashcards.length === 0) &&
-        (!data.quiz || !Array.isArray(data.quiz.questions) || data.quiz.questions.length === 0);
+        Array.isArray(mapped.pages) &&
+        mapped.pages.length === 1 &&
+        Boolean(mapped.isFreePreview);
 
       setPreviewMode(Boolean(previewFromBackend));
 
@@ -1886,6 +1884,97 @@ const LessonViewPage: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Phase C3: Preview mode CTA block */}
+                {previewMode && (
+                  <div
+                    style={{
+                      marginTop: "32px",
+                      padding: "24px",
+                      borderRadius: "14px",
+                      backgroundColor: "#fff7ed",
+                      border: "2px solid rgba(249,115,22,0.40)",
+                      boxShadow: "0 4px 12px rgba(249,115,22,0.15)",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        margin: "0 0 12px 0",
+                        fontSize: "1.5rem",
+                        fontWeight: 800,
+                        color: "#9a3412",
+                      }}
+                    >
+                      Unlock the full lesson
+                    </h3>
+                    <p
+                      style={{
+                        margin: "0 0 20px 0",
+                        fontSize: "1rem",
+                        color: "#7c2d12",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      You're viewing a preview. Unlock the complete lesson to access all pages, flashcards, and quiz questions.
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          // TODO: Implement unlock with ShamCoin purchase
+                        }}
+                        style={{
+                          padding: "12px 24px",
+                          borderRadius: "10px",
+                          border: "none",
+                          backgroundColor: "#f97316",
+                          color: "white",
+                          fontSize: "1rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "background-color 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "#ea580c";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "#f97316";
+                        }}
+                      >
+                        Unlock full lesson (1 ShamCoin)
+                      </button>
+                      <Link
+                        to="/subscription"
+                        style={{
+                          padding: "12px 24px",
+                          borderRadius: "10px",
+                          border: "2px solid rgba(249,115,22,0.50)",
+                          backgroundColor: "transparent",
+                          color: "#9a3412",
+                          fontSize: "1rem",
+                          fontWeight: 700,
+                          textDecoration: "none",
+                          display: "inline-block",
+                          transition: "background-color 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(249,115,22,0.10)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }}
+                      >
+                        Subscribe to unlock all lessons
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
                 {/* ✅ REVISION SECTION - ADDED */}
                 <div
                   style={{
@@ -2200,43 +2289,6 @@ const LessonViewPage: React.FC = () => {
         ← Back to Dashboard
       </Link>
 
-      {previewMode && (
-        <div
-          style={{
-            marginTop: "14px",
-            padding: "10px 12px",
-            borderRadius: 10,
-            backgroundColor: "#fff7ed",
-            border: "1px solid rgba(249,115,22,0.35)",
-            color: "#9a3412",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>
-            Preview mode: subscribe to unlock the full lesson
-          </div>
-          <button
-            onClick={() => navigate("/subscription")}
-            style={{
-              padding: "0.4rem 0.9rem",
-              backgroundColor: "#f97316",
-              color: "white",
-              border: "none",
-              borderRadius: 999,
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            View plans
-          </button>
-        </div>
-      )}
-
       <div
         style={{
           marginTop: "30px",
@@ -2312,6 +2364,97 @@ const LessonViewPage: React.FC = () => {
             </ReactMarkdown>
           </div>
         </div>
+
+        {/* Phase C3: Preview mode CTA block for legacy view */}
+        {previewMode && (
+          <div
+            style={{
+              marginTop: "32px",
+              padding: "24px",
+              borderRadius: "14px",
+              backgroundColor: "#fff7ed",
+              border: "2px solid rgba(249,115,22,0.40)",
+              boxShadow: "0 4px 12px rgba(249,115,22,0.15)",
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 12px 0",
+                fontSize: "1.5rem",
+                fontWeight: 800,
+                color: "#9a3412",
+              }}
+            >
+              Unlock the full lesson
+            </h3>
+            <p
+              style={{
+                margin: "0 0 20px 0",
+                fontSize: "1rem",
+                color: "#7c2d12",
+                lineHeight: 1.6,
+              }}
+            >
+              You're viewing a preview. Unlock the complete lesson to access all pages, flashcards, and quiz questions.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <button
+                onClick={() => {
+                  // TODO: Implement unlock with ShamCoin purchase
+                }}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: "10px",
+                  border: "none",
+                  backgroundColor: "#f97316",
+                  color: "white",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "background-color 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#ea580c";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f97316";
+                }}
+              >
+                Unlock full lesson (1 ShamCoin)
+              </button>
+              <Link
+                to="/subscription"
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: "10px",
+                  border: "2px solid rgba(249,115,22,0.50)",
+                  backgroundColor: "transparent",
+                  color: "#9a3412",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  display: "inline-block",
+                  transition: "background-color 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(249,115,22,0.10)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                Subscribe to unlock all lessons
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* ✅ REVISION SECTION - ADDED FOR LEGACY VIEW */}
         <div
