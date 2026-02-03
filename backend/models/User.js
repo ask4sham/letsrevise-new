@@ -101,7 +101,7 @@ const userSchema = new mongoose.Schema(
     subscriptionV2: {
       plan: {
         type: String,
-        enum: ["monthly", "annual"],
+        enum: ["monthly", "annual", "dev"],
       },
       status: {
         type: String,

@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const auth = require("../middleware/auth");
+const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 
 // Middleware to check if user is admin
 const checkAdmin = (req, res, next) => {
@@ -875,6 +876,93 @@ router.post("/shamcoins", auth, checkAdmin, async (req, res) => {
   } catch (err) {
     console.error("Adjust sham coins error:", err);
     res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   POST /api/admin/subscription/grant
+   Dev-only helper to grant a time-limited subscription for testing.
+   ========================================= */
+router.post("/subscription/grant", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId, days } = req.body || {};
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: "Valid userId is required" });
+    }
+
+    const daysNum = Number(days);
+    if (!Number.isFinite(daysNum) || daysNum <= 0) {
+      return res.status(400).json({ msg: "days must be a positive number" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + daysNum * 24 * 60 * 60 * 1000);
+
+    // Phase B: use subscriptionV2 when present; keep legacy fields untouched.
+    user.subscriptionV2 = user.subscriptionV2 || {};
+    user.subscriptionV2.plan = "dev";
+    user.subscriptionV2.status = "active";
+    user.subscriptionV2.expiresAt = expiresAt;
+
+    await user.save();
+
+    const active = isSubscriptionActive(user);
+
+    return res.json({
+      success: true,
+      userId: String(user._id),
+      expiresAt,
+      isActive: active,
+    });
+  } catch (err) {
+    console.error("Admin subscription grant error:", err);
+    return res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   POST /api/admin/subscription/expire
+   Dev-only helper to force a subscription to expire for testing.
+   ========================================= */
+router.post("/subscription/expire", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: "Valid userId is required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    user.subscriptionV2 = user.subscriptionV2 || {};
+    user.subscriptionV2.status = "expired";
+    user.subscriptionV2.expiresAt = yesterday;
+
+    await user.save();
+
+    const active = isSubscriptionActive(user);
+
+    return res.json({
+      success: true,
+      userId: String(user._id),
+      expiresAt: user.subscriptionV2.expiresAt,
+      isActive: active,
+    });
+  } catch (err) {
+    console.error("Admin subscription expire error:", err);
+    return res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
 
