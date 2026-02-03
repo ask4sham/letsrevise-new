@@ -7,6 +7,7 @@ const AssessmentPaper = require("../models/AssessmentPaper");
 const AssessmentItem = require("../models/AssessmentItem");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
+const requireActiveSubscription = require("../middleware/requireActiveSubscription");
 
 console.log("✅ assessmentPapers router file loaded");
 
@@ -101,9 +102,10 @@ function sanitizeItemsForStudent(items) {
 /* =========================================
    GET /api/assessment-papers
    List papers with filters and pagination - RETURN SAFE METADATA ONLY
+   Students/parents must have an active subscription (API-level protection).
    ========================================= */
 
-router.get("/", async (req, res) => {
+router.get("/", auth, requireActiveSubscription, async (req, res) => {
   try {
     const {
       subject,
@@ -199,9 +201,10 @@ router.get("/", async (req, res) => {
    Get single paper by ID with full details
    Students: remove correctIndex and explanation from items
    Teachers/Admin: receive full paper
+   Students/parents must have an active subscription (API-level protection).
    ========================================= */
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", auth, requireActiveSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const user = req.user; // optional for GET

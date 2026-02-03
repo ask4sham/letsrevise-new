@@ -8,6 +8,7 @@ const AssessmentPaper = require("../models/AssessmentPaper");
 const AssessmentItem = require("../models/AssessmentItem");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
+const requireActiveSubscription = require("../middleware/requireActiveSubscription");
 
 console.log("✅ assessmentAttempts router file loaded");
 
@@ -193,7 +194,7 @@ function isShortAnswerCorrect(userText, correctText) {
    Create a new attempt for a student to start a paper
    ========================================= */
 
-router.post("/", auth, async (req, res) => {
+router.post("/", auth, requireActiveSubscription, async (req, res) => {
   try {
     const user = req.user;
 
@@ -319,7 +320,7 @@ router.post("/", auth, async (req, res) => {
    Get attempts for the current user (student) or all attempts (teacher/admin)
    ========================================= */
 
-router.get("/", auth, async (req, res) => {
+router.get("/", auth, requireActiveSubscription, async (req, res) => {
   try {
     const user = req.user;
     const { paperId, status, studentId } = req.query;
@@ -391,7 +392,7 @@ router.get("/", auth, async (req, res) => {
    Resume endpoint - find student's in-progress attempt for a specific paper
    ========================================= */
 
-router.get("/in-progress/:paperId", auth, async (req, res) => {
+router.get("/in-progress/:paperId", auth, requireActiveSubscription, async (req, res) => {
   try {
     const user = req.user;
 
@@ -432,7 +433,7 @@ router.get("/in-progress/:paperId", auth, async (req, res) => {
    Teachers/Admin: full details
    ========================================= */
 
-router.get("/:id", auth, async (req, res) => {
+router.get("/:id", auth, requireActiveSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
@@ -537,7 +538,7 @@ router.get("/:id", auth, async (req, res) => {
    Update answer for a specific question
    ========================================= */
 
-router.put("/:id/answer", auth, async (req, res) => {
+router.put("/:id/answer", auth, requireActiveSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
@@ -692,7 +693,7 @@ router.put("/:id/answer", auth, async (req, res) => {
    Short answers: now use fuzzy matching instead of exact
    ========================================= */
 
-router.post("/:id/submit", auth, async (req, res) => {
+router.post("/:id/submit", auth, requireActiveSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
@@ -912,7 +913,7 @@ router.post("/:id/submit", auth, async (req, res) => {
    Short answers: now use fuzzy matching instead of exact
    ========================================= */
 
-router.get("/:id/results", auth, async (req, res) => {
+router.get("/:id/results", auth, requireActiveSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
@@ -1156,7 +1157,7 @@ router.get("/:id/results", auth, async (req, res) => {
    Mark attempt as completed (legacy endpoint - removed)
    ========================================= */
 
-router.put("/:id/complete", auth, async (req, res) => {
+router.put("/:id/complete", auth, requireActiveSubscription, async (req, res) => {
   return res.status(410).json({
     success: false,
     msg: "This endpoint is deprecated. Please use POST /api/assessment-attempts/:id/submit instead.",
