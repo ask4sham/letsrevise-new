@@ -10,6 +10,7 @@ const VisualModel = require("../models/VisualModel");
 const auth = require("../middleware/auth");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
+const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 
 // ✅ ADDED: Import for revision validation
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -1574,6 +1575,8 @@ router.post("/:id/purchase", auth, async (req, res) => {
  * 4. Expect: lesson refetches and shows full content; card on dashboard shows "Unlocked".
  * 5. With 0 ShamCoins, expect 400 "Not enough ShamCoins" and UI message + Subscribe link.
  * 6. With active subscription or already purchased, expect 200 { alreadyHasAccess: true } and no deduction.
+ *
+ * Trial: granted on first unlock, once per user (grantTrialIfEligible); does not block unlock on failure.
  */
 router.post("/:id/unlock", auth, async (req, res) => {
   try {
@@ -1621,10 +1624,24 @@ router.post("/:id/unlock", auth, async (req, res) => {
     });
     await user.save();
 
+    let trialGranted = false;
+    let trialExpiresAt;
+    try {
+      const trial = await grantTrialIfEligible({ userId: user._id, reason: "first_unlock" });
+      if (trial.granted) {
+        trialGranted = true;
+        trialExpiresAt = trial.expiresAt;
+      }
+    } catch (e) {
+      console.warn("Unlock: trial grant failed", e?.message || e);
+    }
+
     return res.status(200).json({
       success: true,
       shamCoins: user.shamCoins,
       purchasedLessons: user.purchasedLessons,
+      trialGranted,
+      ...(trialExpiresAt && { trialExpiresAt }),
     });
   } catch (err) {
     console.error("Unlock error:", err);
