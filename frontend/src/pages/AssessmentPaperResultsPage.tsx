@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import SubscriptionRequired from "../components/SubscriptionRequired";
 
 type QuestionResult = {
   _id: string;
@@ -69,6 +70,7 @@ const AssessmentPaperResultsPage: React.FC = () => {
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
 
   useEffect(() => {
     if (!attemptId || !paperId) return;
@@ -85,8 +87,12 @@ const AssessmentPaperResultsPage: React.FC = () => {
         setPaper(data.paper);
         setQuestionResults(data.questionResults || []);
       } catch (err: any) {
-        console.error("Error loading results:", err);
-        setError(err.response?.data?.msg || "Failed to load results. Please try again.");
+        if (err?.response?.status === 403 && (err?.response?.data?.message || err?.response?.data?.msg) === "Subscription required") {
+          setSubscriptionBlocked(true);
+        } else {
+          console.error("Error loading results:", err);
+          setError(err.response?.data?.msg || "Failed to load results. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
@@ -100,6 +106,14 @@ const AssessmentPaperResultsPage: React.FC = () => {
       <div style={{ padding: "2rem", textAlign: "center" }}>
         <h2>Loading results...</h2>
         <p>Please wait while we calculate your score</p>
+      </div>
+    );
+  }
+
+  if (subscriptionBlocked) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: 800, margin: "0 auto" }}>
+        <SubscriptionRequired />
       </div>
     );
   }

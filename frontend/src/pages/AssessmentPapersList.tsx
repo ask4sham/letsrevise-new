@@ -11,6 +11,7 @@ import {
   Calendar,
   BarChart3,
 } from "lucide-react";
+import SubscriptionRequired from "../components/SubscriptionRequired";
 
 interface AssessmentPaper {
   _id: string;
@@ -24,6 +25,7 @@ const AssessmentPapersList: React.FC = () => {
   const [papers, setPapers] = useState<AssessmentPaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMode, setSelectedMode] = useState<string>("practice_set");
   const [userType, setUserType] = useState<string>("");
@@ -40,12 +42,17 @@ const AssessmentPapersList: React.FC = () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch: ${response.status}`);
+          const data = await response.json().catch(() => ({}));
+          if (response.status === 403 && (data.message || data.msg) === "Subscription required") {
+            setSubscriptionBlocked(true);
+          } else {
+            throw new Error(`Failed to fetch: ${response.status}`);
+          }
+        } else {
+          const data = await response.json();
+          setPapers(data.papers || []);
+          setError(null);
         }
-
-        const data = await response.json();
-        setPapers(data.papers || []);
-        setError(null);
       } catch (err: any) {
         setError(err.message || "Failed to load assessment papers");
         console.error("Error fetching papers:", err);
@@ -144,6 +151,16 @@ const AssessmentPapersList: React.FC = () => {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (subscriptionBlocked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          <SubscriptionRequired />
         </div>
       </div>
     );

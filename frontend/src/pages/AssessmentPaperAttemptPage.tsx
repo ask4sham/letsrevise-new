@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import SubscriptionRequired from "../components/SubscriptionRequired";
 
 type AssessmentPaper = {
   _id: string;
@@ -87,6 +88,7 @@ const AssessmentPaperAttemptPage: React.FC = () => {
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [answerSaving, setAnswerSaving] = useState(false);
+  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
 
   // Helper function to normalize item data from backend
   const normalizeItem = (itemData: any): AssessmentItem => {
@@ -227,8 +229,12 @@ const AssessmentPaperAttemptPage: React.FC = () => {
       } catch (error: any) {
         if (cancelled) return;
 
-        console.error("Error loading attempt:", error);
-        setLoadingError(error.response?.data?.msg || "Failed to load assessment. Please try again.");
+        if (error?.response?.status === 403 && (error?.response?.data?.message || error?.response?.data?.msg) === "Subscription required") {
+          setSubscriptionBlocked(true);
+        } else {
+          console.error("Error loading attempt:", error);
+          setLoadingError(error.response?.data?.msg || "Failed to load assessment. Please try again.");
+        }
         setLoading(false);
       }
     }
@@ -299,8 +305,12 @@ const AssessmentPaperAttemptPage: React.FC = () => {
           timeUsedSeconds: timeUsed,
         });
       }
-    } catch (error) {
-      console.error("Error saving time progress:", error);
+    } catch (error: any) {
+      if (error?.response?.status === 403 && (error?.response?.data?.message || error?.response?.data?.msg) === "Subscription required") {
+        setSubscriptionBlocked(true);
+      } else {
+        console.error("Error saving time progress:", error);
+      }
     }
   };
 
@@ -397,9 +407,13 @@ const AssessmentPaperAttemptPage: React.FC = () => {
           answers: updatedAnswers,
         };
       });
-    } catch (error) {
-      console.error("Error saving short answer:", error);
-      // leave local text as-is (user shouldn't lose typing)
+    } catch (error: any) {
+      if (error?.response?.status === 403 && (error?.response?.data?.message || error?.response?.data?.msg) === "Subscription required") {
+        setSubscriptionBlocked(true);
+      } else {
+        console.error("Error saving short answer:", error);
+        // leave local text as-is (user shouldn't lose typing)
+      }
     } finally {
       setAnswerSaving(false);
     }
@@ -450,6 +464,11 @@ const AssessmentPaperAttemptPage: React.FC = () => {
       // Navigate to results
       navigate(`/assessments/papers/${paperId}/results?attemptId=${attemptId}`);
     } catch (error: any) {
+      if (error?.response?.status === 403 && (error?.response?.data?.message || error?.response?.data?.msg) === "Subscription required") {
+        setSubscriptionBlocked(true);
+        setSubmitting(false);
+        return;
+      }
       console.error("Error submitting attempt:", error);
 
       let errorMessage = "Failed to submit attempt. Please try again.";
@@ -486,6 +505,14 @@ const AssessmentPaperAttemptPage: React.FC = () => {
         <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📝</div>
         <h2>Loading assessment...</h2>
         <p>Preparing your exam paper</p>
+      </div>
+    );
+  }
+
+  if (subscriptionBlocked) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: 900, margin: "0 auto" }}>
+        <SubscriptionRequired />
       </div>
     );
   }

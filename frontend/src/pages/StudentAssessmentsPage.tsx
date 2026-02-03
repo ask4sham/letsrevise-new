@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
+import SubscriptionRequired from "../components/SubscriptionRequired";
 
 type AssessmentPaper = {
   _id: string;
@@ -26,6 +27,7 @@ const StudentAssessmentsPage: React.FC = () => {
   const [papers, setPapers] = useState<AssessmentPaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string>("");
+  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -51,6 +53,14 @@ const StudentAssessmentsPage: React.FC = () => {
 
   if (loading) {
     return <div style={{ padding: "2rem" }}>Loading assessments…</div>;
+  }
+
+  if (subscriptionBlocked) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: 900, margin: "0 auto" }}>
+        <SubscriptionRequired />
+      </div>
+    );
   }
 
   return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
+import SubscriptionRequired from "../components/SubscriptionRequired";
 
 type AssessmentPaper = {
   _id: string;
@@ -41,6 +42,7 @@ const AssessmentPaperStartPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
   const [startingAttempt, setStartingAttempt] = useState(false);
+  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,11 +59,15 @@ const AssessmentPaperStartPage: React.FC = () => {
         const loadedPaper: AssessmentPaper = res.data?.paper ?? res.data;
 
         if (!cancelled) setPaper(loadedPaper);
-      } catch (e) {
+      } catch (e: any) {
         if (!cancelled) {
-          console.error(e);
-          setErrMsg("Could not load this paper.");
-          setPaper(null);
+          if (e?.response?.status === 403 && (e?.response?.data?.message || e?.response?.data?.msg) === "Subscription required") {
+            setSubscriptionBlocked(true);
+          } else {
+            console.error(e);
+            setErrMsg("Could not load this paper.");
+            setPaper(null);
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -89,6 +95,10 @@ const AssessmentPaperStartPage: React.FC = () => {
         navigate(`/assessments/papers/${paperId}/attempt?attemptId=${attempt._id}`);
         return;
       } catch (resumeError: any) {
+        if (resumeError?.response?.status === 403 && (resumeError?.response?.data?.message || resumeError?.response?.data?.msg) === "Subscription required") {
+          setSubscriptionBlocked(true);
+          return;
+        }
         // 404 is expected when no in-progress attempt exists -> ignore
         if (resumeError?.response?.status === 404) {
           // do nothing
@@ -104,6 +114,10 @@ const AssessmentPaperStartPage: React.FC = () => {
       console.log("Created new attempt:", attempt._id);
       navigate(`/assessments/papers/${paperId}/attempt?attemptId=${attempt._id}`);
     } catch (error: any) {
+      if (error?.response?.status === 403 && (error?.response?.data?.message || error?.response?.data?.msg) === "Subscription required") {
+        setSubscriptionBlocked(true);
+        return;
+      }
       console.error("Error starting attempt:", error);
 
       let errorMessage = "Failed to start attempt. Please try again.";
@@ -129,6 +143,14 @@ const AssessmentPaperStartPage: React.FC = () => {
   }
 
   if (loading) return <div style={{ padding: "2rem" }}>Loading paper…</div>;
+
+  if (subscriptionBlocked) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: 900, margin: "0 auto" }}>
+        <SubscriptionRequired />
+      </div>
+    );
+  }
 
   if (!paper) {
     return (
