@@ -195,6 +195,9 @@ const LessonSchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
 
+    /** When true, non-entitled users get preview (first page only). When false/undefined, lesson is hard-locked unless subscribed or purchased. */
+    isFreePreview: { type: Boolean, default: false },
+
     /**
      * ✅ Admin moderation + dashboard compatibility
      * These fields are referenced by your admin routes/UI.

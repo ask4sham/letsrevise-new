@@ -1269,13 +1269,13 @@ router.get("/:id", auth, async (req, res) => {
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
     const fullPages = Array.isArray(lesson.pages) ? lesson.pages : [];
-    const lessonForAccess = { ...lesson, isFreePreview: fullPages.length > 0 };
+    const isFreePreview = Boolean(lesson.isFreePreview);
 
-    // ✅ Server-side entitlement: all lesson content checks must live here,
-    // not just in the frontend, so rules stay consistent across clients.
+    // ✅ Server-side entitlement: all lesson content checks must live here.
+    // isFreePreview comes only from the lesson document; pages do not imply preview.
     let access = { allowed: true };
     if (!isAdminUser && !isOwner) {
-      access = canAccessContent({ user: req.user, lesson: lessonForAccess });
+      access = canAccessContent({ user: req.user, lesson: { ...lesson, isFreePreview } });
     }
 
     if (access.allowed === false) {
@@ -1744,17 +1744,17 @@ router.get("/", auth, async (req, res) => {
       .lean();
 
     // Attach hasAccess and isFreePreview per lesson (entitlement from backend only).
+    // isFreePreview comes only from the lesson document; pages do not imply preview.
     const fullUser = await User.findById(getAuthUserId(req))
       .select("userType subscriptionV2 subscription purchasedLessons")
       .lean();
-    const isFreePreviewLesson = (l) => Array.isArray(l.pages) && l.pages.length > 0;
     lessons = lessons.map((l) => {
-      const lessonForAccess = { _id: l._id, id: l._id, isFreePreview: isFreePreviewLesson(l) };
-      const access = fullUser ? canAccessContent({ user: fullUser, lesson: lessonForAccess }) : { allowed: false };
+      const isFreePreview = Boolean(l.isFreePreview);
+      const access = fullUser ? canAccessContent({ user: fullUser, lesson: { _id: l._id, isFreePreview } }) : { allowed: false };
       return {
         ...l,
         hasAccess: access.allowed === true,
-        isFreePreview: isFreePreviewLesson(l),
+        isFreePreview,
       };
     });
 
