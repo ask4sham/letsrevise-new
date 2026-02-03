@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 const auth = require('../middleware/auth');
+const { canAccessContent } = require('../utils/canAccessContent');
 
 // Helper: ensure studentStats exists with safe defaults
 function ensureStudentStats(user) {
@@ -43,10 +44,17 @@ router.put('/:lessonId', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Lesson not found' });
     }
 
-    // Check if user has purchased this lesson
+    // Load full user so entitlement can use subscription + purchasedLessons
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // ✅ API-level entitlement: progress updates are gated via canAccessContent
+    // so subscription / purchase rules stay consistent with lesson/content APIs.
+    const access = canAccessContent({ user, lesson });
+    if (access.allowed !== true) {
+      return res.status(403).json({ message: 'Subscription required' });
     }
 
     ensureStudentStats(user);
@@ -175,10 +183,17 @@ router.put('/:lessonId/review', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Lesson not found' });
     }
 
-    // Check if user has purchased and completed this lesson
+    // Load full user so entitlement can use subscription + purchasedLessons
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // ✅ API-level entitlement: reviews are gated via canAccessContent
+    // (only fully entitled users can review a lesson).
+    const access = canAccessContent({ user, lesson });
+    if (access.allowed !== true) {
+      return res.status(403).json({ message: 'Subscription required' });
     }
 
     const purchasedLessonIndex = user.purchasedLessons.findIndex(
