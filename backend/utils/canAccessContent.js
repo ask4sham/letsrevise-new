@@ -1,7 +1,14 @@
+const { isSubscriptionActive } = require("./isSubscriptionActive");
+
 /**
  * Single source of truth for lesson content access.
  * All routes that gate lesson content (full vs preview) should use this helper
  * so rules stay in one place and stay consistent (subscription → purchase → preview).
+ *
+ * IMPORTANT:
+ * - Expiry enforcement is delegated to `isSubscriptionActive(user)`.
+ * - We do NOT trust string flags or status fields on their own.
+ *
  * Pure function: no Express, no req/res.
  *
  * @param {Object} opts
@@ -14,8 +21,8 @@ function canAccessContent({ user, lesson }) {
     return { allowed: false };
   }
 
-  // Subscription active → full access to all content.
-  if (user.subscription?.status === "active") {
+  // Subscription active (based on expiry) → full access to all content.
+  if (isSubscriptionActive(user)) {
     return { allowed: true };
   }
 
