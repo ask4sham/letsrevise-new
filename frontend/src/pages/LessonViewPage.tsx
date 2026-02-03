@@ -9,6 +9,7 @@ import api, { getVisual } from "../services/api";
 import { ReviewList, ReviewForm } from "../components/reviews";
 import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
+import SubscriptionRequired from "../components/SubscriptionRequired";
 
 interface LessonPageBlock {
   type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch";
@@ -283,6 +284,10 @@ const LessonViewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Phase B: entitlement UI state
+  const [subscriptionRequired, setSubscriptionRequired] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
@@ -465,6 +470,9 @@ const LessonViewPage: React.FC = () => {
       setLoading(true);
       setError("");
       setLesson(null);
+       // Reset entitlement flags before each load
+      setSubscriptionRequired(false);
+      setPreviewMode(false);
 
       if (!id) {
         setError("Lesson id missing");
@@ -558,6 +566,21 @@ const LessonViewPage: React.FC = () => {
         },
       };
 
+      // Detect backend \"preview\" responses for students:
+      // - student viewer
+      // - paid lesson (shamCoinPrice > 0)
+      // - only a single page
+      // - no flashcards and no quiz questions
+      const previewFromBackend =
+        isStudent &&
+        Number(mapped.shamCoinPrice) > 0 &&
+        Array.isArray(data.pages) &&
+        data.pages.length === 1 &&
+        (!Array.isArray(data.flashcards) || data.flashcards.length === 0) &&
+        (!data.quiz || !Array.isArray(data.quiz.questions) || data.quiz.questions.length === 0);
+
+      setPreviewMode(Boolean(previewFromBackend));
+
       setLesson(mapped);
 
       // If lesson has pages but no URL param, ensure URL points to page 1 (stable deep-link)
@@ -571,6 +594,20 @@ const LessonViewPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Backend lesson fetch error:", err);
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        "";
+
+      // Subscription paywall from backend
+      if (status === 403 && msg === "Subscription required") {
+        setSubscriptionRequired(true);
+        setError("");
+        setLesson(null);
+        return;
+      }
+
       setError(err?.message || "Failed to load lesson");
     }
   };
@@ -1332,6 +1369,14 @@ const LessonViewPage: React.FC = () => {
     );
   }
 
+  if (subscriptionRequired) {
+    return (
+      <div style={{ padding: "40px 16px", maxWidth: 900, margin: "0 auto" }}>
+        <SubscriptionRequired />
+      </div>
+    );
+  }
+
   if (error || !lesson) {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
@@ -1397,6 +1442,43 @@ const LessonViewPage: React.FC = () => {
               ← Back to Dashboard
             </Link>
           </div>
+
+          {previewMode && (
+            <div
+              style={{
+                marginBottom: 14,
+                padding: "10px 12px",
+                borderRadius: 10,
+                backgroundColor: "#fff7ed",
+                border: "1px solid rgba(249,115,22,0.35)",
+                color: "#9a3412",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>
+                Preview mode: subscribe to unlock the full lesson
+              </div>
+              <button
+                onClick={() => navigate("/subscription")}
+                style={{
+                  padding: "0.4rem 0.9rem",
+                  backgroundColor: "#f97316",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 999,
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                View plans
+              </button>
+            </div>
+          )}
 
           <div
             style={{
@@ -2117,6 +2199,43 @@ const LessonViewPage: React.FC = () => {
       <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
         ← Back to Dashboard
       </Link>
+
+      {previewMode && (
+        <div
+          style={{
+            marginTop: "14px",
+            padding: "10px 12px",
+            borderRadius: 10,
+            backgroundColor: "#fff7ed",
+            border: "1px solid rgba(249,115,22,0.35)",
+            color: "#9a3412",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>
+            Preview mode: subscribe to unlock the full lesson
+          </div>
+          <button
+            onClick={() => navigate("/subscription")}
+            style={{
+              padding: "0.4rem 0.9rem",
+              backgroundColor: "#f97316",
+              color: "white",
+              border: "none",
+              borderRadius: 999,
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            View plans
+          </button>
+        </div>
+      )}
 
       <div
         style={{
