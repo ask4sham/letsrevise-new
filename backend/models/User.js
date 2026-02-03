@@ -1,4 +1,4 @@
-﻿// backend/models/User.js
+// backend/models/User.js
 const mongoose = require("mongoose");
 
 /**
@@ -82,6 +82,7 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // ✅ Legacy subscription flag (string-based)
     subscription: {
       type: String,
       enum: ["free", "basic", "premium", "enterprise"],
@@ -89,6 +90,26 @@ const userSchema = new mongoose.Schema(
     },
     subscriptionEndDate: {
       type: Date,
+    },
+
+    /**
+     * Phase B subscription model (optional, non-breaking)
+     * - Supports plan + status + explicit expiry
+     * - Existing users may not have this field at all
+     * - No business logic yet; routes still use the legacy string subscription
+     */
+    subscriptionV2: {
+      plan: {
+        type: String,
+        enum: ["monthly", "annual"],
+      },
+      status: {
+        type: String,
+        enum: ["active", "expired"],
+      },
+      expiresAt: {
+        type: Date,
+      },
     },
 
     monthlyShamCoinAllowance: {
