@@ -115,6 +115,9 @@ const AdminDashboardPage: React.FC = () => {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingClones, setLoadingClones] = useState(false);
 
+  const [subscriptionUserId, setSubscriptionUserId] = useState("");
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+
   const [userFilters, setUserFilters] = useState({
     page: 1,
     limit: 20,
@@ -340,6 +343,66 @@ const AdminDashboardPage: React.FC = () => {
     } catch (error) {
       console.error("Error updating role:", error);
       setMessage({ type: "error", text: "Failed to update user role" });
+    }
+  };
+
+  const handleGrantSubscription = async (days: number) => {
+    if (!subscriptionUserId.trim()) {
+      setSubscriptionStatus("Please enter a User ID");
+      return;
+    }
+
+    try {
+      const res = await api.post("/admin/subscription/grant", {
+        userId: subscriptionUserId.trim(),
+        days,
+      });
+      const data = res.data;
+
+      if (data?.success) {
+        const expiresAt = new Date(data.expiresAt).toLocaleString();
+        setSubscriptionStatus(
+          `✅ Granted until: ${expiresAt} (active: ${data.isActive ? "true" : "false"})`
+        );
+        fetchUsers();
+      } else {
+        setSubscriptionStatus(data?.msg || "Failed to grant subscription");
+      }
+    } catch (error: any) {
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.msg ||
+        error?.message ||
+        "Failed to grant subscription";
+      setSubscriptionStatus(errorMsg);
+    }
+  };
+
+  const handleExpireSubscription = async () => {
+    if (!subscriptionUserId.trim()) {
+      setSubscriptionStatus("Please enter a User ID");
+      return;
+    }
+
+    try {
+      const res = await api.post("/admin/subscription/expire", {
+        userId: subscriptionUserId.trim(),
+      });
+      const data = res.data;
+
+      if (data?.success) {
+        setSubscriptionStatus(`✅ Expired. active: ${data.isActive ? "true" : "false"}`);
+        fetchUsers();
+      } else {
+        setSubscriptionStatus(data?.msg || "Failed to expire subscription");
+      }
+    } catch (error: any) {
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.msg ||
+        error?.message ||
+        "Failed to expire subscription";
+      setSubscriptionStatus(errorMsg);
     }
   };
 
@@ -680,6 +743,106 @@ const AdminDashboardPage: React.FC = () => {
                   borderRadius: "4px",
                 }}
               />
+            </div>
+
+            {/* Subscription Admin (Dev) Card */}
+            <div
+              style={{
+                backgroundColor: "white",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "1.5rem",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                marginBottom: "1.5rem",
+              }}
+            >
+              <h3 style={{ fontSize: "1.25rem", fontWeight: "bold", marginBottom: "1rem" }}>
+                Subscription Admin (Dev)
+              </h3>
+              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: "200px" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+                    User ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter user ID..."
+                    value={subscriptionUserId}
+                    onChange={(e) => {
+                      setSubscriptionUserId(e.target.value);
+                      setSubscriptionStatus(null);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <button
+                    onClick={() => handleGrantSubscription(7)}
+                    disabled={!subscriptionUserId.trim()}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: subscriptionUserId.trim() ? "#198754" : "#ccc",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: subscriptionUserId.trim() ? "pointer" : "not-allowed",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Grant 7 days
+                  </button>
+                  <button
+                    onClick={() => handleGrantSubscription(30)}
+                    disabled={!subscriptionUserId.trim()}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: subscriptionUserId.trim() ? "#198754" : "#ccc",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: subscriptionUserId.trim() ? "pointer" : "not-allowed",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Grant 30 days
+                  </button>
+                  <button
+                    onClick={handleExpireSubscription}
+                    disabled={!subscriptionUserId.trim()}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: subscriptionUserId.trim() ? "#dc3545" : "#ccc",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: subscriptionUserId.trim() ? "pointer" : "not-allowed",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Expire now
+                  </button>
+                </div>
+              </div>
+              {subscriptionStatus && (
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    padding: "0.75rem",
+                    backgroundColor: subscriptionStatus.startsWith("✅") ? "#d4edda" : "#f8d7da",
+                    color: subscriptionStatus.startsWith("✅") ? "#155724" : "#721c24",
+                    border: `1px solid ${subscriptionStatus.startsWith("✅") ? "#c3e6cb" : "#f5c6cb"}`,
+                    borderRadius: "4px",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {subscriptionStatus}
+                </div>
+              )}
             </div>
 
             <div style={{ border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
