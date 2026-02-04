@@ -45,11 +45,14 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Minimal behavioral endpoint: explicitly mark AI generation job listing as not implemented yet.
-router.get("/", (req, res) => {
-  return res.status(501).json({
-    error: "AI generation jobs not implemented yet",
-  });
+// Minimal behavioral endpoint: list up to 20 recent AI generation jobs for the current user.
+router.get("/", async (req, res) => {
+  const jobs = await AiGenerationJob.find({ requestedByUserId: req.user._id })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .select("type status createdAt updatedAt startedAt finishedAt error");
+
+  return res.status(200).json({ jobs });
 });
 
 // Minimal behavioral endpoint: explicitly mark AI generation job retrieval by id as not implemented yet.
