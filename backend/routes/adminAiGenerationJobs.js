@@ -44,10 +44,27 @@ router.get("/:id", async (req, res) => {
   return res.status(200).json({ job });
 });
 
-// Minimal admin endpoint: explicitly mark AI generation job admin cancellation as not implemented yet.
-router.post("/:id/cancel", (req, res) => {
-  return res.status(501).json({
-    error: "AI generation jobs not implemented yet",
+// Minimal admin endpoint: cancel an AI generation job by id (admin override, DB update only).
+router.post("/:id/cancel", async (req, res) => {
+  const job = await AiGenerationJob.findOne({
+    _id: req.params.id,
+  });
+
+  if (!job) {
+    return res.status(404).json({ error: "Job not found" });
+  }
+
+  if (!["QUEUED", "RUNNING"].includes(job.status)) {
+    return res.status(400).json({ error: "Job cannot be cancelled" });
+  }
+
+  job.status = "CANCELLED";
+  job.finishedAt = new Date();
+  await job.save();
+
+  return res.status(200).json({
+    jobId: job._id,
+    status: job.status,
   });
 });
 
