@@ -68,10 +68,29 @@ router.post("/:id/cancel", async (req, res) => {
   });
 });
 
-// Minimal admin endpoint: explicitly mark AI generation job admin retry as not implemented yet.
-router.post("/:id/retry", (req, res) => {
-  return res.status(501).json({
-    error: "AI generation jobs not implemented yet",
+// Minimal admin endpoint: retry a FAILED AI generation job by resetting it to QUEUED (DB update only).
+router.post("/:id/retry", async (req, res) => {
+  const job = await AiGenerationJob.findOne({ _id: req.params.id });
+
+  if (!job) {
+    return res.status(404).json({ error: "Job not found" });
+  }
+
+  if (job.status !== "FAILED") {
+    return res.status(400).json({ error: "Job cannot be retried" });
+  }
+
+  job.status = "QUEUED";
+  job.startedAt = null;
+  job.finishedAt = null;
+  job.error = null;
+  job.output = null;
+
+  await job.save();
+
+  return res.status(200).json({
+    jobId: job._id,
+    status: job.status,
   });
 });
 
