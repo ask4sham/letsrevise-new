@@ -7,3 +7,11 @@
 - **Middleware**: `requireAiJobAccess` is a no-op middleware hook, exported from `backend/middleware/`, ready to be attached to future routes.
 - **Not implemented**: No job creation APIs, no background workers or queues, no AI provider calls and no decision-making logic are present yet.
 
+## AI Generation Jobs – Current Status
+
+- Groundwork is complete: contracts, model, routes, and middleware are in place.
+- All AI generation components are inert placeholders with no active behavior.
+- There is no job execution, background worker infrastructure, or provider calls.
+- Future phases will add behavior incrementally on top of this foundation.
+
+
