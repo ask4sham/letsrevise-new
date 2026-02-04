@@ -67,6 +67,11 @@ const Header: React.FC = () => {
         zIndex: 1000,
       }}
     >
+      {trialDaysRemaining !== null && (
+        <div style={{ padding: "4px 0", textAlign: "center", fontSize: "0.85rem", color: "#111827" }}>
+          Trial ends in {trialDaysRemaining} day(s)
+        </div>
+      )}
       <div
         style={{
           maxWidth: "1200px",
