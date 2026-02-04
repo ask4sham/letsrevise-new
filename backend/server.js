@@ -55,6 +55,9 @@ const parentLinkRoutes = require("./routes/parentLink");
 
 // ✅ NEW: template routes
 const templateRoutes = require("./routes/templates.routes");
+// AI Generation Jobs routes are part of the overall API surface and are
+// intentionally mounted early as placeholders; they currently have no
+// handlers or behavior and serve only to stabilise route namespaces.
 
 // We already have app from app.js, so we don't create a new one
 // const app = express(); // REMOVED - using imported app instead
