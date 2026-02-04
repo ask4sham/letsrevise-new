@@ -25,6 +25,13 @@ router.post("/", (req, res) => {
   });
 });
 
+// Minimal behavioral endpoint: explicitly mark AI generation job listing as not implemented yet.
+router.get("/", (req, res) => {
+  return res.status(501).json({
+    error: "AI generation jobs not implemented yet",
+  });
+});
+
 module.exports = router;
 
 
