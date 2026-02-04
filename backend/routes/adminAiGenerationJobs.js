@@ -1,6 +1,8 @@
 // Admin AI Generation Jobs routes (placeholder — not wired yet)
 // This admin router mirrors the public AI generation jobs namespace and is
 // intended for oversight/moderation access; all handlers are placeholders for now.
+// Admin endpoints are expected to bypass subscription/entitlement checks by design,
+// consistent with other admin routes; no such enforcement exists here yet.
 
 const express = require("express");
 const { requireAiJobAccess } = require("../middleware");
