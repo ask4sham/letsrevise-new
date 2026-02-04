@@ -1,3 +1,9 @@
+// AiGenerationJob model:
+// - Persists AI generation job state in MongoDB
+// - Mirrors the AI generation job contracts (shape, status, timestamps)
+// - Schema-only: no business logic, no execution or worker integration
+// - Intended to be used by future routes/workers that are not yet implemented
+
 const mongoose = require("mongoose");
 
 const { Schema } = mongoose;
