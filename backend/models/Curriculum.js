@@ -1,3 +1,6 @@
+// Phase E foundation model. Intentionally minimal and inert.
+// Do not add behaviour, relationships, or logic until Phase F.
+
 const mongoose = require("mongoose");
 
 const { Schema } = mongoose;
