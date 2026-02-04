@@ -14,4 +14,11 @@
 - There is no job execution, background worker infrastructure, or provider calls.
 - Future phases will add behavior incrementally on top of this foundation.
 
+## AI Generation Jobs – Phase Boundary
+
+- All structural groundwork for AI generation jobs is complete and safe to load in all environments.
+- The next phase will introduce the first behavioral change: job creation endpoints and related logic.
+- No further documentation-only groundwork changes are expected before behavioral features are added.
+
+
 
