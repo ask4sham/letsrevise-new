@@ -12,9 +12,31 @@ const SubscriptionRequired: React.FC<SubscriptionRequiredProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  let isTrialExpired = false;
+  try {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const plan = parsed?.subscriptionV2?.plan;
+      const expiresAt = parsed?.subscriptionV2?.expiresAt;
+      if (plan === "trial" && expiresAt) {
+        const expiresAtTime = new Date(expiresAt).getTime();
+        if (!Number.isNaN(expiresAtTime) && expiresAtTime <= Date.now()) {
+          isTrialExpired = true;
+        }
+      }
+    }
+  } catch {
+    // ignore parse errors; fall back to generic subscription messaging
+  }
+
   const padding = compact ? "1rem" : "1.5rem";
   const titleSize = compact ? "1.125rem" : "1.25rem";
   const bodySize = compact ? "0.875rem" : "1rem";
+
+  const defaultBody = isTrialExpired
+    ? "Subscribe to continue accessing lessons and exams."
+    : "This feature is available with an active subscription.";
 
   return (
     <div
@@ -37,7 +59,7 @@ const SubscriptionRequired: React.FC<SubscriptionRequiredProps> = ({
           color: "#333",
         }}
       >
-        Subscription required
+        {isTrialExpired ? "Your trial has ended" : "Subscription required"}
       </h2>
 
       {message ? (
@@ -60,7 +82,7 @@ const SubscriptionRequired: React.FC<SubscriptionRequiredProps> = ({
             lineHeight: 1.5,
           }}
         >
-          This feature is available with an active subscription.
+          {defaultBody}
         </p>
       )}
 
