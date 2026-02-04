@@ -39,6 +39,13 @@ router.post("/:id/cancel", (req, res) => {
   });
 });
 
+// Minimal admin endpoint: explicitly mark AI generation job admin retry as not implemented yet.
+router.post("/:id/retry", (req, res) => {
+  return res.status(501).json({
+    error: "AI generation jobs not implemented yet",
+  });
+});
+
 module.exports = router;
 
 
