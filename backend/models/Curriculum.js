@@ -1,68 +1,30 @@
 const mongoose = require("mongoose");
 
 const { Schema } = mongoose;
-const ObjectId = Schema.Types.ObjectId;
+const { Mixed } = Schema.Types;
 
-const CurriculumLessonSchema = new Schema(
-  {
-    title: { type: String, required: true, trim: true },
-    order: { type: Number, required: true },
-    lessonId: {
-      type: ObjectId,
-      ref: "Lesson",
-      default: null,
-    },
-  },
-  { _id: false }
-);
-
-const CurriculumUnitSchema = new Schema(
-  {
-    title: { type: String, required: true, trim: true },
-    order: { type: Number, required: true },
-    lessons: { type: [CurriculumLessonSchema], default: [] },
-  },
-  { _id: false }
-);
-
+// Minimal Curriculum schema for safe boot-time registration.
+// Intentionally small and generic – can be extended in later phases.
 const CurriculumSchema = new Schema(
   {
-    title: { type: String, required: true, trim: true },
-    subject: { type: String, required: true, trim: true }, // e.g. "Math"
-    level: { type: String, required: true, trim: true }, // e.g. "Grade 7"
-    board: { type: String, default: "" }, // e.g. "UK GCSE"
-
-    status: {
+    title: {
       type: String,
-      enum: ["draft", "generating", "ready"],
-      default: "draft",
+      required: true,
+      trim: true,
     },
-
-    createdBy: {
-      type: ObjectId,
-      ref: "User",
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    metadata: {
+      type: Mixed,
       default: null,
-    },
-
-    units: {
-      type: [CurriculumUnitSchema],
-      default: [],
-    },
-
-    generation: {
-      status: {
-        type: String,
-        enum: ["pending", "generated", "approved", "rejected"],
-        default: "pending",
-      },
-      lastJobId: {
-        type: String,
-        default: null,
-      },
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Curriculum", CurriculumSchema);
+module.exports =
+  mongoose.models.Curriculum || mongoose.model("Curriculum", CurriculumSchema);
 
