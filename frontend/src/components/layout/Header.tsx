@@ -69,7 +69,9 @@ const Header: React.FC = () => {
     >
       {trialDaysRemaining !== null && (
         <div style={{ padding: "4px 0", textAlign: "center", fontSize: "0.85rem", color: "#111827" }}>
-          Trial ends in {trialDaysRemaining} day(s)
+          {trialDaysRemaining === 0
+            ? "Trial ends today"
+            : `Trial ends in ${trialDaysRemaining} day(s)`}
         </div>
       )}
       <div
