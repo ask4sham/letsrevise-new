@@ -6,6 +6,7 @@
 
 const express = require("express");
 const { requireAiJobAccess } = require("../middleware");
+const AiGenerationJob = require("../models/AiGenerationJob");
 
 // Future intended admin endpoints (documentation only, no handlers yet):
 // - GET /             (list all jobs across users/types)
@@ -18,11 +19,16 @@ const router = express.Router();
 // Global AI job access-control hook (no-op for now) shared with public routes.
 router.use(requireAiJobAccess);
 
-// Minimal admin endpoint: explicitly mark AI generation job admin listing as not implemented yet.
-router.get("/", (req, res) => {
-  return res.status(501).json({
-    error: "AI generation jobs not implemented yet",
-  });
+// Minimal admin endpoint: list up to 50 AI generation jobs across users for admin oversight.
+router.get("/", async (req, res) => {
+  const jobs = await AiGenerationJob.find({})
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .select(
+      "type status requestedByUserId createdAt updatedAt startedAt finishedAt error"
+    );
+
+  return res.status(200).json({ jobs });
 });
 
 // Minimal admin endpoint: explicitly mark AI generation job admin retrieval by id as not implemented yet.
