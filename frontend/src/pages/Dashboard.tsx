@@ -24,6 +24,7 @@ const Dashboard: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUser(response.data);
+      localStorage.setItem('user', JSON.stringify(response.data));
     } catch (error) {
       console.error('Error fetching user profile:', error);
       localStorage.removeItem('token');
