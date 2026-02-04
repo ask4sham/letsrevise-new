@@ -1,6 +1,7 @@
-﻿// /frontend/src/components/layout/Header.tsx
+// /frontend/src/components/layout/Header.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { getTrialDaysRemaining } from "../../utils/trial";
 
 const Header: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -49,6 +50,8 @@ const Header: React.FC = () => {
     const { firstName, lastName } = user;
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "U";
   };
+
+  const trialDaysRemaining = getTrialDaysRemaining(user?.entitlements); // Phase D banner will use this
 
   const isParent = user?.userType === "parent";
   const dashboardLink = isParent ? "/parent-dashboard" : "/dashboard";
