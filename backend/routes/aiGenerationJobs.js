@@ -6,6 +6,7 @@
 
 const express = require("express");
 const { requireAiJobAccess } = require("../middleware");
+const AiGenerationJob = require("../models/AiGenerationJob");
 
 // Future intended endpoints (documentation only, no handlers yet):
 // - POST /            (create job)
@@ -18,11 +19,30 @@ const router = express.Router();
 // Global AI job access-control hook (no-op for now).
 router.use(requireAiJobAccess);
 
-// Minimal behavioral endpoint: explicitly mark AI generation job creation as not implemented yet.
-router.post("/", (req, res) => {
-  return res.status(501).json({
-    error: "AI generation jobs not implemented yet",
-  });
+// Minimal behavioral endpoint: create a queued AI generation job record (no execution yet).
+router.post("/", async (req, res) => {
+  try {
+    const job = new AiGenerationJob({
+      version: 1,
+      type: req.body.type,
+      requestedByUserId: req.user && req.user._id,
+      input: req.body && req.body.input ? req.body.input : {},
+      status: "QUEUED",
+    });
+
+    await job.save();
+
+    return res.status(201).json({
+      jobId: job._id,
+      status: job.status,
+    });
+  } catch (err) {
+    // Minimal error handling; no additional logic
+    console.error("Error creating AI generation job:", err);
+    return res.status(500).json({
+      error: "Failed to create AI generation job",
+    });
+  }
 });
 
 // Minimal behavioral endpoint: explicitly mark AI generation job listing as not implemented yet.
