@@ -31,11 +31,17 @@ router.get("/", async (req, res) => {
   return res.status(200).json({ jobs });
 });
 
-// Minimal admin endpoint: explicitly mark AI generation job admin retrieval by id as not implemented yet.
-router.get("/:id", (req, res) => {
-  return res.status(501).json({
-    error: "AI generation jobs not implemented yet",
-  });
+// Minimal admin endpoint: return a single AI generation job by id for admin oversight.
+router.get("/:id", async (req, res) => {
+  const job = await AiGenerationJob.findOne({ _id: req.params.id }).select(
+    "type status requestedByUserId input output error createdAt updatedAt startedAt finishedAt"
+  );
+
+  if (!job) {
+    return res.status(404).json({ error: "Job not found" });
+  }
+
+  return res.status(200).json({ job });
 });
 
 // Minimal admin endpoint: explicitly mark AI generation job admin cancellation as not implemented yet.
