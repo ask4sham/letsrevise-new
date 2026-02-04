@@ -7,7 +7,7 @@ const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const auth = require("../middleware/auth");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
-// AI Generation Jobs admin/public routers (structural mounts only; no handlers yet)
+// AI Generation Jobs admin/public routers (structural mounts only; minimal handlers; groundwork phase)
 const adminAiGenerationJobs = require("./adminAiGenerationJobs");
 const aiGenerationJobs = require("./aiGenerationJobs");
 

@@ -32,6 +32,13 @@ router.get("/:id", (req, res) => {
   });
 });
 
+// Minimal admin endpoint: explicitly mark AI generation job admin cancellation as not implemented yet.
+router.post("/:id/cancel", (req, res) => {
+  return res.status(501).json({
+    error: "AI generation jobs not implemented yet",
+  });
+});
+
 module.exports = router;
 
 
