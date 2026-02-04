@@ -18,6 +18,13 @@ const router = express.Router();
 // Global AI job access-control hook (no-op for now) shared with public routes.
 router.use(requireAiJobAccess);
 
+// Minimal admin endpoint: explicitly mark AI generation job admin listing as not implemented yet.
+router.get("/", (req, res) => {
+  return res.status(501).json({
+    error: "AI generation jobs not implemented yet",
+  });
+});
+
 module.exports = router;
 
 
