@@ -7,6 +7,7 @@ const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const auth = require("../middleware/auth");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
+const adminAiGenerationJobs = require("./adminAiGenerationJobs");
 
 // Middleware to check if user is admin
 const checkAdmin = (req, res, next) => {
@@ -186,6 +187,9 @@ router.get("/stats", auth, checkAdmin, async (req, res) => {
     res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
+
+// Mount placeholder admin AI generation jobs router (no routes yet)
+router.use("/ai-generation-jobs", adminAiGenerationJobs);
 
 /* =========================================
    GET /api/admin/user-types   ✅ new (helps UI dropdown include parent)
