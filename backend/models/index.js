@@ -1,3 +1,4 @@
-// Model loader: ensure Curriculum model is registered once.
+// Model loader: ensure models are registered once.
 require("./Curriculum");
+require("./AiGenerationJob");
 
