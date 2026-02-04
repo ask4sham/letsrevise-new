@@ -5,7 +5,7 @@
 // layer gating using existing entitlement utilities, but this router is ungated for now.
 
 const express = require("express");
-const { requireAiJobAccess } = require("../middleware");
+const { requireAiJobAccess, requireActiveSubscription } = require("../middleware");
 const AiGenerationJob = require("../models/AiGenerationJob");
 
 // Future intended endpoints (documentation only, no handlers yet):
@@ -20,7 +20,7 @@ const router = express.Router();
 router.use(requireAiJobAccess);
 
 // Minimal behavioral endpoint: create a queued AI generation job record (no execution yet).
-router.post("/", async (req, res) => {
+router.post("/", requireActiveSubscription, async (req, res) => {
   try {
     const job = new AiGenerationJob({
       version: 1,
