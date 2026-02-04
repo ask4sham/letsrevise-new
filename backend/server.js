@@ -233,6 +233,7 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/payouts", payoutRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
+// AI generation jobs API namespace (placeholder router with no handlers yet; behavior will be added incrementally)
 app.use("/api/ai-generation-jobs", aiGenerationJobsRoutes);
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/content-tree", contentTreeRoutes);
