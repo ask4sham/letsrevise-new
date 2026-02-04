@@ -18,6 +18,13 @@ const router = express.Router();
 // Global AI job access-control hook (no-op for now).
 router.use(requireAiJobAccess);
 
+// Minimal behavioral endpoint: explicitly mark AI generation job creation as not implemented yet.
+router.post("/", (req, res) => {
+  return res.status(501).json({
+    error: "AI generation jobs not implemented yet",
+  });
+});
+
 module.exports = router;
 
 
