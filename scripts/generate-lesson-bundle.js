@@ -1,0 +1,206 @@
+// scripts/generate-lesson-bundle.js
+// Internal CLI. Not imported by runtime/server.
+// Optional OpenAI call; defaults to DRY-RUN mode (no network) unless --openai is used.
+
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const { spawnSync } = require("child_process");
+
+function loadJson(p) {
+  return JSON.parse(fs.readFileSync(p, "utf8"));
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function safeJsonFromModelText(text) {
+  // Strip ```json fences if present.
+  const cleaned = text
+    .replace(/```json\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  return JSON.parse(cleaned);
+}
+
+function pickTopicFromSeed(seed, { subjectId, levelId, boardId, topicId }) {
+  const subject = seed.subjects.find((s) => s.id === subjectId);
+  if (!subject) throw new Error(`Subject not found: ${subjectId}`);
+
+  const level = subject.levels.find((l) => l.id === levelId);
+  if (!level) throw new Error(`Level not found: ${subjectId}/${levelId}`);
+
+  const board = level.boards.find((b) => b.id === boardId);
+  if (!board) throw new Error(`Board not found: ${subjectId}/${levelId}/${boardId}`);
+
+  const topic = board.topics.find((t) => t.id === topicId);
+  if (!topic) throw new Error(`Topic not found: ${subjectId}/${levelId}/${boardId}/${topicId}`);
+
+  return { subject, level, board, topic };
+}
+
+function buildPrompt({ subject, level, board, topic }) {
+  // Keep this short and deterministic; contract/schema do the heavy lifting.
+  return [
+    "You are generating a Lesson Plan Bundle JSON object.",
+    "Return ONLY valid JSON (no markdown, no code fences).",
+    "The JSON MUST conform to the local schema: lesson-plan-bundle.schema.json",
+    "Hard rules:",
+    "- bundleVersion must be 1.0.0",
+    "- generatedAt must be an ISO date-time string",
+    "- lessons[0].isPublished must be false",
+    "- lessons[0].isFreePreview must be false",
+    "- include 3–8 pages; each page has 2–8 blocks",
+    "- include quizCheckpoint blocks with 1–2 MCQs; each MCQ has 4 choices and correctIndex 0–3",
+    "",
+    "Curriculum Topic:",
+    `- subjectId: ${subject.id} (${subject.name})`,
+    `- levelId: ${level.id} (${level.name})`,
+    `- boardId: ${board.id} (${board.name})`,
+    `- topicId: ${topic.id} (${topic.name})`,
+    `- subtopics: ${JSON.stringify(topic.subtopics || [])}`,
+    `- examRequirements: ${JSON.stringify(topic.examRequirements || [])}`
+  ].join("\n");
+}
+
+async function callOpenAI(prompt) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not set.");
+
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const url = "https://api.openai.com/v1/chat/completions";
+
+  const body = {
+    model,
+    temperature: 0.2,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You generate strict JSON only. No markdown. No explanations. Output must be parseable by JSON.parse."
+      },
+      { role: "user", content: prompt }
+    ]
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`OpenAI error ${res.status}: ${txt}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("No content returned from OpenAI.");
+  return text;
+}
+
+function validateWithLocalScript(outFile) {
+  const r = spawnSync("node", ["scripts/validate-lesson-bundle.js", outFile], {
+    stdio: "inherit"
+  });
+  if (r.status !== 0) process.exit(r.status ?? 1);
+}
+
+async function main() {
+  // Defaults: biology/gcse/aqa/photosynthesis
+  const args = new Map();
+  for (let i = 2; i < process.argv.length; i++) {
+    const a = process.argv[i];
+    const next = process.argv[i + 1];
+    if (a.startsWith("--")) {
+      args.set(a, next && !next.startsWith("--") ? next : true);
+    }
+  }
+
+  const subjectId = args.get("--subject") || "biology";
+  const levelId = args.get("--level") || "gcse";
+  const boardId = args.get("--board") || "aqa";
+  const topicId = args.get("--topic") || "photosynthesis";
+
+  const useOpenAI = !!args.get("--openai");
+  const outDir =
+    args.get("--outDir") ||
+    path.join("docs", "ai", "examples");
+
+  const seedPath = path.join(
+    "docs",
+    "curriculum",
+    "seeds",
+    "gcse-all-subjects.v1.json"
+  );
+
+  const seed = loadJson(seedPath);
+  const { subject, level, board, topic } = pickTopicFromSeed(seed, {
+    subjectId,
+    levelId,
+    boardId,
+    topicId
+  });
+
+  const prompt = buildPrompt({ subject, level, board, topic });
+
+  let bundle;
+  if (!useOpenAI) {
+    // DRY-RUN mode: copy an existing known-good sample and update timestamps/ids safely.
+    const samplePath = path.join(
+      "docs",
+      "ai",
+      "examples",
+      "sample-lesson-plan-bundle.v1.json"
+    );
+    bundle = loadJson(samplePath);
+    bundle.generatedAt = nowIso();
+    bundle.source = "manual-dry-run";
+  } else {
+    const text = await callOpenAI(prompt);
+    bundle = safeJsonFromModelText(text);
+  }
+
+  // Ensure the required invariants even if model tries to violate them:
+  bundle.bundleVersion = "1.0.0";
+  bundle.generatedAt = bundle.generatedAt || nowIso();
+  bundle.source = bundle.source || (useOpenAI ? "openai" : "manual-dry-run");
+
+  if (Array.isArray(bundle.lessons)) {
+    for (const l of bundle.lessons) {
+      if (typeof l.isPublished === "boolean") l.isPublished = false;
+      else l.isPublished = false;
+      if (typeof l.isFreePreview === "boolean") l.isFreePreview = false;
+      else l.isFreePreview = false;
+
+      // Optional review fields default:
+      if (!l.status) l.status = "draft";
+    }
+  }
+
+  fs.mkdirSync(outDir, { recursive: true });
+  const stamp = nowIso().replace(/[:.]/g, "-");
+  const hash = crypto.randomBytes(3).toString("hex");
+  const outFile = path.join(
+    outDir,
+    `generated-${subjectId}-${levelId}-${boardId}-${topicId}-${stamp}-${hash}.json`
+  );
+
+  fs.writeFileSync(outFile, JSON.stringify(bundle, null, 2), "utf8");
+  console.log("Wrote:", outFile);
+
+  // Validate via the same validator used elsewhere:
+  validateWithLocalScript(outFile);
+  console.log("✅ Generated bundle validated successfully.");
+}
+
+main().catch((e) => {
+  console.error("❌ Generation failed:", e?.message || e);
+  process.exit(1);
+});
+
