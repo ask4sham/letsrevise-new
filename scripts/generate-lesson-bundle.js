@@ -2,8 +2,10 @@
 // Internal CLI. Not imported by runtime/server.
 // Optional OpenAI call; defaults to DRY-RUN mode (no network) unless --openai is used.
 
-const fs = require("fs");
 const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", "backend", ".env") });
+
+const fs = require("fs");
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 
