@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/lesson-plan-bundle.schema.json",
+  "title": "LetsRevise Lesson Plan Bundle (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundleVersion", "generatedAt", "lessons"],
+  "properties": {
+    "bundleVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Lesson Plan Bundle contract version (semver)."
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this bundle was generated/assembled."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional origin (manual, prototype, generator name)."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional global metadata.",
+      "additionalProperties": true
+    },
+    "lessons": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Lesson" }
+    }
+  },
+  "$defs": {
+    "Slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Lowercase kebab-case stable identifier."
+    },
+    "NonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "StringArray": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/NonEmptyString" }
+    },
+    "Lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slug",
+        "title",
+        "subjectId",
+        "levelId",
+        "boardId",
+        "topicId",
+        "learningObjectives",
+        "keywords",
+        "pages"
+      ],
+      "properties": {
+        "slug": { "$ref": "#/$defs/Slug" },
+        "title": { "$ref": "#/$defs/NonEmptyString" },
+        "subjectId": { "$ref": "#/$defs/Slug" },
+        "levelId": { "$ref": "#/$defs/Slug" },
+        "boardId": { "$ref": "#/$defs/Slug" },
+        "topicId": { "$ref": "#/$defs/Slug" },
+
+        "isPublished": {
+          "type": "boolean",
+          "description": "Editorial flag only. Defaults to false in practice."
+        },
+        "isFreePreview": {
+          "type": "boolean",
+          "description": "Editorial flag only. Defaults to false in practice."
+        },
+
+        "learningObjectives": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/NonEmptyString" }
+        },
+        "keywords": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 50,
+          "items": { "$ref": "#/$defs/NonEmptyString" }
+        },
+        "examTips": {
+          "type": "array",
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/NonEmptyString" }
+        },
+        "commonMistakes": {
+          "type": "array",
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/NonEmptyString" }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "pages": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/Page" }
+        }
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "blocks"],
+      "properties": {
+        "title": { "$ref": "#/$defs/NonEmptyString" },
+        "metadata": { "type": "object", "additionalProperties": true },
+        "blocks": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/Block" }
+        }
+      }
+    },
+    "Block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "explanation",
+            "workedExample",
+            "diagramDescription",
+            "quizCheckpoint",
+            "summary",
+            "examStylePrompt"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "description": "Primary text content for the block where applicable."
+        },
+        "metadata": { "type": "object", "additionalProperties": true },
+        "mcqs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/MCQ" },
+          "description": "Only valid when type=quizCheckpoint."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "quizCheckpoint" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["mcqs"],
+            "properties": {
+              "content": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "diagramDescription" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["content"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "explanation",
+                  "workedExample",
+                  "summary",
+                  "examStylePrompt"
+                ]
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["content"]
+          }
+        }
+      ]
+    },
+    "MCQ": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question", "choices", "correctIndex", "rationale"],
+      "properties": {
+        "question": { "$ref": "#/$defs/NonEmptyString" },
+        "choices": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/NonEmptyString" }
+        },
+        "correctIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "rationale": { "$ref": "#/$defs/NonEmptyString" },
+        "misconceptionDistractors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/NonEmptyString" }
+        }
+      }
+    }
+  }
+}
+
