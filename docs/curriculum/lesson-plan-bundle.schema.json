@@ -175,6 +175,7 @@
           "then": {
             "required": ["mcqs"],
             "properties": {
+              "mcqs": {},
               "content": false
             }
           }
