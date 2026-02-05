@@ -1,0 +1,153 @@
+{
+  "bundleVersion": "1.0.0",
+  "generatedAt": "2023-10-01T12:00:00Z",
+  "lessons": [
+    {
+      "title": "Introduction to Photosynthesis",
+      "isPublished": false,
+      "isFreePreview": false,
+      "pages": [
+        {
+          "title": "Understanding Photosynthesis",
+          "blocks": [
+            {
+              "type": "text",
+              "content": "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll."
+            },
+            {
+              "type": "image",
+              "url": "https://example.com/photosynthesis_diagram.png"
+            }
+          ]
+        },
+        {
+          "title": "Word Equation",
+          "blocks": [
+            {
+              "type": "text",
+              "content": "The word equation for photosynthesis is: Carbon Dioxide + Water → Glucose + Oxygen."
+            },
+            {
+              "type": "quizCheckpoint",
+              "questions": [
+                {
+                  "question": "What is the word equation for photosynthesis?",
+                  "choices": [
+                    "Carbon Dioxide + Water → Glucose + Oxygen",
+                    "Glucose + Oxygen → Carbon Dioxide + Water",
+                    "Oxygen + Water → Glucose + Carbon Dioxide",
+                    "Carbon Dioxide + Oxygen → Water + Glucose"
+                  ],
+                  "correctIndex": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "title": "Limiting Factors of Photosynthesis",
+      "isPublished": false,
+      "isFreePreview": false,
+      "pages": [
+        {
+          "title": "Factors Affecting Photosynthesis",
+          "blocks": [
+            {
+              "type": "text",
+              "content": "The rate of photosynthesis can be affected by several factors including light intensity, carbon dioxide concentration, and temperature."
+            },
+            {
+              "type": "quizCheckpoint",
+              "questions": [
+                {
+                  "question": "Which factor does NOT affect the rate of photosynthesis?",
+                  "choices": [
+                    "Light intensity",
+                    "Temperature",
+                    "Soil pH",
+                    "Carbon dioxide concentration"
+                  ],
+                  "correctIndex": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Graph Interpretation",
+          "blocks": [
+            {
+              "type": "text",
+              "content": "Understanding how to interpret rate graphs is crucial for analyzing the effects of limiting factors."
+            },
+            {
+              "type": "quizCheckpoint",
+              "questions": [
+                {
+                  "question": "What does a plateau in a rate graph indicate?",
+                  "choices": [
+                    "Photosynthesis is increasing",
+                    "Photosynthesis is at maximum rate",
+                    "Photosynthesis is decreasing",
+                    "Photosynthesis is not occurring"
+                  ],
+                  "correctIndex": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "status": "draft"
+    },
+    {
+      "title": "Required Practicals in Photosynthesis",
+      "isPublished": false,
+      "isFreePreview": false,
+      "pages": [
+        {
+          "title": "Conducting Experiments",
+          "blocks": [
+            {
+              "type": "text",
+              "content": "Practical experiments can help demonstrate the effects of different factors on the rate of photosynthesis."
+            },
+            {
+              "type": "image",
+              "url": "https://example.com/practical_experiment.png"
+            }
+          ]
+        },
+        {
+          "title": "Analyzing Results",
+          "blocks": [
+            {
+              "type": "text",
+              "content": "After conducting experiments, it is important to analyze the results to draw conclusions about the factors affecting photosynthesis."
+            }
+          ]
+        }
+      ],
+      "status": "draft"
+    }
+  ],
+  "curriculum": {
+    "subjectId": "biology",
+    "levelId": "gcse",
+    "boardId": "aqa",
+    "topicId": "photosynthesis",
+    "subtopics": [
+      "Word equation",
+      "Limiting factors",
+      "Required practicals"
+    ],
+    "examRequirements": [
+      "Define photosynthesis",
+      "Interpret rate graphs"
+    ]
+  },
+  "source": "openai"
+}

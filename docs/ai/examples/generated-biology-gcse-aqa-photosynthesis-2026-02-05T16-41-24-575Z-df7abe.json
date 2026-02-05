@@ -1,0 +1,88 @@
+{
+  "bundleVersion": "1.0.0",
+  "generatedAt": "2023-10-01T12:00:00Z",
+  "source": "Biology Curriculum",
+  "lessons": [
+    {
+      "isPublished": false,
+      "isFreePreview": false,
+      "status": "draft",
+      "pages": [
+        {
+          "blocks": [
+            {
+              "type": "explanation",
+              "content": "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll."
+            },
+            {
+              "type": "workedExample",
+              "content": "An example of a photosynthesis equation is: 6CO2 + 6H2O -> C6H12O6 + 6O2."
+            }
+          ]
+        },
+        {
+          "blocks": [
+            {
+              "type": "quizCheckpoint",
+              "mcqs": [
+                {
+                  "question": "What is the main product of photosynthesis?",
+                  "choices": [
+                    "Oxygen",
+                    "Glucose",
+                    "Carbon Dioxide",
+                    "Water"
+                  ],
+                  "correctIndex": 1,
+                  "rationale": "Glucose is the main product of photosynthesis, which is used by plants for energy."
+                },
+                {
+                  "question": "Which gas is consumed during photosynthesis?",
+                  "choices": [
+                    "Oxygen",
+                    "Nitrogen",
+                    "Carbon Dioxide",
+                    "Hydrogen"
+                  ],
+                  "correctIndex": 2,
+                  "rationale": "Carbon Dioxide is consumed during photosynthesis to produce glucose."
+                }
+              ]
+            },
+            {
+              "type": "summary",
+              "content": "In summary, photosynthesis converts light energy into chemical energy stored in glucose."
+            }
+          ]
+        },
+        {
+          "blocks": [
+            {
+              "type": "diagramDescription",
+              "content": "A diagram of the photosynthesis process showing sunlight, chlorophyll, water, and carbon dioxide inputs leading to glucose and oxygen outputs."
+            },
+            {
+              "type": "examStylePrompt",
+              "content": "Explain the role of chlorophyll in photosynthesis."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "curriculum": {
+    "subjectId": "biology",
+    "levelId": "gcse",
+    "boardId": "aqa",
+    "topicId": "photosynthesis",
+    "subtopics": [
+      "Word equation",
+      "Limiting factors",
+      "Required practicals"
+    ],
+    "examRequirements": [
+      "Define photosynthesis",
+      "Interpret rate graphs"
+    ]
+  }
+}
