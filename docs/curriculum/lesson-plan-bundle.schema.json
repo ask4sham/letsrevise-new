@@ -78,6 +78,16 @@
           "description": "Editorial flag only. Defaults to false in practice."
         },
 
+        "status": {
+          "type": "string",
+          "enum": ["draft", "approved", "rejected"],
+          "description": "Human review status; optional."
+        },
+        "reviewNotes": {
+          "type": "string",
+          "description": "Optional free-text review notes."
+        },
+
         "learningObjectives": {
           "type": "array",
           "minItems": 3,
