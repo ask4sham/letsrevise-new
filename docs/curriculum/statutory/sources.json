@@ -4,25 +4,14 @@
   "jurisdiction": "UK",
   "sources": [
     {
-      "id": "dfe-national-curriculum",
-      "authority": "Department for Education",
-      "country": "UK",
-      "appliesTo": ["KS1", "KS2", "KS3", "KS4"],
-      "url": "https://www.gov.uk/government/collections/national-curriculum",
-      "format": "html/pdf",
-      "ingestion": "manual",
-      "status": "authoritative",
-      "notes": "Primary statutory source for England. Parsed into internal curriculum specs."
-    },
-    {
       "sourceId": "dfe-gcse",
       "authority": "Department for Education",
-      "scope": ["GCSE"],
-      "subjects": "all",
-      "officialUrl": "https://www.gov.uk/government/collections/gcse-subject-content",
-      "updatePolicy": "manual-review",
-      "trustLevel": "statutory",
-      "notes": "Canonical statutory subject content. Exam boards map onto this."
+      "scope": "GCSE",
+      "region": "England",
+      "url": "https://www.gov.uk/government/collections/gcse-subject-content",
+      "maintainedBy": "DfE",
+      "updateCadence": "irregular",
+      "notes": "Primary statutory source for GCSE subject content in England. Used as the canonical reference for curriculum alignment."
     }
   ]
 }
