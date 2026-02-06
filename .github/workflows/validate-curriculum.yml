@@ -1,0 +1,21 @@
+name: Validate Curriculum Artifacts
+
+on:
+  push:
+    paths:
+      - 'docs/curriculum/**'
+      - 'scripts/**'
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
+      - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-biology.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
+      - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-chemistry.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
