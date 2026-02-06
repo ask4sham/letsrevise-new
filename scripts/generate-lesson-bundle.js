@@ -178,6 +178,12 @@ async function main() {
     }
   }
 
+  const limitRaw = args.get("--limit");
+  const limit =
+    limitRaw === undefined
+      ? 1
+      : Math.max(1, Number.parseInt(String(limitRaw), 10) || 1);
+
   const mappingPath = path.join(
     "docs",
     "curriculum",
@@ -185,8 +191,11 @@ async function main() {
     "dfe-gcse-biology.map.json"
   );
   const mappingData = loadJson(mappingPath);
-  const firstMapping =
-    (mappingData && Array.isArray(mappingData.mappings) && mappingData.mappings[0]) || {};
+  const limitedMappings =
+    mappingData && Array.isArray(mappingData.mappings)
+      ? mappingData.mappings.slice(0, limit)
+      : [];
+  const firstMapping = limitedMappings[0] || {};
 
   const defaultSubjectId = firstMapping.subjectId || "biology";
   const defaultLevelId = firstMapping.levelId || "gcse";
