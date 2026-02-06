@@ -4,5 +4,22 @@
   "sourceId": "dfe-gcse",
   "target": "letsrevise-curriculum",
   "lastUpdated": "2026-02-06",
-  "mappings": []
+  "mappings": [
+    {
+      "source": {
+        "subject": "Biology",
+        "level": "GCSE",
+        "board": "AQA",
+        "topicCode": "BIO-PHOTOSYNTHESIS"
+      },
+      "target": {
+        "subjectId": "biology",
+        "levelId": "gcse",
+        "boardId": "aqa",
+        "topicId": "photosynthesis"
+      },
+      "confidence": "high",
+      "notes": "DfE GCSE Biology photosynthesis topic mapped to LetsRevise canonical topic."
+    }
+  ]
 }
