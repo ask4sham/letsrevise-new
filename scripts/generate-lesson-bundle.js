@@ -178,10 +178,25 @@ async function main() {
     }
   }
 
-  const subjectId = args.get("--subject") || "biology";
-  const levelId = args.get("--level") || "gcse";
-  const boardId = args.get("--board") || "aqa";
-  const topicId = args.get("--topic") || "photosynthesis";
+  const mappingPath = path.join(
+    "docs",
+    "curriculum",
+    "mappings",
+    "dfe-gcse-biology.map.json"
+  );
+  const mappingData = loadJson(mappingPath);
+  const firstMapping =
+    (mappingData && Array.isArray(mappingData.mappings) && mappingData.mappings[0]) || {};
+
+  const defaultSubjectId = firstMapping.subjectId || "biology";
+  const defaultLevelId = firstMapping.levelId || "gcse";
+  const defaultBoardId = firstMapping.boardId || "aqa";
+  const defaultTopicId = firstMapping.topicId || "photosynthesis";
+
+  const subjectId = args.get("--subject") || defaultSubjectId;
+  const levelId = args.get("--level") || defaultLevelId;
+  const boardId = args.get("--board") || defaultBoardId;
+  const topicId = args.get("--topic") || defaultTopicId;
 
   const useOpenAI = !!args.get("--openai");
   const outDir =
