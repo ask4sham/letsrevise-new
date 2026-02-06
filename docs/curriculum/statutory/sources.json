@@ -1,1 +1,18 @@
-{}
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-06",
+  "jurisdiction": "UK",
+  "sources": [
+    {
+      "id": "dfe-national-curriculum",
+      "authority": "Department for Education",
+      "country": "UK",
+      "appliesTo": ["KS1", "KS2", "KS3", "KS4"],
+      "url": "https://www.gov.uk/government/collections/national-curriculum",
+      "format": "html/pdf",
+      "ingestion": "manual",
+      "status": "authoritative",
+      "notes": "Primary statutory source for England. Parsed into internal curriculum specs."
+    }
+  ]
+}
