@@ -1,1 +1,70 @@
-
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/curriculum-mapping.schema.json",
+  "title": "Curriculum Mapping Schema",
+  "description": "Defines how statutory curriculum sources map to LetsRevise internal curriculum identifiers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "sourceId", "target", "lastUpdated", "mappings"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version for this mapping file."
+    },
+    "sourceId": {
+      "type": "string",
+      "description": "ID of the statutory source (must match sources.json)."
+    },
+    "target": {
+      "type": "string",
+      "const": "letsrevise-curriculum",
+      "description": "Target curriculum system."
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this mapping was last reviewed."
+    },
+    "mappings": {
+      "type": "array",
+      "description": "List of mappings from statutory identifiers to LetsRevise curriculum nodes.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "statutoryRef",
+          "subjectId",
+          "levelId",
+          "boardId",
+          "topicId"
+        ],
+        "properties": {
+          "statutoryRef": {
+            "type": "string",
+            "description": "Official statutory reference (e.g. DfE code or section)."
+          },
+          "subjectId": {
+            "type": "string",
+            "description": "LetsRevise subject ID."
+          },
+          "levelId": {
+            "type": "string",
+            "description": "LetsRevise level ID (e.g. gcse)."
+          },
+          "boardId": {
+            "type": "string",
+            "description": "Exam board or authority ID."
+          },
+          "topicId": {
+            "type": "string",
+            "description": "Canonical topic ID in LetsRevise."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional human notes about this mapping."
+          }
+        }
+      }
+    }
+  }
+}
