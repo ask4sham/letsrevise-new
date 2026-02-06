@@ -7,11 +7,10 @@
     {
       "sourceId": "dfe-gcse",
       "authority": "Department for Education",
-      "scope": "GCSE",
-      "region": "England",
-      "url": "https://www.gov.uk/government/collections/gcse-subject-content",
-      "maintainedBy": "DfE",
-      "updateCadence": "irregular",
+      "scope": ["GCSE"],
+      "officialUrl": "https://www.gov.uk/government/collections/gcse-subject-content",
+      "updatePolicy": "manual-review",
+      "trustLevel": "statutory",
       "notes": "Primary statutory source for GCSE subject content in England. Used as the canonical reference for curriculum alignment."
     }
   ]
