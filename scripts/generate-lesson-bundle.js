@@ -250,6 +250,7 @@ async function main() {
   bundle.bundleVersion = "1.0.0";
   bundle.generatedAt = bundle.generatedAt || nowIso();
   bundle.source = bundle.source || (useOpenAI ? "openai" : "manual-dry-run");
+  bundle.aiGenerated = true;
 
   if (Array.isArray(bundle.lessons)) {
     for (const l of bundle.lessons) {
