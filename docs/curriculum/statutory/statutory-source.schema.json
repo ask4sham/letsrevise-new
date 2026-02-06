@@ -1,1 +1,45 @@
-
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/statutory-source.schema.json",
+  "title": "Statutory Curriculum Source",
+  "type": "object",
+  "required": ["id", "authority", "country", "appliesTo", "url", "lastReviewed"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable internal identifier for the statutory source"
+    },
+    "authority": {
+      "type": "string",
+      "description": "Issuing authority (e.g. Department for Education)"
+    },
+    "country": {
+      "type": "string",
+      "enum": ["UK"],
+      "description": "Jurisdiction country"
+    },
+    "appliesTo": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["KS1", "KS2", "KS3", "KS4", "GCSE"]
+      },
+      "minItems": 1
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Canonical public URL for the statutory document"
+    },
+    "lastReviewed": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this source was last checked for updates"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional human notes about scope or parsing"
+    }
+  }
+}
