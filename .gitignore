@@ -20,3 +20,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 static-site/core/ai-integration/config/api-keys.json
+
+# AI-generated lesson bundles (ephemeral)
+docs/ai/examples/generated-*.json
