@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": ["version", "sourceId", "target", "lastUpdated", "mappings"],
   "properties": {
+    "$schema": { "type": "string", "format": "uri" },
     "version": {
       "type": "string",
       "description": "Schema version for this mapping file."
