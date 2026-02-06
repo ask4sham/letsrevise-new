@@ -1,0 +1,17 @@
+{
+  "$schema": "https://letsrevise.app/schemas/curriculum-mapping.schema.json",
+  "version": "1.0.0",
+  "sourceId": "dfe-gcse",
+  "target": "letsrevise-curriculum",
+  "lastUpdated": "2026-02-06",
+  "mappings": [
+    {
+      "statutoryRef": "CHE-ATOMIC-STRUCTURE",
+      "subjectId": "chemistry",
+      "levelId": "gcse",
+      "boardId": "aqa",
+      "topicId": "atomic-structure",
+      "notes": "DfE GCSE Chemistry atomic structure topic mapping (starter)."
+    }
+  ]
+}
