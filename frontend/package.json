@@ -35,7 +35,7 @@
     "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "format": "prettier --write ."
   },
   "eslintConfig": {
