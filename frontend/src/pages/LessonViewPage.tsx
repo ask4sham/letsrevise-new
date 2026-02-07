@@ -1708,6 +1708,21 @@ const LessonViewPage: React.FC = () => {
                   </h2>
                 </div>
 
+                {curriculumConfidence && (
+                  <div>
+                    <h3>Curriculum Coverage</h3>
+                    <p>✔ DfE GCSE {(curriculumConfidence as any).subject}</p>
+                    <p>✔ {(curriculumConfidence as any).board} ({(curriculumConfidence as any).specVersion})</p>
+                    <h3>Review</h3>
+                    <p>
+                      Reviewed by: {(curriculumConfidence as any).review?.reviewedBy?.name}
+                      {" "}({(curriculumConfidence as any).review?.reviewedBy?.experienceYears} yrs)
+                    </p>
+                    <h3>Provenance</h3>
+                    <p>AI-assisted, human-approved</p>
+                  </div>
+                )}
+
                 {renderHero(currentPage.hero)}
 
                 {/* ✅ Visual (changes per page) */}
