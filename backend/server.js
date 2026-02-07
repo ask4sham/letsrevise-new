@@ -55,6 +55,8 @@ const parentLinkRoutes = require("./routes/parentLink");
 
 // ✅ NEW: template routes
 const templateRoutes = require("./routes/templates.routes");
+
+const curriculumConfidenceRouter = require("./routes/curriculumConfidence");
 // AI Generation Jobs routes are part of the overall API surface and are
 // intentionally mounted early as placeholders; they currently have no
 // handlers or behavior and serve only to stabilise route namespaces.
@@ -257,6 +259,8 @@ app.use("/api/parent", require("./routes/parent"));
 
 // ✅ NEW: Add template routes
 app.use("/api/templates", templateRoutes);
+
+app.use("/api/curriculum-confidence", curriculumConfidenceRouter);
 
 /* ============================================================
    COMPATIBILITY ROUTES
