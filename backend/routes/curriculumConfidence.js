@@ -1,31 +1,50 @@
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
+
 const router = express.Router();
+
+const STATUTORY_PATH = path.join(process.cwd(), "docs", "curriculum", "statutory", "england-gcse-biology.v1.json");
+const BOARD_SPEC_PATH = path.join(process.cwd(), "docs", "curriculum", "boards", "aqa-gcse-biology-photosynthesis.v1.json");
 
 /**
  * GET /api/curriculum-confidence/:lessonId
  * Returns curriculum confidence payload shaped like teacher-curriculum-confidence.contract.json.
- * Placeholder implementation; no DB or auth yet.
+ * Derives curriculumCoverage from statutory + board spec files; review + provenance hardcoded.
  */
 router.get("/:lessonId", (req, res) => {
   const lessonId = req.params.lessonId;
+
+  let statutoryData;
+  let boardSpec;
+  try {
+    statutoryData = JSON.parse(fs.readFileSync(STATUTORY_PATH, "utf8"));
+    boardSpec = JSON.parse(fs.readFileSync(BOARD_SPEC_PATH, "utf8"));
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to load curriculum data" });
+  }
+
+  const mapsToDfE = boardSpec.mapsToDfE || [];
+  const examRequirements = boardSpec.examRequirements || [];
+  const authority = statutoryData.authority || "DfE";
+
+  const curriculumCoverage = {
+    statutory: mapsToDfE.map((statementId) => ({ authority, statementId })),
+    examBoard: examRequirements.map((specPoint) => ({
+      board: boardSpec.board,
+      topic: boardSpec.topic,
+      specPoint
+    }))
+  };
+
   res.status(200).json({
     lessonId,
-    subject: "Biology",
-    level: "GCSE",
-    board: "AQA",
-    specVersion: "2025",
-    curriculumCoverage: {
-      statutory: [
-        { authority: "DfE", statementId: "DFE-BIO-KS4-4.1" }
-      ],
-      examBoard: [
-        {
-          board: "AQA",
-          topic: "Photosynthesis",
-          specPoint: "Interpret graphs showing limiting factors"
-        }
-      ]
-    },
+    subject: boardSpec.subject,
+    level: boardSpec.level,
+    board: boardSpec.board,
+    specVersion: boardSpec.specVersion,
+    topic: boardSpec.topic,
+    curriculumCoverage,
     review: {
       status: "approved",
       reviewedBy: {
