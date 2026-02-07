@@ -1,0 +1,17 @@
+{
+  "authority": "DfE",
+  "jurisdiction": "England",
+  "framework": "National Curriculum",
+  "subject": "Biology",
+  "keyStage": "KS4",
+  "effectiveFrom": "2016-09-01",
+  "sourceUrl": "https://www.gov.uk/government/publications/gcse-subject-content-for-biology",
+  "version": "v1",
+  "statements": [
+    {
+      "id": "DFE-BIO-KS4-4.1",
+      "text": "Photosynthesis is the process by which plants manufacture carbohydrates using light energy.",
+      "notes": "Includes word equation and balanced symbol equation."
+    }
+  ]
+}
