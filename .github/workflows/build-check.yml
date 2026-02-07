@@ -35,7 +35,9 @@ jobs:
     - name: Run Frontend Lint Check
       run: |
         cd frontend
-        npm run lint || echo "Lint check completed"
+        npm run lint
+      env:
+        CI: false
         
     - name: Run Security Audit
       run: |
