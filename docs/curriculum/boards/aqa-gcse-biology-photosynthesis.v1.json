@@ -1,0 +1,16 @@
+{
+  "board": "AQA",
+  "subject": "Biology",
+  "level": "GCSE",
+  "specVersion": "2025",
+  "topic": "Photosynthesis",
+  "mapsToDfE": [
+    "DFE-BIO-KS4-4.1"
+  ],
+  "examRequirements": [
+    "Define photosynthesis",
+    "State the word equation for photosynthesis",
+    "Interpret graphs showing limiting factors"
+  ],
+  "tier": "both"
+}
