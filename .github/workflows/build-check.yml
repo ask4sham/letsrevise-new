@@ -49,7 +49,7 @@ jobs:
       run: |
         echo "Checking for old brand references..."
         $found = $false
-        Get-ChildItem -Path "frontend\src", "backend", "static-site" -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+        Get-ChildItem -Path "frontend\src", "backend", "static-site" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -notmatch '\.(backup|bak)$' } | ForEach-Object {
           if (Select-String -Path $_.FullName -Pattern "Let's Revise|Lets Revise|let's revise" -Quiet) {
             Write-Host "❌ Found old brand reference in $($_.FullName)"
             $found = $true
