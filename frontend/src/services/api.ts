@@ -1,4 +1,4 @@
-// /frontend/src/services/api.ts
+// frontend/src/services/api.ts
 import axios, {
   AxiosError,
   AxiosHeaders,
@@ -32,11 +32,50 @@ function normalizeApiHost(raw: string) {
 }
 
 const API_HOST = normalizeApiHost(RAW_API_BASE);
+const BASE_URL = `${API_HOST}/api`;
+
+// ---- Guardrail logging + warnings (prevents silent drift) ----
+(function logApiTargetOnce() {
+  // eslint-disable-next-line no-console
+  console.info("[LetsRevise] API_HOST:", API_HOST);
+  // eslint-disable-next-line no-console
+  console.info("[LetsRevise] axios baseURL:", BASE_URL);
+
+  try {
+    const isLocalUI =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+
+    const apiIsRender = API_HOST.includes("onrender.com");
+    const apiIsLocal =
+      API_HOST.includes("localhost") || API_HOST.includes("127.0.0.1");
+
+    if (isLocalUI && apiIsRender) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[LetsRevise] WARNING: UI is running on localhost but API_HOST points to Render. " +
+          "This commonly causes invalid signature / 401 logout loops. " +
+          "Fix env + clear localStorage + re-login."
+      );
+    }
+
+    if (!isLocalUI && apiIsLocal) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[LetsRevise] WARNING: UI is not localhost but API_HOST points to localhost. " +
+          "This is likely misconfigured for production/staging."
+      );
+    }
+  } catch {
+    // Ignore non-browser environments
+  }
+})();
+// -------------------------------------------------------------
 
 // Create axios instance with correct base URL
 const api: AxiosInstance = axios.create({
-  baseURL: `${API_HOST}/api`,
-  timeout: 10000,
+  baseURL: BASE_URL,
+  timeout: 120000, // 120 seconds for AI calls
   headers: {
     "Content-Type": "application/json",
   },
@@ -57,10 +96,7 @@ api.interceptors.request.use(
         config.headers = AxiosHeaders.from(config.headers as any);
       }
 
-      (config.headers as AxiosHeaders).set(
-        "Authorization",
-        `Bearer ${token}`
-      );
+      (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
     }
 
     return config;
@@ -123,13 +159,16 @@ export const apiCall = async <T = any>(
 };
 
 // Convenience exports (backwards-compatible)
-export const get = (url: string, params?: any) =>
-  api.get(url, { params });
-export const post = (url: string, data?: any) =>
-  api.post(url, data);
-export const put = (url: string, data?: any) =>
-  api.put(url, data);
-export const del = (url: string) =>
-  api.delete(url);
+export const get = (url: string, params?: any) => api.get(url, { params });
+export const post = (url: string, data?: any) => api.post(url, data);
+export const put = (url: string, data?: any) => api.put(url, data);
+export const del = (url: string) => api.delete(url);
+
+// ✅ NEW: Visuals helper
+// GET /api/visuals/:conceptKey?level=KS3|GCSE|A-Level
+export const getVisual = (conceptKey: string, level: string) =>
+  api.get(`/visuals/${encodeURIComponent(conceptKey)}`, {
+    params: { level },
+  });
 
 export default api;

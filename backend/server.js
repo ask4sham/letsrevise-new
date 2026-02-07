@@ -1,4 +1,4 @@
-﻿// /backend/server.js
+// backend/server.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -9,10 +9,21 @@ const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 // ✅ Load .env first
 dotenv.config();
 
+// ✅ DEBUG: Check JWT_SECRET_KEY is loaded
+console.log("🔐 Environment check:");
+console.log("  JWT_SECRET_KEY exists:", !!process.env.JWT_SECRET_KEY);
+console.log("  JWT_SECRET_KEY length:", process.env.JWT_SECRET_KEY ? process.env.JWT_SECRET_KEY.length : "N/A");
+console.log("  JWT_SECRET exists:", !!process.env.JWT_SECRET);
+console.log("  JWT_SECRET length:", process.env.JWT_SECRET ? process.env.JWT_SECRET.length : "N/A");
+
 const path = require("path");
 const fs = require("fs");
 const connectDB = require("./config/database");
 
+// Import the app from app.js instead of creating new express app
+const app = require("./app");
+
+// Import routes
 const authRoutes = require("./routes/auth");
 const lessonRoutes = require("./routes/lessons");
 const earningsRoutes = require("./routes/earnings");
@@ -24,14 +35,32 @@ const subscriptionRoutes = require("./routes/subscriptions");
 const payoutRoutes = require("./routes/payouts");
 const adminRoutes = require("./routes/admin");
 const aiRoutes = require("./routes/ai");
+const aiGenerationJobsRoutes = require("./routes/aiGenerationJobs");
 const contentTreeRoutes = require("./routes/content-tree");
 const uploadsRoutes = require("./routes/uploads");
 const quizzesRoutes = require("./routes/quizzes");
+const assessmentPapersRoutes = require("./routes/assessmentPapers");
+
+// ✅ NEW: assessment items routes
+const assessmentItemsRoutes = require("./routes/assessmentItems");
+
+// ✅ NEW: assessment attempts routes
+const assessmentAttemptsRoutes = require("./routes/assessmentAttempts");
+
+// ✅ NEW: exam question bank (teacher only)
+const examQuestionsRoutes = require("./routes/examQuestions");
 
 // ✅ NEW: parent-link approval routes
 const parentLinkRoutes = require("./routes/parentLink");
 
-const app = express();
+// ✅ NEW: template routes
+const templateRoutes = require("./routes/templates.routes");
+// AI Generation Jobs routes are part of the overall API surface and are
+// intentionally mounted early as placeholders; they currently have no
+// handlers or behavior and serve only to stabilise route namespaces.
+
+// We already have app from app.js, so we don't create a new one
+// const app = express(); // REMOVED - using imported app instead
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
@@ -63,8 +92,14 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-app.use(express.json());
+// JSON parsing already in app.js, but we can add helmet here
 app.use(helmet()); // ✅ enable Helmet after JSON parsing
+
+// ✅ FINAL HARDENING (REQUIRED for images & visuals)
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
 
 // Simple request logger (dev only)
 if (process.env.NODE_ENV !== "production") {
@@ -82,7 +117,16 @@ if (process.env.NODE_ENV !== "production") {
 const uploadsRootPath = path.join(__dirname, "uploads");
 if (fs.existsSync(uploadsRootPath)) {
   console.log("Uploads folder found, serving at /uploads ...", uploadsRootPath);
-  app.use("/uploads", express.static(uploadsRootPath));
+
+  app.use(
+    "/uploads",
+    express.static(uploadsRootPath, {
+      setHeaders: (res) => {
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      },
+    })
+  );
 } else {
   console.log("Uploads folder not found at:", uploadsRootPath);
 }
@@ -96,8 +140,26 @@ if (fs.existsSync(contentRootPath)) {
   console.log("Content root not found at:", contentRootPath);
 }
 
+// Serve visuals
+const visualsRootPath = path.join(__dirname, "public", "visuals");
+if (fs.existsSync(visualsRootPath)) {
+  console.log("Visuals folder found, serving at /visuals ...", visualsRootPath);
+
+  app.use(
+    "/visuals",
+    express.static(visualsRootPath, {
+      setHeaders: (res) => {
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      },
+    })
+  );
+} else {
+  console.log("Visuals folder not found at:", visualsRootPath);
+}
+
 /* ============================================================
-   DEBUG HELPERS (safe)
+   DEBUG HELPERS
 ============================================================ */
 
 function getCommit() {
@@ -105,9 +167,10 @@ function getCommit() {
 }
 
 function jwtSecretFingerprint() {
-  const raw = process.env.JWT_SECRET;
+  // ✅ CHANGED: Use JWT_SECRET_KEY instead of JWT_SECRET
+  const raw = process.env.JWT_SECRET_KEY;
   const secret = typeof raw === "string" ? raw.trim() : "";
-  if (!secret) return { ok: false, fingerprint: "JWT_SECRET missing" };
+  if (!secret) return { ok: false, fingerprint: "JWT_SECRET_KEY missing" };
 
   const hash = crypto.createHash("sha256").update(secret).digest("hex");
   return {
@@ -117,7 +180,10 @@ function jwtSecretFingerprint() {
 }
 
 function debugEnabled() {
-  return process.env.DEBUG_ENDPOINTS === "1" || process.env.DEBUG_ENDPOINTS === "true";
+  return (
+    process.env.DEBUG_ENDPOINTS === "1" ||
+    process.env.DEBUG_ENDPOINTS === "true"
+  );
 }
 
 /* ============================================================
@@ -125,28 +191,25 @@ function debugEnabled() {
 ============================================================ */
 
 app.get("/api/health", (req, res) => {
-  console.log("=== HEALTH ENDPOINT HIT ===");
   res.json({
     status: "OK",
     message: "LetsRevise API is running",
-    commit: getCommit(), // ✅ proves what is deployed
+    commit: getCommit(),
   });
 });
 
 /* ============================================================
-   ✅ GLOBAL DEBUG (guarded in production)
-   GET /api/_debug/info
+   DEBUG INFO
 ============================================================ */
 
 app.get("/api/_debug/info", (req, res) => {
   if (!debugEnabled()) {
-    return res.status(404).json({ msg: "API route not found", path: req.originalUrl });
+    return res.status(404).json({ msg: "API route not found" });
   }
 
   const fp = jwtSecretFingerprint();
-  return res.json({
+  res.json({
     SERVER_DEBUG_ACTIVE: true,
-    host: req.get("host"),
     commit: getCommit(),
     jwtSecretOk: fp.ok,
     jwtSecretFingerprint: fp.fingerprint,
@@ -154,15 +217,12 @@ app.get("/api/_debug/info", (req, res) => {
 });
 
 /* ============================================================
-   API ROUTES (SINGLE SOURCE OF TRUTH)
+   API ROUTES
 ============================================================ */
 
-// ✅ Rate limit auth routes (login/register/etc.)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // per IP per window
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: 15 * 60 * 1000,
+  max: 50,
 });
 
 app.use("/api/auth", authLimiter, authRoutes);
@@ -176,24 +236,41 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/payouts", payoutRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
+// AI generation jobs API namespace (placeholder router with no handlers yet; behavior will be added incrementally)
+app.use("/api/ai-generation-jobs", aiGenerationJobsRoutes);
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/content-tree", contentTreeRoutes);
-
-// ✅ NEW: approval endpoints for parent-link flow
-app.use("/api/parent-link", parentLinkRoutes);
-
-console.log("Mounting /api/quizzes routes...");
+app.use("/api/visuals", require("./routes/visuals"));
 app.use("/api/quizzes", quizzesRoutes);
+app.use("/api/assessment-papers", assessmentPapersRoutes);
 
-// ✅ Parent routes (this is what makes /api/parent/children/:childId/progress work)
+// ✅ Add assessment items routes
+app.use("/api/assessment-items", assessmentItemsRoutes);
+
+// ✅ Add assessment attempts routes
+app.use("/api/assessment-attempts", assessmentAttemptsRoutes);
+
+app.use("/api/exam-questions", examQuestionsRoutes);
+
+app.use("/api/parent-link", parentLinkRoutes);
 app.use("/api/parent", require("./routes/parent"));
 
-// Helpful API 404
+// ✅ NEW: Add template routes
+app.use("/api/templates", templateRoutes);
+
+/* ============================================================
+   COMPATIBILITY ROUTES
+============================================================ */
+
+app.get("/api/lesson_reviews", (req, res) => res.json([]));
+app.get("/lesson_reviews", (req, res) => res.json([]));
+
+/* ============================================================
+   API 404
+============================================================ */
+
 app.use("/api", (req, res) => {
-  return res.status(404).json({
-    msg: "API route not found",
-    path: req.originalUrl,
-  });
+  res.status(404).json({ msg: "API route not found" });
 });
 
 /* ============================================================
@@ -201,17 +278,11 @@ app.use("/api", (req, res) => {
 ============================================================ */
 
 const staticSitePath = path.join(__dirname, "../static-site/website");
-console.log("Static site path:", staticSitePath);
 
 if (fs.existsSync(staticSitePath)) {
-  console.log("Static site found, serving files...");
   app.use(express.static(staticSitePath));
-} else {
-  console.log("Static site not found at:", staticSitePath);
-  console.log("Current directory:", __dirname);
 }
 
-// Serve index.html
 app.get("/", (req, res) => {
   const indexFile = path.join(staticSitePath, "index.html");
   if (fs.existsSync(indexFile)) {
@@ -221,12 +292,17 @@ app.get("/", (req, res) => {
   }
 });
 
+/* ============================================================
+   START SERVER
+============================================================ */
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health: http://localhost:${PORT}/api/health`);
-  console.log(`Quizzes: http://localhost:${PORT}/api/quizzes`);
-  console.log(`Content Tree API: http://localhost:${PORT}/api/content-tree?stage=ks3`);
   console.log(`Uploads: http://localhost:${PORT}/uploads`);
-  console.log(`Static site served from: ${staticSitePath}`);
-  console.log(`Open browser at: http://localhost:${PORT}`);
+  console.log(`Visuals: http://localhost:${PORT}/visuals`);
+  console.log(`Templates: http://localhost:${PORT}/api/templates`);
+  console.log(`Assessment Items: http://localhost:${PORT}/api/assessment-items`);
+  console.log(`Assessment Papers: http://localhost:${PORT}/api/assessment-papers`);
+  console.log(`Assessment Attempts: http://localhost:${PORT}/api/assessment-attempts`);
 });

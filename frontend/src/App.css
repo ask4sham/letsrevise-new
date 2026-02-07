@@ -374,3 +374,10 @@ tr:hover td {
 .bg-green-50 { background-color: #f0fdf4; }
 .bg-red-50 { background-color: #fef2f2; }
 .bg-yellow-50 { background-color: #fffbeb; }
+
+/* Create Lesson editor: stack sidebar above main on small screens */
+@media (max-width: 768px) {
+  .create-lesson-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

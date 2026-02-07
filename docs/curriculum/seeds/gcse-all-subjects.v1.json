@@ -1,0 +1,145 @@
+{
+  "specVersion": "1.0.0",
+  "generatedAt": "2026-02-04T00:00:00Z",
+  "source": "manual-seed",
+  "subjects": [
+    {
+      "id": "biology",
+      "name": "Biology",
+      "levels": [
+        {
+          "id": "gcse",
+          "name": "GCSE",
+          "boards": [
+            {
+              "id": "aqa",
+              "name": "AQA",
+              "topics": [
+                {
+                  "id": "cell-biology",
+                  "name": "Cell Biology",
+                  "subtopics": [
+                    "Cell structure",
+                    "Microscopy",
+                    "Cell division"
+                  ],
+                  "examRequirements": [
+                    "Describe cell structures",
+                    "Explain mitosis"
+                  ]
+                },
+                {
+                  "id": "photosynthesis",
+                  "name": "Photosynthesis",
+                  "subtopics": [
+                    "Word equation",
+                    "Limiting factors",
+                    "Required practicals"
+                  ],
+                  "examRequirements": [
+                    "Define photosynthesis",
+                    "Interpret rate graphs"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chemistry",
+      "name": "Chemistry",
+      "levels": [
+        {
+          "id": "gcse",
+          "name": "GCSE",
+          "boards": [
+            {
+              "id": "aqa",
+              "name": "AQA",
+              "topics": [
+                {
+                  "id": "atomic-structure",
+                  "name": "Atomic Structure",
+                  "subtopics": [
+                    "Atoms",
+                    "Isotopes",
+                    "Electronic structure"
+                  ],
+                  "examRequirements": [
+                    "Describe subatomic particles",
+                    "Explain electron shells"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "physics",
+      "name": "Physics",
+      "levels": [
+        {
+          "id": "gcse",
+          "name": "GCSE",
+          "boards": [
+            {
+              "id": "aqa",
+              "name": "AQA",
+              "topics": [
+                {
+                  "id": "forces",
+                  "name": "Forces",
+                  "subtopics": [
+                    "Contact forces",
+                    "Distance-time graphs",
+                    "Newton's laws"
+                  ],
+                  "examRequirements": [
+                    "Interpret motion graphs",
+                    "Apply Newton's laws"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mathematics",
+      "name": "Mathematics",
+      "levels": [
+        {
+          "id": "gcse",
+          "name": "GCSE",
+          "boards": [
+            {
+              "id": "edexcel",
+              "name": "Edexcel",
+              "topics": [
+                {
+                  "id": "algebra",
+                  "name": "Algebra",
+                  "subtopics": [
+                    "Expressions",
+                    "Equations",
+                    "Graphs"
+                  ],
+                  "examRequirements": [
+                    "Solve linear equations",
+                    "Interpret graphs"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

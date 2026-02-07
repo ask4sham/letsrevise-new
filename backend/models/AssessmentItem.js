@@ -1,129 +1,127 @@
 // backend/models/AssessmentItem.js
 const mongoose = require("mongoose");
 
-/**
- * AssessmentItem Schema
- * Phase 1: Minimal exam-style questions (short answer and MCQ)
- * - Separate from Lesson.quiz to avoid breaking existing flows
- * - Supports filtering by subject, topic, type, published status
- */
-
 const AssessmentItemSchema = new mongoose.Schema(
   {
-    // Creator information
+    // Basic identification
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    
+    // Classification (similar to AssessmentPaper)
+    subject: {
+      type: String,
+      required: true,
+      enum: ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "Other"],
+    },
+    examBoard: {
+      type: String,
+      enum: ["AQA", "Edexcel", "OCR", "CIE", "WJEC", "Other", null],
+      default: null,
+    },
+    level: {
+      type: String,
+      enum: ["GCSE", "A-Level", "IB", "KS3", "Other"],
+      required: true,
+    },
+    
+    // Item type
+    type: {
+      type: String,
+      enum: [
+        "multiple-choice", 
+        "short-answer", 
+        "essay", 
+        "problem-solving", 
+        "practical", 
+        "other",
+        "mcq",
+        "short",
+        "label",
+        "table",
+        "data"
+      ],
+      required: true,
+    },
+    
+    // Content
+    question: {
+      type: String,
+      required: true,
+    },
+    options: [String], // For multiple choice
+    content: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    correctAnswer: mongoose.Schema.Types.Mixed, // Can be string, number, array, etc.
+    markScheme: {
+      type: [String],
+      default: [],
+    },
+    explanation: String,
+    marks: {
+      type: Number,
+      default: 1,
+    },
+    difficulty: {
+      type: String,
+      enum: ["Easy", "Medium", "Hard"],
+      default: "Medium",
+    },
+    
+    // Metadata
+    isPublished: {
+      type: Boolean,
+      default: false,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    createdByRole: {
-      type: String,
-      enum: ["admin", "teacher"],
-      required: true,
-    },
-
-    // Classification fields
-    examBoard: {
-      type: String,
-      default: "AQA",
-    },
-    subject: {
-      type: String,
-      required: true,
-    },
-    topic: {
-      type: String,
-      required: true,
-    },
-    subtopic: {
-      type: String,
-      default: "",
-    },
-    level: {
-      type: String,
-      default: "GCSE",
-    },
-
-    // Question type and content
-    type: {
-      type: String,
-      enum: ["short", "mcq"],
-      required: true,
-    },
-    prompt: {
-      type: String,
-      required: true,
-    },
-    marks: {
+    
+    // Tags for searchability
+    tags: [String],
+    
+    // Usage statistics
+    timesUsed: {
       type: Number,
-      required: true,
-      min: 1,
+      default: 0,
     },
-
-    // Short answer fields
-    correctAnswer: {
-      type: String,
-      required: function () {
-        return this.type === "short";
-      },
-    },
-    markSchemeText: {
-      type: String,
-      default: "",
-    },
-
-    // MCQ fields
-    options: {
-      type: [String],
-      validate: {
-        validator: function (v) {
-          if (this.type === "mcq") {
-            return Array.isArray(v) && v.length >= 2 && v.length <= 6;
-          }
-          return true; // Not required for short type
-        },
-        message: "MCQ questions must have 2-6 options",
-      },
-      default: [],
-    },
-    correctIndex: {
+    averageScore: {
       type: Number,
-      validate: {
-        validator: function (v) {
-          if (this.type === "mcq") {
-            return (
-              Number.isInteger(v) &&
-              v >= 0 &&
-              v < (this.options?.length || 0)
-            );
-          }
-          return true; // Not required for short type
-        },
-        message: "correctIndex must be valid for options array",
-      },
+      default: 0,
+    },
+    
+    // Reference to parent paper if applicable
+    paperId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AssessmentPaper",
       default: null,
     },
-
-    // Metadata
-    difficulty: {
-      type: String,
-      enum: ["easy", "medium", "hard"],
-      default: "medium",
-    },
-    tags: {
-      type: [String],
-      default: [],
-    },
-    isPublished: {
-      type: Boolean,
-      default: false,
+    
+    // Order in paper
+    questionNumber: {
+      type: Number,
+      default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// Indexes for common queries
-AssessmentItemSchema.index({ subject: 1, topic: 1, type: 1, isPublished: 1 });
-AssessmentItemSchema.index({ createdBy: 1, createdAt: -1 });
+// Index for efficient querying
+AssessmentItemSchema.index({ subject: 1, level: 1, type: 1 });
+AssessmentItemSchema.index({ createdBy: 1 });
+AssessmentItemSchema.index({ isPublished: 1 });
+AssessmentItemSchema.index({ paperId: 1 });
 
 module.exports = mongoose.model("AssessmentItem", AssessmentItemSchema);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -68,10 +68,10 @@ const NotFoundPage: React.FC = () => {
       <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #dee2e6', width: '100%' }}>
         <h3 style={{ marginBottom: '1rem' }}>Quick Links</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
-          <a href="/lessons" style={{ color: '#1976d2', textDecoration: 'none' }}>Browse Lessons</a>
-          <a href="/subscription" style={{ color: '#1976d2', textDecoration: 'none' }}>Subscription Plans</a>
-          <a href="/login" style={{ color: '#1976d2', textDecoration: 'none' }}>Login</a>
-          <a href="/register" style={{ color: '#1976d2', textDecoration: 'none' }}>Register</a>
+          <Link to="/lessons" style={{ color: '#1976d2', textDecoration: 'none' }}>Browse Lessons</Link>
+          <Link to="/subscription" style={{ color: '#1976d2', textDecoration: 'none' }}>Subscription Plans</Link>
+          <Link to="/login" style={{ color: '#1976d2', textDecoration: 'none' }}>Login</Link>
+          <Link to="/register" style={{ color: '#1976d2', textDecoration: 'none' }}>Register</Link>
         </div>
       </div>
     </div>

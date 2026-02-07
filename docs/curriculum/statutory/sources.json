@@ -1,0 +1,17 @@
+{
+  "$schema": "https://letsrevise.app/schemas/statutory-source.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-06",
+  "jurisdiction": "UK",
+  "sources": [
+    {
+      "sourceId": "dfe-gcse",
+      "authority": "Department for Education",
+      "scope": ["GCSE"],
+      "officialUrl": "https://www.gov.uk/government/collections/gcse-subject-content",
+      "updatePolicy": "manual-review",
+      "trustLevel": "statutory",
+      "notes": "Primary statutory source for GCSE subject content in England. Used as the canonical reference for curriculum alignment."
+    }
+  ]
+}

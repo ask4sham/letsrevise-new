@@ -1,0 +1,19 @@
+{
+  "steps": [
+    {
+      "title": "Light absorption",
+      "text": "Chlorophyll in chloroplasts absorbs light energy.",
+      "image": "/visuals/photosynthesis/step-1.png"
+    },
+    {
+      "title": "Chemical conversion",
+      "text": "Light energy is converted into chemical energy.",
+      "image": "/visuals/photosynthesis/step-2.png"
+    },
+    {
+      "title": "Oxygen release",
+      "text": "Oxygen is released as a waste product.",
+      "image": "/visuals/photosynthesis/step-3.png"
+    }
+  ]
+}

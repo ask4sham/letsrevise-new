@@ -21,6 +21,11 @@ export interface User {
     plan: string;
     endDate: string;
   };
+  entitlements?: {
+    hasActiveSub: boolean;
+    isTrial: boolean;
+    expiresAt: string | null;
+  };
   createdAt: string;
   lastActive: string;
   stats?: any;

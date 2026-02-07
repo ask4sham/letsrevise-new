@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/statutory-sources.schema.json",
+  "title": "Statutory Curriculum Sources Registry",
+  "type": "object",
+  "required": ["version", "lastUpdated", "jurisdiction", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "version": {
+      "type": "string"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date"
+    },
+    "jurisdiction": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["sourceId", "authority", "scope", "officialUrl", "updatePolicy", "trustLevel"],
+        "additionalProperties": false,
+        "properties": {
+          "sourceId": { "type": "string" },
+          "authority": { "type": "string" },
+          "scope": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "subjects": { "type": "string" },
+          "officialUrl": { "type": "string", "format": "uri" },
+          "updatePolicy": { "type": "string" },
+          "trustLevel": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

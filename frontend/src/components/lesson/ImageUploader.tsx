@@ -4,10 +4,30 @@ import axios from "axios";
 
 type Props = {
   folder?: string; // e.g. "images/gcse"
-  onUploaded: (publicUrl: string) => void; // returns "/uploads/..."
+
+  /**
+   * Backwards-compatible: existing callers can keep using this to receive "/uploads/..."
+   */
+  onUploaded?: (publicUrl: string) => void;
+
+  /**
+   * ✅ NEW (recommended): caller can receive BOTH the markdown snippet and the URL
+   * so the editor can auto-insert it into the text.
+   */
+  onInserted?: (markdown: string, publicUrl: string) => void;
+
+  /**
+   * Optional: customize the alt text that gets inserted.
+   */
+  altText?: string;
 };
 
-const ImageUploader: React.FC<Props> = ({ folder = "images", onUploaded }) => {
+const ImageUploader: React.FC<Props> = ({
+  folder = "images",
+  onUploaded,
+  onInserted,
+  altText = "Uploaded image",
+}) => {
   const [file, setFile] = React.useState<File | null>(null);
   const [status, setStatus] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
@@ -28,7 +48,15 @@ const ImageUploader: React.FC<Props> = ({ folder = "images", onUploaded }) => {
       form.append("file", file);
       form.append("folder", folder);
 
-      const res = await axios.post("http://localhost:5000/api/uploads/image", form, {
+      // ✅ Use same API base as the app (env-safe)
+      // If you must hardcode locally, keep localhost, but env is safer for Netlify/Render.
+      const RAW_API_BASE =
+        process.env.REACT_APP_API_URL ||
+        process.env.REACT_APP_API_BASE ||
+        "http://localhost:5000";
+      const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+
+      const res = await axios.post(`${API_BASE}/api/uploads/image`, form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -37,8 +65,21 @@ const ImageUploader: React.FC<Props> = ({ folder = "images", onUploaded }) => {
         throw new Error("Upload succeeded but no URL returned.");
       }
 
+      // ✅ Build markdown snippet to auto-insert
+      const markdown = `\n\n![${altText}](${url})\n\n`;
+
       setStatus("Uploaded ✅");
-      onUploaded(url);
+
+      // ✅ New callback (auto-insert)
+      if (onInserted) {
+        onInserted(markdown, url);
+      }
+
+      // ✅ Backwards-compatible callback
+      if (onUploaded) {
+        onUploaded(url);
+      }
+
       setFile(null);
     } catch (e: any) {
       setStatus("");
@@ -55,7 +96,9 @@ const ImageUploader: React.FC<Props> = ({ folder = "images", onUploaded }) => {
         background: "white",
       }}
     >
-      <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload an image (PNG/JPG/WebP/GIF)</div>
+      <div style={{ fontWeight: 800, marginBottom: 8 }}>
+        Upload an image (PNG/JPG/WebP/GIF)
+      </div>
 
       <input
         type="file"
@@ -63,7 +106,15 @@ const ImageUploader: React.FC<Props> = ({ folder = "images", onUploaded }) => {
         onChange={(e) => setFile(e.target.files?.[0] || null)}
       />
 
-      <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <button
           type="button"
           onClick={upload}
@@ -84,8 +135,12 @@ const ImageUploader: React.FC<Props> = ({ folder = "images", onUploaded }) => {
           Folder: <code>{folder}</code>
         </div>
 
-        {status ? <div style={{ color: "#16a34a", fontWeight: 800 }}>{status}</div> : null}
-        {error ? <div style={{ color: "#dc2626", fontWeight: 800 }}>{error}</div> : null}
+        {status ? (
+          <div style={{ color: "#16a34a", fontWeight: 800 }}>{status}</div>
+        ) : null}
+        {error ? (
+          <div style={{ color: "#dc2626", fontWeight: 800 }}>{error}</div>
+        ) : null}
       </div>
     </div>
   );

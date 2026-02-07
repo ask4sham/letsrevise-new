@@ -1,4 +1,4 @@
-﻿console.log("🔍 UI DIAGNOSTIC ======================");
+console.log("🔍 UI DIAGNOSTIC ======================");
 
 // Check localStorage
 const token = localStorage.getItem("token");

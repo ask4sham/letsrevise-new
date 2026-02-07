@@ -1,21 +1,7 @@
-﻿// /frontend/src/pages/LoginPage.tsx
+// /frontend/src/pages/LoginPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
-
-/**
- * ✅ Backend URL (Netlify/Render)
- * Support BOTH env var names so you don't break older setups:
- * - REACT_APP_API_URL   (your Netlify setting)
- * - REACT_APP_API_BASE  (older local/dev setting)
- */
-const RAW_API_BASE =
-  process.env.REACT_APP_API_URL ||
-  process.env.REACT_APP_API_BASE ||
-  "http://localhost:5000";
-
-// Normalize to avoid double slashes
-const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+import api from "../services/api";
 
 /**
  * ✅ Dev-only helpers (hide in production)
@@ -83,7 +69,8 @@ const LoginPage: React.FC = () => {
 
   const checkBackend = async () => {
     try {
-      await axios.get(`${API_BASE}/api/health`);
+      // ✅ Use the same api instance as the rest of the app
+      await api.get("/health");
       setBackendStatus("✅ Backend connected");
     } catch {
       setBackendStatus("❌ Backend not connected");
@@ -116,7 +103,10 @@ const LoginPage: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log("LoginPage API_BASE =", API_BASE);
+    // Helpful debug: shows the axios baseURL from the shared api instance
+    // eslint-disable-next-line no-console
+    console.log("LoginPage api.baseURL =", (api as any)?.defaults?.baseURL);
+
     if (SHOW_TEST_HELPERS) checkBackend();
     syncExistingLoginState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,30 +129,38 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_BASE}/api/auth/login`, formData);
+      // ✅ Use shared api instance so host/baseURL is consistent everywhere
+      const response = await api.post("/auth/login", formData);
 
       const token =
-        response.data?.token || response.data?.jwt || response.data?.accessToken;
+        (response as any)?.data?.token ||
+        (response as any)?.data?.jwt ||
+        (response as any)?.data?.accessToken;
 
       if (token) localStorage.setItem("token", token);
-      if (response.data?.user) {
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+      if ((response as any)?.data?.user) {
+        localStorage.setItem("user", JSON.stringify((response as any).data.user));
       }
 
       // Refresh "already logged in" banner state
       syncExistingLoginState();
 
       // Prefer backend userType; fallback to selected tab
-      redirectAfterLogin(response.data?.user?.userType || activeRole);
+      redirectAfterLogin((response as any)?.data?.user?.userType || activeRole);
     } catch (err: any) {
       console.error("Login error:", err);
 
+      // Works with both:
+      // - axios-style errors (err.response?.data?.msg)
+      // - our api interceptor rejections ({ message, status, data })
       const backendMsg =
+        err?.data?.msg ||
+        err?.data?.message ||
         err?.response?.data?.msg ||
         err?.response?.data?.message ||
-        (err?.response?.status === 401
+        (err?.status === 401 || err?.response?.status === 401
           ? "Invalid email or password."
-          : "Server error.");
+          : err?.message || "Server error.");
 
       setError(backendMsg);
     } finally {

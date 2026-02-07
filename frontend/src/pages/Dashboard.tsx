@@ -23,7 +23,19 @@ const Dashboard: React.FC = () => {
       const response = await axios.get('http://localhost:5000/api/users/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUser(response.data);
+      const profile = response.data;
+
+      // Phase D fallback: ensure entitlements is present if backend has not wired it yet
+      if (!profile.entitlements) {
+        const expiresAt = profile?.subscriptionV2?.expiresAt ?? null;
+        const plan = profile?.subscriptionV2?.plan;
+        const hasActiveSub = expiresAt ? new Date(expiresAt).getTime() > Date.now() : false;
+        const isTrial = plan === "trial" && hasActiveSub;
+        profile.entitlements = { hasActiveSub, isTrial, expiresAt };
+      }
+
+      setUser(profile);
+      localStorage.setItem('user', JSON.stringify(profile));
     } catch (error) {
       console.error('Error fetching user profile:', error);
       localStorage.removeItem('token');

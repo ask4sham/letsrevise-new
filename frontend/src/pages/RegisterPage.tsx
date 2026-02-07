@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 
@@ -6,12 +6,24 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 type UserType = "student" | "teacher" | "parent";
 
+function deriveStageKeyFromYearGroup(yearGroup: string) {
+  const n = Number(yearGroup);
+  if (!Number.isFinite(n)) return "";
+  if (n >= 7 && n <= 9) return "KS3";
+  if (n >= 10 && n <= 11) return "GCSE";
+  if (n >= 12 && n <= 13) return "A-level";
+  return "";
+}
+
 const RegisterPage: React.FC = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [userType, setUserType] = useState<UserType>("student");
   const [linkedStudentEmail, setLinkedStudentEmail] = useState("");
+
+  // ✅ NEW: student year group (drives level gating)
+  const [yearGroup, setYearGroup] = useState<string>("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +39,16 @@ const RegisterPage: React.FC = () => {
   useEffect(() => {
     checkBackend();
   }, []);
+
+  // if user toggles away from student, clear year group (non-breaking)
+  useEffect(() => {
+    if (userType !== "student") setYearGroup("");
+  }, [userType]);
+
+  const stageLabel = useMemo(() => {
+    if (userType !== "student") return "";
+    return deriveStageKeyFromYearGroup(yearGroup);
+  }, [userType, yearGroup]);
 
   const checkBackend = async () => {
     try {
@@ -46,6 +68,15 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
+    // ✅ Student must pick year group (7–13)
+    if (userType === "student") {
+      const n = Number(yearGroup);
+      if (!Number.isFinite(n) || n < 7 || n > 13) {
+        setMessage("❌ Please select a valid Year Group (7 to 13).");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -60,6 +91,13 @@ const RegisterPage: React.FC = () => {
         schoolName: schoolName || null,
       };
 
+      // ✅ send yearGroup only for students
+      if (userType === "student") {
+        payload.yearGroup = Number(yearGroup);
+        // (optional) if your backend later supports explicit stageKey, we can also send it
+        // payload.stageKey = (deriveStageKeyFromYearGroup(yearGroup) || "").toLowerCase();
+      }
+
       if (userType === "parent" && linkedStudentEmail.trim()) {
         payload.linkedStudentEmail = linkedStudentEmail.trim();
       }
@@ -72,6 +110,13 @@ const RegisterPage: React.FC = () => {
         response.data?.message ||
         response.data?.msg ||
         "Registration successful! Please check your email to verify your account.";
+
+      // ✅ store selectedStage locally for your current browse gating
+      if (userType === "student") {
+        const stage = deriveStageKeyFromYearGroup(yearGroup);
+        if (stage) localStorage.setItem("selectedStage", stage);
+        localStorage.setItem("selectedYearGroup", String(yearGroup));
+      }
 
       setMessage(`🎉 ${backendMsg}`);
       setLoading(false);
@@ -167,16 +212,7 @@ const RegisterPage: React.FC = () => {
           <form onSubmit={handleRegister}>
             {/* First name */}
             <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                First Name
-              </label>
+              <label style={labelStyle}>First Name</label>
               <input
                 type="text"
                 required
@@ -189,16 +225,7 @@ const RegisterPage: React.FC = () => {
 
             {/* Last name */}
             <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Last Name
-              </label>
+              <label style={labelStyle}>Last Name</label>
               <input
                 type="text"
                 required
@@ -211,23 +238,11 @@ const RegisterPage: React.FC = () => {
 
             {/* Role selection */}
             <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                I am a...
-              </label>
+              <label style={labelStyle}>I am a...</label>
               <select
                 value={userType}
                 onChange={(e) => setUserType(e.target.value as UserType)}
-                style={{
-                  ...inputStyle,
-                  background: "white",
-                }}
+                style={{ ...inputStyle, background: "white" }}
               >
                 <option value="student">Student</option>
                 <option value="teacher">Teacher</option>
@@ -235,18 +250,37 @@ const RegisterPage: React.FC = () => {
               </select>
             </div>
 
+            {/* ✅ NEW: Year Group (students only) */}
+            {userType === "student" && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>Year Group</label>
+                <select
+                  value={yearGroup}
+                  onChange={(e) => setYearGroup(e.target.value)}
+                  required
+                  style={{ ...inputStyle, background: "white" }}
+                >
+                  <option value="">Select year group…</option>
+                  <option value="7">Year 7 (KS3)</option>
+                  <option value="8">Year 8 (KS3)</option>
+                  <option value="9">Year 9 (KS3)</option>
+                  <option value="10">Year 10 (GCSE)</option>
+                  <option value="11">Year 11 (GCSE)</option>
+                  <option value="12">Year 12 (A-level)</option>
+                  <option value="13">Year 13 (A-level)</option>
+                </select>
+
+                {stageLabel ? (
+                  <p style={{ marginTop: 6, fontSize: "0.9rem", color: "#555" }}>
+                    Your level will be set to: <b>{stageLabel}</b>
+                  </p>
+                ) : null}
+              </div>
+            )}
+
             {/* School name */}
             <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                School Name
-              </label>
+              <label style={labelStyle}>School Name</label>
               <input
                 type="text"
                 required={userType === "student" || userType === "teacher"}
@@ -260,16 +294,7 @@ const RegisterPage: React.FC = () => {
             {/* Linked student email for parents */}
             {isParent && (
               <div style={{ marginBottom: "16px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: "bold",
-                    color: "#333",
-                  }}
-                >
-                  Student’s Email (linked account)
-                </label>
+                <label style={labelStyle}>Student’s Email (linked account)</label>
                 <input
                   type="email"
                   required
@@ -278,31 +303,15 @@ const RegisterPage: React.FC = () => {
                   style={inputStyle}
                   placeholder="student@example.com"
                 />
-                <p
-                  style={{
-                    marginTop: "6px",
-                    fontSize: "0.85rem",
-                    color: "#555",
-                  }}
-                >
-                  This links your parent account to an existing student so their
-                  details stay private.
+                <p style={{ marginTop: "6px", fontSize: "0.85rem", color: "#555" }}>
+                  This links your parent account to an existing student so their details stay private.
                 </p>
               </div>
             )}
 
             {/* Email */}
             <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Your Email (for login & verification)
-              </label>
+              <label style={labelStyle}>Your Email (for login & verification)</label>
               <input
                 type="email"
                 required
@@ -315,16 +324,7 @@ const RegisterPage: React.FC = () => {
 
             {/* Password */}
             <div style={{ marginBottom: "16px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Password
-              </label>
+              <label style={labelStyle}>Password</label>
               <div style={{ position: "relative" }}>
                 <input
                   type={showPassword ? "text" : "password"}
@@ -347,16 +347,7 @@ const RegisterPage: React.FC = () => {
 
             {/* Confirm Password */}
             <div style={{ marginBottom: "24px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Confirm Password
-              </label>
+              <label style={labelStyle}>Confirm Password</label>
               <div style={{ position: "relative" }}>
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -370,9 +361,7 @@ const RegisterPage: React.FC = () => {
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
                   style={eyeButtonStyle}
-                  aria-label={
-                    showConfirmPassword ? "Hide password" : "Show password"
-                  }
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   👁
                 </button>
@@ -408,6 +397,13 @@ const RegisterPage: React.FC = () => {
       </main>
     </div>
   );
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: "8px",
+  fontWeight: "bold",
+  color: "#333",
 };
 
 const inputStyle: React.CSSProperties = {
