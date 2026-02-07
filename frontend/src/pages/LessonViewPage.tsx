@@ -325,6 +325,8 @@ const LessonViewPage: React.FC = () => {
   // ✅ Student toggle: show/hide "Deeper knowledge" (stretch) blocks
   const [showDeeperKnowledge, setShowDeeperKnowledge] = useState(false);
 
+  const [curriculumConfidence, setCurriculumConfidence] = useState<unknown>(null);
+
   const pageParam = useMemo(() => searchParams.get("page") || "", [searchParams]);
 
   const hasStructuredPages = useMemo(
@@ -393,6 +395,18 @@ const LessonViewPage: React.FC = () => {
     fetchLessonSmart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    api
+      .get(`/curriculum-confidence/${id}`)
+      .then((res) => setCurriculumConfidence(res.data))
+      .catch(() => {});
+  }, [id]);
+
+  useEffect(() => {
+    console.log("Curriculum confidence:", curriculumConfidence);
+  }, [curriculumConfidence]);
 
   // ✅ Visual fetch (optional, silent fail)
   useEffect(() => {
