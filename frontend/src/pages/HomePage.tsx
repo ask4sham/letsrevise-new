@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import SEO from "../components/SEO";
 
