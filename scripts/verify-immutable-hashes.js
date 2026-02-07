@@ -14,8 +14,9 @@ const LOCK_PATH = path.join(ROOT, "docs", "curriculum", "statutory", "immutable-
 
 function sha256(filePath) {
   const abs = path.isAbsolute(filePath) ? filePath : path.join(ROOT, filePath);
-  const buf = fs.readFileSync(abs);
-  return crypto.createHash("sha256").update(buf).digest("hex");
+  const raw = fs.readFileSync(abs, "utf8");
+  const normalized = raw.replace(/\r\n/g, "\n");
+  return crypto.createHash("sha256").update(normalized, "utf8").digest("hex");
 }
 
 function main() {
