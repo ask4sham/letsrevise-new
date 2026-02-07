@@ -47,6 +47,7 @@ jobs:
     - name: Check for old brand references
       shell: powershell
       run: |
+        $ErrorActionPreference = 'SilentlyContinue'
         echo "Checking for old brand references..."
         $found = $false
         Get-ChildItem -Path "frontend\src", "backend", "static-site" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -notmatch '\.(backup|bak)$' } | ForEach-Object {
@@ -55,4 +56,6 @@ jobs:
             $found = $true
           }
         }
-        if ($found) { exit 1 } else { Write-Host "✅ No old brand references found" }
+        if ($found) { exit 1 }
+        Write-Host "✅ No old brand references found"
+        exit 0
