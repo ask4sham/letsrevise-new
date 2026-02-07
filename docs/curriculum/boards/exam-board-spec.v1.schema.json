@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/exam-board-spec.v1.schema.json",
+  "title": "Exam Board Spec (v1)",
+  "type": "object",
+  "required": ["board", "subject", "level", "specVersion", "topic", "mapsToDfE", "examRequirements"],
+  "additionalProperties": false,
+  "properties": {
+    "board": { "type": "string" },
+    "subject": { "type": "string" },
+    "level": { "type": "string" },
+    "specVersion": { "type": "string" },
+    "topic": { "type": "string" },
+    "mapsToDfE": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "examRequirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["foundation", "higher", "both"]
+    },
+    "notes": { "type": "string" }
+  }
+}
