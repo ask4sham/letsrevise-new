@@ -1,0 +1,2 @@
+# Force LF for hash-locked statutory curriculum artifacts
+docs/curriculum/statutory/*.json text eol=lf
