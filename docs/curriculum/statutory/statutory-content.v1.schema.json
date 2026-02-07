@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/statutory-content.v1.schema.json",
+  "title": "Statutory Content (v1)",
+  "type": "object",
+  "required": ["authority", "jurisdiction", "framework", "subject", "keyStage", "effectiveFrom", "sourceUrl", "version", "statements"],
+  "additionalProperties": false,
+  "properties": {
+    "authority": { "type": "string" },
+    "jurisdiction": { "type": "string" },
+    "framework": { "type": "string" },
+    "subject": { "type": "string" },
+    "keyStage": { "type": "string" },
+    "effectiveFrom": { "type": "string", "format": "date" },
+    "sourceUrl": { "type": "string", "format": "uri" },
+    "version": { "type": "string" },
+    "statements": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["id", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}
