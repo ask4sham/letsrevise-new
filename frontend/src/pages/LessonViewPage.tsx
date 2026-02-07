@@ -859,7 +859,7 @@ const LessonViewPage: React.FC = () => {
     };
 
     return {
-      h1: ({ ...props }: any) => (
+      h1: ({ children, ...props }: any) => (
         <h1
           {...props}
           style={{
@@ -868,9 +868,11 @@ const LessonViewPage: React.FC = () => {
             fontSize: "2.4rem",
             marginTop: 10,
           }}
-        />
+        >
+          {children}
+        </h1>
       ),
-      h2: ({ ...props }: any) => (
+      h2: ({ children, ...props }: any) => (
         <h2
           {...props}
           style={{
@@ -878,9 +880,11 @@ const LessonViewPage: React.FC = () => {
             ...headingBase,
             fontSize: "2.0rem",
           }}
-        />
+        >
+          {children}
+        </h2>
       ),
-      h3: ({ ...props }: any) => (
+      h3: ({ children, ...props }: any) => (
         <h3
           {...props}
           style={{
@@ -888,9 +892,11 @@ const LessonViewPage: React.FC = () => {
             ...headingBase,
             fontSize: "1.65rem",
           }}
-        />
+        >
+          {children}
+        </h3>
       ),
-      h4: ({ ...props }: any) => (
+      h4: ({ children, ...props }: any) => (
         <h4
           {...props}
           style={{
@@ -898,7 +904,9 @@ const LessonViewPage: React.FC = () => {
             ...headingBase,
             fontSize: "1.35rem",
           }}
-        />
+        >
+          {children}
+        </h4>
       ),
       ul: ({ ...props }: any) => (
         <ul
