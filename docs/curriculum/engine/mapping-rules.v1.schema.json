@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/mapping-rules.v1.schema.json",
+  "title": "Mapping Rules (v1)",
+  "type": "object",
+  "required": ["version", "appliesTo", "pageRules", "blockRules", "assessmentRules", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "appliesTo": {
+      "type": "object",
+      "required": ["subject", "level", "board", "specVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "subject": { "type": "string" },
+        "level": { "type": "string" },
+        "board": { "type": "string" },
+        "specVersion": { "type": "string" }
+      }
+    },
+    "pageRules": {
+      "type": "object",
+      "required": ["order", "titleTemplate", "pageIdTemplate"],
+      "additionalProperties": false,
+      "properties": {
+        "order": { "type": "string" },
+        "titleTemplate": { "type": "string" },
+        "pageIdTemplate": { "type": "string" }
+      }
+    },
+    "blockRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["when", "type", "contentSource", "sources"],
+        "additionalProperties": false,
+        "properties": {
+          "when": { "type": "string" },
+          "type": { "type": "string" },
+          "contentSource": { "type": "string" },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "assessmentRules": {
+      "type": "object",
+      "required": ["generateFrom", "type", "sourcesTemplate"],
+      "additionalProperties": false,
+      "properties": {
+        "generateFrom": { "type": "string" },
+        "type": { "type": "string" },
+        "sourcesTemplate": { "type": "string" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["requiresReview"],
+      "additionalProperties": false,
+      "properties": {
+        "requiresReview": { "type": "boolean" }
+      }
+    }
+  }
+}
