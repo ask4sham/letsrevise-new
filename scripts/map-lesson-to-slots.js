@@ -72,6 +72,7 @@ async function main() {
   }
 
   const output = {
+    version: slotsContract.version || "v1",
     lessonId: lesson.lessonId,
     appliesTo: slotsContract.appliesTo,
     slots,
