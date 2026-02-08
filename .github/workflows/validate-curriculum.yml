@@ -20,6 +20,7 @@ jobs:
       - run: node scripts/validate-json.js docs/curriculum/statutory/england-gcse-biology.v1.json docs/curriculum/statutory/statutory-content.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/boards/aqa-gcse-biology-photosynthesis.v1.json docs/curriculum/boards/exam-board-spec.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/teacher-curriculum-confidence.contract.json docs/curriculum/teacher-curriculum-confidence.v1.schema.json
+      - run: node scripts/validate-json.js docs/curriculum/engine/derivation.contract.json docs/curriculum/engine/derivation.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-biology.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
       - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-chemistry.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
       - run: node scripts/verify-immutable-hashes.js
