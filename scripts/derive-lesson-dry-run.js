@@ -8,12 +8,25 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.dirname(__dirname);
-const CONTRACT_PATH = path.join(ROOT, "docs", "curriculum", "engine", "derivation.contract.json");
-const STATUTORY_PATH = path.join(ROOT, "docs", "curriculum", "statutory", "england-gcse-biology.v1.json");
-const BOARD_SPEC_PATH = path.join(ROOT, "docs", "curriculum", "boards", "aqa-gcse-biology-photosynthesis.v1.json");
+
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const out = {};
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--contract" && args[i + 1]) { out.contract = args[i + 1]; i++; }
+    else if (args[i] === "--statutory" && args[i + 1]) { out.statutory = args[i + 1]; i++; }
+    else if (args[i] === "--board" && args[i + 1]) { out.board = args[i + 1]; i++; }
+  }
+  return out;
+}
+
+function resolvePath(raw) {
+  if (!raw) return null;
+  return path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+}
 
 function loadJson(filePath) {
-  if (!fs.existsSync(filePath)) return null;
+  if (!filePath || !fs.existsSync(filePath)) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
@@ -22,9 +35,14 @@ function loadJson(filePath) {
 }
 
 function main() {
-  const contract = loadJson(CONTRACT_PATH);
-  const statutory = loadJson(STATUTORY_PATH);
-  const boardSpec = loadJson(BOARD_SPEC_PATH);
+  const opts = parseArgs();
+  const contractPath = resolvePath(opts.contract) || path.join(ROOT, "docs", "curriculum", "engine", "derivation.contract.json");
+  const statutoryPath = resolvePath(opts.statutory) || path.join(ROOT, "docs", "curriculum", "statutory", "england-gcse-biology.v1.json");
+  const boardSpecPath = resolvePath(opts.board) || path.join(ROOT, "docs", "curriculum", "boards", "aqa-gcse-biology-photosynthesis.v1.json");
+
+  const contract = loadJson(contractPath);
+  const statutory = loadJson(statutoryPath);
+  const boardSpec = loadJson(boardSpecPath);
 
   if (!contract || !statutory || !boardSpec) {
     process.exit(1);
