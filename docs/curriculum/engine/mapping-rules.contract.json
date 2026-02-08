@@ -1,0 +1,30 @@
+{
+  "version": "v1",
+  "appliesTo": {
+    "subject": "Biology",
+    "level": "GCSE",
+    "board": "AQA",
+    "specVersion": "2025"
+  },
+  "pageRules": {
+    "order": "mapsToDfE",
+    "titleTemplate": "DfE: {{statementId}}",
+    "pageIdTemplate": "page:{{statementId}}"
+  },
+  "blockRules": [
+    {
+      "when": "statutory",
+      "type": "statutory",
+      "contentSource": "statements.text",
+      "sources": ["{{statementId}}"]
+    }
+  ],
+  "assessmentRules": {
+    "generateFrom": "examRequirements",
+    "type": "mcq",
+    "sourcesTemplate": "AQA:{{topic}}"
+  },
+  "metadata": {
+    "requiresReview": true
+  }
+}

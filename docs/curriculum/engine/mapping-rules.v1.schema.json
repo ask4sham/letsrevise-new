@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/mapping-rules.v1.schema.json",
+  "title": "Mapping Rules (v1)",
+  "type": "object",
+  "required": ["version", "pageRules", "assessmentRules"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "pageRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["when", "create"],
+        "additionalProperties": false,
+        "properties": {
+          "when": {
+            "type": "object",
+            "additionalProperties": false
+          },
+          "create": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "assessmentRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["when", "create"],
+        "additionalProperties": false,
+        "properties": {
+          "when": {
+            "type": "object",
+            "additionalProperties": false
+          },
+          "create": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}
