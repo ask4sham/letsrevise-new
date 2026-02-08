@@ -1,0 +1,20 @@
+{
+  "input": {
+    "statutoryStatementIds": ["DFE-BIO-KS4-4.1"],
+    "examBoard": "AQA",
+    "specVersion": "2025",
+    "topic": "Photosynthesis"
+  },
+  "output": {
+    "lessonId": "string",
+    "pages": [],
+    "assessments": []
+  },
+  "metadata": {
+    "derivedFrom": {
+      "authority": "DfE",
+      "board": "AQA"
+    },
+    "requiresReview": true
+  }
+}
