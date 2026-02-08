@@ -1,0 +1,31 @@
+﻿{
+  "version": "v1",
+  "appliesTo": {
+    "subject": "Biology",
+    "level": "GCSE",
+    "board": "AQA",
+    "specVersion": "2025",
+    "topic": "Photosynthesis"
+  },
+  "slots": [
+    {
+      "slotId": "statutory:DFE-BIO-KS4-4.1",
+      "kind": "statutory",
+      "sources": ["DFE-BIO-KS4-4.1"],
+      "constraints": {
+        "maxWords": 120
+      }
+    },
+    {
+      "slotId": "exam:Define photosynthesis",
+      "kind": "examBoard",
+      "sources": ["AQA:Photosynthesis"],
+      "constraints": {
+        "questionType": "mcq"
+      }
+    }
+  ],
+  "metadata": {
+    "requiresReview": true
+  }
+}
