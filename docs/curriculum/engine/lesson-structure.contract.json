@@ -1,0 +1,31 @@
+{
+  "lessonId": "string",
+  "subject": "string",
+  "level": "string",
+  "board": "string",
+  "specVersion": "string",
+  "topic": "string",
+  "pages": [
+    {
+      "pageId": "string",
+      "title": "string",
+      "blocks": [
+        {
+          "type": "string",
+          "content": "string",
+          "sources": ["string"]
+        }
+      ]
+    }
+  ],
+  "assessments": [
+    {
+      "type": "string",
+      "prompt": "string",
+      "sources": ["string"]
+    }
+  ],
+  "metadata": {
+    "requiresReview": true
+  }
+}
