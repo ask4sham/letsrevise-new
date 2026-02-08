@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/derivation.v1.schema.json",
+  "title": "Derivation (v1)",
+  "type": "object",
+  "required": ["input", "output", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "input": {
+      "type": "object",
+      "required": ["statutoryStatementIds", "examBoard", "specVersion", "topic"],
+      "additionalProperties": false,
+      "properties": {
+        "statutoryStatementIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "examBoard": { "type": "string" },
+        "specVersion": { "type": "string" },
+        "topic": { "type": "string" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["lessonId", "pages", "assessments"],
+      "additionalProperties": false,
+      "properties": {
+        "lessonId": { "type": "string" },
+        "pages": { "type": "array" },
+        "assessments": { "type": "array" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["derivedFrom", "requiresReview"],
+      "additionalProperties": false,
+      "properties": {
+        "derivedFrom": {
+          "type": "object",
+          "required": ["authority", "board"],
+          "additionalProperties": false,
+          "properties": {
+            "authority": { "type": "string" },
+            "board": { "type": "string" }
+          }
+        },
+        "requiresReview": { "type": "boolean" }
+      }
+    }
+  }
+}
