@@ -23,3 +23,6 @@ static-site/core/ai-integration/config/api-keys.json
 
 # AI-generated lesson bundles (ephemeral)
 docs/ai/examples/generated-*.json
+
+# Local test artifact (assembled lesson sample)
+sample-lesson.json

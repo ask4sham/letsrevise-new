@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "properties": {
     "version": { "type": "string" },
+    "lessonId": { "type": "string" },
     "appliesTo": {
       "type": "object",
       "required": ["subject", "level", "board", "specVersion"],
@@ -33,9 +34,9 @@
             "type": "array",
             "items": { "type": "string" }
           },
-          "constraints": {
-            "type": "object"
-          }
+          "constraints": { "type": "object" },
+          "content": { "type": "string" },
+          "prompt": { "type": "string" }
         }
       }
     },
