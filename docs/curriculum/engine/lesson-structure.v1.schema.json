@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/lesson-structure.v1.schema.json",
+  "title": "Lesson Structure (v1)",
+  "type": "object",
+  "required": ["lessonId", "subject", "level", "board", "specVersion", "topic", "pages", "assessments", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "lessonId": { "type": "string" },
+    "subject": { "type": "string" },
+    "level": { "type": "string" },
+    "board": { "type": "string" },
+    "specVersion": { "type": "string" },
+    "topic": { "type": "string" },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pageId", "title", "blocks"],
+        "additionalProperties": false,
+        "properties": {
+          "pageId": { "type": "string" },
+          "title": { "type": "string" },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["type", "content", "sources"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "type": "string" },
+                "content": { "type": "string" },
+                "sources": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "prompt", "sources"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "prompt": { "type": "string" },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["requiresReview"],
+      "additionalProperties": false,
+      "properties": {
+        "requiresReview": { "type": "boolean" }
+      }
+    }
+  }
+}
