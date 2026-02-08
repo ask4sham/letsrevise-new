@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/content-slots.v1.schema.json",
+  "title": "Content Slots (v1)",
+  "type": "object",
+  "required": ["version", "appliesTo", "slots", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "appliesTo": {
+      "type": "object",
+      "required": ["subject", "level", "board", "specVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "subject": { "type": "string" },
+        "level": { "type": "string" },
+        "board": { "type": "string" },
+        "specVersion": { "type": "string" },
+        "topic": { "type": "string" }
+      }
+    },
+    "slots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slotId", "kind", "sources"],
+        "additionalProperties": false,
+        "properties": {
+          "slotId": { "type": "string" },
+          "kind": { "type": "string" },
+          "required": { "type": "boolean" },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "constraints": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["requiresReview"],
+      "additionalProperties": false,
+      "properties": {
+        "requiresReview": { "type": "boolean" }
+      }
+    }
+  }
+}
