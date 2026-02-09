@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLessonWithAccess, getUserEntitlementsFromRequest } from "@/server";
-
-async function getLessonMeta(lessonId: string) {
-  // Should come from your lesson index / published metadata store.
-  return { lessonId, isFreePreview: false };
-}
+import { getLessonAccessMeta } from "@/server/lessons/lessonAccessMeta";
 
 async function getLessonPayload(lessonId: string) {
   // Should load your lesson JSON artifact from storage (S3/R2/filesystem).
@@ -17,7 +13,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const result = await getLessonWithAccess({
     lessonId: params.id,
     user,
-    getLessonMeta,
+    getLessonMeta: getLessonAccessMeta,
     getLessonPayload,
   });
 
