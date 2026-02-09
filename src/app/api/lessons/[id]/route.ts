@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLessonWithAccess } from "@/server/http/getLessonWithAccess";
-
-/**
- * TODO: Replace these with your real implementations.
- * Keep the access gate in place no matter what.
- */
-async function getUserEntitlementsFromRequest(_req: Request) {
-  // Return null if not signed in.
-  // Return { userId, subscriptionActive, purchasedLessons } if signed in.
-  return null as any;
-}
+import { getUserEntitlementsFromRequest } from "@/server/auth/getUserEntitlementsFromRequest";
 
 async function getLessonMeta(lessonId: string) {
   // Should come from your lesson index / published metadata store.
