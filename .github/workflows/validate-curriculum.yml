@@ -24,9 +24,25 @@ jobs:
         run: |
           echo '{
             "version": "v1",
-            "appliesTo": "lesson",
-            "jobs": [],
-            "metadata": {}
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
           }' | npm run slotgen:stub
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/england-gcse-biology.v1.json docs/curriculum/statutory/statutory-content.v1.schema.json
