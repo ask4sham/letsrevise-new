@@ -28,10 +28,14 @@ export async function GET(req: Request) {
   });
 
   if (!result.ok) {
-    return NextResponse.json(
-      { error: result.error },
-      { status: result.error === "NOT_AUTHENTICATED" ? 401 : 403 }
-    );
+    const status =
+      result.error === "NOT_AUTHENTICATED"
+        ? 401
+        : result.error === "NOT_PUBLISHED"
+        ? 404
+        : 403;
+
+    return NextResponse.json({ error: result.error }, { status });
   }
 
   return NextResponse.json(result.data, { status: 200 });
