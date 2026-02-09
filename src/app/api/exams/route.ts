@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLessonWithAccess, getUserEntitlementsFromRequest } from "@/server";
-import { getLessonAccessMeta } from "@/server/lessons/lessonAccessMeta";
+import { getLessonWithAccess, getUserEntitlementsFromRequest, getLessonAccessMeta } from "@/server";
 
 /**
  * TODO: Replace getExamPayload with your real exam artifact loader.

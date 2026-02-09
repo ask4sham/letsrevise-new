@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLessonWithAccess, getUserEntitlementsFromRequest } from "@/server";
-import { getLessonAccessMeta } from "@/server/lessons/lessonAccessMeta";
+import { getLessonWithAccess, getUserEntitlementsFromRequest, getLessonAccessMeta } from "@/server";
 
 /**
  * TODO: Replace getQuizPayload with your real quiz artifact loader.
