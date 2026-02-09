@@ -2,7 +2,8 @@
   "scripts": {
     "test": "jest --runInBand --forceExit",
     "validate:bundle": "node scripts/validate-lesson-bundle.js",
-    "generate:bundle": "node scripts/generate-lesson-bundle.js"
+    "generate:bundle": "node scripts/generate-lesson-bundle.js",
+    "slotgen:stub": "node scripts/run-slot-generation.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
