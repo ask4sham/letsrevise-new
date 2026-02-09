@@ -19,7 +19,7 @@ describe('Assessment Attempts API - Full Lifecycle', () => {
   let questionId2;
   let attemptId;
 
-  // Setup test data before all tests
+  // Setup test data before all tests (DB + auth can be slow)
   beforeAll(async () => {
     // Create test users
     const hashedPassword = await bcrypt.hash('password123', 10);
@@ -149,7 +149,7 @@ describe('Assessment Attempts API - Full Lifecycle', () => {
       ]
     });
     paperId = paper._id;
-  });
+  }, 30000);
 
   // Clean up before each test is handled by tests/setup.js
   beforeEach(async () => {
