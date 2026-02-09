@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test": "jest",
     "validate:bundle": "node scripts/validate-lesson-bundle.js",
     "generate:bundle": "node scripts/generate-lesson-bundle.js"
   },
