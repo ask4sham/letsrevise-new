@@ -6,6 +6,7 @@ describe("getLessonWithAccess", () => {
   const getLessonMeta = async () => ({
     lessonId,
     isFreePreview: false,
+    isPublished: true,
   });
 
   const getLessonPayload = async () => ({
@@ -54,7 +55,7 @@ describe("getLessonWithAccess", () => {
         subscriptionActive: false,
         purchasedLessons: [],
       },
-      getLessonMeta: async () => ({ lessonId, isFreePreview: true }),
+      getLessonMeta: async () => ({ lessonId, isFreePreview: true, isPublished: true }),
       getLessonPayload,
     });
 

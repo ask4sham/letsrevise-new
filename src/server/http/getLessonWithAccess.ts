@@ -17,7 +17,7 @@ export async function getLessonWithAccess(opts: {
     subscriptionActive: boolean;
     purchasedLessons: string[];
   } | null;
-  getLessonMeta: (lessonId: string) => Promise<{ lessonId: string; isFreePreview: boolean }>;
+  getLessonMeta: (lessonId: string) => Promise<{ lessonId: string; isFreePreview: boolean; isPublished: boolean }>;
   getLessonPayload: (lessonId: string) => Promise<any>;
 }) {
   const lessonMeta = await opts.getLessonMeta(opts.lessonId);
