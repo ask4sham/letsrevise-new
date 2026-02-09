@@ -21,6 +21,12 @@ export async function getLessonWithAccess(opts: {
   getLessonPayload: (lessonId: string) => Promise<any>;
 }) {
   const lessonMeta = await opts.getLessonMeta(opts.lessonId);
+  if (!lessonMeta.isPublished) {
+    return {
+      ok: false as const,
+      error: "NOT_PUBLISHED",
+    };
+  }
   const decision = canAccessContent(opts.user, lessonMeta);
 
   if (!decision.allow) {
