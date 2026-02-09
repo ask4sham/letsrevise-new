@@ -12,6 +12,8 @@
  * - emit generation results
  */
 
+const { spawnSync } = require("child_process");
+
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
 
@@ -20,6 +22,17 @@ process.stdin.on("data", chunk => (input += chunk));
 process.stdin.on("end", () => {
   if (!input.trim()) {
     console.error("No input provided to run-slot-generation");
+    process.exit(1);
+  }
+
+  const validate = spawnSync(
+    "node",
+    ["scripts/validate-json.js", "-", "docs/curriculum/engine/slot-generation.v1.schema.json"],
+    { input, encoding: "utf8" }
+  );
+
+  if (validate.status !== 0) {
+    process.stderr.write(validate.stderr || "Slot-generation job failed schema validation\n");
     process.exit(1);
   }
 
