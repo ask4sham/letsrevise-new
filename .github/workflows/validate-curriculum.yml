@@ -35,5 +35,7 @@ jobs:
           | node scripts/map-lesson-to-slots.js \
           | node scripts/fill-content-slots.js \
           | node scripts/validate-json.js - docs/curriculum/engine/content-slots.v1.schema.json
+      # Phase 4A: Slot generation interface
+      - run: node scripts/validate-json.js docs/curriculum/engine/slot-generation.contract.json docs/curriculum/engine/slot-generation.v1.schema.json
       - run: node scripts/verify-immutable-hashes.js
       - run: node scripts/assert-ai-generated-flag.js
