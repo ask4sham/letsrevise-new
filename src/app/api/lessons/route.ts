@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getLessonAccessMeta } from "@/server";
 
 /**
  * Public lesson index.
@@ -7,13 +8,14 @@ import { NextResponse } from "next/server";
  * - Used by dashboards to list all lessons (locked/unlocked state decided client-side)
  */
 async function getLessonIndex() {
-  // TODO: Replace with DB/index-backed lookup.
+  // TEMP: single-lesson example using canonical metadata
+  const meta = await getLessonAccessMeta("L1");
   return [
     {
-      lessonId: "L1",
+      lessonId: meta.lessonId,
       title: "Example Lesson",
-      isPublished: true,
-      isFreePreview: false,
+      isPublished: meta.isPublished,
+      isFreePreview: meta.isFreePreview,
     },
   ];
 }
