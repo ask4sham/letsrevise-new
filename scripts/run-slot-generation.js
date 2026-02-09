@@ -46,5 +46,21 @@ process.stdin.on("end", () => {
     output: null,
   };
 
-  process.stdout.write(JSON.stringify(result, null, 2));
+  const outputJson = JSON.stringify(result, null, 2);
+  process.stdout.write(outputJson);
+
+  const validateOut = spawnSync(
+    "node",
+    [
+      "scripts/validate-json.js",
+      "-",
+      "docs/curriculum/engine/slot-generation-result.v1.schema.json"
+    ],
+    { input: outputJson, encoding: "utf8" }
+  );
+
+  if (validateOut.status !== 0) {
+    process.stderr.write(validateOut.stderr || "Slot-generation result failed schema validation\n");
+    process.exit(1);
+  }
 });
