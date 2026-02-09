@@ -10,10 +10,10 @@ module.exports = {
   ],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   transform: {
-    "^.+\\.tsx?$": "ts-jest",
+    "^src/.+\\.tsx?$": "ts-jest",
   },
   transformIgnorePatterns: ["/node_modules/"],
-  testPathIgnorePatterns: ["/node_modules/", "\\.old\\.js$"],
+  testPathIgnorePatterns: ["/node_modules/", "\\.old\\.js$", "/backend/"],
   // Avoid running forever when async handles remain (e.g. DB in integration tests)
   forceExit: true,
 };

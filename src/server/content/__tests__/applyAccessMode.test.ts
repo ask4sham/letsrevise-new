@@ -19,12 +19,13 @@ describe("applyAccessMode", () => {
         { id: "s3", content: "C" },
         { id: "s4", content: "D" },
       ],
+      metadata: {},
     };
 
     const result = applyAccessMode(payload, "preview");
 
     expect(result.slots.length).toBe(3);
     expect(result.slots[0].content).toBe("[PREVIEW]");
-    expect(result.metadata.preview).toBe(true);
+    expect((result as unknown as { metadata: { preview: boolean } }).metadata.preview).toBe(true);
   });
 });
