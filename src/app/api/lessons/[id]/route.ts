@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLessonWithAccess } from "@/server/http/getLessonWithAccess";
-import { getUserEntitlementsFromRequest } from "@/server/auth/getUserEntitlementsFromRequest";
+import { getLessonWithAccess, getUserEntitlementsFromRequest } from "@/server";
 
 async function getLessonMeta(lessonId: string) {
   // Should come from your lesson index / published metadata store.
