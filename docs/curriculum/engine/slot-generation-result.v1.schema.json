@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "jobId", "status", "generatedAt", "output"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "v1"
+    },
+    "jobId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["STUB", "COMPLETED", "FAILED"]
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "output": {
+      "type": ["object", "null"],
+      "description": "Generated content payload (null for STUB/FAILED)"
+    }
+  },
+  "additionalProperties": false
+}
