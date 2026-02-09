@@ -28,3 +28,17 @@ This phase defines the **execution boundary** between:
 - persist generated results
 
 Until then, **this stub is the only legal generation entrypoint**.
+
+## Output contract (locked)
+
+All slot-generation executors (including the stub) MUST emit results that
+validate against:
+
+- `slot-generation-result.v1.schema.json`
+
+CI enforces that:
+- invalid inputs are rejected
+- valid inputs produce schema-valid results
+- `jobId` is deterministic (derived from the job spec)
+
+No executor may emit ad-hoc or undocumented output.
