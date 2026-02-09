@@ -1,0 +1,49 @@
+﻿{
+  "version": "v1",
+  "appliesTo": {
+    "subject": "Biology",
+    "level": "GCSE",
+    "board": "AQA",
+    "specVersion": "2025"
+  },
+  "jobs": [
+    {
+      "jobId": "job:slot:page:DFE-BIO-KS4-4.1:statutory",
+      "slotId": "slot:page:DFE-BIO-KS4-4.1:statutory",
+      "kind": "statutory",
+      "mode": "verbatim",
+      "input": {
+        "sourceText": "{{statutoryText}}"
+      },
+      "output": {
+        "field": "content",
+        "type": "string"
+      },
+      "sources": ["DFE-BIO-KS4-4.1"],
+      "required": true
+    },
+    {
+      "jobId": "job:slot:assessment:mcq",
+      "slotId": "slot:assessment:mcq",
+      "kind": "assessment",
+      "mode": "generate",
+      "input": {
+        "prompt": "{{assessmentPrompt}}",
+        "context": {
+          "topic": "{{topic}}",
+          "board": "{{board}}",
+          "specVersion": "{{specVersion}}"
+        }
+      },
+      "output": {
+        "field": "content",
+        "type": "string"
+      },
+      "sources": ["AQA:{{topic}}"],
+      "required": true
+    }
+  ],
+  "metadata": {
+    "requiresReview": true
+  }
+}

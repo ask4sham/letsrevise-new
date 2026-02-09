@@ -16,11 +16,13 @@ const addFormats = require("ajv-formats");
 function readJson(filePath) {
   if (filePath === "-" || filePath === "/dev/stdin") {
     const raw = fs.readFileSync(0, "utf8");
-    return JSON.parse(raw);
+    const text = raw.replace(/^\uFEFF/, "");
+    return JSON.parse(text);
   }
   const abs = path.resolve(filePath);
   const raw = fs.readFileSync(abs, "utf8");
-  return JSON.parse(raw);
+  const text = raw.replace(/^\uFEFF/, "");
+  return JSON.parse(text);
 }
 
 function main() {

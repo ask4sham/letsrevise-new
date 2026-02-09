@@ -1,0 +1,82 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://letsrevise.app/schemas/slot-generation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "appliesTo", "jobs", "metadata"],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "appliesTo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "level", "board", "specVersion"],
+      "properties": {
+        "subject": { "type": "string" },
+        "level": { "type": "string" },
+        "board": { "type": "string" },
+        "specVersion": { "type": "string" },
+        "topic": { "type": "string" }
+      }
+    },
+    "jobs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "jobId",
+          "slotId",
+          "kind",
+          "mode",
+          "input",
+          "output",
+          "sources",
+          "required"
+        ],
+        "properties": {
+          "jobId": { "type": "string" },
+          "slotId": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["statutory", "assessment", "explanatory"]
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["verbatim", "generate"]
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "output": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "type"],
+            "properties": {
+              "field": { "type": "string" },
+              "type": { "type": "string" }
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiresReview"],
+      "properties": {
+        "requiresReview": { "type": "boolean" }
+      }
+    }
+  }
+}
