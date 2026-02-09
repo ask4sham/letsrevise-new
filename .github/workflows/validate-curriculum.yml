@@ -16,6 +16,8 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Run unit tests
+        run: npm test
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/england-gcse-biology.v1.json docs/curriculum/statutory/statutory-content.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/boards/aqa-gcse-biology-photosynthesis.v1.json docs/curriculum/boards/exam-board-spec.v1.schema.json
