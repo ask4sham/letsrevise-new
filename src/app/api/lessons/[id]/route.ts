@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLessonWithAccess, getUserEntitlementsFromRequest } from "@/server";
+import { getLessonWithAccess, getUserEntitlementsFromRequest, mapAccessErrorToStatus } from "@/server";
 import { getLessonAccessMeta } from "@/server/lessons/lessonAccessMeta";
 
 async function getLessonPayload(lessonId: string) {
@@ -18,14 +18,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   });
 
   if (!result.ok) {
-    const status =
-      result.error === "NOT_AUTHENTICATED"
-        ? 401
-        : result.error === "NOT_PUBLISHED"
-        ? 404
-        : 403;
-
-    return NextResponse.json({ error: result.error }, { status });
+    return NextResponse.json(
+      { error: result.error },
+      { status: mapAccessErrorToStatus(result.error) }
+    );
   }
 
   return NextResponse.json(result.data, { status: 200 });
