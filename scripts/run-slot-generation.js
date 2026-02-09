@@ -40,7 +40,7 @@ process.stdin.on("end", () => {
   const job = JSON.parse(input);
   const result = {
     version: "v1",
-    jobId: job.jobId ?? "UNKNOWN",
+    jobId: (job.jobId ?? job.jobs?.[0]?.jobId ?? "UNKNOWN"),
     status: "STUB",
     generatedAt: new Date().toISOString(),
     output: null,
