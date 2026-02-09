@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLessonWithAccess, getUserEntitlementsFromRequest, getLessonAccessMeta } from "@/server";
+import { getLessonWithAccess, getUserEntitlementsFromRequest, getLessonAccessMeta, mapAccessErrorToStatus } from "@/server";
 
 /**
  * TODO: Replace getQuizPayload with your real quiz artifact loader.
@@ -28,14 +28,10 @@ export async function GET(req: Request) {
   });
 
   if (!result.ok) {
-    const status =
-      result.error === "NOT_AUTHENTICATED"
-        ? 401
-        : result.error === "NOT_PUBLISHED"
-        ? 404
-        : 403;
-
-    return NextResponse.json({ error: result.error }, { status });
+    return NextResponse.json(
+      { error: result.error },
+      { status: mapAccessErrorToStatus(result.error) }
+    );
   }
 
   return NextResponse.json(result.data, { status: 200 });
