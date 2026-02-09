@@ -23,5 +23,17 @@ jobs:
       - run: node scripts/validate-json.js docs/curriculum/engine/derivation.contract.json docs/curriculum/engine/derivation.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-biology.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
       - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-chemistry.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
+      # Phase 3: Content slots
+      - run: node scripts/validate-json.js docs/curriculum/engine/content-slots.contract.json docs/curriculum/engine/content-slots.v1.schema.json
+
+      # Phase 3 pipeline: lesson → slots → filled slots → schema
+      - run: |
+          node scripts/assemble-lesson-structure.js \
+            --contract docs/curriculum/engine/derivation.contract.json \
+            --statutory docs/curriculum/statutory/england-gcse-biology.v1.json \
+            --board docs/curriculum/boards/aqa-gcse-biology-photosynthesis.v1.json \
+          | node scripts/map-lesson-to-slots.js \
+          | node scripts/fill-content-slots.js \
+          | node scripts/validate-json.js - docs/curriculum/engine/content-slots.v1.schema.json
       - run: node scripts/verify-immutable-hashes.js
       - run: node scripts/assert-ai-generated-flag.js
