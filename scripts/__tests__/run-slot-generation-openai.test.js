@@ -80,7 +80,7 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
     expect(status).toBe(0);
     const result = JSON.parse(stdout);
     expect(result.status).toBe("STUB");
-    expect(stderr || "").toContain("AI_NOT_ALLOWED");
+    expect(stderr || "").toContain("NOT_ALLOWLISTED");
   });
 
   test("rejects schema-invalid jobs with non-zero exit and no JSON on stdout", () => {
