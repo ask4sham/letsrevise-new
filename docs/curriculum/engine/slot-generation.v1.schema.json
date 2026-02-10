@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://letsrevise.app/schemas/slot-generation.v1.schema.json",
   "type": "object",
@@ -75,7 +75,8 @@
       "additionalProperties": false,
       "required": ["requiresReview"],
       "properties": {
-        "requiresReview": { "type": "boolean" }
+        "requiresReview": { "type": "boolean" },
+        "allowAI": { "type": "boolean" }
       }
     }
   }

@@ -94,5 +94,75 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
     expect(stdout || "").toBe("");
     expect(stderr || "").not.toBe("");
   });
+
+  test("FEATURE on + allowAI true still STUBs when allowlist is disabled (deny-by-default)", () => {
+    // Mock allowlist file to be disabled (deny-by-default).
+    jest.resetModules();
+    jest.doMock("fs", () => ({
+      readFileSync: jest.fn(() =>
+        JSON.stringify({
+          version: "allowlist.v1",
+          enabled: false,
+          mode: "deny_by_default",
+          rules: []
+        })
+      )
+    }));
+
+    const { spawnSync } = require("child_process");
+
+    const validJobNoNetwork = JSON.stringify({
+      version: "v1",
+      appliesTo: {
+        subject: "Biology",
+        level: "GCSE",
+        board: "AQA",
+        specVersion: "v1"
+      },
+      jobs: [
+        {
+          jobId: "J1",
+          slotId: "S1",
+          kind: "explanatory",
+          mode: "generate",
+          input: {},
+          output: { field: "content", type: "text" },
+          sources: [],
+          required: true
+        }
+      ],
+      // Explicitly opts-in, but allowlist disabled must still force STUB.
+      metadata: { requiresReview: false, allowAI: true }
+    });
+
+    const res = spawnSync("node", [EXECUTOR_PATH], {
+      cwd: REPO_ROOT,
+      input: validJobNoNetwork,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        FEATURE_SLOTGEN_AI: "true",
+        SLOTGEN_AI_KILL: "false",
+        // Provide fake key/base to ensure any accidental network attempt would be obvious.
+        OPENAI_API_KEY: "test-key",
+        OPENAI_BASE_URL: "http://127.0.0.1:1"
+      }
+    });
+
+    // Must succeed and STUB (no OpenAI call path).
+    expect(res.status).toBe(0);
+
+    const out = JSON.parse(res.stdout);
+    expect(out.status).toBe("STUB");
+    expect(out.jobId).toBe("J1");
+
+    // Telemetry should indicate it was blocked by allowlist, not by kill-switch.
+    const stderrLines = (res.stderr || "").trim().split("\n");
+    const last = stderrLines[stderrLines.length - 1] || "";
+    const telemetry = JSON.parse(last);
+    expect(telemetry.path).toBe("stub");
+    expect(telemetry.status).toBe("STUB");
+    expect(telemetry.errorCode).toBe("NOT_ALLOWLISTED");
+  });
 });
 
