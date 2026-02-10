@@ -250,6 +250,11 @@ jobs:
       - run: node scripts/validate-json.js docs/curriculum/engine/derivation.contract.json docs/curriculum/engine/derivation.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-biology.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
       - run: node scripts/validate-json.js docs/curriculum/mappings/dfe-gcse-chemistry.map.json docs/curriculum/mappings/curriculum-mapping.schema.json
+      - name: Slotgen allowlist config validates
+        run: |
+          node scripts/validate-json.js \
+            docs/curriculum/engine/slot-generation-allowlist.v1.json \
+            docs/curriculum/engine/slot-generation-allowlist.v1.schema.json
       # Phase 3: Content slots
       - run: node scripts/validate-json.js docs/curriculum/engine/content-slots.contract.json docs/curriculum/engine/content-slots.v1.schema.json
 
