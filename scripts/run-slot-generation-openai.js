@@ -32,6 +32,43 @@ function validateJsonStdin(jsonText, schemaPath) {
   }
 }
 
+function loadAllowlist() {
+  const allowlistPath = path.join(
+    __dirname,
+    "../docs/curriculum/engine/slot-generation-allowlist.v1.json"
+  );
+
+  const raw = fs.readFileSync(allowlistPath, "utf8");
+  return JSON.parse(raw);
+}
+
+function isAllowedByPolicy({ allowlist, appliesTo, job }) {
+  // When allowlist is disabled, do not restrict behavior yet.
+  if (!allowlist || allowlist.enabled !== true) return true;
+  if (allowlist.mode !== "deny_by_default") return true;
+
+  return allowlist.rules.some((rule) => {
+    if (!rule.enabled) return false;
+
+    const matchSubject = rule.appliesTo.subject.includes(appliesTo.subject);
+    const matchLevel = rule.appliesTo.level.includes(appliesTo.level);
+    const matchBoard = rule.appliesTo.board.includes(appliesTo.board);
+    const matchSpec = rule.appliesTo.specVersion.includes(appliesTo.specVersion);
+
+    const matchKind =
+      Array.isArray(rule.kinds) && rule.kinds.length > 0
+        ? rule.kinds.includes(job.kind)
+        : true;
+
+    const matchSlot =
+      Array.isArray(rule.slotIds) && rule.slotIds.length > 0
+        ? rule.slotIds.includes(job.slotId)
+        : true;
+
+    return matchSubject && matchLevel && matchBoard && matchSpec && matchKind && matchSlot;
+  });
+}
+
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
 
@@ -65,12 +102,28 @@ process.stdin.on("end", async () => {
   const executorConfig = JSON.parse(readFile(cfgPath));
   const promptContract = readFile(promptPath);
 
+  const allowlist = loadAllowlist();
+  const appliesTo = jobSpec.appliesTo;
+  const firstJob = jobSpec.jobs?.[0] ?? null;
+  const allowed = firstJob
+    ? isAllowedByPolicy({
+        allowlist,
+        appliesTo: {
+          subject: appliesTo?.subject,
+          level: appliesTo?.level,
+          board: appliesTo?.board,
+          specVersion: appliesTo?.specVersion,
+        },
+        job: firstJob,
+      })
+    : false;
+
   // 3) Dark-launch feature flag (OFF by default)
   const enabled = process.env.FEATURE_SLOTGEN_AI === "true";
   // Phase 4C Canary Gate:
   // Even if FEATURE_SLOTGEN_AI=true, we ONLY allow real model calls when the job explicitly opts in.
   const allowAI = jobSpec?.metadata?.allowAI === true;
-  if (!enabled || !allowAI || process.env.SLOTGEN_AI_KILL === "true") {
+  if (!enabled || !allowAI || process.env.SLOTGEN_AI_KILL === "true" || !allowed) {
     // Deterministic stub output (still schema-valid)
     const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
 
