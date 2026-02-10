@@ -74,14 +74,7 @@ process.stdin.on("end", () => {
       jobId: firstJobId,
       status: "STUB",
       generatedAt: new Date().toISOString(),
-      output: null,
-      metadata: {
-        requiresReview: true,
-        executor: executorConfig.version,
-        model: executorConfig.model,
-        promptContract: path.basename(promptPath),
-        note: "FEATURE_SLOTGEN_AI is disabled; no model call was made."
-      }
+      output: null
     };
 
     const outputJson = JSON.stringify(result, null, 2);
