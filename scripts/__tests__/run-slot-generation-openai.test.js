@@ -96,20 +96,9 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
   });
 
   test("FEATURE on + allowAI true still STUBs when allowlist is disabled (deny-by-default)", () => {
-    // Mock allowlist file to be disabled (deny-by-default).
-    jest.resetModules();
-    jest.doMock("fs", () => ({
-      readFileSync: jest.fn(() =>
-        JSON.stringify({
-          version: "allowlist.v1",
-          enabled: false,
-          mode: "deny_by_default",
-          rules: []
-        })
-      )
-    }));
-
-    const { spawnSync } = require("child_process");
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
 
     const validJobNoNetwork = JSON.stringify({
       version: "v1",
@@ -135,6 +124,26 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
       metadata: { requiresReview: false, allowAI: true }
     });
 
+    const tmpAllowlistPath = path.join(
+      os.tmpdir(),
+      `slotgen-allowlist-disabled-${Date.now()}.json`
+    );
+
+    fs.writeFileSync(
+      tmpAllowlistPath,
+      JSON.stringify(
+        {
+          version: "allowlist.v1",
+          enabled: false,
+          mode: "deny_by_default",
+          rules: []
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
     const res = spawnSync("node", [EXECUTOR_PATH], {
       cwd: REPO_ROOT,
       input: validJobNoNetwork,
@@ -143,6 +152,7 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
         ...process.env,
         FEATURE_SLOTGEN_AI: "true",
         SLOTGEN_AI_KILL: "false",
+        SLOTGEN_ALLOWLIST_PATH: tmpAllowlistPath,
         // Provide fake key/base to ensure any accidental network attempt would be obvious.
         OPENAI_API_KEY: "test-key",
         OPENAI_BASE_URL: "http://127.0.0.1:1"
@@ -163,6 +173,10 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
     expect(telemetry.path).toBe("stub");
     expect(telemetry.status).toBe("STUB");
     expect(telemetry.errorCode).toBe("NOT_ALLOWLISTED");
+
+    try {
+      fs.unlinkSync(tmpAllowlistPath);
+    } catch {}
   });
 });
 
