@@ -71,6 +71,29 @@ function isAllowedByPolicy({ allowlist, appliesTo, job }) {
   });
 }
 
+function isJobAllowlisted(job, allowlist) {
+  if (!allowlist.enabled) return false;
+
+  return allowlist.rules.some((rule) => {
+    const appliesTo = job.appliesTo || {};
+    const firstJob = job.jobs?.[0];
+    const subjectMatch = rule.appliesTo?.subject?.includes(appliesTo.subject);
+    const levelMatch = rule.appliesTo?.level?.includes(appliesTo.level);
+    const boardMatch = rule.appliesTo?.board?.includes(appliesTo.board);
+    const kindMatch =
+      !Array.isArray(rule.kinds) || rule.kinds.length === 0
+        ? true
+        : rule.kinds.includes(firstJob?.kind);
+    return (
+      rule.enabled !== false &&
+      subjectMatch &&
+      levelMatch &&
+      boardMatch &&
+      kindMatch
+    );
+  });
+}
+
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
 
@@ -105,30 +128,18 @@ process.stdin.on("end", async () => {
   const promptContract = readFile(promptPath);
 
   const allowlist = loadAllowlist();
-  const appliesTo = jobSpec.appliesTo;
-  const firstJob = jobSpec.jobs?.[0] ?? null;
-  const allowed = firstJob
-    ? isAllowedByPolicy({
-        allowlist,
-        appliesTo: {
-          subject: appliesTo?.subject,
-          level: appliesTo?.level,
-          board: appliesTo?.board,
-          specVersion: appliesTo?.specVersion,
-        },
-        job: firstJob,
-      })
-    : false;
 
-  // 3) Dark-launch feature flag (OFF by default)
-  const enabled = process.env.FEATURE_SLOTGEN_AI === "true";
-  // Phase 4C Canary Gate:
-  // Even if FEATURE_SLOTGEN_AI=true, we ONLY allow real model calls when the job explicitly opts in.
+  const featureEnabled = process.env.FEATURE_SLOTGEN_AI === "true";
   const allowAI = jobSpec?.metadata?.allowAI === true;
-  if (!enabled || !allowAI || process.env.SLOTGEN_AI_KILL === "true" || !allowed) {
-    // Deterministic stub output (still schema-valid)
-    const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
 
+  const aiPermitted =
+    featureEnabled &&
+    allowAI &&
+    allowlist.enabled &&
+    isJobAllowlisted(jobSpec, allowlist);
+
+  if (!aiPermitted || process.env.SLOTGEN_AI_KILL === "true") {
+    const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
     const result = {
       version: "v1",
       jobId: firstJobId,
@@ -137,33 +148,20 @@ process.stdin.on("end", async () => {
       output: null
     };
 
-    const outputJson = JSON.stringify(result, null, 2);
-
-    // 4) Validate output schema
-    validateJsonStdin(
-      outputJson,
-      "docs/curriculum/engine/slot-generation-result.v1.schema.json"
-    );
-
-    process.stdout.write(outputJson);
-
-    const latencyMs = Date.now() - start;
     emitTelemetry({
       executorVersion: executorConfig.version,
       jobId: firstJobId,
       path: "stub",
       status: "STUB",
-      latencyMs,
+      latencyMs: Date.now() - start,
       errorCode:
         process.env.SLOTGEN_AI_KILL === "true"
           ? "KILL_SWITCH"
-          : enabled && !allowAI
-            ? "AI_NOT_ALLOWED"
-            : enabled && allowAI && !allowed
-              ? "NOT_ALLOWLISTED"
-              : null,
+          : "NOT_ALLOWLISTED"
     });
-    return;
+
+    process.stdout.write(JSON.stringify(result, null, 2));
+    process.exit(0);
   }
 
   // Phase 4C (real call) — still schema-locked.
