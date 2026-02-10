@@ -215,6 +215,32 @@ jobs:
           tail -n 1 /tmp/slotgen-openai-kill-stderr.log > /tmp/slotgen-openai-kill-telemetry.json
           node scripts/validate-json.js /tmp/slotgen-openai-kill-telemetry.json docs/curriculum/engine/slot-generation-telemetry.v1.schema.json
           grep '"path":"stub"' /tmp/slotgen-openai-kill-telemetry.json
+      - name: OpenAI slotgen requires explicit allowAI (canary gate)
+        run: |
+          set -e
+          FEATURE_SLOTGEN_AI=true \
+          echo '{
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
+          }' | npm run slotgen:openai | grep '"status": "STUB"'
       - name: OpenAI executor config validates
         run: node scripts/validate-json.js docs/curriculum/engine/slot-generation-executor.openai.v1.json docs/curriculum/engine/slot-generation-executor.openai.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
