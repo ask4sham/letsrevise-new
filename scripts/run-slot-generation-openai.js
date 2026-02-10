@@ -13,6 +13,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const { emitTelemetry } = require("./slotgen-telemetry");
 
 function readFile(p) {
   return fs.readFileSync(p, "utf8");
@@ -37,6 +38,7 @@ process.stdin.setEncoding("utf8");
 let input = "";
 process.stdin.on("data", (chunk) => (input += chunk));
 process.stdin.on("end", async () => {
+  const start = Date.now();
   if (!input.trim()) {
     console.error("No input provided to run-slot-generation-openai");
     process.exit(1);
@@ -63,8 +65,9 @@ process.stdin.on("end", async () => {
   const executorConfig = JSON.parse(readFile(cfgPath));
   const promptContract = readFile(promptPath);
 
-  // 3) Dark-launch feature flag (OFF by default)
-  const enabled = process.env.FEATURE_SLOTGEN_AI === "true";
+  // 3) Dark-launch feature flag (OFF by default) + hard kill-switch
+  const killSwitch = process.env.SLOTGEN_AI_KILL === "true";
+  const enabled = !killSwitch && process.env.FEATURE_SLOTGEN_AI === "true";
   if (!enabled) {
     // Deterministic stub output (still schema-valid)
     const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
@@ -80,15 +83,37 @@ process.stdin.on("end", async () => {
     const outputJson = JSON.stringify(result, null, 2);
 
     // 4) Validate output schema
-    validateJsonStdin(outputJson, "docs/curriculum/engine/slot-generation-result.v1.schema.json");
+    validateJsonStdin(
+      outputJson,
+      "docs/curriculum/engine/slot-generation-result.v1.schema.json"
+    );
 
     process.stdout.write(outputJson);
+
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: firstJobId,
+      path: "stub",
+      status: "STUB",
+      latencyMs,
+      errorCode: null,
+    });
     return;
   }
 
   // Phase 4C (real call) — still schema-locked.
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+      path: "openai",
+      status: "FAILED",
+      latencyMs,
+      errorCode: "MISSING_API_KEY",
+    });
     console.error("Missing OPENAI_API_KEY");
     process.exit(1);
   }
@@ -131,10 +156,28 @@ ${JSON.stringify(jobSpec, null, 2)}`;
 
     responseText = await res.text();
     if (!res.ok) {
+      const latencyMs = Date.now() - start;
+      emitTelemetry({
+        executorVersion: executorConfig.version,
+        jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+        path: "openai",
+        status: "FAILED",
+        latencyMs,
+        errorCode: "OPENAI_HTTP_ERROR",
+      });
       process.stderr.write(responseText);
       process.exit(1);
     }
   } catch (err) {
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+      path: "openai",
+      status: "FAILED",
+      latencyMs,
+      errorCode: "OPENAI_REQUEST_FAILED",
+    });
     console.error(`OpenAI request failed: ${err && err.message ? err.message : String(err)}`);
     process.exit(1);
   }
@@ -143,6 +186,15 @@ ${JSON.stringify(jobSpec, null, 2)}`;
   try {
     completion = JSON.parse(responseText);
   } catch {
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+      path: "openai",
+      status: "FAILED",
+      latencyMs,
+      errorCode: "OPENAI_NON_JSON_RESPONSE",
+    });
     process.stderr.write("OpenAI response was not valid JSON\n");
     process.stderr.write(responseText);
     process.exit(1);
@@ -150,6 +202,15 @@ ${JSON.stringify(jobSpec, null, 2)}`;
 
   const content = completion?.choices?.[0]?.message?.content;
   if (!content || typeof content !== "string") {
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+      path: "openai",
+      status: "FAILED",
+      latencyMs,
+      errorCode: "OPENAI_MISSING_CONTENT",
+    });
     process.stderr.write("OpenAI response missing choices[0].message.content\n");
     process.stderr.write(responseText);
     process.exit(1);
@@ -159,12 +220,30 @@ ${JSON.stringify(jobSpec, null, 2)}`;
   try {
     generatedOutput = JSON.parse(content);
   } catch {
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+      path: "openai",
+      status: "FAILED",
+      latencyMs,
+      errorCode: "OPENAI_NON_JSON_CONTENT",
+    });
     process.stderr.write("Model did not return valid JSON-only output\n");
     process.stderr.write(content);
     process.exit(1);
   }
 
   if (generatedOutput === null || typeof generatedOutput !== "object" || Array.isArray(generatedOutput)) {
+    const latencyMs = Date.now() - start;
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN",
+      path: "openai",
+      status: "FAILED",
+      latencyMs,
+      errorCode: "OPENAI_OUTPUT_NOT_OBJECT",
+    });
     process.stderr.write("Model output must be a JSON object\n");
     process.exit(1);
   }
@@ -182,8 +261,21 @@ ${JSON.stringify(jobSpec, null, 2)}`;
   const outputJson = JSON.stringify(result, null, 2);
 
   // Validate output schema (contract-locked)
-  validateJsonStdin(outputJson, "docs/curriculum/engine/slot-generation-result.v1.schema.json");
+  validateJsonStdin(
+    outputJson,
+    "docs/curriculum/engine/slot-generation-result.v1.schema.json"
+  );
 
   process.stdout.write(outputJson);
+
+  const latencyMs = Date.now() - start;
+  emitTelemetry({
+    executorVersion: executorConfig.version,
+    jobId: firstJobId,
+    path: "openai",
+    status: "COMPLETED",
+    latencyMs,
+    errorCode: null,
+  });
 });
 

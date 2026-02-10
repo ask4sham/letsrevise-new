@@ -158,6 +158,32 @@ jobs:
           node scripts/validate-json.js /tmp/slotgen-openai-enabled.json docs/curriculum/engine/slot-generation-result.v1.schema.json
           grep '"status": "COMPLETED"' /tmp/slotgen-openai-enabled.json
           kill $SERVER_PID
+      - name: OpenAI slotgen telemetry validates
+        run: |
+          echo '{
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
+          }' | npm run slotgen:openai 2> /tmp/slotgen-openai-telemetry.json
+          tail -n 1 /tmp/slotgen-openai-telemetry.json > /tmp/slotgen-openai-telemetry-last.json
+          node scripts/validate-json.js /tmp/slotgen-openai-telemetry-last.json docs/curriculum/engine/slot-generation-telemetry.v1.schema.json
       - name: OpenAI executor config validates
         run: node scripts/validate-json.js docs/curriculum/engine/slot-generation-executor.openai.v1.json docs/curriculum/engine/slot-generation-executor.openai.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json

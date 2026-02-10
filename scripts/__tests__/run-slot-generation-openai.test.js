@@ -47,7 +47,6 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
 
     // Process should succeed
     expect(status).toBe(0);
-    expect(stderr || "").toBe("");
 
     // Output must be parseable JSON
     const result = JSON.parse(stdout);
@@ -57,6 +56,17 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
     // Output must be JSON-only (no markdown/commentary)
     expect(stdout).not.toContain("```");
     expect(stdout).not.toMatch(/(^|\n)#/);
+  });
+
+  test("kill-switch forces stub even when FEATURE_SLOTGEN_AI is true", () => {
+    const { status, stdout } = runExecutor(VALID_JOB, {
+      FEATURE_SLOTGEN_AI: "true",
+      SLOTGEN_AI_KILL: "true",
+    });
+
+    expect(status).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.status).toBe("STUB");
   });
 
   test("with FEATURE_SLOTGEN_AI on fails fast with clear error (no model calls yet)", () => {
