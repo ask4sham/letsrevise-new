@@ -146,6 +146,18 @@ jobs:
             "metadata": { "requiresReview": false }
           }
           EOF
+      - name: OpenAI slotgen enabled path uses stubbed server (no real network)
+        run: |
+          node -e 'const http=require("http");const srv=http.createServer((req,res)=>{let b="";req.on("data",c=>b+=c);req.on("end",()=>{const resp={choices:[{message:{content:"{\"field\":\"content\"}"}}]};res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify(resp));});});srv.listen(3100);' &
+          SERVER_PID=$!
+          sleep 1
+          set -e
+          FEATURE_SLOTGEN_AI=true OPENAI_API_KEY="test-key" OPENAI_BASE_URL="http://127.0.0.1:3100" \
+            echo '{            "version": "v1",            "appliesTo": {              "subject": "Biology",              "level": "GCSE",              "board": "AQA",              "specVersion": "v1"            },            "jobs": [              {                "jobId": "J1",                "slotId": "S1",                "kind": "explanatory",                "mode": "generate",                "input": {},                "output": { "field": "content", "type": "text" },                "sources": [],                "required": true              }            ],            "metadata": { "requiresReview": false }          }' \
+            | npm run slotgen:openai | tee /tmp/slotgen-openai-enabled.json
+          node scripts/validate-json.js /tmp/slotgen-openai-enabled.json docs/curriculum/engine/slot-generation-result.v1.schema.json
+          grep '"status": "COMPLETED"' /tmp/slotgen-openai-enabled.json
+          kill $SERVER_PID
       - name: OpenAI executor config validates
         run: node scripts/validate-json.js docs/curriculum/engine/slot-generation-executor.openai.v1.json docs/curriculum/engine/slot-generation-executor.openai.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
