@@ -3,7 +3,8 @@
     "test": "jest --runInBand --forceExit",
     "validate:bundle": "node scripts/validate-lesson-bundle.js",
     "generate:bundle": "node scripts/generate-lesson-bundle.js",
-    "slotgen:stub": "node scripts/run-slot-generation.js"
+    "slotgen:stub": "node scripts/run-slot-generation.js",
+    "slotgen:openai": "node scripts/run-slot-generation-openai.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
