@@ -70,6 +70,57 @@ jobs:
           }' | npm run slotgen:stub | grep '"jobId": "J1"'
       - name: Slot-generation result contract validates
         run: node scripts/validate-json.js docs/curriculum/engine/slot-generation-result.contract.json docs/curriculum/engine/slot-generation-result.v1.schema.json
+      - name: OpenAI slotgen (dark) accepts valid job
+        run: |
+          echo '{
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
+          }' | npm run slotgen:openai | grep '"status": "STUB"'
+
+      - name: OpenAI slotgen fails when feature enabled (not implemented)
+        run: |
+          ! FEATURE_SLOTGEN_AI=true npm run slotgen:openai << 'EOF'
+          {
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
+          }
+          EOF
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/england-gcse-biology.v1.json docs/curriculum/statutory/statutory-content.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/boards/aqa-gcse-biology-photosynthesis.v1.json docs/curriculum/boards/exam-board-spec.v1.schema.json
