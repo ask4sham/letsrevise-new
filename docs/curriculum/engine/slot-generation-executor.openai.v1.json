@@ -1,0 +1,39 @@
+{
+  "version": "openai.v1",
+  "provider": "openai",
+  "model": "gpt-4.1",
+  "temperature": 0.2,
+  "top_p": 1,
+  "max_output_tokens": 1200,
+  "timeouts": {
+    "requestMs": 30000
+  },
+  "retries": {
+    "maxAttempts": 1
+  },
+  "output": {
+    "format": "json_only",
+    "mustMatchSchema": "docs/curriculum/engine/slot-generation-result.v1.schema.json"
+  },
+  "safety": {
+    "defaultRequiresReview": true,
+    "disallowMarkdown": true,
+    "disallowCommentary": true
+  },
+  "hashInputs": [
+    "version",
+    "provider",
+    "model",
+    "temperature",
+    "top_p",
+    "max_output_tokens",
+    "timeouts.requestMs",
+    "retries.maxAttempts",
+    "output.format",
+    "output.mustMatchSchema",
+    "safety.defaultRequiresReview",
+    "safety.disallowMarkdown",
+    "safety.disallowCommentary"
+  ]
+}
+
