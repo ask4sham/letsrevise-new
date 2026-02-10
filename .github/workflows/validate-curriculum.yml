@@ -16,6 +16,60 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Run unit tests
+        run: npm test
+      - name: Slotgen stub rejects invalid job
+        run: "! echo '{}' | npm run slotgen:stub"
+      - name: Slotgen stub accepts valid job
+        run: |
+          echo '{
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
+          }' | npm run slotgen:stub
+      - name: Slotgen stub outputs jobId from jobs[0]
+        run: |
+          echo '{
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false }
+          }' | npm run slotgen:stub | grep '"jobId": "J1"'
+      - name: Slot-generation result contract validates
+        run: node scripts/validate-json.js docs/curriculum/engine/slot-generation-result.contract.json docs/curriculum/engine/slot-generation-result.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/sources.json docs/curriculum/statutory/statutory-source.schema.json
       - run: node scripts/validate-json.js docs/curriculum/statutory/england-gcse-biology.v1.json docs/curriculum/statutory/statutory-content.v1.schema.json
       - run: node scripts/validate-json.js docs/curriculum/boards/aqa-gcse-biology-photosynthesis.v1.json docs/curriculum/boards/exam-board-spec.v1.schema.json
@@ -35,5 +89,7 @@ jobs:
           | node scripts/map-lesson-to-slots.js \
           | node scripts/fill-content-slots.js \
           | node scripts/validate-json.js - docs/curriculum/engine/content-slots.v1.schema.json
+      # Phase 4A: Slot generation interface
+      - run: node scripts/validate-json.js docs/curriculum/engine/slot-generation.contract.json docs/curriculum/engine/slot-generation.v1.schema.json
       - run: node scripts/verify-immutable-hashes.js
       - run: node scripts/assert-ai-generated-flag.js

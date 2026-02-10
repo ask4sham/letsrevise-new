@@ -1,18 +1,22 @@
 {
   "scripts": {
+    "test": "jest --runInBand --forceExit",
     "validate:bundle": "node scripts/validate-lesson-bundle.js",
-    "generate:bundle": "node scripts/generate-lesson-bundle.js"
+    "generate:bundle": "node scripts/generate-lesson-bundle.js",
+    "slotgen:stub": "node scripts/run-slot-generation.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
     "mongoose": "^9.1.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "jest": "^30.2.0",
     "mongodb-memory-server": "^11.0.1",
-    "supertest": "^7.2.2"
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2"
   }
 }
-
