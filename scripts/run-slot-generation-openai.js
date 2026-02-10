@@ -65,10 +65,12 @@ process.stdin.on("end", async () => {
   const executorConfig = JSON.parse(readFile(cfgPath));
   const promptContract = readFile(promptPath);
 
-  // 3) Dark-launch feature flag (OFF by default) + hard kill-switch
-  const killSwitch = process.env.SLOTGEN_AI_KILL === "true";
-  const enabled = !killSwitch && process.env.FEATURE_SLOTGEN_AI === "true";
-  if (!enabled) {
+  // 3) Dark-launch feature flag (OFF by default)
+  const enabled = process.env.FEATURE_SLOTGEN_AI === "true";
+  // Phase 4C Canary Gate:
+  // Even if FEATURE_SLOTGEN_AI=true, we ONLY allow real model calls when the job explicitly opts in.
+  const allowAI = jobSpec?.metadata?.allowAI === true;
+  if (!enabled || !allowAI || process.env.SLOTGEN_AI_KILL === "true") {
     // Deterministic stub output (still schema-valid)
     const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
 
@@ -97,7 +99,12 @@ process.stdin.on("end", async () => {
       path: "stub",
       status: "STUB",
       latencyMs,
-      errorCode: null,
+      errorCode:
+        process.env.SLOTGEN_AI_KILL === "true"
+          ? "KILL_SWITCH"
+          : enabled && !allowAI
+            ? "AI_NOT_ALLOWED"
+            : null,
     });
     return;
   }

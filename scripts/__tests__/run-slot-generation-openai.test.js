@@ -70,14 +70,17 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
   });
 
   test("with FEATURE_SLOTGEN_AI on fails fast with clear error (no model calls yet)", () => {
-    const { stdout, stderr } = runExecutor(VALID_JOB, {
+    const { status, stdout, stderr } = runExecutor(VALID_JOB, {
       FEATURE_SLOTGEN_AI: "true",
       SLOTGEN_AI_KILL: "false",
       OPENAI_API_KEY: "",
     });
 
-    expect(stdout || "").toBe("");
-    expect(stderr || "").toMatch(/Missing OPENAI_API_KEY|OpenAI request failed|response was not valid JSON/);
+    // With canary gate and no metadata.allowAI, this should stay on the stub path.
+    expect(status).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.status).toBe("STUB");
+    expect(stderr || "").toContain("AI_NOT_ALLOWED");
   });
 
   test("rejects schema-invalid jobs with non-zero exit and no JSON on stdout", () => {
