@@ -1,0 +1,21 @@
+{
+  "version": "allowlist.v1",
+  "enabled": false,
+  "mode": "deny_by_default",
+  "rules": [
+    {
+      "id": "internal-biologyaqa-v1-explanatory",
+      "enabled": true,
+      "appliesTo": {
+        "subject": ["Biology"],
+        "level": ["GCSE"],
+        "board": ["AQA"],
+        "specVersion": ["v1"]
+      },
+      "kinds": ["explanatory"],
+      "slotIds": [],
+      "maxJobsPerRun": 5
+    }
+  ]
+}
+
