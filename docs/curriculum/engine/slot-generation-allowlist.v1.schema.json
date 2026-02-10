@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "enabled", "mode", "rules"],
+  "properties": {
+    "version": { "type": "string", "const": "allowlist.v1" },
+    "enabled": { "type": "boolean" },
+    "mode": { "type": "string", "enum": ["deny_by_default"] },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "enabled", "appliesTo", "kinds", "slotIds", "maxJobsPerRun"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean" },
+          "appliesTo": {
+            "type": "object",
+            "required": ["subject", "level", "board", "specVersion"],
+            "properties": {
+              "subject": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "level": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "board": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "specVersion": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            },
+            "additionalProperties": false
+          },
+          "kinds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "slotIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "maxJobsPerRun": { "type": "integer", "minimum": 1, "maximum": 100 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
+
