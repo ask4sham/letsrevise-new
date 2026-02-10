@@ -36,7 +36,7 @@ process.stdin.setEncoding("utf8");
 
 let input = "";
 process.stdin.on("data", (chunk) => (input += chunk));
-process.stdin.on("end", () => {
+process.stdin.on("end", async () => {
   if (!input.trim()) {
     console.error("No input provided to run-slot-generation-openai");
     process.exit(1);
@@ -86,8 +86,104 @@ process.stdin.on("end", () => {
     return;
   }
 
-  // Placeholder for Phase 4C model call implementation (next steps).
-  console.error("FEATURE_SLOTGEN_AI is enabled, but model call is not implemented yet.");
-  process.exit(1);
+  // Phase 4C (real call) — still schema-locked.
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("Missing OPENAI_API_KEY");
+    process.exit(1);
+  }
+
+  const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+  const url = `${baseUrl}/chat/completions`;
+
+  // Minimal, strict JSON-only instruction.
+  const system = `${promptContract}
+
+STRICT OUTPUT RULES:
+- Return ONLY valid JSON (no markdown, no commentary).
+- The JSON MUST be an object representing the generated OUTPUT payload for this job spec.
+`;
+
+  const user = `JOB SPEC (JSON):
+${JSON.stringify(jobSpec, null, 2)}`;
+
+  const body = {
+    model: executorConfig.model,
+    temperature: executorConfig.temperature,
+    top_p: executorConfig.top_p,
+    max_tokens: executorConfig.max_output_tokens,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user }
+    ]
+  };
+
+  let responseText = "";
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    responseText = await res.text();
+    if (!res.ok) {
+      process.stderr.write(responseText);
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(`OpenAI request failed: ${err && err.message ? err.message : String(err)}`);
+    process.exit(1);
+  }
+
+  let completion;
+  try {
+    completion = JSON.parse(responseText);
+  } catch {
+    process.stderr.write("OpenAI response was not valid JSON\n");
+    process.stderr.write(responseText);
+    process.exit(1);
+  }
+
+  const content = completion?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") {
+    process.stderr.write("OpenAI response missing choices[0].message.content\n");
+    process.stderr.write(responseText);
+    process.exit(1);
+  }
+
+  let generatedOutput;
+  try {
+    generatedOutput = JSON.parse(content);
+  } catch {
+    process.stderr.write("Model did not return valid JSON-only output\n");
+    process.stderr.write(content);
+    process.exit(1);
+  }
+
+  if (generatedOutput === null || typeof generatedOutput !== "object" || Array.isArray(generatedOutput)) {
+    process.stderr.write("Model output must be a JSON object\n");
+    process.exit(1);
+  }
+
+  const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
+
+  const result = {
+    version: "v1",
+    jobId: firstJobId,
+    status: "COMPLETED",
+    generatedAt: new Date().toISOString(),
+    output: generatedOutput
+  };
+
+  const outputJson = JSON.stringify(result, null, 2);
+
+  // Validate output schema (contract-locked)
+  validateJsonStdin(outputJson, "docs/curriculum/engine/slot-generation-result.v1.schema.json");
+
+  process.stdout.write(outputJson);
 });
 

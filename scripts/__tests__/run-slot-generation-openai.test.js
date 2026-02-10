@@ -66,9 +66,7 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
 
     expect(status).not.toBe(0);
     expect(stdout || "").toBe("");
-    expect(stderr || "").toContain(
-      "FEATURE_SLOTGEN_AI is enabled, but model call is not implemented yet."
-    );
+    expect(stderr || "").toMatch(/Missing OPENAI_API_KEY|OpenAI request failed|response was not valid JSON/);
   });
 
   test("rejects schema-invalid jobs with non-zero exit and no JSON on stdout", () => {
