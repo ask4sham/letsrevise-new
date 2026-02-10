@@ -33,19 +33,21 @@ function validateJsonStdin(jsonText, schemaPath) {
 }
 
 function loadAllowlist() {
-  const allowlistPath = path.join(
-    __dirname,
-    "../docs/curriculum/engine/slot-generation-allowlist.v1.json"
-  );
+  const allowlistPath =
+    process.env.SLOTGEN_ALLOWLIST_PATH ||
+    path.join(
+      __dirname,
+      "../docs/curriculum/engine/slot-generation-allowlist.v1.json"
+    );
 
   const raw = fs.readFileSync(allowlistPath, "utf8");
   return JSON.parse(raw);
 }
 
 function isAllowedByPolicy({ allowlist, appliesTo, job }) {
-  // When allowlist is disabled, do not restrict behavior yet.
-  if (!allowlist || allowlist.enabled !== true) return true;
-  if (allowlist.mode !== "deny_by_default") return true;
+  // Deny-by-default: if allowlist is missing or disabled, nothing is allowed.
+  if (!allowlist || allowlist.enabled !== true) return false;
+  if (allowlist.mode !== "deny_by_default") return false;
 
   return allowlist.rules.some((rule) => {
     if (!rule.enabled) return false;
@@ -157,7 +159,9 @@ process.stdin.on("end", async () => {
           ? "KILL_SWITCH"
           : enabled && !allowAI
             ? "AI_NOT_ALLOWED"
-            : null,
+            : enabled && allowAI && !allowed
+              ? "NOT_ALLOWLISTED"
+              : null,
     });
     return;
   }
