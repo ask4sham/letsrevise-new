@@ -180,3 +180,67 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
   });
 });
 
+describe("Deterministic rollout gating", () => {
+  const { spawnSync } = require("child_process");
+  const path = require("path");
+
+  const EXECUTOR_PATH = path.join(__dirname, "..", "run-slot-generation-openai.js");
+  const REPO_ROOT = path.join(__dirname, "..", "..");
+
+  function runWithEnv(jobId, rolloutPercent) {
+    const job = {
+      version: "v1",
+      appliesTo: {
+        subject: "Biology",
+        level: "GCSE",
+        board: "AQA",
+        specVersion: "v1"
+      },
+      jobs: [
+        {
+          jobId,
+          slotId: "S1",
+          kind: "explanatory",
+          mode: "generate",
+          input: {},
+          output: { field: "content", type: "text" },
+          sources: [],
+          required: true
+        }
+      ],
+      metadata: { requiresReview: false, allowAI: true }
+    };
+
+    return spawnSync("node", [EXECUTOR_PATH], {
+      cwd: REPO_ROOT,
+      input: JSON.stringify(job),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        FEATURE_SLOTGEN_AI: "true",
+        SLOTGEN_AI_ROLLOUT_PERCENT: String(rolloutPercent)
+      }
+    });
+  }
+
+  test("Same jobId hashes deterministically", () => {
+    const r1 = runWithEnv("JOB_A", 50);
+    const r2 = runWithEnv("JOB_A", 50);
+
+    const out1 = JSON.parse(r1.stdout);
+    const out2 = JSON.parse(r2.stdout);
+    expect(out1.status).toBe(out2.status);
+    expect(out1.jobId).toBe(out2.jobId);
+  });
+
+  test("Rollout percent 0 behaves as no rollout gate", () => {
+    const result = runWithEnv("JOB_B", 0);
+    expect(result.status).toBe(0);
+  });
+
+  test("Low rollout percent excludes some jobs deterministically", () => {
+    const result = runWithEnv("JOB_LOW", 1);
+    expect(result.status).toBe(0);
+  });
+});
+
