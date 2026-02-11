@@ -275,6 +275,65 @@ jobs:
             "jobs":[{"jobId":"J1","slotId":"S1","kind":"explanatory","mode":"generate","input":{},"output":{"field":"content","type":"text"},"sources":[],"required":true}],
             "metadata":{"requiresReview":false,"allowAI":true}
           }' | npm run slotgen:openai | grep '"status": "STUB"'
+      - name: OpenAI slotgen allowlist mismatch still STUBs
+        run: |
+          set -e
+          cat > /tmp/slotgen-allowlist-enabled-mismatch.json << 'EOF'
+          {
+            "version": "allowlist.v1",
+            "enabled": true,
+            "mode": "deny_by_default",
+            "rules": [
+              {
+                "id": "mismatch-rule",
+                "enabled": true,
+                "appliesTo": {"subject":["Biology"],"level":["GCSE"],"board":["AQA"],"specVersion":["v1"]},
+                "kinds": ["assessment"],
+                "slotIds": [],
+                "maxJobsPerRun": 5
+              }
+            ]
+          }
+          EOF
+
+          FEATURE_SLOTGEN_AI=true \
+          SLOTGEN_ALLOWLIST_PATH=/tmp/slotgen-allowlist-enabled-mismatch.json \
+          echo '{
+            "version":"v1",
+            "appliesTo":{"subject":"Biology","level":"GCSE","board":"AQA","specVersion":"v1"},
+            "jobs":[{"jobId":"J1","slotId":"S1","kind":"explanatory","mode":"generate","input":{},"output":{"field":"content","type":"text"},"sources":[],"required":true}],
+            "metadata":{"requiresReview":false,"allowAI":true}
+          }' | npm run slotgen:openai | grep '"status": "STUB"'
+      - name: OpenAI slotgen allowlist match but kill-switch dominates
+        run: |
+          set -e
+          cat > /tmp/slotgen-allowlist-enabled-match.json << 'EOF'
+          {
+            "version": "allowlist.v1",
+            "enabled": true,
+            "mode": "deny_by_default",
+            "rules": [
+              {
+                "id": "match-rule",
+                "enabled": true,
+                "appliesTo": {"subject":["Biology"],"level":["GCSE"],"board":["AQA"],"specVersion":["v1"]},
+                "kinds": ["explanatory"],
+                "slotIds": [],
+                "maxJobsPerRun": 5
+              }
+            ]
+          }
+          EOF
+
+          FEATURE_SLOTGEN_AI=true \
+          SLOTGEN_AI_KILL=true \
+          SLOTGEN_ALLOWLIST_PATH=/tmp/slotgen-allowlist-enabled-match.json \
+          echo '{
+            "version":"v1",
+            "appliesTo":{"subject":"Biology","level":"GCSE","board":"AQA","specVersion":"v1"},
+            "jobs":[{"jobId":"J1","slotId":"S1","kind":"explanatory","mode":"generate","input":{},"output":{"field":"content","type":"text"},"sources":[],"required":true}],
+            "metadata":{"requiresReview":false,"allowAI":true}
+          }' | npm run slotgen:openai | grep '"status": "STUB"'
       # Phase 3: Content slots
       - run: node scripts/validate-json.js docs/curriculum/engine/content-slots.contract.json docs/curriculum/engine/content-slots.v1.schema.json
 
