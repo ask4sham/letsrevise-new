@@ -334,6 +334,76 @@ jobs:
             "jobs":[{"jobId":"J1","slotId":"S1","kind":"explanatory","mode":"generate","input":{},"output":{"field":"content","type":"text"},"sources":[],"required":true}],
             "metadata":{"requiresReview":false,"allowAI":true}
           }' | npm run slotgen:openai | grep '"status": "STUB"'
+      - name: OpenAI slotgen rollout is deterministic per jobId
+        run: |
+          set -e
+          cat > /tmp/slotgen-allowlist-enabled-rollout.json << 'EOF'
+          {
+            "version": "allowlist.v1",
+            "enabled": true,
+            "mode": "deny_by_default",
+            "rules": [
+              {
+                "id": "rollout-rule",
+                "enabled": true,
+                "appliesTo": {"subject":["Biology"],"level":["GCSE"],"board":["AQA"],"specVersion":["v1"]},
+                "kinds": ["explanatory"],
+                "slotIds": [],
+                "maxJobsPerRun": 5
+              }
+            ]
+          }
+          EOF
+
+          node -e 'const http=require("http");const srv=http.createServer((req,res)=>{let b="";req.on("data",c=>b+=c);req.on("end",()=>{const resp={choices:[{message:{content:"{\"field\":\"content\"}"}}]};res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify(resp));});});srv.listen(3102);' &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 1
+
+          run_job() {
+            local job_id="$1"
+            local prefix="$2"
+            FEATURE_SLOTGEN_AI=true \
+            SLOTGEN_AI_ROLLOUT_PERCENT=30 \
+            SLOTGEN_ALLOWLIST_PATH=/tmp/slotgen-allowlist-enabled-rollout.json \
+            OPENAI_API_KEY="test-key" \
+            OPENAI_BASE_URL="http://127.0.0.1:3102" \
+            npm run slotgen:openai > "/tmp/${prefix}.stdout.json" 2> "/tmp/${prefix}.stderr.log" << EOF
+          {
+            "version":"v1",
+            "appliesTo":{"subject":"Biology","level":"GCSE","board":"AQA","specVersion":"v1"},
+            "jobs":[{"jobId":"${job_id}","slotId":"S1","kind":"explanatory","mode":"generate","input":{},"output":{"field":"content","type":"text"},"sources":[],"required":true}],
+            "metadata":{"requiresReview":false,"allowAI":true}
+          }
+          EOF
+          }
+
+          classify_outcome() {
+            local prefix="$1"
+            if grep -q '"status": "COMPLETED"' "/tmp/${prefix}.stdout.json"; then
+              echo "COMPLETED"
+              return 0
+            fi
+
+            grep -q '"status": "STUB"' "/tmp/${prefix}.stdout.json"
+            tail -n 1 "/tmp/${prefix}.stderr.log" > "/tmp/${prefix}.telemetry.json"
+            grep -q '"errorCode":"ROLLOUT_EXCLUDED"' "/tmp/${prefix}.telemetry.json"
+            echo "ROLLOUT_EXCLUDED"
+          }
+
+          run_job "ROLL_A" "roll_a_1"
+          OUTCOME_A1=$(classify_outcome "roll_a_1")
+
+          run_job "ROLL_A" "roll_a_2"
+          OUTCOME_A2=$(classify_outcome "roll_a_2")
+
+          [ "$OUTCOME_A1" = "$OUTCOME_A2" ]
+
+          run_job "ROLL_B" "roll_b_1"
+          OUTCOME_B1=$(classify_outcome "roll_b_1")
+
+          echo "ROLL_A outcome: $OUTCOME_A1"
+          echo "ROLL_B outcome: $OUTCOME_B1"
       # Phase 3: Content slots
       - run: node scripts/validate-json.js docs/curriculum/engine/content-slots.contract.json docs/curriculum/engine/content-slots.v1.schema.json
 
