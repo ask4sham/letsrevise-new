@@ -118,7 +118,7 @@ jobs:
               }
             ],
             "metadata": { "requiresReview": false }
-          }' | npm run slotgen:openai | node scripts/validate-json.js - docs/curriculum/engine/slot-generation-result.v1.schema.json
+          }' | node scripts/run-slot-generation-openai.js | node scripts/validate-json.js - docs/curriculum/engine/slot-generation-result.v1.schema.json
 
       - name: OpenAI slotgen fails when feature enabled (not implemented)
         run: |
