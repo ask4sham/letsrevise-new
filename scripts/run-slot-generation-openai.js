@@ -71,6 +71,16 @@ function isAllowedByPolicy({ allowlist, appliesTo, job }) {
   });
 }
 
+/** Deterministic bucket 0..99 from jobId (same jobId → same bucket). */
+function rolloutBucket(jobId) {
+  let h = 0;
+  const s = String(jobId ?? "");
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h % 100;
+}
+
 function isJobAllowlisted(job, allowlist) {
   if (!allowlist.enabled) return false;
 
@@ -160,6 +170,31 @@ process.stdin.on("end", async () => {
           : "NOT_ALLOWLISTED"
     });
 
+    process.stdout.write(JSON.stringify(result, null, 2));
+    process.exit(0);
+  }
+
+  // Rollout gate: deterministic by jobId (0 = no gate; 1..100 = percent in)
+  const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
+  const rolloutPercent = Math.min(100, Math.max(0, parseInt(process.env.SLOTGEN_AI_ROLLOUT_PERCENT || "0", 10) || 0));
+  const inRollout = rolloutPercent === 0 || rolloutBucket(firstJobId) < rolloutPercent;
+
+  if (!inRollout) {
+    const result = {
+      version: "v1",
+      jobId: firstJobId,
+      status: "STUB",
+      generatedAt: new Date().toISOString(),
+      output: null
+    };
+    emitTelemetry({
+      executorVersion: executorConfig.version,
+      jobId: firstJobId,
+      path: "stub",
+      status: "STUB",
+      latencyMs: Date.now() - start,
+      errorCode: "ROLLOUT_EXCLUDED"
+    });
     process.stdout.write(JSON.stringify(result, null, 2));
     process.exit(0);
   }
@@ -309,8 +344,6 @@ ${JSON.stringify(jobSpec, null, 2)}`;
     process.stderr.write("Model output must be a JSON object\n");
     process.exit(1);
   }
-
-  const firstJobId = jobSpec.jobId ?? jobSpec.jobs?.[0]?.jobId ?? "UNKNOWN";
 
   const result = {
     version: "v1",
