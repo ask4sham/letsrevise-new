@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "phase",
+    "scope",
+    "preconditions",
+    "enableOrder",
+    "rollbackTriggers",
+    "verification"
+  ],
+  "properties": {
+    "phase": {
+      "const": "8"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preconditions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "enableOrder": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "rollbackTriggers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "verification": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}

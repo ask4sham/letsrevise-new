@@ -1,0 +1,28 @@
+{
+  "phase": "8",
+  "scope": "Runtime enablement (ops-only); controlled canary. Exact safe order for enabling real OpenAI slot generation.",
+  "preconditions": [
+    "On main, clean working tree",
+    "Phase 7 locked (verification scripts + tags exist)",
+    "Kill-switch dominance proven: SLOTGEN_AI_KILL=true forces STUB",
+    "Default path STUB unless: FEATURE_SLOTGEN_AI=true, metadata.allowAI=true, allowlist permits, rollout includes jobId, kill-switch off"
+  ],
+  "enableOrder": [
+    "Kill-switch: SLOTGEN_AI_KILL=true → STUB (errorCode KILL_SWITCH)",
+    "Feature flag: FEATURE_SLOTGEN_AI!=true → STUB",
+    "Explicit per-job canary: metadata.allowAI!==true → STUB (NOT_ALLOWLISTED)",
+    "Allowlist policy: disabled or no match → STUB (NOT_ALLOWLISTED)",
+    "Rollout gating: jobId bucket excluded → STUB (ROLLOUT_EXCLUDED)",
+    "OpenAI call only if all gates pass → COMPLETED"
+  ],
+  "rollbackTriggers": [
+    "Primary: SLOTGEN_AI_KILL=true (instant STUB everywhere)",
+    "Secondary: SLOTGEN_AI_ROLLOUT_PERCENT=0 or low; disable allowlist; FEATURE_SLOTGEN_AI=false"
+  ],
+  "verification": [
+    "Executor outputs remain schema-valid",
+    "Telemetry emitted (single-line JSON to stderr)",
+    "path=openai only when gates permit",
+    "Kill-switch immediately forces STUB"
+  ]
+}
