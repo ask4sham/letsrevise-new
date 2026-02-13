@@ -1,6 +1,39 @@
 # Phase 7 Step 2: Prove enabled OpenAI path works via local stub server (no real network).
 # Requires: correct allowlist shape, file-path validation, BOM-free files, stub server ready before executor.
 $ErrorActionPreference = "Stop"
+
+# Free port 3100 so the stub server can bind (avoid EADDRINUSE from previous runs)
+$stubPort = 3100
+try {
+  $pids = @()
+
+  # Prefer Get-NetTCPConnection if available (Win10/11 often has it)
+  if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+    $conns = Get-NetTCPConnection -LocalPort $stubPort -State Listen -ErrorAction SilentlyContinue
+    if ($conns) {
+      $pids += ($conns | Select-Object -ExpandProperty OwningProcess)
+    }
+  } else {
+    # Fallback: parse netstat output for PID
+    $lines = netstat -aon | Select-String -Pattern (":$stubPort\s+.*LISTENING")
+    foreach ($l in $lines) {
+      $parts = ($l -split "\s+") | Where-Object { $_ -ne "" }
+      if ($parts.Count -ge 5) { $pids += $parts[-1] }
+    }
+  }
+
+  $pids = $pids | Where-Object { $_ -match '^\d+$' } | Select-Object -Unique
+
+  foreach ($pid in $pids) {
+    try { Stop-Process -Id ([int]$pid) -Force -ErrorAction SilentlyContinue } catch {}
+    try { taskkill /PID $pid /F *> $null } catch {}
+  }
+
+  Start-Sleep -Milliseconds 500
+} catch {
+  # Non-fatal: if cmdlets aren't available or port already free, continue
+}
+
 Set-Location $PSScriptRoot\..
 
 $allowlistPath = Join-Path $env:TEMP "slotgen-allowlist-enabled.json"
@@ -50,21 +83,6 @@ $jobJson = @'
 }
 '@
 [System.IO.File]::WriteAllText($jobPath, $jobJson, (New-Object System.Text.UTF8Encoding($false)))
-
-# 2b) Free port 3100 so the stub server can bind (avoid EADDRINUSE from previous runs)
-$stubPort = 3100
-try {
-  $conn = Get-NetTCPConnection -LocalPort $stubPort -ErrorAction SilentlyContinue
-  if ($conn) {
-    $pids = $conn | Select-Object -ExpandProperty OwningProcess -Unique
-    foreach ($pid in $pids) {
-      Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-    }
-    Start-Sleep -Milliseconds 500
-  }
-} catch {
-  # Ignore if Get-NetTCPConnection not available or port free
-}
 
 # 3) Start stub server (OpenAI-style /chat/completions)
 $env:SLOTGEN_STUB_PORT = "3100"
