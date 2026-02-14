@@ -98,34 +98,73 @@ const AssessmentPaperEditPage: React.FC = () => {
       setPatching(true);
       await api.patch(`/assessment-papers/${paperId}/questions`, {
         addExamQuestionIds: Array.from(selectedIds),
+        removeExamQuestionIds: [],
       });
       setBankOpen(false);
       const res = await api.get(`/assessment-papers/${paperId}`);
       setPaper(res.data?.paper || null);
     } catch (err: any) {
-      alert(err?.message || "Failed to add questions");
+      const status = err?.status ?? err?.response?.status;
+      const data = err?.data ?? err?.response?.data;
+      console.error("Add to paper failed:", { status, data, err });
+      const msg =
+        data?.error ||
+        data?.msg ||
+        data?.message ||
+        (typeof data === "string" ? data : null) ||
+        err?.message ||
+        `Server error${status != null ? ` (${status})` : ""}`;
+      alert(msg);
     } finally {
       setPatching(false);
     }
   };
 
+  // Remove bank question: PATCH /api/assessment-papers/:id/questions { addExamQuestionIds: [], removeExamQuestionIds: [examQuestionId] }
   const removeBankQuestion = async (examQuestionId: string) => {
     if (!paperId) return;
     try {
       setPatching(true);
       await api.patch(`/assessment-papers/${paperId}/questions`, {
+        addExamQuestionIds: [],
         removeExamQuestionIds: [examQuestionId],
       });
-      const res = await api.get(`/assessment-papers/${paperId}`);
-      setPaper(res.data?.paper || null);
+      try {
+        const res = await api.get(`/assessment-papers/${paperId}`);
+        setPaper(res.data?.paper || null);
+      } catch (refetchErr: any) {
+        // PATCH succeeded; update local state so the question disappears even if refetch fails
+        const refetchRes = refetchErr?.response;
+        console.warn("Remove succeeded but refetch failed:", refetchRes?.status, refetchRes?.data);
+        if (paper) {
+          setPaper({
+            ...paper,
+            questionBankIds: (paper.questionBankIds || []).filter((id) => String(id) !== examQuestionId),
+            items: (paper.items || []).filter((item) => String(item._id) !== examQuestionId),
+          });
+        }
+      }
     } catch (err: any) {
-      alert(err?.message || "Failed to remove question");
+      // Interceptor rejects with { message, status, data }; raw axios has err.response
+      const status = err?.status ?? err?.response?.status;
+      const data = err?.data ?? err?.response?.data;
+      console.error("Remove question failed:", { status, data, err });
+      const msg =
+        data?.error ||
+        data?.msg ||
+        data?.message ||
+        (typeof data === "string" ? data : null) ||
+        err?.message ||
+        `Server error${status != null ? ` (${status})` : ""}`;
+      alert(msg);
     } finally {
       setPatching(false);
     }
   };
 
-  const attachedBankIds = new Set(paper?.questionBankIds || []);
+  const attachedBankIds = new Set(
+    (paper?.questionBankIds || []).map((id: unknown) => String(id))
+  );
 
   if (loading) {
     return (
@@ -395,6 +434,8 @@ const AssessmentPaperEditPage: React.FC = () => {
                                   marginTop: "2px",
                                   flexShrink: 0,
                                   pointerEvents: "auto",
+                                  position: "relative",
+                                  zIndex: 9999,
                                 }}
                               />
                               <div style={{ flex: 1, minWidth: 0 }}>

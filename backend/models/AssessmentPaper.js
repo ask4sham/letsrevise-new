@@ -119,11 +119,11 @@ const AssessmentPaperSchema = new mongoose.Schema(
 AssessmentPaperSchema.index({ subject: 1, examBoard: 1, level: 1, kind: 1, isPublished: 1 });
 AssessmentPaperSchema.index({ createdBy: 1, createdAt: -1 });
 
-// Allow empty items if questionBankIds has entries; otherwise items must have valid itemIds
+// When items is empty, allow it (paper can have 0 questions or only questionBankIds).
+// When items has entries, each must have a valid itemId.
 AssessmentPaperSchema.path("items").validate(function (items) {
   if (!Array.isArray(items)) return false;
-  const hasBank = Array.isArray(this.questionBankIds) && this.questionBankIds.length > 0;
-  if (items.length === 0) return hasBank;
+  if (items.length === 0) return true;
   return items.every((it) => mongoose.Types.ObjectId.isValid(String(it.itemId)));
 }, "Invalid itemId in items");
 

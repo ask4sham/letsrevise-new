@@ -2,6 +2,9 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const { ObjectId: MongoObjectId } = require("mongodb");
+
+const toObjectId = (v) => new mongoose.Types.ObjectId(String(v));
 
 const AssessmentPaper = require("../models/AssessmentPaper");
 const AssessmentItem = require("../models/AssessmentItem");
@@ -213,8 +216,8 @@ router.get("/:id", auth, requireActiveSubscription, async (req, res) => {
       return res.status(400).json({ success: false, msg: "Invalid paper ID" });
     }
 
-    // Fetch paper with populated items
-    const paper = await AssessmentPaper.findById(id).lean();
+    const paperId = toObjectId(id);
+    const paper = await AssessmentPaper.findById(paperId).lean();
 
     if (!paper) {
       return res.status(404).json({ success: false, msg: "Paper not found" });
@@ -477,7 +480,8 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(400).json({ success: false, msg: "Invalid paper ID" });
     }
 
-    const paper = await AssessmentPaper.findById(id);
+    const paperId = toObjectId(id);
+    const paper = await AssessmentPaper.findById(paperId);
 
     if (!paper) {
       return res.status(404).json({ success: false, msg: "Paper not found" });
@@ -635,18 +639,14 @@ router.put("/:id", auth, async (req, res) => {
 
 router.patch("/:id/questions", auth, async (req, res) => {
   try {
-    const { id } = req.params;
+    const paperId = toObjectId(req.params.id);
     const user = req.user;
 
     if (!isTeacherOrAdmin(user)) {
       return res.status(403).json({ success: false, msg: "Teacher or admin access required" });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, msg: "Invalid paper ID" });
-    }
-
-    const paper = await AssessmentPaper.findById(id);
+    const paper = await AssessmentPaper.findById(paperId);
     if (!paper) {
       return res.status(404).json({ success: false, msg: "Paper not found" });
     }
@@ -664,32 +664,45 @@ router.patch("/:id/questions", auth, async (req, res) => {
       return res.status(400).json({ success: false, msg: "addExamQuestionIds and removeExamQuestionIds must be arrays" });
     }
 
-    const toAdd = addExamQuestionIds
-      .filter((sid) => mongoose.Types.ObjectId.isValid(String(sid)))
-      .map((sid) => mongoose.Types.ObjectId(sid));
-    const toRemove = new Set(removeExamQuestionIds.map((sid) => String(sid)));
-
     let bankIds = Array.isArray(paper.questionBankIds) ? paper.questionBankIds.map((oid) => String(oid)) : [];
-    bankIds = bankIds.filter((oid) => !toRemove.has(oid));
-    const existing = new Set(bankIds);
-    toAdd.forEach((oid) => {
-      const s = String(oid);
-      if (!existing.has(s)) {
-        existing.add(s);
-        bankIds.push(s);
+
+    if (removeExamQuestionIds.length > 0) {
+      const toRemove = new Set(removeExamQuestionIds.map((sid) => String(sid)));
+      bankIds = bankIds.filter((oid) => !toRemove.has(oid));
+    }
+
+    if (addExamQuestionIds.length > 0) {
+      const existing = new Set(bankIds);
+      for (const v of addExamQuestionIds) {
+        const s = String(v ?? "");
+        if (!mongoose.Types.ObjectId.isValid(s)) {
+          return res.status(400).json({ success: false, error: "INVALID_QUESTION_ID" });
+        }
+        if (!existing.has(s)) {
+          existing.add(s);
+          bankIds.push(s);
+        }
       }
-    });
+    }
 
-    paper.questionBankIds = bankIds.map((sid) => mongoose.Types.ObjectId(sid));
-    await paper.save();
+    // Use driver's ObjectId for raw collection update (avoids Mongoose cast that can call ObjectId() without 'new')
+    const questionIds = bankIds.map((s) => new MongoObjectId(String(s)));
+    const updateResult = await AssessmentPaper.collection.updateOne(
+      { _id: new MongoObjectId(String(paperId)) },
+      { $set: { questionBankIds: questionIds, updatedAt: new Date() } }
+    );
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ success: false, msg: "Paper not found" });
+    }
 
+    // Return plain data; do not findById (Mongoose document hydration can trigger ObjectId cast without 'new')
     return res.json({
       success: true,
-      paper: { _id: paper._id, questionBankIds: paper.questionBankIds },
+      paper: { _id: String(paperId), questionBankIds: questionIds.map((id) => String(id)) },
     });
   } catch (err) {
-    console.error("Error in PATCH /api/assessment-papers/:id/questions:", err);
-    return res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    console.error("PATCH /assessment-papers/:id/questions error:", err);
+    return res.status(500).json({ success: false, error: "Failed to update questions", msg: err.message });
   }
 });
 
@@ -711,13 +724,14 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(400).json({ success: false, msg: "Invalid paper ID" });
     }
 
-    const paper = await AssessmentPaper.findById(id);
+    const paperId = toObjectId(id);
+    const paper = await AssessmentPaper.findById(paperId);
 
     if (!paper) {
       return res.status(404).json({ success: false, msg: "Paper not found" });
     }
 
-    await AssessmentPaper.findByIdAndDelete(id);
+    await AssessmentPaper.findByIdAndDelete(paperId);
 
     return res.json({
       success: true,
