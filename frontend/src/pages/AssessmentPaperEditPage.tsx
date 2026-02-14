@@ -383,14 +383,18 @@ const AssessmentPaperEditPage: React.FC = () => {
                               <input
                                 type="checkbox"
                                 checked={selected}
-                                onChange={() => !alreadyOnPaper && toggleBankSelection(qId)}
                                 disabled={alreadyOnPaper}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  if (!alreadyOnPaper) toggleBankSelection(qId);
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                                 style={{
                                   width: 18,
                                   height: 18,
                                   marginTop: "2px",
                                   flexShrink: 0,
+                                  pointerEvents: "auto",
                                 }}
                               />
                               <div style={{ flex: 1, minWidth: 0 }}>
