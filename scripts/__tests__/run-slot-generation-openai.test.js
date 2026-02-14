@@ -244,3 +244,38 @@ describe("Deterministic rollout gating", () => {
   });
 });
 
+describe("Phase 9F revision kind", () => {
+  const REVISION_JOB = JSON.stringify(
+    {
+      version: "v1",
+      appliesTo: { subject: "Biology", level: "GCSE", board: "AQA", specVersion: "v1", topic: "Cells" },
+      jobs: [
+        {
+          jobId: "rev-lesson-1",
+          slotId: "revision",
+          kind: "revision",
+          mode: "generate",
+          input: { lessonId: "1", title: "Test", pages: [{ pageId: "p1", blocks: [{ type: "text", content: "Content" }] }] },
+          output: { field: "revision", type: "flashcards+quiz" },
+          sources: [],
+          required: true,
+        },
+      ],
+      metadata: { requiresReview: true, allowAI: true },
+    },
+    null,
+    2
+  );
+
+  test("revision job returns schema-valid result (STUB when allowlist disabled)", () => {
+    const { status, stdout } = runExecutor(REVISION_JOB, { FEATURE_SLOTGEN_AI: "true" });
+    expect(status).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result).toHaveProperty("version", "v1");
+    expect(result).toHaveProperty("jobId", "rev-lesson-1");
+    expect(result).toHaveProperty("status", "STUB");
+    expect(result).toHaveProperty("generatedAt");
+    expect(result.output).toBeNull();
+  });
+});
+

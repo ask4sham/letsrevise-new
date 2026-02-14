@@ -123,7 +123,11 @@ process.stdin.on("end", async () => {
 
   // 2) Load canonical executor config + prompt contract (versioned inputs for hashing later)
   const cfgPath = "docs/curriculum/engine/slot-generation-executor.openai.v1.json";
-  const promptPath = "docs/curriculum/engine/slot-generation-prompt.openai.v1.md";
+  const firstJob = jobSpec.jobs?.[0];
+  const isRevision = firstJob?.kind === "revision";
+  const promptPath = isRevision
+    ? "docs/curriculum/engine/slot-generation-prompt.revision.openai.v1.md"
+    : "docs/curriculum/engine/slot-generation-prompt.openai.v1.md";
 
   if (!fs.existsSync(cfgPath)) {
     console.error(`Missing executor config: ${cfgPath}`);

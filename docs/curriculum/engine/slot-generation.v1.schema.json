@@ -41,7 +41,7 @@
           "slotId": { "type": "string" },
           "kind": {
             "type": "string",
-            "enum": ["statutory", "assessment", "explanatory"]
+            "enum": ["statutory", "assessment", "explanatory", "revision"]
           },
           "mode": {
             "type": "string",
