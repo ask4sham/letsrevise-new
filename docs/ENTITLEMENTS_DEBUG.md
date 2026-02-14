@@ -1,5 +1,9 @@
 # Entitlements / “7 day pass” still Locked — Diagnosis
 
+**Rule of thumb:** If `GET /api/me/entitlements` doesn’t show `subscription.status` = `active` or `trialing`, the backend will lock content — regardless of what the admin UI says.
+
+---
+
 ## Step 1 — What the backend sees (source of truth)
 
 **As the affected user**, call:
