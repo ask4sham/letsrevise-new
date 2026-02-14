@@ -51,10 +51,15 @@ router.put('/:lessonId', auth, async (req, res) => {
     }
 
     // ✅ API-level entitlement: progress updates are gated via canAccessContent
-    // so subscription / purchase rules stay consistent with lesson/content APIs.
     const access = canAccessContent({ user, lesson });
     if (access.allowed !== true) {
-      return res.status(403).json({ message: 'Subscription required' });
+      const payload = {
+        error: access.reason === 'NOT_ENTITLED' ? 'Subscription required' : 'FORBIDDEN',
+        reason: access.reason || 'NOT_ENTITLED',
+        lessonId: String(lessonId),
+        published: String(lesson?.status || '').toLowerCase() === 'published',
+      };
+      return res.status(access.reason === 'NOT_ENTITLED' ? 402 : 403).json(payload);
     }
 
     ensureStudentStats(user);
@@ -190,10 +195,15 @@ router.put('/:lessonId/review', auth, async (req, res) => {
     }
 
     // ✅ API-level entitlement: reviews are gated via canAccessContent
-    // (only fully entitled users can review a lesson).
     const access = canAccessContent({ user, lesson });
     if (access.allowed !== true) {
-      return res.status(403).json({ message: 'Subscription required' });
+      const payload = {
+        error: access.reason === 'NOT_ENTITLED' ? 'Subscription required' : 'FORBIDDEN',
+        reason: access.reason || 'NOT_ENTITLED',
+        lessonId: String(lessonId),
+        published: String(lesson?.status || '').toLowerCase() === 'published',
+      };
+      return res.status(access.reason === 'NOT_ENTITLED' ? 402 : 403).json(payload);
     }
 
     const purchasedLessonIndex = user.purchasedLessons.findIndex(

@@ -11,8 +11,7 @@ const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
 const auth = require("../middleware/auth");
-const requireLessonAccess = require("../middleware/requireLessonAccess");
-const canAccessContentMiddleware = require("../middleware/canAccessContent");
+const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const { toLessonPreviewPayload, toLessonFullPayload } = require("../utils/lessonPayload");
@@ -1520,11 +1519,11 @@ router.post("/:id/unpublish", auth, async (req, res) => {
 
 /* =========================================
    Get lesson by ID (private)
-   ✅ Gate: requireLessonAccess (deny-by-default, 403 with reason)
+   GET /api/lessons/:id — Gate: applyLessonAccess (deny-by-default; 402 NOT_ENTITLED, 403 other)
    ✅ FREE_PREVIEW → partial response; SUB_ACTIVE/PURCHASED/ADMIN/OWNER → full
    ========================================= */
 
-router.get("/:id", auth, canAccessContentMiddleware(), async (req, res) => {
+router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (req, res) => {
   try {
     let lesson = req.lesson;
     const lessonId = req.params.id;

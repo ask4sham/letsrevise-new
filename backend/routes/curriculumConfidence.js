@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const auth = require("../middleware/auth");
-const requireLessonAccess = require("../middleware/requireLessonAccess");
+const { applyLessonAccess } = require("../middleware");
 
 const router = express.Router();
 
@@ -11,9 +11,9 @@ const BOARD_SPEC_PATH = path.join(process.cwd(), "docs", "curriculum", "boards",
 
 /**
  * GET /api/curriculum-confidence/:lessonId
- * Returns curriculum confidence payload. Gated: only entitled users (requireLessonAccess).
+ * Returns curriculum confidence payload. Gated: canAccessContent (entitled users only).
  */
-router.get("/:lessonId", auth, requireLessonAccess(), (req, res) => {
+router.get("/:lessonId", auth, applyLessonAccess({ requirePublished: true }), (req, res) => {
   const lessonId = req.params.lessonId;
 
   let statutoryData;

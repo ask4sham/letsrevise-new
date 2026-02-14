@@ -155,6 +155,8 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     expect(res.status).toBe(402);
     expect(res.body.error).toBe("Subscription required");
     expect(res.body.reason).toBe("NOT_ENTITLED");
+    expect(res.body.lessonId).toBeDefined();
+    expect(res.body.published).toBe(true);
   });
 
   test("purchased user gets 200 and full content (pages, quiz, flashcards)", async () => {

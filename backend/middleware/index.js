@@ -9,6 +9,7 @@ const requireAdmin = require("./requireAdmin");
 const requireAiJobAccess = require("./requireAiJobAccess");
 const requireLessonAccess = require("./requireLessonAccess");
 const canAccessContent = require("./canAccessContent");
+const applyLessonAccess = require("./applyLessonAccess");
 
 module.exports = {
   auth,
@@ -17,5 +18,6 @@ module.exports = {
   requireAiJobAccess,
   requireLessonAccess,
   canAccessContent,
+  applyLessonAccess,
 };
 

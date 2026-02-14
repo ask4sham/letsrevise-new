@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const auth = require("../middleware/auth");
-const requireLessonAccess = require("../middleware/requireLessonAccess");
+const { applyLessonAccess } = require("../middleware");
 const Lesson = require("../models/Lesson");
 
 const { createClient } = require("@supabase/supabase-js");
@@ -15,7 +15,8 @@ const supabaseAdmin = createClient(
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/lesson-block", auth, upload.single("file"), requireLessonAccess({ allowBody: true }), async (req, res) => {
+// allowBody: true — lessonId comes from req.body.lessonId (multipart upload)
+router.post("/lesson-block", auth, upload.single("file"), applyLessonAccess({ allowBody: true, requirePublished: true }), async (req, res) => {
   try {
     const { lessonId, pageId, blockIndex } = req.body;
     const file = req.file;

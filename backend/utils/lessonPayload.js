@@ -3,6 +3,22 @@
  * Prevents handlers from accidentally leaking full content into FREE_PREVIEW.
  */
 
+/**
+ * Canonical lesson owner id (teacher/creator). Use for draft access and ownership checks.
+ * Normalizes teacherId, teacher._id, teacher, createdBy so owner detection is deterministic.
+ * @param {Object} lesson - Lesson doc (lean or populated).
+ * @returns {string|null} Owner id string or null.
+ */
+function getLessonOwnerId(lesson) {
+  if (!lesson) return null;
+  const raw =
+    lesson.teacherId ??
+    lesson.createdBy ??
+    (lesson.teacher && typeof lesson.teacher === "object" ? lesson.teacher._id : null) ??
+    (lesson.teacher && typeof lesson.teacher !== "object" ? lesson.teacher : null);
+  return raw != null ? String(raw) : null;
+}
+
 /** Allowed top-level keys for free-preview response (no quiz, no full pages/flashcards). */
 const PREVIEW_SAFE_KEYS = [
   "_id", "id", "title", "summary", "subject", "level", "board", "topic", "tier",
@@ -12,14 +28,33 @@ const PREVIEW_SAFE_KEYS = [
 ];
 
 /**
+ * Strip answer/markScheme from a page's checkpoint so preview never leaks correct answers.
+ * @param {Object} page - One lesson page (may have checkpoint).
+ * @returns {Object} Shallow copy of page with checkpoint sanitized.
+ */
+function sanitizePageForPreview(page) {
+  if (!page) return page;
+  const out = { ...page };
+  if (out.checkpoint && typeof out.checkpoint === "object") {
+    const cp = { ...out.checkpoint };
+    delete cp.answer;
+    delete cp.markScheme;
+    delete cp.correctAnswer;
+    out.checkpoint = cp;
+  }
+  return out;
+}
+
+/**
  * Build response for FREE_PREVIEW: first page only, no quiz, flashcards empty.
- * Explicit allowlist so new lesson fields never leak into preview by default.
+ * Checkpoints in the first page are sanitized (no answer/markScheme) so preview is revenue-safe.
  * @param {Object} lesson - Lesson doc (e.g. after attachVisualsToPagesIfPossible).
  * @returns {Object} Safe payload for 200 response.
  */
 function toLessonPreviewPayload(lesson) {
   const fullPages = Array.isArray(lesson?.pages) ? lesson.pages : [];
-  const firstPageOnly = fullPages.length > 0 ? [fullPages[0]] : [];
+  const firstPage = fullPages.length > 0 ? sanitizePageForPreview(fullPages[0]) : [];
+  const firstPageOnly = firstPage ? [firstPage] : [];
   const payload = {};
   for (const k of PREVIEW_SAFE_KEYS) {
     if (lesson[k] !== undefined) payload[k] = lesson[k];
@@ -54,7 +89,9 @@ function toLessonFullPayload(lesson) {
 }
 
 module.exports = {
+  getLessonOwnerId,
   toLessonPreviewPayload,
   toLessonFullPayload,
   PREVIEW_SAFE_KEYS,
+  sanitizePageForPreview,
 };
