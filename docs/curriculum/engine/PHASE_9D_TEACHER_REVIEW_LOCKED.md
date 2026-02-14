@@ -59,9 +59,10 @@ Draft → in_review → published state machine and review workflow are **locked
 
 ## Tagging (one-time)
 
-After CI is green, run each command separately (copy/paste-safe):
+After CI is green, run each command on its own line (copy/paste-safe; do not paste as one line):
 
 ```
 git tag -a phase-9d-teacher-review-locked -m "Phase 9D teacher review locked: state machine, submit/approve/reject/unpublish, list filtering, tests"
+
 git push origin phase-9d-teacher-review-locked
 ```

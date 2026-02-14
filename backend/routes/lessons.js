@@ -1112,6 +1112,15 @@ router.post("/:id/revision-draft/apply", auth, async (req, res) => {
       return res.status(403).json({ error: "Only lesson owner or admin can apply revision draft" });
     }
 
+    const lessonStatus = String(lesson.status || "").toLowerCase();
+    if (lessonStatus === "published") {
+      return res.status(409).json({
+        success: false,
+        code: "EDIT_PUBLISHED",
+        error: "Cannot apply revision draft to a published lesson; unpublish first.",
+      });
+    }
+
     const draft = await LessonRevisionDraft.findOne({ lessonId });
     if (!draft) return res.status(404).json({ error: "No revision draft found for this lesson" });
     if (draft.status !== "draft") {
