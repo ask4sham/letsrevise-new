@@ -106,6 +106,8 @@ const userSchema = new mongoose.Schema(
         type: String,
         enum: ["monthly", "annual", "dev", "trial"],
       },
+      planId: { type: String, default: null },
+      provider: { type: String, default: null },
       status: {
         type: String,
         enum: ["active", "expired", "trialing", "past_due", "canceled", "incomplete", "unpaid"],
@@ -113,6 +115,7 @@ const userSchema = new mongoose.Schema(
       expiresAt: {
         type: Date,
       },
+      cancelAtPeriodEnd: { type: Boolean, default: false },
     },
 
     monthlyShamCoinAllowance: {

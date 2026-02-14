@@ -947,11 +947,15 @@ router.post("/subscription/grant", auth, checkAdmin, async (req, res) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + daysNum * 24 * 60 * 60 * 1000);
 
-    // Phase B: use subscriptionV2 when present; keep legacy fields untouched.
-    user.subscriptionV2 = user.subscriptionV2 || {};
-    user.subscriptionV2.plan = "dev";
-    user.subscriptionV2.status = "active";
-    user.subscriptionV2.expiresAt = expiresAt;
+    // Write subscriptionV2 so backend entitlement checks pass (active/trialing + future expiresAt).
+    user.subscriptionV2 = {
+      status: "trialing",
+      provider: "admin",
+      planId: "admin-pass-7d",
+      plan: "trial",
+      expiresAt,
+      cancelAtPeriodEnd: true,
+    };
 
     await user.save();
 
