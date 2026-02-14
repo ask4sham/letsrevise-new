@@ -384,23 +384,18 @@ const TeacherDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
-            <div
-              style={{
-                background: "white",
-                padding: "10px 20px",
-                borderRadius: "20px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                fontWeight: "bold",
-                color: "#333",
-                fontSize: "1.1rem",
-              }}
-            >
-              💰 {user?.shamCoins || 0} ShamCoins
-            </div>
-
-            {/* Create group: one primary (manual) + one secondary (AI) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
+            {/* Left: buttons + helper + More */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                 <Link
                   to="/create-lesson"
@@ -420,9 +415,9 @@ const TeacherDashboard: React.FC = () => {
                   onClick={openAiModal}
                   style={{
                     padding: "10px 16px",
-                    background: "white",
-                    color: "#374151",
-                    border: "1px solid #d1d5db",
+                    background: "#0d6efd",
+                    color: "#fff",
+                    border: "1px solid #0d6efd",
                     borderRadius: "6px",
                     fontWeight: "600",
                     cursor: "pointer",
@@ -431,51 +426,66 @@ const TeacherDashboard: React.FC = () => {
                 >
                   ✨ Generate with AI
                 </button>
+                <Link
+                  to="/browse-lessons"
+                  style={{
+                    padding: "10px 16px",
+                    background: "white",
+                    color: "#374151",
+                    textDecoration: "none",
+                    borderRadius: "6px",
+                    fontWeight: "600",
+                    border: "1px solid #d1d5db",
+                  }}
+                >
+                  Browse Lessons
+                </Link>
+                <Link
+                  to="/assessments/papers/builder"
+                  style={{
+                    padding: "10px 16px",
+                    background: "white",
+                    color: "#374151",
+                    textDecoration: "none",
+                    borderRadius: "6px",
+                    fontWeight: "600",
+                    border: "1px solid #d1d5db",
+                  }}
+                >
+                  📝 Assessment Papers
+                </Link>
               </div>
-              <span style={{ color: "#6b7280", fontSize: "0.75rem" }}>
+              <span style={{ color: "#6b7280", fontSize: "0.75rem", opacity: 0.9 }}>
                 AI: optional first-draft from a topic. May be limited during rollout.
               </span>
+              <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>
+                More:{" "}
+                <Link to="/teacher/exam-question-bank" style={{ color: "#667eea", textDecoration: "underline" }}>
+                  Create Questions
+                </Link>
+                {" · "}
+                <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "underline" }}>
+                  Main Dashboard
+                </Link>
+              </span>
             </div>
-            <Link
-              to="/browse-lessons"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Browse Lessons
-            </Link>
-            <Link
-              to="/assessments/papers/builder"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              📝 Assessment Papers
-            </Link>
 
-            {/* More: text links */}
-            <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>
-              More:{" "}
-              <Link to="/teacher/exam-question-bank" style={{ color: "#667eea", textDecoration: "underline" }}>
-                Create Questions
-              </Link>
-              {" · "}
-              <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "underline" }}>
-                Main Dashboard
-              </Link>
-            </span>
+            {/* Right: ShamCoins pill */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div
+                style={{
+                  background: "white",
+                  padding: "10px 20px",
+                  borderRadius: "20px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  fontWeight: "bold",
+                  color: "#333",
+                  fontSize: "1.1rem",
+                }}
+              >
+                💰 {user?.shamCoins || 0} ShamCoins
+              </div>
+            </div>
           </div>
         </div>
 
