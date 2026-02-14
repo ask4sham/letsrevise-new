@@ -4,6 +4,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 
 const Lesson = require("../models/Lesson");
+const LessonUnlock = require("../models/LessonUnlock");
 const LessonReview = require("../models/LessonReview");
 const LessonRevisionDraft = require("../models/LessonRevisionDraft");
 const User = require("../models/User");
@@ -2136,6 +2137,19 @@ router.get("/", auth, async (req, res) => {
     const fullUser = await User.findById(getAuthUserId(req))
       .select("userType subscriptionV2 subscription purchasedLessons")
       .lean();
+
+    const lessonIds = lessons.map((l) => String(l._id));
+    let unlockSet = new Set();
+    if (fullUser?._id) {
+      const unlockRows = await LessonUnlock.find({
+        userId: fullUser._id,
+        lessonId: { $in: lessonIds },
+      })
+        .select("lessonId")
+        .lean();
+      unlockSet = new Set(unlockRows.map((r) => String(r.lessonId)));
+    }
+
     const visible = await Promise.all(
       lessons.map(async (l) => {
         const isFreePreview = Boolean(l.isFreePreview);
@@ -2147,7 +2161,7 @@ router.get("/", auth, async (req, res) => {
               id: l._id?.toString(),
               isFreePreview,
               isPublished,
-            })
+            }, { unlockSet })
           : { allowed: false, reason: "UNAUTHENTICATED" };
 
         if (!decision.allowed) {

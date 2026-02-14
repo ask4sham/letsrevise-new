@@ -97,6 +97,27 @@ router.post("/grant-lesson-unlock", auth, checkAdmin, async (req, res) => {
 });
 
 /* =========================================
+   DELETE /api/admin/revoke-lesson-unlock
+   Body: { userId, lessonId }. Admin-only. Reversible grant.
+   ========================================= */
+router.delete("/revoke-lesson-unlock", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId, lessonId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid userId or lessonId" });
+    }
+
+    const result = await LessonUnlock.deleteOne({ userId, lessonId });
+
+    return res.json({ ok: true, deleted: result.deletedCount === 1 });
+  } catch (err) {
+    console.error("revoke-lesson-unlock error:", err);
+    return res.status(500).json({ error: "Failed to revoke lesson unlock" });
+  }
+});
+
+/* =========================================
    GET /api/admin/stats
    ========================================= */
 router.get("/stats", auth, checkAdmin, async (req, res) => {

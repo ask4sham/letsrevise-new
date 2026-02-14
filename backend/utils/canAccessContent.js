@@ -3,13 +3,17 @@ const LessonUnlock = require("../models/LessonUnlock");
 
 /**
  * Check if user has a single-lesson unlock (credit/admin/promo) for this lesson.
+ * ctx.unlockSet: optional Set of lessonId strings (preloaded for list endpoints to avoid N+1).
  */
-async function hasLessonUnlock(userId, lessonId) {
+async function hasLessonUnlock(userId, lessonId, ctx = {}) {
   if (!userId || !lessonId) return false;
-  return !!(await LessonUnlock.exists({
-    userId,
-    lessonId,
-  }));
+
+  // Fast path: caller preloaded unlocks (prevents N+1)
+  if (ctx.unlockSet && typeof ctx.unlockSet.has === "function") {
+    return ctx.unlockSet.has(String(lessonId));
+  }
+
+  return !!(await LessonUnlock.exists({ userId, lessonId }));
 }
 
 /**
@@ -21,9 +25,10 @@ async function hasLessonUnlock(userId, lessonId) {
  *
  * @param {Object|null|undefined} userOrOpts - User object, or { user, lesson } for legacy call style
  * @param {Object} [lesson] - Lesson access fields: id or _id, isFreePreview?, isPublished?
+ * @param {Object} [ctx] - Optional context, e.g. { unlockSet } for batch list endpoints
  * @returns {Promise<{ allowed: boolean, reason: string }>} AccessDecision
  */
-async function canAccessContent(userOrOpts, lessonParam) {
+async function canAccessContent(userOrOpts, lessonParam, ctx = {}) {
   const opts = userOrOpts && typeof userOrOpts === "object" && "user" in userOrOpts && "lesson" in userOrOpts;
   const user = opts ? userOrOpts.user : userOrOpts;
   const lesson = opts ? userOrOpts.lesson : lessonParam;
@@ -55,7 +60,7 @@ async function canAccessContent(userOrOpts, lessonParam) {
   // 2) Single-lesson unlock (credit/admin/promo)
   const lessonId = lesson?._id ?? lesson?.id;
   const userId = user._id ?? user.id;
-  if (lessonId && userId && (await hasLessonUnlock(userId, lessonId))) {
+  if (lessonId && userId && (await hasLessonUnlock(userId, lessonId, ctx))) {
     return { allowed: true, reason: "LESSON_UNLOCK" };
   }
 
