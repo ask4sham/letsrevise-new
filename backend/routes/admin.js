@@ -272,6 +272,14 @@ router.get("/metrics/top-paywalled-lessons", auth, checkAdmin, async (req, res) 
       { $group: { _id: "$lessonId", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: limit },
+      {
+        $lookup: {
+          from: "lessons",
+          localField: "_id",
+          foreignField: "_id",
+          as: "lessonDoc",
+        },
+      },
     ]);
 
     return res.json({
@@ -279,7 +287,11 @@ router.get("/metrics/top-paywalled-lessons", auth, checkAdmin, async (req, res) 
       days,
       since,
       limit,
-      lessons: rows.map((r) => ({ lessonId: r._id, count: r.count })),
+      lessons: rows.map((r) => ({
+        lessonId: r._id,
+        count: r.count,
+        title: r.lessonDoc?.[0]?.title ?? null,
+      })),
     });
   } catch (err) {
     console.error("GET /api/admin/metrics/top-paywalled-lessons error:", err);
