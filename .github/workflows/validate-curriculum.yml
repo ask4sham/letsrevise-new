@@ -18,14 +18,11 @@ jobs:
       - run: npm ci
       - name: Run unit tests
         run: npm test
-      - name: List backend tests (diagnosis; remove once stable)
-        run: |
-          pwd
-          ls -la
-          ls -la backend/tests
-          npm run test:backend:list
       - name: Backend content-access tests (Phase 9)
-        run: npm run test:backend
+        run: |
+          npm run test:backend:list
+          node -e "const {execSync}=require('child_process'); const out=execSync('npm run -s test:backend:list',{encoding:'utf8'}); if(!out.trim()) { console.error('No backend tests discovered'); process.exit(1); } console.log('Discovered backend tests OK');"
+          npm run test:backend
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-secret-for-ci-phase9' }}
       - name: Slotgen stub rejects invalid job

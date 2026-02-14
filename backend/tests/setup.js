@@ -1,4 +1,5 @@
 // backend/tests/setup.js
+// Test harness only: in-memory Mongo for integration tests. No app/server imports.
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
