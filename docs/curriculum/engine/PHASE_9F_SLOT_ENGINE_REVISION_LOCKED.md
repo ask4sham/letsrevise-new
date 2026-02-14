@@ -39,7 +39,9 @@ When any gate blocks: script returns STUB → service returns heuristic (or thro
 | **NOT_ALLOWLISTED** | Script | Job not in allowlist or allowlist disabled. Expected when rollout not enabled. |
 | **ROLLOUT_EXCLUDED** | Script | Job in allowlist but deterministic bucket &gt; rollout percent. |
 | **KILL_SWITCH** | Script | `SLOTGEN_AI_KILL=true`. Deliberate disable. Logged at **warn**. |
-| *(others)* | Script | Script may emit further codes (e.g. OpenAI errors); see script telemetry schema. |
+| **MISSING_API_KEY** | Script | `OPENAI_API_KEY` not set; script never calls API. |
+| **OPENAI_HTTP_ERROR**, **OPENAI_REQUEST_FAILED**, **OPENAI_NON_JSON_RESPONSE**, **OPENAI_MISSING_CONTENT**, **OPENAI_NON_JSON_CONTENT**, **OPENAI_OUTPUT_NOT_OBJECT** | Script | OpenAI call failed or response invalid. Expected during early rollout; check API key, quota, and model output shape. |
+| *(others)* | Script | See script telemetry schema. |
 
 Synthetic codes are set by the backend when the script never runs or output is unparseable; script-native codes come from the slot engine’s stderr telemetry.
 
@@ -53,7 +55,8 @@ Synthetic codes are set by the backend when the script never runs or output is u
 **Deterministic staging recipe:**
 
 1. Set **REVISION_NO_FALLBACK=1**. Keep allowlist disabled → call generate-revision → expect **503** with `errorCode: "NOT_ALLOWLISTED"` (or the script’s exact deny code).
-2. Enable allowlist and set rollout to **100%** (or a known bucket) → call generate-revision → expect either **200** with COMPLETED draft or an OpenAI failure code (no silent fallback).
+2. For the script to **actually call OpenAI** in step 2, set **OPENAI_API_KEY** and **FEATURE_SLOTGEN_AI=true** (optionally **OPENAI_BASE_URL** if using a proxy). Without these, you may see **ENGINE_SPAWN_FAILED** or **MISSING_API_KEY** even with allowlist/rollout enabled.
+3. Enable allowlist and set rollout to **100%** (or a known bucket) → call generate-revision → expect either **200** with COMPLETED draft or an OpenAI failure code (no silent fallback).
 
 ---
 
