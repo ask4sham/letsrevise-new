@@ -244,6 +244,29 @@ router.get("/user-types", auth, checkAdmin, async (req, res) => {
   });
 });
 
+/** Entitlement summary for admin users list (read-only; derived from subscriptionV2). */
+function getEntitlementSummary(user) {
+  const sub = user.subscriptionV2;
+  if (!sub || !sub.status) return { label: "None", state: "none" };
+
+  const expiresAt = sub.expiresAt ? new Date(sub.expiresAt) : null;
+  const isExpired = expiresAt && expiresAt < new Date();
+
+  if (isExpired) {
+    return { label: `Expired (${expiresAt.toLocaleDateString()})`, state: "expired" };
+  }
+
+  if (sub.status === "trialing") {
+    return { label: `Trial (expires ${expiresAt ? expiresAt.toLocaleDateString() : "—"})`, state: "active" };
+  }
+
+  if (sub.status === "active") {
+    return { label: "Active", state: "active" };
+  }
+
+  return { label: sub.status, state: "unknown" };
+}
+
 /* =========================================
    GET /api/admin/users
    ========================================= */
@@ -273,7 +296,8 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
       .select("-password")
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     const totalUsers = await User.countDocuments(query);
 
@@ -291,6 +315,7 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
         createdAt: u.createdAt,
         lastActive: u.userType === "student" ? u.studentStats?.lastActiveDate : u.updatedAt,
         stats: u.userType === "teacher" ? u.teacherStats : u.studentStats,
+        entitlementSummary: getEntitlementSummary(u),
       })),
       pagination: {
         page: parseInt(page),

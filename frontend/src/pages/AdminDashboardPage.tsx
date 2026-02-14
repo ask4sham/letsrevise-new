@@ -34,6 +34,11 @@ interface PlatformStats {
   };
 }
 
+interface EntitlementSummary {
+  label: string;
+  state: "active" | "expired" | "none" | "unknown";
+}
+
 interface User {
   id: string;
   email: string;
@@ -46,6 +51,7 @@ interface User {
   createdAt: string;
   lastActive: string | null;
   stats: any;
+  entitlementSummary?: EntitlementSummary;
 }
 
 interface Lesson {
@@ -849,7 +855,7 @@ const AdminDashboardPage: React.FC = () => {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr 1fr",
                   backgroundColor: "#f8f9fa",
                   padding: "1rem",
                   borderBottom: "1px solid #ddd",
@@ -861,6 +867,7 @@ const AdminDashboardPage: React.FC = () => {
                 <div>Type</div>
                 <div>Status</div>
                 <div>ShamCoins</div>
+                <div>Access / Pass</div>
                 <div>Actions</div>
               </div>
 
@@ -869,7 +876,7 @@ const AdminDashboardPage: React.FC = () => {
                   key={u.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr 1fr",
                     padding: "1rem",
                     borderBottom: "1px solid #ddd",
                     alignItems: "center",
@@ -954,6 +961,30 @@ const AdminDashboardPage: React.FC = () => {
                   </div>
 
                   <div>{formatCurrency(u.shamCoins)}</div>
+
+                  <div
+                    title="Derived from subscriptionV2 (backend enforced)"
+                    style={{
+                      padding: "0.25rem 0.5rem",
+                      borderRadius: "4px",
+                      fontSize: "0.875rem",
+                      display: "inline-block",
+                      backgroundColor:
+                        u.entitlementSummary?.state === "active"
+                          ? "#d4edda"
+                          : u.entitlementSummary?.state === "expired"
+                            ? "#f8d7da"
+                            : "#e9ecef",
+                      color:
+                        u.entitlementSummary?.state === "active"
+                          ? "#155724"
+                          : u.entitlementSummary?.state === "expired"
+                            ? "#721c24"
+                            : "#495057",
+                    }}
+                  >
+                    {u.entitlementSummary?.label ?? "—"}
+                  </div>
 
                   <div>
                     <button
