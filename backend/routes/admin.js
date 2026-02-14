@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const LessonUnlock = require("../models/LessonUnlock");
+const Event = require("../models/Event");
 const auth = require("../middleware/auth");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const {
@@ -170,6 +171,119 @@ router.get("/lesson/:id/unlocks", auth, checkAdmin, async (req, res) => {
   } catch (err) {
     console.error("GET /api/admin/lesson/:id/unlocks error:", err);
     return res.status(500).json({ error: "Failed to load lesson unlocks" });
+  }
+});
+
+// ---------- Paywall conversion metrics (helpers) ----------
+function parseDays(value, fallback = 7) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), 90);
+}
+
+function startDateFromDays(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
+/* =========================================
+   GET /api/admin/metrics/conversion?days=7
+   Counts + daily breakdown for paywall / preview / CTA
+   ========================================= */
+router.get("/metrics/conversion", auth, checkAdmin, async (req, res) => {
+  try {
+    const days = parseDays(req.query.days, 7);
+    const since = startDateFromDays(days);
+
+    const types = ["PAYWALL_NOT_ENTITLED", "FREE_PREVIEW_VIEW", "SUBSCRIBE_CTA_CLICK"];
+
+    const totalsAgg = await Event.aggregate([
+      { $match: { createdAt: { $gte: since }, type: { $in: types } } },
+      { $group: { _id: "$type", count: { $sum: 1 } } },
+    ]);
+
+    const totals = types.reduce((acc, t) => {
+      acc[t] = 0;
+      return acc;
+    }, {});
+
+    for (const row of totalsAgg) totals[row._id] = row.count;
+
+    const dailyAgg = await Event.aggregate([
+      { $match: { createdAt: { $gte: since }, type: { $in: types } } },
+      {
+        $group: {
+          _id: {
+            day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            type: "$type",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.day": 1 } },
+    ]);
+
+    const byDay = new Map();
+    for (const row of dailyAgg) {
+      const day = row._id.day;
+      if (!byDay.has(day)) {
+        byDay.set(day, {
+          day,
+          PAYWALL_NOT_ENTITLED: 0,
+          FREE_PREVIEW_VIEW: 0,
+          SUBSCRIBE_CTA_CLICK: 0,
+        });
+      }
+      byDay.get(day)[row._id.type] = row.count;
+    }
+
+    return res.json({
+      ok: true,
+      days,
+      since,
+      totals,
+      daily: Array.from(byDay.values()),
+    });
+  } catch (err) {
+    console.error("GET /api/admin/metrics/conversion error:", err);
+    return res.status(500).json({ error: "Failed to load conversion metrics" });
+  }
+});
+
+/* =========================================
+   GET /api/admin/metrics/top-paywalled-lessons?days=7&limit=20
+   Top lessons by PAYWALL_NOT_ENTITLED count
+   ========================================= */
+router.get("/metrics/top-paywalled-lessons", auth, checkAdmin, async (req, res) => {
+  try {
+    const days = parseDays(req.query.days, 7);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const since = startDateFromDays(days);
+
+    const rows = await Event.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: since },
+          type: "PAYWALL_NOT_ENTITLED",
+          lessonId: { $exists: true, $ne: null },
+        },
+      },
+      { $group: { _id: "$lessonId", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+    ]);
+
+    return res.json({
+      ok: true,
+      days,
+      since,
+      limit,
+      lessons: rows.map((r) => ({ lessonId: r._id, count: r.count })),
+    });
+  } catch (err) {
+    console.error("GET /api/admin/metrics/top-paywalled-lessons error:", err);
+    return res.status(500).json({ error: "Failed to load top paywalled lessons" });
   }
 });
 
