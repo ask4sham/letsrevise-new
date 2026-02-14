@@ -40,6 +40,7 @@ const AssessmentPaperEditPage: React.FC = () => {
   const [bankOpen, setBankOpen] = useState(false);
   const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>([]);
   const [bankLoading, setBankLoading] = useState(false);
+  const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [patching, setPatching] = useState(false);
 
@@ -78,6 +79,7 @@ const AssessmentPaperEditPage: React.FC = () => {
 
   const openBankModal = () => {
     setBankOpen(true);
+    setQuery("");
     loadBankQuestions();
   };
 
@@ -259,122 +261,215 @@ const AssessmentPaperEditPage: React.FC = () => {
               <p>Loading…</p>
             ) : (
               <>
+                <div style={{ marginBottom: "1rem" }}>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      placeholder="Search questions (text, topic, type)…"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 36px 10px 12px",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "8px",
+                        fontSize: "1rem",
+                      }}
+                    />
+                    {query.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setQuery("")}
+                        aria-label="Clear search"
+                        style={{
+                          position: "absolute",
+                          right: "10px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "1.25rem",
+                          color: "#6b7280",
+                          padding: "0 4px",
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div
-                  className="text-left"
-                  style={{ textAlign: "left", marginBottom: "1rem", maxHeight: "80vh", overflow: "auto" }}
+                  style={{
+                    textAlign: "left",
+                    marginBottom: "1rem",
+                    maxHeight: "50vh",
+                    overflow: "auto",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                  }}
                 >
                   {bankQuestions.length === 0 ? (
-                    <p style={{ color: "#6b7280" }}>No questions in your bank.</p>
-                  ) : (
-                    <div>
-                      {bankQuestions.map((q) => {
-                        const qId = q._id != null ? String(q._id) : "";
-                        const alreadyOnPaper = attachedBankIds.has(qId);
-                        const selected = selectedIds.has(qId);
-                        const qText = (q.question != null && typeof q.question === "string" ? q.question : "").trim();
-                        const topicText = (q.topic != null && typeof q.topic === "string" ? q.topic : "").trim();
-                        const primaryText = qText || topicText || "(No question text)";
-                        const typeStr = q.type != null ? String(q.type) : "question";
-                        const marksNum = q.marks != null ? Number(q.marks) : 1;
-                        const secondaryText = `${typeStr} • ${marksNum} mark${marksNum !== 1 ? "s" : ""}`;
-                        const opts = Array.isArray(q.options) ? q.options : [];
-                        const optionsPreview =
-                          typeStr === "mcq" && opts.length > 0
-                            ? opts
-                                .slice(0, 5)
-                                .map(
-                                  (o, i) =>
-                                    `${String.fromCharCode(65 + i)}: ${(o != null ? String(o) : "").slice(0, 40)}${(o != null ? String(o) : "").length > 40 ? "…" : ""}`
-                                )
-                                .join("  ·  ")
-                            : null;
-                        return (
-                          <div
-                            key={qId}
-                            style={{
-                              padding: "0.75rem",
-                              borderBottom: "1px solid #e5e7eb",
-                              background: "white",
-                            }}
-                          >
-                            <div className="grid grid-cols-[1fr_48px] items-start w-full">
-                              <div className="text-left">
+                    <p style={{ color: "#6b7280", padding: "1rem" }}>No questions in your bank.</p>
+                  ) : (() => {
+                    const q = query.trim().toLowerCase();
+                    const filtered = q
+                      ? bankQuestions.filter(
+                          (x) =>
+                            (x.question || "").toLowerCase().includes(q) ||
+                            (x.topic || "").toLowerCase().includes(q) ||
+                            (x.type || "").toLowerCase().includes(q)
+                        )
+                      : bankQuestions;
+                    if (filtered.length === 0) {
+                      return (
+                        <div style={{ padding: "1.5rem", textAlign: "center", color: "#6b7280" }}>
+                          <p style={{ margin: "0 0 0.25rem", fontWeight: 600 }}>No questions match your search.</p>
+                          <p style={{ margin: 0, fontSize: "0.9rem" }}>Try a different keyword.</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div>
+                        {filtered.map((q) => {
+                          const qId = q._id != null ? String(q._id) : "";
+                          const alreadyOnPaper = attachedBankIds.has(qId);
+                          const selected = selectedIds.has(qId);
+                          const qText = (q.question != null && typeof q.question === "string" ? q.question : "").trim();
+                          const topicText = (q.topic != null && typeof q.topic === "string" ? q.topic : "").trim();
+                          const primaryText = qText || topicText || "(No question text)";
+                          const typeStr = q.type != null ? String(q.type) : "question";
+                          const marksNum = q.marks != null ? Number(q.marks) : 1;
+                          const secondaryText = `${typeStr} • ${marksNum} mark${marksNum !== 1 ? "s" : ""}${topicText ? ` • ${topicText}` : ""}${alreadyOnPaper ? " • (on paper)" : ""}`;
+                          const opts = Array.isArray(q.options) ? q.options : [];
+                          const optionsPreview =
+                            typeStr === "mcq" && opts.length > 0
+                              ? opts
+                                  .slice(0, 5)
+                                  .map(
+                                    (o, i) =>
+                                      `${String.fromCharCode(65 + i)}: ${(o != null ? String(o) : "").slice(0, 40)}${(o != null ? String(o) : "").length > 40 ? "…" : ""}`
+                                  )
+                                  .join("  ·  ")
+                              : null;
+                          return (
+                            <div
+                              key={qId}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => !alreadyOnPaper && toggleBankSelection(qId)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  if (!alreadyOnPaper) toggleBankSelection(qId);
+                                }
+                              }}
+                              style={{
+                                padding: "0.75rem 1rem",
+                                borderBottom: "1px solid #e5e7eb",
+                                background: selected ? "#eef2ff" : "white",
+                                cursor: alreadyOnPaper ? "default" : "pointer",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "12px",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!alreadyOnPaper) e.currentTarget.style.background = selected ? "#e0e7ff" : "#f9fafb";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = selected ? "#eef2ff" : "white";
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => !alreadyOnPaper && toggleBankSelection(qId)}
+                                disabled={alreadyOnPaper}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  width: 18,
+                                  height: 18,
+                                  marginTop: "2px",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div
-                                  className="font-medium text-gray-900"
-                                  style={{ fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.5 }}
+                                  style={{
+                                    fontSize: "1rem",
+                                    fontWeight: 600,
+                                    color: "#111827",
+                                    lineHeight: 1.4,
+                                  }}
                                 >
                                   {primaryText}
                                 </div>
-
-                                <div className="text-gray-500" style={{ fontSize: "0.95rem", fontWeight: 500 }}>
+                                <div
+                                  style={{
+                                    marginTop: "4px",
+                                    fontSize: "0.875rem",
+                                    color: "#6b7280",
+                                  }}
+                                >
                                   {secondaryText}
-                                  {alreadyOnPaper && (
-                                    <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "#059669" }}>
-                                      (on paper)
-                                    </span>
-                                  )}
                                 </div>
-                                
                                 {optionsPreview != null && (
-                                  <div style={{ marginTop: "0.25rem", fontSize: "0.8rem", color: "#111" }}>
+                                  <div style={{ marginTop: "4px", fontSize: "0.8rem", color: "#374151" }}>
                                     {optionsPreview}
                                   </div>
                                 )}
                               </div>
-
-                              <div className="flex justify-end pt-1">
-                                <input
-                                  id={`bank-q-${qId}`}
-                                  type="checkbox"
-                                  checked={selected}
-                                  onChange={() => toggleBankSelection(qId)}
-                                  disabled={alreadyOnPaper}
-                                  style={{
-                                    appearance: "auto",
-                                    width: 16,
-                                    height: 16,
-                                    background: "none",
-                                    borderRadius: 2,
-                                  }}
-                                />
-                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => setBankOpen(false)}
-                    style={{
-                      padding: "8px 16px",
-                      background: "white",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addToPaper}
-                    disabled={selectedIds.size === 0 || patching}
-                    style={{
-                      padding: "8px 16px",
-                      background: selectedIds.size === 0 || patching ? "#e5e7eb" : "#4f46e5",
-                      color: selectedIds.size === 0 || patching ? "#9ca3af" : "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: selectedIds.size === 0 || patching ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {patching ? "Adding…" : `Add ${selectedIds.size} to paper`}
-                  </button>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontSize: "0.9rem", color: "#6b7280" }}>
+                    Selected: {selectedIds.size}
+                  </span>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      onClick={() => setBankOpen(false)}
+                      style={{
+                        padding: "8px 16px",
+                        background: "white",
+                        color: "#374151",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addToPaper}
+                      disabled={selectedIds.size === 0 || patching}
+                      style={{
+                        padding: "8px 16px",
+                        background: selectedIds.size === 0 || patching ? "#e5e7eb" : "#4f46e5",
+                        color: selectedIds.size === 0 || patching ? "#9ca3af" : "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: 600,
+                        cursor: selectedIds.size === 0 || patching ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {patching ? "Adding…" : selectedIds.size > 0 ? `Add to paper (${selectedIds.size})` : "Add to paper"}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
