@@ -25,11 +25,21 @@ function readRevisionEngineConfig() {
   }
 }
 
+/**
+ * Write config atomically: write to temp file then rename. Throws on failure.
+ */
 function writeRevisionEngineConfig(obj) {
   const configPath = getConfigPath();
   const dir = path.dirname(configPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(configPath, JSON.stringify(obj, null, 2), "utf8");
+  const tempPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(obj, null, 2), "utf8");
+    fs.renameSync(tempPath, configPath);
+  } catch (e) {
+    try { fs.unlinkSync(tempPath); } catch {}
+    throw e;
+  }
 }
 
 /** Count actions in last hour (for rate limit). */
@@ -51,7 +61,6 @@ async function getLastActionAt(actionType) {
  * Returns { success, result, auditId, error? }.
  */
 async function execute(actionType, payload, context = {}) {
-  const OpsActionAuditModel = require("../models/OpsActionAudit");
   const beforeSnapshot = opsSignals.getMetricsSnapshot();
 
   if (!isPermittedAction(actionType)) {
@@ -84,7 +93,7 @@ async function execute(actionType, payload, context = {}) {
   const lastAt = await getLastActionAt(actionType);
   const cooldownSec = getCooldownSeconds(actionType);
   if (lastAt && (Date.now() - lastAt.getTime()) / 1000 < cooldownSec) {
-    const audit = await OpsActionAuditModel.create({
+    const audit = await OpsActionAudit.create({
       actionType,
       payload,
       decisionId: context.decisionId,

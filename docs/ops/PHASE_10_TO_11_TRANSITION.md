@@ -121,3 +121,10 @@ Phase 11 may enrich with severity and window (e.g. from metrics):
 3. Verify the **detect → act → verify → escalate** loop with the scenarios in PHASE_10_SCENARIO_VALIDATION.md.
 
 Phase 10 is done and correct. Do not add remediation logic there.
+
+---
+
+## Production hardening (Phase 11)
+
+- **runTick() must run single-flight across the cluster.** Use the DB tick lock (`OpsTickLock`): only one node may run a tick at a time; lock has TTL (e.g. 2–5 minutes). If the lock is held, skip the tick and log. Prevents duplicate actions when cron fires twice or multiple instances run.
+- **Start in dry-run before enabling L1 on production.** Set `OPS_DRY_RUN=1`. The autopilot still computes decisions and logs “would execute” (action type + payload) but does not write config or open incidents. Run for 24–48 hours to confirm rules and no false positives, then remove dry-run and set L1.
