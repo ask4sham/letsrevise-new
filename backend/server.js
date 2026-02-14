@@ -287,7 +287,7 @@ const gateHtml =
   "if(!res.ok){showError('Unauthorized. Paste a valid admin token.');return;}" +
   "var html=await res.text();" +
   "document.open();document.write(html);document.close();" +
-  "setTimeout(function(){if(typeof window.__setAdminToken==='function'){window.__setAdminToken(token);}},0);" +
+  "var attempts=0;var t=setInterval(function(){attempts++;if(typeof window.__setAdminToken==='function'){clearInterval(t);window.__setAdminToken(token);}else if(attempts>20){clearInterval(t);}},50);" +
   "}" +
   "document.getElementById('gateOpen').onclick=openPanel;" +
   "</script>" +
