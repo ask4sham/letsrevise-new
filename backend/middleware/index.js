@@ -5,12 +5,14 @@
 
 const auth = require("./auth");
 const requireActiveSubscription = require("./requireActiveSubscription");
+const requireAdmin = require("./requireAdmin");
 const requireAiJobAccess = require("./requireAiJobAccess");
 const requireLessonAccess = require("./requireLessonAccess");
 
 module.exports = {
   auth,
   requireActiveSubscription,
+  requireAdmin,
   requireAiJobAccess,
   requireLessonAccess,
 };

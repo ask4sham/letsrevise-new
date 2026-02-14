@@ -265,15 +265,42 @@ app.use("/api/templates", templateRoutes);
 app.use("/api/curriculum-confidence", curriculumConfidenceRouter);
 
 /* ============================================================
-   Phase 12.2: Admin Ops UI (read-only + controls)
+   Phase 12.2: Admin Ops UI (read-only + controls) — Patched 12A/12D
+   Protected with auth + requireAdmin; 401 returns gate page for token entry.
 ============================================================ */
+const auth = require("./middleware/auth");
+const requireAdmin = require("./middleware/requireAdmin");
 const adminOpsPath = path.join(__dirname, "views", "admin-ops.html");
-app.get("/admin/ops", (req, res) => {
-  if (fs.existsSync(adminOpsPath)) {
-    res.sendFile(adminOpsPath);
-  } else {
-    res.status(404).send("Admin ops page not found");
+
+const gateHtml =
+  "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Ops Admin — Login</title></head><body>" +
+  "<h1>Ops Admin</h1><p>Authentication required. Paste your admin JWT and click Open.</p>" +
+  "<label>Token: <input type='password' id='gateToken' style='width:20em' placeholder='Paste JWT' /></label> " +
+  "<button id='gateOpen'>Open</button><div id='gateErr' style='color:#c00;margin-top:0.5em'></div>" +
+  "<script>document.getElementById('gateOpen').onclick=function(){var t=document.getElementById('gateToken').value.trim().replace(/^Bearer\\s+/i,'');if(!t){document.getElementById('gateErr').textContent='Enter a token';return;}document.getElementById('gateErr').textContent='Loading...';fetch('/admin/ops',{headers:{'Authorization':'Bearer '+t}}).then(function(r){if(!r.ok)return r.text().then(function(txt){throw new Error(r.status+' '+txt);});return r.text();}).then(function(html){var inj=html.replace(/let adminToken = \"\";/,'let adminToken = '+JSON.stringify(t)+';');document.open();document.write(inj);document.close();}).catch(function(e){document.getElementById('gateErr').textContent=e.message||'Failed';});};</script>" +
+  "</body></html>";
+
+app.get("/admin/ops", (req, res, next) => {
+  const hasAuth = req.get("Authorization") || req.get("x-auth-token");
+  if (!hasAuth) {
+    res.status(401).setHeader("Content-Type", "text/html");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    return res.send(gateHtml);
   }
+  next();
+}, auth, requireAdmin, (req, res) => {
+  if (!fs.existsSync(adminOpsPath)) {
+    return res.status(404).send("Admin ops page not found");
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'");
+  res.sendFile(adminOpsPath);
 });
 
 /* ============================================================
