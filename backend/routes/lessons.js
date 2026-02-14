@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const Lesson = require("../models/Lesson");
 const User = require("../models/User");
 const Purchase = require("../models/Purchase");
+const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
 const auth = require("../middleware/auth");
 const requireLessonAccess = require("../middleware/requireLessonAccess");
@@ -1369,79 +1370,131 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
-// Purchase lesson (students only)
+// Purchase lesson (students only) — Phase 9C: idempotent, transactional, ledger-backed
 router.post("/:id/purchase", auth, async (req, res) => {
+  const lessonIdParam = req.params.id;
+  const idempotencyKey =
+    req.body && typeof req.body.idempotencyKey === "string"
+      ? req.body.idempotencyKey.trim()
+      : null;
+
+  const entitlementsPayload = (user) => ({
+    shamCoinsBalance: user.shamCoins ?? 0,
+    purchasedLessonsCount: Array.isArray(user.purchasedLessons) ? user.purchasedLessons.length : 0,
+  });
+
   try {
-    console.log("Purchase attempt for lesson:", req.params.id);
-    console.log("User attempting purchase:", req.user.email);
-
     if (req.user.userType !== "student") {
-      return res.status(403).json({ msg: "Only students can purchase lessons" });
+      return res.status(403).json({ error: "Only students can purchase lessons" });
+    }
+    if (!idempotencyKey) {
+      return res.status(400).json({ error: "idempotencyKey required", code: "MISSING_IDEMPOTENCY_KEY" });
     }
 
-    const lesson = await Lesson.findById(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(lessonIdParam)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
 
+    const lesson = await Lesson.findById(lessonIdParam).lean();
     if (!lesson) {
-      return res.status(404).json({ msg: "Lesson not found" });
+      return res.status(404).json({ error: "Lesson not found" });
     }
-
     if (["archived", "flagged"].includes(String(lesson.status || ""))) {
-      return res.status(403).json({ msg: "Lesson is not available" });
+      return res.status(403).json({ error: "Lesson is not available for purchase" });
     }
-
     if (!lesson.isPublished) {
-      return res.status(400).json({ msg: "Lesson is not published" });
+      return res.status(400).json({ error: "Lesson is not published" });
     }
 
-    const user = await User.findById(req.user._id);
-
-    if (!user) {
-      return res.status(500).json({
-        success: false,
-        error: "User not found in database",
-      });
+    const cost = lesson.shamCoinPrice;
+    if (typeof cost !== "number" || !Number.isFinite(cost) || cost < 0) {
+      return res.status(400).json({ error: "Lesson has no valid price", code: "INVALID_COST" });
     }
 
-    const alreadyPurchased = user.purchasedLessons?.some(
-      (purchase) => purchase.lessonId.toString() === lesson._id.toString()
-    );
+    const userId = req.user._id || req.user.userId;
 
-    if (alreadyPurchased) {
-      return res.status(400).json({
-        msg: "You have already purchased this lesson",
-        purchasedAt: user.purchasedLessons.find(
-          (p) => p.lessonId.toString() === lesson._id.toString()
-        ).purchasedAt,
-      });
-    }
-
-    const studentShamCoins = user.shamCoins || 0;
-    if (studentShamCoins < lesson.shamCoinPrice) {
-      return res.status(400).json({
-        msg: "Insufficient ShamCoins",
-        required: lesson.shamCoinPrice,
-        available: studentShamCoins,
-      });
-    }
-
-    user.shamCoins -= lesson.shamCoinPrice;
-
-    const purchaseRecord = {
+    const existingByLesson = await LessonPurchase.findOne({
+      userId,
       lessonId: lesson._id,
-      price: lesson.shamCoinPrice,
-      purchasedAt: new Date(),
-    };
+    }).lean();
+    if (existingByLesson) {
+      const user = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+      return res.status(200).json({
+        success: true,
+        alreadyPurchased: true,
+        entitlements: entitlementsPayload(user || {}),
+      });
+    }
 
-    user.purchasedLessons = user.purchasedLessons || [];
-    user.purchasedLessons.push(purchaseRecord);
+    const existingByKey = await LessonPurchase.findOne({
+      userId,
+      idempotencyKey,
+    }).lean();
+    if (existingByKey) {
+      const user = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+      return res.status(200).json({
+        success: true,
+        alreadyPurchased: true,
+        idempotentReplay: true,
+        entitlements: entitlementsPayload(user || {}),
+      });
+    }
 
-    const teacherEarnings = Math.floor(lesson.shamCoinPrice * 0.7);
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(500).json({ error: "User not found" });
+    }
+    const balance = user.shamCoins != null ? user.shamCoins : 0;
+    if (balance < cost) {
+      return res.status(402).json({
+        error: "Insufficient ShamCoins",
+        code: "INSUFFICIENT_COINS",
+        required: cost,
+        available: balance,
+      });
+    }
 
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const purchaseRecord = {
+        lessonId: lesson._id,
+        price: cost,
+        purchasedAt: new Date(),
+      };
+      await User.findByIdAndUpdate(
+        userId,
+        {
+          $inc: { shamCoins: -cost },
+          $push: { purchasedLessons: purchaseRecord },
+        },
+        { session }
+      );
+      await LessonPurchase.create(
+        [
+          {
+            userId,
+            lessonId: lesson._id,
+            cost,
+            idempotencyKey,
+          },
+        ],
+        { session }
+      );
+      await session.commitTransaction();
+    } catch (txErr) {
+      await session.abortTransaction();
+      throw txErr;
+    } finally {
+      session.endSession();
+    }
+
+    const updatedUser = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+    const teacherEarnings = Math.floor(cost * 0.7);
     const teacher = await User.findById(lesson.teacherId);
     if (teacher) {
       teacher.shamCoins = (teacher.shamCoins || 0) + teacherEarnings;
       teacher.earnings = (teacher.earnings || 0) + teacherEarnings;
-
       teacher.transactions = teacher.transactions || [];
       teacher.transactions.push({
         type: "sale",
@@ -1451,57 +1504,33 @@ router.post("/:id/purchase", auth, async (req, res) => {
         lessonId: lesson._id,
         status: "completed",
       });
-
       await teacher.save();
-
-      const { createNotification } = require("./notifications");
-      await createNotification(
-        teacher._id,
-        "purchase_success",
-        "Lesson Sold!",
-        `A student purchased your lesson "${lesson.title}" for ${lesson.shamCoinPrice} ShamCoins`,
-        {
-          lessonId: lesson._id,
-          price: lesson.shamCoinPrice,
-          earnings: teacherEarnings,
-        },
-        `/lesson/${lesson._id}`
-      );
+      try {
+        const { createNotification } = require("./notifications");
+        await createNotification(
+          teacher._id,
+          "purchase_success",
+          "Lesson Sold!",
+          `A student purchased your lesson "${lesson.title}" for ${cost} ShamCoins`,
+          { lessonId: lesson._id, price: cost, earnings: teacherEarnings },
+          `/lesson/${lesson._id}`
+        );
+      } catch (_) {}
     }
-
-    const purchase = new Purchase({
+    await Purchase.create({
       lessonId: lesson._id,
-      studentId: user._id,
+      studentId: userId,
       teacherId: lesson.teacherId,
-      price: lesson.shamCoinPrice,
-      teacherEarnings: teacherEarnings,
+      price: cost,
+      teacherEarnings,
       timestamp: new Date(),
     });
 
-    await purchase.save();
-    await user.save();
-
-    return res.json({
+    return res.status(200).json({
       success: true,
-      msg: "Lesson purchased successfully!",
-      lesson: {
-        id: lesson._id,
-        title: lesson.title,
-        price: lesson.shamCoinPrice,
-      },
-      user: {
-        _id: user._id,
-        id: user._id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        userType: user.userType,
-        shamCoins: user.shamCoins,
-        purchasedLessons: user.purchasedLessons,
-      },
-      remainingShamCoins: user.shamCoins,
-      teacherEarned: teacherEarnings,
-      purchaseRecord: purchaseRecord,
+      alreadyPurchased: false,
+      lesson: { id: lesson._id, title: lesson.title, price: cost },
+      entitlements: entitlementsPayload(updatedUser || {}),
     });
   } catch (err) {
     console.error("Purchase error:", err);
