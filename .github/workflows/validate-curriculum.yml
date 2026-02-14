@@ -18,6 +18,12 @@ jobs:
       - run: npm ci
       - name: Run unit tests
         run: npm test
+      - name: List backend tests (diagnosis; remove once stable)
+        run: |
+          pwd
+          ls -la
+          ls -la backend/tests
+          npm run test:backend:list
       - name: Backend content-access tests (Phase 9)
         run: npm run test:backend
         env:
