@@ -1,8 +1,15 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchPricing } from "../api/pricing";
 import { formatMoney } from "../utils/money";
+import { logPaywallEvent } from "../utils/events";
 
-export function SubscribeCTA() {
+interface SubscribeCTAProps {
+  lessonId?: string;
+}
+
+export function SubscribeCTA({ lessonId }: SubscribeCTAProps) {
+  const navigate = useNavigate();
   const [priceText, setPriceText] = React.useState<string>("");
 
   React.useEffect(() => {
@@ -23,11 +30,18 @@ export function SubscribeCTA() {
     };
   }, []);
 
+  const handleSubscribeClick = () => {
+    void logPaywallEvent("SUBSCRIBE_CTA_CLICK", lessonId ? { lessonId } : undefined);
+    navigate("/subscription");
+  };
+
   return (
     <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>Subscribe</div>
       <div style={{ marginBottom: 10 }}>{priceText}</div>
-      <button type="button">Start subscription</button>
+      <button type="button" onClick={handleSubscribeClick}>
+        Start subscription
+      </button>
     </div>
   );
 }

@@ -59,6 +59,7 @@ const templateRoutes = require("./routes/templates.routes");
 
 const curriculumConfidenceRouter = require("./routes/curriculumConfidence");
 const pricingRoutes = require("./routes/pricing");
+const eventRoutes = require("./routes/events");
 // AI Generation Jobs routes are part of the overall API surface and are
 // intentionally mounted early as placeholders; they currently have no
 // handlers or behavior and serve only to stabilise route namespaces.
@@ -245,6 +246,7 @@ app.use("/api/progress", progressRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/payouts", payoutRoutes);
 app.use("/api/pricing", pricingRoutes);
+app.use("/api/events", eventRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ops", opsRoutes);
 app.use("/api/ai", aiRoutes);

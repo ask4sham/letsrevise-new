@@ -1,5 +1,5 @@
 // frontend/src/pages/LessonViewPage.tsx
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
@@ -12,6 +12,7 @@ import { QuizView } from "../components/revision/QuizView";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { isLessonError } from "../utils/typeGuards";
+import { logPaywallEvent } from "../utils/events";
 
 interface LessonPageBlock {
   type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch";
@@ -293,6 +294,7 @@ const LessonViewPage: React.FC = () => {
   const [subscriptionRequired, setSubscriptionRequired] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [accessDecision, setAccessDecision] = useState<{ reason?: string } | null>(null);
+  const loggedPreviewRef = useRef<string | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -410,6 +412,14 @@ const LessonViewPage: React.FC = () => {
   useEffect(() => {
     console.log("Curriculum confidence:", curriculumConfidence);
   }, [curriculumConfidence]);
+
+  // ✅ Paywall event: log FREE_PREVIEW_VIEW once per lesson view (no double log on rerenders)
+  useEffect(() => {
+    if (accessDecision?.reason === "FREE_PREVIEW" && id && loggedPreviewRef.current !== id) {
+      loggedPreviewRef.current = id;
+      void logPaywallEvent("FREE_PREVIEW_VIEW", { lessonId: id });
+    }
+  }, [accessDecision?.reason, id]);
 
   // ✅ Visual fetch (optional, silent fail)
   useEffect(() => {
@@ -537,6 +547,7 @@ const LessonViewPage: React.FC = () => {
 
         // ✅ 402 NOT_ENTITLED → Subscribe CTA (pricing from /api/pricing)
         if (status === 402 && reason === "NOT_ENTITLED") {
+          void logPaywallEvent("PAYWALL_NOT_ENTITLED", { lessonId });
           setSubscriptionRequired(true);
           setError("");
           setLesson(null);
@@ -545,6 +556,7 @@ const LessonViewPage: React.FC = () => {
 
         // Legacy: 403 "Subscription required" (backend used to return this)
         if (status === 403 && (error === "Subscription required" || reason === "NOT_ENTITLED")) {
+          void logPaywallEvent("PAYWALL_NOT_ENTITLED", { lessonId });
           setSubscriptionRequired(true);
           setError("");
           setLesson(null);
@@ -1457,7 +1469,7 @@ const LessonViewPage: React.FC = () => {
         <p style={{ marginBottom: 12 }}>
           Subscribe to unlock all lessons instantly.
         </p>
-        <SubscribeCTA />
+        <SubscribeCTA lessonId={id || undefined} />
         <div style={{ marginTop: 16 }}>
           <button
             onClick={() => navigate("/dashboard")}
@@ -2646,7 +2658,7 @@ const LessonViewPage: React.FC = () => {
         {/* Subscribe CTA under FREE_PREVIEW (dynamic price from /api/pricing) */}
         {(previewMode || accessDecision?.reason === "FREE_PREVIEW") && (
           <div style={{ marginTop: 16 }}>
-            <SubscribeCTA />
+            <SubscribeCTA lessonId={id || undefined} />
           </div>
         )}
 
