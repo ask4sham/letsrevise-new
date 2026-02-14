@@ -366,141 +366,147 @@ const TeacherDashboard: React.FC = () => {
       }}
     >
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "30px",
-            flexWrap: "wrap",
-            gap: "20px",
-          }}
-        >
-          <div>
-            <h1 style={{ color: "#333", marginBottom: "5px" }}>👨‍🏫 Teacher Dashboard</h1>
-            <p style={{ color: "#666" }}>
-              Welcome back, {user?.firstName}! Manage your lessons and track your earnings.
-            </p>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
-            {/* Row 1: all buttons left, ShamCoins right (inline) */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <Link
-                  to="/create-lesson"
-                  style={{
-                    padding: "10px 20px",
-                    background: "#48bb78",
-                    color: "white",
-                    textDecoration: "none",
-                    borderRadius: "6px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  + Create lesson (manual)
-                </Link>
-                <button
-                  type="button"
-                  onClick={openAiModal}
-                  style={{
-                    padding: "10px 16px",
-                    background: "#0d6efd",
-                    color: "#fff",
-                    border: "1px solid #0d6efd",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                  title="Generate a first draft lesson from a topic (template + AI content)"
-                >
-                  ✨ Generate with AI
-                </button>
-                <Link
-                  to="/browse-lessons"
-                  style={{
-                    padding: "10px 16px",
-                    background: "white",
-                    color: "#374151",
-                    textDecoration: "none",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    border: "1px solid #d1d5db",
-                  }}
-                >
-                  Browse Lessons
-                </Link>
-                <Link
-                  to="/assessments/papers/builder"
-                  style={{
-                    padding: "10px 16px",
-                    background: "white",
-                    color: "#374151",
-                    textDecoration: "none",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    border: "1px solid #d1d5db",
-                  }}
-                >
-                  📝 Assessment Papers
-                </Link>
-                <Link
-                  to="/teacher/exam-question-bank"
-                  style={{
-                    padding: "10px 16px",
-                    background: "white",
-                    color: "#374151",
-                    textDecoration: "none",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    border: "1px solid #d1d5db",
-                  }}
-                >
-                  Create Questions
-                </Link>
-                <Link
-                  to="/dashboard"
-                  style={{
-                    padding: "10px 16px",
-                    background: "white",
-                    color: "#374151",
-                    textDecoration: "none",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    border: "1px solid #d1d5db",
-                  }}
-                >
-                  Main Dashboard
-                </Link>
-              </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <div
-                  style={{
-                    background: "white",
-                    padding: "10px 20px",
-                    borderRadius: "20px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                    fontWeight: "bold",
-                    color: "#333",
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  💰 {user?.shamCoins || 0} ShamCoins
-                </div>
+        {/* Header — 3 explicit rows: title+ShamCoins | buttons | helper */}
+        <div style={{ marginBottom: "30px" }}>
+          {/* Row 1: Title + Welcome (left), ShamCoins (right) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+              marginBottom: "10px",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ color: "#333", margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+                <span role="img" aria-label="teacher">👨‍🏫</span>
+                Teacher Dashboard
+              </h1>
+              <p style={{ marginTop: "4px", color: "#666", opacity: 0.85 }}>
+                Welcome back, {user?.firstName}! Manage your lessons and track your earnings.
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <div
+                style={{
+                  background: "white",
+                  padding: "10px 20px",
+                  borderRadius: "20px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  fontWeight: "bold",
+                  color: "#333",
+                  fontSize: "1.1rem",
+                }}
+              >
+                💰 {user?.shamCoins || 0} ShamCoins
               </div>
             </div>
-            <span style={{ color: "#6b7280", fontSize: "0.75rem", opacity: 0.9 }}>
-              AI: optional first-draft from a topic. May be limited during rollout.
-            </span>
+          </div>
+
+          {/* Row 2: Action buttons (Create+AI group, then outline buttons) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
+              marginBottom: "6px",
+            }}
+          >
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Link
+                to="/create-lesson"
+                style={{
+                  padding: "10px 20px",
+                  background: "#48bb78",
+                  color: "white",
+                  textDecoration: "none",
+                  borderRadius: "6px",
+                  fontWeight: "bold",
+                }}
+              >
+                + Create lesson (manual)
+              </Link>
+              <button
+                type="button"
+                onClick={openAiModal}
+                style={{
+                  padding: "10px 16px",
+                  background: "#0d6efd",
+                  color: "#fff",
+                  border: "1px solid #0d6efd",
+                  borderRadius: "6px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+                title="Generate a first draft lesson from a topic (template + AI content)"
+              >
+                ✨ Generate with AI
+              </button>
+            </div>
+            <Link
+              to="/browse-lessons"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              Browse Lessons
+            </Link>
+            <Link
+              to="/assessments/papers/builder"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              📝 Assessment Papers
+            </Link>
+            <Link
+              to="/teacher/exam-question-bank"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              Create Questions
+            </Link>
+            <Link
+              to="/dashboard"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              Main Dashboard
+            </Link>
+          </div>
+
+          {/* Row 3: AI helper (bigger + bolder) */}
+          <div style={{ fontSize: "14px", fontWeight: 600, color: "#1f6feb", marginBottom: "14px" }}>
+            AI: optional first-draft from a topic. May be limited during rollout.
           </div>
         </div>
 
