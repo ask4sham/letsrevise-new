@@ -1,21 +1,22 @@
 // backend/tests/setup.js
-// Test harness only: in-memory Mongo for integration tests. No app/server imports.
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+// Test harness only: in-memory Mongo for integration tests. Replica set for transactions (Phase 9C purchase).
+if (!process.env.JWT_SECRET_KEY) {
+  process.env.JWT_SECRET_KEY = "test-secret-for-backend-tests";
+}
+const mongoose = require("mongoose");
+const { MongoMemoryReplSet } = require("mongodb-memory-server");
 
-let mongoServer;
+let mongoReplSet;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  
-  // Removed unsupported options: useNewUrlParser and useUnifiedTopology
+  mongoReplSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  const mongoUri = mongoReplSet.getUri();
   await mongoose.connect(mongoUri);
-});
+}, 60000);
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoReplSet) await mongoReplSet.stop();
 });
 
 // ❌ REMOVED: afterEach cleanup block

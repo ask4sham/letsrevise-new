@@ -166,7 +166,7 @@ function validateQuiz(rawQuiz) {
 /**
  * Main validation function
  */
-export function validateAndNormalizeRevision(payload) {
+function validateAndNormalizeRevision(payload) {
   const result = {};
 
   // Validate flashcards (optional)
@@ -186,3 +186,5 @@ export function validateAndNormalizeRevision(payload) {
 
   return result;
 }
+
+module.exports = { validateAndNormalizeRevision };
