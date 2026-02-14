@@ -1,8 +1,10 @@
-// backend/services/generateRevision.js — Phase 9E + 9F
+// backend/services/generateRevision.js — Phase 9E + 9F + 10.1
 // Phase 9E: Kill-switch DISABLE_AI_REVISION_GENERATION dominates.
 // Phase 9F: Slot engine with telemetry, REVISION_NO_FALLBACK, output validation, minimal child env.
+// Phase 10.1: Observability — record outcome for metrics/dashboards.
 
 const path = require("path");
+const revisionMetrics = require("./revisionMetrics");
 const { spawnSync } = require("child_process");
 
 /** Phase 9E kill-switch (dominates). */
@@ -65,16 +67,20 @@ function buildRevisionJobSpec(lesson) {
   };
 }
 
-/** Minimal env for child (no full process.env pass-through). */
+/** Minimal env for child (no full process.env pass-through). Phase 10.3: config file overrides env for kill/rollout/path. */
 function buildSlotEngineEnv() {
   const base = {
     PATH: process.env.PATH || "",
     NODE_ENV: process.env.NODE_ENV || "development",
     FEATURE_SLOTGEN_AI: "true",
   };
-  if (process.env.SLOTGEN_AI_KILL !== undefined) base.SLOTGEN_AI_KILL = process.env.SLOTGEN_AI_KILL;
-  if (process.env.SLOTGEN_AI_ROLLOUT_PERCENT !== undefined) base.SLOTGEN_AI_ROLLOUT_PERCENT = process.env.SLOTGEN_AI_ROLLOUT_PERCENT;
-  if (process.env.SLOTGEN_ALLOWLIST_PATH !== undefined) base.SLOTGEN_ALLOWLIST_PATH = process.env.SLOTGEN_ALLOWLIST_PATH;
+  const config = readRevisionEngineConfig();
+  if (config?.killSwitch === true) base.SLOTGEN_AI_KILL = "true";
+  else if (process.env.SLOTGEN_AI_KILL !== undefined) base.SLOTGEN_AI_KILL = process.env.SLOTGEN_AI_KILL;
+  if (config?.rolloutPercent !== undefined) base.SLOTGEN_AI_ROLLOUT_PERCENT = String(config.rolloutPercent);
+  else if (process.env.SLOTGEN_AI_ROLLOUT_PERCENT !== undefined) base.SLOTGEN_AI_ROLLOUT_PERCENT = process.env.SLOTGEN_AI_ROLLOUT_PERCENT;
+  if (config?.allowlistPath != null) base.SLOTGEN_ALLOWLIST_PATH = config.allowlistPath;
+  else if (process.env.SLOTGEN_ALLOWLIST_PATH !== undefined) base.SLOTGEN_ALLOWLIST_PATH = process.env.SLOTGEN_ALLOWLIST_PATH;
   if (process.env.OPENAI_API_KEY !== undefined) base.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   if (process.env.OPENAI_BASE_URL !== undefined) base.OPENAI_BASE_URL = process.env.OPENAI_BASE_URL;
   return base;
@@ -265,6 +271,8 @@ async function generateRevisionForLesson(opts) {
   } else {
     console.info("[revision-engine]", JSON.stringify(logLine));
   }
+
+  revisionMetrics.recordOutcome({ status: "STUB", errorCode: engineTelemetry.errorCode });
 
   if (noFallback) {
     const err = new Error("Revision engine unavailable (STUB or failed)");

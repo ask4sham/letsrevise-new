@@ -975,6 +975,12 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
       { upsert: true, new: true, runValidators: true }
     );
 
+    const engine = draft.engine || undefined;
+    const messageForUser =
+      engine?.status === "STUB"
+        ? "Revision generated using standard content. You can edit the draft before applying."
+        : undefined;
+
     res.status(200).json({
       success: true,
       lessonId: lesson._id,
@@ -985,10 +991,11 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
         id: draft._id,
         lessonId: draft.lessonId,
         status: draft.status,
-        engine: draft.engine || undefined,
+        engine: engine,
         flashcards: draft.flashcards,
         quiz: draft.quiz,
       },
+      ...(messageForUser && { messageForUser }),
     });
   } catch (err) {
     if (err.code === "REVISION_GENERATION_DISABLED") {
@@ -996,6 +1003,7 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
         success: false,
         code: "REVISION_GENERATION_DISABLED",
         error: err.message,
+        messageForUser: "Revision is temporarily unavailable. Please try again later.",
       });
     }
     // 503 = service unavailable / gated; errorCode e.g. NOT_ALLOWLISTED, ROLLOUT_EXCLUDED, ENGINE_SPAWN_FAILED
@@ -1005,6 +1013,7 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
         code: "REVISION_ENGINE_UNAVAILABLE",
         error: err.message,
         errorCode: err.engineErrorCode ?? null,
+        messageForUser: "Revision is temporarily unavailable. Please try again later.",
       });
     }
     console.error("AI_REVISION_GENERATION_ERROR", err);

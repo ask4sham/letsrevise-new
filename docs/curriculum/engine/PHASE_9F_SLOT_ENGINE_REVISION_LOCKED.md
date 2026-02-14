@@ -114,3 +114,9 @@ git tag -a phase-9f-slot-engine-revision-locked -m "Phase 9F slot engine revisio
 
 git push origin phase-9f-slot-engine-revision-locked
 ```
+
+---
+
+## Next phase (suggestion)
+
+**Phase 10 — Operational dashboards & alerts:** aggregate `draft.engine.errorCode`, STUB vs COMPLETED ratios, rollout health, and cost. Nothing blocks product use today; this is follow-on observability and ops tooling.

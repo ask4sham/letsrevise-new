@@ -190,6 +190,40 @@ router.get("/stats", auth, checkAdmin, async (req, res) => {
   }
 });
 
+/* =========================================
+   GET /api/admin/revision-metrics   Phase 10.1
+   Read-only: attempts, COMPLETED/STUB counts, errorCode distribution, lastCompletedAt.
+   ========================================= */
+router.get("/revision-metrics", auth, checkAdmin, (req, res) => {
+  try {
+    const revisionMetrics = require("../services/revisionMetrics");
+    res.json({ success: true, metrics: revisionMetrics.getSnapshot() });
+  } catch (err) {
+    console.error("Get revision metrics error:", err);
+    res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   GET /api/admin/revision-alerts   Phase 10.2
+   Returns { ok, alerts } for polling by alerting systems. Maps to errorCodes only.
+   ========================================= */
+router.get("/revision-alerts", auth, checkAdmin, (req, res) => {
+  try {
+    const revisionMetrics = require("../services/revisionMetrics");
+    const result = revisionMetrics.evaluateAlerts({
+      recentN: 100,
+      spawnFailedThreshold: 5,
+      openaiFailedThreshold: 15,
+      zeroCompletedHours: 4,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Get revision alerts error:", err);
+    res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
 // Mount placeholder admin AI generation jobs router (no routes yet)
 router.use("/ai-generation-jobs", adminAiGenerationJobs);
 
