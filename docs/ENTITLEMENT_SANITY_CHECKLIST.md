@@ -1,6 +1,8 @@
 # Final Entitlement Sanity Checklist (~10 min)
 
-**Authoritative** pre-launch and post-incident entitlement check. Use this runbook to verify entitlements end-to-end before launch or after incidents.
+**Authoritative** pre-launch and post-incident entitlement check. This document is the single source of truth for validating entitlement correctness end-to-end.
+
+**Usage:** Run before launch; run after any entitlement-related incident or change.
 
 **Goal:** Verify end-to-end entitlement behavior. No code changes—manual verification only.
 
