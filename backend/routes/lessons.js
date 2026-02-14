@@ -1610,10 +1610,11 @@ router.post("/:id/purchase", auth, async (req, res) => {
       err.codeName === "WriteConflict" ||
       (err.errorLabelSet && err.errorLabelSet.has && err.errorLabelSet.has("TransientTransactionError"));
     if (isTransient) {
+      console.warn("Purchase conflict (transient); client should retry with same idempotencyKey", err.codeName || err.code);
       return res.status(409).json({
         success: false,
-        error: "Purchase conflict; retry with same idempotencyKey",
         code: "PURCHASE_CONFLICT",
+        message: "Purchase conflict; retry with the same idempotencyKey",
       });
     }
     console.error("Purchase error:", err);
