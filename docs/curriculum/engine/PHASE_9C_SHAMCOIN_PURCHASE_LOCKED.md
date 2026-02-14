@@ -17,7 +17,7 @@ Atomic, idempotent lesson purchase via ShamCoins is **locked** at this tag. Ledg
 ## Retry semantics
 
 - **409 PURCHASE_CONFLICT** is **retryable** with the **same idempotencyKey**. It indicates a transient transaction conflict (e.g. WriteConflict); the client should retry once or twice. Do not treat it as a hard failure.
-- Response: `{ success: false, code: "PURCHASE_CONFLICT", message: "Purchase conflict; retry with the same idempotencyKey" }`.
+- Response: `{ success: false, code: "PURCHASE_CONFLICT", error: "Purchase conflict; retry with the same idempotencyKey" }`.
 
 ---
 
@@ -34,3 +34,16 @@ Atomic, idempotent lesson purchase via ShamCoins is **locked** at this tag. Ledg
 
 - **backend/tests/shamCoinPurchase.integration.test.js**: idempotencyKey validation, insufficient coins (402), success, idempotency replay, same-key concurrency, different-key concurrency (one 200 new, one 200 alreadyPurchased or 409 PURCHASE_CONFLICT).
 - **npm run test:backend** includes this suite.
+
+---
+
+## Tagging (one-time)
+
+Run each command separately to avoid copy/paste mistakes:
+
+```
+git tag -a phase-9a-content-access-locked -m "Phase 9A content access locked: policy, gated routes, list sanitizer, payload helpers, tests"
+git tag -a phase-9b-subscription-v2-locked -m "Phase 9B subscription V2 locked: contract normalization, allowlist entitlement, tests, /me/entitlements"
+git tag -a phase-9c-shamcoin-purchase-locked -m "Phase 9C ShamCoin purchase locked: ledger, idempotency, transactions, 409 conflicts, tests"
+git push origin phase-9a-content-access-locked phase-9b-subscription-v2-locked phase-9c-shamcoin-purchase-locked
+```

@@ -1614,7 +1614,7 @@ router.post("/:id/purchase", auth, async (req, res) => {
       return res.status(409).json({
         success: false,
         code: "PURCHASE_CONFLICT",
-        message: "Purchase conflict; retry with the same idempotencyKey",
+        error: "Purchase conflict; retry with the same idempotencyKey",
       });
     }
     console.error("Purchase error:", err);
