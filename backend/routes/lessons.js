@@ -1535,9 +1535,11 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
     if (decision?.reason === "FREE_PREVIEW") {
-      return res.json(toLessonPreviewPayload(lesson));
+      const payload = toLessonPreviewPayload(lesson);
+      return res.json({ ...payload, accessDecision: req.accessDecision });
     }
-    return res.json(toLessonFullPayload(lesson));
+    const payload = toLessonFullPayload(lesson);
+    return res.json({ ...payload, accessDecision: req.accessDecision });
   } catch (err) {
     console.error("Get lesson error:", err);
     return res.status(500).send("Server error");

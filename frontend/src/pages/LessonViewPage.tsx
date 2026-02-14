@@ -11,6 +11,7 @@ import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
+import { isLessonError } from "../utils/typeGuards";
 
 interface LessonPageBlock {
   type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch";
@@ -531,7 +532,7 @@ const LessonViewPage: React.FC = () => {
     try {
       const result = await fetchLessonById(lessonId);
 
-      if (result.ok === false) {
+      if (isLessonError(result)) {
         const { status, reason, error } = result.apiError;
 
         // ✅ 402 NOT_ENTITLED → Subscribe CTA (pricing from /api/pricing)
