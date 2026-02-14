@@ -33,7 +33,7 @@ function canAccessContent(userOrOpts, lessonParam) {
     return { allowed: false, reason: "NOT_PUBLISHED" };
   }
 
-  // Rule 1: active subscription (expiry enforced in isSubscriptionActive)
+  // Rule 1: active subscription (uses normalized user.subscriptionV2; deny if missing — Phase 9B)
   if (isSubscriptionActive(user)) {
     return { allowed: true, reason: "SUB_ACTIVE" };
   }

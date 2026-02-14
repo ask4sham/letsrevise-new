@@ -4,6 +4,7 @@ console.log("🔐 Auth middleware (JWT)");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
+const { normalizeSubscriptionV2 } = require("../contracts/subscriptionV2");
 
 // ✅ SINGLE SOURCE OF TRUTH (same as signing)
 const { getJwtSecret } = require("../utils/jwtSecret");
@@ -102,9 +103,11 @@ module.exports = function auth(req, res, next) {
       return res.status(401).json({ msg: "User not found in database" });
     }
 
-    // Keep req.user predictable while also hydrating from Mongo:
-    // - Spread the DB user document first (subscription, purchasedLessons, etc.)
-    // - Then override IDs with stable string forms + attach tokenPayload.
+    // Phase 9B: normalize subscription so downstream only sees contract shape (single source of truth).
+    const subscriptionV2Norm = normalizeSubscriptionV2(
+      user.subscriptionV2 || user.subscription || user.subscriptionV2Snapshot
+    );
+
     req.user = {
       ...user,
       userId: String(userId),
@@ -114,6 +117,11 @@ module.exports = function auth(req, res, next) {
       lastName: user.lastName,
       email: user.email,
       tokenPayload: decoded,
+      subscriptionV2: subscriptionV2Norm,
+      entitlements: {
+        subscriptionV2: subscriptionV2Norm,
+        purchasedLessons: user.purchasedLessons ?? [],
+      },
     };
 
     if (shouldDebugJwt()) {

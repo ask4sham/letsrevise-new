@@ -22,6 +22,9 @@ app.use("/api/assessment-items", require("./routes/assessmentItems"));
 // ✅ Add auth routes if your assessment endpoints need auth middleware
 app.use("/api/auth", require("./routes/auth"));
 
+// ✅ Phase 9B: me/entitlements (auth-only, non-sensitive)
+app.use("/api/me", require("./routes/me"));
+
 // ✅ Add lessons route for Phase 9 content-access integration tests
 app.use("/api/lessons", require("./routes/lessons"));
 

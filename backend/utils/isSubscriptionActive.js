@@ -1,37 +1,16 @@
 /**
- * Determine whether a user's subscription is currently active (Phase B + Phase 9 lock).
+ * Determine whether a user's subscription is currently active (Phase 9B).
+ * Single source: contract isEntitledSubscriptionV2(user.subscriptionV2).
+ * Auth middleware sets req.user.subscriptionV2 to normalized shape; use that only.
  *
- * - Prefers subscriptionV2, falls back to subscription.
- * - If sub has a `status` field: only allowlist counts (active, trialing). Reject past_due, canceled, etc.
- * - If expiresAt is present: must be a future date.
- * - Encode as allowlist, not "!= inactive", so new statuses default to denied.
- *
- * @param {Object|null|undefined} user - The user document or plain object.
- * @returns {boolean} true if subscription is active.
+ * @param {Object|null|undefined} user - User object (must have normalized subscriptionV2 from auth).
+ * @returns {boolean} true if subscription is entitled (active/trialing, not expired).
  */
-const ENTITLED_STATUSES = ["active", "trialing"];
+const { isEntitledSubscriptionV2 } = require("../contracts/subscriptionV2");
 
 function isSubscriptionActive(user) {
   if (!user) return false;
-
-  const sub = user.subscriptionV2 || user.subscription;
-  if (!sub) return false;
-
-  const status = (sub.status || "").toString().toLowerCase();
-  if (status && !ENTITLED_STATUSES.includes(status)) {
-    return false;
-  }
-
-  const expiresAt = sub.expiresAt;
-  if (!expiresAt) {
-    return ENTITLED_STATUSES.includes(status);
-  }
-
-  const expiryDate = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
-  if (Number.isNaN(expiryDate.getTime())) return false;
-
-  const now = new Date();
-  return expiryDate.getTime() > now.getTime();
+  return isEntitledSubscriptionV2(user.subscriptionV2);
 }
 
 module.exports = { isSubscriptionActive };

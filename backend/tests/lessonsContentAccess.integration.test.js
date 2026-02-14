@@ -16,6 +16,9 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
   let tokenU1;
   let tokenU2;
   let tokenU3;
+  let tokenUTrialing;
+  let tokenUPastDue;
+  let tokenUExpired;
   const hashedPassword = bcrypt.hashSync("password123", 10);
 
   beforeAll(async () => {
@@ -101,6 +104,36 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
       purchasedLessons: [],
     });
 
+    // Phase 9B: subscription status edge cases (trialing, past_due, active+expired)
+    const uTrialing = await User.create({
+      firstName: "UTrialing",
+      lastName: "Student",
+      email: "phase9b-trialing@test.com",
+      password: hashedPassword,
+      userType: "student",
+      subscriptionV2: { status: "trialing", expiresAt: future },
+      purchasedLessons: [],
+    });
+    const uPastDue = await User.create({
+      firstName: "UPastDue",
+      lastName: "Student",
+      email: "phase9b-past_due@test.com",
+      password: hashedPassword,
+      userType: "student",
+      subscriptionV2: { status: "past_due", expiresAt: future },
+      purchasedLessons: [],
+    });
+    const past = new Date(Date.now() - 86400000);
+    const uExpired = await User.create({
+      firstName: "UExpired",
+      lastName: "Student",
+      email: "phase9b-expired@test.com",
+      password: hashedPassword,
+      userType: "student",
+      subscriptionV2: { status: "active", expiresAt: past },
+      purchasedLessons: [],
+    });
+
     const login = (email) =>
       request(app)
         .post("/api/auth/login")
@@ -110,6 +143,9 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     tokenU1 = await login("phase9-u1@test.com");
     tokenU2 = await login("phase9-u2@test.com");
     tokenU3 = await login("phase9-u3@test.com");
+    tokenUTrialing = await login("phase9b-trialing@test.com");
+    tokenUPastDue = await login("phase9b-past_due@test.com");
+    tokenUExpired = await login("phase9b-expired@test.com");
   });
 
   test("not entitled user gets 403 with NOT_ENTITLED on locked lesson", async () => {
@@ -150,6 +186,33 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     expect(res.body.pages).toHaveLength(1);
     expect(res.body.flashcards).toEqual([]);
     expect(res.body.quiz).toBeUndefined();
+  });
+
+  test("Phase 9B: trialing status gets 200 full content", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonAId}`)
+      .set("Authorization", `Bearer ${tokenUTrialing}`);
+    expect(res.status).toBe(200);
+    expect(res.body.pages).toHaveLength(2);
+    expect(res.body.quiz).toBeDefined();
+  });
+
+  test("Phase 9B: past_due status gets 403 NOT_ENTITLED", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonAId}`)
+      .set("Authorization", `Bearer ${tokenUPastDue}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("FORBIDDEN");
+    expect(res.body.reason).toBe("NOT_ENTITLED");
+  });
+
+  test("Phase 9B: active but expiresAt in past gets 403 NOT_ENTITLED", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonAId}`)
+      .set("Authorization", `Bearer ${tokenUExpired}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("FORBIDDEN");
+    expect(res.body.reason).toBe("NOT_ENTITLED");
   });
 });
 
