@@ -161,6 +161,12 @@ if (fs.existsSync(visualsRootPath)) {
   console.log("Visuals folder not found at:", visualsRootPath);
 }
 
+// Static assets (admin-ops.js for CSP script-src 'self')
+const publicPath = path.join(__dirname, "public");
+if (fs.existsSync(publicPath)) {
+  app.use("/static", express.static(publicPath));
+}
+
 /* ============================================================
    DEBUG HELPERS
 ============================================================ */
@@ -312,7 +318,10 @@ app.get("/admin/ops", (req, res, next) => {
   res.setHeader("Pragma", "no-cache");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
-  res.setHeader("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+  );
   res.sendFile(adminOpsPath);
 });
 
