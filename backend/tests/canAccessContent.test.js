@@ -101,16 +101,14 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("PURCHASED");
   });
 
-  test("free preview only → allow (FREE_PREVIEW)", async () => {
-    const decision = await canAccessContent(
-      {
-        userType: "student",
-        subscriptionV2: null,
-        purchasedLessons: [],
-      },
-      { ...lesson, isFreePreview: true }
-    );
-    expect(decision.allowed).toBe(true);
+  test("free preview (no sub/unlock) -> not allowed but FREE_PREVIEW", async () => {
+    LessonUnlock.exists.mockResolvedValueOnce(false);
+
+    const user = { _id: "64b000000000000000000001", subscriptionV2: null };
+    const lessonWithPreview = { _id: "64b000000000000000000002", isFreePreview: true, isPublished: true };
+
+    const decision = await canAccessContent(user, lessonWithPreview);
+    expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("FREE_PREVIEW");
   });
 

@@ -61,7 +61,7 @@ function toLessonPreviewPayload(lesson) {
   }
   payload.status = lesson?.status ?? (lesson?.isPublished ? "published" : "draft");
   payload.isPublished = String(payload.status).toLowerCase() === "published";
-  payload.isFreePreview = true;
+  payload.isFreePreview = !!lesson.isFreePreview;
   payload.pages = firstPageOnly;
   payload.flashcards = [];
   payload.content = typeof lesson?.content === "string" ? lesson.content : "";

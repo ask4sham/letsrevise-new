@@ -1555,6 +1555,20 @@ const LessonViewPage: React.FC = () => {
             </Link>
           </div>
 
+          {accessDecision?.reason === "FREE_PREVIEW" && (
+            <div
+              style={{
+                padding: 8,
+                border: "1px solid #ddd",
+                borderRadius: 8,
+                marginBottom: 12,
+                fontSize: "0.9rem",
+                color: "#555",
+              }}
+            >
+              You're viewing a free preview (first page only).
+            </div>
+          )}
           {previewMode && (
             <div
               style={{

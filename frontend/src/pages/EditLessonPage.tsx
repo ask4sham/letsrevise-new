@@ -73,6 +73,7 @@ interface Lesson {
   teacherId: string;
   estimatedDuration: number;
   shamCoinPrice: number;
+  isFreePreview?: boolean;
   isPublished: boolean;
   views: number;
   averageRating: number;
@@ -476,6 +477,7 @@ const EditLessonPage: React.FC = () => {
         shamCoinPrice: Number.isFinite(Number(data.shamCoinPrice))
           ? Number(data.shamCoinPrice)
           : 0,
+        isFreePreview: Boolean(data.isFreePreview),
         isPublished: Boolean(data.isPublished),
         views: Number.isFinite(Number(data.views)) ? Number(data.views) : 0,
         averageRating: Number.isFinite(Number(data.averageRating))
@@ -585,6 +587,7 @@ const EditLessonPage: React.FC = () => {
         teacherId: safeStr((data as any)?.teacher_id, ""),
         estimatedDuration: 0,
         shamCoinPrice: 0,
+        isFreePreview: false,
         isPublished: Boolean((data as any)?.is_published),
         views: 0,
         averageRating: 0,
@@ -1602,6 +1605,7 @@ const EditLessonPage: React.FC = () => {
         board: lesson.examBoardName || "",
         estimatedDuration: lesson.estimatedDuration,
         shamCoinPrice: lesson.shamCoinPrice,
+        isFreePreview: !!lesson.isFreePreview,
         pages: sanitizedPages,
       };
 
@@ -1663,6 +1667,7 @@ const EditLessonPage: React.FC = () => {
         board: lesson.examBoardName || "",
         estimatedDuration: lesson.estimatedDuration,
         shamCoinPrice: lesson.shamCoinPrice,
+        isFreePreview: !!lesson.isFreePreview,
         pages: sanitizedPages,
       };
 
@@ -2118,6 +2123,22 @@ const EditLessonPage: React.FC = () => {
                         border: "2px solid rgba(0,0,0,0.14)",
                       }}
                     />
+                  </label>
+
+                  <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!lesson.isFreePreview}
+                      onChange={(e) =>
+                        updateLessonField("isFreePreview", e.target.checked)
+                      }
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>Free preview</div>
+                      <div style={{ fontSize: 13, opacity: 0.8 }}>
+                        When enabled, non-subscribed students can view the first page (no answers).
+                      </div>
+                    </div>
                   </label>
                 </div>
 

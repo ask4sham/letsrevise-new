@@ -853,6 +853,7 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
       "tags",
       "estimatedDuration",
       "shamCoinPrice",
+      "isFreePreview",
       "resources",
       "board",
       "tier",
@@ -868,6 +869,11 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
     ];
 
     const updates = pick(req.body || {}, allowed);
+
+    // Coerce isFreePreview so string "true"/"false" from JSON is safe
+    if (Object.prototype.hasOwnProperty.call(updates, "isFreePreview")) {
+      updates.isFreePreview = updates.isFreePreview === true || updates.isFreePreview === "true";
+    }
 
     // Basic validation to avoid corrupting pages accidentally
     if (Object.prototype.hasOwnProperty.call(updates, "pages")) {

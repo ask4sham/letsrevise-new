@@ -2,6 +2,13 @@ const { isSubscriptionActive } = require("./isSubscriptionActive");
 const LessonUnlock = require("../models/LessonUnlock");
 
 /**
+ * Whether the lesson allows free preview (first page only, no answers). Authorable via lesson.isFreePreview.
+ */
+function isFreePreviewAllowed(lesson) {
+  return !!lesson?.isFreePreview;
+}
+
+/**
  * Check if user has a single-lesson unlock (credit/admin/promo) for this lesson.
  * ctx.unlockSet: optional Set of lessonId strings (preloaded for list endpoints to avoid N+1).
  */
@@ -78,9 +85,9 @@ async function canAccessContent(userOrOpts, lessonParam, ctx = {}) {
     return { allowed: true, reason: "PURCHASED" };
   }
 
-  // 4) Free preview (partial content)
-  if (lesson?.isFreePreview === true) {
-    return { allowed: true, reason: "FREE_PREVIEW" };
+  // 4) Free preview (partial content) — authorable via lesson.isFreePreview. allowed: false so preview is never treated as full entitlement.
+  if (isFreePreviewAllowed(lesson)) {
+    return { allowed: false, reason: "FREE_PREVIEW" };
   }
 
   // 5) Not entitled

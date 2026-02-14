@@ -23,6 +23,7 @@ const { validateAndNormalizeRevision } = require("../services/validateRevision")
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
+const { pickLessonFlags } = require("../utils/lessonValidation");
 
 console.log("✅ lessons router file loaded");
 
@@ -442,6 +443,7 @@ async function createLessonHandler(req, res) {
           .filter(Boolean)
       : [];
 
+    const flags = pickLessonFlags(req.body);
     const lessonData = {
       title,
       description,
@@ -461,6 +463,7 @@ async function createLessonHandler(req, res) {
       // Teachers create drafts by default.
       status: "draft",
       isPublished: false,
+      ...flags,
     };
 
     if (board) lessonData.board = board;
@@ -1614,10 +1617,15 @@ router.put("/:id", auth, async (req, res) => {
       delete updates.flashcards;
     }
 
+    // Authorable free preview (whitelisted + coerced)
+    const flags = pickLessonFlags(req.body);
+    if (typeof flags.isFreePreview === "boolean") lesson.isFreePreview = flags.isFreePreview;
+
     // Apply other updates
     Object.keys(updates).forEach((key) => {
       if (key === "isPublished") return;
       if (key === "status") return;
+      if (key === "isFreePreview") return;
       lesson[key] = updates[key];
     });
 
