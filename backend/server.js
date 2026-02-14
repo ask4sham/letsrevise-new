@@ -34,6 +34,7 @@ const progressRoutes = require("./routes/progress");
 const subscriptionRoutes = require("./routes/subscriptions");
 const payoutRoutes = require("./routes/payouts");
 const adminRoutes = require("./routes/admin");
+const opsRoutes = require("./routes/ops");
 const aiRoutes = require("./routes/ai");
 const aiGenerationJobsRoutes = require("./routes/aiGenerationJobs");
 const contentTreeRoutes = require("./routes/content-tree");
@@ -237,6 +238,7 @@ app.use("/api/progress", progressRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/payouts", payoutRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ops", opsRoutes);
 app.use("/api/ai", aiRoutes);
 // AI generation jobs API namespace (placeholder router with no handlers yet; behavior will be added incrementally)
 app.use("/api/ai-generation-jobs", aiGenerationJobsRoutes);
