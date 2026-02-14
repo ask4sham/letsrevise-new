@@ -265,6 +265,18 @@ app.use("/api/templates", templateRoutes);
 app.use("/api/curriculum-confidence", curriculumConfidenceRouter);
 
 /* ============================================================
+   Phase 12.2: Admin Ops UI (read-only + controls)
+============================================================ */
+const adminOpsPath = path.join(__dirname, "views", "admin-ops.html");
+app.get("/admin/ops", (req, res) => {
+  if (fs.existsSync(adminOpsPath)) {
+    res.sendFile(adminOpsPath);
+  } else {
+    res.status(404).send("Admin ops page not found");
+  }
+});
+
+/* ============================================================
    COMPATIBILITY ROUTES
 ============================================================ */
 

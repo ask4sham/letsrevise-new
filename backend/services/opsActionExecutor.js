@@ -9,6 +9,8 @@ const {
 const OpsIncident = require("../models/OpsIncident");
 const OpsActionAudit = require("../models/OpsActionAudit");
 const opsSignals = require("./opsSignals");
+const opsNotifier = require("./opsNotifier");
+const { EVENT_TYPES } = require("../contracts/opsNotifications.v1");
 
 function getConfigPath() {
   const repoRoot = path.resolve(__dirname, "../..");
@@ -161,6 +163,15 @@ async function execute(actionType, payload, context = {}) {
         });
         incidentId = doc._id;
         afterSnapshot = opsSignals.getMetricsSnapshot();
+        opsNotifier.notifySafe({
+          type: EVENT_TYPES.INCIDENT_OPENED,
+          incidentId: doc._id,
+          incidentType: payload?.type ?? "OPS",
+          severity: payload?.severity ?? "medium",
+          decisionId: context.decisionId,
+          playbookId: payload?.decisionSnapshot?.recommendedPlaybookId,
+          byErrorCode: beforeSnapshot?.byErrorCode,
+        }).catch(() => {});
         break;
       }
       case "NOTIFY_ADMIN": {
@@ -187,6 +198,17 @@ async function execute(actionType, payload, context = {}) {
     afterSnapshot,
     errorMessage: result === "FAILED" ? errorMessage : undefined,
   });
+
+  if (result === "FAILED") {
+    opsNotifier.notifySafe({
+      type: EVENT_TYPES.AUTOPILOT_ACTION_FAILED,
+      incidentId: incidentId || undefined,
+      actionType,
+      result: "FAILED",
+      errorMessage,
+      byErrorCode: beforeSnapshot?.byErrorCode,
+    }).catch(() => {});
+  }
 
   return {
     success: result === "SUCCESS",
