@@ -46,6 +46,9 @@ const TeacherDashboard: React.FC = () => {
   // ✅ Teacher checklist modal
   const [checklistOpen, setChecklistOpen] = useState(false);
 
+  // Start Here collapsible (default collapsed to reduce clutter)
+  const [showStartHere, setShowStartHere] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -396,23 +399,7 @@ const TeacherDashboard: React.FC = () => {
               💰 {user?.shamCoins || 0} ShamCoins
             </div>
 
-            {/* ✅ NEW: AI button in header */}
-            <button
-              onClick={openAiModal}
-              style={{
-                padding: "10px 16px",
-                background: "#111827",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-              title="Generate a full draft lesson with AI, then edit & publish"
-            >
-              ⚡ AI Generate Lesson
-            </button>
-
+            {/* Primary: one main + two secondary */}
             <Link
               to="/create-lesson"
               style={{
@@ -424,121 +411,168 @@ const TeacherDashboard: React.FC = () => {
                 fontWeight: "bold",
               }}
             >
-              + Create New Lesson
+              + Create Lesson
+            </Link>
+            <Link
+              to="/browse-lessons"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              Browse Lessons
+            </Link>
+            <Link
+              to="/assessments/papers/builder"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              📝 Assessment Papers
             </Link>
 
-            <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
-              Back to Main Dashboard
-            </Link>
+            {/* More actions: text links */}
+            <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>
+              More:{" "}
+              <button
+                type="button"
+                onClick={openAiModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#667eea",
+                  cursor: "pointer",
+                  padding: 0,
+                  textDecoration: "underline",
+                  fontSize: "inherit",
+                }}
+                title="Generate a full draft lesson with AI"
+              >
+                AI Generate
+              </button>
+              {" · "}
+              <Link to="/teacher/exam-question-bank" style={{ color: "#667eea", textDecoration: "underline" }}>
+                Create Questions
+              </Link>
+              {" · "}
+              <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "underline" }}>
+                Main Dashboard
+              </Link>
+            </span>
           </div>
         </div>
 
-        {/* ✅ Pinned: Start Here card */}
+        {/* Start Here: collapsible (default collapsed) */}
         <div
           style={{
             background: "white",
-            padding: "18px",
             borderRadius: "12px",
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             marginBottom: "20px",
             borderLeft: "6px solid #48bb78",
+            overflow: "hidden",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
-            <div style={{ maxWidth: "820px" }}>
-              <h2 style={{ margin: 0, color: "#111827" }}>👉 Start here: How to create a lesson</h2>
-              <p style={{ margin: "8px 0 10px", color: "#4b5563" }}>
-                Follow this structure to create high-quality GCSE lessons (core + deeper knowledge done correctly).
-              </p>
-
-              <ol style={{ margin: 0, paddingLeft: "18px", color: "#111827", lineHeight: 1.6 }}>
-                <li>Click <b>Create New Lesson</b></li>
-                <li>Fill lesson details and <b>save as Draft</b></li>
-                <li>Use multiple pages (Overview → Core → Check → Exam tips)</li>
-                <li>Put advanced content <b>ONLY</b> in <b>Deeper knowledge</b> blocks</li>
-                <li>Keep lesson as <b>Draft</b> and submit for review</li>
-              </ol>
+          <button
+            type="button"
+            onClick={() => setShowStartHere(!showStartHere)}
+            style={{
+              width: "100%",
+              padding: "14px 18px",
+              textAlign: "left",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "1rem",
+              fontWeight: "bold",
+              color: "#111827",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>Start here (how to create a lesson)</span>
+            <span style={{ fontSize: "1.2rem" }}>{showStartHere ? "▼" : "▶"}</span>
+          </button>
+          {!showStartHere && (
+            <p style={{ margin: 0, padding: "0 18px 14px", color: "#6b7280", fontSize: "0.9rem" }}>
+              Follow these steps to publish correctly.
+            </p>
+          )}
+          {showStartHere && (
+            <div style={{ padding: "0 18px 18px 18px", borderTop: "1px solid #e5e7eb" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+                <div style={{ maxWidth: "820px" }}>
+                  <p style={{ margin: "8px 0 10px", color: "#4b5563" }}>
+                    Follow this structure to create high-quality GCSE lessons (core + deeper knowledge done correctly).
+                  </p>
+                  <ol style={{ margin: 0, paddingLeft: "18px", color: "#111827", lineHeight: 1.6 }}>
+                    <li>Click <b>Create New Lesson</b></li>
+                    <li>Fill lesson details and <b>save as Draft</b></li>
+                    <li>Use multiple pages (Overview → Core → Check → Exam tips)</li>
+                    <li>Put advanced content <b>ONLY</b> in <b>Deeper knowledge</b> blocks</li>
+                    <li>Keep lesson as <b>Draft</b> and submit for review</li>
+                  </ol>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", minWidth: "200px" }}>
+                  <Link
+                    to="/create-lesson"
+                    style={{
+                      padding: "10px 14px",
+                      background: "#48bb78",
+                      color: "white",
+                      textDecoration: "none",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      textAlign: "center",
+                    }}
+                  >
+                    + Create Lesson
+                  </Link>
+                  <button
+                    onClick={openChecklist}
+                    style={{
+                      padding: "10px 14px",
+                      background: "white",
+                      color: "#111827",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                  >
+                    View lesson checklist
+                  </button>
+                  <button
+                    onClick={handleCopyGoldStandardLesson}
+                    style={{
+                      padding: "10px 14px",
+                      background: "white",
+                      color: "#111827",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                    title="Creates a copy of the gold-standard lesson as a new draft you can edit"
+                  >
+                    Copy gold-standard lesson
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", minWidth: "240px" }}>
-              <Link
-                to="/create-lesson"
-                style={{
-                  padding: "10px 14px",
-                  background: "#48bb78",
-                  color: "white",
-                  textDecoration: "none",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                }}
-              >
-                + Create Lesson
-              </Link>
-
-              <button
-                onClick={openChecklist}
-                style={{
-                  padding: "10px 14px",
-                  background: "white",
-                  color: "#111827",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
-              >
-                View lesson checklist
-              </button>
-
-              <button
-                onClick={handleCopyGoldStandardLesson}
-                style={{
-                  padding: "10px 14px",
-                  background: "white",
-                  color: "#111827",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
-                title="Creates a copy of the gold-standard lesson as a new draft you can edit"
-              >
-                Copy gold-standard lesson
-              </button>
-
-              {/* ✅ NEW: Assessment Paper Builder Link */}
-              <Link
-                to="/assessments/papers/builder"
-                style={{
-                  padding: "10px 14px",
-                  background: "#4f46e5",
-                  color: "white",
-                  textDecoration: "none",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                }}
-              >
-                📝 Assessment Papers
-              </Link>
-
-              <Link
-                to="/teacher/exam-question-bank"
-                style={{
-                  padding: "10px 14px",
-                  background: "#4f46e5",
-                  color: "white",
-                  textDecoration: "none",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                }}
-              >
-                📋 Create Questions
-              </Link>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Teacher Stats */}
