@@ -7,6 +7,10 @@ const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const auth = require("../middleware/auth");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
+const {
+  normalizeSubscriptionV2,
+  isEntitledSubscriptionV2,
+} = require("../contracts/subscriptionV2");
 // AI Generation Jobs admin/public routers (structural mounts only; minimal handlers; groundwork phase)
 const adminAiGenerationJobs = require("./adminAiGenerationJobs");
 const aiGenerationJobs = require("./aiGenerationJobs");
@@ -333,6 +337,46 @@ router.get("/users/:userId", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Get user detail error:", err);
+    return res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   GET /api/admin/users/:userId/entitlements-debug
+   Diagnose why a user sees Locked: what the backend sees for subscriptionV2.
+   ========================================= */
+router.get("/users/:userId/entitlements-debug", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: "Invalid user id" });
+    }
+    const user = await User.findById(userId)
+      .select("subscriptionV2 subscription subscriptionV2Snapshot purchasedLessons")
+      .lean();
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const raw = user.subscriptionV2 || null;
+    const normalized = normalizeSubscriptionV2(
+      user.subscriptionV2 || user.subscription || user.subscriptionV2Snapshot
+    );
+    const wouldBeEntitled = isEntitledSubscriptionV2(normalized);
+
+    return res.json({
+      success: true,
+      userId: String(user._id),
+      subscriptionV2FromDb: raw,
+      subscriptionLegacy: user.subscription ?? null,
+      subscriptionV2Snapshot: user.subscriptionV2Snapshot ?? null,
+      purchasedLessonsCount: Array.isArray(user.purchasedLessons) ? user.purchasedLessons.length : 0,
+      normalizedSubscriptionV2: normalized,
+      wouldBeEntitled,
+      hint: wouldBeEntitled
+        ? "Backend will grant access; if UI still shows Locked, check lesson status (published) and frontend."
+        : "Backend denies access. Re-grant 7-day pass (POST /api/admin/subscription/grant) then check again.",
+    });
+  } catch (err) {
+    console.error("Entitlements debug error:", err);
     return res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
