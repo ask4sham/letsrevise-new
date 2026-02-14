@@ -275,9 +275,22 @@ const adminOpsPath = path.join(__dirname, "views", "admin-ops.html");
 const gateHtml =
   "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Ops Admin — Login</title></head><body>" +
   "<h1>Ops Admin</h1><p>Authentication required. Paste your admin JWT and click Open.</p>" +
-  "<label>Token: <input type='password' id='gateToken' style='width:20em' placeholder='Paste JWT' /></label> " +
+  "<label>Token: <input type='password' id='jwt' style='width:20em' placeholder='Paste JWT' /></label> " +
   "<button id='gateOpen'>Open</button><div id='gateErr' style='color:#c00;margin-top:0.5em'></div>" +
-  "<script>document.getElementById('gateOpen').onclick=function(){var t=document.getElementById('gateToken').value.trim().replace(/^Bearer\\s+/i,'');if(!t){document.getElementById('gateErr').textContent='Enter a token';return;}document.getElementById('gateErr').textContent='Loading...';fetch('/admin/ops',{headers:{'Authorization':'Bearer '+t}}).then(function(r){if(!r.ok)return r.text().then(function(txt){throw new Error(r.status+' '+txt);});return r.text();}).then(function(html){var inj=html.replace(/let adminToken = \"\";/,'let adminToken = '+JSON.stringify(t)+';');document.open();document.write(inj);document.close();}).catch(function(e){document.getElementById('gateErr').textContent=e.message||'Failed';});};</script>" +
+  "<script>" +
+  "function showError(msg){document.getElementById('gateErr').textContent=msg||'';}" +
+  "async function openPanel(){" +
+  "var token=(document.getElementById('jwt').value||'').trim().replace(/^Bearer\\s+/i,'');" +
+  "if(!token){showError('Paste a token.');return;}" +
+  "showError('Loading...');" +
+  "var res=await fetch('/admin/ops',{headers:{'Authorization':'Bearer '+token}});" +
+  "if(!res.ok){showError('Unauthorized. Paste a valid admin token.');return;}" +
+  "var html=await res.text();" +
+  "document.open();document.write(html);document.close();" +
+  "setTimeout(function(){if(typeof window.__setAdminToken==='function'){window.__setAdminToken(token);}},0);" +
+  "}" +
+  "document.getElementById('gateOpen').onclick=openPanel;" +
+  "</script>" +
   "</body></html>";
 
 app.get("/admin/ops", (req, res, next) => {
