@@ -11,6 +11,7 @@ const auth = require("../middleware/auth");
 const requireLessonAccess = require("../middleware/requireLessonAccess");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
+const { toLessonPreviewPayload, toLessonFullPayload } = require("../utils/lessonPayload");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 
 // ✅ ADDED: Import for revision validation
@@ -1249,33 +1250,10 @@ router.get("/:id", auth, requireLessonAccess(), async (req, res) => {
 
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
-    const fullPages = Array.isArray(lesson.pages) ? lesson.pages : [];
-    const status = lesson.status || (lesson.isPublished ? "published" : "draft");
-    const isPublished = String(status) === "published";
-
-    // Free preview: partial content only (first page, no quiz/flashcards).
     if (decision?.reason === "FREE_PREVIEW") {
-      const firstPageOnly = fullPages.length > 0 ? [fullPages[0]] : [];
-      return res.json({
-        ...lesson,
-        status,
-        isPublished,
-        isFreePreview: true,
-        pages: firstPageOnly,
-        flashcards: [],
-        quiz: undefined,
-        content: typeof lesson.content === "string" ? lesson.content : "",
-      });
+      return res.json(toLessonPreviewPayload(lesson));
     }
-
-    // Full access.
-    return res.json({
-      ...lesson,
-      status,
-      isPublished,
-      pages: fullPages,
-      content: typeof lesson.content === "string" ? lesson.content : "",
-    });
+    return res.json(toLessonFullPayload(lesson));
   } catch (err) {
     console.error("Get lesson error:", err);
     return res.status(500).send("Server error");

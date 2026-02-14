@@ -152,3 +152,33 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     expect(res.body.quiz).toBeUndefined();
   });
 });
+
+describe("GET /api/lessons list — no premium fields (Phase 9 tripwire)", () => {
+  let tokenU3;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "phase9-u3@test.com", password: "password123" });
+    if (!res.body.token) throw new Error("phase9-u3@test.com login failed (run first describe before this)");
+    tokenU3 = res.body.token;
+  });
+
+  test("list as subscribed user must not contain pages, content, quiz, flashcards on any item", async () => {
+    const res = await request(app)
+      .get("/api/lessons")
+      .set("Authorization", `Bearer ${tokenU3}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    const forbiddenKeys = ["pages", "content", "quiz", "flashcards"];
+    for (const item of res.body) {
+      for (const key of forbiddenKeys) {
+        expect(item[key]).toBeUndefined();
+      }
+      // May contain pageCount for entitled users
+      if (item.hasAccess) {
+        expect(typeof item.pageCount).toBe("number");
+      }
+    }
+  });
+});

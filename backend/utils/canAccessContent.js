@@ -38,12 +38,12 @@ function canAccessContent(userOrOpts, lessonParam) {
     return { allowed: true, reason: "SUB_ACTIVE" };
   }
 
-  // Rule 2: purchased lesson
+  // Rule 2: purchased lesson (normalize IDs once to avoid ObjectId/string mismatches)
   const lessonId = lesson?._id ?? lesson?.id;
-  const purchasedIds = Array.isArray(user.purchasedLessons)
-    ? user.purchasedLessons.map((pl) => String(pl?.lessonId ?? pl))
-    : [];
-  if (lessonId && purchasedIds.includes(String(lessonId))) {
+  const purchased = new Set(
+    (user.purchasedLessons ?? []).map((pl) => String(pl?.lessonId ?? pl))
+  );
+  if (lessonId && purchased.has(String(lessonId))) {
     return { allowed: true, reason: "PURCHASED" };
   }
 

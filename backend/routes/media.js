@@ -15,7 +15,7 @@ const supabaseAdmin = createClient(
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/lesson-block", auth, upload.single("file"), requireLessonAccess(), async (req, res) => {
+router.post("/lesson-block", auth, upload.single("file"), requireLessonAccess({ allowBody: true }), async (req, res) => {
   try {
     const { lessonId, pageId, blockIndex } = req.body;
     const file = req.file;
