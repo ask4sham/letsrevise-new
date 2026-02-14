@@ -238,11 +238,20 @@ router.get("/metrics/conversion", auth, checkAdmin, async (req, res) => {
       byDay.get(day)[row._id.type] = row.count;
     }
 
+    // Derived: paywall → CTA click-through; preview → CTA (optional). null when denominator is 0.
+    const paywallHits = totals.PAYWALL_NOT_ENTITLED || 0;
+    const previewViews = totals.FREE_PREVIEW_VIEW || 0;
+    const ctaClicks = totals.SUBSCRIBE_CTA_CLICK || 0;
+    const ctr = paywallHits > 0 ? ctaClicks / paywallHits : null;
+    const previewToClick = previewViews > 0 ? ctaClicks / previewViews : null;
+
     return res.json({
       ok: true,
       days,
       since,
       totals,
+      ctr,
+      previewToClick,
       daily: Array.from(byDay.values()),
     });
   } catch (err) {
