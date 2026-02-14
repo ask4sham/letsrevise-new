@@ -186,7 +186,7 @@ function heuristicRevision(opts) {
 /** Build engine telemetry payload for storage (bounded). */
 function sanitizeEngineTelemetry(slotResult, telemetry, jobId, kind) {
   const status = slotResult?.status ?? "UNKNOWN";
-  const errCode = telemetry?.errorCode ?? (slotResult ? null : "PARSE_FAILED");
+  const errCode = telemetry?.errorCode ?? slotResult?.errorCode ?? (slotResult ? null : "PARSE_FAILED");
   const bucket = jobId != null ? rolloutBucket(jobId) : null;
   return {
     status,
@@ -225,7 +225,7 @@ async function generateRevisionForLesson(opts) {
     slotResult = run.result;
     stderr = run.stderr || "";
   } catch (e) {
-    slotResult = null;
+    slotResult = { status: "STUB", errorCode: "ENGINE_SPAWN_FAILED" };
   }
   const telemetry = parseTelemetryFromStderr(stderr);
   const engineTelemetry = sanitizeEngineTelemetry(slotResult, telemetry, jobId, kind);

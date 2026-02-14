@@ -998,6 +998,7 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
         error: err.message,
       });
     }
+    // 503 = service unavailable / gated; errorCode e.g. NOT_ALLOWLISTED, ROLLOUT_EXCLUDED, ENGINE_SPAWN_FAILED
     if (err.code === "REVISION_ENGINE_UNAVAILABLE") {
       return res.status(503).json({
         success: false,
