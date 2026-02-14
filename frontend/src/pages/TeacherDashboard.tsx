@@ -399,20 +399,43 @@ const TeacherDashboard: React.FC = () => {
               💰 {user?.shamCoins || 0} ShamCoins
             </div>
 
-            {/* Primary: one main + two secondary */}
-            <Link
-              to="/create-lesson"
-              style={{
-                padding: "10px 20px",
-                background: "#48bb78",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-              }}
-            >
-              + Create Lesson
-            </Link>
+            {/* Create group: one primary (manual) + one secondary (AI) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <Link
+                  to="/create-lesson"
+                  style={{
+                    padding: "10px 20px",
+                    background: "#48bb78",
+                    color: "white",
+                    textDecoration: "none",
+                    borderRadius: "6px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  + Create lesson (manual)
+                </Link>
+                <button
+                  type="button"
+                  onClick={openAiModal}
+                  style={{
+                    padding: "10px 16px",
+                    background: "white",
+                    color: "#374151",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                  title="Generate a first draft lesson from a topic (template + AI content)"
+                >
+                  ✨ Generate with AI
+                </button>
+              </div>
+              <span style={{ color: "#6b7280", fontSize: "0.75rem" }}>
+                AI: optional first-draft from a topic. May be limited during rollout.
+              </span>
+            </div>
             <Link
               to="/browse-lessons"
               style={{
@@ -442,26 +465,9 @@ const TeacherDashboard: React.FC = () => {
               📝 Assessment Papers
             </Link>
 
-            {/* More actions: text links */}
+            {/* More: text links */}
             <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>
               More:{" "}
-              <button
-                type="button"
-                onClick={openAiModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#667eea",
-                  cursor: "pointer",
-                  padding: 0,
-                  textDecoration: "underline",
-                  fontSize: "inherit",
-                }}
-                title="Generate a full draft lesson with AI"
-              >
-                AI Generate
-              </button>
-              {" · "}
               <Link to="/teacher/exam-question-bank" style={{ color: "#667eea", textDecoration: "underline" }}>
                 Create Questions
               </Link>
@@ -518,7 +524,7 @@ const TeacherDashboard: React.FC = () => {
                     Follow this structure to create high-quality GCSE lessons (core + deeper knowledge done correctly).
                   </p>
                   <ol style={{ margin: 0, paddingLeft: "18px", color: "#111827", lineHeight: 1.6 }}>
-                    <li>Click <b>Create New Lesson</b></li>
+                    <li>Click <b>Create lesson (manual)</b> or <b>Generate with AI</b></li>
                     <li>Fill lesson details and <b>save as Draft</b></li>
                     <li>Use multiple pages (Overview → Core → Check → Exam tips)</li>
                     <li>Put advanced content <b>ONLY</b> in <b>Deeper knowledge</b> blocks</li>
@@ -538,7 +544,7 @@ const TeacherDashboard: React.FC = () => {
                       textAlign: "center",
                     }}
                   >
-                    + Create Lesson
+                    + Create lesson (manual)
                   </Link>
                   <button
                     onClick={openChecklist}
@@ -682,7 +688,7 @@ const TeacherDashboard: React.FC = () => {
                     cursor: "pointer",
                   }}
                 >
-                  ⚡ AI Generate Lesson
+                  ✨ Generate with AI
                 </button>
 
                 <Link
@@ -698,7 +704,7 @@ const TeacherDashboard: React.FC = () => {
                     fontWeight: "bold",
                   }}
                 >
-                  Create Your First Lesson
+                  Create lesson (manual)
                 </Link>
               </div>
             </div>
@@ -850,7 +856,7 @@ const TeacherDashboard: React.FC = () => {
                 gap: "8px",
               }}
             >
-              ⚡ AI Generate Lesson
+              ✨ Generate with AI
             </button>
 
             <Link
@@ -867,7 +873,7 @@ const TeacherDashboard: React.FC = () => {
                 gap: "8px",
               }}
             >
-              <span>+</span> Create New Lesson
+              <span>+</span> Create lesson (manual)
             </Link>
 
             {/* ✅ NEW: Assessment Paper Builder in Quick Actions */}
@@ -1096,9 +1102,9 @@ const TeacherDashboard: React.FC = () => {
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
                 <div>
-                  <h3 style={{ margin: 0, color: "#111827" }}>⚡ AI Generate Lesson</h3>
+                  <h3 style={{ margin: 0, color: "#111827" }}>✨ Generate lesson with AI</h3>
                   <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: "0.9rem" }}>
-                    AI creates a full draft lesson → you edit it → then publish.
+                    Generate a first draft from a topic (template + AI content). You edit, then publish. Optional; may be limited during rollout.
                   </p>
                 </div>
                 <button
