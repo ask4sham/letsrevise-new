@@ -8,6 +8,7 @@ const User = require("../models/User");
 const Purchase = require("../models/Purchase");
 const VisualModel = require("../models/VisualModel");
 const auth = require("../middleware/auth");
+const requireLessonAccess = require("../middleware/requireLessonAccess");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
@@ -1234,57 +1235,26 @@ router.put("/:id/publish", auth, async (req, res) =>
 
 /* =========================================
    Get lesson by ID (private)
-   ✅ Now enriches pages with `page.visual` if Photosynthesis and no explicit visualModelId
+   ✅ Gate: requireLessonAccess (deny-by-default, 403 with reason)
+   ✅ FREE_PREVIEW → partial response; SUB_ACTIVE/PURCHASED/ADMIN/OWNER → full
    ========================================= */
 
-router.get("/:id", auth, async (req, res) => {
+router.get("/:id", auth, requireLessonAccess(), async (req, res) => {
   try {
+    let lesson = req.lesson;
     const lessonId = req.params.id;
-
-    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
-      return res.status(400).json({ msg: "Invalid lesson id" });
-    }
-
-    let lesson = await Lesson.findById(lessonId).lean();
-
-    if (!lesson) {
-      return res.status(404).json({ msg: "Lesson not found" });
-    }
-
-    const requesterId = req.user?._id;
-    const requesterType = req.user?.userType;
-
-    const isOwner = String(lesson.teacherId) === String(requesterId);
-    const isAdminUser = isAdmin(req.user);
-
-    const status = lesson.status || (lesson.isPublished ? "published" : "draft");
-    const isPublished = String(status) === "published";
-
-    if (!isAdminUser && !isOwner && !isPublished) {
-      return res.status(403).json({ msg: "Lesson not published" });
-    }
+    const decision = req.accessDecision;
 
     Lesson.updateOne({ _id: lessonId }, { $inc: { views: 1 } }).catch(() => {});
 
-    // ✅ Non-breaking: attach visuals to pages if available (Photosynthesis MVP)
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
     const fullPages = Array.isArray(lesson.pages) ? lesson.pages : [];
-    const isFreePreview = Boolean(lesson.isFreePreview);
+    const status = lesson.status || (lesson.isPublished ? "published" : "draft");
+    const isPublished = String(status) === "published";
 
-    // ✅ Server-side entitlement: all lesson content checks must live here.
-    // isFreePreview comes only from the lesson document; pages do not imply preview.
-    let access = { allowed: true };
-    if (!isAdminUser && !isOwner) {
-      access = canAccessContent({ user: req.user, lesson: { ...lesson, isFreePreview } });
-    }
-
-    if (access.allowed === false) {
-      return res.status(403).json({ message: "Subscription required" });
-    }
-
-    // Preview access: expose metadata + first page only, with no quizzes/flashcards.
-    if (access.allowed === "preview") {
+    // Free preview: partial content only (first page, no quiz/flashcards).
+    if (decision?.reason === "FREE_PREVIEW") {
       const firstPageOnly = fullPages.length > 0 ? [fullPages[0]] : [];
       return res.json({
         ...lesson,
@@ -1298,7 +1268,7 @@ router.get("/:id", auth, async (req, res) => {
       });
     }
 
-    // Full access (owner/admin or fully entitled user).
+    // Full access.
     return res.json({
       ...lesson,
       status,
@@ -1760,22 +1730,54 @@ router.get("/", auth, async (req, res) => {
       .limit(200)
       .lean();
 
-    // Attach hasAccess and isFreePreview per lesson (entitlement from backend only).
-    // isFreePreview comes only from the lesson document; pages do not imply preview.
+    // Server-side filtering: do not send full content for locked lessons (Phase 9).
     const fullUser = await User.findById(getAuthUserId(req))
       .select("userType subscriptionV2 subscription purchasedLessons")
       .lean();
-    lessons = lessons.map((l) => {
+    const visible = lessons.map((l) => {
       const isFreePreview = Boolean(l.isFreePreview);
-      const access = fullUser ? canAccessContent({ user: fullUser, lesson: { _id: l._id, isFreePreview } }) : { allowed: false };
+      const status = l.status || (l.isPublished ? "published" : "draft");
+      const isPublished = String(status).toLowerCase() === "published";
+      const decision = fullUser
+        ? canAccessContent(fullUser, {
+            _id: l._id,
+            id: l._id?.toString(),
+            isFreePreview,
+            isPublished,
+          })
+        : { allowed: false, reason: "UNAUTHENTICATED" };
+
+      if (!decision.allowed) {
+        return {
+          id: l._id,
+          _id: l._id,
+          title: l.title,
+          locked: true,
+          hasAccess: false,
+          reason: decision.reason,
+        };
+      }
+      if (decision.reason === "FREE_PREVIEW") {
+        return {
+          id: l._id,
+          _id: l._id,
+          title: l.title,
+          summary: l.summary,
+          hasAccess: false,
+          isFreePreview: true,
+          locked: false,
+          preview: l.preview ?? null,
+        };
+      }
       return {
         ...l,
-        hasAccess: access.allowed === true,
+        hasAccess: true,
         isFreePreview,
+        locked: false,
       };
     });
 
-    return res.json(lessons);
+    return res.json(visible);
   } catch (err) {
     console.error("GET /api/lessons error:", err.message);
     return res.status(500).send("Server error");

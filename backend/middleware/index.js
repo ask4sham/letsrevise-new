@@ -6,10 +6,12 @@
 const auth = require("./auth");
 const requireActiveSubscription = require("./requireActiveSubscription");
 const requireAiJobAccess = require("./requireAiJobAccess");
+const requireLessonAccess = require("./requireLessonAccess");
 
 module.exports = {
   auth,
   requireActiveSubscription,
   requireAiJobAccess,
+  requireLessonAccess,
 };
 

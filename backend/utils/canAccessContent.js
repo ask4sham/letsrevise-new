@@ -1,46 +1,58 @@
 const { isSubscriptionActive } = require("./isSubscriptionActive");
 
 /**
- * Single source of truth for lesson content access.
- * All routes that gate lesson content (full vs preview) should use this helper
- * so rules stay in one place and stay consistent (subscription → purchase → preview).
+ * Single source of truth for lesson content access (Phase 9 — backend-first).
+ * Deny-by-default; explicit reasons for allow/deny for logging and 403 responses.
  *
- * IMPORTANT:
- * - Expiry enforcement is delegated to `isSubscriptionActive(user)`.
- * - We do NOT trust string flags or status fields on their own.
- *
+ * All routes that gate lesson content must use this so rules stay in one place.
  * Pure function: no Express, no req/res.
  *
- * @param {Object} opts
- * @param {Object} opts.user - Authenticated user (subscription, purchasedLessons)
- * @param {Object} opts.lesson - Lesson document (_id, isFreePreview)
- * @returns {{ allowed: true | false | "preview" }}
+ * @param {Object|null|undefined} userOrOpts - User object, or { user, lesson } for legacy call style
+ * @param {Object} [lesson] - Lesson access fields: id or _id, isFreePreview?, isPublished?
+ * @returns {{ allowed: boolean, reason: string }} AccessDecision
  */
-function canAccessContent({ user, lesson }) {
+function canAccessContent(userOrOpts, lessonParam) {
+  const opts = userOrOpts && typeof userOrOpts === "object" && "user" in userOrOpts && "lesson" in userOrOpts;
+  const user = opts ? userOrOpts.user : userOrOpts;
+  const lesson = opts ? userOrOpts.lesson : lessonParam;
+
+  // Deny-by-default
   if (!user) {
-    return { allowed: false };
+    return { allowed: false, reason: "UNAUTHENTICATED" };
   }
 
-  // Subscription active (based on expiry) → full access to all content.
+  // Admin override
+  const role = (user.userType || user.role || "").toString().toLowerCase();
+  if (role === "admin") {
+    return { allowed: true, reason: "ADMIN" };
+  }
+
+  // Published-only visibility (optional product rule)
+  const isPublished = lesson?.isPublished !== false;
+  if (!isPublished) {
+    return { allowed: false, reason: "NOT_PUBLISHED" };
+  }
+
+  // Rule 1: active subscription (expiry enforced in isSubscriptionActive)
   if (isSubscriptionActive(user)) {
-    return { allowed: true };
+    return { allowed: true, reason: "SUB_ACTIVE" };
   }
 
-  // User bought this lesson (purchasedLessons may be { lessonId } or raw id).
+  // Rule 2: purchased lesson
   const lessonId = lesson?._id ?? lesson?.id;
-  const hasPurchased = Array.isArray(user.purchasedLessons) && user.purchasedLessons.some(
-    (pl) => String(pl?.lessonId ?? pl) === String(lessonId)
-  );
-  if (hasPurchased) {
-    return { allowed: true };
+  const purchasedIds = Array.isArray(user.purchasedLessons)
+    ? user.purchasedLessons.map((pl) => String(pl?.lessonId ?? pl))
+    : [];
+  if (lessonId && purchasedIds.includes(String(lessonId))) {
+    return { allowed: true, reason: "PURCHASED" };
   }
 
-  // Lesson allows free preview → caller can show limited content.
+  // Rule 3: free preview (partial content)
   if (lesson?.isFreePreview === true) {
-    return { allowed: "preview" };
+    return { allowed: true, reason: "FREE_PREVIEW" };
   }
 
-  return { allowed: false };
+  return { allowed: false, reason: "NOT_ENTITLED" };
 }
 
 module.exports = { canAccessContent };
