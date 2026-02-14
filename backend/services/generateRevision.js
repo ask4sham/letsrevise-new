@@ -249,7 +249,7 @@ async function generateRevisionForLesson(opts) {
     }
   }
 
-  // STUB or non-completed or invalid output: log once, then fallback or throw
+  // STUB or non-completed or invalid output: log once at appropriate level, then fallback or throw
   const logLine = {
     status: slotResult?.status ?? "NO_RESULT",
     errorCode: engineTelemetry.errorCode,
@@ -257,7 +257,14 @@ async function generateRevisionForLesson(opts) {
     kind,
     rolloutBucket: engineTelemetry.rolloutBucket,
   };
-  console.info("[revision-engine]", JSON.stringify(logLine));
+  const code = engineTelemetry.errorCode;
+  if (code === "ENGINE_SPAWN_FAILED") {
+    console.error("[revision-engine]", JSON.stringify(logLine));
+  } else if (code === "KILL_SWITCH") {
+    console.warn("[revision-engine]", JSON.stringify(logLine));
+  } else {
+    console.info("[revision-engine]", JSON.stringify(logLine));
+  }
 
   if (noFallback) {
     const err = new Error("Revision engine unavailable (STUB or failed)");

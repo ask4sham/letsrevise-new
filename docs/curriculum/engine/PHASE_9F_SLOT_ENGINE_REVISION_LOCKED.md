@@ -21,8 +21,27 @@ When any gate blocks: script returns STUB → service returns heuristic (or thro
 
 ## Observability: “engine unavailable” vs “engine denied”
 
-- On **STUB** or non-completed, the service logs **one structured line** (info): `[revision-engine] {"status","errorCode","jobId","kind","rolloutBucket"}` so you can see whether the block was allowlist, rollout, or kill-switch.
+- On **STUB** or non-completed, the service logs **one structured line**: `[revision-engine] {"status","errorCode","jobId","kind","rolloutBucket"}`. **Log level** by `errorCode`:
+  - **error** — `ENGINE_SPAWN_FAILED` (misconfig, missing script, cwd/env)
+  - **warn** — `KILL_SWITCH` (deliberately disabled)
+  - **info** — `NOT_ALLOWLISTED`, `ROLLOUT_EXCLUDED`, and other expected gating
 - **LessonRevisionDraft.engine** stores the last run: `status`, `errorCode`, `jobId`, `kind`, `path`, `latencyMs`, `executorVersion`, `rolloutBucket`. Enables “why did this draft get heuristic?” without trawling server logs.
+
+---
+
+## Engine error codes (on-call reference)
+
+| Code | Source | Meaning |
+|------|--------|--------|
+| **ENGINE_SPAWN_FAILED** | Service (synthetic) | Child process failed to start (script missing, cwd, env, ENOENT). Logged at **error**. |
+| **PARSE_FAILED** | Service (synthetic) | Script ran but stdout was not valid JSON and no stderr telemetry. Logged at **info**. |
+| **OUTPUT_VALIDATION_FAILED** | Service | Script returned COMPLETED but output failed schema (flashcards/quiz shape). Logged at **info**. |
+| **NOT_ALLOWLISTED** | Script | Job not in allowlist or allowlist disabled. Expected when rollout not enabled. |
+| **ROLLOUT_EXCLUDED** | Script | Job in allowlist but deterministic bucket &gt; rollout percent. |
+| **KILL_SWITCH** | Script | `SLOTGEN_AI_KILL=true`. Deliberate disable. Logged at **warn**. |
+| *(others)* | Script | Script may emit further codes (e.g. OpenAI errors); see script telemetry schema. |
+
+Synthetic codes are set by the backend when the script never runs or output is unparseable; script-native codes come from the slot engine’s stderr telemetry.
 
 ---
 
@@ -30,6 +49,19 @@ When any gate blocks: script returns STUB → service returns heuristic (or thro
 
 - **REVISION_NO_FALLBACK=1** (default off): when the engine returns STUB or fails (or output validation fails), the service **throws** instead of falling back.
 - Route returns **503** with `code: "REVISION_ENGINE_UNAVAILABLE"` and `errorCode` (e.g. `NOT_ALLOWLISTED`, `ROLLOUT_EXCLUDED`, `KILL_SWITCH`). Use in staging to confirm the OpenAI path is exercised.
+
+**Deterministic staging recipe:**
+
+1. Set **REVISION_NO_FALLBACK=1**. Keep allowlist disabled → call generate-revision → expect **503** with `errorCode: "NOT_ALLOWLISTED"` (or the script’s exact deny code).
+2. Enable allowlist and set rollout to **100%** (or a known bucket) → call generate-revision → expect either **200** with COMPLETED draft or an OpenAI failure code (no silent fallback).
+
+---
+
+## Production safety defaults
+
+- **Allowlist** — disabled by default (`enabled: false` or rule not matching). Require explicit enablement.
+- **Rollout** — 0% by default (`SLOTGEN_AI_ROLLOUT_PERCENT=0` or unset). Require explicit percent and gradual rollout.
+- No AI revision runs until both allowlist and rollout are explicitly configured.
 
 ---
 
