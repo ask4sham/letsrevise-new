@@ -1,6 +1,8 @@
 # Final Entitlement Sanity Checklist (~10 min)
 
-**Goal:** Verify end-to-end entitlement behavior before launch. No code changes—manual verification only.
+**Authoritative** pre-launch and post-incident entitlement check. Use this runbook to verify entitlements end-to-end before launch or after incidents.
+
+**Goal:** Verify end-to-end entitlement behavior. No code changes—manual verification only.
 
 **Rule of thumb:** If `GET /api/me/entitlements` doesn’t show `subscription.status` = `active` or `trialing`, the backend will lock content.
 
