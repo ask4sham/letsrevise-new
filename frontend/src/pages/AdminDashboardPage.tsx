@@ -1,6 +1,6 @@
 // frontend/src/pages/AdminDashboardPage.tsx
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 interface PlatformStats {
@@ -569,11 +569,27 @@ const AdminDashboardPage: React.FC = () => {
   return (
     <div style={{ padding: "1rem", maxWidth: "1400px", margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem", fontWeight: "bold" }}>
-          Admin Dashboard
-        </h1>
-        <p style={{ color: "#666" }}>Platform administration and management</p>
+      <div style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
+        <div>
+          <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem", fontWeight: "bold" }}>
+            Admin Dashboard
+          </h1>
+          <p style={{ color: "#666" }}>Platform administration and management</p>
+        </div>
+        <Link
+          to="/admin/metrics"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#f0f9ff",
+            color: "#0369a1",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Paywall metrics →
+        </Link>
       </div>
 
       {/* Message Display */}

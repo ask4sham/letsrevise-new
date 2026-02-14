@@ -40,6 +40,7 @@ import EditProfilePage from "./pages/EditProfilePage";
 
 // ✅ Admin "View Lesson" route page (for /admin/lesson/:id)
 import AdminLessonViewPage from "./pages/AdminLessonViewPage";
+import AdminMetricsPage from "./pages/AdminMetricsPage";
 
 // ✅ Settings page (new)
 import SettingsPage from "./pages/SettingsPage";
@@ -448,6 +449,14 @@ function App() {
             }
           />
 
+          <Route
+            path="/admin/metrics"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminMetricsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/lesson/:id"
             element={

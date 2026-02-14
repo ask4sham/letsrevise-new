@@ -242,8 +242,8 @@ router.get("/metrics/conversion", auth, checkAdmin, async (req, res) => {
     const paywallHits = totals.PAYWALL_NOT_ENTITLED || 0;
     const previewViews = totals.FREE_PREVIEW_VIEW || 0;
     const ctaClicks = totals.SUBSCRIBE_CTA_CLICK || 0;
-    const ctr = paywallHits > 0 ? ctaClicks / paywallHits : null;
-    const previewToClick = previewViews > 0 ? ctaClicks / previewViews : null;
+    const ctr = paywallHits > 0 ? Number((ctaClicks / paywallHits).toFixed(4)) : null;
+    const previewToClick = previewViews > 0 ? Number((ctaClicks / previewViews).toFixed(4)) : null;
 
     return res.json({
       ok: true,
