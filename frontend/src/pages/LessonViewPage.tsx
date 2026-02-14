@@ -9,7 +9,8 @@ import api, { getVisual } from "../services/api";
 import { ReviewList, ReviewForm } from "../components/reviews";
 import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
-import SubscriptionRequired from "../components/SubscriptionRequired";
+import { SubscribeCTA } from "../components/SubscribeCTA";
+import { fetchLessonById } from "../api/lessons";
 
 interface LessonPageBlock {
   type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch";
@@ -290,6 +291,7 @@ const LessonViewPage: React.FC = () => {
   // Phase B: entitlement UI state
   const [subscriptionRequired, setSubscriptionRequired] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [accessDecision, setAccessDecision] = useState<{ reason?: string } | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -494,6 +496,7 @@ const LessonViewPage: React.FC = () => {
        // Reset entitlement flags before each load
       setSubscriptionRequired(false);
       setPreviewMode(false);
+      setAccessDecision(null);
 
       if (!id) {
         setError("Lesson id missing");
@@ -522,13 +525,49 @@ const LessonViewPage: React.FC = () => {
 
   /**
    * ✅ Mongo backend lesson fetch (new system)
-   * GET /api/lessons/:id
+   * GET /api/lessons/:id — uses fetchLessonById for 401/402/403 handling.
    */
   const fetchLessonFromBackend = async (lessonId: string) => {
     try {
-      const res = await api.get(`/lessons/${lessonId}`);
-      const data = (res as any)?.data || null;
+      const result = await fetchLessonById(lessonId);
 
+      if (result.ok === false) {
+        const { status, reason, error } = result.apiError;
+
+        // ✅ 402 NOT_ENTITLED → Subscribe CTA (pricing from /api/pricing)
+        if (status === 402 && reason === "NOT_ENTITLED") {
+          setSubscriptionRequired(true);
+          setError("");
+          setLesson(null);
+          return;
+        }
+
+        // Legacy: 403 "Subscription required" (backend used to return this)
+        if (status === 403 && (error === "Subscription required" || reason === "NOT_ENTITLED")) {
+          setSubscriptionRequired(true);
+          setError("");
+          setLesson(null);
+          return;
+        }
+
+        if (status === 403) {
+          setError(error || "You don't have access to this content.");
+          setLesson(null);
+          return;
+        }
+
+        if (status === 401) {
+          setError("Please sign in to view this lesson.");
+          setLesson(null);
+          return;
+        }
+
+        setError(error || "Failed to load lesson");
+        setLesson(null);
+        return;
+      }
+
+      const data = result.data;
       if (!data) {
         setError("Lesson not found");
         return;
@@ -588,14 +627,15 @@ const LessonViewPage: React.FC = () => {
         },
       };
 
-      // Phase C3: Detect preview mode from backend flag
-      // Preview mode when: pages.length === 1 AND lesson.isFreePreview === true
+      // Phase C3: Detect preview mode from backend flag (or accessDecision)
       const previewFromBackend =
         Array.isArray(mapped.pages) &&
         mapped.pages.length === 1 &&
         Boolean(mapped.isFreePreview);
+      const previewFromDecision = result.accessDecision?.reason === "FREE_PREVIEW";
 
-      setPreviewMode(Boolean(previewFromBackend));
+      setPreviewMode(Boolean(previewFromBackend || previewFromDecision));
+      setAccessDecision(result.accessDecision || null);
 
       setLesson(mapped);
 
@@ -610,21 +650,8 @@ const LessonViewPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Backend lesson fetch error:", err);
-      const status = err?.response?.status;
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.msg ||
-        "";
-
-      // Subscription paywall from backend
-      if (status === 403 && msg === "Subscription required") {
-        setSubscriptionRequired(true);
-        setError("");
-        setLesson(null);
-        return;
-      }
-
       setError(err?.message || "Failed to load lesson");
+      setLesson(null);
     }
   };
 
@@ -1424,8 +1451,27 @@ const LessonViewPage: React.FC = () => {
 
   if (subscriptionRequired) {
     return (
-      <div style={{ padding: "40px 16px", maxWidth: 900, margin: "0 auto" }}>
-        <SubscriptionRequired />
+      <div style={{ maxWidth: 720, margin: "24px auto", padding: 12 }}>
+        <h2 style={{ marginBottom: 8 }}>This lesson is locked</h2>
+        <p style={{ marginBottom: 12 }}>
+          Subscribe to unlock all lessons instantly.
+        </p>
+        <SubscribeCTA />
+        <div style={{ marginTop: 16 }}>
+          <button
+            onClick={() => navigate("/dashboard")}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Back to dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -2593,6 +2639,13 @@ const LessonViewPage: React.FC = () => {
                 Subscribe to unlock all lessons
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* Subscribe CTA under FREE_PREVIEW (dynamic price from /api/pricing) */}
+        {(previewMode || accessDecision?.reason === "FREE_PREVIEW") && (
+          <div style={{ marginTop: 16 }}>
+            <SubscribeCTA />
           </div>
         )}
 
