@@ -1,6 +1,9 @@
 // backend/models/Lesson.js
 const mongoose = require("mongoose");
 
+/** Phase 9D: single canonical list for lesson visibility status. API/docs/tests must use only these values. */
+const LESSON_STATUSES = ["draft", "in_review", "published", "archived", "flagged"];
+
 /**
  * =====================================================
  * Lesson Schema
@@ -203,10 +206,10 @@ const LessonSchema = new mongoose.Schema(
      * These fields are referenced by your admin routes/UI.
      * They do NOT break anything if unused elsewhere.
      */
-    /** Phase 9D: draft → in_review → published; archived/flagged for moderation. */
+    /** Phase 9D: draft → in_review → published; archived/flagged for moderation. Use LESSON_STATUSES. */
     status: {
       type: String,
-      enum: ["draft", "in_review", "published", "archived", "flagged"],
+      enum: LESSON_STATUSES,
       default: "draft",
     },
     adminNotes: { type: String, default: "" },
@@ -273,4 +276,6 @@ LessonSchema.pre("save", function () {
   this.isPublished = this.status === "published";
 });
 
-module.exports = mongoose.model("Lesson", LessonSchema);
+const Lesson = mongoose.model("Lesson", LessonSchema);
+Lesson.LESSON_STATUSES = LESSON_STATUSES;
+module.exports = Lesson;

@@ -1254,13 +1254,6 @@ router.post("/:id/submit-review", auth, async (req, res) => {
     }
 
     const status = String(lesson.status || "draft").toLowerCase();
-    if (status === "in_review") {
-      return res.status(409).json({
-        success: false,
-        code: "INVALID_STATE",
-        error: "Lesson is already in review",
-      });
-    }
     if (status === "published") {
       return res.status(409).json({
         success: false,
@@ -1268,7 +1261,7 @@ router.post("/:id/submit-review", auth, async (req, res) => {
         error: "Published lesson cannot be submitted for review",
       });
     }
-    if (status !== "draft") {
+    if (status !== "draft" && status !== "in_review") {
       return res.status(409).json({
         success: false,
         code: "INVALID_STATE",
@@ -1276,11 +1269,30 @@ router.post("/:id/submit-review", auth, async (req, res) => {
       });
     }
 
-    lesson.status = "in_review";
-    await lesson.save({ runValidators: true });
+    const updatedLesson = await Lesson.findOneAndUpdate(
+      { _id: lessonId, status: "draft" },
+      { $set: { status: "in_review", isPublished: false } },
+      { new: true, runValidators: true }
+    );
+    if (!updatedLesson) {
+      const current = await Lesson.findById(lessonId).select("status").lean();
+      if (current && String(current.status).toLowerCase() === "in_review") {
+        return res.json({
+          success: true,
+          alreadyInReview: true,
+          msg: "Lesson submitted for review",
+          lesson: { id: lessonId, status: "in_review" },
+        });
+      }
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Lesson is already in review or not in draft",
+      });
+    }
 
     await LessonReview.create({
-      lessonId: lesson._id,
+      lessonId: updatedLesson._id,
       submittedBy: req.user._id,
       status: "PENDING",
     });
@@ -1288,7 +1300,7 @@ router.post("/:id/submit-review", auth, async (req, res) => {
     return res.json({
       success: true,
       msg: "Lesson submitted for review",
-      lesson: { id: lesson._id, status: lesson.status },
+      lesson: { id: updatedLesson._id, status: updatedLesson.status },
     });
   } catch (err) {
     console.error("Submit review error:", err);

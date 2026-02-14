@@ -20,7 +20,8 @@ Draft → in_review → published state machine and review workflow are **locked
 ### Review decision state (LessonReview collection)
 
 - **LessonReview** records: `lessonId`, `submittedBy`, `status` (PENDING | APPROVED | REJECTED), `reviewedBy`, `notes`, timestamps.
-- One PENDING review per submission; approve/reject updates the latest PENDING and transitions the lesson.
+- **Approve/reject** use atomic `findOneAndUpdate` on the latest PENDING (filter `lessonId` + `status: "PENDING"`, sort `createdAt: -1`). If no PENDING found → 409 **NO_PENDING_REVIEW**.
+- **Submit-review** is idempotent: only one request can transition draft→in_review and create PENDING (atomic lesson update); duplicate submit returns 200 with `alreadyInReview: true` and does not create a second PENDING.
 
 ---
 
@@ -38,10 +39,10 @@ Draft → in_review → published state machine and review workflow are **locked
 |--------|------|------|-----|-----------|
 | POST | /api/lessons | ✓ | teacher | Creates lesson with `status: "draft"`. |
 | PUT | /api/lessons/:id | ✓ | owner/admin | Edit; owner only if draft or in_review. |
-| POST | /api/lessons/:id/submit-review | ✓ | owner | DRAFT → in_review; creates LessonReview PENDING. 409 INVALID_STATE if already in_review or published. |
+| POST | /api/lessons/:id/submit-review | ✓ | owner | DRAFT → in_review; creates one LessonReview PENDING (idempotent: second call → 200 alreadyInReview). 409 if published. |
 | POST | /api/lessons/:id/unpublish | ✓ | owner/admin | PUBLISHED → draft. 409 INVALID_STATE if not published. |
-| POST | /api/reviews/lesson/:lessonId/approve | ✓ | admin/reviewer | IN_REVIEW → published; marks latest PENDING → APPROVED, sets reviewedBy, notes. |
-| POST | /api/reviews/lesson/:lessonId/reject | ✓ | admin/reviewer | IN_REVIEW → draft; marks latest PENDING → REJECTED. |
+| POST | /api/reviews/lesson/:lessonId/approve | ✓ | admin/reviewer | IN_REVIEW → published; atomic findOneAndUpdate latest PENDING → APPROVED. 409 NO_PENDING_REVIEW if none. |
+| POST | /api/reviews/lesson/:lessonId/reject | ✓ | admin/reviewer | IN_REVIEW → draft; atomic findOneAndUpdate latest PENDING → REJECTED. 409 NO_PENDING_REVIEW if none. |
 | GET | /api/lessons/:id | ✓ | requireLessonAccess | Owner/admin see any status; others require published + entitlement. |
 | GET | /api/lessons | ✓ | — | **List filtering:** students see only **published**; teachers see **own** (any status except archived/flagged); admins see **all** (except archived/flagged). List-safe shape only. |
 
@@ -49,7 +50,8 @@ Draft → in_review → published state machine and review workflow are **locked
 
 ## Tests and CI
 
-- **backend/tests/lessonReviewWorkflow.integration.test.js**: draft lifecycle (create, student 403, owner 200, submit-review, student 403 on in_review, admin approve → published, entitled student 200), reject (in_review → draft), invalid transitions (409 INVALID_STATE), unpublish, list filtering (student excludes draft, teacher sees own draft).
+- **backend/tests/lessonReviewWorkflow.integration.test.js**: draft lifecycle, reject, invalid transitions, submit-review idempotency (submit twice → one PENDING, second response alreadyInReview), unpublish, list filtering.
+- **backend/tests/Lesson.status.validation.test.js**: invalid status (e.g. "inreview") rejects save; valid "in_review" accepts; LESSON_STATUSES is canonical.
 - **backend/tests/canAccessContent.test.js**: Phase 9D cases for status draft / in_review → NOT_PUBLISHED, published → allow when entitled.
 - **npm run test:backend** includes all of the above.
 
@@ -57,9 +59,10 @@ Draft → in_review → published state machine and review workflow are **locked
 
 ## Tagging (one-time)
 
-After CI is green:
+After CI is green, run each command separately:
 
 ```
 git tag -a phase-9d-teacher-review-locked -m "Phase 9D teacher review locked: state machine, submit/approve/reject/unpublish, list filtering, tests"
+
 git push origin phase-9d-teacher-review-locked
 ```

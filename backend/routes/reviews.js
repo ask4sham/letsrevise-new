@@ -144,18 +144,27 @@ router.post("/lesson/:lessonId/approve", auth, async (req, res) => {
         error: "Only lessons in review can be approved",
       });
     }
+    const updatedReview = await LessonReview.findOneAndUpdate(
+      { lessonId: lesson._id, status: "PENDING" },
+      {
+        $set: {
+          status: "APPROVED",
+          reviewedBy: req.user._id,
+          notes: (req.body?.notes || "").toString(),
+        },
+      },
+      { sort: { createdAt: -1 }, new: true }
+    );
+    if (!updatedReview) {
+      return res.status(409).json({
+        success: false,
+        code: "NO_PENDING_REVIEW",
+        error: "No pending review found for this lesson",
+      });
+    }
     lesson.status = "published";
     lesson.isPublished = true;
     await lesson.save({ runValidators: true });
-    const pending = await LessonReview.findOne({ lessonId: lesson._id, status: "PENDING" })
-      .sort({ createdAt: -1 })
-      .lean();
-    if (pending) {
-      await LessonReview.updateOne(
-        { _id: pending._id },
-        { $set: { status: "APPROVED", reviewedBy: req.user._id, notes: (req.body?.notes || "").toString() } }
-      );
-    }
     return res.json({
       success: true,
       msg: "Lesson approved and published",
@@ -186,18 +195,27 @@ router.post("/lesson/:lessonId/reject", auth, async (req, res) => {
         error: "Only lessons in review can be rejected",
       });
     }
+    const updatedReview = await LessonReview.findOneAndUpdate(
+      { lessonId: lesson._id, status: "PENDING" },
+      {
+        $set: {
+          status: "REJECTED",
+          reviewedBy: req.user._id,
+          notes: (req.body?.notes || "").toString(),
+        },
+      },
+      { sort: { createdAt: -1 }, new: true }
+    );
+    if (!updatedReview) {
+      return res.status(409).json({
+        success: false,
+        code: "NO_PENDING_REVIEW",
+        error: "No pending review found for this lesson",
+      });
+    }
     lesson.status = "draft";
     lesson.isPublished = false;
     await lesson.save({ runValidators: true });
-    const pending = await LessonReview.findOne({ lessonId: lesson._id, status: "PENDING" })
-      .sort({ createdAt: -1 })
-      .lean();
-    if (pending) {
-      await LessonReview.updateOne(
-        { _id: pending._id },
-        { $set: { status: "REJECTED", reviewedBy: req.user._id, notes: (req.body?.notes || "").toString() } }
-      );
-    }
     return res.json({
       success: true,
       msg: "Lesson rejected and reverted to draft",
