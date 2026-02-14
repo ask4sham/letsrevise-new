@@ -4,6 +4,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 
 const Lesson = require("../models/Lesson");
+const LessonReview = require("../models/LessonReview");
 const User = require("../models/User");
 const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
@@ -1236,6 +1237,108 @@ router.put("/:id/publish", auth, async (req, res) =>
 );
 
 /* =========================================
+   Phase 9D: Submit for review (owner only), DRAFT → in_review
+   ========================================= */
+router.post("/:id/submit-review", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner) {
+      return res.status(403).json({ error: "Only the lesson owner can submit for review" });
+    }
+
+    const status = String(lesson.status || "draft").toLowerCase();
+    if (status === "in_review") {
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Lesson is already in review",
+      });
+    }
+    if (status === "published") {
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Published lesson cannot be submitted for review",
+      });
+    }
+    if (status !== "draft") {
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Only draft lessons can be submitted for review",
+      });
+    }
+
+    lesson.status = "in_review";
+    await lesson.save({ runValidators: true });
+
+    await LessonReview.create({
+      lessonId: lesson._id,
+      submittedBy: req.user._id,
+      status: "PENDING",
+    });
+
+    return res.json({
+      success: true,
+      msg: "Lesson submitted for review",
+      lesson: { id: lesson._id, status: lesson.status },
+    });
+  } catch (err) {
+    console.error("Submit review error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* =========================================
+   Phase 9D: Unpublish (owner/admin), PUBLISHED → draft
+   ========================================= */
+router.post("/:id/unpublish", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    const isAdminUser = isAdmin(req.user);
+    if (!isOwner && !isAdminUser) {
+      return res.status(403).json({ error: "Only owner or admin can unpublish" });
+    }
+
+    const status = String(lesson.status || "").toLowerCase();
+    if (status !== "published") {
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Only published lessons can be unpublished",
+      });
+    }
+
+    lesson.status = "draft";
+    lesson.isPublished = false;
+    await lesson.save({ runValidators: true });
+
+    return res.json({
+      success: true,
+      msg: "Lesson unpublished",
+      lesson: { id: lesson._id, status: lesson.status },
+    });
+  } catch (err) {
+    console.error("Unpublish error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* =========================================
    Get lesson by ID (private)
    ✅ Gate: requireLessonAccess (deny-by-default, 403 with reason)
    ✅ FREE_PREVIEW → partial response; SUB_ACTIVE/PURCHASED/ADMIN/OWNER → full
@@ -1282,6 +1385,15 @@ router.put("/:id", auth, async (req, res) => {
 
     if (["archived", "flagged"].includes(String(lesson.status || ""))) {
       return res.status(403).json({ msg: "Lesson is moderated and cannot be edited" });
+    }
+
+    // Phase 9D: owner may only edit draft or in_review; admin may edit any
+    const status = String(lesson.status || "draft").toLowerCase();
+    if (!isAdminUser && status !== "draft" && status !== "in_review") {
+      return res.status(403).json({
+        error: "Lesson is published; unpublish to edit",
+        code: "EDIT_PUBLISHED",
+      });
     }
 
     const updates = req.body || {};
@@ -1722,10 +1834,15 @@ router.get("/", auth, async (req, res) => {
 
     const requesterType = (req.user?.userType || "").toString().toLowerCase();
 
-    const query = {
-      isPublished: true,
-      status: { $nin: ["archived", "flagged"] },
-    };
+    // Phase 9D: list filtering by role — students only see published; teachers see own; admins see all
+    const query = { status: { $nin: ["archived", "flagged"] } };
+    if (requesterType === "student") {
+      query.status = "published";
+      query.isPublished = true;
+    } else if (requesterType === "teacher") {
+      query.teacherId = req.user._id;
+    }
+    // admin: no extra filter (all non-archived/flagged)
 
     // ✅ HARD RULE: students are locked to their own level
     if (requesterType === "student") {

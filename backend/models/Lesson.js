@@ -203,9 +203,10 @@ const LessonSchema = new mongoose.Schema(
      * These fields are referenced by your admin routes/UI.
      * They do NOT break anything if unused elsewhere.
      */
+    /** Phase 9D: draft → in_review → published; archived/flagged for moderation. */
     status: {
       type: String,
-      enum: ["draft", "published", "archived", "flagged"],
+      enum: ["draft", "in_review", "published", "archived", "flagged"],
       default: "draft",
     },
     adminNotes: { type: String, default: "" },
@@ -256,15 +257,14 @@ const LessonSchema = new mongoose.Schema(
  *   errors from mixed promise/callback hook execution paths.
  */
 LessonSchema.pre("save", function () {
-  const valid = ["draft", "published", "archived", "flagged"];
+  const valid = ["draft", "in_review", "published", "archived", "flagged"];
 
-  // 1) If status is missing/invalid, infer from isPublished
+  // 1) If status is missing/invalid, infer from isPublished (migration from legacy)
   if (!this.status || !valid.includes(this.status)) {
     this.status = this.isPublished ? "published" : "draft";
   }
 
   // 2) If currently published, never let status drift away from "published"
-  // (prevents "edit -> becomes draft -> disappears from student dashboard")
   if (this.isPublished === true && this.status !== "published") {
     this.status = "published";
   }

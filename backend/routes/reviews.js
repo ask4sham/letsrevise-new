@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const requireLessonAccess = require("../middleware/requireLessonAccess");
+const Lesson = require("../models/Lesson");
+const LessonReview = require("../models/LessonReview");
 
 const mongoose = require("mongoose");
 const { createClient } = require("@supabase/supabase-js");
@@ -39,6 +41,18 @@ function isMongoObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id) && String(id).length === 24;
 }
 
+function isAdmin(user) {
+  const t = (user?.userType || user?.role || "").toString().toLowerCase();
+  return t === "admin";
+}
+function isReviewer(user) {
+  const t = (user?.userType || user?.role || "").toString().toLowerCase();
+  return t === "reviewer";
+}
+function canReviewLesson(user) {
+  return isAdmin(user) || isReviewer(user);
+}
+
 /* =========================================================
    2) Supabase client (kept for compatibility)
    - If lessonId is UUID style, we keep the old behaviour.
@@ -54,7 +68,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   );
 }
 
-const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_ROLE_KEY || "");
+const supabase =
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    : null;
 
 const TABLE_LESSONS = "lessons";
 const TABLE_REVIEWS = "reviews";
@@ -78,6 +95,7 @@ async function hasPurchasedLessonSupabase(studentId, lessonId) {
 }
 
 async function updateLessonRatingsSupabase(lessonId) {
+  if (!supabase) return { averageRating: 0, totalRatings: 0 };
   const { data: reviews, error: reviewsError } = await supabase
     .from(TABLE_REVIEWS)
     .select("rating")
@@ -102,6 +120,94 @@ async function updateLessonRatingsSupabase(lessonId) {
 
   return { averageRating, totalRatings };
 }
+
+/* =========================================================
+   Phase 9D: Approve / Reject lesson (admin/reviewer only)
+   POST /api/reviews/lesson/:lessonId/approve | /reject
+========================================================= */
+router.post("/lesson/:lessonId/approve", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.lessonId;
+    if (!isMongoObjectId(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    if (!canReviewLesson(req.user)) {
+      return res.status(403).json({ error: "Only admin or reviewer can approve lessons" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+    const status = String(lesson.status || "").toLowerCase();
+    if (status !== "in_review") {
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Only lessons in review can be approved",
+      });
+    }
+    lesson.status = "published";
+    lesson.isPublished = true;
+    await lesson.save({ runValidators: true });
+    const pending = await LessonReview.findOne({ lessonId: lesson._id, status: "PENDING" })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (pending) {
+      await LessonReview.updateOne(
+        { _id: pending._id },
+        { $set: { status: "APPROVED", reviewedBy: req.user._id, notes: (req.body?.notes || "").toString() } }
+      );
+    }
+    return res.json({
+      success: true,
+      msg: "Lesson approved and published",
+      lesson: { id: lesson._id, status: lesson.status },
+    });
+  } catch (err) {
+    console.error("Approve lesson error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/lesson/:lessonId/reject", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.lessonId;
+    if (!isMongoObjectId(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    if (!canReviewLesson(req.user)) {
+      return res.status(403).json({ error: "Only admin or reviewer can reject lessons" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+    const status = String(lesson.status || "").toLowerCase();
+    if (status !== "in_review") {
+      return res.status(409).json({
+        success: false,
+        code: "INVALID_STATE",
+        error: "Only lessons in review can be rejected",
+      });
+    }
+    lesson.status = "draft";
+    lesson.isPublished = false;
+    await lesson.save({ runValidators: true });
+    const pending = await LessonReview.findOne({ lessonId: lesson._id, status: "PENDING" })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (pending) {
+      await LessonReview.updateOne(
+        { _id: pending._id },
+        { $set: { status: "REJECTED", reviewedBy: req.user._id, notes: (req.body?.notes || "").toString() } }
+      );
+    }
+    return res.json({
+      success: true,
+      msg: "Lesson rejected and reverted to draft",
+      lesson: { id: lesson._id, status: lesson.status },
+    });
+  } catch (err) {
+    console.error("Reject lesson error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
 /* =========================================================
    ✅ FIXED ENDPOINT

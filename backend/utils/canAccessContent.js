@@ -27,8 +27,10 @@ function canAccessContent(userOrOpts, lessonParam) {
     return { allowed: true, reason: "ADMIN" };
   }
 
-  // Published-only visibility (optional product rule)
-  const isPublished = lesson?.isPublished !== false;
+  // Published-only visibility (Phase 9D: status is source of truth when present)
+  const status = lesson?.status != null ? String(lesson.status).toLowerCase() : null;
+  const isPublished =
+    status !== null ? status === "published" : (lesson?.isPublished !== false);
   if (!isPublished) {
     return { allowed: false, reason: "NOT_PUBLISHED" };
   }
