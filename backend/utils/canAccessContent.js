@@ -23,15 +23,21 @@ async function hasLessonUnlock(userId, lessonId, ctx = {}) {
  * All routes that gate lesson content must use this so rules stay in one place.
  * Pure function: no Express, no req/res. Order: subscription > unlock > purchased > preview > deny.
  *
+ * Signature: canAccessContent(user, lesson, ctx). ctx is exclusively the third parameter
+ * and is never inferred from the second (avoids overload regressions).
+ * Legacy form: canAccessContent({ user, lesson }) — lesson comes from first arg; to pass
+ * ctx use the 3-arg form: canAccessContent({ user, lesson }, undefined, ctx).
+ *
  * @param {Object|null|undefined} userOrOpts - User object, or { user, lesson } for legacy call style
- * @param {Object} [lesson] - Lesson access fields: id or _id, isFreePreview?, isPublished?
- * @param {Object} [ctx] - Optional context, e.g. { unlockSet } for batch list endpoints
+ * @param {Object} [lessonParam] - Lesson access fields: id or _id, isFreePreview?, isPublished? (ignored when userOrOpts has .lesson)
+ * @param {Object} [ctx] - Optional context, e.g. { unlockSet }; only ever the third argument
  * @returns {Promise<{ allowed: boolean, reason: string }>} AccessDecision
  */
 async function canAccessContent(userOrOpts, lessonParam, ctx = {}) {
   const opts = userOrOpts && typeof userOrOpts === "object" && "user" in userOrOpts && "lesson" in userOrOpts;
   const user = opts ? userOrOpts.user : userOrOpts;
   const lesson = opts ? userOrOpts.lesson : lessonParam;
+  // ctx is never read from lessonParam; always the third parameter
 
   // Deny-by-default
   if (!user) {

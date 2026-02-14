@@ -2138,7 +2138,7 @@ router.get("/", auth, async (req, res) => {
       .select("userType subscriptionV2 subscription purchasedLessons")
       .lean();
 
-    const lessonIds = lessons.map((l) => String(l._id));
+    const lessonIds = lessons.map((l) => l._id);
     let unlockSet = new Set();
     if (fullUser?._id) {
       const unlockRows = await LessonUnlock.find({
