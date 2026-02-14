@@ -8,6 +8,7 @@ const requireActiveSubscription = require("./requireActiveSubscription");
 const requireAdmin = require("./requireAdmin");
 const requireAiJobAccess = require("./requireAiJobAccess");
 const requireLessonAccess = require("./requireLessonAccess");
+const canAccessContent = require("./canAccessContent");
 
 module.exports = {
   auth,
@@ -15,5 +16,6 @@ module.exports = {
   requireAdmin,
   requireAiJobAccess,
   requireLessonAccess,
+  canAccessContent,
 };
 

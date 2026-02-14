@@ -148,12 +148,12 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     tokenUExpired = await login("phase9b-expired@test.com");
   });
 
-  test("not entitled user gets 403 with NOT_ENTITLED on locked lesson", async () => {
+  test("not entitled user gets 402 with NOT_ENTITLED on locked lesson", async () => {
     const res = await request(app)
       .get(`/api/lessons/${lessonAId}`)
       .set("Authorization", `Bearer ${tokenU1}`);
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("FORBIDDEN");
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe("Subscription required");
     expect(res.body.reason).toBe("NOT_ENTITLED");
   });
 
@@ -197,21 +197,21 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     expect(res.body.quiz).toBeDefined();
   });
 
-  test("Phase 9B: past_due status gets 403 NOT_ENTITLED", async () => {
+  test("Phase 9B: past_due status gets 402 NOT_ENTITLED", async () => {
     const res = await request(app)
       .get(`/api/lessons/${lessonAId}`)
       .set("Authorization", `Bearer ${tokenUPastDue}`);
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("FORBIDDEN");
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe("Subscription required");
     expect(res.body.reason).toBe("NOT_ENTITLED");
   });
 
-  test("Phase 9B: active but expiresAt in past gets 403 NOT_ENTITLED", async () => {
+  test("Phase 9B: active but expiresAt in past gets 402 NOT_ENTITLED", async () => {
     const res = await request(app)
       .get(`/api/lessons/${lessonAId}`)
       .set("Authorization", `Bearer ${tokenUExpired}`);
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("FORBIDDEN");
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe("Subscription required");
     expect(res.body.reason).toBe("NOT_ENTITLED");
   });
 });
