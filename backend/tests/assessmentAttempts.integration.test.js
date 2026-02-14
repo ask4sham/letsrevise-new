@@ -29,7 +29,11 @@ describe('Assessment Attempts API - Full Lifecycle', () => {
       lastName: 'Student',
       email: 'student@test.com',
       password: hashedPassword,
-      userType: 'student'
+      userType: 'student',
+      subscriptionV2: {
+        status: 'active',
+        expiresAt: new Date(Date.now() + 86400000),
+      },
     });
     studentId = student._id;
     
@@ -510,6 +514,32 @@ describe('Assessment Attempts API - Full Lifecycle', () => {
     });
   });
 
+  describe('Entitlement gate', () => {
+    test('Student without subscription gets 403 on create attempt', async () => {
+      const hashedPassword = await bcrypt.hash('password123', 10);
+      const noSubStudent = await User.create({
+        firstName: 'NoSub',
+        lastName: 'Student',
+        email: 'nosub@test.com',
+        password: hashedPassword,
+        userType: 'student',
+        subscriptionV2: null,
+      });
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'nosub@test.com', password: 'password123' });
+      const token = loginRes.body.token;
+
+      const response = await request(app)
+        .post('/api/assessment-attempts')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ paperId: paperId.toString() });
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('Subscription required');
+    });
+  });
+
   describe('Additional Security Tests', () => {
     test('Teacher cannot create attempt', async () => {
       const response = await request(app)
@@ -530,7 +560,8 @@ describe('Assessment Attempts API - Full Lifecycle', () => {
         lastName: 'Student',
         email: 'another@test.com',
         password: anotherHashedPassword,
-        userType: 'student'
+        userType: 'student',
+        subscriptionV2: { status: 'active', expiresAt: new Date(Date.now() + 86400000) },
       });
       
       const anotherStudentRes = await request(app)

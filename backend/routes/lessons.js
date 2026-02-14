@@ -1370,17 +1370,35 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+// Idempotency key format: length 16–128, no whitespace (prevents accidental collisions)
+const IDEMPOTENCY_KEY_MIN = 16;
+const IDEMPOTENCY_KEY_MAX = 128;
+function isValidIdempotencyKey(key) {
+  if (typeof key !== "string") return false;
+  const trimmed = key.trim();
+  if (trimmed.length < IDEMPOTENCY_KEY_MIN || trimmed.length > IDEMPOTENCY_KEY_MAX) return false;
+  if (/\s/.test(trimmed)) return false;
+  return true;
+}
+
 // Purchase lesson (students only) — Phase 9C: idempotent, transactional, ledger-backed
 router.post("/:id/purchase", auth, async (req, res) => {
   const lessonIdParam = req.params.id;
-  const idempotencyKey =
-    req.body && typeof req.body.idempotencyKey === "string"
-      ? req.body.idempotencyKey.trim()
-      : null;
+  const idempotencyKeyRaw =
+    req.body && typeof req.body.idempotencyKey === "string" ? req.body.idempotencyKey : null;
+  const idempotencyKey = idempotencyKeyRaw ? String(idempotencyKeyRaw).trim() : null;
 
   const entitlementsPayload = (user) => ({
     shamCoinsBalance: user.shamCoins ?? 0,
     purchasedLessonsCount: Array.isArray(user.purchasedLessons) ? user.purchasedLessons.length : 0,
+  });
+
+  const stableResponse = (payload) => ({
+    success: payload.success,
+    alreadyPurchased: payload.alreadyPurchased ?? false,
+    idempotentReplay: payload.idempotentReplay ?? false,
+    entitlements: payload.entitlements,
+    ...(payload.purchaseId != null && { purchaseId: payload.purchaseId }),
   });
 
   try {
@@ -1389,6 +1407,12 @@ router.post("/:id/purchase", auth, async (req, res) => {
     }
     if (!idempotencyKey) {
       return res.status(400).json({ error: "idempotencyKey required", code: "MISSING_IDEMPOTENCY_KEY" });
+    }
+    if (!isValidIdempotencyKey(idempotencyKey)) {
+      return res.status(400).json({
+        error: "idempotencyKey must be 16–128 characters, no whitespace",
+        code: "INVALID_IDEMPOTENCY_KEY",
+      });
     }
 
     if (!mongoose.Types.ObjectId.isValid(lessonIdParam)) {
@@ -1419,11 +1443,14 @@ router.post("/:id/purchase", auth, async (req, res) => {
     }).lean();
     if (existingByLesson) {
       const user = await User.findById(userId).select("shamCoins purchasedLessons").lean();
-      return res.status(200).json({
-        success: true,
-        alreadyPurchased: true,
-        entitlements: entitlementsPayload(user || {}),
-      });
+      return res.status(200).json(
+        stableResponse({
+          success: true,
+          alreadyPurchased: true,
+          idempotentReplay: false,
+          entitlements: entitlementsPayload(user || {}),
+        })
+      );
     }
 
     const existingByKey = await LessonPurchase.findOne({
@@ -1432,12 +1459,14 @@ router.post("/:id/purchase", auth, async (req, res) => {
     }).lean();
     if (existingByKey) {
       const user = await User.findById(userId).select("shamCoins purchasedLessons").lean();
-      return res.status(200).json({
-        success: true,
-        alreadyPurchased: true,
-        idempotentReplay: true,
-        entitlements: entitlementsPayload(user || {}),
-      });
+      return res.status(200).json(
+        stableResponse({
+          success: true,
+          alreadyPurchased: true,
+          idempotentReplay: true,
+          entitlements: entitlementsPayload(user || {}),
+        })
+      );
     }
 
     const user = await User.findById(userId);
@@ -1454,23 +1483,33 @@ router.post("/:id/purchase", auth, async (req, res) => {
       });
     }
 
+    // 9C hardening: fail closed if transactions not available (replica set required)
+    let transactionsAvailable = false;
+    try {
+      const db = mongoose.connection.db;
+      if (db) {
+        const hello = await db.admin().command({ hello: 1 });
+        transactionsAvailable = !!(hello && hello.setName);
+      }
+    } catch (e) {
+      console.error("Purchase: transaction capability check failed", e.message);
+    }
+    if (!transactionsAvailable) {
+      console.error(
+        "Purchase: MongoDB transactions unavailable (replica set required). Refusing to run non-atomic purchase."
+      );
+      return res.status(503).json({
+        error: "Purchase temporarily unavailable",
+        code: "TRANSACTIONS_UNAVAILABLE",
+      });
+    }
+
     const session = await mongoose.startSession();
     session.startTransaction();
+    let ledgerDoc = null;
     try {
-      const purchaseRecord = {
-        lessonId: lesson._id,
-        price: cost,
-        purchasedAt: new Date(),
-      };
-      await User.findByIdAndUpdate(
-        userId,
-        {
-          $inc: { shamCoins: -cost },
-          $push: { purchasedLessons: purchaseRecord },
-        },
-        { session }
-      );
-      await LessonPurchase.create(
+      // Order: insert ledger first so duplicate (userId, lessonId) aborts without debiting
+      const [created] = await LessonPurchase.create(
         [
           {
             userId,
@@ -1481,9 +1520,39 @@ router.post("/:id/purchase", auth, async (req, res) => {
         ],
         { session }
       );
+      ledgerDoc = created;
+
+      const purchaseRecord = {
+        lessonId: lesson._id,
+        price: cost,
+        purchasedAt: new Date(),
+      };
+      await User.findByIdAndUpdate(
+        userId,
+        {
+          $inc: { shamCoins: -cost },
+          $addToSet: { purchasedLessons: purchaseRecord },
+        },
+        { session }
+      );
       await session.commitTransaction();
     } catch (txErr) {
       await session.abortTransaction();
+      const isDuplicateKey =
+        txErr.code === 11000 ||
+        txErr.codeName === "DuplicateKey" ||
+        (txErr.writeErrors && txErr.writeErrors.some((e) => e.code === 11000));
+      if (isDuplicateKey) {
+        const userAfter = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+        return res.status(200).json(
+          stableResponse({
+            success: true,
+            alreadyPurchased: true,
+            idempotentReplay: false,
+            entitlements: entitlementsPayload(userAfter || {}),
+          })
+        );
+      }
       throw txErr;
     } finally {
       session.endSession();
@@ -1526,13 +1595,27 @@ router.post("/:id/purchase", auth, async (req, res) => {
       timestamp: new Date(),
     });
 
-    return res.status(200).json({
-      success: true,
-      alreadyPurchased: false,
-      lesson: { id: lesson._id, title: lesson.title, price: cost },
-      entitlements: entitlementsPayload(updatedUser || {}),
-    });
+    return res.status(200).json(
+      stableResponse({
+        success: true,
+        alreadyPurchased: false,
+        idempotentReplay: false,
+        entitlements: entitlementsPayload(updatedUser || {}),
+        purchaseId: ledgerDoc && ledgerDoc._id ? String(ledgerDoc._id) : undefined,
+      })
+    );
   } catch (err) {
+    const isTransient =
+      err.code === 112 ||
+      err.codeName === "WriteConflict" ||
+      (err.errorLabelSet && err.errorLabelSet.has && err.errorLabelSet.has("TransientTransactionError"));
+    if (isTransient) {
+      return res.status(409).json({
+        success: false,
+        error: "Purchase conflict; retry with same idempotencyKey",
+        code: "PURCHASE_CONFLICT",
+      });
+    }
     console.error("Purchase error:", err);
     return res.status(500).json({
       success: false,
