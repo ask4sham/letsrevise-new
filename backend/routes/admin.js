@@ -118,6 +118,62 @@ router.delete("/revoke-lesson-unlock", auth, checkAdmin, async (req, res) => {
 });
 
 /* =========================================
+   GET /api/admin/user/:id/unlocks
+   Count + recent unlocks for a user (support / auditing).
+   ========================================= */
+router.get("/user/:id/unlocks", auth, checkAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid userId" });
+    }
+
+    const [count, recent] = await Promise.all([
+      LessonUnlock.countDocuments({ userId }),
+      LessonUnlock.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .select("lessonId source createdAt")
+        .lean(),
+    ]);
+
+    return res.json({ ok: true, userId, count, recent });
+  } catch (err) {
+    console.error("GET /api/admin/user/:id/unlocks error:", err);
+    return res.status(500).json({ error: "Failed to load user unlocks" });
+  }
+});
+
+/* =========================================
+   GET /api/admin/lesson/:id/unlocks
+   Count + recent users who unlocked this lesson (support / auditing).
+   ========================================= */
+router.get("/lesson/:id/unlocks", auth, checkAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lessonId" });
+    }
+
+    const [count, recent] = await Promise.all([
+      LessonUnlock.countDocuments({ lessonId }),
+      LessonUnlock.find({ lessonId })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .select("userId source createdAt")
+        .lean(),
+    ]);
+
+    return res.json({ ok: true, lessonId, count, recent });
+  } catch (err) {
+    console.error("GET /api/admin/lesson/:id/unlocks error:", err);
+    return res.status(500).json({ error: "Failed to load lesson unlocks" });
+  }
+});
+
+/* =========================================
    GET /api/admin/stats
    ========================================= */
 router.get("/stats", auth, checkAdmin, async (req, res) => {
