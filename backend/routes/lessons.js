@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 
 const Lesson = require("../models/Lesson");
 const LessonReview = require("../models/LessonReview");
+const LessonRevisionDraft = require("../models/LessonRevisionDraft");
 const User = require("../models/User");
 const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
@@ -916,6 +917,10 @@ router.post("/:id/revision", auth, async (req, res) => {
    ✅ ADDED: AI-GENERATED REVISION CONTENT
    ========================================= */
 
+/* =========================================
+   Phase 9E: AI revision pipeline — generate into DRAFT only (draft-only visibility)
+   Kill-switch: DISABLE_AI_REVISION_GENERATION=1 → 503
+   ========================================= */
 router.post("/:id/generate-revision", auth, async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -925,7 +930,6 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    // Check authorization using centralized helper
     const requesterId = req.user?._id;
     const isOwner = String(lesson.teacherId) === String(requesterId);
     const isAdminUser = isAdmin(req.user);
@@ -934,75 +938,204 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
       return res.status(403).json({ msg: "Not authorized to generate revision for this lesson" });
     }
 
-    // Check if lesson has content to generate from
     if (!lesson.pages || lesson.pages.length === 0) {
-      return res.status(400).json({ 
-        error: "Lesson has no content pages to generate revision from" 
+      return res.status(400).json({
+        error: "Lesson has no content pages to generate revision from",
       });
     }
 
-    // Check OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ 
-        error: "OpenAI API key not configured. Please contact administrator." 
+    if (process.env.DISABLE_AI_REVISION_GENERATION === "1") {
+      return res.status(503).json({
+        success: false,
+        code: "REVISION_GENERATION_DISABLED",
+        error: "AI revision generation is temporarily disabled",
       });
     }
 
-    console.log(`🤖 Generating AI revision content for lesson: ${lesson.title}`);
-
-    // Dynamically import the generateRevision service
-    // Use require() instead of import for compatibility
     const { generateRevisionForLesson } = require("../services/generateRevision");
-    
-    // Generate revision content using AI
     const revisionContent = await generateRevisionForLesson({ lesson });
-    
-    // Validate the generated content matches our schema
     const { validateAndNormalizeRevision } = require("../services/validateRevision");
     const { flashcards, quiz } = validateAndNormalizeRevision(revisionContent);
 
-    // Attach to lesson (additive - preserves any existing content)
-    if (flashcards !== undefined && flashcards.length > 0) {
-      lesson.flashcards = flashcards;
-    }
-
-    if (quiz !== undefined && quiz.questions && quiz.questions.length > 0) {
-      lesson.quiz = quiz;
-    }
-
-    // ✅ ADDED: runValidators and return updated document
-    const updatedLesson = await lesson.save();
-
-    console.log(`✅ AI revision generated: ${flashcards?.length || 0} flashcards, ${quiz?.questions?.length || 0} quiz questions`);
-
-    res.json({
-      success: true,
-      lessonId: updatedLesson._id,
-      flashcardsCount: flashcards?.length || 0,
-      quizQuestionsCount: quiz?.questions?.length || 0,
-      generatedContent: {
-        flashcards: flashcards || [],
-        quiz: quiz || { questions: [] }
+    const draft = await LessonRevisionDraft.findOneAndUpdate(
+      { lessonId: lesson._id },
+      {
+        $set: {
+          generatedBy: requesterId,
+          flashcards: flashcards || [],
+          quiz: quiz || { timeSeconds: 600, questions: [] },
+          status: "draft",
+        },
       },
-      lesson: updatedLesson
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      lessonId: lesson._id,
+      draftId: draft._id,
+      flashcardsCount: (flashcards || []).length,
+      quizQuestionsCount: (quiz?.questions || []).length,
+      draft: {
+        id: draft._id,
+        lessonId: draft.lessonId,
+        status: draft.status,
+        flashcards: draft.flashcards,
+        quiz: draft.quiz,
+      },
     });
   } catch (err) {
-    console.error("AI_REVISION_GENERATION_ERROR", err);
-    
-    // Provide user-friendly error messages
-    let errorMessage = "Failed to generate revision content";
-    if (err.message.includes("API key") || err.message.includes("OpenAI")) {
-      errorMessage = "OpenAI API error. Please check API key configuration.";
-    } else if (err.message.includes("network") || err.message.includes("timeout")) {
-      errorMessage = "Network error. Please try again.";
-    } else if (err.message.includes("validation") || err.message.includes("JSON")) {
-      errorMessage = "AI response format error. Please try again.";
+    if (err.code === "REVISION_GENERATION_DISABLED") {
+      return res.status(503).json({
+        success: false,
+        code: "REVISION_GENERATION_DISABLED",
+        error: err.message,
+      });
     }
-    
+    console.error("AI_REVISION_GENERATION_ERROR", err);
+    let errorMessage = "Failed to generate revision content";
+    if (err.message && (err.message.includes("API key") || err.message.includes("OpenAI"))) {
+      errorMessage = "OpenAI API error. Please check API key configuration.";
+    }
     res.status(400).json({
       error: errorMessage,
-      details: process.env.NODE_ENV === "development" ? err.message : undefined
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
+  }
+});
+
+/* =========================================
+   Phase 9E: GET revision draft (owner/admin only — draft-only visibility)
+   ========================================= */
+router.get("/:id/revision-draft", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).lean();
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only lesson owner or admin can view revision draft" });
+    }
+
+    const draft = await LessonRevisionDraft.findOne({ lessonId }).lean();
+    if (!draft) return res.status(404).json({ error: "No revision draft found for this lesson" });
+
+    return res.json({
+      id: draft._id,
+      lessonId: draft.lessonId,
+      generatedBy: draft.generatedBy,
+      status: draft.status,
+      flashcards: draft.flashcards || [],
+      quiz: draft.quiz || { timeSeconds: 600, questions: [] },
+      createdAt: draft.createdAt,
+      updatedAt: draft.updatedAt,
+    });
+  } catch (err) {
+    console.error("GET revision-draft error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* =========================================
+   Phase 9E: PUT revision draft (owner/admin — teacher edits)
+   ========================================= */
+router.put("/:id/revision-draft", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only lesson owner or admin can edit revision draft" });
+    }
+
+    const draft = await LessonRevisionDraft.findOne({ lessonId });
+    if (!draft) return res.status(404).json({ error: "No revision draft found for this lesson" });
+    if (draft.status !== "draft") {
+      return res.status(409).json({
+        code: "DRAFT_ALREADY_APPLIED",
+        error: "This draft has already been applied to the lesson",
+      });
+    }
+
+    const merged = {
+      flashcards: req.body?.flashcards !== undefined ? req.body.flashcards : draft.flashcards,
+      quiz: req.body?.quiz !== undefined ? req.body.quiz : draft.quiz,
+    };
+    const { flashcards, quiz } = validateAndNormalizeRevision(merged);
+    draft.flashcards = flashcards;
+    draft.quiz = quiz;
+    await draft.save({ runValidators: true });
+
+    return res.json({
+      success: true,
+      draft: {
+        id: draft._id,
+        lessonId: draft.lessonId,
+        status: draft.status,
+        flashcards: draft.flashcards,
+        quiz: draft.quiz,
+        updatedAt: draft.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error("PUT revision-draft error:", err);
+    if (err.message && err.message.startsWith("Must provide")) {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* =========================================
+   Phase 9E: POST revision-draft/apply — copy draft to lesson (then teacher can submit-review)
+   ========================================= */
+router.post("/:id/revision-draft/apply", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only lesson owner or admin can apply revision draft" });
+    }
+
+    const draft = await LessonRevisionDraft.findOne({ lessonId });
+    if (!draft) return res.status(404).json({ error: "No revision draft found for this lesson" });
+    if (draft.status !== "draft") {
+      return res.status(409).json({
+        code: "DRAFT_ALREADY_APPLIED",
+        error: "This draft has already been applied to the lesson",
+      });
+    }
+
+    lesson.flashcards = draft.flashcards || [];
+    lesson.quiz = draft.quiz || lesson.quiz || { timeSeconds: 600, questions: [] };
+    await lesson.save({ runValidators: true });
+
+    draft.status = "applied";
+    await draft.save({ runValidators: true });
+
+    return res.json({
+      success: true,
+      msg: "Revision draft applied to lesson",
+      lesson: { id: lesson._id, flashcardsCount: lesson.flashcards?.length || 0, quizQuestionsCount: lesson.quiz?.questions?.length || 0 },
+    });
+  } catch (err) {
+    console.error("POST revision-draft/apply error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
