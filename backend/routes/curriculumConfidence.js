@@ -1,6 +1,8 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const auth = require("../middleware/auth");
+const requireLessonAccess = require("../middleware/requireLessonAccess");
 
 const router = express.Router();
 
@@ -9,10 +11,9 @@ const BOARD_SPEC_PATH = path.join(process.cwd(), "docs", "curriculum", "boards",
 
 /**
  * GET /api/curriculum-confidence/:lessonId
- * Returns curriculum confidence payload shaped like teacher-curriculum-confidence.contract.json.
- * Derives curriculumCoverage from statutory + board spec files; review + provenance hardcoded.
+ * Returns curriculum confidence payload. Gated: only entitled users (requireLessonAccess).
  */
-router.get("/:lessonId", (req, res) => {
+router.get("/:lessonId", auth, requireLessonAccess(), (req, res) => {
   const lessonId = req.params.lessonId;
 
   let statutoryData;

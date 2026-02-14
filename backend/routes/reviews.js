@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
+const requireLessonAccess = require("../middleware/requireLessonAccess");
 
 const mongoose = require("mongoose");
 const { createClient } = require("@supabase/supabase-js");
@@ -105,11 +106,9 @@ async function updateLessonRatingsSupabase(lessonId) {
 /* =========================================================
    ✅ FIXED ENDPOINT
    GET /api/reviews/lesson/:lessonId
-
-   - If lessonId is Mongo ObjectId: return Mongo reviews (200)
-   - Otherwise: fallback to Supabase UUID logic (legacy)
+   Gated: auth + requireLessonAccess (only entitled users see reviews for a lesson).
 ========================================================= */
-router.get("/lesson/:lessonId", async (req, res) => {
+router.get("/lesson/:lessonId", auth, requireLessonAccess(), async (req, res) => {
   try {
     const { page = 1, limit = 10, sort = "newest" } = req.query;
     const lessonId = req.params.lessonId;
@@ -265,7 +264,7 @@ router.get("/lesson/:lessonId", async (req, res) => {
    - If lessonId is Mongo ObjectId: write to Mongo
    - Else: write to Supabase (legacy)
 ========================================================= */
-router.post("/:lessonId", auth, async (req, res) => {
+router.post("/:lessonId", auth, requireLessonAccess(), async (req, res) => {
   try {
     const { rating, review } = req.body || {};
     const lessonId = req.params.lessonId;

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const auth = require("../middleware/auth");
+const requireLessonAccess = require("../middleware/requireLessonAccess");
 const Lesson = require("../models/Lesson");
 
 const { createClient } = require("@supabase/supabase-js");
@@ -14,7 +15,7 @@ const supabaseAdmin = createClient(
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/lesson-block", auth, upload.single("file"), async (req, res) => {
+router.post("/lesson-block", auth, upload.single("file"), requireLessonAccess(), async (req, res) => {
   try {
     const { lessonId, pageId, blockIndex } = req.body;
     const file = req.file;
@@ -22,9 +23,7 @@ router.post("/lesson-block", auth, upload.single("file"), async (req, res) => {
     if (!file) return res.status(400).json({ msg: "No file uploaded" });
     if (!lessonId || !pageId) return res.status(400).json({ msg: "Missing metadata" });
 
-    // optionally validate lesson exists
-    const lesson = await Lesson.findById(lessonId).lean();
-    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const lesson = req.lesson;
 
     const bucket = process.env.SUPABASE_MEDIA_BUCKET || "lesson-media";
 

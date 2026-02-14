@@ -18,6 +18,10 @@ jobs:
       - run: npm ci
       - name: Run unit tests
         run: npm test
+      - name: Backend content-access tests (Phase 9)
+        run: npm run test:backend
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-secret-for-ci-phase9' }}
       - name: Slotgen stub rejects invalid job
         run: "! echo '{}' | npm run slotgen:stub"
       - name: Slotgen stub accepts valid job

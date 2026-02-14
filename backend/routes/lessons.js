@@ -1730,7 +1730,22 @@ router.get("/", auth, async (req, res) => {
       .limit(200)
       .lean();
 
-    // Server-side filtering: do not send full content for locked lessons (Phase 9).
+    // List-safe shape only: never return pages, content, quiz, flashcards (Phase 9 — non-leaky).
+    const LIST_SAFE_KEYS = [
+      "id", "_id", "title", "summary", "subject", "level", "board", "topic", "tier",
+      "status", "isPublished", "teacherId", "teacherName", "createdAt", "updatedAt", "views",
+      "averageRating", "shamCoinPrice", "isFreePreview", "preview",
+    ];
+    function toListSafe(lesson, extra = {}) {
+      const safe = {};
+      for (const k of LIST_SAFE_KEYS) {
+        if (lesson[k] !== undefined) safe[k] = lesson[k];
+      }
+      if (lesson._id !== undefined) safe._id = lesson._id;
+      if (safe.id === undefined && lesson._id !== undefined) safe.id = lesson._id;
+      return { ...safe, ...extra };
+    }
+
     const fullUser = await User.findById(getAuthUserId(req))
       .select("userType subscriptionV2 subscription purchasedLessons")
       .lean();
@@ -1748,33 +1763,23 @@ router.get("/", auth, async (req, res) => {
         : { allowed: false, reason: "UNAUTHENTICATED" };
 
       if (!decision.allowed) {
-        return {
-          id: l._id,
-          _id: l._id,
-          title: l.title,
-          locked: true,
-          hasAccess: false,
-          reason: decision.reason,
-        };
+        return toListSafe(l, { locked: true, hasAccess: false, reason: decision.reason });
       }
       if (decision.reason === "FREE_PREVIEW") {
-        return {
-          id: l._id,
-          _id: l._id,
-          title: l.title,
-          summary: l.summary,
+        return toListSafe(l, {
           hasAccess: false,
           isFreePreview: true,
           locked: false,
           preview: l.preview ?? null,
-        };
+        });
       }
-      return {
-        ...l,
+      const pageCount = Array.isArray(l.pages) ? l.pages.length : 0;
+      return toListSafe(l, {
         hasAccess: true,
         isFreePreview,
         locked: false,
-      };
+        pageCount,
+      });
     });
 
     return res.json(visible);

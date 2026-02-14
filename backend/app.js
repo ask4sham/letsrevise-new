@@ -22,5 +22,8 @@ app.use("/api/assessment-items", require("./routes/assessmentItems"));
 // ✅ Add auth routes if your assessment endpoints need auth middleware
 app.use("/api/auth", require("./routes/auth"));
 
+// ✅ Add lessons route for Phase 9 content-access integration tests
+app.use("/api/lessons", require("./routes/lessons"));
+
 // ✅ Export for testing
 module.exports = app;
