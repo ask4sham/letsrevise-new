@@ -8,7 +8,6 @@ import {
   Search,
   Filter,
   AlertCircle,
-  Calendar,
   BarChart3,
 } from "lucide-react";
 import SubscriptionRequired from "../components/SubscriptionRequired";
@@ -16,9 +15,26 @@ import SubscriptionRequired from "../components/SubscriptionRequired";
 interface AssessmentPaper {
   _id: string;
   title: string;
+  subject?: string;
   timeSeconds: number;
   kind: "mock_exam" | "past_paper" | "practice_set";
   questionCount: number;
+}
+
+function getTypeStyle(type: string): { bg: string; fg: string } {
+  const t = (type || "").toLowerCase();
+  if (t.includes("practice_set") || t.includes("quiz")) return { bg: "#ede9fe", fg: "#5b21b6" };
+  if (t.includes("mock_exam") || t.includes("exam")) return { bg: "#dbeafe", fg: "#1d4ed8" };
+  return { bg: "#dcfce7", fg: "#166534" }; // past_paper / Practice
+}
+
+function getTypeLabel(kind: string): string {
+  switch (kind) {
+    case "mock_exam": return "Exam";
+    case "past_paper": return "Practice";
+    case "practice_set": return "Quiz";
+    default: return kind;
+  }
 }
 
 const AssessmentPapersList: React.FC = () => {
@@ -99,57 +115,32 @@ const AssessmentPapersList: React.FC = () => {
     return `${remainingSeconds}s`;
   };
 
-  const getModeColor = (mode: string) => {
-    switch (mode) {
-      case "mock_exam":
-        return "bg-red-100 text-red-800";
-      case "past_paper":
-        return "bg-blue-100 text-blue-800";
-      case "practice_set":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getModeIcon = (mode: string) => {
-    switch (mode) {
-      case "mock_exam":
-        return <FileText className="w-4 h-4" />;
-      case "past_paper":
-        return <BarChart3 className="w-4 h-4" />;
-      case "practice_set":
-        return <Calendar className="w-4 h-4" />;
-      default:
-        return <FileText className="w-4 h-4" />;
-    }
-  };
-
-  const getKindLabel = (kind: string) => {
-    switch (kind) {
-      case "mock_exam":
-        return "Exams";
-      case "past_paper":
-        return "Practice Papers";
-      case "practice_set":
-        return "Quizzes";
-      default:
-        return kind;
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
         <div className="max-w-6xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-300 rounded w-1/4 mb-8"></div>
-            <div className="h-12 bg-gray-300 rounded"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-48 bg-gray-300 rounded-lg"></div>
-              ))}
-            </div>
+          <div className="h-8 bg-gray-300 rounded w-1/4 mb-2 animate-pulse" />
+          <div className="h-5 bg-gray-200 rounded w-2/5 mb-8 animate-pulse" />
+          <div
+            className="grid gap-4"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-xl border border-gray-200 bg-white p-4"
+                style={{ minHeight: "200px" }}
+              >
+                <div className="mb-3 h-6 w-20 rounded-full bg-gray-200" />
+                <div className="mb-2 h-5 w-3/4 rounded bg-gray-200" />
+                <div className="mb-4 h-4 w-1/2 rounded bg-gray-100" />
+                <div className="h-10 w-full rounded-lg bg-gray-200" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -245,89 +236,109 @@ const AssessmentPapersList: React.FC = () => {
           </div>
         </div>
 
-        {/* Papers Grid */}
+        {/* Papers Grid — cards with type badge + subject + meta chips */}
         {filteredPapers.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">
-              No papers found
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              No assessment papers yet
             </h3>
-            <p className="text-gray-500">
-              {searchTerm || selectedMode !== ""
-                ? "Try adjusting your search or filter"
-                : "No assessment papers are available yet"}
+            <p className="text-gray-500 mb-6">
+              Create a quiz paper to assign or practice.
             </p>
+            {isTeacher && (
+              <Link
+                to="/assessments/papers/builder"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                Create paper
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
+            {!isTeacher && (searchTerm || selectedMode !== "") && (
+              <p className="text-sm text-gray-500">Try adjusting your search or filter</p>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPapers.map((paper, index) => (
-              <div
-                key={paper._id}
-                className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
-              >
-                <div className="p-6">
-                  {/* Mode Badge */}
-                  <div className="flex justify-between items-start mb-4">
+          <div
+            className="grid gap-4"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {filteredPapers.map((paper) => {
+              const typeStyle = getTypeStyle(paper.kind);
+              return (
+                <div
+                  key={paper._id}
+                  className="bg-white rounded-xl border border-gray-200 p-4 overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  {/* Top row: type badge + meta chips */}
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
                     <span
-                      className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getModeColor(
-                        paper.kind
-                      )}`}
+                      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+                      style={{ background: typeStyle.bg, color: typeStyle.fg }}
                     >
-                      {getModeIcon(paper.kind)}
-                      {getKindLabel(paper.kind)}
+                      {getTypeLabel(paper.kind)}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-600 bg-gray-100"
+                    >
                       {paper.questionCount} questions
                     </span>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2">
-                    {paper.title}
-                  </h3>
-
-                  {/* Duration */}
-                  <div className="flex items-center gap-2 text-gray-600 mb-6">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm">
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-600 bg-gray-100"
+                    >
+                      <Clock className="w-3 h-3" />
                       {formatDuration(paper.timeSeconds)}
                     </span>
                   </div>
 
-                  {/* Action: Edit for teachers, Start for students */}
+                  {/* Title */}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                    {paper.title}
+                  </h3>
+
+                  {/* Subject chip */}
+                  <div className="mb-4">
+                    <span
+                      className="inline-block px-2 py-0.5 rounded text-xs text-gray-500 bg-gray-100"
+                    >
+                      {paper.subject?.trim() || "—"}
+                    </span>
+                  </div>
+
+                  {/* CTA */}
                   {isTeacher ? (
-                    <div className="w-full space-y-2">
-                      <Link
-                        to={`/assessments/papers/${paper._id}/edit`}
-                        className="block w-full"
+                    <Link
+                      to={`/assessments/papers/${paper._id}/edit`}
+                      className="block w-full"
+                    >
+                      <button
+                        type="button"
+                        title="Add or remove questions from this paper"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
                       >
-                        <button
-                          type="button"
-                          title="Add or remove questions from this paper"
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                        >
-                          <span className="font-semibold">Manage questions</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </Link>
-                      <p className="text-xs text-gray-500 text-center">
-                        Add questions from Question Bank
-                      </p>
-                    </div>
+                        Manage questions
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </Link>
                   ) : (
                     <Link
                       to={`/assessments/papers/${paper._id}/start`}
                       className="block w-full"
                     >
-                      <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all transform hover:-translate-y-0.5">
-                        <span className="font-semibold">Start Attempt</span>
+                      <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all font-semibold">
+                        Start Attempt
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </Link>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
