@@ -955,7 +955,11 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
     const { generateRevisionForLesson } = require("../services/generateRevision");
     const revisionContent = await generateRevisionForLesson({ lesson });
     const { validateAndNormalizeRevision } = require("../services/validateRevision");
-    const { flashcards, quiz } = validateAndNormalizeRevision(revisionContent);
+    const { flashcards, quiz } = validateAndNormalizeRevision({
+      flashcards: revisionContent.flashcards,
+      quiz: revisionContent.quiz,
+    });
+    const engineTelemetry = revisionContent.engineTelemetry || null;
 
     const draft = await LessonRevisionDraft.findOneAndUpdate(
       { lessonId: lesson._id },
@@ -965,6 +969,7 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
           flashcards: flashcards || [],
           quiz: quiz || { timeSeconds: 600, questions: [] },
           status: "draft",
+          ...(engineTelemetry && { engine: engineTelemetry }),
         },
       },
       { upsert: true, new: true, runValidators: true }
@@ -980,6 +985,7 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
         id: draft._id,
         lessonId: draft.lessonId,
         status: draft.status,
+        engine: draft.engine || undefined,
         flashcards: draft.flashcards,
         quiz: draft.quiz,
       },
@@ -990,6 +996,14 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
         success: false,
         code: "REVISION_GENERATION_DISABLED",
         error: err.message,
+      });
+    }
+    if (err.code === "REVISION_ENGINE_UNAVAILABLE") {
+      return res.status(503).json({
+        success: false,
+        code: "REVISION_ENGINE_UNAVAILABLE",
+        error: err.message,
+        errorCode: err.engineErrorCode ?? null,
       });
     }
     console.error("AI_REVISION_GENERATION_ERROR", err);
@@ -1029,6 +1043,7 @@ router.get("/:id/revision-draft", auth, async (req, res) => {
       lessonId: draft.lessonId,
       generatedBy: draft.generatedBy,
       status: draft.status,
+      engine: draft.engine || undefined,
       flashcards: draft.flashcards || [],
       quiz: draft.quiz || { timeSeconds: 600, questions: [] },
       createdAt: draft.createdAt,

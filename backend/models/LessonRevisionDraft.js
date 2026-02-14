@@ -17,6 +17,8 @@ const LessonRevisionDraftSchema = new mongoose.Schema(
       default: "draft",
       index: true,
     },
+    /** Phase 9F: engine run telemetry (status, errorCode, jobId, rolloutBucket, etc.) for debugging. */
+    engine: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );
