@@ -1534,12 +1534,17 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
 
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
+    // Always send a predictable accessDecision shape so frontend can rely on it
+    const accessDecision = req.accessDecision && typeof req.accessDecision.reason === "string"
+      ? { allowed: !!req.accessDecision.allowed, reason: req.accessDecision.reason }
+      : { allowed: true, reason: "UNKNOWN" };
+
     if (decision?.reason === "FREE_PREVIEW") {
       const payload = toLessonPreviewPayload(lesson);
-      return res.json({ ...payload, accessDecision: req.accessDecision });
+      return res.json({ ...payload, accessDecision });
     }
     const payload = toLessonFullPayload(lesson);
-    return res.json({ ...payload, accessDecision: req.accessDecision });
+    return res.json({ ...payload, accessDecision });
   } catch (err) {
     console.error("Get lesson error:", err);
     return res.status(500).send("Server error");
