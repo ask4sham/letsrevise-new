@@ -40,6 +40,10 @@ All attempts are logged in **OpsNotificationLog** (eventType, incidentId, dedupe
 - Top 3 errorCodes and counts (from snapshot)
 - Link hint: “View ops status: GET /api/ops/status (or /admin/ops)”
 
+### Tests / verification
+
+- **Canonical command:** `npm run test:backend -- backend/tests/opsNotifier.test.js` (or run full backend suite: `npm run test:backend`).
+
 ### Rollback
 
 - **Disable notifications:** Set `OPS_NOTIFY_SLACK=0` or leave `OPS_SLACK_WEBHOOK_URL` unset. No code change; notifications are skipped and logged as SKIPPED.

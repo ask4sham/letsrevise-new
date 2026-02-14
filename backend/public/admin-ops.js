@@ -16,6 +16,7 @@
   const auditsEl = document.getElementById("audits");
   const notificationsEl = document.getElementById("notifications");
   const notificationFilterSelect = document.getElementById("notificationFilter");
+  const envBadge = document.getElementById("envBadge");
   const levelSelect = document.getElementById("level");
   const setLevelBtn = document.getElementById("setLevel");
   const killSwitchOnBtn = document.getElementById("killSwitchOn");
@@ -52,6 +53,7 @@
     setError("");
     try {
       const status = await api("/api/ops/status");
+      if (envBadge) envBadge.textContent = status.env || "—";
       if (stateEl) {
         stateEl.innerHTML =
           "Level: <span class=\"badge badge-" +
