@@ -2,7 +2,12 @@
  * Unit tests for canAccessContent (Phase 9 — backend content access policy).
  * Run from repo root: npx jest backend/tests/canAccessContent.test.js --testPathIgnorePatterns=''
  */
+jest.mock("../models/LessonUnlock", () => ({
+  exists: jest.fn().mockResolvedValue(false),
+}));
+
 const { canAccessContent } = require("../utils/canAccessContent");
+const LessonUnlock = require("../models/LessonUnlock");
 
 describe("canAccessContent", () => {
   const lesson = {
@@ -12,20 +17,20 @@ describe("canAccessContent", () => {
     isPublished: true,
   };
 
-  test("unauthenticated → deny (UNAUTHENTICATED)", () => {
-    const decision = canAccessContent(null, lesson);
+  test("unauthenticated → deny (UNAUTHENTICATED)", async () => {
+    const decision = await canAccessContent(null, lesson);
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("UNAUTHENTICATED");
   });
 
-  test("undefined user → deny (UNAUTHENTICATED)", () => {
-    const decision = canAccessContent(undefined, lesson);
+  test("undefined user → deny (UNAUTHENTICATED)", async () => {
+    const decision = await canAccessContent(undefined, lesson);
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("UNAUTHENTICATED");
   });
 
-  test("admin → allow (ADMIN)", () => {
-    const decision = canAccessContent(
+  test("admin → allow (ADMIN)", async () => {
+    const decision = await canAccessContent(
       { userType: "admin", subscriptionV2: null, purchasedLessons: [] },
       lesson
     );
@@ -33,8 +38,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("ADMIN");
   });
 
-  test("admin via role → allow (ADMIN)", () => {
-    const decision = canAccessContent(
+  test("admin via role → allow (ADMIN)", async () => {
+    const decision = await canAccessContent(
       { role: "admin", subscription: null },
       lesson
     );
@@ -42,9 +47,9 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("ADMIN");
   });
 
-  test("active subscription (expiresAt future) → allow (SUB_ACTIVE)", () => {
+  test("active subscription (expiresAt future) → allow (SUB_ACTIVE)", async () => {
     const future = new Date(Date.now() + 86400000).toISOString();
-    const decision = canAccessContent(
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: { status: "active", expiresAt: future },
@@ -56,8 +61,23 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("SUB_ACTIVE");
   });
 
-  test("purchased lesson → allow (PURCHASED)", () => {
-    const decision = canAccessContent(
+  test("single-lesson unlock (no sub, no purchase) → allow (LESSON_UNLOCK)", async () => {
+    LessonUnlock.exists.mockResolvedValueOnce(true);
+    const decision = await canAccessContent(
+      {
+        _id: "user-1",
+        userType: "student",
+        subscriptionV2: null,
+        purchasedLessons: [],
+      },
+      lesson
+    );
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBe("LESSON_UNLOCK");
+  });
+
+  test("purchased lesson → allow (PURCHASED)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: null,
@@ -69,8 +89,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("PURCHASED");
   });
 
-  test("purchased lesson (raw id in array) → allow (PURCHASED)", () => {
-    const decision = canAccessContent(
+  test("purchased lesson (raw id in array) → allow (PURCHASED)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         purchasedLessons: ["lesson-1"],
@@ -81,8 +101,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("PURCHASED");
   });
 
-  test("free preview only → allow (FREE_PREVIEW)", () => {
-    const decision = canAccessContent(
+  test("free preview only → allow (FREE_PREVIEW)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: null,
@@ -94,8 +114,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("FREE_PREVIEW");
   });
 
-  test("none (no sub, no purchase, no preview) → deny (NOT_ENTITLED)", () => {
-    const decision = canAccessContent(
+  test("none (no sub, no purchase, no preview) → deny (NOT_ENTITLED)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: null,
@@ -107,8 +127,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("NOT_ENTITLED");
   });
 
-  test("lesson not published → deny (NOT_PUBLISHED)", () => {
-    const decision = canAccessContent(
+  test("lesson not published → deny (NOT_PUBLISHED)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: { expiresAt: new Date(Date.now() + 86400000).toISOString() },
@@ -120,8 +140,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("NOT_PUBLISHED");
   });
 
-  test("Phase 9D: lesson.status draft → deny (NOT_PUBLISHED)", () => {
-    const decision = canAccessContent(
+  test("Phase 9D: lesson.status draft → deny (NOT_PUBLISHED)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: { status: "active", expiresAt: new Date(Date.now() + 86400000).toISOString() },
@@ -133,8 +153,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("NOT_PUBLISHED");
   });
 
-  test("Phase 9D: lesson.status in_review → deny (NOT_PUBLISHED)", () => {
-    const decision = canAccessContent(
+  test("Phase 9D: lesson.status in_review → deny (NOT_PUBLISHED)", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: { status: "active", expiresAt: new Date(Date.now() + 86400000).toISOString() },
@@ -146,8 +166,8 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("NOT_PUBLISHED");
   });
 
-  test("Phase 9D: lesson.status published → allow when entitled", () => {
-    const decision = canAccessContent(
+  test("Phase 9D: lesson.status published → allow when entitled", async () => {
+    const decision = await canAccessContent(
       {
         userType: "student",
         subscriptionV2: { status: "active", expiresAt: new Date(Date.now() + 86400000).toISOString() },
@@ -159,12 +179,12 @@ describe("canAccessContent", () => {
     expect(decision.reason).toBe("SUB_ACTIVE");
   });
 
-  test("legacy call style { user, lesson } works", () => {
+  test("legacy call style { user, lesson } works", async () => {
     const user = {
       userType: "student",
       purchasedLessons: ["lesson-1"],
     };
-    const decision = canAccessContent({ user, lesson });
+    const decision = await canAccessContent({ user, lesson });
     expect(decision.allowed).toBe(true);
     expect(decision.reason).toBe("PURCHASED");
   });

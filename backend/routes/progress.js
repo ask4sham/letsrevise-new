@@ -51,7 +51,7 @@ router.put('/:lessonId', auth, async (req, res) => {
     }
 
     // ✅ API-level entitlement: progress updates are gated via canAccessContent
-    const access = canAccessContent({ user, lesson });
+    const access = await canAccessContent({ user, lesson });
     if (access.allowed !== true) {
       const payload = {
         error: access.reason === 'NOT_ENTITLED' ? 'Subscription required' : 'FORBIDDEN',
@@ -195,7 +195,7 @@ router.put('/:lessonId/review', auth, async (req, res) => {
     }
 
     // ✅ API-level entitlement: reviews are gated via canAccessContent
-    const access = canAccessContent({ user, lesson });
+    const access = await canAccessContent({ user, lesson });
     if (access.allowed !== true) {
       const payload = {
         error: access.reason === 'NOT_ENTITLED' ? 'Subscription required' : 'FORBIDDEN',

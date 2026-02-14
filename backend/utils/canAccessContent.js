@@ -1,17 +1,29 @@
 const { isSubscriptionActive } = require("./isSubscriptionActive");
+const LessonUnlock = require("../models/LessonUnlock");
+
+/**
+ * Check if user has a single-lesson unlock (credit/admin/promo) for this lesson.
+ */
+async function hasLessonUnlock(userId, lessonId) {
+  if (!userId || !lessonId) return false;
+  return !!(await LessonUnlock.exists({
+    userId,
+    lessonId,
+  }));
+}
 
 /**
  * Single source of truth for lesson content access (Phase 9 — backend-first).
  * Deny-by-default; explicit reasons for allow/deny for logging and 403 responses.
  *
  * All routes that gate lesson content must use this so rules stay in one place.
- * Pure function: no Express, no req/res.
+ * Pure function: no Express, no req/res. Order: subscription > unlock > purchased > preview > deny.
  *
  * @param {Object|null|undefined} userOrOpts - User object, or { user, lesson } for legacy call style
  * @param {Object} [lesson] - Lesson access fields: id or _id, isFreePreview?, isPublished?
- * @returns {{ allowed: boolean, reason: string }} AccessDecision
+ * @returns {Promise<{ allowed: boolean, reason: string }>} AccessDecision
  */
-function canAccessContent(userOrOpts, lessonParam) {
+async function canAccessContent(userOrOpts, lessonParam) {
   const opts = userOrOpts && typeof userOrOpts === "object" && "user" in userOrOpts && "lesson" in userOrOpts;
   const user = opts ? userOrOpts.user : userOrOpts;
   const lesson = opts ? userOrOpts.lesson : lessonParam;
@@ -35,13 +47,19 @@ function canAccessContent(userOrOpts, lessonParam) {
     return { allowed: false, reason: "NOT_PUBLISHED" };
   }
 
-  // Rule 1: active subscription (uses normalized user.subscriptionV2; deny if missing — Phase 9B)
+  // 1) Active subscription always wins
   if (isSubscriptionActive(user)) {
     return { allowed: true, reason: "SUB_ACTIVE" };
   }
 
-  // Rule 2: purchased lesson (normalize IDs once to avoid ObjectId/string mismatches)
+  // 2) Single-lesson unlock (credit/admin/promo)
   const lessonId = lesson?._id ?? lesson?.id;
+  const userId = user._id ?? user.id;
+  if (lessonId && userId && (await hasLessonUnlock(userId, lessonId))) {
+    return { allowed: true, reason: "LESSON_UNLOCK" };
+  }
+
+  // 3) Purchased lesson (normalize IDs once to avoid ObjectId/string mismatches)
   const purchased = new Set(
     (user.purchasedLessons ?? []).map((pl) => String(pl?.lessonId ?? pl))
   );
@@ -49,11 +67,12 @@ function canAccessContent(userOrOpts, lessonParam) {
     return { allowed: true, reason: "PURCHASED" };
   }
 
-  // Rule 3: free preview (partial content)
+  // 4) Free preview (partial content)
   if (lesson?.isFreePreview === true) {
     return { allowed: true, reason: "FREE_PREVIEW" };
   }
 
+  // 5) Not entitled
   return { allowed: false, reason: "NOT_ENTITLED" };
 }
 

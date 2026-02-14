@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
+const LessonUnlock = require("../models/LessonUnlock");
 const auth = require("../middleware/auth");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const {
@@ -66,6 +67,34 @@ function pick(obj, keys) {
 function isPlainObject(v) {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
+
+/* =========================================
+   POST /api/admin/grant-lesson-unlock
+   Idempotent; admin-only. Body: { userId, lessonId, source? } (source defaults to "admin").
+   ========================================= */
+router.post("/grant-lesson-unlock", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId, lessonId, source = "admin" } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid userId or lessonId" });
+    }
+
+    const unlock = await LessonUnlock.findOneAndUpdate(
+      { userId, lessonId },
+      { userId, lessonId, source },
+      { upsert: true, new: true }
+    );
+
+    return res.json({ ok: true, unlock });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.json({ ok: true, duplicate: true });
+    }
+    console.error("grant-lesson-unlock error:", err);
+    return res.status(500).json({ error: "Failed to grant lesson unlock" });
+  }
+});
 
 /* =========================================
    GET /api/admin/stats

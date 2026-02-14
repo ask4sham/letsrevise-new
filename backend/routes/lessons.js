@@ -2136,38 +2136,40 @@ router.get("/", auth, async (req, res) => {
     const fullUser = await User.findById(getAuthUserId(req))
       .select("userType subscriptionV2 subscription purchasedLessons")
       .lean();
-    const visible = lessons.map((l) => {
-      const isFreePreview = Boolean(l.isFreePreview);
-      const status = l.status || (l.isPublished ? "published" : "draft");
-      const isPublished = String(status).toLowerCase() === "published";
-      const decision = fullUser
-        ? canAccessContent(fullUser, {
-            _id: l._id,
-            id: l._id?.toString(),
-            isFreePreview,
-            isPublished,
-          })
-        : { allowed: false, reason: "UNAUTHENTICATED" };
+    const visible = await Promise.all(
+      lessons.map(async (l) => {
+        const isFreePreview = Boolean(l.isFreePreview);
+        const status = l.status || (l.isPublished ? "published" : "draft");
+        const isPublished = String(status).toLowerCase() === "published";
+        const decision = fullUser
+          ? await canAccessContent(fullUser, {
+              _id: l._id,
+              id: l._id?.toString(),
+              isFreePreview,
+              isPublished,
+            })
+          : { allowed: false, reason: "UNAUTHENTICATED" };
 
-      if (!decision.allowed) {
-        return toListSafe(l, { locked: true, hasAccess: false, reason: decision.reason });
-      }
-      if (decision.reason === "FREE_PREVIEW") {
+        if (!decision.allowed) {
+          return toListSafe(l, { locked: true, hasAccess: false, reason: decision.reason });
+        }
+        if (decision.reason === "FREE_PREVIEW") {
+          return toListSafe(l, {
+            hasAccess: false,
+            isFreePreview: true,
+            locked: false,
+            preview: l.preview ?? null,
+          });
+        }
+        const pageCount = Array.isArray(l.pages) ? l.pages.length : 0;
         return toListSafe(l, {
-          hasAccess: false,
-          isFreePreview: true,
+          hasAccess: true,
+          isFreePreview,
           locked: false,
-          preview: l.preview ?? null,
+          pageCount,
         });
-      }
-      const pageCount = Array.isArray(l.pages) ? l.pages.length : 0;
-      return toListSafe(l, {
-        hasAccess: true,
-        isFreePreview,
-        locked: false,
-        pageCount,
-      });
-    });
+      })
+    );
 
     return res.json(visible);
   } catch (err) {
