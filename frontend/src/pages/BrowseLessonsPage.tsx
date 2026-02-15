@@ -836,19 +836,21 @@ const BrowseLessons: React.FC = () => {
                           isFreePreview={lesson.isFreePreview}
                         />
                       </div>
-                    <p
-                      style={{
-                        color: "#718096",
-                        lineHeight: "1.5",
-                        marginBottom: "15px",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {lesson.description || "No description available."}
-                    </p>
+                    {lesson.description?.trim() ? (
+                      <p
+                        style={{
+                          color: "#718096",
+                          lineHeight: "1.5",
+                          marginBottom: "15px",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {lesson.description}
+                      </p>
+                    ) : null}
 
                     {/* Tags */}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "15px" }}>

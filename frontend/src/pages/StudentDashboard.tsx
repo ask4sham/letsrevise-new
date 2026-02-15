@@ -1095,19 +1095,21 @@ const StudentDashboard: React.FC = () => {
                       />
                     </div>
 
-                    <p
-                      style={{
-                        color: "#666",
-                        lineHeight: "1.5",
-                        marginBottom: "15px",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {lesson.description}
-                    </p>
+                    {lesson.description?.trim() ? (
+                      <p
+                        style={{
+                          color: "#666",
+                          lineHeight: "1.5",
+                          marginBottom: "15px",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {lesson.description}
+                      </p>
+                    ) : null}
 
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "15px" }}>
                       <span
