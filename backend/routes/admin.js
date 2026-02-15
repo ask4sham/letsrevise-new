@@ -815,10 +815,16 @@ router.get("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
     const lesson = await Lesson.findById(lessonId).populate("teacherId", "firstName lastName email");
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
+    const obj = lesson.toObject();
+    // Ensure isFreePreview is always present so editor and SS2 stay in sync
+    if (!Object.prototype.hasOwnProperty.call(obj, "isFreePreview")) {
+      obj.isFreePreview = !!lesson.isFreePreview;
+    }
+
     return res.json({
       success: true,
       lesson: {
-        ...lesson.toObject(),
+        ...obj,
         status: getLessonStatus(lesson),
       },
     });
