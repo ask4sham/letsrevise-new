@@ -2139,10 +2139,7 @@ const EditLessonPage: React.FC = () => {
                         type="checkbox"
                         checked={!!lesson.isFreePreview}
                         onChange={(e) =>
-                          setLesson((prev: any) => ({
-                            ...prev,
-                            isFreePreview: e.target.checked,
-                          }))
+                          updateLessonField("isFreePreview", e.target.checked)
                         }
                         style={{ marginTop: 4 }}
                       />

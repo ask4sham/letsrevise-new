@@ -300,6 +300,7 @@ router.get("/metrics/top-paywalled-lessons", auth, checkAdmin, async (req, res) 
         lessonId: r._id,
         count: r.count,
         title: r.lessonDoc?.[0]?.title ?? null,
+        isFreePreview: r.lessonDoc?.[0]?.isFreePreview ?? null,
       })),
     });
   } catch (err) {
@@ -731,6 +732,7 @@ router.get("/lessons", auth, checkAdmin, async (req, res) => {
           purchases,
           averageRating: lesson.averageRating || 0,
           createdAt: lesson.createdAt,
+          isFreePreview: !!lesson.isFreePreview,
           teacher: lesson.teacherId
             ? {
                 id: lesson.teacherId._id,

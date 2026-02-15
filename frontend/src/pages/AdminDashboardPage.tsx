@@ -78,6 +78,7 @@ interface Lesson {
     platform: number;
     teacher: number;
   };
+  isFreePreview?: boolean;
   // ✅ Template-related fields
   createdFromTemplate?: boolean;
   isTemplate?: boolean;
@@ -1061,7 +1062,7 @@ const AdminDashboardPage: React.FC = () => {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr",
+                  gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 0.8fr 1fr",
                   backgroundColor: "#f8f9fa",
                   padding: "1rem",
                   borderBottom: "1px solid #ddd",
@@ -1073,6 +1074,7 @@ const AdminDashboardPage: React.FC = () => {
                 <div>Subject</div>
                 <div>Price</div>
                 <div>Status</div>
+                <div>Preview</div>
                 <div>Actions</div>
               </div>
 
@@ -1131,7 +1133,23 @@ const AdminDashboardPage: React.FC = () => {
                           {l.status}
                         </span>
                       </div>
-
+                      <div>
+                        {l.isFreePreview ? (
+                          <span
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              border: "1px solid #b7ebc6",
+                              background: "#eefdf3",
+                            }}
+                          >
+                            ON
+                          </span>
+                        ) : (
+                          <span style={{ opacity: 0.6, fontSize: 12 }}>—</span>
+                        )}
+                      </div>
                       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                         <button
                           onClick={() => handleAdminOpenLesson(l)}
