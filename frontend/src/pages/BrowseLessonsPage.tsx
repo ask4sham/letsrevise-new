@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import LessonAccessBadge from "../components/LessonAccessBadge";
+import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 
 const API_BASE = "http://localhost:5000";
 
@@ -748,6 +748,7 @@ const BrowseLessons: React.FC = () => {
             {advancedMode && " (Advanced mode active)"}
           </div>
         </div>
+        <LessonAccessBadgeLegend />
 
         {/* Lessons Grid */}
         {filteredLessons.length === 0 ? (

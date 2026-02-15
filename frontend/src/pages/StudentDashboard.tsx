@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
-import LessonAccessBadge from "../components/LessonAccessBadge";
+import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 
 const API_BASE = "http://localhost:5000";
 
@@ -1023,6 +1023,7 @@ const StudentDashboard: React.FC = () => {
             {advancedMode && " (Advanced mode active)"}
           </div>
         </div>
+        <LessonAccessBadgeLegend />
 
         {/* Lessons Grid */}
         {filteredLessons.length === 0 ? (

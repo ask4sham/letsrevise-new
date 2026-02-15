@@ -1021,8 +1021,9 @@ router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req,
     ).select("_id title status isFreePreview").lean();
 
     const changed = !!existing.isFreePreview !== !!isFreePreview;
+    const previous = !!existing.isFreePreview;
 
-    const meta = { isFreePreview };
+    const meta = { isFreePreview, changed, previous };
     if (note != null) meta.note = note;
 
     await Event.create({

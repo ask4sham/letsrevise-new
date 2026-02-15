@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 
-const DAYS = 7;
+const DAYS_OPTIONS = [7, 14, 30] as const;
 
 async function setFreePreview(
   lessonId: string,
@@ -63,6 +63,7 @@ const cardStyle: React.CSSProperties = {
 };
 
 const AdminMetricsPage: React.FC = () => {
+  const [days, setDays] = useState<number>(7);
   const [conversion, setConversion] = useState<ConversionResponse | null>(null);
   const [topPaywalled, setTopPaywalled] = useState<TopPaywalledResponse | null>(null);
   const [suggestedPreviews, setSuggestedPreviews] = useState<SuggestedPreviewItem[]>([]);
@@ -73,16 +74,16 @@ const AdminMetricsPage: React.FC = () => {
 
   const loadMetrics = useCallback(async () => {
     const [convRes, topRes, suggestedRes] = await Promise.all([
-      api.get<ConversionResponse>(`/admin/metrics/conversion?days=${DAYS}`),
-      api.get<TopPaywalledResponse>(`/admin/metrics/top-paywalled-lessons?days=${DAYS}&limit=20`),
+      api.get<ConversionResponse>(`/admin/metrics/conversion?days=${days}`),
+      api.get<TopPaywalledResponse>(`/admin/metrics/top-paywalled-lessons?days=${days}&limit=20`),
       api.get<{ ok: boolean; lessons: SuggestedPreviewItem[] }>(
-        `/admin/metrics/top-paywalled-lessons-without-preview?days=${DAYS}&limit=20`
+        `/admin/metrics/top-paywalled-lessons-without-preview?days=${days}&limit=20`
       ),
     ]);
     setConversion(convRes.data);
     setTopPaywalled(topRes.data);
     setSuggestedPreviews(suggestedRes.data?.lessons ?? []);
-  }, [DAYS]);
+  }, [days]);
 
   useEffect(() => {
     let mounted = true;
@@ -139,14 +140,34 @@ const AdminMetricsPage: React.FC = () => {
 
   return (
     <div style={{ padding: "1.5rem", maxWidth: 1000, margin: "0 auto" }}>
-      <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ marginBottom: "1.5rem", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
         <Link to="/admin" style={{ color: "#1976d2", textDecoration: "none" }}>
           ← Admin
         </Link>
         <span style={{ color: "#999" }}>|</span>
         <h1 style={{ fontSize: "1.5rem", margin: 0, fontWeight: 700 }}>
-          Paywall metrics (last {DAYS} days)
+          Paywall metrics (last {days} days)
         </h1>
+        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          {DAYS_OPTIONS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDays(d)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: days === d ? "1px solid #1976d2" : "1px solid #d0d7de",
+                background: days === d ? "#e3f2fd" : "#fff",
+                color: days === d ? "#1565c0" : "#333",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+              }}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Totals */}
