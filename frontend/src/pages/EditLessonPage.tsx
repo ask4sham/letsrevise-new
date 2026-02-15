@@ -2125,21 +2125,41 @@ const EditLessonPage: React.FC = () => {
                     />
                   </label>
 
-                  <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!lesson.isFreePreview}
-                      onChange={(e) =>
-                        updateLessonField("isFreePreview", e.target.checked)
-                      }
-                    />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>Free preview</div>
-                      <div style={{ fontSize: 13, opacity: 0.8 }}>
-                        When enabled, non-subscribed students can view the first page (no answers).
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: 12,
+                      borderRadius: 8,
+                      border: "1px dashed #d0d7de",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <label style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!lesson.isFreePreview}
+                        onChange={(e) =>
+                          setLesson((prev: any) => ({
+                            ...prev,
+                            isFreePreview: e.target.checked,
+                          }))
+                        }
+                        style={{ marginTop: 4 }}
+                      />
+
+                      <div>
+                        <div style={{ fontWeight: 600, display: "flex", gap: 6 }}>
+                          🔓 Free preview
+                        </div>
+
+                        <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
+                          When enabled, non-subscribed students can view the first page
+                          <strong> (no answers)</strong>.{" "}
+                          Useful for increasing conversion from preview → subscription.
+                        </div>
                       </div>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 </div>
 
                 <label style={{ display: "block", marginTop: 10 }}>
