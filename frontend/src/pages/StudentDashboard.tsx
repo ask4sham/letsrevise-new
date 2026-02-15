@@ -244,6 +244,9 @@ const StudentDashboard: React.FC = () => {
   const [lessons, setLessons] = useState<StudentLessonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [purchasedLessonMap, setPurchasedLessonMap] = useState<
+    Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null; shamCoinPrice: number }>
+  >({});
 
   // Filters (match BrowseLessons UX)
   const [filters, setFilters] = useState({
@@ -291,6 +294,34 @@ const StudentDashboard: React.FC = () => {
     loadPublishedLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Batch-fetch lesson metadata for purchased lessons (no N+1)
+  useEffect(() => {
+    const list = user?.purchasedLessons;
+    if (!Array.isArray(list) || list.length === 0) {
+      setPurchasedLessonMap({});
+      return;
+    }
+    const ids = Array.from(new Set(list.map((p: any) => String(p?.lessonId ?? p)).filter(Boolean)));
+    if (ids.length === 0) {
+      setPurchasedLessonMap({});
+      return;
+    }
+    const token = localStorage.getItem("token");
+    axios
+      .post(`${API_BASE}/api/lessons/by-ids`, { ids }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((res) => {
+        if (res.data?.ok && Array.isArray(res.data.lessons)) {
+          const map: Record<string, any> = {};
+          res.data.lessons.forEach((l: any) => {
+            const id = String(l._id ?? l.id ?? "");
+            if (id) map[id] = l;
+          });
+          setPurchasedLessonMap(map);
+        }
+      })
+      .catch(() => setPurchasedLessonMap({}));
+  }, [user?.purchasedLessons]);
 
   const fetchUserData = () => {
     const userData = localStorage.getItem("user");
@@ -1308,7 +1339,10 @@ const StudentDashboard: React.FC = () => {
             >
               <h2 style={{ color: "#333", margin: 0 }}>My Purchased Lessons</h2>
               <div style={{ color: "#666" }}>
-                {user.purchasedLessons.length} lesson{user.purchasedLessons.length !== 1 ? "s" : ""}
+                {(() => {
+                  const uniq = new Set(user.purchasedLessons.map((p: any) => String(p?.lessonId ?? p)).filter(Boolean));
+                  return `${uniq.size} lesson${uniq.size !== 1 ? "s" : ""}`;
+                })()}
               </div>
             </div>
 
@@ -1327,73 +1361,97 @@ const StudentDashboard: React.FC = () => {
                   gap: "20px",
                 }}
               >
-                {user.purchasedLessons.map((purchase: any) => {
-                  const lessonId = String(purchase.lessonId ?? "");
-                  const canOpen = isUuid(lessonId) || isMongoObjectId(lessonId);
+                {(() => {
+                  const seen = new Set<string>();
+                  const rows: { lessonId: string; purchase: any }[] = [];
+                  user.purchasedLessons.forEach((purchase: any) => {
+                    const lessonId = String(purchase.lessonId ?? purchase ?? "");
+                    if (!lessonId || seen.has(lessonId)) return;
+                    seen.add(lessonId);
+                    rows.push({ lessonId, purchase });
+                  });
+                  return rows.map(({ lessonId, purchase }) => {
+                    const canOpen = isUuid(lessonId) || isMongoObjectId(lessonId);
+                    const lesson = purchasedLessonMap[lessonId];
+                    const unavailable = !lesson;
 
-                  return (
-                    <div
-                      key={purchase._id || lessonId}
-                      style={{
-                        background: "#f8fafc",
-                        borderRadius: "8px",
-                        padding: "15px",
-                        border: "2px solid #e2e8f0",
-                        opacity: canOpen ? 1 : 0.75,
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <h4 style={{ margin: "0 0 5px 0", color: "#333" }}>
-                            {purchase.lesson?.title || "Lesson"}
-                          </h4>
-                          <p style={{ margin: 0, fontSize: "0.9rem", color: "#666" }}>
-                            Purchased:{" "}
-                            {purchase.timestamp ? new Date(purchase.timestamp).toLocaleDateString() : "—"}
-                          </p>
-                          <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", color: "#48bb78" }}>
-                            Price: {purchase.price ?? 0} ShamCoins
-                          </p>
-                        </div>
-
-                        {canOpen ? (
-                          <Link to={`/lesson/${lessonId}`}>
+                    return (
+                      <div
+                        key={lessonId}
+                        style={{
+                          background: "#f8fafc",
+                          borderRadius: "8px",
+                          padding: "15px",
+                          border: "2px solid #e2e8f0",
+                          opacity: canOpen && !unavailable ? 1 : 0.85,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h4 style={{ margin: "0 0 5px 0", color: "#333" }}>
+                              {lesson?.title ?? "Lesson unavailable"}
+                            </h4>
+                            {lesson && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                                {lesson.subject && (
+                                  <span style={{ padding: "2px 8px", background: "#e2e8f0", borderRadius: 12, fontSize: "0.8rem", color: "#4a5568" }}>
+                                    {lesson.subject}
+                                  </span>
+                                )}
+                                {lesson.level && (
+                                  <span style={{ padding: "2px 8px", background: "#bee3f8", borderRadius: 12, fontSize: "0.8rem", color: "#2c5282" }}>
+                                    {lesson.level}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <p style={{ margin: 0, fontSize: "0.9rem", color: "#666" }}>
+                              Purchased:{" "}
+                              {purchase.purchasedAt ? new Date(purchase.purchasedAt).toLocaleDateString() : purchase.timestamp ? new Date(purchase.timestamp).toLocaleDateString() : "—"}
+                            </p>
+                            <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", color: "#48bb78" }}>
+                              Price: {purchase.price ?? 0} ShamCoins
+                            </p>
+                          </div>
+                          {canOpen && !unavailable ? (
+                            <Link to={`/lesson/${lessonId}`} style={{ flexShrink: 0 }}>
+                              <button
+                                style={{
+                                  padding: "8px 16px",
+                                  background: "#667eea",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  fontSize: "0.9rem",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                Study Now
+                              </button>
+                            </Link>
+                          ) : (
                             <button
+                              disabled
                               style={{
                                 padding: "8px 16px",
-                                background: "#667eea",
+                                background: "#a0aec0",
                                 color: "white",
                                 border: "none",
                                 borderRadius: "6px",
-                                cursor: "pointer",
+                                cursor: "not-allowed",
                                 fontSize: "0.9rem",
                                 fontWeight: "bold",
                               }}
                             >
-                              Study Now
+                              {unavailable ? "Unavailable" : "Unavailable"}
                             </button>
-                          </Link>
-                        ) : (
-                          <button
-                            disabled
-                            style={{
-                              padding: "8px 16px",
-                              background: "#a0aec0",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "6px",
-                              cursor: "not-allowed",
-                              fontSize: "0.9rem",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            Unavailable
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>

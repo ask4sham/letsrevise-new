@@ -2019,6 +2019,55 @@ router.post("/:id/unlock", auth, async (req, res) => {
 });
 
 /* =========================================
+   POST /api/lessons/by-ids — Batch fetch lesson card metadata (auth required)
+   Body: { ids: string[] }. Used for purchased-lessons join; no pages/content.
+   ========================================= */
+router.post("/by-ids", auth, async (req, res) => {
+  try {
+    const raw = req.body?.ids;
+    if (!Array.isArray(raw)) {
+      return res.status(400).json({ ok: false, error: "ids must be an array" });
+    }
+    const ids = raw
+      .map((id) => (id != null ? String(id).trim() : ""))
+      .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+    const unique = [...new Set(ids)];
+    if (unique.length > 200) {
+      return res.status(400).json({ ok: false, error: "ids array limited to 200" });
+    }
+    if (unique.length === 0) {
+      return res.json({ ok: true, lessons: [] });
+    }
+    const lessons = await Lesson.find({ _id: { $in: unique } })
+      .select("_id title subject level board topic description teacherId isFreePreview shamCoinPrice status isPublished teacherName")
+      .lean();
+    const byId = {};
+    lessons.forEach((l) => {
+      byId[String(l._id)] = {
+        _id: l._id,
+        id: String(l._id),
+        title: l.title ?? null,
+        subject: l.subject ?? null,
+        level: l.level ?? null,
+        board: l.board ?? null,
+        topic: l.topic ?? null,
+        description: l.description ?? null,
+        teacherId: l.teacherId ?? null,
+        teacherName: l.teacherName ?? null,
+        shamCoinPrice: l.shamCoinPrice ?? 0,
+        status: l.status ?? null,
+        isPublished: l.isPublished ?? false,
+      };
+    });
+    const ordered = unique.map((id) => byId[id]).filter(Boolean);
+    return res.json({ ok: true, lessons: ordered });
+  } catch (err) {
+    console.error("POST /api/lessons/by-ids error:", err);
+    return res.status(500).json({ ok: false, error: "Failed to fetch lessons" });
+  }
+});
+
+/* =========================================
    ✅ Option A: Get all published lessons (students)
    - Enforces student's level on the server
    - Supports query filters: subject, topic, board, tier, q
