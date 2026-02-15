@@ -920,6 +920,50 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
 });
 
 /* =========================================
+   POST /api/admin/lessons/:lessonId/set-free-preview
+   Body: { isFreePreview: true | false } (also accepts "true"/"false"). Experiment helper.
+   ========================================= */
+router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.lessonId;
+
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lessonId" });
+    }
+
+    const raw = req.body?.isFreePreview;
+
+    let isFreePreview;
+    if (typeof raw === "boolean") isFreePreview = raw;
+    else if (typeof raw === "string") isFreePreview = raw.toLowerCase() === "true";
+    else return res.status(400).json({ error: "Missing isFreePreview boolean" });
+
+    const updated = await Lesson.findOneAndUpdate(
+      { _id: lessonId },
+      { $set: { isFreePreview } },
+      { new: true }
+    ).select("_id title status isFreePreview").lean();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    return res.json({
+      ok: true,
+      lesson: {
+        id: String(updated._id),
+        title: updated.title || null,
+        status: updated.status || null,
+        isFreePreview: !!updated.isFreePreview,
+      },
+    });
+  } catch (err) {
+    console.error("POST /api/admin/lessons/:lessonId/set-free-preview error:", err);
+    return res.status(500).json({ error: "Failed to update free preview" });
+  }
+});
+
+/* =========================================
    PUT /api/admin/lessons/:lessonId/status
    (keeps isPublished aligned)
    ========================================= */
