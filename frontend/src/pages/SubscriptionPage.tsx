@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchPricing } from '../api/pricing';
+import { formatMoney } from '../utils/money';
 
 interface SubscriptionPlan {
   id: string;
@@ -19,14 +21,25 @@ interface UserSubscription {
   daysUntilExpiry: number | null;
 }
 
+type SubscriptionPricing = {
+  currency: string;
+  monthly: { amount: number };
+  annual?: { amount: number };
+};
+
 const SubscriptionPage: React.FC = () => {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [pricing, setPricing] = useState<SubscriptionPricing | null>(null);
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   // const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const currency = pricing?.currency || 'GBP';
+  const monthlyAmount = pricing?.monthly?.amount ?? 999;
+  const annualAmount = pricing?.annual?.amount ?? 8999;
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -38,8 +51,16 @@ const SubscriptionPage: React.FC = () => {
 
   const fetchSubscriptionData = async () => {
     try {
-      // Fetch plans
-      const plansResponse = await fetch('http://localhost:5000/api/subscriptions/plans');
+      // Pricing (GBP) for display
+      try {
+        const sub = await fetchPricing();
+        setPricing(sub as SubscriptionPricing);
+      } catch {
+        // fallback: pricing state stays null, we use defaults
+      }
+
+      // Fetch plans (for features / plan ids; display uses pricing above)
+      const plansResponse = await fetch('/api/subscriptions/plans');
       const plansData = await plansResponse.json();
       if (plansData.success) {
         setPlans(Object.values(plansData.plans));
@@ -48,7 +69,7 @@ const SubscriptionPage: React.FC = () => {
       // Fetch user subscription
       const token = localStorage.getItem('token');
       if (token) {
-        const subResponse = await fetch('http://localhost:5000/api/subscriptions/my-subscription', {
+        const subResponse = await fetch('/api/subscriptions/my-subscription', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -370,9 +391,19 @@ const SubscriptionPage: React.FC = () => {
             
             <div style={{ marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>
-                ${plan.price}
+                {plan.id === 'free'
+                  ? formatMoney(0, currency)
+                  : plan.id === 'basic'
+                    ? formatMoney(monthlyAmount, currency)
+                    : plan.id === 'premium'
+                      ? formatMoney(annualAmount, currency)
+                      : plan.id === 'enterprise'
+                        ? formatMoney(4999, currency)
+                        : formatMoney(Math.round((plan.price || 0) * 100), currency)}
               </span>
-              <span style={{ color: '#666' }}>/month</span>
+              <span style={{ color: '#666' }}>
+                {plan.id === 'premium' ? '/year' : '/month'}
+              </span>
             </div>
             
             <div style={{ marginBottom: '1.5rem' }}>
