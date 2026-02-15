@@ -5,7 +5,27 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE =
+  process.env.REACT_APP_API_BASE ||
+  process.env.REACT_APP_API_URL ||
+  "";
+
+async function fetchLessonsByIds(ids: string[]) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_BASE}/api/lessons/by-ids`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`by-ids failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
 
 interface Lesson {
   _id: string;
@@ -133,20 +153,20 @@ const BrowseLessons: React.FC = () => {
       setPurchasedLessonMap({});
       return;
     }
-    const token = localStorage.getItem("token");
-    axios
-      .post(`${API_BASE}/api/lessons/by-ids`, { ids }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      .then((res) => {
-        if (res.data?.ok && Array.isArray(res.data.lessons)) {
-          const map: Record<string, any> = {};
-          res.data.lessons.forEach((l: any) => {
+    (async () => {
+      try {
+        const data = await fetchLessonsByIds(ids);
+        setPurchasedLessonMap(
+          (data.lessons || []).reduce((acc: Record<string, any>, l: any) => {
             const id = String(l._id ?? l.id ?? "");
-            if (id) map[id] = l;
-          });
-          setPurchasedLessonMap(map);
-        }
-      })
-      .catch(() => setPurchasedLessonMap({}));
+            if (id) acc[id] = l;
+            return acc;
+          }, {})
+        );
+      } catch {
+        setPurchasedLessonMap({});
+      }
+    })();
   }, [user?.purchasedLessons]);
 
   const fetchUserData = () => {
