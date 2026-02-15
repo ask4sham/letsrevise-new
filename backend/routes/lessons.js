@@ -24,6 +24,7 @@ const { validateAndNormalizeRevision } = require("../services/validateRevision")
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { pickLessonFlags } = require("../utils/lessonValidation");
+const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
 
 console.log("✅ lessons router file loaded");
 
@@ -2135,7 +2136,7 @@ router.get("/", auth, async (req, res) => {
 
     // List-safe shape only: never return pages, content, quiz, flashcards (Phase 9 — non-leaky).
     const LIST_SAFE_KEYS = [
-      "id", "_id", "title", "summary", "subject", "level", "board", "topic", "tier",
+      "id", "_id", "title", "summary", "description", "subject", "level", "board", "topic", "tier",
       "status", "isPublished", "teacherId", "teacherName", "createdAt", "updatedAt", "views",
       "averageRating", "shamCoinPrice", "isFreePreview", "preview",
     ];
@@ -2180,23 +2181,35 @@ router.get("/", auth, async (req, res) => {
           : { allowed: false, reason: "UNAUTHENTICATED" };
 
         if (!decision.allowed) {
-          return toListSafe(l, { locked: true, hasAccess: false, reason: decision.reason });
+          const out = toListSafe(l, { locked: true, hasAccess: false, reason: decision.reason });
+          if (!out.description || !String(out.description).trim()) {
+            out.description = deriveLessonCardDescription(l);
+          }
+          return out;
         }
         if (decision.reason === "FREE_PREVIEW") {
-          return toListSafe(l, {
+          const out = toListSafe(l, {
             hasAccess: false,
             isFreePreview: true,
             locked: false,
             preview: l.preview ?? null,
           });
+          if (!out.description || !String(out.description).trim()) {
+            out.description = deriveLessonCardDescription(l);
+          }
+          return out;
         }
         const pageCount = Array.isArray(l.pages) ? l.pages.length : 0;
-        return toListSafe(l, {
+        const out = toListSafe(l, {
           hasAccess: true,
           isFreePreview,
           locked: false,
           pageCount,
         });
+        if (!out.description || !String(out.description).trim()) {
+          out.description = deriveLessonCardDescription(l);
+        }
+        return out;
       })
     );
 
