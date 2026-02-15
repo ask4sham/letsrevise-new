@@ -938,18 +938,29 @@ router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req,
     else if (typeof raw === "string") isFreePreview = raw.toLowerCase() === "true";
     else return res.status(400).json({ error: "Missing isFreePreview boolean" });
 
+    const existing = await Lesson.findById(lessonId).select("isFreePreview").lean();
+    if (!existing) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
     const updated = await Lesson.findOneAndUpdate(
       { _id: lessonId },
       { $set: { isFreePreview } },
       { new: true }
     ).select("_id title status isFreePreview").lean();
 
-    if (!updated) {
-      return res.status(404).json({ error: "Lesson not found" });
-    }
+    const changed = !!existing.isFreePreview !== !!isFreePreview;
+
+    await Event.create({
+      type: "ADMIN_SET_FREE_PREVIEW",
+      userId: req.user?._id,
+      lessonId: updated._id,
+      meta: { isFreePreview },
+    }).catch((err) => console.error("ADMIN_SET_FREE_PREVIEW event create error:", err));
 
     return res.json({
       ok: true,
+      changed,
       lesson: {
         id: String(updated._id),
         title: updated.title || null,
