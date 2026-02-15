@@ -2039,7 +2039,7 @@ router.post("/by-ids", auth, async (req, res) => {
       return res.json({ ok: true, lessons: [] });
     }
     const lessons = await Lesson.find({ _id: { $in: unique } })
-      .select("_id title subject level board topic description teacherId isFreePreview shamCoinPrice status isPublished teacherName")
+      .select("_id title subject level examBoard topic description teacherId isFreePreview shamCoinPrice status isPublished teacherName")
       .lean();
     const byId = {};
     lessons.forEach((l) => {
