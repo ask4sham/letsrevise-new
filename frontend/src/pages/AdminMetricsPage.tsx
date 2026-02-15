@@ -63,18 +63,24 @@ const AdminMetricsPage: React.FC = () => {
     ]);
     setConversion(convRes.data);
     setTopPaywalled(topRes.data);
-  }, []);
+  }, [DAYS]);
 
   useEffect(() => {
     let mounted = true;
-    loadMetrics()
-      .catch((err: any) => {
+
+    (async () => {
+      try {
+        setError(null);
+        await loadMetrics();
         if (!mounted) return;
-        setError(err?.message || "Failed to load metrics");
-      })
-      .finally(() => {
+      } catch (err: any) {
+        if (!mounted) return;
+        setError(err?.response?.data?.error || err?.message || "Failed to load metrics");
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    })();
+
     return () => {
       mounted = false;
     };
