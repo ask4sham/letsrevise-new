@@ -19,11 +19,12 @@ import axios, {
  * to prevent `/api/api` bugs.
  */
 
-// Raw value from env or fallback
-const RAW_API_BASE =
-  (process.env.REACT_APP_API_URL ||
-    process.env.REACT_APP_API_BASE ||
-    "").trim() || "http://localhost:5000";
+// Raw value from env or fallback (default 3001 to match backend)
+const baseURL =
+  (process.env.REACT_APP_API_BASE ||
+    process.env.REACT_APP_API_URL ||
+    "").trim() || "http://localhost:3001";
+const RAW_API_BASE = baseURL;
 
 // Normalize host (remove trailing slashes AND trailing /api)
 function normalizeApiHost(raw: string) {
