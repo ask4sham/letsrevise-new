@@ -706,6 +706,7 @@ router.get("/lessons", auth, checkAdmin, async (req, res) => {
     const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
     const lessons = await Lesson.find(query)
+      .select("_id title subject level status isPublished teacherId shamCoinPrice views purchases averageRating createdAt isFreePreview")
       .populate("teacherId", "firstName lastName email")
       .sort(sort)
       .skip(skip)
