@@ -310,6 +310,60 @@ router.get("/metrics/top-paywalled-lessons", auth, checkAdmin, async (req, res) 
 });
 
 /* =========================================
+   GET /api/admin/metrics/top-paywalled-lessons-without-preview?days=7&limit=20
+   Top paywalled lessons where isFreePreview !== true (suggest enabling preview)
+   ========================================= */
+router.get("/metrics/top-paywalled-lessons-without-preview", auth, checkAdmin, async (req, res) => {
+  try {
+    const days = parseDays(req.query.days, 7);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const since = startDateFromDays(days);
+
+    const rows = await Event.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: since },
+          type: "PAYWALL_NOT_ENTITLED",
+          lessonId: { $exists: true, $ne: null },
+        },
+      },
+      { $group: { _id: "$lessonId", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: limit * 2 },
+      {
+        $lookup: {
+          from: "lessons",
+          localField: "_id",
+          foreignField: "_id",
+          as: "lessonDoc",
+        },
+      },
+    ]);
+
+    const lessons = rows
+      .filter((r) => r.lessonDoc?.[0] && r.lessonDoc[0].isFreePreview !== true)
+      .slice(0, limit)
+      .map((r) => ({
+        lessonId: r._id,
+        count: r.count,
+        title: r.lessonDoc?.[0]?.title ?? null,
+        isFreePreview: r.lessonDoc?.[0]?.isFreePreview ?? false,
+      }));
+
+    return res.json({
+      ok: true,
+      days,
+      since,
+      limit,
+      lessons,
+    });
+  } catch (err) {
+    console.error("GET /api/admin/metrics/top-paywalled-lessons-without-preview error:", err);
+    return res.status(500).json({ error: "Failed to load suggested previews" });
+  }
+});
+
+/* =========================================
    GET /api/admin/stats
    ========================================= */
 router.get("/stats", auth, checkAdmin, async (req, res) => {
@@ -930,7 +984,7 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
 
 /* =========================================
    POST /api/admin/lessons/:lessonId/set-free-preview
-   Body: { isFreePreview: true | false } (also accepts "true"/"false"). Experiment helper.
+   Body: { isFreePreview: true | false, note?: string }. Experiment helper.
    ========================================= */
 router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req, res) => {
   try {
@@ -947,6 +1001,14 @@ router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req,
     else if (typeof raw === "string") isFreePreview = raw.toLowerCase() === "true";
     else return res.status(400).json({ error: "Missing isFreePreview boolean" });
 
+    let note = req.body?.note;
+    if (typeof note === "string") {
+      note = note.trim().slice(0, 200);
+      if (note === "") note = undefined;
+    } else {
+      note = undefined;
+    }
+
     const existing = await Lesson.findById(lessonId).select("isFreePreview").lean();
     if (!existing) {
       return res.status(404).json({ error: "Lesson not found" });
@@ -960,14 +1022,17 @@ router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req,
 
     const changed = !!existing.isFreePreview !== !!isFreePreview;
 
+    const meta = { isFreePreview };
+    if (note != null) meta.note = note;
+
     await Event.create({
       type: "ADMIN_SET_FREE_PREVIEW",
       userId: req.user?._id,
       lessonId: updated._id,
-      meta: { isFreePreview },
+      meta,
     }).catch((err) => console.error("ADMIN_SET_FREE_PREVIEW event create error:", err));
 
-    return res.json({
+    const response = {
       ok: true,
       changed,
       lesson: {
@@ -976,7 +1041,10 @@ router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req,
         status: updated.status || null,
         isFreePreview: !!updated.isFreePreview,
       },
-    });
+    };
+    if (note != null) response.note = note;
+
+    return res.json(response);
   } catch (err) {
     console.error("POST /api/admin/lessons/:lessonId/set-free-preview error:", err);
     return res.status(500).json({ error: "Failed to update free preview" });

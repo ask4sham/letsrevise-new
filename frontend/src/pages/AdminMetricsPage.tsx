@@ -5,8 +5,14 @@ import api from "../services/api";
 
 const DAYS = 7;
 
-async function setFreePreview(lessonId: string, isFreePreview: boolean) {
-  await api.post(`/admin/lessons/${lessonId}/set-free-preview`, { isFreePreview });
+async function setFreePreview(
+  lessonId: string,
+  isFreePreview: boolean,
+  note?: string
+) {
+  const body: { isFreePreview: boolean; note?: string } = { isFreePreview };
+  if (note != null && String(note).trim()) body.note = String(note).trim().slice(0, 200);
+  await api.post(`/admin/lessons/${lessonId}/set-free-preview`, body);
 }
 
 interface ConversionResponse {
@@ -41,6 +47,13 @@ interface TopPaywalledResponse {
   }>;
 }
 
+type SuggestedPreviewItem = {
+  lessonId: string;
+  count: number;
+  title: string | null;
+  isFreePreview: boolean | null;
+};
+
 const cardStyle: React.CSSProperties = {
   backgroundColor: "white",
   border: "1px solid #ddd",
@@ -52,17 +65,23 @@ const cardStyle: React.CSSProperties = {
 const AdminMetricsPage: React.FC = () => {
   const [conversion, setConversion] = useState<ConversionResponse | null>(null);
   const [topPaywalled, setTopPaywalled] = useState<TopPaywalledResponse | null>(null);
+  const [suggestedPreviews, setSuggestedPreviews] = useState<SuggestedPreviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [suggestedNote, setSuggestedNote] = useState<Record<string, string>>({});
 
   const loadMetrics = useCallback(async () => {
-    const [convRes, topRes] = await Promise.all([
+    const [convRes, topRes, suggestedRes] = await Promise.all([
       api.get<ConversionResponse>(`/admin/metrics/conversion?days=${DAYS}`),
       api.get<TopPaywalledResponse>(`/admin/metrics/top-paywalled-lessons?days=${DAYS}&limit=20`),
+      api.get<{ ok: boolean; lessons: SuggestedPreviewItem[] }>(
+        `/admin/metrics/top-paywalled-lessons-without-preview?days=${DAYS}&limit=20`
+      ),
     ]);
     setConversion(convRes.data);
     setTopPaywalled(topRes.data);
+    setSuggestedPreviews(suggestedRes.data?.lessons ?? []);
   }, [DAYS]);
 
   useEffect(() => {
@@ -251,6 +270,87 @@ const AdminMetricsPage: React.FC = () => {
                       : l.isFreePreview
                         ? "Preview: ON"
                         : "Preview: OFF"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Suggested previews (top paywalled without preview) */}
+      <div style={{ ...cardStyle, marginTop: "1.5rem" }}>
+        <h2 style={{ fontSize: "1.1rem", margin: "0 0 0.75rem 0" }}>
+          Suggested previews (top paywalled without preview)
+        </h2>
+        {suggestedPreviews.length === 0 ? (
+          <p style={{ color: "#666", margin: 0 }}>
+            No paywalled lessons without preview in this period, or all top paywalled already have preview.
+          </p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {suggestedPreviews.map((l, i) => (
+              <li
+                key={l.lessonId}
+                style={{
+                  padding: "0.5rem 0",
+                  borderBottom: i < suggestedPreviews.length - 1 ? "1px solid #eee" : "none",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600 }}>
+                      {l.title ?? "(deleted or unpublished)"}
+                    </div>
+                    <div style={{ fontSize: 13, opacity: 0.8 }}>
+                      {l.count} paywall hits
+                    </div>
+                    <div style={{ marginTop: 6 }}>
+                      <input
+                        type="text"
+                        placeholder="Optional note (e.g. GCSE Week 1 test)"
+                        value={suggestedNote[l.lessonId] ?? ""}
+                        onChange={(e) =>
+                          setSuggestedNote((prev) => ({ ...prev, [l.lessonId]: e.target.value }))
+                        }
+                        style={{
+                          width: "100%",
+                          maxWidth: 280,
+                          padding: "4px 8px",
+                          fontSize: 12,
+                          border: "1px solid #d0d7de",
+                          borderRadius: 6,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    disabled={!l.lessonId || l.title == null || togglingId === l.lessonId}
+                    onClick={async () => {
+                      try {
+                        setTogglingId(l.lessonId);
+                        const note = suggestedNote[l.lessonId]?.trim();
+                        await setFreePreview(l.lessonId, true, note);
+                        setSuggestedNote((prev) => {
+                          const next = { ...prev };
+                          delete next[l.lessonId];
+                          return next;
+                        });
+                        await loadMetrics();
+                      } finally {
+                        setTogglingId(null);
+                      }
+                    }}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid #d0d7de",
+                      background: "#fff",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {togglingId === l.lessonId ? "Saving…" : "Preview: OFF → ON"}
                   </button>
                 </div>
               </li>

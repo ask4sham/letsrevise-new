@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
+import LessonAccessBadge from "../components/LessonAccessBadge";
 
 const API_BASE = "http://localhost:5000";
 
@@ -95,6 +96,8 @@ type StudentLessonCard = {
   // Phase C4: backend-provided entitlement (no client entitlement logic)
   isFreePreview?: boolean;
   hasAccess?: boolean;
+  locked?: boolean;
+  reason?: string;
 };
 
 function safeStr(v: any, fallback = "") {
@@ -1050,13 +1053,9 @@ const StudentDashboard: React.FC = () => {
             }}
           >
             {filteredLessons.map((lesson) => {
-              // Phase C4: one state per card from backend only (isFreePreview, optional hasAccess)
               const isFreePreview = Boolean(lesson.isFreePreview);
               const isUnlocked = Boolean(lesson.hasAccess) && !isFreePreview;
               const isLocked = !isFreePreview && !isUnlocked;
-
-              const badgeLabel = isUnlocked ? "Unlocked" : isFreePreview ? "Free preview" : "Locked";
-              const badgeEmoji = isUnlocked ? "🔓" : isFreePreview ? "🆓" : "🔒";
 
               return (
                 <div
@@ -1086,25 +1085,13 @@ const StudentDashboard: React.FC = () => {
                   </div>
 
                   <div style={{ padding: "20px", flexGrow: 1 }}>
-                    {/* Phase C4: single state badge */}
                     <div style={{ marginBottom: "12px" }}>
-                      <span
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: "20px",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          background: isUnlocked ? "#dcfce7" : isFreePreview ? "#e0f2fe" : "#e5e7eb",
-                          color: isUnlocked ? "#166534" : isFreePreview ? "#0369a1" : "#4b5563",
-                          border: isUnlocked
-                            ? "1px solid rgba(22,101,52,0.35)"
-                            : isFreePreview
-                            ? "1px solid rgba(3,105,161,0.35)"
-                            : "1px solid rgba(75,85,99,0.25)",
-                        }}
-                      >
-                        {badgeEmoji} {badgeLabel}
-                      </span>
+                      <LessonAccessBadge
+                        hasAccess={lesson.hasAccess}
+                        locked={lesson.locked}
+                        reason={lesson.reason}
+                        isFreePreview={lesson.isFreePreview}
+                      />
                     </div>
 
                     <p
