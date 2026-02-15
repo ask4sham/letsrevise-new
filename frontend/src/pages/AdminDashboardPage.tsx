@@ -1095,7 +1095,7 @@ const AdminDashboardPage: React.FC = () => {
                       key={lessonId}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr",
+                        gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 0.8fr 1fr",
                         padding: "1rem",
                         borderBottom: "1px solid #ddd",
                         alignItems: "center",
