@@ -31,5 +31,8 @@ app.use("/api/lessons", require("./routes/lessons"));
 // Phase 9D: reviews (lesson workflow approve/reject)
 app.use("/api/reviews", require("./routes/reviews"));
 
+// PR3: AQA GCSE Biology lesson factory
+app.use("/api/ai", require("./routes/ai"));
+
 // ✅ Export for testing
 module.exports = app;

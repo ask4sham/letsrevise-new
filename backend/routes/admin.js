@@ -905,7 +905,7 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
-    // Allow same core fields teacher editor uses
+    // Allow same core fields teacher editor uses (PR0: accept examBoard or board, store as board)
     const allowed = [
       "title",
       "description",
@@ -919,6 +919,7 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
       "isFreePreview",
       "resources",
       "board",
+      "examBoard",
       "tier",
       "uploadedImages",
       "pages",
@@ -932,6 +933,12 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
     ];
 
     const updates = pick(req.body || {}, allowed);
+
+    // PR0: store examBoard as board
+    if (updates.examBoard !== undefined) {
+      updates.board = updates.examBoard;
+      delete updates.examBoard;
+    }
 
     // Coerce isFreePreview so string "true"/"false" from JSON is safe
     if (Object.prototype.hasOwnProperty.call(updates, "isFreePreview")) {

@@ -139,7 +139,7 @@ const LessonSchema = new mongoose.Schema(
 
     resources: { type: [String], default: [] },
 
-    // exam board / tier
+    // exam board / tier (PR0: store as board; API responds with examBoard for compatibility)
     board: { type: String, default: "" },
     tier: { type: String, default: undefined },
 
@@ -275,6 +275,15 @@ LessonSchema.pre("save", function () {
   // 3/4) Final alignment (single source of truth = status)
   this.isPublished = this.status === "published";
 });
+
+// PR0: Canonical exam board field — API always returns examBoard; we store board.
+LessonSchema.virtual("examBoard").get(function () {
+  return this.board != null && this.board !== "" ? this.board : "";
+});
+
+// Include virtuals in JSON so responses get examBoard when not using lean()
+LessonSchema.set("toJSON", { virtuals: true });
+LessonSchema.set("toObject", { virtuals: true });
 
 const Lesson = mongoose.model("Lesson", LessonSchema);
 Lesson.LESSON_STATUSES = LESSON_STATUSES;

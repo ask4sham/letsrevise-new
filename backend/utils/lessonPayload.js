@@ -21,7 +21,7 @@ function getLessonOwnerId(lesson) {
 
 /** Allowed top-level keys for free-preview response (no quiz, no full pages/flashcards). */
 const PREVIEW_SAFE_KEYS = [
-  "_id", "id", "title", "summary", "subject", "level", "board", "topic", "tier",
+  "_id", "id", "title", "summary", "subject", "level", "board", "examBoard", "topic", "tier",
   "teacherId", "teacher", "teacherName", "createdAt", "updatedAt", "views",
   "averageRating", "shamCoinPrice", "preview", "status", "isPublished", "isFreePreview",
   "pages", "content", "flashcards",
@@ -59,6 +59,8 @@ function toLessonPreviewPayload(lesson) {
   for (const k of PREVIEW_SAFE_KEYS) {
     if (lesson[k] !== undefined) payload[k] = lesson[k];
   }
+  // PR0: canonical examBoard (stored as board; lean() has no virtuals)
+  payload.examBoard = lesson?.examBoard ?? lesson?.board ?? "";
   payload.status = lesson?.status ?? (lesson?.isPublished ? "published" : "draft");
   payload.isPublished = String(payload.status).toLowerCase() === "published";
   payload.isFreePreview = !!lesson.isFreePreview;
@@ -79,13 +81,16 @@ function toLessonFullPayload(lesson) {
   const fullPages = Array.isArray(lesson?.pages) ? lesson.pages : [];
   const status = lesson?.status ?? (lesson?.isPublished ? "published" : "draft");
   const isPublished = String(status).toLowerCase() === "published";
-  return {
+  const out = {
     ...lesson,
     status,
     isPublished,
     pages: fullPages,
     content: typeof lesson?.content === "string" ? lesson.content : "",
   };
+  // PR0: canonical examBoard (stored as board; lean() has no virtuals)
+  out.examBoard = lesson?.examBoard ?? lesson?.board ?? "";
+  return out;
 }
 
 module.exports = {

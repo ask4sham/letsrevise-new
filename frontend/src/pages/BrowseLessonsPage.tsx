@@ -277,7 +277,7 @@ const BrowseLessons: React.FC = () => {
 
   const boardOptions = useMemo(() => {
     const boards = new Set<string>(["AQA", "OCR", "Edexcel", "WJEC", "Not set"]);
-    gatedLessons.forEach((lesson) => boards.add(lesson.board || "Not set"));
+    gatedLessons.forEach((lesson) => boards.add((lesson as any).examBoard ?? lesson.board ?? "Not set"));
     return Array.from(boards).sort((a, b) => {
       if (a === "Not set") return 1;
       if (b === "Not set") return -1;
@@ -309,7 +309,7 @@ const BrowseLessons: React.FC = () => {
       if (filters.level && normalizeLevelLabel(lesson.level) !== filters.level) return false;
 
       // Board filter
-      if (filters.board && lesson.board !== filters.board) return false;
+      if (filters.board && ((lesson as any).examBoard ?? lesson.board) !== filters.board) return false;
 
       // Tier filter
       if (filters.tier) {
@@ -940,7 +940,7 @@ const BrowseLessons: React.FC = () => {
                         {lesson.topic}
                       </span>
 
-                      {lesson.board && (
+                      {((lesson as any).examBoard ?? lesson.board) && (
                         <span
                           style={{
                             padding: "4px 10px",
@@ -950,7 +950,7 @@ const BrowseLessons: React.FC = () => {
                             color: "#92400e",
                           }}
                         >
-                          {lesson.board}
+                          {(lesson as any).examBoard ?? lesson.board}
                         </span>
                       )}
 

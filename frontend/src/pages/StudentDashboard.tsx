@@ -381,8 +381,8 @@ const StudentDashboard: React.FC = () => {
           const level = normalizeLevelLabel(safeStr(l.level, "Not set"));
           const tier = normalizeTier(safeStr((l as any).tier, ""));
 
-          // Board comes from Mongo "board"
-          const examBoardName = normalizeBoardName(safeStr((l as any).board, ""));
+          // PR0: API returns examBoard (canonical); fallback to board
+          const examBoardName = normalizeBoardName(safeStr((l as any).examBoard ?? (l as any).board, ""));
 
           const preview = buildPreview(safeStr(l.description, ""), safeStr(l.content, ""), 160);
 

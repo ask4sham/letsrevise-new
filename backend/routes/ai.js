@@ -775,6 +775,149 @@ router.post("/generate-and-save", auth, async (req, res) => {
   }
 });
 
+/* =========================================================
+   PR3: GCSE Biology AQA Lesson Factory v1
+   POST /api/ai/lesson-factory/aqa-gcse-biology
+   Minimal input (topic + tier) → generated pages → saved draft lesson
+   ========================================================= */
+router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    if (!requireTeacherOrAdmin(req, res)) return;
+
+    const topic = safeStr(req.body?.topic, "").trim();
+    const tierRaw = safeStr(req.body?.tier, "").toLowerCase();
+    const specPoint = safeStr(req.body?.specPoint, "").trim();
+    const lengthPreset = (req.body?.length && safeStr(req.body.length).toLowerCase()) || "standard";
+
+    // Validation
+    if (topic.length < 3 || topic.length > 120) {
+      return res.status(400).json({
+        error: "Invalid topic",
+        details: "topic must be 3–120 characters",
+      });
+    }
+    if (tierRaw !== "foundation" && tierRaw !== "higher") {
+      return res.status(400).json({
+        error: "Invalid tier",
+        details: "tier must be 'foundation' or 'higher'",
+      });
+    }
+    if (specPoint.length > 200) {
+      return res.status(400).json({
+        error: "Invalid specPoint",
+        details: "specPoint must be at most 200 characters",
+      });
+    }
+    const lengthMap = { short: 4, standard: 5, long: 6 };
+    const pageCount = lengthMap[lengthPreset] ?? 5;
+
+    const tier = tierRaw === "foundation" ? "foundation" : "higher";
+
+    console.log(
+      `🤖 AI lesson-factory AQA GCSE Biology: user=${getAuthUserId(req)} | topic=${topic} | tier=${tier} | length=${lengthPreset}`
+    );
+
+    // Reuse existing generator with fixed subject/level/board
+    const { sanitized } = await generateSanitizedDraft({
+      topic,
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+      tier,
+    });
+
+    let pages = Array.isArray(sanitized.pages) ? sanitized.pages : [];
+    pages = pages.slice(0, pageCount);
+    if (pages.length < pageCount) {
+      // Pad with placeholder pages so we always have exactly pageCount
+      for (let i = pages.length; i < pageCount; i++) {
+        pages.push({
+          title: `Page ${i + 1}`,
+          order: i + 1,
+          pageType: "",
+          blocks: [{ type: "text", content: `## ${topic}\n\nAdd content here.` }],
+          checkpoint: {
+            question: "Which statement is correct?",
+            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+            answer: "Option 1",
+          },
+        });
+      }
+    }
+    pages = ensurePageIds(pages);
+
+    // Attach curated hero visual for AQA GCSE Biology
+    try {
+      const { hero } = findCuratedVisual({
+        subject: "Biology",
+        examBoard: "AQA",
+        level: "GCSE",
+        topic,
+      });
+      if (hero && pages[0]) {
+        pages[0] = { ...pages[0], hero };
+      }
+    } catch (e) {
+      console.warn("⚠️ [Factory] Curated visual attach skipped:", e?.message || e);
+    }
+
+    const first = safeStr(req.user?.firstName, "");
+    const last = safeStr(req.user?.lastName, "");
+    const teacherName =
+      first || last ? `${first} ${last}`.trim() : safeStr(req.user?.email, "Teacher");
+
+    const lessonDoc = new Lesson({
+      title: sanitized.title,
+      description: sanitized.description,
+      content: "Structured lesson (see pages)",
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+      tier,
+      topic,
+      estimatedDuration: sanitized.estimatedDuration || 40,
+      tags: Array.isArray(sanitized.tags) ? sanitized.tags : [],
+      pages,
+      teacherId: req.user?._id || req.user?.userId || req.user?.id,
+      teacherName,
+      status: "draft",
+      isPublished: false,
+    });
+
+    await lessonDoc.save();
+
+    const out = lessonDoc.toObject();
+    out.examBoard = lessonDoc.board || "AQA";
+
+    return res.status(200).json({
+      ok: true,
+      lessonId: String(lessonDoc._id),
+      lesson: out,
+    });
+  } catch (error) {
+    console.error("❌ AI lesson-factory error:", error?.message || error);
+    if (error?.response?.status) {
+      const status = error.response.status;
+      const msg =
+        error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        "OpenAI API error";
+      return res.status(status === 429 ? 429 : 500).json({
+        error: status === 429 ? "OpenAI rate limit exceeded" : "AI request failed",
+        details: msg,
+      });
+    }
+    return res.status(500).json({
+      error: "Failed to generate AQA GCSE Biology lesson.",
+      details:
+        process.env.NODE_ENV === "development"
+          ? String(error?.message || error)
+          : undefined,
+    });
+  }
+});
+
 // @route   GET /api/ai/health
 router.get("/health", (req, res) => {
   const hasKey = !!process.env.OPENAI_API_KEY;

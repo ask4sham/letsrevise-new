@@ -399,6 +399,7 @@ async function createLessonHandler(req, res) {
       shamCoinPrice,
       resources,
       board,
+      examBoard,
       tier,
       externalResources,
       uploadedImages,
@@ -467,7 +468,9 @@ async function createLessonHandler(req, res) {
       ...flags,
     };
 
-    if (board) lessonData.board = board;
+    // PR0: accept examBoard or board, store as board
+    const boardValue = examBoard !== undefined && examBoard !== null ? String(examBoard).trim() : (board !== undefined && board !== null ? String(board).trim() : "");
+    if (boardValue) lessonData.board = boardValue;
 
     const normalisedTier = sanitizeTierByLevel(level, tier);
     if (normalisedTier) {
@@ -1618,6 +1621,13 @@ router.put("/:id", auth, async (req, res) => {
       delete updates.flashcards;
     }
 
+    // PR0: accept examBoard or board on update, store as board
+    if (updates.examBoard !== undefined || updates.board !== undefined) {
+      lesson.board = (updates.examBoard ?? updates.board ?? "").toString().trim();
+      delete updates.examBoard;
+      delete updates.board;
+    }
+
     // Authorable free preview (whitelisted + coerced)
     const flags = pickLessonFlags(req.body);
     if (typeof flags.isFreePreview === "boolean") lesson.isFreePreview = flags.isFreePreview;
@@ -2039,17 +2049,19 @@ router.post("/by-ids", auth, async (req, res) => {
       return res.json({ ok: true, lessons: [] });
     }
     const lessons = await Lesson.find({ _id: { $in: unique } })
-      .select("_id title subject level examBoard topic description teacherId isFreePreview shamCoinPrice status isPublished teacherName")
+      .select("_id title subject level board topic description teacherId isFreePreview shamCoinPrice status isPublished teacherName")
       .lean();
     const byId = {};
     lessons.forEach((l) => {
+      const boardVal = l.board ?? "";
       byId[String(l._id)] = {
         _id: l._id,
         id: String(l._id),
         title: l.title ?? null,
         subject: l.subject ?? null,
         level: l.level ?? null,
-        board: l.board ?? null,
+        board: boardVal || null,
+        examBoard: boardVal || "",
         topic: l.topic ?? null,
         description: l.description ?? null,
         teacherId: l.teacherId ?? null,
@@ -2185,7 +2197,7 @@ router.get("/", auth, async (req, res) => {
 
     // List-safe shape only: never return pages, content, quiz, flashcards (Phase 9 — non-leaky).
     const LIST_SAFE_KEYS = [
-      "id", "_id", "title", "summary", "description", "subject", "level", "board", "topic", "tier",
+      "id", "_id", "title", "summary", "description", "subject", "level", "board", "examBoard", "topic", "tier",
       "status", "isPublished", "teacherId", "teacherName", "createdAt", "updatedAt", "views",
       "averageRating", "shamCoinPrice", "isFreePreview", "preview",
     ];
@@ -2194,6 +2206,8 @@ router.get("/", auth, async (req, res) => {
       for (const k of LIST_SAFE_KEYS) {
         if (lesson[k] !== undefined) safe[k] = lesson[k];
       }
+      // PR0: canonical examBoard (stored as board; lean() has no virtuals)
+      safe.examBoard = lesson?.examBoard ?? lesson?.board ?? "";
       if (lesson._id !== undefined) safe._id = lesson._id;
       if (safe.id === undefined && lesson._id !== undefined) safe.id = lesson._id;
       return { ...safe, ...extra };

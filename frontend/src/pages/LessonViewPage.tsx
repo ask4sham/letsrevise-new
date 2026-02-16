@@ -611,7 +611,7 @@ const LessonViewPage: React.FC = () => {
         subject: safeStr(data.subject, "Not set"),
         level: safeStr(data.level, "Not set"),
         topic: safeStr(data.topic, "Not set"),
-        examBoardName: data.board ? safeStr(data.board, "") : null,
+        examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
         teacherName: safeStr(data.teacherName, "Teacher"),
         teacherId: safeStr(data.teacherId, ""),
         estimatedDuration: Number.isFinite(Number(data.estimatedDuration))
