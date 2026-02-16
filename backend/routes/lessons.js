@@ -11,6 +11,7 @@ const User = require("../models/User");
 const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
+const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -1680,6 +1681,105 @@ router.put("/:id", auth, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     return res.status(500).send("Server error");
+  }
+});
+
+/* =========================================
+   USP 3a: Past paper questions attached to lesson
+   GET /:id/exam-questions — list attached (populated)
+   POST /:id/exam-questions — add questionIds (max 20, dedupe)
+   DELETE /:id/exam-questions/:questionId — remove one
+   ========================================= */
+
+async function requireLessonOwnerOrAdmin(req, res, next) {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId").lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    const isAdminUser = isAdmin(req.user);
+    if (!isOwner && !isAdminUser) {
+      return res.status(403).json({ msg: "Not authorised to edit this lesson" });
+    }
+    req._lesson = lesson;
+    next();
+  } catch (err) {
+    return res.status(500).json({ msg: "Server error" });
+  }
+}
+
+router.get("/:id/exam-questions", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lesson = await Lesson.findById(req.params.id).lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+    if (refs.length === 0) {
+      return res.json({ questions: [] });
+    }
+    const ids = refs.map((r) => r.questionId).filter(Boolean);
+    const questions = await ExamQuestion.find({ _id: { $in: ids } })
+      .select("_id question type marks topicKey topic")
+      .lean();
+    const byId = new Map(questions.map((q) => [String(q._id), q]));
+    const ordered = ids.map((id) => byId.get(String(id))).filter(Boolean);
+    return res.json({ questions: ordered });
+  } catch (err) {
+    console.error("GET exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+router.post("/:id/exam-questions", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const questionIds = Array.isArray(req.body.questionIds) ? req.body.questionIds : [];
+    const max = 20;
+    const raw = questionIds.slice(0, max).map((id) => String(id).trim()).filter((id) => mongoose.Types.ObjectId.isValid(id));
+    const unique = [...new Set(raw)];
+    if (unique.length === 0) {
+      return res.json({ ok: true, added: 0 });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const existing = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+    const existingIds = new Set(existing.map((r) => String(r.questionId)));
+    let added = 0;
+    for (const qid of unique) {
+      if (!existingIds.has(qid)) {
+        lesson.examQuestions.push({ questionId: new mongoose.Types.ObjectId(qid), addedAt: new Date() });
+        existingIds.add(qid);
+        added++;
+      }
+    }
+    await lesson.save();
+    return res.json({ ok: true, added });
+  } catch (err) {
+    console.error("POST exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const questionId = req.params.questionId;
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+      return res.status(400).json({ msg: "Invalid question id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+    const before = refs.length;
+    lesson.examQuestions = refs.filter((r) => String(r.questionId) !== String(questionId));
+    const removed = before !== lesson.examQuestions.length;
+    await lesson.save();
+    return res.json({ ok: true, removed });
+  } catch (err) {
+    console.error("DELETE exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
   }
 });
 

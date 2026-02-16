@@ -13,6 +13,8 @@ type ExamQuestion = {
   examBoard?: string;
   level?: string;
   topic?: string;
+  topicKey?: string | null;
+  unitKey?: string | null;
   type: string;
   marks: number;
   question: string;
@@ -25,6 +27,8 @@ type ExamQuestion = {
   updatedAt?: string;
 };
 
+type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
+
 const TeacherExamQuestionBankPage: React.FC = () => {
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,11 +37,14 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [filterTopicKey, setFilterTopicKey] = useState<string>("");
+  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
   const [form, setForm] = useState({
     subject: "Biology",
     examBoard: "AQA",
     level: "GCSE",
     topic: "",
+    topicKey: "",
     questionType: "mcq" as (typeof QUESTION_TYPES)[number],
     marks: 1,
     questionText: "",
@@ -46,10 +53,24 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     correctIndex: 0,
   });
 
+  const keyToTopic = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    if (taxonomy?.units) {
+      for (const u of taxonomy.units) {
+        for (const t of u.topics || []) {
+          map[t.key] = t.topic;
+        }
+      }
+    }
+    return map;
+  }, [taxonomy]);
+
   const fetchQuestions = async () => {
     try {
       setError(null);
-      const res = await api.get("/exam-questions");
+      const params: Record<string, string> = {};
+      if (filterTopicKey) params.topicKey = filterTopicKey;
+      const res = await api.get("/exam-questions", { params });
       const data = res?.data;
       setQuestions(Array.isArray(data?.questions) ? data.questions : []);
     } catch (err: any) {
@@ -61,8 +82,15 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchQuestions();
+    api.get("/taxonomy/aqa-gcse-biology").then((res) => {
+      setTaxonomy(res?.data ?? null);
+    }).catch(() => setTaxonomy(null));
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchQuestions();
+  }, [filterTopicKey]);
 
   function validateForm(): string | null {
     const q = form.questionText.trim();
@@ -85,6 +113,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     examBoard: "AQA",
     level: "GCSE",
     topic: "",
+    topicKey: "",
     questionType: "mcq" as (typeof QUESTION_TYPES)[number],
     marks: 1,
     questionText: "",
@@ -108,6 +137,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       examBoard: q.examBoard || "AQA",
       level: q.level || "GCSE",
       topic: q.topic || "",
+      topicKey: q.topicKey || "",
       questionType: (q.type || "mcq") as (typeof QUESTION_TYPES)[number],
       marks: q.marks ?? 1,
       questionText: q.question || "",
@@ -145,6 +175,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         examBoard: form.examBoard || undefined,
         level: form.level || undefined,
         topic: form.topic || undefined,
+        topicKey: form.topicKey?.trim() || undefined,
         type: form.questionType,
         marks: form.marks,
         question: form.questionText.trim(),
@@ -219,6 +250,24 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         </button>
       </div>
 
+      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Filter by topic:</label>
+        <select
+          value={filterTopicKey}
+          onChange={(e) => setFilterTopicKey(e.target.value)}
+          style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d1d5db", minWidth: "220px" }}
+        >
+          <option value="">All topics</option>
+          {taxonomy?.units?.map((u) => (
+            <optgroup key={u.unit} label={u.unit}>
+              {(u.topics || []).map((t) => (
+                <option key={t.key} value={t.key}>{t.topic}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
       {loading && (
         <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading questions...</div>
       )}
@@ -241,6 +290,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             <thead>
               <tr style={{ borderBottom: "2px solid #e5e7eb", background: "#f9fafb" }}>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Subject</th>
+                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Topic</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Type</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Marks</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Question</th>
@@ -253,6 +303,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
               {questions.map((q) => (
                 <tr key={q._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
                   <td style={{ padding: "12px", color: "#374151" }}>{q.subject}</td>
+                  <td style={{ padding: "12px", color: "#374151", fontSize: "0.875rem" }}>
+                    {q.topicKey ? (keyToTopic[q.topicKey] ?? q.topicKey) : (q.topic || "—")}
+                  </td>
                   <td style={{ padding: "12px", color: "#374151" }}>{q.type}</td>
                   <td style={{ padding: "12px", color: "#374151" }}>{q.marks}</td>
                   <td style={{ padding: "12px", color: "#374151", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={q.question}>{q.question || "—"}</td>
@@ -380,7 +433,24 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Topic</label>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Topic (AQA Biology)</label>
+                <select
+                  value={form.topicKey}
+                  onChange={(e) => setForm((f) => ({ ...f, topicKey: e.target.value, topic: e.target.value ? (keyToTopic[e.target.value] ?? "") : "" }))}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                >
+                  <option value="">— Select topic —</option>
+                  {taxonomy?.units?.map((u) => (
+                    <optgroup key={u.unit} label={u.unit}>
+                      {(u.topics || []).map((t) => (
+                        <option key={t.key} value={t.key}>{t.topic}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Topic (free text, optional)</label>
                 <input
                   type="text"
                   value={form.topic}

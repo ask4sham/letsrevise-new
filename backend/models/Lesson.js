@@ -247,6 +247,14 @@ const LessonSchema = new mongoose.Schema(
       ref: "Lesson", 
       default: null 
     },
+
+    /** USP 3a: Past paper questions attached to this lesson (teacher-only link; no PDF ingestion yet). */
+    examQuestions: [
+      {
+        questionId: { type: mongoose.Schema.Types.ObjectId, ref: "ExamQuestion", required: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

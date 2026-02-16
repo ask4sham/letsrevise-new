@@ -328,6 +328,13 @@ const EditLessonPage: React.FC = () => {
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
   const [visualsList, setVisualsList] = useState<Array<{ _id: string; conceptKey: string; topic?: string }>>([]);
+
+  const [attachedExamQuestions, setAttachedExamQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string; topic?: string }>>([]);
+  const [addFromBankModalOpen, setAddFromBankModalOpen] = useState(false);
+  const [taxonomyUnits, setTaxonomyUnits] = useState<Array<{ unit: string; topics: { topic: string; key: string }[] }>>([]);
+  const [bankTopicKey, setBankTopicKey] = useState("");
+  const [bankQuestions, setBankQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string }>>([]);
+  const [selectedBankQuestionIds, setSelectedBankQuestionIds] = useState<Set<string>>(new Set());
   
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
@@ -425,6 +432,32 @@ const EditLessonPage: React.FC = () => {
       })
       .catch(() => setVisualsList([]));
   }, [diagramPickerTarget]);
+
+  useEffect(() => {
+    if (!id || !lesson) return;
+    api.get(`/lessons/${id}/exam-questions`).then((res: any) => {
+      setAttachedExamQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
+    }).catch(() => setAttachedExamQuestions([]));
+  }, [id, lesson?.id]);
+
+  useEffect(() => {
+    if (!addFromBankModalOpen) return;
+    api.get("/taxonomy/aqa-gcse-biology").then((res: any) => {
+      setTaxonomyUnits(Array.isArray(res?.data?.units) ? res.data.units : []);
+    }).catch(() => setTaxonomyUnits([]));
+  }, [addFromBankModalOpen]);
+
+  useEffect(() => {
+    if (!addFromBankModalOpen) return;
+    if (!bankTopicKey) {
+      setBankQuestions([]);
+      return;
+    }
+    api.get("/exam-questions", { params: { topicKey: bankTopicKey } }).then((res: any) => {
+      setBankQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
+      setSelectedBankQuestionIds(new Set());
+    }).catch(() => setBankQuestions([]));
+  }, [addFromBankModalOpen, bankTopicKey]);
 
   const fetchLessonSmart = async () => {
     try {
@@ -2259,6 +2292,58 @@ const EditLessonPage: React.FC = () => {
                       </div>
                     </label>
                   </div>
+
+                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
+                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Past paper questions</div>
+                    <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>
+                      Attach questions from your Question Bank to this lesson. Students can use them for practice.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 8,
+                        border: "2px solid rgba(59,130,246,0.4)",
+                        background: "rgba(59,130,246,0.08)",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Add from Question Bank
+                    </button>
+                    {attachedExamQuestions.length > 0 && (
+                      <ul style={{ marginTop: 12, paddingLeft: 20, listStyle: "disc" }}>
+                        {attachedExamQuestions.map((q) => (
+                          <li key={q._id} style={{ marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                            <span style={{ fontSize: 13, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis" }} title={q.question}>
+                              {q.question?.slice(0, 60)}{(q.question?.length ?? 0) > 60 ? "…" : ""} {q.marks != null ? `(${q.marks} marks)` : ""}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                api.delete(`/lessons/${id}/exam-questions/${q._id}`).then(() => {
+                                  setAttachedExamQuestions((prev) => prev.filter((x) => x._id !== q._id));
+                                }).catch(() => {});
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                fontSize: 12,
+                                border: "1px solid #fecaca",
+                                background: "#fef2f2",
+                                color: "#b91c1c",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                flexShrink: 0,
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
 
                 <label style={{ display: "block", marginTop: 10 }}>
@@ -3733,6 +3818,135 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
           </div>
         </div>
       </div>
+
+      {addFromBankModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10001,
+            padding: 20,
+          }}
+          onClick={() => setAddFromBankModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 20,
+              maxWidth: 520,
+              maxHeight: "85vh",
+              overflow: "auto",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 12 }}>Add from Question Bank</div>
+            <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Topic</label>
+            <select
+              value={bankTopicKey}
+              onChange={(e) => setBankTopicKey(e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "2px solid #e2e8f0", marginBottom: 14 }}
+            >
+              <option value="">— Select topic —</option>
+              {taxonomyUnits.map((u) => (
+                <optgroup key={u.unit} label={u.unit}>
+                  {(u.topics || []).map((t) => (
+                    <option key={t.key} value={t.key}>{t.topic}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            {bankTopicKey && (
+              <>
+                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Questions</div>
+                <div style={{ maxHeight: 280, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8 }}>
+                  {bankQuestions.length === 0 ? (
+                    <div style={{ color: "#64748b", fontSize: 13 }}>No questions with this topic.</div>
+                  ) : (
+                    bankQuestions.map((q) => (
+                      <label
+                        key={q._id}
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "flex-start",
+                          padding: "8px 0",
+                          borderBottom: "1px solid #f1f5f9",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedBankQuestionIds.has(q._id)}
+                          onChange={(e) => {
+                            setSelectedBankQuestionIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(q._id);
+                              else next.delete(q._id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span style={{ fontSize: 13, color: "#374151" }}>
+                          {q.question?.slice(0, 80)}{(q.question?.length ?? 0) > 80 ? "…" : ""} {q.marks != null ? `(${q.marks})` : ""}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!id || selectedBankQuestionIds.size === 0) return;
+                      api.post(`/lessons/${id}/exam-questions`, { questionIds: Array.from(selectedBankQuestionIds) }).then((res: any) => {
+                        const added = res?.data?.added ?? 0;
+                        if (added > 0) {
+                          api.get(`/lessons/${id}/exam-questions`).then((r: any) => {
+                            setAttachedExamQuestions(Array.isArray(r?.data?.questions) ? r.data.questions : []);
+                          });
+                        }
+                        setAddFromBankModalOpen(false);
+                      }).catch(() => {});
+                    }}
+                    disabled={selectedBankQuestionIds.size === 0}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: selectedBankQuestionIds.size > 0 ? "#4f46e5" : "#e5e7eb",
+                      color: selectedBankQuestionIds.size > 0 ? "white" : "#9ca3af",
+                      fontWeight: 700,
+                      cursor: selectedBankQuestionIds.size > 0 ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    Attach to lesson
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddFromBankModalOpen(false)}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      border: "2px solid #e2e8f0",
+                      background: "white",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {diagramPickerTarget && (
         <div

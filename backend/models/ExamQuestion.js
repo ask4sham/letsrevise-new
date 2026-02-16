@@ -30,6 +30,20 @@ const ExamQuestionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    /** Canonical topic key from taxonomy (e.g. aqa_gcse_biology_topics) for filtering and lesson attachment. */
+    topicKey: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
+    /** Optional unit key from taxonomy (e.g. "cell-biology"). */
+    unitKey: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
     type: {
       type: String,
       required: true,

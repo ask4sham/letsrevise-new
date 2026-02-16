@@ -4,9 +4,18 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
+const { findTopicByKey } = require("../utils/topicTaxonomy");
 
 function isTeacher(req) {
   return req.user && req.user.userType === "teacher";
+}
+
+function validateTopicKey(topicKey) {
+  if (!topicKey || typeof topicKey !== "string") return null;
+  const k = topicKey.trim().toLowerCase();
+  if (!k) return null;
+  const found = findTopicByKey(k);
+  return found ? k : null;
 }
 
 // POST /api/exam-questions — create draft (teacher only)
@@ -15,6 +24,14 @@ router.post("/", auth, async (req, res) => {
     return res.status(403).json({ success: false, msg: "Teachers only" });
   }
   try {
+    if (req.body.topicKey != null) {
+      const validKey = validateTopicKey(req.body.topicKey);
+      if (req.body.topicKey.trim() !== "" && !validKey) {
+        return res.status(400).json({ success: false, msg: "Invalid topicKey", error: "Invalid topicKey" });
+      }
+      if (validKey) req.body.topicKey = validKey;
+      else req.body.topicKey = undefined;
+    }
     const teacherId = req.user.userId || req.user._id;
     const question = await ExamQuestion.create({
       ...req.body,
@@ -28,19 +45,20 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// GET /api/exam-questions — list (teacher only; filters: subject, examBoard, level, topic, type, status; default status=draft)
+// GET /api/exam-questions — list (teacher only; filters: subject, examBoard, level, topic, topicKey, type, status; default status=draft)
 router.get("/", auth, async (req, res) => {
   if (!isTeacher(req)) {
     return res.status(403).json({ success: false, msg: "Teachers only" });
   }
   try {
     const teacherId = req.user.userId || req.user._id;
-    const { subject, examBoard, level, topic, type, status } = req.query;
+    const { subject, examBoard, level, topic, topicKey, type, status } = req.query;
     const query = { teacherId };
     if (subject) query.subject = subject;
     if (examBoard) query.examBoard = examBoard;
     if (level) query.level = level;
     if (topic) query.topic = topic;
+    if (topicKey) query.topicKey = topicKey.trim().toLowerCase();
     if (type) query.type = type;
     if (status) query.status = status;
     else query.status = "draft";
@@ -67,11 +85,19 @@ router.put("/:id", auth, async (req, res) => {
     if (!question) {
       return res.status(404).json({ success: false, msg: "Question not found" });
     }
-    const { subject, examBoard, level, topic, type, marks, question: qText, options, correctIndex, correctAnswer, markScheme, content, status } = req.body;
+    if (req.body.topicKey != null) {
+      const validKey = validateTopicKey(req.body.topicKey);
+      if (req.body.topicKey && String(req.body.topicKey).trim() !== "" && !validKey) {
+        return res.status(400).json({ success: false, msg: "Invalid topicKey", error: "Invalid topicKey" });
+      }
+      question.topicKey = validKey || undefined;
+    }
+    const { subject, examBoard, level, topic, unitKey, type, marks, question: qText, options, correctIndex, correctAnswer, markScheme, content, status } = req.body;
     if (subject !== undefined) question.subject = subject;
     if (examBoard !== undefined) question.examBoard = examBoard;
     if (level !== undefined) question.level = level;
     if (topic !== undefined) question.topic = topic;
+    if (unitKey !== undefined) question.unitKey = unitKey || undefined;
     if (type !== undefined) question.type = type;
     if (marks !== undefined) question.marks = marks;
     if (qText !== undefined) question.question = qText;
