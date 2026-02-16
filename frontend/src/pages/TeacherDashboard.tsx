@@ -8,6 +8,10 @@ type LessonRow = {
   title: string;
   subject: string;
   level: string;
+  topic?: string;
+  board?: string;
+  examBoard?: string;
+  tier?: string;
   shamCoinPrice?: number;
   purchaseCount?: number;
   totalEarnings?: number;
@@ -16,6 +20,21 @@ type LessonRow = {
   isPublished: boolean;
   createdAt: string;
 };
+
+/** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
+type TaxonomyTopicInfo = { topic: string; unit: string; requiredPractical: boolean };
+
+/** Normalize display topic to taxonomy key (match backend topicToKey). */
+function topicToKey(topic: string | undefined): string {
+  if (!topic || typeof topic !== "string") return "";
+  return topic
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 const TeacherDashboard: React.FC = () => {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
@@ -49,6 +68,9 @@ const TeacherDashboard: React.FC = () => {
   // Start Here collapsible (default collapsed to reduce clutter)
   const [showStartHere, setShowStartHere] = useState(false);
 
+  // PR4: AQA GCSE Biology taxonomy for unit/topic/requiredPractical
+  const [taxonomyMap, setTaxonomyMap] = useState<Record<string, TaxonomyTopicInfo>>({});
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,6 +94,31 @@ const TeacherDashboard: React.FC = () => {
 
         // 3) Load teacher stats (earnings, purchases, etc.) from BACKEND
         await fetchTeacherStatsFromBackend();
+
+        // 4) PR4: Load taxonomy for unit/topic/requiredPractical badges
+        try {
+          const taxRes = await api.get("/taxonomy/aqa-gcse-biology");
+          const tax = taxRes?.data;
+          const units = Array.isArray(tax?.units) ? tax.units : [];
+          const map: Record<string, TaxonomyTopicInfo> = {};
+          for (const u of units) {
+            const unitName = u?.unit ?? "";
+            const topics = Array.isArray(u?.topics) ? u.topics : [];
+            for (const t of topics) {
+              const key = t?.key ?? topicToKey(t?.topic);
+              if (key) {
+                map[key] = {
+                  topic: t?.topic ?? "",
+                  unit: unitName,
+                  requiredPractical: !!t?.requiredPractical,
+                };
+              }
+            }
+          }
+          setTaxonomyMap(map);
+        } catch {
+          // non-blocking; badges will degrade gracefully
+        }
       } finally {
         setLoading(false);
       }
@@ -99,6 +146,10 @@ const TeacherDashboard: React.FC = () => {
         title: l.title ?? "Untitled Lesson",
         subject: l.subject ?? "Not set",
         level: l.level ?? "Not set",
+        topic: l.topic ?? undefined,
+        board: l.board ?? undefined,
+        examBoard: l.examBoard ?? l.board ?? undefined,
+        tier: l.tier ?? undefined,
 
         shamCoinPrice: l.shamCoinPrice ?? 0,
         purchaseCount: l.purchaseCount ?? 0,
@@ -771,11 +822,48 @@ const TeacherDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {lessons.map((lesson) => (
+                  {lessons.map((lesson) => {
+                    const topicKey = topicToKey(lesson.topic);
+                    const taxonomyInfo = topicKey ? taxonomyMap[topicKey] : undefined;
+                    const subtitle =
+                      taxonomyInfo
+                        ? `${taxonomyInfo.unit} › ${taxonomyInfo.topic}`
+                        : (lesson.topic && lesson.topic.trim()) || "—";
+                    const tierLabel =
+                      lesson.tier === "foundation"
+                        ? "Foundation"
+                        : lesson.tier === "higher"
+                          ? "Higher"
+                          : lesson.tier
+                            ? String(lesson.tier).charAt(0).toUpperCase() + String(lesson.tier).slice(1).toLowerCase()
+                            : null;
+                    const examBoardLabel = lesson.examBoard || lesson.board || "AQA";
+                    return (
                     <tr key={lesson._id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                       <td style={{ padding: "12px" }}>
                         <div style={{ fontWeight: "bold", color: "#333" }}>{lesson.title}</div>
-                        <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                        <div style={{ fontSize: "12px", color: "#666", opacity: 0.85, marginTop: 2 }}>
+                          {subtitle}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#e5e7eb", color: "#374151" }}>
+                            {examBoardLabel}
+                          </span>
+                          <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#e5e7eb", color: "#374151" }}>
+                            {lesson.level || "GCSE"}
+                          </span>
+                          {tierLabel && (
+                            <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1e40af" }}>
+                              {tierLabel}
+                            </span>
+                          )}
+                          {taxonomyInfo?.requiredPractical && (
+                            <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#fef3c7", color: "#92400e" }}>
+                              Required Practical
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "#999", marginTop: 4 }}>
                           {new Date(lesson.createdAt).toLocaleDateString()}
                         </div>
                       </td>
@@ -868,7 +956,8 @@ const TeacherDashboard: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
