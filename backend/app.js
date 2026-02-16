@@ -34,5 +34,8 @@ app.use("/api/reviews", require("./routes/reviews"));
 // PR3: AQA GCSE Biology lesson factory
 app.use("/api/ai", require("./routes/ai"));
 
+// Canonical taxonomy (teacher UI topic picker, diagram mapping)
+app.use("/api/taxonomy", require("./routes/taxonomy"));
+
 // ✅ Export for testing
 module.exports = app;

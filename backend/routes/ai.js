@@ -11,22 +11,22 @@ const VisualModel = require("../models/VisualModel");
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
-const { findTopicByKey } = require("../utils/topicTaxonomy");
+const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 
-/** Topic (normalized) → VisualModel conceptKeys. First match wins; use conceptKey for findOne. */
+/** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
-  "cell structure": ["cell-animal", "cell-plant"],
-  "cell structures": ["cell-animal", "cell-plant"],
+  "cell-structure": ["cell-animal", "cell-plant"],
+  "animal-plant-cells": ["cell-animal", "cell-plant"],
   "enzymes": ["enzyme-lock-key"],
-  "digestive system": ["digestive-system-organs"],
-  "digestion": ["digestive-system-organs"],
+  "digestive-system": ["digestive-system-organs"],
   "photosynthesis": ["photosynthesis"],
   "respiration": ["respiration"],
-  "transport in plants": ["transport-plants"],
-  "transport systems": ["transport-plants"],
-  "circulatory system": ["circulatory-system"],
+  "transport-in-plants": ["transport-plants"],
+  "transport-summary": ["transport-plants"],
+  "circulatory-system": ["circulatory-system"],
   "heart": ["circulatory-system"],
-  "nervous system": ["nervous-system"],
+  "nervous-system": ["nervous-system"],
+  "nervous-system-structure": ["nervous-system"],
   "homeostasis": ["homeostasis"],
   "ecology": ["ecology-pyramid"],
   "evolution": ["evolution-tree"],
@@ -958,9 +958,11 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       console.warn("⚠️ [Factory] Curated visual attach skipped:", e?.message || e);
     }
 
-    // USP Step 1: Auto-attach diagram block from VisualModel when topic matches
-    const normTopicKey = safeStr(topic, "").toLowerCase().replace(/\s+/g, " ").trim();
-    const diagramConceptKeys = BIOLOGY_DIAGRAM_MAP[normTopicKey];
+    // USP Step 1: Auto-attach diagram block from VisualModel (keyed by topicKey for deterministic lookup)
+    const diagramLookupKey = topicKeyRaw
+      ? topicKeyRaw.trim().toLowerCase()
+      : topicToKey(topic);
+    const diagramConceptKeys = diagramLookupKey ? BIOLOGY_DIAGRAM_MAP[diagramLookupKey] : undefined;
     if (Array.isArray(diagramConceptKeys) && diagramConceptKeys.length > 0) {
       try {
         let visual = null;

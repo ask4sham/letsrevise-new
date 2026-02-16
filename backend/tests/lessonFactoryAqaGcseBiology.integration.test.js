@@ -249,6 +249,22 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
     expect(lesson.subject).toBe("Biology");
   });
 
+  test("topicKey used for diagram lookup: photosynthesis triggers diagram block when VisualModel exists", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey: "photosynthesis", tier: "higher" });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    expect(lesson.topic).toBe("Photosynthesis");
+    const diagramBlocks = lesson.pages.flatMap((p) =>
+      (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
+    );
+    expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
+    expect(diagramBlocks[0]).toHaveProperty("visualId");
+  });
+
   test("topic (free text) still works when topicKey not provided", async () => {
     const res = await request(app)
       .post("/api/ai/lesson-factory/aqa-gcse-biology")
