@@ -23,7 +23,7 @@ function clampOptions(raw) {
 
 function normalizeBlockType(t) {
   const v = safeStr(t, "text");
-  const allowed = ["text", "keyIdea", "examTip", "commonMistake"];
+  const allowed = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"];
   return allowed.includes(v) ? v : "text";
 }
 
@@ -97,17 +97,22 @@ const LESSON_DRAFT_SCHEMA = {
           blocks: {
             type: "array",
             minItems: 1,
-            maxItems: 8,
+            maxItems: 12,
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["type", "content"],
+              required: ["type"],
               properties: {
                 type: {
                   type: "string",
-                  enum: ["text", "keyIdea", "examTip", "commonMistake"],
+                  enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"],
                 },
                 content: { type: "string" },
+                prompt: { type: "string" },
+                questionType: { type: "string", enum: ["mcq", "short"] },
+                options: { type: "array", items: { type: "string" } },
+                correctAnswer: { type: "string" },
+                explanation: { type: "string" },
               },
             },
           },
@@ -204,8 +209,10 @@ LESSON STRUCTURE RULES:
 - Each page must include:
   - Clear explanation text (at least one "text" block)
   - At least one "keyIdea", "examTip", or "commonMistake" block
+  - For Higher tier only: at least one "stretch" block per page (deeper/extension content)
   - One checkpoint question with EXACTLY 4 options
   - The "answer" must match one of the 4 options EXACTLY
+- Foundation: simpler language. Higher: deeper detail + stretch blocks.
 
 TAGS RULE:
 - Provide 5–12 short tags (single words or short phrases)
@@ -225,7 +232,7 @@ OUTPUT SCHEMA (DO NOT CHANGE):
       "order": number,
       "pageType": "string",
       "blocks": [
-        { "type": "text | keyIdea | examTip | commonMistake", "content": "string" }
+        { "type": "text | keyIdea | examTip | commonMistake | stretch", "content": "string" }
       ],
       "checkpoint": {
         "question": "string",
@@ -377,11 +384,26 @@ function sanitizeDraft(draft, { subject, level, topic }) {
     .map((p, idx) => {
       const blocksRaw = Array.isArray(p?.blocks) ? p.blocks : [];
       const blocks = blocksRaw
-        .map((b) => ({
-          type: normalizeBlockType(b?.type),
-          content: safeStr(b?.content, ""),
-        }))
-        .filter((b) => b.content.trim().length > 0);
+        .map((b) => {
+          const type = normalizeBlockType(b?.type);
+          if (type === "checkpoint") {
+            const questionType = (b?.questionType === "short" ? "short" : "mcq");
+            const options = Array.isArray(b?.options) ? b.options.map((o) => safeStr(o, "")).filter(Boolean).slice(0, 6) : [];
+            return {
+              type: "checkpoint",
+              prompt: safeStr(b?.prompt, "Quick check"),
+              questionType,
+              options: questionType === "mcq" && options.length === 0 ? ["A", "B", "C", "D"] : options,
+              correctAnswer: safeStr(b?.correctAnswer, ""),
+              explanation: safeStr(b?.explanation, ""),
+            };
+          }
+          return {
+            type,
+            content: safeStr(b?.content, ""),
+          };
+        })
+        .filter((b) => b.type === "checkpoint" || (b.content && b.content.trim().length > 0));
 
       const cp = p?.checkpoint || {};
       const options = clampOptions(cp?.options);

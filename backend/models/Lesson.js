@@ -20,13 +20,19 @@ const LESSON_STATUSES = ["draft", "in_review", "published", "archived", "flagged
 
 const LessonPageBlockSchema = new mongoose.Schema(
   {
-    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch"
+    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint"
     type: {
       type: String,
-      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch"],
+      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"],
       default: "text",
     },
-    content: { type: String, default: "" }, // markdown-friendly
+    content: { type: String, default: "" }, // markdown-friendly (for text/keyIdea/examTip/commonMistake/stretch)
+    // checkpoint block (when type === "checkpoint") — never send correctAnswer/explanation in preview
+    prompt: { type: String, default: "" },
+    questionType: { type: String, enum: ["mcq", "short"], default: "mcq" },
+    options: { type: [String], default: undefined },
+    correctAnswer: { type: String, default: undefined },
+    explanation: { type: String, default: undefined },
   },
   { _id: false }
 );

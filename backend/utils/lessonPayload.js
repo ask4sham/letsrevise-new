@@ -29,8 +29,9 @@ const PREVIEW_SAFE_KEYS = [
 
 /**
  * Strip answer/markScheme from a page's checkpoint so preview never leaks correct answers.
- * @param {Object} page - One lesson page (may have checkpoint).
- * @returns {Object} Shallow copy of page with checkpoint sanitized.
+ * Also strip correctAnswer/explanation from any block with type "checkpoint".
+ * @param {Object} page - One lesson page (may have checkpoint and blocks).
+ * @returns {Object} Shallow copy of page with checkpoint(s) sanitized.
  */
 function sanitizePageForPreview(page) {
   if (!page) return page;
@@ -41,6 +42,15 @@ function sanitizePageForPreview(page) {
     delete cp.markScheme;
     delete cp.correctAnswer;
     out.checkpoint = cp;
+  }
+  if (Array.isArray(out.blocks)) {
+    out.blocks = out.blocks.map((b) => {
+      if (b && b.type === "checkpoint") {
+        const { correctAnswer, explanation, ...rest } = b;
+        return rest;
+      }
+      return b;
+    });
   }
   return out;
 }

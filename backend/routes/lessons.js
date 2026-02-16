@@ -115,13 +115,25 @@ function sanitisePageInput(p, isUpdate = false) {
     hero = { type: "none", src: "", caption: "" };
   }
 
+  const allowedBlockTypes = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"];
   const blocks = Array.isArray(p?.blocks)
-    ? p.blocks.map((b) => ({
-        type: ["text", "keyIdea", "examTip", "commonMistake", "stretch"].includes(String(b?.type))
-          ? String(b.type)
-          : "text",
-        content: typeof b?.content === "string" ? b.content : "",
-      }))
+    ? p.blocks.map((b) => {
+        const type = allowedBlockTypes.includes(String(b?.type)) ? String(b.type) : "text";
+        if (type === "checkpoint") {
+          return {
+            type: "checkpoint",
+            prompt: typeof b?.prompt === "string" ? b.prompt : "",
+            questionType: b?.questionType === "short" ? "short" : "mcq",
+            options: Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [],
+            correctAnswer: typeof b?.correctAnswer === "string" ? b.correctAnswer : undefined,
+            explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
+          };
+        }
+        return {
+          type,
+          content: typeof b?.content === "string" ? b.content : "",
+        };
+      })
     : [];
 
   const checkpoint =

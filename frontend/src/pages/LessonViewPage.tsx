@@ -15,8 +15,13 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch";
-  content: string;
+  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint";
+  content?: string;
+  prompt?: string;
+  questionType?: "mcq" | "short";
+  options?: string[];
+  correctAnswer?: string;
+  explanation?: string;
 }
 
 interface LessonPageHero {
@@ -1184,6 +1189,53 @@ const LessonViewPage: React.FC = () => {
     );
   };
 
+  const renderCheckpointBlock = (block: LessonPageBlock, idx: number) => {
+    const prompt = block.prompt ?? "Quick check";
+    const questionType = block.questionType === "short" ? "short" : "mcq";
+    const options = Array.isArray(block.options) ? block.options : [];
+    return (
+      <div
+        key={`checkpoint-${idx}`}
+        style={{
+          marginTop: 14,
+          padding: 16,
+          borderRadius: 14,
+          background: "#f8f9fa",
+          border: "2px solid rgba(59,130,246,0.25)",
+          boxShadow: "0 0 0 2px rgba(59,130,246,0.08)",
+          textAlign: "left",
+        }}
+      >
+        <div style={{ fontWeight: 800, marginBottom: 10, color: "#111827", fontSize: BASE_FONT_SIZE }}>
+          {prompt}
+        </div>
+        {questionType === "mcq" && options.length > 0 ? (
+          <ul style={{ margin: 0, paddingLeft: 20, listStyle: "disc" }}>
+            {options.map((opt, i) => (
+              <li key={i} style={{ marginBottom: 6, color: "#374151" }}>{opt}</li>
+            ))}
+          </ul>
+        ) : questionType === "short" ? (
+          <div style={{ marginTop: 8 }}>
+            <input
+              type="text"
+              placeholder="Your answer..."
+              readOnly
+              style={{
+                width: "100%",
+                maxWidth: 400,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                fontSize: BASE_FONT_SIZE,
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderHero = (hero?: LessonPageHero) => {
     const h = hero || { type: "none", src: "", caption: "" };
     const src = normalizeHeroSrc(h);
@@ -1824,7 +1876,11 @@ const LessonViewPage: React.FC = () => {
                 <div>
                   {(currentPage.blocks || [])
                     .filter((b) => (b.type === "stretch" ? showDeeperKnowledge : true))
-                    .map((b, idx) => renderCallout(b.type, safeStr(b.content, ""), idx))}
+                    .map((b, idx) =>
+                      b.type === "checkpoint"
+                        ? renderCheckpointBlock(b, idx)
+                        : renderCallout(b.type, safeStr(b.content, ""), idx)
+                    )}
                 </div>
 
                 {/* Checkpoint - UPDATED WITH LARGER FONTS */}
