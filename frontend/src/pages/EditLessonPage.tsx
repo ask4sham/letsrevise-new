@@ -572,6 +572,9 @@ const EditLessonPage: React.FC = () => {
         flashcards: Array.isArray(data.flashcards) ? data.flashcards : [],
         quiz: data.quiz || { timeSeconds: 600, questions: [] },
         createdFromTemplate: Boolean(data.createdFromTemplate),
+        readiness: data.readiness ?? undefined,
+        reviewedAt: data.reviewedAt ?? undefined,
+        reviewedBy: data.reviewedBy ?? undefined,
       };
 
       if (Array.isArray(mapped.pages)) {

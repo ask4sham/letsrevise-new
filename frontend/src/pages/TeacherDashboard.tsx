@@ -1109,6 +1109,27 @@ const TeacherDashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
+              <span style={{ fontSize: 13, color: "#6b7280" }}>Readiness:</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {(["all", "READY", "NEEDS_REVIEW", "DRAFT"] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setFilterReadiness(r)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      background: filterReadiness === r ? "#e5e7eb" : "#fff",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      fontWeight: filterReadiness === r ? 600 : 400,
+                    }}
+                  >
+                    {r === "all" ? "All" : r === "READY" ? "Classroom-ready" : r === "NEEDS_REVIEW" ? "Needs review" : "Draft"}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
