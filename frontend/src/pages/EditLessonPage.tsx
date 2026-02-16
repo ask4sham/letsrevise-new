@@ -16,7 +16,13 @@ import {
 
 interface LessonPageBlock {
   type: LessonBlockType;
-  content: string;
+  content?: string;
+  /** Checkpoint block fields (when type === "checkpoint") */
+  prompt?: string;
+  questionType?: "mcq" | "short";
+  options?: string[];
+  correctAnswer?: string;
+  explanation?: string;
 }
 
 interface LessonPageHero {
@@ -505,10 +511,24 @@ const EditLessonPage: React.FC = () => {
             ? (p as any).hero
             : { type: "none", src: "", caption: "" },
           blocks: Array.isArray((p as any).blocks)
-            ? (p as any).blocks.map((b: any) => ({
-                type: normalizeBlockType(b?.type),
-                content: safeStr(b?.content, ""),
-              }))
+            ? (p as any).blocks.map((b: any) => {
+                if (b?.type === "checkpoint") {
+                  return {
+                    type: "checkpoint" as const,
+                    prompt: safeStr(b.prompt, ""),
+                    questionType: b?.questionType === "short" ? "short" : "mcq",
+                    options: Array.isArray(b.options)
+                      ? b.options.map((o: any) => String(o ?? ""))
+                      : ["", "", "", ""],
+                    correctAnswer: safeStr(b.correctAnswer, ""),
+                    explanation: safeStr(b.explanation, ""),
+                  };
+                }
+                return {
+                  type: normalizeBlockType(b?.type),
+                  content: safeStr(b?.content, ""),
+                };
+              })
             : [{ type: "text", content: "" }],
           checkpoint: (p as any).checkpoint
             ? {
@@ -683,7 +703,18 @@ const EditLessonPage: React.FC = () => {
       const blocks = Array.isArray(pages[pIdx].blocks)
         ? [...(pages[pIdx].blocks as any[])]
         : [];
-      blocks.push({ type, content: "" });
+      if (type === "checkpoint") {
+        blocks.push({
+          type: "checkpoint",
+          prompt: "",
+          questionType: "mcq",
+          options: ["", "", "", ""],
+          correctAnswer: "",
+          explanation: "",
+        });
+      } else {
+        blocks.push({ type, content: "" });
+      }
       pages[pIdx] = { ...pages[pIdx], blocks };
       return { ...prev, pages };
     });
@@ -1590,10 +1621,23 @@ const EditLessonPage: React.FC = () => {
 
       const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
-        blocks: (p.blocks || []).map((b: any) => ({
-          type: toLegacyBlockType(b.type),
-          content: sanitizeTeacherMarkdown(String(b.content || "")),
-        })),
+        blocks: (p.blocks || []).map((b: any) => {
+          if (b.type === "checkpoint") {
+            const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
+            return {
+              type: "checkpoint",
+              prompt: String(b.prompt ?? "").trim(),
+              questionType: b.questionType === "short" ? "short" : "mcq",
+              options: opts,
+              correctAnswer: String(b.correctAnswer ?? "").trim(),
+              explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+            };
+          }
+          return {
+            type: toLegacyBlockType(b.type),
+            content: sanitizeTeacherMarkdown(String(b.content || "")),
+          };
+        }),
       }));
 
       const payload: any = {
@@ -1651,10 +1695,23 @@ const EditLessonPage: React.FC = () => {
 
       const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
-        blocks: (p.blocks || []).map((b: any) => ({
-          type: toLegacyBlockType(b.type),
-          content: sanitizeTeacherMarkdown(String(b.content || "")),
-        })),
+        blocks: (p.blocks || []).map((b: any) => {
+          if (b.type === "checkpoint") {
+            const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
+            return {
+              type: "checkpoint",
+              prompt: String(b.prompt ?? "").trim(),
+              questionType: b.questionType === "short" ? "short" : "mcq",
+              options: opts,
+              correctAnswer: String(b.correctAnswer ?? "").trim(),
+              explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+            };
+          }
+          return {
+            type: toLegacyBlockType(b.type),
+            content: sanitizeTeacherMarkdown(String(b.content || "")),
+          };
+        }),
       }));
 
       const payload: any = {
@@ -2263,11 +2320,27 @@ const EditLessonPage: React.FC = () => {
                     {(currentPage?.blocks || []).map((b, idx) => {
                       const key = `${currentPage!.pageId}:${idx}`;
                       const isUploading = uploadingKey === key;
+                      const isCheckpoint = b.type === "checkpoint";
+                      const cp = isCheckpoint ? b : null;
+                      const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
+                      const cpWarnings: string[] = [];
+                      if (isCheckpoint && cp) {
+                        if (!(String(cp.prompt ?? "").trim())) cpWarnings.push("Prompt is required.");
+                        if (cp.questionType === "mcq") {
+                          const filled = (cp.options ?? []).filter((o) => String(o ?? "").trim()).length;
+                          if (filled < 2) cpWarnings.push("MCQ needs at least 2 options.");
+                          if (!(String(cp.correctAnswer ?? "").trim())) cpWarnings.push("Correct answer is required.");
+                        } else {
+                          if (!(String(cp.correctAnswer ?? "").trim())) cpWarnings.push("Correct answer is required.");
+                        }
+                      }
 
                       return (
                         <div key={key} style={getBlockStyle(b.type)}>
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                            <div style={{ fontWeight: 900 }}>{BLOCK_META[b.type].label}</div>
+                            <div style={{ fontWeight: 900 }}>
+                              {isCheckpoint ? "Checkpoint" : BLOCK_META[b.type].label}
+                            </div>
 
                             <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                               <button
@@ -2305,20 +2378,22 @@ const EditLessonPage: React.FC = () => {
                                 ↓
                               </button>
 
-                              <button
-                                onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
-                                disabled={isUploading}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: 10,
-                                  border: "2px solid rgba(0,0,0,0.14)",
-                                  background: "white",
-                                  cursor: isUploading ? "not-allowed" : "pointer",
-                                  fontWeight: 900,
-                                }}
-                              >
-                                {isUploading ? "Uploading..." : "Upload image / video"}
-                              </button>
+                              {!isCheckpoint && (
+                                <button
+                                  onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
+                                  disabled={isUploading}
+                                  style={{
+                                    padding: "6px 10px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                    background: "white",
+                                    cursor: isUploading ? "not-allowed" : "pointer",
+                                    fontWeight: 900,
+                                  }}
+                                >
+                                  {isUploading ? "Uploading..." : "Upload image / video"}
+                                </button>
+                              )}
 
                               <button
                                 onClick={() => removeBlock(currentPage!.pageId, idx)}
@@ -2337,6 +2412,171 @@ const EditLessonPage: React.FC = () => {
                             </div>
                           </div>
 
+                          {isCheckpoint && cp ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                              {cpWarnings.length > 0 && (
+                                <div style={{ color: "#b45309", fontSize: 13, fontWeight: 600 }}>
+                                  {cpWarnings.join(" ")}
+                                </div>
+                              )}
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Prompt</div>
+                                <textarea
+                                  value={cp.prompt ?? ""}
+                                  onChange={(e) =>
+                                    updateBlock(currentPage!.pageId, idx, { prompt: e.target.value })
+                                  }
+                                  placeholder="Question or instruction..."
+                                  rows={2}
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                    resize: "vertical",
+                                  }}
+                                />
+                              </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Question type</div>
+                                <select
+                                  value={cp.questionType ?? "mcq"}
+                                  onChange={(e) =>
+                                    updateBlock(currentPage!.pageId, idx, {
+                                      questionType: e.target.value === "short" ? "short" : "mcq",
+                                      ...(e.target.value === "short" ? { options: undefined } : { options: opts.length ? opts : ["", "", "", ""] }),
+                                    })
+                                  }
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                  }}
+                                >
+                                  <option value="mcq">Multiple choice (MCQ)</option>
+                                  <option value="short">Short answer</option>
+                                </select>
+                              </label>
+                              {cp.questionType === "short" ? (
+                                <label style={{ display: "block" }}>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Correct answer</div>
+                                  <input
+                                    type="text"
+                                    value={cp.correctAnswer ?? ""}
+                                    onChange={(e) =>
+                                      updateBlock(currentPage!.pageId, idx, { correctAnswer: e.target.value })
+                                    }
+                                    placeholder="Expected short answer"
+                                    style={{
+                                      width: "100%",
+                                      padding: "10px 12px",
+                                      borderRadius: 10,
+                                      border: "2px solid rgba(0,0,0,0.14)",
+                                    }}
+                                  />
+                                </label>
+                              ) : (
+                                <>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Options (correct answer)</div>
+                                  {(cp.options ?? ["", "", "", ""]).map((opt, oi) => (
+                                    <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                                      <input
+                                        type="radio"
+                                        name={`${key}-correct`}
+                                        checked={(cp.correctAnswer ?? "").trim() === String(opt ?? "").trim() && String(opt ?? "").trim() !== ""}
+                                        onChange={() =>
+                                          updateBlock(currentPage!.pageId, idx, { correctAnswer: String(opt ?? "").trim() })
+                                        }
+                                        style={{ flexShrink: 0 }}
+                                      />
+                                      <input
+                                        type="text"
+                                        value={opt ?? ""}
+                                        onChange={(e) => {
+                                          const next = [...(cp.options ?? ["", "", "", ""])];
+                                          while (next.length <= oi) next.push("");
+                                          next[oi] = e.target.value;
+                                          updateBlock(currentPage!.pageId, idx, { options: next });
+                                        }}
+                                        placeholder={`Option ${oi + 1}`}
+                                        style={{
+                                          flex: 1,
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          border: "2px solid rgba(0,0,0,0.14)",
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    {(cp.options ?? []).length < 6 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const next = [...(cp.options ?? ["", "", "", ""]), ""];
+                                          updateBlock(currentPage!.pageId, idx, { options: next });
+                                        }}
+                                        style={{
+                                          padding: "6px 12px",
+                                          borderRadius: 8,
+                                          border: "2px solid rgba(59,130,246,0.35)",
+                                          background: "rgba(59,130,246,0.08)",
+                                          cursor: "pointer",
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        + option
+                                      </button>
+                                    )}
+                                    {(cp.options ?? []).length > 2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const next = (cp.options ?? ["", "", "", ""]).slice(0, -1);
+                                          const wasCorrect = (cp.correctAnswer ?? "").trim();
+                                          const removed = (cp.options ?? [])[(cp.options ?? []).length - 1] ?? "";
+                                          updateBlock(currentPage!.pageId, idx, {
+                                            options: next,
+                                            ...(String(removed).trim() === wasCorrect ? { correctAnswer: (next[0] ?? "").trim() } : {}),
+                                          });
+                                        }}
+                                        style={{
+                                          padding: "6px 12px",
+                                          borderRadius: 8,
+                                          border: "2px solid rgba(0,0,0,0.2)",
+                                          background: "white",
+                                          cursor: "pointer",
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        Remove option
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Explanation (optional)</div>
+                                <textarea
+                                  value={cp.explanation ?? ""}
+                                  onChange={(e) =>
+                                    updateBlock(currentPage!.pageId, idx, { explanation: e.target.value })
+                                  }
+                                  placeholder="Why this answer is correct..."
+                                  rows={2}
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                    resize: "vertical",
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          ) : (
+                            <>
                           <input
                             ref={(el) => {
                               fileInputRef.current[key] = el;
@@ -2446,6 +2686,8 @@ const EditLessonPage: React.FC = () => {
                           <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
                             Tip: paste from Word/Google Docs — bullets (•) become <b>- lists</b>, and headings above bullets become <b>### headings</b>.
                           </div>
+                            </>
+                          )}
                         </div>
                       );
                     })}

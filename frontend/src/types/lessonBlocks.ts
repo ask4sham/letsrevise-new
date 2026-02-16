@@ -12,7 +12,8 @@ export type LessonBlockType =
   | "keyWords"
   | "examTips"
   | "misconceptions"
-  | "deeperKnowledge";
+  | "deeperKnowledge"
+  | "checkpoint";
 
 /** Legacy block type strings that may come from the API. */
 export type LegacyBlockType =
@@ -21,7 +22,8 @@ export type LegacyBlockType =
   | "examTip"
   | "commonMistake"
   | "keyWords"
-  | "stretch";
+  | "stretch"
+  | "checkpoint";
 
 export interface BlockMeta {
   label: string;
@@ -87,6 +89,14 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(124,58,237,0.03)",
     },
   },
+  checkpoint: {
+    label: "Checkpoint",
+    icon: "✓",
+    style: {
+      border: "1px solid rgba(59,130,246,0.35)",
+      background: "rgba(59,130,246,0.06)",
+    },
+  },
 };
 
 /**
@@ -130,6 +140,8 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "commonMistake";
     case "deeperKnowledge":
       return "stretch";
+    case "checkpoint":
+      return "checkpoint";
     case "text":
     case "keyWords":
       return t;
@@ -163,6 +175,7 @@ export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "examTips",
   "misconceptions",
   "deeperKnowledge",
+  "checkpoint",
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */
@@ -184,6 +197,8 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.06)" };
     case "keyWords":
       return { ...base, border: "2px solid rgba(139,92,246,0.35)", background: "rgba(139,92,246,0.06)" };
+    case "checkpoint":
+      return { ...base, border: "2px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.06)" };
     case "text":
     default:
       return { ...base, border: "2px solid rgba(0,0,0,0.14)", background: "white" };
