@@ -335,6 +335,9 @@ const EditLessonPage: React.FC = () => {
   const [bankTopicKey, setBankTopicKey] = useState("");
   const [bankQuestions, setBankQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string }>>([]);
   const [selectedBankQuestionIds, setSelectedBankQuestionIds] = useState<Set<string>>(new Set());
+  const [autoAttachLoading, setAutoAttachLoading] = useState(false);
+  const [autoAttachLimit, setAutoAttachLimit] = useState(10);
+  const [autoAttachMessage, setAutoAttachMessage] = useState<string | null>(null);
   
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
@@ -2298,20 +2301,97 @@ const EditLessonPage: React.FC = () => {
                     <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>
                       Attach questions from your Question Bank to this lesson. Students can use them for practice.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: 8,
-                        border: "2px solid rgba(59,130,246,0.4)",
-                        background: "rgba(59,130,246,0.08)",
-                        cursor: "pointer",
-                        fontWeight: 700,
-                      }}
-                    >
-                      Add from Question Bank
-                    </button>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: "2px solid rgba(59,130,246,0.4)",
+                          background: "rgba(59,130,246,0.08)",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Add from Question Bank
+                      </button>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button
+                          type="button"
+                          disabled={autoAttachLoading}
+                          onClick={async () => {
+                            if (!id) return;
+                            setAutoAttachMessage(null);
+                            setAutoAttachLoading(true);
+                            try {
+                              const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
+                                limit: autoAttachLimit,
+                              });
+                              const data = res?.data;
+                              const added = data?.added ?? 0;
+                              const topicName = data?.topic ?? lesson?.topic ?? "topic";
+                              if (added > 0) {
+                                const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                              }
+                              setAutoAttachMessage(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add (all already attached).");
+                            } catch (err: any) {
+                              const msg = err?.response?.data?.msg ?? err?.response?.data?.error;
+                              const is400 = err?.response?.status === 400;
+                              setAutoAttachMessage(
+                                is400 && msg
+                                  ? (typeof msg === "string" ? msg : "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.")
+                                  : "Failed to attach questions."
+                              );
+                            } finally {
+                              setAutoAttachLoading(false);
+                              setTimeout(() => setAutoAttachMessage(null), 5000);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "2px solid rgba(34,197,94,0.4)",
+                            background: "rgba(34,197,94,0.08)",
+                            cursor: autoAttachLoading ? "not-allowed" : "pointer",
+                            fontWeight: 700,
+                            opacity: autoAttachLoading ? 0.7 : 1,
+                          }}
+                        >
+                          {autoAttachLoading ? "Attaching…" : `Auto-attach (Top ${autoAttachLimit})`}
+                        </button>
+                        <select
+                          value={autoAttachLimit}
+                          onChange={(e) => setAutoAttachLimit(Number(e.target.value))}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #e2e8f0",
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={15}>15</option>
+                        </select>
+                      </span>
+                    </div>
+                    {autoAttachMessage && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          fontSize: 13,
+                          background: autoAttachMessage.startsWith("Added") ? "#dcfce7" : autoAttachMessage.includes("isn't mapped") ? "#fef3c7" : "#fee2e2",
+                          color: "#166534",
+                        }}
+                      >
+                        {autoAttachMessage}
+                      </div>
+                    )}
                     {attachedExamQuestions.length > 0 && (
                       <ul style={{ marginTop: 12, paddingLeft: 20, listStyle: "disc" }}>
                         {attachedExamQuestions.map((q) => (

@@ -12,6 +12,7 @@ const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
 const ExamQuestion = require("../models/ExamQuestion");
+const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -1779,6 +1780,105 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
     return res.json({ ok: true, removed });
   } catch (err) {
     console.error("DELETE exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// PR3a.1: One-click attach top N questions by topicKey (derived from lesson.topic if not provided)
+router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("topic teacherId examQuestions").lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+    let topicKeyToUse;
+    if (req.body.topicKey != null && String(req.body.topicKey).trim() !== "") {
+      const raw = String(req.body.topicKey).trim().toLowerCase();
+      const found = findTopicByKey(raw);
+      if (!found) {
+        return res.status(400).json({
+          error: "Invalid topicKey",
+          msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
+        });
+      }
+      topicKeyToUse = found.key;
+    } else {
+      const derived = topicToKey(lesson.topic || "");
+      if (!derived) {
+        return res.status(400).json({
+          error: "Invalid topic",
+          msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.",
+        });
+      }
+      const found = findTopicByKey(derived);
+      if (!found) {
+        return res.status(400).json({
+          error: "Invalid topic",
+          msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.",
+        });
+      }
+      topicKeyToUse = found.key;
+    }
+
+    let limit = typeof req.body.limit === "number" ? req.body.limit : parseInt(req.body.limit, 10);
+    if (!Number.isFinite(limit) || limit < 1) limit = 10;
+    if (limit > 20) limit = 20;
+
+    const existingRefs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+    const existingIds = new Set(existingRefs.map((r) => String(r.questionId)));
+
+    const candidates = await ExamQuestion.find({
+      topicKey: topicKeyToUse,
+      teacherId: lesson.teacherId,
+    })
+      .select("_id marks createdAt")
+      .sort({ marks: -1, createdAt: -1 })
+      .limit(limit * 3)
+      .lean();
+
+    const toAdd = [];
+    for (const q of candidates) {
+      if (toAdd.length >= limit) break;
+      const qid = String(q._id);
+      if (!existingIds.has(qid)) {
+        toAdd.push(qid);
+        existingIds.add(qid);
+      }
+    }
+
+    if (toAdd.length === 0) {
+      return res.json({
+        ok: true,
+        topicKey: topicKeyToUse,
+        topic: findTopicByKey(topicKeyToUse)?.topic ?? null,
+        requested: limit,
+        added: 0,
+        addedIds: [],
+      });
+    }
+
+    const lessonDoc = await Lesson.findById(lessonId);
+    if (!lessonDoc) return res.status(404).json({ msg: "Lesson not found" });
+    const refs = Array.isArray(lessonDoc.examQuestions) ? lessonDoc.examQuestions : [];
+    for (const qid of toAdd) {
+      refs.push({ questionId: new mongoose.Types.ObjectId(qid), addedAt: new Date() });
+    }
+    lessonDoc.examQuestions = refs;
+    await lessonDoc.save();
+
+    return res.json({
+      ok: true,
+      topicKey: topicKeyToUse,
+      topic: findTopicByKey(topicKeyToUse)?.topic ?? null,
+      requested: limit,
+      added: toAdd.length,
+      addedIds: toAdd,
+    });
+  } catch (err) {
+    console.error("POST attach-by-topic error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });
