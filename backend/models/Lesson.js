@@ -261,6 +261,10 @@ const LessonSchema = new mongoose.Schema(
         addedAt: { type: Date, default: Date.now },
       },
     ],
+
+    /** PR7: Teacher review — when set, lesson is marked as reviewed by teacher. Readiness is computed, not stored. */
+    reviewedAt: { type: Date, default: null },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );

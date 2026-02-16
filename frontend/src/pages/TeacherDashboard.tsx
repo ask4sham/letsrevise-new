@@ -2,6 +2,15 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
+/** PR7: readiness from backend (computed) */
+type ReadinessSignals = {
+  missing?: string[];
+  checkpointCount?: number;
+  diagramCount?: number;
+  practiceCount?: number;
+  isReviewed?: boolean;
+};
+
 type LessonRow = {
   _id: string;
   id?: string;
@@ -19,6 +28,12 @@ type LessonRow = {
   views?: number;
   isPublished: boolean;
   createdAt: string;
+  /** PR7: computed readiness (included in teacher list) */
+  readiness?: {
+    status: "DRAFT" | "NEEDS_REVIEW" | "READY";
+    score?: number;
+    signals?: ReadinessSignals;
+  };
 };
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
@@ -83,6 +98,7 @@ const TeacherDashboard: React.FC = () => {
   const [filterUnit, setFilterUnit] = useState<string>("all");
   const [filterTopicKey, setFilterTopicKey] = useState<string>("all");
   const [filterTier, setFilterTier] = useState<"all" | "foundation" | "higher">("all");
+  const [filterReadiness, setFilterReadiness] = useState<"all" | "READY" | "NEEDS_REVIEW" | "DRAFT">("all");
 
   // PR5: Collapsible "Topics not yet covered"
   const [showUncoveredTopics, setShowUncoveredTopics] = useState(false);
@@ -94,7 +110,7 @@ const TeacherDashboard: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // PR5: Client-side filtering
+  // PR5 + PR7: Client-side filtering
   const filteredLessons = useMemo(() => {
     return lessons.filter((l) => {
       const topicKey = topicToKey(l.topic);
@@ -102,9 +118,10 @@ const TeacherDashboard: React.FC = () => {
       if (filterUnit !== "all" && taxonomy?.unit !== filterUnit) return false;
       if (filterTopicKey !== "all" && topicKey !== filterTopicKey) return false;
       if (filterTier !== "all" && l.tier !== filterTier) return false;
+      if (filterReadiness !== "all" && (l.readiness?.status ?? "DRAFT") !== filterReadiness) return false;
       return true;
     });
-  }, [lessons, taxonomyMap, filterUnit, filterTopicKey, filterTier]);
+  }, [lessons, taxonomyMap, filterUnit, filterTopicKey, filterTier, filterReadiness]);
 
   // PR5: Coverage (published lessons only)
   const coverage = useMemo(() => {
@@ -229,6 +246,8 @@ const TeacherDashboard: React.FC = () => {
         isPublished: Boolean(l.isPublished),
 
         createdAt: l.createdAt ?? l.created_at ?? new Date().toISOString(),
+
+        readiness: l.readiness ?? undefined,
       }));
 
       setLessons(mapped);
@@ -1180,6 +1199,9 @@ const TeacherDashboard: React.FC = () => {
                       Status
                     </th>
                     <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "bold" }}>
+                      Readiness
+                    </th>
+                    <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "bold" }}>
                       Actions
                     </th>
                   </tr>
@@ -1260,6 +1282,50 @@ const TeacherDashboard: React.FC = () => {
                         >
                           {lesson.isPublished ? "Published" : "Draft"}
                         </span>
+                      </td>
+                      <td style={{ padding: "12px" }}>
+                        {(() => {
+                          const status = lesson.readiness?.status ?? "DRAFT";
+                          const missing = lesson.readiness?.signals?.missing ?? [];
+                          const missingLabels: Record<string, string> = {
+                            NO_DIAGRAMS: "diagrams",
+                            NO_CHECKPOINTS: "checkpoints",
+                            NO_PRACTICE: "practice",
+                            NOT_REVIEWED: "reviewed",
+                          };
+                          const missingText = missing.map((m) => missingLabels[m] ?? m).filter(Boolean);
+                          return (
+                            <div>
+                              <span
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: "20px",
+                                  fontSize: "0.8rem",
+                                  fontWeight: "bold",
+                                  background:
+                                    status === "READY"
+                                      ? "#c6f6d5"
+                                      : status === "NEEDS_REVIEW"
+                                        ? "#fef3c7"
+                                        : "#e5e7eb",
+                                  color:
+                                    status === "READY"
+                                      ? "#22543d"
+                                      : status === "NEEDS_REVIEW"
+                                        ? "#92400e"
+                                        : "#4b5563",
+                                }}
+                              >
+                                {status === "READY" ? "Classroom-ready" : status === "NEEDS_REVIEW" ? "Needs review" : "Draft"}
+                              </span>
+                              {missingText.length > 0 && (
+                                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                                  Missing: {missingText.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "12px" }}>
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>

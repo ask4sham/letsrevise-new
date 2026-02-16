@@ -18,6 +18,7 @@ const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const { toLessonPreviewPayload, toLessonFullPayload } = require("../utils/lessonPayload");
+const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 
 // ✅ ADDED: Import for revision validation
@@ -1243,6 +1244,7 @@ router.get("/teacher", auth, async (req, res) => {
         );
         lessonObj.totalEarnings = totalEarnings;
 
+        lessonObj.readiness = computeLessonReadiness(lessonObj);
         return lessonObj;
       })
     );
@@ -1677,6 +1679,7 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
       return res.json({ ...payload, accessDecision });
     }
     const payload = toLessonFullPayload(lesson);
+    payload.readiness = computeLessonReadiness(lesson);
     return res.json({ ...payload, accessDecision });
   } catch (err) {
     console.error("Get lesson error:", err);
@@ -1988,6 +1991,32 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
     });
   } catch (err) {
     console.error("POST attach-by-topic error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
+   PR7: Toggle lesson reviewed state (owner/admin only)
+   POST /api/lessons/:id/review — body: { reviewed: boolean }
+   ========================================= */
+router.post("/:id/review", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const reviewed = req.body?.reviewed === true;
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    lesson.reviewedAt = reviewed ? new Date() : null;
+    lesson.reviewedBy = reviewed ? req.user._id : null;
+    await lesson.save();
+    const updated = lesson.toObject();
+    return res.json({
+      ok: true,
+      reviewedAt: lesson.reviewedAt ? lesson.reviewedAt.toISOString() : null,
+      reviewedBy: lesson.reviewedBy ? String(lesson.reviewedBy) : null,
+      readiness: computeLessonReadiness(updated),
+    });
+  } catch (err) {
+    console.error("POST /:id/review error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

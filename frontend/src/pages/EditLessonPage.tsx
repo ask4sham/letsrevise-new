@@ -69,6 +69,22 @@ interface QuizQuestion {
   markScheme?: string[];
 }
 
+/** PR7: readiness from backend (computed) */
+interface LessonReadiness {
+  status: "DRAFT" | "NEEDS_REVIEW" | "READY";
+  score?: number;
+  signals?: {
+    hasCheckpoints?: boolean;
+    checkpointCount?: number;
+    hasDiagrams?: boolean;
+    diagramCount?: number;
+    hasPracticeQuestions?: boolean;
+    practiceCount?: number;
+    isReviewed?: boolean;
+    missing?: string[];
+  };
+}
+
 interface Lesson {
   id: string;
   title: string;
@@ -95,6 +111,10 @@ interface Lesson {
     timeSeconds?: number;
     questions?: QuizQuestion[];
   };
+  /** PR7 */
+  readiness?: LessonReadiness;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
 }
 
 type ExamBoardRow = { name: string };
@@ -338,7 +358,8 @@ const EditLessonPage: React.FC = () => {
   const [autoAttachLoading, setAutoAttachLoading] = useState(false);
   const [autoAttachLimit, setAutoAttachLimit] = useState(10);
   const [autoAttachMessage, setAutoAttachMessage] = useState<string | null>(null);
-  
+  const [reviewLoading, setReviewLoading] = useState(false);
+
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
     parsedQuestions: QuizQuestion[];
@@ -2294,6 +2315,88 @@ const EditLessonPage: React.FC = () => {
                         </div>
                       </div>
                     </label>
+                  </div>
+
+                  {/* PR7: Readiness panel */}
+                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
+                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Readiness</div>
+                    {(() => {
+                      const r = lesson?.readiness;
+                      const status = r?.status ?? "DRAFT";
+                      const sig = r?.signals ?? {};
+                      const isReviewed = !!lesson?.reviewedAt || sig.isReviewed;
+                      return (
+                        <>
+                          <div style={{ marginBottom: 10 }}>
+                            <span
+                              style={{
+                                padding: "4px 10px",
+                                borderRadius: "20px",
+                                fontSize: "0.8rem",
+                                fontWeight: "bold",
+                                background:
+                                  status === "READY"
+                                    ? "#c6f6d5"
+                                    : status === "NEEDS_REVIEW"
+                                      ? "#fef3c7"
+                                      : "#e5e7eb",
+                                color:
+                                  status === "READY"
+                                    ? "#22543d"
+                                    : status === "NEEDS_REVIEW"
+                                      ? "#92400e"
+                                      : "#4b5563",
+                              }}
+                            >
+                              {status === "READY" ? "Classroom-ready" : status === "NEEDS_REVIEW" ? "Needs review" : "Draft"}
+                            </span>
+                          </div>
+                          <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 13, color: "#374151" }}>
+                            <li>Checkpoints: {sig.checkpointCount ?? 0}</li>
+                            <li>Diagrams: {sig.diagramCount ?? 0}</li>
+                            <li>Practice questions attached: {sig.practiceCount ?? 0}</li>
+                            <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
+                          </ul>
+                          <button
+                            type="button"
+                            disabled={reviewLoading}
+                            onClick={async () => {
+                              if (!id) return;
+                              setReviewLoading(true);
+                              try {
+                                const res = await api.post(`/lessons/${id}/review`, {
+                                  reviewed: !isReviewed,
+                                });
+                                const data = res?.data;
+                                setLesson((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        readiness: data?.readiness ?? prev.readiness,
+                                        reviewedAt: data?.reviewedAt !== undefined ? data.reviewedAt : prev.reviewedAt,
+                                        reviewedBy: data?.reviewedBy !== undefined ? data.reviewedBy : prev.reviewedBy,
+                                      }
+                                    : prev
+                                );
+                              } finally {
+                                setReviewLoading(false);
+                              }
+                            }}
+                            style={{
+                              padding: "8px 14px",
+                              borderRadius: 8,
+                              border: isReviewed ? "2px solid #94a3b8" : "2px solid #22c55e",
+                              background: isReviewed ? "#f1f5f9" : "rgba(34,197,94,0.12)",
+                              cursor: reviewLoading ? "not-allowed" : "pointer",
+                              fontWeight: 700,
+                              fontSize: 13,
+                            }}
+                          >
+                            {reviewLoading ? "Updating…" : isReviewed ? "Unmark review" : "Mark as reviewed"}
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
