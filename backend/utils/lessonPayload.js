@@ -46,7 +46,8 @@ function sanitizePageForPreview(page) {
   if (Array.isArray(out.blocks)) {
     out.blocks = out.blocks.map((b) => {
       if (b && b.type === "checkpoint") {
-        const { correctAnswer, explanation, ...rest } = b;
+        const { explanation, ...rest } = b;
+        // Keep correctAnswer so frontend can show Correct/Not quite without revealing which option; never send explanation in preview
         return rest;
       }
       // Diagram blocks: allow in preview; expose only type, visualId, caption

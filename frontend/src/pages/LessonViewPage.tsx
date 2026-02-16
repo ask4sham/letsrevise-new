@@ -378,6 +378,131 @@ function DiagramBlockContent({
   );
 }
 
+function CheckpointMCQBlock({
+  block,
+  name,
+  entitled,
+}: {
+  block: LessonPageBlock;
+  name: string;
+  entitled: boolean;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+  const options = Array.isArray(block.options) ? block.options : [];
+  const correctAnswer = block.correctAnswer != null ? String(block.correctAnswer).trim() : "";
+  const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
+
+  const getOptionBg = (opt: string) => {
+    const optTrim = String(opt ?? "").trim();
+    const isSelected = selected !== null && selected.trim() === optTrim;
+    const isCorrectOpt = correctAnswer !== "" && optTrim === correctAnswer;
+    if (!checked) return "white";
+    if (entitled) {
+      if (isCorrectOpt) return "#dcfce7";
+      if (isSelected && !isCorrect) return "#fee2e2";
+      return "white";
+    }
+    if (isSelected) return isCorrect ? "#dcfce7" : "#fee2e2";
+    return "white";
+  };
+
+  return (
+    <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {options.map((opt, i) => (
+          <label
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              background: getOptionBg(opt),
+              cursor: checked ? "default" : "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={String(opt ?? "")}
+              checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
+              onChange={() => {
+                if (!checked) setSelected(String(opt ?? "").trim());
+              }}
+              disabled={checked}
+            />
+            <span style={{ color: "#374151" }}>{opt}</span>
+          </label>
+        ))}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        {!checked ? (
+          <button
+            type="button"
+            disabled={selected === null}
+            onClick={() => setChecked(true)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "2px solid rgba(59,130,246,0.4)",
+              background: selected !== null ? "rgba(59,130,246,0.12)" : "#f1f5f9",
+              cursor: selected !== null ? "pointer" : "not-allowed",
+              fontWeight: 700,
+              opacity: selected !== null ? 1 : 0.7,
+            }}
+          >
+            Check answer
+          </button>
+        ) : (
+          <>
+            <div style={{ marginTop: 2 }}>
+              {isCorrect ? (
+                <span style={{ color: "#16a34a", fontWeight: 700 }}>✅ Correct</span>
+              ) : (
+                <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>
+              )}
+            </div>
+            {entitled && block.explanation ? (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                <strong style={{ color: "#374151" }}>Explanation:</strong>
+                <div style={{ marginTop: 4, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>
+                  {block.explanation}
+                </div>
+              </div>
+            ) : null}
+            {checked && !entitled && (
+              <div style={{ marginTop: 8, opacity: 0.85, fontSize: "0.9rem", color: "#6b7280" }}>
+                Subscribe to see the full explanation.
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSelected(null);
+                setChecked(false);
+              }}
+              style={{
+                marginTop: 6,
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "2px solid rgba(0,0,0,0.14)",
+                background: "white",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Try again
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 const LessonViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -392,7 +517,7 @@ const LessonViewPage: React.FC = () => {
   // Phase B: entitlement UI state
   const [subscriptionRequired, setSubscriptionRequired] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
-  const [accessDecision, setAccessDecision] = useState<{ reason?: string } | null>(null);
+  const [accessDecision, setAccessDecision] = useState<{ allowed?: boolean; reason?: string } | null>(null);
   const loggedPreviewRef = useRef<string | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -1303,6 +1428,8 @@ const LessonViewPage: React.FC = () => {
     const questionType = block.questionType === "short" ? "short" : "mcq";
     const options = Array.isArray(block.options) ? block.options : [];
     const name = `checkpoint-${idx}-${currentPage?.pageId ?? idx}`;
+    const entitled = Boolean(accessDecision?.allowed);
+
     return (
       <div
         key={`checkpoint-${idx}`}
@@ -1323,26 +1450,11 @@ const LessonViewPage: React.FC = () => {
           {prompt}
         </div>
         {questionType === "mcq" && options.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {options.map((opt, i) => (
-              <label
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #e5e7eb",
-                  background: "white",
-                  cursor: "pointer",
-                }}
-              >
-                <input type="radio" name={name} value={String(i)} onChange={() => {}} />
-                <span style={{ color: "#374151" }}>{opt}</span>
-              </label>
-            ))}
-          </div>
+          <CheckpointMCQBlock
+            block={block}
+            name={name}
+            entitled={entitled}
+          />
         ) : questionType === "short" ? (
           <div style={{ marginTop: 8 }}>
             <input
