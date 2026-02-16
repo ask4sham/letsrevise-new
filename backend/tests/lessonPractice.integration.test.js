@@ -20,6 +20,8 @@ describe("GET /api/lessons/:id/practice", () => {
   let tokenNotEntitled;
   let tokenSubscribed;
   let tokenUnlocked;
+  let tokenTeacher;
+  let lessonDraftId;
 
   beforeAll(async () => {
     const teacher = await User.create({
@@ -75,6 +77,21 @@ describe("GET /api/lessons/:id/practice", () => {
     });
     lessonPreviewId = lessonPreview._id;
 
+    const lessonDraft = await Lesson.create({
+      title: "Draft Lesson",
+      description: "D",
+      content: "C",
+      teacherId,
+      teacherName: "Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Cells",
+      status: "draft",
+      isFreePreview: false,
+      examQuestions: [{ questionId, addedAt: new Date() }],
+    });
+    lessonDraftId = lessonDraft._id;
+
     const uNotEntitled = await User.create({
       firstName: "Student",
       lastName: "None",
@@ -118,6 +135,7 @@ describe("GET /api/lessons/:id/practice", () => {
     tokenNotEntitled = await login("practice-not-entitled@test.com");
     tokenSubscribed = await login("practice-subscribed@test.com");
     tokenUnlocked = await login("practice-unlocked@test.com");
+    tokenTeacher = await login("practice-teacher@test.com");
   });
 
   test("NOT_ENTITLED user gets 402 and no question content", async () => {
@@ -170,5 +188,18 @@ describe("GET /api/lessons/:id/practice", () => {
     expect(res.body.reason).toBe("LESSON_UNLOCK");
     expect(res.body.questions.length).toBeGreaterThanOrEqual(1);
     expect(res.body.questions[0].question).toBeDefined();
+  });
+
+  test("PR3b.1: teacher owner gets 200 with allowed:true and questions on draft lesson", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonDraftId}/practice`)
+      .set("Authorization", `Bearer ${tokenTeacher}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.allowed).toBe(true);
+    expect(res.body.reason).toBe("OWNER");
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    expect(res.body.questions.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.questions[0].question).toContain("photosynthesis");
   });
 });

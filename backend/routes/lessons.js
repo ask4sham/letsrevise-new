@@ -1551,80 +1551,105 @@ router.post("/:id/unpublish", auth, async (req, res) => {
 });
 
 /* =========================================
-   PR3b: GET /api/lessons/:id/practice — Student practice from attached exam questions (entitled only).
+   PR3b/PR3b.1: GET /api/lessons/:id/practice — Student practice (entitled only).
+   Teacher/Admin owner can view practice on draft lessons; students require published + entitlement.
    No question content unless accessDecision.allowed === true.
    ========================================= */
-router.get("/:id/practice", auth, applyLessonAccess({ requirePublished: true }), async (req, res) => {
-  try {
-    const decision = req.accessDecision;
-    const lessonId = req.params.id;
+function isOwnerOrAdminForPractice(user, lesson) {
+  if (!user || !lesson) return false;
+  if (isAdmin(user)) return true;
+  const teacherId = lesson.teacherId?._id ?? lesson.teacherId;
+  return teacherId != null && String(teacherId) === String(user._id ?? user.id);
+}
 
-    if (!decision || !decision.allowed) {
+router.get(
+  "/:id/practice",
+  auth,
+  async (req, res, next) => {
+    try {
+      const lessonId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      if (isOwnerOrAdminForPractice(req.user, lesson)) {
+        req.lesson = lesson;
+        req.accessDecision = { allowed: true, reason: "OWNER" };
+        return next();
+      }
+      return applyLessonAccess({ requirePublished: true })(req, res, next);
+    } catch (err) {
+      console.error("practice precheck error:", err);
+      return res.status(500).json({ error: "Failed to check access" });
+    }
+  },
+  async (req, res) => {
+    try {
+      const lessonId = req.params.id;
+      if (!req.accessDecision || !req.accessDecision.allowed) {
+        return res.status(200).json({
+          ok: true,
+          allowed: false,
+          reason: req.accessDecision?.reason || "UNKNOWN",
+          lessonId,
+          questions: [],
+        });
+      }
+      const lesson = await Lesson.findById(lessonId)
+        .select("_id examQuestions teacherId")
+        .populate({
+          path: "examQuestions.questionId",
+          model: "ExamQuestion",
+          select: "question type marks options correctAnswer correctIndex markScheme topicKey topic",
+        })
+        .lean();
+      if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+      const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+      const questions = refs
+        .map((ref) => {
+          const q = ref.questionId;
+          if (!q) return null;
+          const id = q._id ? String(q._id) : null;
+          if (!id) return null;
+          const options = Array.isArray(q.options) ? q.options : [];
+          const correctAnswer =
+            q.correctAnswer != null
+              ? String(q.correctAnswer)
+              : options[q.correctIndex] != null
+                ? String(options[q.correctIndex])
+                : "";
+          const explanation =
+            Array.isArray(q.markScheme) && q.markScheme.length > 0
+              ? q.markScheme.join("\n")
+              : "";
+          return {
+            id,
+            question: q.question != null ? String(q.question) : "",
+            type: q.type || "short",
+            marks: typeof q.marks === "number" ? q.marks : 1,
+            options: options.length > 0 ? options : undefined,
+            correctAnswer: correctAnswer || undefined,
+            explanation: explanation || undefined,
+            markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+            topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
+            topic: q.topic != null ? String(q.topic) : undefined,
+          };
+        })
+        .filter(Boolean);
       return res.status(200).json({
         ok: true,
-        allowed: false,
-        reason: (decision && decision.reason) || "NOT_ENTITLED",
+        allowed: true,
+        reason: req.accessDecision.reason,
         lessonId,
-        questions: [],
+        questions,
       });
+    } catch (err) {
+      console.error("GET /api/lessons/:id/practice error:", err);
+      return res.status(500).json({ error: "Failed to load practice questions" });
     }
-
-    const lesson = await Lesson.findById(lessonId)
-      .select("examQuestions")
-      .populate({
-        path: "examQuestions.questionId",
-        model: "ExamQuestion",
-        select: "question type marks options correctAnswer correctIndex markScheme topicKey topic",
-      })
-      .lean();
-
-    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
-
-    const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
-    const questions = refs
-      .map((ref) => {
-        const q = ref.questionId;
-        if (!q) return null;
-        const id = q._id ? String(q._id) : null;
-        if (!id) return null;
-        const options = Array.isArray(q.options) ? q.options : [];
-        const correctAnswer =
-          q.correctAnswer != null
-            ? String(q.correctAnswer)
-            : options[q.correctIndex] != null
-              ? String(options[q.correctIndex])
-              : "";
-        const explanation =
-          Array.isArray(q.markScheme) && q.markScheme.length > 0
-            ? q.markScheme.join("\n")
-            : "";
-        return {
-          id,
-          question: q.question != null ? String(q.question) : "",
-          type: q.type || "short",
-          marks: typeof q.marks === "number" ? q.marks : 1,
-          options: options.length > 0 ? options : undefined,
-          correctAnswer: correctAnswer || undefined,
-          explanation: explanation || undefined,
-          markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
-          topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
-          topic: q.topic != null ? String(q.topic) : undefined,
-        };
-      })
-      .filter(Boolean);
-
-    return res.status(200).json({
-      ok: true,
-      allowed: true,
-      reason: decision.reason,
-      lessonId,
-      questions,
-    });
-  } catch (err) {
-    console.error("GET practice error:", err);
-    return res.status(500).json({ msg: "Server error" });
   }
-});
+);
 
 /* =========================================
    Get lesson by ID (private)
