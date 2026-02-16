@@ -383,17 +383,23 @@ function sanitizeDraft(draft, { subject, level, topic }) {
   clean.pages = clean.pages
     .map((p, idx) => {
       const blocksRaw = Array.isArray(p?.blocks) ? p.blocks : [];
-      const blocks = blocksRaw
+      let blocks = blocksRaw
         .map((b) => {
           const type = normalizeBlockType(b?.type);
           if (type === "checkpoint") {
-            const questionType = (b?.questionType === "short" ? "short" : "mcq");
-            const options = Array.isArray(b?.options) ? b.options.map((o) => safeStr(o, "")).filter(Boolean).slice(0, 6) : [];
+            const prompt = safeStr(b?.prompt, "").trim();
+            const options = Array.isArray(b?.options)
+              ? b.options.map((o) => safeStr(o, "")).filter(Boolean).slice(0, 6)
+              : [];
+            const questionType =
+              b?.questionType === "short" ? "short" : (options.length > 0 ? "mcq" : "short");
+            const finalOptions =
+              questionType === "mcq" && options.length === 0 ? ["A", "B", "C", "D"] : options;
             return {
               type: "checkpoint",
-              prompt: safeStr(b?.prompt, "Quick check"),
+              prompt: prompt || "Quick check",
               questionType,
-              options: questionType === "mcq" && options.length === 0 ? ["A", "B", "C", "D"] : options,
+              options: finalOptions,
               correctAnswer: safeStr(b?.correctAnswer, ""),
               explanation: safeStr(b?.explanation, ""),
             };
@@ -403,30 +409,58 @@ function sanitizeDraft(draft, { subject, level, topic }) {
             content: safeStr(b?.content, ""),
           };
         })
-        .filter((b) => b.type === "checkpoint" || (b.content && b.content.trim().length > 0));
+        .filter((b) => {
+          if (b.type === "checkpoint") {
+            const prompt = (b.prompt || "").toString().trim();
+            return prompt.length > 0;
+          }
+          return b.content && b.content.trim().length > 0;
+        });
 
       const cp = p?.checkpoint || {};
-      const options = clampOptions(cp?.options);
-      while (options.length < 4) options.push(`Option ${options.length + 1}`);
+      const hasPageLevelCheckpoint =
+        cp && typeof cp === "object" && safeStr(cp?.question, "").trim().length > 0;
 
-      const answer = safeStr(cp?.answer, "");
-      const answerOk = options.some((o) => o.trim() === answer.trim());
+      if (hasPageLevelCheckpoint) {
+        const options = clampOptions(cp?.options);
+        while (options.length < 4) options.push(`Option ${options.length + 1}`);
+        const answer = safeStr(cp?.answer, "");
+        const answerOk = options.some((o) => o.trim() === answer.trim());
+        const checkpointBlock = {
+          type: "checkpoint",
+          prompt: safeStr(cp?.question, "Quick check: which statement is correct?"),
+          questionType: "mcq",
+          options: options.slice(0, 4),
+          correctAnswer: answerOk ? answer : options[0],
+          explanation: "",
+        };
+        const hasCheckpointBlock = blocks.some((b) => b.type === "checkpoint");
+        if (!hasCheckpointBlock) blocks = [...blocks, checkpointBlock];
+      }
+
+      const hasAnyCheckpointBlock = blocks.some((b) => b.type === "checkpoint");
+      const finalBlocks =
+        blocks.length > 0
+          ? blocks
+          : [{ type: "text", content: "Content coming soon." }];
+
+      const legacyOptions = clampOptions(cp?.options);
+      while (legacyOptions.length < 4) legacyOptions.push(`Option ${legacyOptions.length + 1}`);
+      const legacyAnswer = safeStr(cp?.answer, "");
+      const legacyAnswerOk = legacyOptions.some((o) => o.trim() === legacyAnswer.trim());
 
       return {
         title: safeStr(p?.title, `Page ${idx + 1}`),
         order: Number.isFinite(Number(p?.order)) ? Number(p.order) : idx + 1,
         pageType: safeStr(p?.pageType, ""),
-        blocks: blocks.length
-          ? blocks
-          : [{ type: "text", content: "Content coming soon." }],
-        checkpoint: {
-          question: safeStr(
-            cp?.question,
-            "Quick check: which statement is correct?"
-          ),
-          options: options.slice(0, 4),
-          answer: answerOk ? answer : options[0],
-        },
+        blocks: finalBlocks,
+        checkpoint: hasAnyCheckpointBlock
+          ? undefined
+          : {
+              question: safeStr(cp?.question, "Quick check: which statement is correct?"),
+              options: legacyOptions.slice(0, 4),
+              answer: legacyAnswerOk ? legacyAnswer : legacyOptions[0],
+            },
       };
     })
     .sort((a, b) => (a.order || 0) - (b.order || 0))

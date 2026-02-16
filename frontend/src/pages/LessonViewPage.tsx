@@ -1193,6 +1193,7 @@ const LessonViewPage: React.FC = () => {
     const prompt = block.prompt ?? "Quick check";
     const questionType = block.questionType === "short" ? "short" : "mcq";
     const options = Array.isArray(block.options) ? block.options : [];
+    const name = `checkpoint-${idx}-${currentPage?.pageId ?? idx}`;
     return (
       <div
         key={`checkpoint-${idx}`}
@@ -1206,21 +1207,38 @@ const LessonViewPage: React.FC = () => {
           textAlign: "left",
         }}
       >
+        <div style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>
+          Check your understanding
+        </div>
         <div style={{ fontWeight: 800, marginBottom: 10, color: "#111827", fontSize: BASE_FONT_SIZE }}>
           {prompt}
         </div>
         {questionType === "mcq" && options.length > 0 ? (
-          <ul style={{ margin: 0, paddingLeft: 20, listStyle: "disc" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {options.map((opt, i) => (
-              <li key={i} style={{ marginBottom: 6, color: "#374151" }}>{opt}</li>
+              <label
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #e5e7eb",
+                  background: "white",
+                  cursor: "pointer",
+                }}
+              >
+                <input type="radio" name={name} value={String(i)} onChange={() => {}} />
+                <span style={{ color: "#374151" }}>{opt}</span>
+              </label>
             ))}
-          </ul>
+          </div>
         ) : questionType === "short" ? (
           <div style={{ marginTop: 8 }}>
             <input
               type="text"
               placeholder="Your answer..."
-              readOnly
               style={{
                 width: "100%",
                 maxWidth: 400,
