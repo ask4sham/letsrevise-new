@@ -236,4 +236,27 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
     expect(diagramBlocks[0]).toHaveProperty("visualId");
     expect(diagramBlocks[0].caption).toBeDefined();
   });
+
+  test("topicKey from taxonomy resolves to topic name and does not break existing flow", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey: "cell-structure", tier: "higher" });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    expect(lesson.topic).toBe("Cell structure");
+    expect(lesson.subject).toBe("Biology");
+  });
+
+  test("topic (free text) still works when topicKey not provided", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topic: "Custom free topic", tier: "foundation" });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    expect(lesson.topic).toBe("Custom free topic");
+  });
 });

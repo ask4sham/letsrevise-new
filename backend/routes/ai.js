@@ -11,6 +11,7 @@ const VisualModel = require("../models/VisualModel");
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
+const { findTopicByKey } = require("../utils/topicTaxonomy");
 
 /** Topic (normalized) → VisualModel conceptKeys. First match wins; use conceptKey for findOne. */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -869,16 +870,27 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Not authenticated" });
     if (!requireTeacherOrAdmin(req, res)) return;
 
-    const topic = safeStr(req.body?.topic, "").trim();
+    const topicRaw = safeStr(req.body?.topic, "").trim();
+    const topicKeyRaw = safeStr(req.body?.topicKey, "").trim();
     const tierRaw = safeStr(req.body?.tier, "").toLowerCase();
     const specPoint = safeStr(req.body?.specPoint, "").trim();
     const lengthPreset = (req.body?.length && safeStr(req.body.length).toLowerCase()) || "standard";
 
-    // Validation
-    if (topic.length < 3 || topic.length > 120) {
+    // Resolve topic: prefer topicKey from taxonomy, else free-text topic
+    let topic = topicRaw;
+    if (topicKeyRaw) {
+      const fromTaxonomy = findTopicByKey(topicKeyRaw);
+      if (fromTaxonomy && fromTaxonomy.topic) {
+        topic = fromTaxonomy.topic;
+      }
+      if (!topic && !topicRaw) {
+        topic = topicKeyRaw.replace(/-/g, " ");
+      }
+    }
+    if (!topic || topic.length < 3 || topic.length > 120) {
       return res.status(400).json({
         error: "Invalid topic",
-        details: "topic must be 3–120 characters",
+        details: "Provide topic (3–120 characters) or a valid topicKey from the taxonomy.",
       });
     }
     if (tierRaw !== "foundation" && tierRaw !== "higher") {
