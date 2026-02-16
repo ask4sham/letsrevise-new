@@ -1,6 +1,6 @@
 // frontend/src/pages/LessonViewPage.tsx
 import React, { useMemo, useEffect, useState, useRef } from "react";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
@@ -911,6 +911,7 @@ function PracticeSection({
 const LessonViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -1056,6 +1057,16 @@ const LessonViewPage: React.FC = () => {
       void logPaywallEvent("FREE_PREVIEW_VIEW", { lessonId: id });
     }
   }, [accessDecision?.reason, id]);
+
+  // Scroll to #practice when arriving via /lesson/:id#practice
+  useEffect(() => {
+    if (location.hash === "#practice") {
+      setTimeout(() => {
+        const el = document.getElementById("practice");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    }
+  }, [location.hash, id]);
 
   // PR3b: Fetch practice questions only when entitled (no content leak for non-entitled)
   useEffect(() => {
