@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom"
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
-import api, { getVisual } from "../services/api";
+import api, { getVisual, getVisualById } from "../services/api";
 
 import { ReviewList, ReviewForm } from "../components/reviews";
 import FlashcardsView from "../components/revision/FlashcardsView";
@@ -15,13 +15,15 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint";
+  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram";
   content?: string;
   prompt?: string;
   questionType?: "mcq" | "short";
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  visualId?: string;
+  caption?: string;
 }
 
 interface LessonPageHero {
@@ -282,6 +284,98 @@ function makeAbsoluteAssetUrl(maybeRelativeUrl: string) {
 
   // Ensure exactly one slash between base and path
   return `${base}${s.startsWith("/") ? "" : "/"}${s}`;
+}
+
+function DiagramBlockContent({
+  visualId,
+  caption,
+  level,
+  makeAbsoluteAssetUrl: resolveUrl,
+}: {
+  visualId: string;
+  caption: string;
+  level: string;
+  makeAbsoluteAssetUrl: (url: string) => string;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!!visualId);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!visualId || !visualId.trim()) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    getVisualById(visualId, level)
+      .then((res: any) => {
+        if (cancelled) return;
+        const v = res?.data?.visual;
+        const url = v && typeof v.src === "string" ? v.src : "";
+        setSrc(url ? resolveUrl(url) : null);
+        setError(!url);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visualId, level, resolveUrl]);
+
+  if (!visualId || !visualId.trim()) return null;
+
+  const boxStyle: React.CSSProperties = {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    background: "#f8f9fa",
+    border: "2px solid rgba(34,197,94,0.25)",
+    boxShadow: "0 0 0 2px rgba(34,197,94,0.08)",
+    textAlign: "center",
+  };
+
+  if (loading) {
+    return (
+      <div style={boxStyle}>
+        <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>Loading diagram…</div>
+      </div>
+    );
+  }
+  if (error || !src) {
+    return (
+      <div style={boxStyle}>
+        <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>Diagram unavailable</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={boxStyle}>
+      <img
+        src={src}
+        alt={caption || "Diagram"}
+        style={{
+          width: "100%",
+          maxWidth: 720,
+          height: "auto",
+          borderRadius: 12,
+          display: "block",
+          margin: "0 auto",
+        }}
+      />
+      {caption ? (
+        <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>
+          {caption}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 const LessonViewPage: React.FC = () => {
@@ -1189,6 +1283,21 @@ const LessonViewPage: React.FC = () => {
     );
   };
 
+  const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
+    const visualId = block.visualId ?? "";
+    const caption = block.caption ?? "";
+    const level = lesson?.level ?? "GCSE";
+    return (
+      <DiagramBlockContent
+        key={`diagram-${idx}-${visualId}`}
+        visualId={visualId}
+        caption={caption}
+        level={level}
+        makeAbsoluteAssetUrl={makeAbsoluteAssetUrl}
+      />
+    );
+  };
+
   const renderCheckpointBlock = (block: LessonPageBlock, idx: number) => {
     const prompt = block.prompt ?? "Quick check";
     const questionType = block.questionType === "short" ? "short" : "mcq";
@@ -1897,6 +2006,8 @@ const LessonViewPage: React.FC = () => {
                     .map((b, idx) =>
                       b.type === "checkpoint"
                         ? renderCheckpointBlock(b, idx)
+                        : b.type === "diagram"
+                        ? renderDiagramBlock(b, idx)
                         : renderCallout(b.type, safeStr(b.content, ""), idx)
                     )}
                 </div>

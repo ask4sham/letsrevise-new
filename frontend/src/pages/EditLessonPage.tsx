@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
-import api from "../services/api";
+import api, { listVisuals, getVisualById } from "../services/api";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
   type LessonBlockType,
@@ -23,6 +23,9 @@ interface LessonPageBlock {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  /** Diagram block fields (when type === "diagram") */
+  visualId?: string;
+  caption?: string;
 }
 
 interface LessonPageHero {
@@ -323,6 +326,8 @@ const EditLessonPage: React.FC = () => {
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
+  const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
+  const [visualsList, setVisualsList] = useState<Array<{ _id: string; conceptKey: string; topic?: string }>>([]);
   
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
@@ -407,6 +412,19 @@ const EditLessonPage: React.FC = () => {
       titleRef.current.focus();
     }
   }, [lesson?.createdFromTemplate]);
+
+  useEffect(() => {
+    if (!diagramPickerTarget) {
+      setVisualsList([]);
+      return;
+    }
+    listVisuals("Biology")
+      .then((res: any) => {
+        const list = Array.isArray(res?.data?.visuals) ? res.data.visuals : [];
+        setVisualsList(list.map((v: any) => ({ _id: String(v._id), conceptKey: String(v.conceptKey || ""), topic: v.topic })));
+      })
+      .catch(() => setVisualsList([]));
+  }, [diagramPickerTarget]);
 
   const fetchLessonSmart = async () => {
     try {
@@ -522,6 +540,13 @@ const EditLessonPage: React.FC = () => {
                       : ["", "", "", ""],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
+                  };
+                }
+                if (b?.type === "diagram") {
+                  return {
+                    type: "diagram" as const,
+                    visualId: b.visualId != null ? String(b.visualId) : "",
+                    caption: safeStr(b.caption, ""),
                   };
                 }
                 return {
@@ -711,6 +736,12 @@ const EditLessonPage: React.FC = () => {
           options: ["", "", "", ""],
           correctAnswer: "",
           explanation: "",
+        });
+      } else if (type === "diagram") {
+        blocks.push({
+          type: "diagram",
+          visualId: "",
+          caption: "",
         });
       } else {
         blocks.push({ type, content: "" });
@@ -1633,6 +1664,13 @@ const EditLessonPage: React.FC = () => {
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
             };
           }
+          if (b.type === "diagram") {
+            return {
+              type: "diagram",
+              visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
+              caption: b.caption != null ? String(b.caption).trim() : undefined,
+            };
+          }
           return {
             type: toLegacyBlockType(b.type),
             content: sanitizeTeacherMarkdown(String(b.content || "")),
@@ -1705,6 +1743,13 @@ const EditLessonPage: React.FC = () => {
               options: opts,
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+            };
+          }
+          if (b.type === "diagram") {
+            return {
+              type: "diagram",
+              visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
+              caption: b.caption != null ? String(b.caption).trim() : undefined,
             };
           }
           return {
@@ -2321,7 +2366,9 @@ const EditLessonPage: React.FC = () => {
                       const key = `${currentPage!.pageId}:${idx}`;
                       const isUploading = uploadingKey === key;
                       const isCheckpoint = b.type === "checkpoint";
+                      const isDiagram = b.type === "diagram";
                       const cp = isCheckpoint ? b : null;
+                      const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
                       const cpWarnings: string[] = [];
                       if (isCheckpoint && cp) {
@@ -2378,7 +2425,7 @@ const EditLessonPage: React.FC = () => {
                                 ↓
                               </button>
 
-                              {!isCheckpoint && (
+                              {!isCheckpoint && !isDiagram && (
                                 <button
                                   onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
                                   disabled={isUploading}
@@ -2574,6 +2621,59 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 />
                               </label>
+                            </div>
+                          ) : isDiagram && d ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                              <div
+                                style={{
+                                  padding: 16,
+                                  borderRadius: 10,
+                                  background: "#f1f5f9",
+                                  border: "2px dashed rgba(34,197,94,0.3)",
+                                  textAlign: "center",
+                                  color: "#64748b",
+                                  fontSize: 14,
+                                }}
+                              >
+                                {d.visualId ? (
+                                  <span>Diagram: {d.visualId}</span>
+                                ) : (
+                                  <span>No diagram selected</span>
+                                )}
+                              </div>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption (optional)</div>
+                                <input
+                                  type="text"
+                                  value={d.caption ?? ""}
+                                  onChange={(e) =>
+                                    updateBlock(currentPage!.pageId, idx, { caption: e.target.value })
+                                  }
+                                  placeholder="Diagram caption..."
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                  }}
+                                />
+                              </label>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setDiagramPickerTarget({ pageId: currentPage!.pageId, blockIndex: idx })}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(34,197,94,0.35)",
+                                    background: "rgba(34,197,94,0.08)",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Replace diagram
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <>
@@ -3633,6 +3733,85 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
           </div>
         </div>
       </div>
+
+      {diagramPickerTarget && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+          }}
+          onClick={() => setDiagramPickerTarget(null)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 20,
+              maxWidth: 420,
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 12 }}>Choose diagram</div>
+            {visualsList.length === 0 ? (
+              <p style={{ color: "#64748b", fontSize: 14 }}>Loading…</p>
+            ) : (
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                {visualsList.map((v) => (
+                  <li key={v._id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (diagramPickerTarget)
+                          updateBlock(diagramPickerTarget.pageId, diagramPickerTarget.blockIndex, {
+                            visualId: v._id,
+                          });
+                        setDiagramPickerTarget(null);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        borderRadius: 8,
+                        border: "2px solid #e2e8f0",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {v.conceptKey}
+                      {v.topic ? ` — ${v.topic}` : ""}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              onClick={() => setDiagramPickerTarget(null)}
+              style={{
+                marginTop: 14,
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "2px solid #e2e8f0",
+                background: "#f1f5f9",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

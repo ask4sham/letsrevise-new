@@ -7,9 +7,29 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 
 const Lesson = require("../models/Lesson"); // ✅ needed for generate-and-save
+const VisualModel = require("../models/VisualModel");
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
+
+/** Topic (normalized) → VisualModel conceptKeys. First match wins; use conceptKey for findOne. */
+const BIOLOGY_DIAGRAM_MAP = {
+  "cell structure": ["cell-animal", "cell-plant"],
+  "cell structures": ["cell-animal", "cell-plant"],
+  "enzymes": ["enzyme-lock-key"],
+  "digestive system": ["digestive-system-organs"],
+  "digestion": ["digestive-system-organs"],
+  "photosynthesis": ["photosynthesis"],
+  "respiration": ["respiration"],
+  "transport in plants": ["transport-plants"],
+  "transport systems": ["transport-plants"],
+  "circulatory system": ["circulatory-system"],
+  "heart": ["circulatory-system"],
+  "nervous system": ["nervous-system"],
+  "homeostasis": ["homeostasis"],
+  "ecology": ["ecology-pyramid"],
+  "evolution": ["evolution-tree"],
+};
 
 function safeStr(v, fallback = "") {
   const s = v === undefined || v === null ? "" : String(v);
@@ -23,7 +43,7 @@ function clampOptions(raw) {
 
 function normalizeBlockType(t) {
   const v = safeStr(t, "text");
-  const allowed = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"];
+  const allowed = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"];
   return allowed.includes(v) ? v : "text";
 }
 
@@ -404,6 +424,13 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               explanation: safeStr(b?.explanation, ""),
             };
           }
+          if (type === "diagram") {
+            return {
+              type: "diagram",
+              visualId: b?.visualId,
+              caption: safeStr(b?.caption, ""),
+            };
+          }
           return {
             type,
             content: safeStr(b?.content, ""),
@@ -414,6 +441,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
             const prompt = (b.prompt || "").toString().trim();
             return prompt.length > 0;
           }
+          if (b.type === "diagram") return true;
           return b.content && b.content.trim().length > 0;
         });
 
@@ -916,6 +944,36 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       }
     } catch (e) {
       console.warn("⚠️ [Factory] Curated visual attach skipped:", e?.message || e);
+    }
+
+    // USP Step 1: Auto-attach diagram block from VisualModel when topic matches
+    const normTopicKey = safeStr(topic, "").toLowerCase().replace(/\s+/g, " ").trim();
+    const diagramConceptKeys = BIOLOGY_DIAGRAM_MAP[normTopicKey];
+    if (Array.isArray(diagramConceptKeys) && diagramConceptKeys.length > 0) {
+      try {
+        let visual = null;
+        for (const conceptKey of diagramConceptKeys) {
+          visual = await VisualModel.findOne({
+            conceptKey: String(conceptKey).trim(),
+            isPublished: true,
+          }).lean();
+          if (visual) break;
+        }
+        if (visual && pages.length > 0) {
+          const targetPageIndex = pages.length > 1 ? 1 : 0;
+          const target = pages[targetPageIndex];
+          const diagramBlock = {
+            type: "diagram",
+            visualId: visual._id,
+            caption: "",
+          };
+          const blocks = Array.isArray(target.blocks) ? [...target.blocks] : [];
+          blocks.unshift(diagramBlock);
+          pages[targetPageIndex] = { ...target, blocks };
+        }
+      } catch (e) {
+        console.warn("⚠️ [Factory] Diagram block attach skipped:", e?.message || e);
+      }
     }
 
     const first = safeStr(req.user?.firstName, "");

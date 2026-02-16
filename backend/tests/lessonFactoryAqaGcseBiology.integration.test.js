@@ -8,6 +8,7 @@ const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
+const VisualModel = require("../models/VisualModel");
 
 jest.mock("axios");
 
@@ -93,6 +94,15 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
       .send({ email: "factory-teacher@test.com", password: "password123" });
     teacherToken = loginRes.body?.token;
     if (!teacherToken) throw new Error("Failed to get teacher token");
+
+    await VisualModel.deleteMany({ conceptKey: "photosynthesis" });
+    await VisualModel.create({
+      conceptKey: "photosynthesis",
+      subject: "Biology",
+      topic: "Photosynthesis",
+      isPublished: true,
+      variants: [{ level: "GCSE", type: "staticDiagram", src: "/visuals/photosynthesis.svg" }],
+    });
   });
 
   beforeEach(() => {
@@ -209,5 +219,21 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
     pagesWithCheckpointBlock.forEach((page) => {
       expect(page.checkpoint).toBeUndefined();
     });
+  });
+
+  test("USP1: when topic maps to diagram and VisualModel exists, lesson has at least one diagram block", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topic: "Photosynthesis", tier: "higher" });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    const diagramBlocks = lesson.pages.flatMap((p) =>
+      (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
+    );
+    expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
+    expect(diagramBlocks[0]).toHaveProperty("visualId");
+    expect(diagramBlocks[0].caption).toBeDefined();
   });
 });

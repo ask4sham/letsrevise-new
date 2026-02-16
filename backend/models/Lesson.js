@@ -20,10 +20,10 @@ const LESSON_STATUSES = ["draft", "in_review", "published", "archived", "flagged
 
 const LessonPageBlockSchema = new mongoose.Schema(
   {
-    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint"
+    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram"
     type: {
       type: String,
-      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"],
+      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"],
       default: "text",
     },
     content: { type: String, default: "" }, // markdown-friendly (for text/keyIdea/examTip/commonMistake/stretch)
@@ -33,6 +33,9 @@ const LessonPageBlockSchema = new mongoose.Schema(
     options: { type: [String], default: undefined },
     correctAnswer: { type: String, default: undefined },
     explanation: { type: String, default: undefined },
+    // diagram block (when type === "diagram") — references VisualModel
+    visualId: { type: mongoose.Schema.Types.ObjectId, ref: "VisualModel", default: undefined },
+    caption: { type: String, default: "" },
   },
   { _id: false }
 );

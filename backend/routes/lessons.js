@@ -115,7 +115,7 @@ function sanitisePageInput(p, isUpdate = false) {
     hero = { type: "none", src: "", caption: "" };
   }
 
-  const allowedBlockTypes = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"];
+  const allowedBlockTypes = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"];
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
         const type = allowedBlockTypes.includes(String(b?.type)) ? String(b.type) : "text";
@@ -127,6 +127,17 @@ function sanitisePageInput(p, isUpdate = false) {
             options: Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [],
             correctAnswer: typeof b?.correctAnswer === "string" ? b.correctAnswer : undefined,
             explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
+          };
+        }
+        if (type === "diagram") {
+          const visualId =
+            b?.visualId && mongoose.Types.ObjectId.isValid(String(b.visualId))
+              ? b.visualId
+              : undefined;
+          return {
+            type: "diagram",
+            visualId: visualId || undefined,
+            caption: typeof b?.caption === "string" ? b.caption : "",
           };
         }
         return {

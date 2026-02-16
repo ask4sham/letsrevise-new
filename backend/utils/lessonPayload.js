@@ -49,6 +49,14 @@ function sanitizePageForPreview(page) {
         const { correctAnswer, explanation, ...rest } = b;
         return rest;
       }
+      // Diagram blocks: allow in preview; expose only type, visualId, caption
+      if (b && b.type === "diagram") {
+        return {
+          type: "diagram",
+          visualId: b.visualId,
+          caption: typeof b.caption === "string" ? b.caption : "",
+        };
+      }
       return b;
     });
   }
