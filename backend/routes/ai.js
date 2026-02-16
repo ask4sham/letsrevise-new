@@ -899,6 +899,19 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
         details: "tier must be 'foundation' or 'higher'",
       });
     }
+    const tier = tierRaw === "foundation" ? "foundation" : "higher";
+
+    // PR6: Validate tier against taxonomy (higher-only topics cannot be generated as foundation)
+    if (topicKeyRaw) {
+      const topicMeta = findTopicByKey(topicKeyRaw);
+      if (topicMeta && Array.isArray(topicMeta.tier) && !topicMeta.tier.includes(tier)) {
+        return res.status(400).json({
+          error: "This topic is Higher tier only.",
+          details: "Choose Higher tier for this topic.",
+        });
+      }
+    }
+
     if (specPoint.length > 200) {
       return res.status(400).json({
         error: "Invalid specPoint",
@@ -907,8 +920,6 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
     }
     const lengthMap = { short: 4, standard: 5, long: 6 };
     const pageCount = lengthMap[lengthPreset] ?? 5;
-
-    const tier = tierRaw === "foundation" ? "foundation" : "higher";
 
     console.log(
       `🤖 AI lesson-factory AQA GCSE Biology: user=${getAuthUserId(req)} | topic=${topic} | tier=${tier} | length=${lengthPreset}`

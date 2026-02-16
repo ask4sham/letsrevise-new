@@ -275,4 +275,30 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
     const lesson = await Lesson.findById(res.body.lessonId).lean();
     expect(lesson.topic).toBe("Custom free topic");
   });
+
+  test("PR6: higher-only topicKey with foundation tier returns 400", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey: "monoclonal-antibodies", tier: "foundation" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/Higher tier only/i);
+  });
+
+  test("PR6: higher-only topicKey with higher tier returns 200 and lessonId", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey: "monoclonal-antibodies", tier: "higher" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.lessonId).toBeDefined();
+    expect(mongoose.Types.ObjectId.isValid(res.body.lessonId)).toBe(true);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    expect(lesson).not.toBeNull();
+    expect(lesson.topic).toBe("Monoclonal antibodies");
+    expect(lesson.tier).toBe("higher");
+  });
 });

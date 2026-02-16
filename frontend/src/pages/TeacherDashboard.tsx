@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -23,6 +23,12 @@ type LessonRow = {
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
 type TaxonomyTopicInfo = { topic: string; unit: string; requiredPractical: boolean };
+
+/** PR5/PR6: unit with topics for filters, coverage, and generate */
+type TaxonomyUnit = {
+  unit: string;
+  topics: Array<{ topic: string; key: string; requiredPractical?: boolean; tier?: string[] }>;
+};
 
 /** Normalize display topic to taxonomy key (match backend topicToKey). */
 function topicToKey(topic: string | undefined): string {
@@ -70,8 +76,60 @@ const TeacherDashboard: React.FC = () => {
 
   // PR4: AQA GCSE Biology taxonomy for unit/topic/requiredPractical
   const [taxonomyMap, setTaxonomyMap] = useState<Record<string, TaxonomyTopicInfo>>({});
+  // PR5: full units list for filters and coverage
+  const [taxonomyUnits, setTaxonomyUnits] = useState<TaxonomyUnit[]>([]);
+
+  // PR5: Topic filter state
+  const [filterUnit, setFilterUnit] = useState<string>("all");
+  const [filterTopicKey, setFilterTopicKey] = useState<string>("all");
+  const [filterTier, setFilterTier] = useState<"all" | "foundation" | "higher">("all");
+
+  // PR5: Collapsible "Topics not yet covered"
+  const [showUncoveredTopics, setShowUncoveredTopics] = useState(false);
+
+  // PR6: Generate missing topic
+  const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  const [generateErrors, setGenerateErrors] = useState<Record<string, string>>({});
+  const [topicTierChoice, setTopicTierChoice] = useState<Record<string, "foundation" | "higher">>({});
 
   const navigate = useNavigate();
+
+  // PR5: Client-side filtering
+  const filteredLessons = useMemo(() => {
+    return lessons.filter((l) => {
+      const topicKey = topicToKey(l.topic);
+      const taxonomy = taxonomyMap[topicKey];
+      if (filterUnit !== "all" && taxonomy?.unit !== filterUnit) return false;
+      if (filterTopicKey !== "all" && topicKey !== filterTopicKey) return false;
+      if (filterTier !== "all" && l.tier !== filterTier) return false;
+      return true;
+    });
+  }, [lessons, taxonomyMap, filterUnit, filterTopicKey, filterTier]);
+
+  // PR5: Coverage (published lessons only)
+  const coverage = useMemo(() => {
+    const coveredTopicKeys = new Set(
+      lessons.filter((l) => l.isPublished).map((l) => topicToKey(l.topic))
+    );
+    const allTopics = taxonomyUnits.flatMap((u) =>
+      u.topics.map((t) => ({ ...t, unit: u.unit }))
+    );
+    const totalCount = allTopics.length;
+    const coveredCount = allTopics.filter((t) => coveredTopicKeys.has(t.key)).length;
+    const requiredPracticals = allTopics.filter((t) => t.requiredPractical);
+    const coveredRPs = requiredPracticals.filter((t) => coveredTopicKeys.has(t.key)).length;
+    const uncoveredTopics = allTopics.filter((t) => !coveredTopicKeys.has(t.key));
+    return {
+      coveredTopicKeys,
+      allTopics,
+      coveredCount,
+      totalCount,
+      requiredPracticals,
+      coveredRPs,
+      rpTotal: requiredPracticals.length,
+      uncoveredTopics,
+    };
+  }, [lessons, taxonomyUnits]);
 
   useEffect(() => {
     const init = async () => {
@@ -116,6 +174,17 @@ const TeacherDashboard: React.FC = () => {
             }
           }
           setTaxonomyMap(map);
+          setTaxonomyUnits(
+            units.map((u: any) => ({
+              unit: u?.unit ?? "",
+              topics: (Array.isArray(u?.topics) ? u.topics : []).map((t: any) => ({
+                topic: t?.topic ?? "",
+                key: t?.key ?? topicToKey(t?.topic),
+                requiredPractical: !!t?.requiredPractical,
+                tier: Array.isArray(t?.tier) ? t.tier : [],
+              })),
+            }))
+          );
         } catch {
           // non-blocking; badges will degrade gracefully
         }
@@ -184,6 +253,34 @@ const TeacherDashboard: React.FC = () => {
         publishedLessons: 0,
         draftLessons: 0,
       }));
+    }
+  };
+
+  // PR6: Generate draft lesson for an uncovered topic
+  const handleGenerateForTopic = async (topicKey: string, tier: "foundation" | "higher") => {
+    const rowKey = topicKey;
+    setGenerateErrors((prev) => ({ ...prev, [rowKey]: "" }));
+    setGeneratingKey(rowKey);
+    try {
+      const res = await api.post("/ai/lesson-factory/aqa-gcse-biology", {
+        topicKey,
+        tier,
+        length: "standard",
+      });
+      const lessonId = res?.data?.lessonId;
+      if (lessonId) {
+        navigate(`/edit-lesson/${lessonId}`);
+        return;
+      }
+      setGenerateErrors((prev) => ({ ...prev, [rowKey]: "Failed to generate lesson. Please try again." }));
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error ||
+        (typeof err?.response?.data?.details === "string" ? err.response.data.details : null) ||
+        "Failed to generate lesson. Please try again.";
+      setGenerateErrors((prev) => ({ ...prev, [rowKey]: msg }));
+    } finally {
+      setGeneratingKey(null);
     }
   };
 
@@ -735,6 +832,267 @@ const TeacherDashboard: React.FC = () => {
             marginBottom: "30px",
           }}
         >
+          {/* PR5: Coverage card (when taxonomy loaded) */}
+          {taxonomyUnits.length > 0 && (
+            <div
+              style={{
+                marginBottom: "20px",
+                padding: "16px",
+                borderRadius: "10px",
+                border: "1px solid #e5e7eb",
+                background: "#f9fafb",
+              }}
+            >
+              <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>
+                AQA GCSE Biology coverage
+              </h3>
+              <div style={{ color: "#374151", fontSize: "14px", marginBottom: 8 }}>
+                Covered: {coverage.coveredCount} / {coverage.totalCount} topics
+              </div>
+              <div
+                style={{
+                  height: 8,
+                  borderRadius: 4,
+                  background: "#e5e7eb",
+                  overflow: "hidden",
+                  marginBottom: 8,
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${coverage.totalCount ? (coverage.coveredCount / coverage.totalCount) * 100 : 0}%`,
+                    background: "#22c55e",
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+              <div style={{ color: "#6b7280", fontSize: "12px" }}>
+                Required Practicals covered: {coverage.coveredRPs} / {coverage.rpTotal}
+              </div>
+              {/* PR5: Collapsible "Topics not yet covered" */}
+              {coverage.uncoveredTopics.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowUncoveredTopics((v) => !v)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#4b5563",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      padding: 0,
+                      textDecoration: "underline",
+                    }}
+                  >
+                    {showUncoveredTopics ? "Hide" : "Show"} topics not yet covered
+                  </button>
+                  {showUncoveredTopics && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        paddingLeft: 12,
+                        borderLeft: "3px solid #e5e7eb",
+                        fontSize: "13px",
+                        color: "#374151",
+                      }}
+                    >
+                      {taxonomyUnits.map((u) => {
+                        const uncoveredInUnit = coverage.uncoveredTopics.filter(
+                          (t) => t.unit === u.unit
+                        );
+                        if (uncoveredInUnit.length === 0) return null;
+                        return (
+                          <div key={u.unit} style={{ marginBottom: 8 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>{u.unit}</div>
+                            <ul style={{ margin: 0, paddingLeft: 18, listStyle: "none" }}>
+                              {uncoveredInUnit.map((t) => {
+                                const tiers = Array.isArray(t.tier) ? t.tier : [];
+                                const higherOnly = tiers.length === 1 && tiers[0] === "higher";
+                                const effectiveTier: "foundation" | "higher" =
+                                  topicTierChoice[t.key] ??
+                                  (tiers.includes("foundation") ? "foundation" : "higher");
+                                const isGenerating = generatingKey === t.key;
+                                const rowError = generateErrors[t.key];
+                                return (
+                                  <li key={t.key} style={{ marginBottom: 10 }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                                      <span>{t.topic}</span>
+                                      {t.requiredPractical && (
+                                        <span
+                                          style={{
+                                            fontSize: 11,
+                                            padding: "1px 4px",
+                                            borderRadius: 3,
+                                            background: "#fef3c7",
+                                            color: "#92400e",
+                                          }}
+                                        >
+                                          Required Practical
+                                        </span>
+                                      )}
+                                      {higherOnly ? (
+                                        <span
+                                          style={{
+                                            fontSize: 11,
+                                            padding: "2px 6px",
+                                            borderRadius: 4,
+                                            background: "#dbeafe",
+                                            color: "#1e40af",
+                                          }}
+                                        >
+                                          Higher only
+                                        </span>
+                                      ) : (
+                                        <select
+                                          value={effectiveTier}
+                                          onChange={(e) =>
+                                            setTopicTierChoice((prev) => ({
+                                              ...prev,
+                                              [t.key]: e.target.value as "foundation" | "higher",
+                                            }))
+                                          }
+                                          style={{
+                                            padding: "4px 8px",
+                                            borderRadius: 4,
+                                            border: "1px solid #d1d5db",
+                                            fontSize: 12,
+                                          }}
+                                        >
+                                          <option value="foundation">Foundation</option>
+                                          <option value="higher">Higher</option>
+                                        </select>
+                                      )}
+                                      <button
+                                        type="button"
+                                        disabled={isGenerating}
+                                        onClick={() => handleGenerateForTopic(t.key, higherOnly ? "higher" : effectiveTier)}
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 4,
+                                          border: "1px solid #22c55e",
+                                          background: isGenerating ? "#e5e7eb" : "#22c55e",
+                                          color: isGenerating ? "#6b7280" : "white",
+                                          fontSize: 12,
+                                          cursor: isGenerating ? "not-allowed" : "pointer",
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        {isGenerating ? "Generating…" : "Generate"}
+                                      </button>
+                                    </div>
+                                    {rowError && (
+                                      <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>{rowError}</div>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PR5: Filter bar (when taxonomy loaded) */}
+          {taxonomyUnits.length > 0 && lessons.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+                alignItems: "center",
+                marginBottom: 16,
+                padding: "12px 0",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                Unit:
+                <select
+                  value={filterUnit}
+                  onChange={(e) => {
+                    setFilterUnit(e.target.value);
+                    setFilterTopicKey("all");
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="all">All units</option>
+                  {taxonomyUnits.map((u) => (
+                    <option key={u.unit} value={u.unit}>
+                      {u.unit}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                Topic:
+                <select
+                  value={filterTopicKey}
+                  onChange={(e) => setFilterTopicKey(e.target.value)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                    fontSize: 13,
+                    minWidth: 180,
+                  }}
+                >
+                  <option value="all">All topics</option>
+                  {filterUnit === "all"
+                    ? taxonomyUnits.map((u) => (
+                        <optgroup key={u.unit} label={u.unit}>
+                          {u.topics.map((t) => (
+                            <option key={t.key} value={t.key}>
+                              {t.topic}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))
+                    : taxonomyUnits
+                        .filter((u) => u.unit === filterUnit)
+                        .flatMap((u) => u.topics)
+                        .map((t) => (
+                          <option key={t.key} value={t.key}>
+                            {t.topic}
+                          </option>
+                        ))}
+                </select>
+              </label>
+              <span style={{ fontSize: 13, color: "#6b7280" }}>Tier:</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {(["all", "foundation", "higher"] as const).map((tier) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => setFilterTier(tier)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      background: filterTier === tier ? "#e5e7eb" : "#fff",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      fontWeight: filterTier === tier ? 600 : 400,
+                    }}
+                  >
+                    {tier === "all" ? "All" : tier === "foundation" ? "Foundation" : "Higher"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div
             style={{
               display: "flex",
@@ -745,7 +1103,8 @@ const TeacherDashboard: React.FC = () => {
           >
             <h2 style={{ color: "#333", margin: 0 }}>My Lessons</h2>
             <div style={{ color: "#666" }}>
-              {lessons.length} lesson{lessons.length !== 1 ? "s" : ""}
+              {filteredLessons.length} lesson{filteredLessons.length !== 1 ? "s" : ""}
+              {filteredLessons.length !== lessons.length && ` (of ${lessons.length})`}
             </div>
           </div>
 
@@ -790,6 +1149,10 @@ const TeacherDashboard: React.FC = () => {
                 </Link>
               </div>
             </div>
+          ) : filteredLessons.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: "#666" }}>
+              No lessons match the current filters. Try changing Unit, Topic, or Tier.
+            </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -822,7 +1185,7 @@ const TeacherDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {lessons.map((lesson) => {
+                  {filteredLessons.map((lesson) => {
                     const topicKey = topicToKey(lesson.topic);
                     const taxonomyInfo = topicKey ? taxonomyMap[topicKey] : undefined;
                     const subtitle =
@@ -861,6 +1224,14 @@ const TeacherDashboard: React.FC = () => {
                             <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#fef3c7", color: "#92400e" }}>
                               Required Practical
                             </span>
+                          )}
+                        </div>
+                        {/* PR5: Coverage badge */}
+                        <div style={{ fontSize: "11px", marginTop: 4, color: "#6b7280" }}>
+                          {lesson.isPublished ? (
+                            <span style={{ color: "#16a34a" }}>✓ Counts toward coverage</span>
+                          ) : (
+                            <span>Draft (not counted)</span>
                           )}
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "#999", marginTop: 4 }}>
