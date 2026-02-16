@@ -1551,6 +1551,82 @@ router.post("/:id/unpublish", auth, async (req, res) => {
 });
 
 /* =========================================
+   PR3b: GET /api/lessons/:id/practice — Student practice from attached exam questions (entitled only).
+   No question content unless accessDecision.allowed === true.
+   ========================================= */
+router.get("/:id/practice", auth, applyLessonAccess({ requirePublished: true }), async (req, res) => {
+  try {
+    const decision = req.accessDecision;
+    const lessonId = req.params.id;
+
+    if (!decision || !decision.allowed) {
+      return res.status(200).json({
+        ok: true,
+        allowed: false,
+        reason: (decision && decision.reason) || "NOT_ENTITLED",
+        lessonId,
+        questions: [],
+      });
+    }
+
+    const lesson = await Lesson.findById(lessonId)
+      .select("examQuestions")
+      .populate({
+        path: "examQuestions.questionId",
+        model: "ExamQuestion",
+        select: "question type marks options correctAnswer correctIndex markScheme topicKey topic",
+      })
+      .lean();
+
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+    const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+    const questions = refs
+      .map((ref) => {
+        const q = ref.questionId;
+        if (!q) return null;
+        const id = q._id ? String(q._id) : null;
+        if (!id) return null;
+        const options = Array.isArray(q.options) ? q.options : [];
+        const correctAnswer =
+          q.correctAnswer != null
+            ? String(q.correctAnswer)
+            : options[q.correctIndex] != null
+              ? String(options[q.correctIndex])
+              : "";
+        const explanation =
+          Array.isArray(q.markScheme) && q.markScheme.length > 0
+            ? q.markScheme.join("\n")
+            : "";
+        return {
+          id,
+          question: q.question != null ? String(q.question) : "",
+          type: q.type || "short",
+          marks: typeof q.marks === "number" ? q.marks : 1,
+          options: options.length > 0 ? options : undefined,
+          correctAnswer: correctAnswer || undefined,
+          explanation: explanation || undefined,
+          markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+          topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
+          topic: q.topic != null ? String(q.topic) : undefined,
+        };
+      })
+      .filter(Boolean);
+
+    return res.status(200).json({
+      ok: true,
+      allowed: true,
+      reason: decision.reason,
+      lessonId,
+      questions,
+    });
+  } catch (err) {
+    console.error("GET practice error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
    Get lesson by ID (private)
    GET /api/lessons/:id — Gate: applyLessonAccess (deny-by-default; 402 NOT_ENTITLED, 403 other)
    ✅ FREE_PREVIEW → partial response; SUB_ACTIVE/PURCHASED/ADMIN/OWNER → full
@@ -1791,7 +1867,7 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ msg: "Invalid lesson id" });
     }
-    const lesson = await Lesson.findById(lessonId).select("topic teacherId examQuestions").lean();
+    const lesson = await Lesson.findById(lessonId).select("topic teacherId organisationId examQuestions").lean();
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
     let topicKeyToUse;
@@ -1830,9 +1906,17 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
     const existingRefs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
     const existingIds = new Set(existingRefs.map((r) => String(r.questionId)));
 
+    // Future-safe: teacher-owned OR organisation-owned (same org) OR platform (global) questions
+    const ownershipFilter = {
+      $or: [
+        { teacherId: lesson.teacherId },
+        ...(lesson.organisationId ? [{ scope: "organisation", organisationId: lesson.organisationId }] : []),
+        { scope: "platform" },
+      ],
+    };
     const candidates = await ExamQuestion.find({
       topicKey: topicKeyToUse,
-      teacherId: lesson.teacherId,
+      ...ownershipFilter,
     })
       .select("_id marks createdAt")
       .sort({ marks: -1, createdAt: -1 })

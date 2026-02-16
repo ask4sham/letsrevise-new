@@ -131,6 +131,20 @@ interface User {
 
 type ExamBoardRow = { name: string };
 
+/** PR3b: Practice endpoint response item (exam question lite). */
+interface PracticeQuestionLite {
+  id: string;
+  question: string;
+  type: string;
+  marks: number;
+  options?: string[];
+  correctAnswer?: string;
+  explanation?: string;
+  markScheme?: string[];
+  topicKey?: string;
+  topic?: string;
+}
+
 function getBoardName(
   exam_board: ExamBoardRow[] | ExamBoardRow | null | undefined
 ): string | null {
@@ -625,6 +639,275 @@ function CheckpointShortBlock({
   );
 }
 
+// PR3b: Practice question components (entitled-only section; always show explanation after check)
+function PracticeMCQQuestion({ q }: { q: PracticeQuestionLite }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+  const options = Array.isArray(q.options) ? q.options : [];
+  const correctAnswer = (q.correctAnswer != null ? String(q.correctAnswer) : "").trim();
+  const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
+  const name = `practice-mcq-${q.id}`;
+
+  const getOptionBg = (opt: string) => {
+    const optTrim = String(opt ?? "").trim();
+    const isCorrectOpt = correctAnswer !== "" && optTrim === correctAnswer;
+    if (!checked) return "white";
+    if (isCorrectOpt) return "#dcfce7";
+    if (selected !== null && selected.trim() === optTrim && !isCorrect) return "#fee2e2";
+    return "white";
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {options.map((opt, i) => (
+          <label
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              background: getOptionBg(opt),
+              cursor: checked ? "default" : "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={String(opt ?? "")}
+              checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
+              onChange={() => { if (!checked) setSelected(String(opt ?? "").trim()); }}
+              disabled={checked}
+            />
+            <span style={{ color: "#374151" }}>{opt}</span>
+          </label>
+        ))}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        {!checked ? (
+          <button
+            type="button"
+            disabled={selected === null}
+            onClick={() => setChecked(true)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "2px solid rgba(59,130,246,0.4)",
+              background: selected !== null ? "rgba(59,130,246,0.12)" : "#f1f5f9",
+              cursor: selected !== null ? "pointer" : "not-allowed",
+              fontWeight: 700,
+            }}
+          >
+            Check answer
+          </button>
+        ) : (
+          <>
+            <div style={{ marginTop: 2 }}>
+              {isCorrect ? (
+                <span style={{ color: "#16a34a", fontWeight: 700 }}>✅ Correct</span>
+              ) : (
+                <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>
+              )}
+            </div>
+            {q.explanation ? (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                <strong style={{ color: "#374151" }}>Explanation:</strong>
+                <div style={{ marginTop: 4, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>{q.explanation}</div>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => { setSelected(null); setChecked(false); }}
+              style={{
+                marginTop: 6,
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "2px solid rgba(0,0,0,0.14)",
+                background: "white",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Try again
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PracticeShortQuestion({ q }: { q: PracticeQuestionLite }) {
+  const [answer, setAnswer] = useState("");
+  const [checked, setChecked] = useState(false);
+  const hasAnswer = answer.trim() !== "";
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ marginTop: 8 }}>
+        <input
+          type="text"
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          placeholder="Your answer..."
+          disabled={checked}
+          style={{
+            width: "100%",
+            maxWidth: 500,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            fontSize: BASE_FONT_SIZE,
+          }}
+        />
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        {!checked ? (
+          <button
+            type="button"
+            disabled={!hasAnswer}
+            onClick={() => setChecked(true)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "2px solid rgba(59,130,246,0.4)",
+              background: hasAnswer ? "rgba(59,130,246,0.12)" : "#f1f5f9",
+              cursor: hasAnswer ? "pointer" : "not-allowed",
+              fontWeight: 700,
+            }}
+          >
+            Check answer
+          </button>
+        ) : (
+          <>
+            <div style={{ marginTop: 2, color: "#374151", fontSize: "0.95rem" }}>
+              Compare your answer to the model answer below.
+            </div>
+            <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
+              <strong style={{ color: "#374151" }}>Model answer:</strong>
+              <div style={{ marginTop: 6, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>
+                {q.correctAnswer != null ? String(q.correctAnswer).trim() : "—"}
+              </div>
+            </div>
+            {q.explanation ? (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
+                <strong style={{ color: "#374151" }}>Explanation:</strong>
+                <div style={{ marginTop: 4, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>{q.explanation}</div>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => { setAnswer(""); setChecked(false); }}
+              style={{
+                marginTop: 12,
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "2px solid rgba(0,0,0,0.14)",
+                background: "white",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              Try again
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const PRACTICE_DISPLAY_LIMIT = 10;
+
+function PracticeSection({
+  practiceLoading,
+  practiceError,
+  practiceQuestions,
+  practiceAllowed,
+  lessonId,
+}: {
+  practiceLoading: boolean;
+  practiceError: string | null;
+  practiceQuestions: PracticeQuestionLite[];
+  practiceAllowed: boolean | undefined;
+  lessonId: string | undefined;
+}) {
+  const displayQuestions = practiceQuestions.slice(0, PRACTICE_DISPLAY_LIMIT);
+  const hasMore = practiceQuestions.length > PRACTICE_DISPLAY_LIMIT;
+
+  return (
+    <div
+      style={{
+        marginTop: 40,
+        paddingTop: 30,
+        borderTop: "1px solid #e2e8f0",
+        textAlign: "left",
+      }}
+    >
+      <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0, marginBottom: 16 }}>
+        Practice questions
+      </h2>
+      {practiceLoading && (
+        <p style={{ color: "#6b7280", margin: 0 }}>Loading practice questions…</p>
+      )}
+      {practiceError && (
+        <p style={{ color: "#dc2626", margin: 0 }}>{practiceError}</p>
+      )}
+      {!practiceLoading && !practiceError && practiceAllowed !== true && (
+        <>
+          <p style={{ color: "#4b5563", margin: 0, marginBottom: 12 }}>
+            Practice questions are available with subscription or lesson unlock.
+          </p>
+          <SubscribeCTA lessonId={lessonId} />
+        </>
+      )}
+      {!practiceLoading && !practiceError && practiceAllowed === true && (
+        <>
+          {practiceQuestions.length === 0 ? (
+            <p style={{ color: "#6b7280", margin: 0 }}>No practice questions attached yet.</p>
+          ) : (
+            <>
+              {displayQuestions.map((q, idx) => (
+                <div
+                  key={q.id}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    border: "1px solid #e5e7eb",
+                    background: "#fafafa",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontWeight: 700, color: "#374151" }}>Q{idx + 1}</span>
+                    {q.marks != null && (
+                      <span style={{ fontSize: 13, color: "#6b7280" }}>({q.marks} {q.marks === 1 ? "mark" : "marks"})</span>
+                    )}
+                  </div>
+                  <div style={{ color: "#1f2937", marginBottom: 12 }}>{q.question}</div>
+                  {(q.type === "mcq" || (Array.isArray(q.options) && q.options.length > 0)) ? (
+                    <PracticeMCQQuestion q={q} />
+                  ) : (
+                    <PracticeShortQuestion q={q} />
+                  )}
+                </div>
+              ))}
+              {hasMore && (
+                <p style={{ color: "#6b7280", marginTop: 8 }}>
+                  Showing first {PRACTICE_DISPLAY_LIMIT} of {practiceQuestions.length} questions.
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 const LessonViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -677,6 +960,13 @@ const LessonViewPage: React.FC = () => {
   const [showDeeperKnowledge, setShowDeeperKnowledge] = useState(false);
 
   const [curriculumConfidence, setCurriculumConfidence] = useState<unknown>(null);
+
+  // PR3b: Practice questions (attached exam questions) — entitled only
+  const [practiceLoading, setPracticeLoading] = useState(false);
+  const [practiceError, setPracticeError] = useState<string | null>(null);
+  const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
+  const [practiceAllowed, setPracticeAllowed] = useState<boolean | undefined>(undefined);
+  const [practiceReason, setPracticeReason] = useState<string | null>(null);
 
   const pageParam = useMemo(() => searchParams.get("page") || "", [searchParams]);
 
@@ -766,6 +1056,38 @@ const LessonViewPage: React.FC = () => {
       void logPaywallEvent("FREE_PREVIEW_VIEW", { lessonId: id });
     }
   }, [accessDecision?.reason, id]);
+
+  // PR3b: Fetch practice questions only when entitled (no content leak for non-entitled)
+  useEffect(() => {
+    if (!id || !accessDecision) return;
+    if (accessDecision.allowed !== true) {
+      setPracticeAllowed(false);
+      setPracticeReason(accessDecision.reason ?? null);
+      setPracticeQuestions([]);
+      setPracticeError(null);
+      return;
+    }
+    setPracticeLoading(true);
+    setPracticeError(null);
+    api
+      .get(`/lessons/${id}/practice`)
+      .then((res) => {
+        const data = res?.data;
+        setPracticeAllowed(!!data?.allowed);
+        setPracticeReason(data?.reason ?? null);
+        setPracticeQuestions(Array.isArray(data?.questions) ? data.questions : []);
+      })
+      .catch((err) => {
+        if (err?.response?.status === 402) {
+          setPracticeAllowed(false);
+          setPracticeReason("NOT_ENTITLED");
+          setPracticeQuestions([]);
+        } else {
+          setPracticeError("Failed to load practice questions.");
+        }
+      })
+      .finally(() => setPracticeLoading(false));
+  }, [id, accessDecision?.allowed, accessDecision?.reason]);
 
   // ✅ Visual fetch (optional, silent fail)
   useEffect(() => {
@@ -2569,6 +2891,15 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* PR3b: Practice questions (entitled only) */}
+                <PracticeSection
+                  practiceLoading={practiceLoading}
+                  practiceError={practiceError}
+                  practiceQuestions={practiceQuestions}
+                  practiceAllowed={practiceAllowed}
+                  lessonId={id || undefined}
+                />
+
                 {/* ✅ REVISION SECTION - ADDED */}
                 <div
                   style={{
@@ -3091,6 +3422,15 @@ const LessonViewPage: React.FC = () => {
             <SubscribeCTA lessonId={id || undefined} />
           </div>
         )}
+
+        {/* PR3b: Practice questions (entitled only) */}
+        <PracticeSection
+          practiceLoading={practiceLoading}
+          practiceError={practiceError}
+          practiceQuestions={practiceQuestions}
+          practiceAllowed={practiceAllowed}
+          lessonId={id || undefined}
+        />
 
         {/* ✅ REVISION SECTION - ADDED FOR LEGACY VIEW */}
         <div

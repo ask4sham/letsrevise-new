@@ -9,6 +9,20 @@ const ExamQuestionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    /** Optional: for shared organisation/school question bank. When set, scope should be "organisation". */
+    organisationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organisation",
+      default: null,
+      index: true,
+    },
+    /** Visibility for attach-by-topic: "teacher" (default) = only owner; "organisation" = org-wide; "platform" = global. */
+    scope: {
+      type: String,
+      enum: ["teacher", "organisation", "platform"],
+      default: "teacher",
+      index: true,
+    },
     subject: {
       type: String,
       required: true,

@@ -136,6 +136,12 @@ const LessonSchema = new mongoose.Schema(
       required: true,
     },
     teacherName: { type: String, default: "" },
+    /** Optional: for matching organisation-scoped exam questions in attach-by-topic. */
+    organisationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organisation",
+      default: null,
+    },
 
     subject: { type: String, required: true, trim: true },
     level: { type: String, required: true, trim: true },
