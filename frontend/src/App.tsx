@@ -44,6 +44,7 @@ import AdminLessonViewPage from "./pages/AdminLessonViewPage";
 import ClassroomModePage from "./pages/ClassroomModePage";
 // PR10: Biology readiness report
 import BiologyReadinessReportPage from "./pages/BiologyReadinessReportPage";
+import LessonAttemptReportPage from "./pages/LessonAttemptReportPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 
 // ✅ Settings page (new)
@@ -365,6 +366,15 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <BiologyReadinessReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/reports/lesson/:id"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <LessonAttemptReportPage />
               </ProtectedRoute>
             }
           />

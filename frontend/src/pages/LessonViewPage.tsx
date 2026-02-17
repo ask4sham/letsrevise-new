@@ -13,6 +13,7 @@ import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
+import { logAttempt } from "../utils/attempts";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -570,10 +571,12 @@ function CheckpointMCQBlock({
   block,
   name,
   entitled,
+  lessonId,
 }: {
   block: LessonPageBlock;
   name: string;
   entitled: boolean;
+  lessonId?: string;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
@@ -631,7 +634,13 @@ function CheckpointMCQBlock({
           <button
             type="button"
             disabled={selected === null}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              const correct = selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
+              if (lessonId) {
+                logAttempt({ lessonId, source: "checkpoint", questionType: "mcq", selected: selected ?? "", isCorrect: correct });
+              }
+              setChecked(true);
+            }}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -729,7 +738,12 @@ function CheckpointShortBlock({
           <button
             type="button"
             disabled={!hasAnswer}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              if (lessonId) {
+                logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: false });
+              }
+              setChecked(true);
+            }}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -814,7 +828,7 @@ function CheckpointShortBlock({
 }
 
 // PR3b: Practice question components (entitled-only section; always show explanation after check)
-function PracticeMCQQuestion({ q }: { q: PracticeQuestionLite }) {
+function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const options = Array.isArray(q.options) ? q.options : [];
@@ -865,7 +879,13 @@ function PracticeMCQQuestion({ q }: { q: PracticeQuestionLite }) {
           <button
             type="button"
             disabled={selected === null}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              const correct = selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
+              if (lessonId && q.id) {
+                logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "mcq", selected: selected ?? "", isCorrect: correct });
+              }
+              setChecked(true);
+            }}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -914,7 +934,7 @@ function PracticeMCQQuestion({ q }: { q: PracticeQuestionLite }) {
   );
 }
 
-function PracticeShortQuestion({ q }: { q: PracticeQuestionLite }) {
+function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
   const hasAnswer = answer.trim() !== "";
@@ -943,7 +963,12 @@ function PracticeShortQuestion({ q }: { q: PracticeQuestionLite }) {
           <button
             type="button"
             disabled={!hasAnswer}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              if (lessonId && q.id) {
+                logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "short", answerText: answer.trim(), isCorrect: false });
+              }
+              setChecked(true);
+            }}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -1063,9 +1088,9 @@ function PracticeSection({
                   </div>
                   <div style={{ color: "#1f2937", marginBottom: 12 }}>{q.question}</div>
                   {(q.type === "mcq" || (Array.isArray(q.options) && q.options.length > 0)) ? (
-                    <PracticeMCQQuestion q={q} />
+                    <PracticeMCQQuestion q={q} lessonId={lessonId} />
                   ) : (
-                    <PracticeShortQuestion q={q} />
+                    <PracticeShortQuestion q={q} lessonId={lessonId} />
                   )}
                 </div>
               ))}
@@ -2089,6 +2114,7 @@ const LessonViewPage: React.FC = () => {
             block={block}
             name={name}
             entitled={entitled}
+            lessonId={id ?? undefined}
           />
         ) : questionType === "short" ? (
           <CheckpointShortBlock

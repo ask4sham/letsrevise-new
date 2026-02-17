@@ -1433,6 +1433,24 @@ const TeacherDashboard: React.FC = () => {
                           >
                             Classroom
                           </button>
+
+                          <Link to={`/teacher/reports/lesson/${lesson._id}`}>
+                            <button
+                              type="button"
+                              style={{
+                                marginLeft: 4,
+                                padding: "6px 10px",
+                                borderRadius: 6,
+                                border: "1px solid #6366f1",
+                                background: "rgba(99,102,241,0.1)",
+                                color: "#4f46e5",
+                                cursor: "pointer",
+                                fontSize: 12,
+                              }}
+                            >
+                              Report
+                            </button>
+                          </Link>
                         </div>
                       </td>
                     </tr>

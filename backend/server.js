@@ -277,6 +277,9 @@ app.use("/api/curriculum-confidence", curriculumConfidenceRouter);
 // PR10: Biology readiness report (teacher/admin)
 app.use("/api/reports", require("./routes/reports"));
 
+// PR12: Practice/checkpoint attempts
+app.use("/api/attempts", require("./routes/attempts"));
+
 /* ============================================================
    Phase 12.2: Admin Ops UI (read-only + controls) — Patched 12A/12D
    Protected with auth + requireAdmin; 401 returns gate page for token entry.

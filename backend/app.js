@@ -40,5 +40,8 @@ app.use("/api/taxonomy", require("./routes/taxonomy"));
 // PR10: Biology readiness report (teacher/admin)
 app.use("/api/reports", require("./routes/reports"));
 
+// PR12: Practice/checkpoint attempts (record only)
+app.use("/api/attempts", require("./routes/attempts"));
+
 // ✅ Export for testing
 module.exports = app;
