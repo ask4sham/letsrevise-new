@@ -895,6 +895,13 @@ const TeacherDashboard: React.FC = () => {
               >
                 View readiness report
               </Link>
+              {" · "}
+              <Link
+                to="/teacher/reports/attempts"
+                style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
+              >
+                Practice monitoring →
+              </Link>
               {/* PR5: Collapsible "Topics not yet covered" */}
               {coverage.uncoveredTopics.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -1434,7 +1441,7 @@ const TeacherDashboard: React.FC = () => {
                             Classroom
                           </button>
 
-                          <Link to={`/teacher/reports/lesson/${lesson._id}`}>
+                          <Link to={`/teacher/reports/lesson/${lesson.id ?? lesson._id}`}>
                             <button
                               type="button"
                               style={{
