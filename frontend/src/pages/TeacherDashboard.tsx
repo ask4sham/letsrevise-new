@@ -1441,7 +1441,7 @@ const TeacherDashboard: React.FC = () => {
                             Classroom
                           </button>
 
-                          <Link to={`/teacher/reports/lesson/${lesson.id ?? lesson._id}`}>
+                          <Link to={`/teacher/reports/lesson/${lesson.id}`}>
                             <button
                               type="button"
                               style={{

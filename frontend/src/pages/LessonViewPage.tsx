@@ -580,6 +580,9 @@ function CheckpointMCQBlock({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  /** PR12.3: log only after confidence chosen; prevent double log */
+  const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
+  const [recorded, setRecorded] = useState(false);
   const options = Array.isArray(block.options) ? block.options : [];
   const correctAnswer = block.correctAnswer != null ? String(block.correctAnswer).trim() : "";
   const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
@@ -634,13 +637,7 @@ function CheckpointMCQBlock({
           <button
             type="button"
             disabled={selected === null}
-            onClick={() => {
-              const correct = selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
-              if (lessonId) {
-                logAttempt({ lessonId, source: "checkpoint", questionType: "mcq", selected: selected ?? "", isCorrect: correct });
-              }
-              setChecked(true);
-            }}
+            onClick={() => setChecked(true)}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -662,6 +659,44 @@ function CheckpointMCQBlock({
                 <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>
               )}
             </div>
+            {!recorded && (
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
+                {([1, 2, 3] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => {
+                      const conf = c as 1 | 2 | 3;
+                      setConfidence(conf);
+                      if (lessonId) {
+                        logAttempt({
+                          lessonId,
+                          source: "checkpoint",
+                          questionType: "mcq",
+                          selected: selected ?? "",
+                          isCorrect,
+                          confidence: conf,
+                        });
+                      }
+                      setRecorded(true);
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: `2px solid ${confidence === c ? "rgba(59,130,246,0.8)" : "rgba(0,0,0,0.14)"}`,
+                      background: confidence === c ? "rgba(59,130,246,0.12)" : "white",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {c === 1 ? "Low (1)" : c === 2 ? "Medium (2)" : "High (3)"}
+                  </button>
+                ))}
+              </div>
+            )}
+            {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
             {entitled && block.explanation ? (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
                 <strong style={{ color: "#374151" }}>Explanation:</strong>
@@ -680,6 +715,8 @@ function CheckpointMCQBlock({
               onClick={() => {
                 setSelected(null);
                 setChecked(false);
+                setConfidence(null);
+                setRecorded(false);
               }}
               style={{
                 marginTop: 6,
@@ -713,8 +750,23 @@ function CheckpointShortBlock({
   const [checked, setChecked] = useState(false);
   /** PR12.2: only log short attempt when student self-marks; null = not yet marked */
   const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
+  /** PR12.3: log once when both selfMarked and confidence are set */
+  const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
+  const [recorded, setRecorded] = useState(false);
 
   const hasAnswer = answer.trim() !== "";
+  React.useEffect(() => {
+    if (!entitled || !lessonId || selfMarked === null || confidence === null || recorded) return;
+    logAttempt({
+      lessonId,
+      source: "checkpoint",
+      questionType: "short",
+      answerText: answer.trim(),
+      isCorrect: selfMarked,
+      confidence,
+    });
+    setRecorded(true);
+  }, [entitled, lessonId, selfMarked, confidence, recorded, answer]);
 
   return (
     <>
@@ -779,28 +831,40 @@ function CheckpointShortBlock({
                     <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (lessonId) {
-                          logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: true });
-                        }
-                        setSelfMarked(true);
-                      }}
+                      onClick={() => setSelfMarked(true)}
                       style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "rgba(34,197,94,0.1)", color: "#15803d", cursor: "pointer", fontWeight: 700 }}
                     >
                       I was correct
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (lessonId) {
-                          logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: false });
-                        }
-                        setSelfMarked(false);
-                      }}
+                      onClick={() => setSelfMarked(false)}
                       style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #dc2626", background: "rgba(220,38,38,0.1)", color: "#b91c1c", cursor: "pointer", fontWeight: 700 }}
                     >
                       I was incorrect
                     </button>
+                  </div>
+                ) : !recorded ? (
+                  <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
+                    {([1, 2, 3] as const).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setConfidence(c)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: `2px solid ${confidence === c ? "rgba(59,130,246,0.8)" : "rgba(0,0,0,0.14)"}`,
+                          background: confidence === c ? "rgba(59,130,246,0.12)" : "white",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontSize: 14,
+                        }}
+                      >
+                        {c === 1 ? "Low (1)" : c === 2 ? "Medium (2)" : "High (3)"}
+                      </button>
+                    ))}
                   </div>
                 ) : (
                   <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
@@ -836,6 +900,8 @@ function CheckpointShortBlock({
                 setAnswer("");
                 setChecked(false);
                 setSelfMarked(null);
+                setConfidence(null);
+                setRecorded(false);
               }}
               style={{
                 marginTop: 12,
@@ -860,6 +926,8 @@ function CheckpointShortBlock({
 function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
+  const [recorded, setRecorded] = useState(false);
   const options = Array.isArray(q.options) ? q.options : [];
   const correctAnswer = (q.correctAnswer != null ? String(q.correctAnswer) : "").trim();
   const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
@@ -908,13 +976,7 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
           <button
             type="button"
             disabled={selected === null}
-            onClick={() => {
-              const correct = selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
-              if (lessonId && q.id) {
-                logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "mcq", selected: selected ?? "", isCorrect: correct });
-              }
-              setChecked(true);
-            }}
+            onClick={() => setChecked(true)}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -935,6 +997,45 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
                 <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>
               )}
             </div>
+            {!recorded && (
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
+                {([1, 2, 3] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => {
+                      const conf = c as 1 | 2 | 3;
+                      setConfidence(conf);
+                      if (lessonId && q.id) {
+                        logAttempt({
+                          lessonId,
+                          source: "practice",
+                          questionId: q.id,
+                          questionType: "mcq",
+                          selected: selected ?? "",
+                          isCorrect,
+                          confidence: conf,
+                        });
+                      }
+                      setRecorded(true);
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: `2px solid ${confidence === c ? "rgba(59,130,246,0.8)" : "rgba(0,0,0,0.14)"}`,
+                      background: confidence === c ? "rgba(59,130,246,0.12)" : "white",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {c === 1 ? "Low (1)" : c === 2 ? "Medium (2)" : "High (3)"}
+                  </button>
+                ))}
+              </div>
+            )}
+            {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
             {q.explanation ? (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
                 <strong style={{ color: "#374151" }}>Explanation:</strong>
@@ -943,7 +1044,7 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
             ) : null}
             <button
               type="button"
-              onClick={() => { setSelected(null); setChecked(false); }}
+              onClick={() => { setSelected(null); setChecked(false); setConfidence(null); setRecorded(false); }}
               style={{
                 marginTop: 6,
                 padding: "8px 14px",
@@ -966,9 +1067,24 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
 function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
-  /** PR12.2: log only when student self-marks */
   const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
+  const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
+  const [recorded, setRecorded] = useState(false);
   const hasAnswer = answer.trim() !== "";
+
+  useEffect(() => {
+    if (!lessonId || !q.id || selfMarked === null || confidence === null || recorded) return;
+    logAttempt({
+      lessonId,
+      source: "practice",
+      questionId: q.id,
+      questionType: "short",
+      answerText: answer.trim(),
+      isCorrect: selfMarked,
+      confidence,
+    });
+    setRecorded(true);
+  }, [lessonId, q.id, selfMarked, confidence, recorded, answer]);
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -1022,28 +1138,40 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
                 <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (lessonId && q.id) {
-                      logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "short", answerText: answer.trim(), isCorrect: true });
-                    }
-                    setSelfMarked(true);
-                  }}
+                  onClick={() => setSelfMarked(true)}
                   style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "rgba(34,197,94,0.1)", color: "#15803d", cursor: "pointer", fontWeight: 700 }}
                 >
                   I was correct
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (lessonId && q.id) {
-                      logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "short", answerText: answer.trim(), isCorrect: false });
-                    }
-                    setSelfMarked(false);
-                  }}
+                  onClick={() => setSelfMarked(false)}
                   style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #dc2626", background: "rgba(220,38,38,0.1)", color: "#b91c1c", cursor: "pointer", fontWeight: 700 }}
                 >
                   I was incorrect
                 </button>
+              </div>
+            ) : !recorded ? (
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
+                {([1, 2, 3] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setConfidence(c)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: `2px solid ${confidence === c ? "rgba(59,130,246,0.8)" : "rgba(0,0,0,0.14)"}`,
+                      background: confidence === c ? "rgba(59,130,246,0.12)" : "white",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {c === 1 ? "Low (1)" : c === 2 ? "Medium (2)" : "High (3)"}
+                  </button>
+                ))}
               </div>
             ) : (
               <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
@@ -1056,7 +1184,7 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
             ) : null}
             <button
               type="button"
-              onClick={() => { setAnswer(""); setChecked(false); setSelfMarked(null); }}
+              onClick={() => { setAnswer(""); setChecked(false); setSelfMarked(null); setConfidence(null); setRecorded(false); }}
               style={{
                 marginTop: 12,
                 padding: "8px 14px",

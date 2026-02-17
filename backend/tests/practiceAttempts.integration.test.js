@@ -135,6 +135,78 @@ describe("PR12 Practice attempts", () => {
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
     });
+
+    test("PR12.3: confidence invalid returns 400", async () => {
+      const res = await request(app)
+        .post("/api/attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          lessonId: String(lessonId),
+          source: "checkpoint",
+          questionType: "mcq",
+          selected: "X",
+          isCorrect: false,
+          confidence: 4,
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/confidence/);
+    });
+
+    test("PR12.3: confidence numeric string 3 accepted and saved", async () => {
+      const before = await PracticeAttempt.countDocuments({ userId: studentId, lessonId });
+      const res = await request(app)
+        .post("/api/attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send({
+          lessonId: String(lessonId),
+          source: "checkpoint",
+          questionType: "short",
+          answerText: "ans",
+          isCorrect: true,
+          confidence: "3",
+        });
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      const after = await PracticeAttempt.countDocuments({ userId: studentId, lessonId });
+      expect(after).toBe(before + 1);
+      const doc = await PracticeAttempt.findOne({ userId: studentId, lessonId, confidence: 3 }).sort({ createdAt: -1 }).lean();
+      expect(doc).toBeDefined();
+      expect(doc.confidence).toBe(3);
+    });
+
+    test("PR12.3: duplicate guard returns ok true duplicate true within window", async () => {
+      const qId = new mongoose.Types.ObjectId();
+      const payload = {
+        lessonId: String(lessonId),
+        source: "practice",
+        questionId: String(qId),
+        questionType: "mcq",
+        selected: "D",
+        isCorrect: false,
+      };
+      const res1 = await request(app)
+        .post("/api/attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send(payload);
+      expect(res1.status).toBe(200);
+      expect(res1.body.ok).toBe(true);
+      expect(res1.body.duplicate).toBeUndefined();
+
+      const res2 = await request(app)
+        .post("/api/attempts")
+        .set("Authorization", `Bearer ${studentToken}`)
+        .send(payload);
+      expect(res2.status).toBe(200);
+      expect(res2.body.ok).toBe(true);
+      expect(res2.body.duplicate).toBe(true);
+
+      const count = await PracticeAttempt.countDocuments({
+        userId: studentId,
+        lessonId,
+        questionId: qId,
+      });
+      expect(count).toBe(1);
+    });
   });
 
   describe("GET /api/reports/lessons/:lessonId/attempts-summary", () => {
