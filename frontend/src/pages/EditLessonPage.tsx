@@ -394,6 +394,10 @@ const EditLessonPage: React.FC = () => {
   const [attachByTopicToast, setAttachByTopicToast] = useState<string | null>(null);
   const [attachingQuestionId, setAttachingQuestionId] = useState<string | null>(null);
   const [attachingTopicKey, setAttachingTopicKey] = useState<string | null>(null);
+  /** PR14: Reteach plan in sidebar (latest plan for lesson) */
+  const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number } | null>(null);
+  const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
+  const [reteachPlanGenerateLoading, setReteachPlanGenerateLoading] = useState(false);
   /** PR8: diagram suggestions when lesson has no diagrams */
   const [diagramSuggestionsLoading, setDiagramSuggestionsLoading] = useState(false);
   const [diagramSuggestionsError, setDiagramSuggestionsError] = useState<string | null>(null);
@@ -552,6 +556,33 @@ const EditLessonPage: React.FC = () => {
       });
     return () => { cancelled = true; };
   }, [id, userType, insightsDays]);
+
+  /** PR14: Fetch latest reteach plan for sidebar (teacher/admin only) */
+  useEffect(() => {
+    const canSee = userType === "teacher" || userType === "admin";
+    if (!id || !canSee) {
+      setReteachPlan(null);
+      return;
+    }
+    let cancelled = false;
+    setReteachPlanLoading(true);
+    api
+      .get<{ ok: boolean; plan?: { content: string; pinned: boolean; generatedAt?: string; days?: number } }>(
+        `/reports/lessons/${id}/reteach-plan`
+      )
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.data?.ok && res.data.plan) setReteachPlan(res.data.plan);
+        else setReteachPlan(null);
+      })
+      .catch(() => {
+        if (!cancelled) setReteachPlan(null);
+      })
+      .finally(() => {
+        if (!cancelled) setReteachPlanLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, userType]);
 
   useEffect(() => {
     if (!addFromBankModalOpen) return;
@@ -3022,6 +3053,103 @@ const EditLessonPage: React.FC = () => {
                         </>
                       );
                     })()}
+                  </div>
+
+                  {/* PR14: Reteach plan compact panel — pinned snippet + Open full report + optional Generate */}
+                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
+                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Reteach plan</div>
+                    {reteachPlanLoading ? (
+                      <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Loading…</p>
+                    ) : reteachPlan ? (
+                      <>
+                        {reteachPlan.pinned && reteachPlan.content && (
+                          <div style={{ fontSize: 12, color: "#374151", marginBottom: 10, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {reteachPlan.content.replace(/#+\s/g, "").slice(0, 220)}
+                            {reteachPlan.content.length > 220 ? "…" : ""}
+                          </div>
+                        )}
+                        {!reteachPlan.pinned && (
+                          <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b" }}>Plan available — open report to view or pin.</p>
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <Link
+                            to={`/teacher/reports/lesson/${id}`}
+                            style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
+                          >
+                            Open full report
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={reteachPlanGenerateLoading}
+                            onClick={async () => {
+                              if (!id) return;
+                              setReteachPlanGenerateLoading(true);
+                              try {
+                                const res = await api.post<{ ok: boolean; plan?: { content: string; pinned: boolean; generatedAt?: string; days?: number } }>(
+                                  `/reports/lessons/${id}/reteach-plan`,
+                                  { days: insightsDays, limit: 10 }
+                                );
+                                if (res?.data?.ok && res.data.plan) setReteachPlan(res.data.plan);
+                              } finally {
+                                setReteachPlanGenerateLoading(false);
+                              }
+                            }}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              border: "1px solid #2563eb",
+                              background: "rgba(37,99,235,0.1)",
+                              cursor: reteachPlanGenerateLoading ? "not-allowed" : "pointer",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "#2563eb",
+                              alignSelf: "flex-start",
+                            }}
+                          >
+                            {reteachPlanGenerateLoading ? "Generating…" : "Generate"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b" }}>No plan yet. Generate from report or here.</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <Link to={`/teacher/reports/lesson/${id}`} style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                            Open full report
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={reteachPlanGenerateLoading}
+                            onClick={async () => {
+                              if (!id) return;
+                              setReteachPlanGenerateLoading(true);
+                              try {
+                                const res = await api.post<{ ok: boolean; plan?: { content: string; pinned: boolean; generatedAt?: string; days?: number } }>(
+                                  `/reports/lessons/${id}/reteach-plan`,
+                                  { days: insightsDays, limit: 10 }
+                                );
+                                if (res?.data?.ok && res.data.plan) setReteachPlan(res.data.plan);
+                              } finally {
+                                setReteachPlanGenerateLoading(false);
+                              }
+                            }}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              border: "1px solid #2563eb",
+                              background: "rgba(37,99,235,0.1)",
+                              cursor: reteachPlanGenerateLoading ? "not-allowed" : "pointer",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "#2563eb",
+                              alignSelf: "flex-start",
+                            }}
+                          >
+                            {reteachPlanGenerateLoading ? "Generating…" : "Generate"}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

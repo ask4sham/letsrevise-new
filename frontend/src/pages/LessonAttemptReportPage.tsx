@@ -1,10 +1,24 @@
 /**
  * PR12: Teacher lesson attempts summary (practice + checkpoint).
  * PR13: Question insights (top misconceptions, topic hot-spots).
+ * PR14: Reteach plan (AI, cached, editable).
  */
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import api from "../services/api";
+
+type ReteachPlanResponse = {
+  ok: boolean;
+  plan: {
+    content: string;
+    pinned: boolean;
+    generatedAt: string;
+    days: number;
+    sourceHash?: string;
+    editedAt?: string | null;
+  };
+};
 
 type AttemptsSummary = {
   ok: boolean;
@@ -56,7 +70,13 @@ export default function LessonAttemptReportPage() {
   const [summary, setSummary] = useState<AttemptsSummary | null>(null);
   const [insights, setInsights] = useState<QuestionInsightsResponse | null>(null);
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
-  const days = 7;
+  const [days, setDays] = useState(7);
+  const [plan, setPlan] = useState<ReteachPlanResponse["plan"] | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [generateLoading, setGenerateLoading] = useState(false);
+  const [planEditContent, setPlanEditContent] = useState("");
+  const [planEditing, setPlanEditing] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -90,7 +110,24 @@ export default function LessonAttemptReportPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, days]);
+
+  useEffect(() => {
+    if (!id) return;
+    setPlanLoading(true);
+    setPlanError(null);
+    api
+      .get<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, { params: { days } })
+      .then((res) => {
+        if (res?.data?.ok && res.data.plan) setPlan(res.data.plan);
+        else setPlan(null);
+      })
+      .catch((e) => {
+        setPlan(null);
+        if (e?.response?.status !== 404) setPlanError(e?.response?.data?.error || "Failed to load plan.");
+      })
+      .finally(() => setPlanLoading(false));
+  }, [id, days]);
 
   if (loading) {
     return (
@@ -124,9 +161,27 @@ export default function LessonAttemptReportPage() {
         </Link>
       </div>
       <h1 style={{ margin: "0 0 8px 0", fontSize: "1.5rem" }}>Lesson attempts</h1>
-      <p style={{ margin: "0 0 24px 0", color: "#6b7280", fontSize: "0.95rem" }}>
-        Last {summary.days} days
-      </p>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+        <span style={{ color: "#6b7280", fontSize: "0.95rem" }}>Last</span>
+        {([7, 14, 30] as const).map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDays(d)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: days === d ? "2px solid #2563eb" : "1px solid #e2e8f0",
+              background: days === d ? "rgba(37,99,235,0.1)" : "white",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            {d} days
+          </button>
+        ))}
+      </div>
       <div
         style={{
           display: "grid",
@@ -249,6 +304,177 @@ export default function LessonAttemptReportPage() {
           )}
         </>
       )}
+
+      {/* PR14: Reteach plan (uses same days selector as above) */}
+      <div style={{ marginTop: 32, padding: 20, borderRadius: 12, border: "2px solid #e2e8f0", background: "#f8fafc" }}>
+        <h2 style={{ margin: "0 0 16px 0", fontSize: "1.2rem" }}>Reteach plan</h2>
+        {(() => {
+          const hasPractice = (summary?.bySource?.practice ?? 0) > 0 || (insights?.items?.length ?? 0) > 0;
+          if (!hasPractice) {
+            return (
+              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
+                No attempts yet — reteach plan will appear after students practise.
+              </p>
+            );
+          }
+          if (planLoading && !plan) {
+            return <p style={{ margin: 0, color: "#6b7280" }}>Loading plan…</p>;
+          }
+          if (planError) {
+            return <p style={{ margin: 0, color: "#dc2626" }}>{planError}</p>;
+          }
+          if (!plan) {
+            return (
+              <>
+                <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: 14 }}>
+                  Generate a short reteach plan from top misconceptions (AI).
+                </p>
+                <button
+                  type="button"
+                  disabled={generateLoading}
+                  onClick={async () => {
+                    if (!id) return;
+                    setGenerateLoading(true);
+                    setPlanError(null);
+                    try {
+                      const res = await api.post<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, {
+                        days,
+                        limit: 10,
+                      });
+                      if (res?.data?.ok && res.data.plan) {
+                        setPlan(res.data.plan);
+                        setPlanEditContent(res.data.plan.content);
+                      }
+                    } catch (e: any) {
+                      setPlanError(e?.response?.data?.error || "Failed to generate plan.");
+                    } finally {
+                      setGenerateLoading(false);
+                    }
+                  }}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 10,
+                    border: "2px solid #10b981",
+                    background: generateLoading ? "#e5e7eb" : "rgba(16,185,129,0.12)",
+                    cursor: generateLoading ? "not-allowed" : "pointer",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: "#047857",
+                  }}
+                >
+                  {generateLoading ? "Generating…" : "Generate reteach plan"}
+                </button>
+              </>
+            );
+          }
+          return (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlanEditing(!planEditing);
+                    if (!planEditing) setPlanEditContent(plan.content);
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #64748b",
+                    background: "#f1f5f9",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {planEditing ? "Cancel" : "Edit"}
+                </button>
+                {planEditing && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!id) return;
+                      try {
+                        const res = await api.patch<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, {
+                          content: planEditContent,
+                        });
+                        if (res?.data?.ok && res.data.plan) {
+                          setPlan(res.data.plan);
+                          setPlanEditing(false);
+                        }
+                      } catch {}
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: "2px solid #10b981",
+                      background: "rgba(16,185,129,0.12)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#047857",
+                    }}
+                  >
+                    Save
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!id) return;
+                    try {
+                      const res = await api.patch<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, {
+                        pinned: !plan.pinned,
+                      });
+                      if (res?.data?.ok && res.data.plan) setPlan(res.data.plan);
+                    } catch {}
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: plan.pinned ? "2px solid #f59e0b" : "1px solid #e2e8f0",
+                    background: plan.pinned ? "rgba(245,158,11,0.12)" : "#f9fafb",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: plan.pinned ? "#b45309" : "#374151",
+                  }}
+                >
+                  {plan.pinned ? "Pinned" : "Pin"}
+                </button>
+              </div>
+              {planEditing ? (
+                <textarea
+                  value={planEditContent}
+                  onChange={(e) => setPlanEditContent(e.target.value)}
+                  rows={14}
+                  style={{
+                    width: "100%",
+                    padding: 12,
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 14,
+                    fontFamily: "inherit",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    padding: 16,
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    background: "white",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: "#374151",
+                  }}
+                >
+                  <ReactMarkdown>{plan.content}</ReactMarkdown>
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
     </div>
   );
 }
