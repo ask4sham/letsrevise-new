@@ -394,6 +394,9 @@ const EditLessonPage: React.FC = () => {
   const [attachByTopicToast, setAttachByTopicToast] = useState<string | null>(null);
   const [attachingQuestionId, setAttachingQuestionId] = useState<string | null>(null);
   const [attachingTopicKey, setAttachingTopicKey] = useState<string | null>(null);
+  /** PR16: One-click fix (attach + regenerate plan) loading and per-topic error */
+  const [fixingTopicKey, setFixingTopicKey] = useState<string | null>(null);
+  const [fixErrorByTopic, setFixErrorByTopic] = useState<Record<string, string>>({});
   /** PR14/PR15: Reteach plan in sidebar (latest plan for lesson) */
   const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number; studentSummary?: string } | null>(null);
   const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
@@ -3005,42 +3008,101 @@ const EditLessonPage: React.FC = () => {
                                           <span style={{ color: "#b91c1c", marginLeft: 4 }}>· High-conf wrong: {t.highConfidenceWrong}</span>
                                         )}
                                       </span>
-                                      <button
-                                        type="button"
-                                        disabled={isAttaching}
-                                        onClick={async () => {
-                                          if (!id) return;
-                                          setAttachingTopicKey(t.topicKey);
-                                          try {
-                                            const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
-                                              topicKey: t.topicKey,
-                                              limit: 10,
-                                            });
-                                            const data = res?.data;
-                                            const added = data?.added ?? 0;
-                                            if (added > 0) {
-                                              const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                              setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                        <button
+                                          type="button"
+                                          disabled={isAttaching}
+                                          onClick={async () => {
+                                            if (!id) return;
+                                            setAttachingTopicKey(t.topicKey);
+                                            try {
+                                              const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
+                                                topicKey: t.topicKey,
+                                                limit: 10,
+                                              });
+                                              const data = res?.data;
+                                              const added = data?.added ?? 0;
+                                              if (added > 0) {
+                                                const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                                setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                              }
+                                              setAttachByTopicToast(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""}` : "No new questions to add");
+                                              setTimeout(() => setAttachByTopicToast(null), 3000);
+                                            } finally {
+                                              setAttachingTopicKey(null);
                                             }
-                                            setAttachByTopicToast(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""}` : "No new questions to add");
-                                            setTimeout(() => setAttachByTopicToast(null), 3000);
-                                          } finally {
-                                            setAttachingTopicKey(null);
-                                          }
-                                        }}
-                                        style={{
-                                          padding: "4px 10px",
-                                          borderRadius: 6,
-                                          border: "1px solid #2563eb",
-                                          background: "rgba(37,99,235,0.1)",
-                                          cursor: isAttaching ? "not-allowed" : "pointer",
-                                          fontSize: 11,
-                                          fontWeight: 600,
-                                          color: "#2563eb",
-                                        }}
-                                      >
-                                        {isAttaching ? "Attaching…" : "Attach top 10 by topic"}
-                                      </button>
+                                          }}
+                                          style={{
+                                            padding: "4px 10px",
+                                            borderRadius: 6,
+                                            border: "1px solid #94a3b8",
+                                            background: "#f1f5f9",
+                                            cursor: isAttaching ? "not-allowed" : "pointer",
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            color: "#475569",
+                                          }}
+                                        >
+                                          {isAttaching ? "Attaching…" : "Attach top 10"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={fixingTopicKey === t.topicKey}
+                                          onClick={async () => {
+                                            if (!id) return;
+                                            setFixingTopicKey(t.topicKey);
+                                            setFixErrorByTopic((prev) => ({ ...prev, [t.topicKey]: "" }));
+                                            try {
+                                              const res = await api.post<{
+                                                ok: boolean;
+                                                attach: { requested: number; added: number; addedIds: string[] };
+                                                plan: { id: string | null; pinned: boolean; updatedAt: string | null; cached: boolean };
+                                              }>(`/reports/lessons/${id}/one-click-fix`, {
+                                                days: insightsDays,
+                                                topicKey: t.topicKey,
+                                                attachByTopic: true,
+                                                attachLimit: 10,
+                                                regeneratePlan: true,
+                                                planLimit: 10,
+                                              });
+                                              const data = res?.data;
+                                              if (data?.ok) {
+                                                const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                                setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                                const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`, { params: { days: insightsDays } });
+                                                if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
+                                                const added = data.attach?.added ?? 0;
+                                                const planCached = data.plan?.cached ?? false;
+                                                const planMsg = planCached ? "plan reused" : "plan updated";
+                                                setAttachByTopicToast(added > 0 ? `Done: added ${added} question${added !== 1 ? "s" : ""} · ${planMsg}` : `Done: no new questions · ${planMsg}`);
+                                                setTimeout(() => setAttachByTopicToast(null), 4000);
+                                              } else {
+                                                setFixErrorByTopic((prev) => ({ ...prev, [t.topicKey]: (res as any)?.data?.message || "One-click fix failed" }));
+                                              }
+                                            } catch (err: any) {
+                                              const msg = err?.response?.data?.message || err?.response?.data?.error || "One-click fix failed";
+                                              setFixErrorByTopic((prev) => ({ ...prev, [t.topicKey]: msg }));
+                                            } finally {
+                                              setFixingTopicKey(null);
+                                            }
+                                          }}
+                                          style={{
+                                            padding: "4px 10px",
+                                            borderRadius: 6,
+                                            border: "2px solid #059669",
+                                            background: "rgba(5,150,105,0.12)",
+                                            cursor: fixingTopicKey === t.topicKey ? "not-allowed" : "pointer",
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            color: "#047857",
+                                          }}
+                                        >
+                                          {fixingTopicKey === t.topicKey ? "Fixing…" : "One-click fix"}
+                                        </button>
+                                      </div>
+                                      {fixErrorByTopic[t.topicKey] && (
+                                        <div style={{ width: "100%", fontSize: 11, color: "#dc2626", marginTop: 4 }}>{fixErrorByTopic[t.topicKey]}</div>
+                                      )}
                                     </li>
                                   );
                                 })}

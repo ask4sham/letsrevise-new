@@ -15,6 +15,7 @@ const ExamQuestion = require("../models/ExamQuestion");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -2156,7 +2157,7 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
   }
 });
 
-// PR3a.1: One-click attach top N questions by topicKey (derived from lesson.topic if not provided)
+// PR3a.1: One-click attach top N questions by topicKey (derived from lesson.topic if not provided). PR16: uses shared helper.
 router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -2166,98 +2167,35 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
     const lesson = await Lesson.findById(lessonId).select("topic teacherId organisationId examQuestions").lean();
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
-    let topicKeyToUse;
-    if (req.body.topicKey != null && String(req.body.topicKey).trim() !== "") {
-      const raw = String(req.body.topicKey).trim().toLowerCase();
-      const found = findTopicByKey(raw);
-      if (!found) {
-        return res.status(400).json({
-          error: "Invalid topicKey",
-          msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
-        });
-      }
-      topicKeyToUse = found.key;
-    } else {
-      const derived = topicToKey(lesson.topic || "");
-      if (!derived) {
-        return res.status(400).json({
-          error: "Invalid topic",
-          msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.",
-        });
-      }
-      const found = findTopicByKey(derived);
-      if (!found) {
-        return res.status(400).json({
-          error: "Invalid topic",
-          msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.",
-        });
-      }
-      topicKeyToUse = found.key;
-    }
-
     let limit = typeof req.body.limit === "number" ? req.body.limit : parseInt(req.body.limit, 10);
     if (!Number.isFinite(limit) || limit < 1) limit = 10;
     if (limit > 20) limit = 20;
 
-    const existingRefs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
-    const existingIds = new Set(existingRefs.map((r) => String(r.questionId)));
-
-    // Future-safe: teacher-owned OR organisation-owned (same org) OR platform (global) questions
-    const ownershipFilter = {
-      $or: [
-        { teacherId: lesson.teacherId },
-        ...(lesson.organisationId ? [{ scope: "organisation", organisationId: lesson.organisationId }] : []),
-        { scope: "platform" },
-      ],
-    };
-    const candidates = await ExamQuestion.find({
-      topicKey: topicKeyToUse,
-      ...ownershipFilter,
-    })
-      .select("_id marks createdAt")
-      .sort({ marks: -1, createdAt: -1 })
-      .limit(limit * 3)
-      .lean();
-
-    const toAdd = [];
-    for (const q of candidates) {
-      if (toAdd.length >= limit) break;
-      const qid = String(q._id);
-      if (!existingIds.has(qid)) {
-        toAdd.push(qid);
-        existingIds.add(qid);
-      }
-    }
-
-    if (toAdd.length === 0) {
-      return res.json({
-        ok: true,
-        topicKey: topicKeyToUse,
-        topic: findTopicByKey(topicKeyToUse)?.topic ?? null,
-        requested: limit,
-        added: 0,
-        addedIds: [],
-      });
-    }
-
-    const lessonDoc = await Lesson.findById(lessonId);
-    if (!lessonDoc) return res.status(404).json({ msg: "Lesson not found" });
-    const refs = Array.isArray(lessonDoc.examQuestions) ? lessonDoc.examQuestions : [];
-    for (const qid of toAdd) {
-      refs.push({ questionId: new mongoose.Types.ObjectId(qid), addedAt: new Date() });
-    }
-    lessonDoc.examQuestions = refs;
-    await lessonDoc.save();
-
+    const result = await attachExamQuestionsByTopic(lesson, {
+      topicKey: req.body.topicKey,
+      limit,
+    });
     return res.json({
       ok: true,
-      topicKey: topicKeyToUse,
-      topic: findTopicByKey(topicKeyToUse)?.topic ?? null,
-      requested: limit,
-      added: toAdd.length,
-      addedIds: toAdd,
+      topicKey: result.topicKey,
+      topic: result.topic,
+      requested: result.requested,
+      added: result.added,
+      addedIds: result.addedIds,
     });
   } catch (err) {
+    if (err.code === "INVALID_TOPIC_KEY") {
+      return res.status(400).json({
+        error: "Invalid topicKey",
+        msg: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
+      });
+    }
+    if (err.code === "INVALID_TOPIC") {
+      return res.status(400).json({
+        error: "Invalid topic",
+        msg: err.message || "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.",
+      });
+    }
     console.error("POST attach-by-topic error:", err);
     return res.status(500).json({ msg: "Server error" });
   }

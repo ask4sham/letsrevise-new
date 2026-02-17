@@ -67,16 +67,16 @@ describe("POST /api/lessons/:id/exam-questions/attach-by-topic", () => {
     });
   });
 
-  test("no body => derives topicKey from lesson.topic, adds up to default 10 excluding already attached", async () => {
+  test("no body => derives topicKey from lesson.topic, adds up to limit excluding already attached", async () => {
     const res = await request(app)
       .post(`/api/lessons/${lessonId}/exam-questions/attach-by-topic`)
       .set("Authorization", `Bearer ${teacherToken}`)
-      .send({});
+      .send({ limit: 20 });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.topicKey).toBe("photosynthesis");
-    expect(res.body.requested).toBe(10);
-    expect(res.body.added).toBeLessThanOrEqual(10);
+    expect(res.body.requested).toBe(20);
+    expect(res.body.added).toBeLessThanOrEqual(20);
     expect(Array.isArray(res.body.addedIds)).toBe(true);
     expect(res.body.topic).toBe("Photosynthesis");
   });

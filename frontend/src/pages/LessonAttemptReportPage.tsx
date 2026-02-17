@@ -77,6 +77,7 @@ export default function LessonAttemptReportPage() {
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
+  const [oneClickFixLoading, setOneClickFixLoading] = useState(false);
   const [planEditContent, setPlanEditContent] = useState("");
   const [planEditing, setPlanEditing] = useState(false);
   const [studentSummaryEdit, setStudentSummaryEdit] = useState("");
@@ -328,47 +329,91 @@ export default function LessonAttemptReportPage() {
             return <p style={{ margin: 0, color: "#dc2626" }}>{planError}</p>;
           }
           if (!plan) {
+            const firstTopicKey = insights?.topics?.[0]?.topicKey;
             return (
               <>
                 <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: 14 }}>
                   Generate a short reteach plan from top misconceptions (AI).
                 </p>
-                <button
-                  type="button"
-                  disabled={generateLoading}
-                  onClick={async () => {
-                    if (!id) return;
-                    setGenerateLoading(true);
-                    setPlanError(null);
-                    try {
-                      const res = await api.post<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, {
-                        days,
-                        limit: 10,
-                      });
-                      if (res?.data?.ok && res.data.plan) {
-                        setPlan(res.data.plan);
-                        setPlanEditContent(res.data.plan.content);
-                        setStudentSummaryEdit(res.data.plan.studentSummary ?? "");
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    disabled={generateLoading}
+                    onClick={async () => {
+                      if (!id) return;
+                      setGenerateLoading(true);
+                      setPlanError(null);
+                      try {
+                        const res = await api.post<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, {
+                          days,
+                          limit: 10,
+                        });
+                        if (res?.data?.ok && res.data.plan) {
+                          setPlan(res.data.plan);
+                          setPlanEditContent(res.data.plan.content);
+                          setStudentSummaryEdit(res.data.plan.studentSummary ?? "");
+                        }
+                      } catch (e: any) {
+                        setPlanError(e?.response?.data?.error || "Failed to generate plan.");
+                      } finally {
+                        setGenerateLoading(false);
                       }
-                    } catch (e: any) {
-                      setPlanError(e?.response?.data?.error || "Failed to generate plan.");
-                    } finally {
-                      setGenerateLoading(false);
-                    }
-                  }}
-                  style={{
-                    padding: "10px 18px",
-                    borderRadius: 10,
-                    border: "2px solid #10b981",
-                    background: generateLoading ? "#e5e7eb" : "rgba(16,185,129,0.12)",
-                    cursor: generateLoading ? "not-allowed" : "pointer",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: "#047857",
-                  }}
-                >
-                  {generateLoading ? "Generating…" : "Generate reteach plan"}
-                </button>
+                    }}
+                    style={{
+                      padding: "10px 18px",
+                      borderRadius: 10,
+                      border: "2px solid #10b981",
+                      background: generateLoading ? "#e5e7eb" : "rgba(16,185,129,0.12)",
+                      cursor: generateLoading ? "not-allowed" : "pointer",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      color: "#047857",
+                    }}
+                  >
+                    {generateLoading ? "Generating…" : "Generate reteach plan"}
+                  </button>
+                  {firstTopicKey && (
+                    <button
+                      type="button"
+                      disabled={oneClickFixLoading || generateLoading}
+                      onClick={async () => {
+                        if (!id) return;
+                        setOneClickFixLoading(true);
+                        setPlanError(null);
+                        try {
+                          const res = await api.post<{ ok: boolean; plan?: { id: string | null }; attach?: { added: number } }>(
+                            `/reports/lessons/${id}/one-click-fix`,
+                            { days, topicKey: firstTopicKey, attachByTopic: true, attachLimit: 10, regeneratePlan: true, planLimit: 10 }
+                          );
+                          if (res?.data?.ok) {
+                            const planRes = await api.get<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, { params: { days } });
+                            if (planRes?.data?.ok && planRes.data.plan) {
+                              setPlan(planRes.data.plan);
+                              setPlanEditContent(planRes.data.plan.content);
+                              setStudentSummaryEdit(planRes.data.plan.studentSummary ?? "");
+                            }
+                          }
+                        } catch (e: any) {
+                          setPlanError(e?.response?.data?.error || "One-click fix failed.");
+                        } finally {
+                          setOneClickFixLoading(false);
+                        }
+                      }}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 8,
+                        border: "2px solid #059669",
+                        background: oneClickFixLoading ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                        cursor: oneClickFixLoading ? "not-allowed" : "pointer",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        color: "#047857",
+                      }}
+                    >
+                      {oneClickFixLoading ? "Running…" : "Attach top 10 from worst topic + regenerate"}
+                    </button>
+                  )}
+                </div>
               </>
             );
           }

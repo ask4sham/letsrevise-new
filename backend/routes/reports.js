@@ -17,6 +17,7 @@ const ReteachPlan = require("../models/ReteachPlan");
 const auth = require("../middleware/auth");
 const { getLessonOwnerId } = require("../utils/lessonPayload");
 const { getBiologyTopics, findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
@@ -447,6 +448,105 @@ function requireLessonReportAccess(req, res, lessonId) {
 }
 
 /**
+ * PR16: Internal generator for reteach plan. Returns { planDoc, cached } or { error }.
+ * Used by POST /reteach-plan and POST /one-click-fix.
+ */
+async function generateReteachPlanInternal(lessonId, lesson, userId, opts = {}) {
+  let days = parseInt(String(opts.days ?? "14"), 10);
+  if (days !== 7 && days !== 14 && days !== 30) days = 14;
+  let limit = parseInt(String(opts.limit ?? "10"), 10);
+  if (Number.isNaN(limit) || limit < 5) limit = 5;
+  if (limit > 20) limit = 20;
+  const force = opts.force === true;
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const lessonOid = new mongoose.Types.ObjectId(lessonId);
+  const { items, topics } = await getQuestionInsightsForLesson(lessonOid, since, limit);
+
+  const minimalItems = items.slice(0, limit).map((i) => ({
+    questionId: i.questionId,
+    wrong: i.wrong,
+    highConfidenceWrong: i.highConfidenceWrong,
+    avgConfidence: i.avgConfidence,
+    topicKey: i.topicKey,
+  }));
+  const sourceHash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify({ lessonId, days, limit, minimalItems }))
+    .digest("hex");
+
+  if (!force) {
+    const existing = await ReteachPlan.findOne({ lessonId: lessonOid, days, sourceHash }).lean();
+    if (existing) {
+      return { planDoc: existing, cached: true };
+    }
+  }
+
+  const RECENT_MS = 2 * 60 * 1000;
+  const recent = await ReteachPlan.findOne({
+    lessonId: lessonOid,
+    generatedAt: { $gte: new Date(Date.now() - RECENT_MS) },
+  }).lean();
+  if (force && recent) {
+    return { error: "RATE_LIMIT", message: "Please wait a moment before generating again." };
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return { error: "NOT_CONFIGURED", message: "AI generation not configured" };
+  }
+
+  const top2Topics = topics.slice(0, 2);
+  const prompt = `You are a GCSE Biology teaching assistant. Generate a short reteach plan in markdown for the teacher.
+
+Lesson context: topic "${lesson.topic || ""}", tier "${lesson.tier || ""}", exam board "${lesson.board || ""}", subject "${lesson.subject || ""}", level "${lesson.level || ""}".
+
+Data from recent practice attempts (do not copy exam question text verbatim; refer generically):
+Top misconceptions (questionId, wrong count, high-confidence wrong, avg confidence, topic): ${JSON.stringify(minimalItems.slice(0, 3))}
+Topic hot-spots: ${JSON.stringify(top2Topics.map((t) => ({ topicKey: t.topicKey, topic: t.topic, wrong: t.wrong, highConfidenceWrong: t.highConfidenceWrong })))}
+
+Output markdown with exactly these sections (use ## for headings):
+1) What students are getting wrong
+2) Likely misconception
+3) Reteach script (5–10 minutes)
+4) Quick check questions (3)
+5) Homework / next steps
+
+Keep tone age-appropriate for GCSE. Reference the top 3 misconception areas and top 2 topics. Do not include copyrighted exam text; refer generically (e.g. "questions on photosynthesis").`;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = (process.env.OPENAI_MODEL || "gpt-4o-mini").toString();
+  const chatResp = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: "You output only valid markdown. No preamble." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 1500,
+      temperature: 0.5,
+    },
+    {
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      timeout: 30000,
+    }
+  );
+  const content = (chatResp.data?.choices?.[0]?.message?.content || "").trim().slice(0, 8000);
+
+  const plan = await ReteachPlan.create({
+    lessonId: lessonOid,
+    days,
+    limit,
+    generatedBy: userId,
+    sourceHash,
+    content: content || "(No content generated.)",
+    pinned: false,
+  });
+  return { planDoc: plan.toObject ? plan.toObject() : plan, cached: false };
+}
+
+/**
  * PR14: POST /api/reports/lessons/:lessonId/reteach-plan
  * Body: { days?: 7|14|30, limit?: number (5..20), force?: boolean }
  * Generate or return cached AI reteach plan. Teacher owner or admin only.
@@ -472,102 +572,13 @@ router.post("/lessons/:lessonId/reteach-plan", auth, async (req, res) => {
     if (limit > 20) limit = 20;
     const force = req.body?.force === true;
 
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    const lessonOid = new mongoose.Types.ObjectId(lessonId);
-    const { items, topics } = await getQuestionInsightsForLesson(lessonOid, since, limit);
-
-    const minimalItems = items.slice(0, limit).map((i) => ({
-      questionId: i.questionId,
-      wrong: i.wrong,
-      highConfidenceWrong: i.highConfidenceWrong,
-      avgConfidence: i.avgConfidence,
-      topicKey: i.topicKey,
-    }));
-    const sourceHash = crypto
-      .createHash("sha256")
-      .update(JSON.stringify({ lessonId, days, limit, minimalItems }))
-      .digest("hex");
-
-    if (!force) {
-      const existing = await ReteachPlan.findOne({ lessonId: lessonOid, days, sourceHash }).lean();
-      if (existing) {
-        return res.json({
-          ok: true,
-          plan: {
-            content: existing.content,
-            pinned: existing.pinned,
-            generatedAt: existing.generatedAt,
-            days: existing.days,
-            sourceHash: existing.sourceHash,
-            editedAt: existing.editedAt,
-          },
-        });
-      }
+    const result = await generateReteachPlanInternal(lessonId, lesson, req.user._id, { days, limit, force });
+    if (result.error) {
+      if (result.error === "NOT_CONFIGURED") return res.status(501).json({ error: result.message });
+      if (result.error === "RATE_LIMIT") return res.status(429).json({ error: result.message });
+      return res.status(500).json({ error: "Server error" });
     }
-
-    const RECENT_MS = 2 * 60 * 1000;
-    const recent = await ReteachPlan.findOne({
-      lessonId: lessonOid,
-      generatedAt: { $gte: new Date(Date.now() - RECENT_MS) },
-    }).lean();
-    if (force && recent) {
-      return res.status(429).json({ error: "Please wait a moment before generating again." });
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(501).json({ error: "AI generation not configured" });
-    }
-
-    const top3 = items.slice(0, 3);
-    const top2Topics = topics.slice(0, 2);
-    const prompt = `You are a GCSE Biology teaching assistant. Generate a short reteach plan in markdown for the teacher.
-
-Lesson context: topic "${lesson.topic || ""}", tier "${lesson.tier || ""}", exam board "${lesson.board || ""}", subject "${lesson.subject || ""}", level "${lesson.level || ""}".
-
-Data from recent practice attempts (do not copy exam question text verbatim; refer generically):
-Top misconceptions (questionId, wrong count, high-confidence wrong, avg confidence, topic): ${JSON.stringify(minimalItems.slice(0, 3))}
-Topic hot-spots: ${JSON.stringify(top2Topics.map((t) => ({ topicKey: t.topicKey, topic: t.topic, wrong: t.wrong, highConfidenceWrong: t.highConfidenceWrong })))}
-
-Output markdown with exactly these sections (use ## for headings):
-1) What students are getting wrong
-2) Likely misconception
-3) Reteach script (5–10 minutes)
-4) Quick check questions (3)
-5) Homework / next steps
-
-Keep tone age-appropriate for GCSE. Reference the top 3 misconception areas and top 2 topics. Do not include copyrighted exam text; refer generically (e.g. "questions on photosynthesis").`;
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    const model = (process.env.OPENAI_MODEL || "gpt-4o-mini").toString();
-    const chatResp = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model,
-        messages: [
-          { role: "system", content: "You output only valid markdown. No preamble." },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 1500,
-        temperature: 0.5,
-      },
-      {
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        timeout: 30000,
-      }
-    );
-    const content = (chatResp.data?.choices?.[0]?.message?.content || "").trim().slice(0, 8000);
-
-    const plan = await ReteachPlan.create({
-      lessonId: lessonOid,
-      days,
-      limit,
-      generatedBy: req.user._id,
-      sourceHash,
-      content: content || "(No content generated.)",
-      pinned: false,
-    });
-
+    const plan = result.planDoc;
     return res.json({
       ok: true,
       plan: {
@@ -690,6 +701,129 @@ router.patch("/lessons/:lessonId/reteach-plan", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("PATCH reteach-plan error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * PR16: POST /api/reports/lessons/:lessonId/one-click-fix
+ * One-click: attach questions by topic + regenerate reteach plan. Teacher owner or admin only.
+ * Body: { days?, topicKey?, attachByTopic?, attachLimit?, regeneratePlan?, planLimit? }
+ */
+router.post("/lessons/:lessonId/one-click-fix", auth, async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    if (requireLessonReportAccess(req, res, lessonId) !== true) return;
+    const lesson = await Lesson.findById(lessonId)
+      .select("teacherId topic board tier subject level status isPublished organisationId examQuestions")
+      .lean();
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+    const ownerId = getLessonOwnerId(lesson);
+    const userId = String(req.user._id);
+    if (ownerId !== userId && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Not the lesson owner" });
+    }
+
+    let days = parseInt(String(req.body?.days ?? "7"), 10);
+    if (!Number.isFinite(days) || days < 1) days = 7;
+    if (days > 30) days = 30;
+    const attachByTopic = req.body?.attachByTopic !== false;
+    let attachLimit = parseInt(String(req.body?.attachLimit ?? "10"), 10);
+    if (!Number.isFinite(attachLimit) || attachLimit < 1) attachLimit = 10;
+    if (attachLimit > 20) attachLimit = 20;
+    const regeneratePlan = req.body?.regeneratePlan !== false;
+    let planLimit = parseInt(String(req.body?.planLimit ?? "10"), 10);
+    if (!Number.isFinite(planLimit) || planLimit < 1) planLimit = 10;
+    if (planLimit > 20) planLimit = 20;
+
+    let topicKey = req.body?.topicKey != null ? String(req.body.topicKey).trim() : null;
+    if (topicKey === "") topicKey = null;
+    if (topicKey != null) {
+      const found = findTopicByKey(topicKey.toLowerCase());
+      if (!found) {
+        return res.status(400).json({
+          error: "Invalid topicKey",
+          message: "topicKey is not in the Biology taxonomy.",
+        });
+      }
+      topicKey = found.key;
+    } else {
+      const derived = topicToKey(lesson.topic || "");
+      if (!derived) {
+        if (attachByTopic) {
+          return res.status(400).json({
+            error: "Invalid topic",
+            message: "Lesson topic isn't mapped to Biology taxonomy. Provide topicKey in body or set lesson topic.",
+          });
+        }
+        topicKey = null;
+      } else {
+        const found = findTopicByKey(derived);
+        if (!found && attachByTopic) {
+          return res.status(400).json({
+            error: "Invalid topic",
+            message: "Lesson topic isn't mapped to Biology taxonomy. Provide topicKey in body or set lesson topic.",
+          });
+        }
+        topicKey = found ? found.key : null;
+      }
+    }
+
+    let attach = { requested: attachLimit, added: 0, addedIds: [] };
+    if (attachByTopic && topicKey) {
+      try {
+        const attachResult = await attachExamQuestionsByTopic(lesson, { topicKey, limit: attachLimit });
+        attach = {
+          requested: attachResult.requested,
+          added: attachResult.added,
+          addedIds: attachResult.addedIds || [],
+        };
+        if (attachResult.added > 0) {
+          const freshLesson = await Lesson.findById(lessonId).select("examQuestions").lean();
+          if (freshLesson) Object.assign(lesson, freshLesson);
+        }
+      } catch (attachErr) {
+        if (attachErr.code === "INVALID_TOPIC_KEY" || attachErr.code === "INVALID_TOPIC") {
+          return res.status(400).json({ error: attachErr.code === "INVALID_TOPIC_KEY" ? "Invalid topicKey" : "Invalid topic", message: attachErr.message });
+        }
+        throw attachErr;
+      }
+    }
+
+    let planPayload = { id: null, pinned: false, updatedAt: null, cached: false };
+    if (regeneratePlan) {
+      const planResult = await generateReteachPlanInternal(lessonId, lesson, req.user._id, { days, limit: planLimit });
+      if (planResult.error) {
+        if (planResult.error === "NOT_CONFIGURED") {
+          return res.status(501).json({ error: planResult.message });
+        }
+        if (planResult.error === "RATE_LIMIT") {
+          return res.status(429).json({ error: planResult.message });
+        }
+      } else if (planResult.planDoc) {
+        const p = planResult.planDoc;
+        planPayload = {
+          id: p._id ? String(p._id) : null,
+          pinned: !!p.pinned,
+          updatedAt: (p.editedAt || p.updatedAt || p.generatedAt) ? new Date(p.editedAt || p.updatedAt || p.generatedAt).toISOString() : null,
+          cached: !!planResult.cached,
+        };
+      }
+    }
+
+    const displayTopic = topicKey ? findTopicByKey(topicKey)?.topic ?? topicKey : null;
+    return res.status(200).json({
+      ok: true,
+      lessonId,
+      topicKey: topicKey || undefined,
+      topic: displayTopic ?? undefined,
+      attach: { requested: attach.requested, added: attach.added, addedIds: attach.addedIds },
+      plan: planPayload,
+    });
+  } catch (err) {
+    console.error("POST one-click-fix error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
