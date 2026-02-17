@@ -104,6 +104,7 @@ interface Lesson {
   shamCoinPrice: number;
   isFreePreview?: boolean;
   isPublished: boolean;
+  status?: string;
   views: number;
   averageRating: number;
   totalRatings: number;
@@ -363,6 +364,36 @@ const EditLessonPage: React.FC = () => {
   const [autoAttachLimit, setAutoAttachLimit] = useState(10);
   const [autoAttachMessage, setAutoAttachMessage] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  /** PR13.1: Misconceptions panel (question insights in editor) */
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [misconceptionItems, setMisconceptionItems] = useState<Array<{
+    questionId: string;
+    question?: string;
+    marks?: number;
+    topicKey?: string;
+    topic?: string;
+    type?: string;
+    attempts: number;
+    correct: number;
+    wrong: number;
+    accuracy: number | null;
+    highConfidenceWrong: number;
+    avgConfidence?: number;
+  }>>([]);
+  const [hotspotTopics, setHotspotTopics] = useState<Array<{
+    topicKey: string;
+    topic?: string;
+    attempts: number;
+    wrong: number;
+    correct: number;
+    highConfidenceWrong: number;
+  }>>([]);
+  const [insightsDays, setInsightsDays] = useState(7);
+  const [attachToast, setAttachToast] = useState<string | null>(null);
+  const [attachByTopicToast, setAttachByTopicToast] = useState<string | null>(null);
+  const [attachingQuestionId, setAttachingQuestionId] = useState<string | null>(null);
+  const [attachingTopicKey, setAttachingTopicKey] = useState<string | null>(null);
   /** PR8: diagram suggestions when lesson has no diagrams */
   const [diagramSuggestionsLoading, setDiagramSuggestionsLoading] = useState(false);
   const [diagramSuggestionsError, setDiagramSuggestionsError] = useState<string | null>(null);
@@ -483,6 +514,44 @@ const EditLessonPage: React.FC = () => {
       setAttachedExamQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
     }).catch(() => setAttachedExamQuestions([]));
   }, [id, lesson?.id]);
+
+  /** PR13.1: Fetch question insights when lesson id present and user is teacher/admin */
+  useEffect(() => {
+    const canSeeInsights = userType === "teacher" || userType === "admin";
+    if (!id || !canSeeInsights) {
+      setMisconceptionItems([]);
+      setHotspotTopics([]);
+      setInsightsError(null);
+      return;
+    }
+    let cancelled = false;
+    setInsightsLoading(true);
+    setInsightsError(null);
+    api
+      .get<{ ok: boolean; items?: typeof misconceptionItems; topics?: typeof hotspotTopics }>(
+        `/reports/lessons/${id}/question-insights`,
+        { params: { days: insightsDays, limit: 10 } }
+      )
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.data?.ok) {
+          setMisconceptionItems(Array.isArray(res.data.items) ? res.data.items : []);
+          setHotspotTopics(Array.isArray(res.data.topics) ? res.data.topics : []);
+        }
+      })
+      .catch((e: any) => {
+        if (cancelled) return;
+        const status = e?.response?.status;
+        const msg = e?.response?.data?.error ?? e?.message ?? "Failed to load insights";
+        setInsightsError(status === 403 ? "Insights are only available to the lesson owner." : msg);
+        setMisconceptionItems([]);
+        setHotspotTopics([]);
+      })
+      .finally(() => {
+        if (!cancelled) setInsightsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, userType, insightsDays]);
 
   useEffect(() => {
     if (!addFromBankModalOpen) return;
@@ -2776,6 +2845,183 @@ const EditLessonPage: React.FC = () => {
                         ))}
                       </ul>
                     )}
+                  </div>
+
+                  {/* PR13.1: Misconceptions panel — top wrong questions + topic hot-spots, one-click attach */}
+                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
+                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Misconceptions (last {insightsDays} days)</div>
+                    {(() => {
+                      const isPublished = lesson?.isPublished === true || String(lesson?.status || "").toLowerCase() === "published";
+                      if (!isPublished) {
+                        return (
+                          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+                            Publish to start collecting attempts.
+                          </p>
+                        );
+                      }
+                      if (insightsLoading) {
+                        return <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Loading insights…</p>;
+                      }
+                      if (insightsError) {
+                        return (
+                          <p style={{ margin: 0, fontSize: 13, color: "#b91c1c" }}>{insightsError}</p>
+                        );
+                      }
+                      if (misconceptionItems.length === 0 && hotspotTopics.length === 0) {
+                        return (
+                          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+                            No practice attempts recorded yet.
+                          </p>
+                        );
+                      }
+                      const attachedIds = new Set(attachedExamQuestions.map((q) => String(q._id)));
+                      return (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 12, color: "#64748b" }}>Period:</span>
+                            {([7, 14, 30] as const).map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setInsightsDays(d)}
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: 6,
+                                  border: insightsDays === d ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                                  background: insightsDays === d ? "rgba(37,99,235,0.1)" : "#fff",
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {d} days
+                              </button>
+                            ))}
+                          </div>
+                          {misconceptionItems.length > 0 && (
+                            <div style={{ marginBottom: 12 }}>
+                              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 6, color: "#374151" }}>Top misconceptions</div>
+                              <ul style={{ margin: 0, paddingLeft: 16, listStyle: "none" }}>
+                                {misconceptionItems.map((item) => {
+                                  const snippet = (item.question ?? "").slice(0, 120);
+                                  const isAttached = attachedIds.has(item.questionId);
+                                  const isAttaching = attachingQuestionId === item.questionId;
+                                  return (
+                                    <li key={item.questionId} style={{ marginBottom: 10, padding: 8, borderRadius: 6, background: "#fff", border: "1px solid #e2e8f0" }}>
+                                      <div style={{ fontSize: 12, color: "#374151", marginBottom: 4 }}>
+                                        {snippet}{snippet.length >= 120 ? "…" : ""}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
+                                        High-conf wrong: {item.highConfidenceWrong} · Accuracy: {item.accuracy != null ? Math.round(item.accuracy * 100) : "—"}% · {item.topic ?? item.topicKey ?? "—"}
+                                      </div>
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        <button
+                                          type="button"
+                                          disabled={isAttached || isAttaching}
+                                          onClick={async () => {
+                                            if (!id) return;
+                                            setAttachingQuestionId(item.questionId);
+                                            try {
+                                              await api.post(`/lessons/${id}/exam-questions`, { questionIds: [item.questionId] });
+                                              const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                              setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                              setAttachToast("Attached");
+                                              setTimeout(() => setAttachToast(null), 2500);
+                                            } finally {
+                                              setAttachingQuestionId(null);
+                                            }
+                                          }}
+                                          style={{
+                                            padding: "4px 10px",
+                                            borderRadius: 6,
+                                            border: "1px solid #22c55e",
+                                            background: isAttached ? "#e2e8f0" : "rgba(34,197,94,0.12)",
+                                            cursor: isAttached || isAttaching ? "not-allowed" : "pointer",
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            color: isAttached ? "#64748b" : "#166534",
+                                          }}
+                                        >
+                                          {isAttaching ? "Attaching…" : isAttached ? "Attached" : "Attach to lesson"}
+                                        </button>
+                                        <Link
+                                          to={item.topicKey ? `/teacher/exam-question-bank?topicKey=${encodeURIComponent(item.topicKey)}` : "/teacher/exam-question-bank"}
+                                          style={{ fontSize: 11, color: "#2563eb", fontWeight: 600 }}
+                                        >
+                                          Open in Question Bank
+                                        </Link>
+                                      </div>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                              {attachToast && (
+                                <div style={{ marginTop: 6, fontSize: 12, color: "#166534", fontWeight: 600 }}>{attachToast}</div>
+                              )}
+                            </div>
+                          )}
+                          {hotspotTopics.length > 0 && (
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 6, color: "#374151" }}>Topic hot-spots</div>
+                              <ul style={{ margin: 0, paddingLeft: 16, listStyle: "none" }}>
+                                {hotspotTopics.map((t) => {
+                                  const isAttaching = attachingTopicKey === t.topicKey;
+                                  return (
+                                    <li key={t.topicKey} style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                                      <span style={{ fontSize: 12, color: "#374151" }}>
+                                        {t.topic ?? t.topicKey} · Wrong {t.wrong}/{t.attempts}
+                                        {t.highConfidenceWrong > 0 && (
+                                          <span style={{ color: "#b91c1c", marginLeft: 4 }}>· High-conf wrong: {t.highConfidenceWrong}</span>
+                                        )}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        disabled={isAttaching}
+                                        onClick={async () => {
+                                          if (!id) return;
+                                          setAttachingTopicKey(t.topicKey);
+                                          try {
+                                            const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
+                                              topicKey: t.topicKey,
+                                              limit: 10,
+                                            });
+                                            const data = res?.data;
+                                            const added = data?.added ?? 0;
+                                            if (added > 0) {
+                                              const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                              setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                            }
+                                            setAttachByTopicToast(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""}` : "No new questions to add");
+                                            setTimeout(() => setAttachByTopicToast(null), 3000);
+                                          } finally {
+                                            setAttachingTopicKey(null);
+                                          }
+                                        }}
+                                        style={{
+                                          padding: "4px 10px",
+                                          borderRadius: 6,
+                                          border: "1px solid #2563eb",
+                                          background: "rgba(37,99,235,0.1)",
+                                          cursor: isAttaching ? "not-allowed" : "pointer",
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          color: "#2563eb",
+                                        }}
+                                      >
+                                        {isAttaching ? "Attaching…" : "Attach top 10 by topic"}
+                                      </button>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                              {attachByTopicToast && (
+                                <div style={{ marginTop: 6, fontSize: 12, color: "#166534", fontWeight: 600 }}>{attachByTopicToast}</div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 

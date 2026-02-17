@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 
 const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
@@ -30,6 +30,8 @@ type ExamQuestion = {
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 const TeacherExamQuestionBankPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const topicKeyFromUrl = searchParams.get("topicKey") ?? "";
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [filterTopicKey, setFilterTopicKey] = useState<string>("");
+  const [filterTopicKey, setFilterTopicKey] = useState<string>(topicKeyFromUrl);
   const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
   const [form, setForm] = useState({
     subject: "Biology",
@@ -86,6 +88,12 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       setTaxonomy(res?.data ?? null);
     }).catch(() => setTaxonomy(null));
   }, []);
+
+  // Pre-set topic filter from URL when opening from Misconceptions panel
+  useEffect(() => {
+    const key = searchParams.get("topicKey");
+    if (key) setFilterTopicKey(key);
+  }, [searchParams]);
 
   useEffect(() => {
     setLoading(true);
