@@ -155,6 +155,23 @@ function DiagramBlockContent({
         <img src={src} alt={caption || "Diagram"} style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12, margin: "0 auto", display: "block" }} />
         {showOverlay && (
           <div style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, pointerEvents: "none", borderRadius: 12 }}>
+            <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
+              {visibleAnnotations.map((a) => {
+                const x = typeof a.x === "number" ? a.x : 0.5;
+                const y = typeof a.y === "number" ? a.y : 0.5;
+                const y2 = Math.max(0, Math.min(1, y - 0.035));
+                return (
+                  <line key={a.id} x1={`${x * 100}%`} y1={`${y * 100}%`} x2={`${x * 100}%`} y2={`${y2 * 100}%`} stroke="#111827" strokeWidth="2" opacity="0.55" />
+                );
+              })}
+            </svg>
+            {visibleAnnotations.map((a) => {
+              const x = typeof a.x === "number" ? a.x : 0.5;
+              const y = typeof a.y === "number" ? a.y : 0.5;
+              return (
+                <div key={`pin-${a.id}`} style={{ position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`, transform: "translate(-50%, -50%)", width: 10, height: 10, borderRadius: 999, background: "#111827", border: "2px solid #fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+              );
+            })}
             {visibleAnnotations.map((a) => {
               const x = typeof a.x === "number" ? a.x : 0.5;
               const y = typeof a.y === "number" ? a.y : 0.5;

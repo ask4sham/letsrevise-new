@@ -389,6 +389,8 @@ const EditLessonPage: React.FC = () => {
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [placeMode, setPlaceMode] = useState(false);
   const [diagramPreviewUrls, setDiagramPreviewUrls] = useState<Record<string, string>>({});
+  /** PR11.2: nudge step 1% | 2% | 5% */
+  const [nudgeStepPct, setNudgeStepPct] = useState(2);
   const diagramRef = useRef<Record<string, HTMLDivElement | null>>({});
   const draggingIdRef = useRef<string | null>(null);
   const draggingPageIdRef = useRef<string | null>(null);
@@ -852,6 +854,34 @@ const EditLessonPage: React.FC = () => {
       pages[pIdx] = { ...page, blocks };
       return { ...prev, pages };
     });
+  };
+
+  /** PR11.2: reduce overlap between annotations (normalized 0..1), returns new array */
+  const autoSpreadAnnotations = (
+    anns: Array<{ id: string; text?: string; x?: number; y?: number; [k: string]: unknown }>
+  ): Array<{ id: string; text?: string; x?: number; y?: number; [k: string]: unknown }> => {
+    const out = anns.map((a) => ({ ...a, x: typeof a.x === "number" ? a.x : 0.5, y: typeof a.y === "number" ? a.y : 0.5 }));
+    const clamp01 = (v: number) => clamp(v, 0, 1);
+    const dist2 = (i: number, j: number) => {
+      const dx = out[i].x! - out[j].x!;
+      const dy = out[i].y! - out[j].y!;
+      return dx * dx + dy * dy;
+    };
+    for (let iter = 0; iter < 20; iter++) {
+      for (let i = 0; i < out.length; i++) {
+        for (let j = i + 1; j < out.length; j++) {
+          if (dist2(i, j) >= 0.003) continue;
+          const dx = out[i].x! - out[j].x!;
+          const dy = out[i].y! - out[j].y!;
+          const push = 0.01;
+          out[i].x = clamp01(out[i].x! + push * dx);
+          out[i].y = clamp01(out[i].y! + push * dy);
+          out[j].x = clamp01(out[j].x! - push * dx);
+          out[j].y = clamp01(out[j].y! - push * dy);
+        }
+      }
+    }
+    return out;
   };
 
   /** PR11.1: fetch diagram image URLs for blocks that have visualId */
@@ -3142,12 +3172,68 @@ const EditLessonPage: React.FC = () => {
                                           >
                                             Place labels: {placeMode ? "ON" : "OFF"}
                                           </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const anns = Array.isArray(d.annotations) ? d.annotations : [];
+                                              if (anns.length < 2) return;
+                                              const next = autoSpreadAnnotations(anns);
+                                              updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                            }}
+                                            disabled={(d.annotations ?? []).length < 2}
+                                            style={{
+                                              padding: "6px 10px",
+                                              borderRadius: 6,
+                                              border: "1px solid #22c55e",
+                                              background: "rgba(34,197,94,0.1)",
+                                              cursor: (d.annotations ?? []).length >= 2 ? "pointer" : "not-allowed",
+                                              fontSize: 12,
+                                              fontWeight: 600,
+                                            }}
+                                          >
+                                            Auto-spread labels
+                                          </button>
                                           {placeMode && !selectedAnnotationId && (
                                             <span style={{ fontSize: 12, color: "#64748b" }}>Select a label first.</span>
                                           )}
                                         </div>
+                                        {(d.annotations ?? []).length > 0 && selectedAnnotationId && (
+                                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                                            <span style={{ fontSize: 12, color: "#64748b" }}>Nudge:</span>
+                                            <select
+                                              value={nudgeStepPct}
+                                              onChange={(e) => setNudgeStepPct(Number(e.target.value))}
+                                              style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12 }}
+                                            >
+                                              <option value={1}>1%</option>
+                                              <option value={2}>2%</option>
+                                              <option value={5}>5%</option>
+                                            </select>
+                                            {([["⬆", 0, -1], ["⬇", 0, 1], ["⬅", -1, 0], ["➡", 1, 0]] as const).map(([label, dx, dy]) => (
+                                              <button
+                                                key={label}
+                                                type="button"
+                                                onClick={() => {
+                                                  const sel = (d.annotations ?? []).find((a) => a.id === selectedAnnotationId);
+                                                  if (!sel) return;
+                                                  const step = nudgeStepPct / 100;
+                                                  updateDiagramAnnotation(currentPage!.pageId, idx, selectedAnnotationId, {
+                                                    x: clamp((sel.x ?? 0.5) + dx * step, 0, 1),
+                                                    y: clamp((sel.y ?? 0.5) + dy * step, 0, 1),
+                                                  });
+                                                }}
+                                                style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontSize: 14 }}
+                                              >
+                                                {label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
                                         <div
                                           ref={(el) => { diagramRef.current[diagramKey] = el; }}
+                                          tabIndex={0}
+                                          role="group"
+                                          aria-label="Diagram label preview"
                                           style={{
                                             position: "relative",
                                             width: "100%",
@@ -3157,6 +3243,7 @@ const EditLessonPage: React.FC = () => {
                                             border: "1px solid #e5e7eb",
                                             marginTop: 4,
                                             touchAction: "none",
+                                            outline: "none",
                                           }}
                                           onClick={(e) => {
                                             if (!placeMode || !selectedAnnotationId) return;
@@ -3165,10 +3252,65 @@ const EditLessonPage: React.FC = () => {
                                             const { x, y } = getNormalizedPointFromEvent(e.nativeEvent, el);
                                             updateDiagramAnnotation(currentPage!.pageId, idx, selectedAnnotationId, { x, y });
                                           }}
+                                          onKeyDown={(e) => {
+                                            if (selectedAnnotationId == null) return;
+                                            const sel = (d.annotations ?? []).find((a) => a.id === selectedAnnotationId);
+                                            if (!sel) return;
+                                            const step = (e.shiftKey ? 2 : 1) * (nudgeStepPct / 100);
+                                            let dx = 0;
+                                            let dy = 0;
+                                            if (e.key === "ArrowUp") { dy = -step; e.preventDefault(); }
+                                            if (e.key === "ArrowDown") { dy = step; e.preventDefault(); }
+                                            if (e.key === "ArrowLeft") { dx = -step; e.preventDefault(); }
+                                            if (e.key === "ArrowRight") { dx = step; e.preventDefault(); }
+                                            if (dx !== 0 || dy !== 0)
+                                              updateDiagramAnnotation(currentPage!.pageId, idx, selectedAnnotationId, {
+                                                x: clamp((sel.x ?? 0.5) + dx, 0, 1),
+                                                y: clamp((sel.y ?? 0.5) + dy, 0, 1),
+                                              });
+                                          }}
                                         >
                                           {diagramUrl ? (
                                             <>
                                               <img src={diagramUrl} alt="Diagram preview" style={{ width: "100%", height: "auto", display: "block" }} />
+                                              <div style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, pointerEvents: "none" }}>
+                                                <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
+                                                  {(d.annotations ?? []).map((a) => {
+                                                    const x = (a.x ?? 0.5);
+                                                    const y = (a.y ?? 0.5);
+                                                    const y2 = clamp(y - 0.035, 0, 1);
+                                                    return (
+                                                      <line
+                                                        key={a.id}
+                                                        x1={`${x * 100}%`}
+                                                        y1={`${y * 100}%`}
+                                                        x2={`${x * 100}%`}
+                                                        y2={`${y2 * 100}%`}
+                                                        stroke="#111827"
+                                                        strokeWidth="2"
+                                                        opacity="0.55"
+                                                      />
+                                                    );
+                                                  })}
+                                                </svg>
+                                                {(d.annotations ?? []).map((ann) => (
+                                                  <div
+                                                    key={`pin-${ann.id}`}
+                                                    style={{
+                                                      position: "absolute",
+                                                      left: `${((ann.x ?? 0.5) * 100)}%`,
+                                                      top: `${((ann.y ?? 0.5) * 100)}%`,
+                                                      transform: "translate(-50%, -50%)",
+                                                      width: 10,
+                                                      height: 10,
+                                                      borderRadius: 999,
+                                                      background: "#111827",
+                                                      border: "2px solid #fff",
+                                                      boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                                                    }}
+                                                  />
+                                                ))}
+                                              </div>
                                               {(d.annotations ?? []).map((ann) => (
                                                 <div
                                                   key={ann.id}
@@ -3224,7 +3366,7 @@ const EditLessonPage: React.FC = () => {
                                           )}
                                         </div>
                                         <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#64748b" }}>
-                                          Drag labels on the diagram to position them. Saved with the lesson.
+                                          Drag labels on the diagram to position them. Nudge with arrows or buttons. Saved with the lesson.
                                         </p>
                                       </div>
                                     );
