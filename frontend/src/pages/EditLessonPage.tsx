@@ -385,6 +385,15 @@ const EditLessonPage: React.FC = () => {
   // State for mark preview expansion
   const [expandedPreviews, setExpandedPreviews] = useState<Set<string>>(new Set());
 
+  /** PR11.1: drag-to-position diagram annotations */
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [placeMode, setPlaceMode] = useState(false);
+  const [diagramPreviewUrls, setDiagramPreviewUrls] = useState<Record<string, string>>({});
+  const diagramRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const draggingIdRef = useRef<string | null>(null);
+  const draggingPageIdRef = useRef<string | null>(null);
+  const draggingBlockIndexRef = useRef<number | null>(null);
+
   const blockTextareasRef = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
   const csvFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -805,6 +814,71 @@ const EditLessonPage: React.FC = () => {
       return { ...prev, pages };
     });
   };
+
+  /** PR11.1: clamp number to [min, max] */
+  const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+  /** PR11.1: get normalized 0..1 point from pointer/mouse event relative to container */
+  const getNormalizedPointFromEvent = (e: { clientX: number; clientY: number }, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    const x = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+    const y = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+    return { x, y };
+  };
+  /** PR11.1: update one annotation's x/y (or other fields) in a diagram block */
+  const updateDiagramAnnotation = (
+    pageId: string,
+    blockIndex: number,
+    annId: string,
+    patch: Partial<{ x: number; y: number }>
+  ) => {
+    const clamp01 = (v: number) => clamp(v, 0, 1);
+    setLesson((prev) => {
+      if (!prev?.pages) return prev;
+      const pages = prev.pages.map((p) => ({ ...p }));
+      const pIdx = pages.findIndex((p) => String(p.pageId) === String(pageId));
+      if (pIdx < 0) return prev;
+      const page = pages[pIdx];
+      const blocks = Array.isArray(page.blocks) ? [...page.blocks] : [];
+      const block = blocks[blockIndex];
+      if (!block || block.type !== "diagram" || !Array.isArray(block.annotations)) return prev;
+      const annotations = block.annotations.map((a) => {
+        if (a.id !== annId) return a;
+        const next = { ...a };
+        if (typeof patch.x === "number") next.x = clamp01(patch.x);
+        if (typeof patch.y === "number") next.y = clamp01(patch.y);
+        return next;
+      });
+      blocks[blockIndex] = { ...block, annotations };
+      pages[pIdx] = { ...page, blocks };
+      return { ...prev, pages };
+    });
+  };
+
+  /** PR11.1: fetch diagram image URLs for blocks that have visualId */
+  useEffect(() => {
+    if (!lesson?.pages) return;
+    const level = lesson?.level ?? "GCSE";
+    let cancelled = false;
+    (async () => {
+      for (const page of lesson.pages ?? []) {
+        for (const b of page.blocks ?? []) {
+          if (b?.type !== "diagram" || !b.visualId) continue;
+          const vid = String(b.visualId);
+          if (diagramPreviewUrls[vid]) continue;
+          try {
+            const res = await getVisualById(vid, level);
+            if (cancelled) return;
+            const url = res?.data?.visual?.src;
+            if (url && typeof url === "string")
+              setDiagramPreviewUrls((prev) => (prev[vid] ? prev : { ...prev, [vid]: url }));
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [lesson?.pages, lesson?.level]);
 
   const addBlock = (pageId: string, type: LessonBlockType) => {
     setLesson((prev) => {
@@ -3038,23 +3112,134 @@ const EditLessonPage: React.FC = () => {
                             </div>
                           ) : isDiagram && d ? (
                             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                              <div
-                                style={{
-                                  padding: 16,
-                                  borderRadius: 10,
-                                  background: "#f1f5f9",
-                                  border: "2px dashed rgba(34,197,94,0.3)",
-                                  textAlign: "center",
-                                  color: "#64748b",
-                                  fontSize: 14,
-                                }}
-                              >
-                                {d.visualId ? (
-                                  <span>Diagram: {d.visualId}</span>
-                                ) : (
+                              {d.visualId ? (
+                                <>
+                                  {/* PR11.1: diagram preview canvas (when annotated/step) */}
+                                  {(d.mode === "annotated" || d.mode === "step") && (() => {
+                                    const diagramKey = `${currentPage!.pageId}-${idx}`;
+                                    const rawUrl = diagramPreviewUrls[String(d.visualId)] ?? "";
+                                    const baseOrigin = (api as any)?.defaults?.baseURL
+                                      ? String((api as any).defaults.baseURL).replace(/\/api\/?$/i, "").replace(/\/+$/, "")
+                                      : window.location.origin;
+                                    const diagramUrl = rawUrl
+                                      ? (rawUrl.startsWith("http") ? rawUrl : baseOrigin + (rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl))
+                                      : "";
+                                    return (
+                                      <div style={{ marginTop: 8 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => setPlaceMode((v) => !v)}
+                                            style={{
+                                              padding: "6px 10px",
+                                              borderRadius: 6,
+                                              border: placeMode ? "2px solid #2563eb" : "1px solid #d1d5db",
+                                              background: placeMode ? "#eff6ff" : "#fff",
+                                              cursor: "pointer",
+                                              fontSize: 12,
+                                              fontWeight: 600,
+                                            }}
+                                          >
+                                            Place labels: {placeMode ? "ON" : "OFF"}
+                                          </button>
+                                          {placeMode && !selectedAnnotationId && (
+                                            <span style={{ fontSize: 12, color: "#64748b" }}>Select a label first.</span>
+                                          )}
+                                        </div>
+                                        <div
+                                          ref={(el) => { diagramRef.current[diagramKey] = el; }}
+                                          style={{
+                                            position: "relative",
+                                            width: "100%",
+                                            maxWidth: 520,
+                                            borderRadius: 8,
+                                            overflow: "hidden",
+                                            border: "1px solid #e5e7eb",
+                                            marginTop: 4,
+                                            touchAction: "none",
+                                          }}
+                                          onClick={(e) => {
+                                            if (!placeMode || !selectedAnnotationId) return;
+                                            const el = diagramRef.current[diagramKey];
+                                            if (!el) return;
+                                            const { x, y } = getNormalizedPointFromEvent(e.nativeEvent, el);
+                                            updateDiagramAnnotation(currentPage!.pageId, idx, selectedAnnotationId, { x, y });
+                                          }}
+                                        >
+                                          {diagramUrl ? (
+                                            <>
+                                              <img src={diagramUrl} alt="Diagram preview" style={{ width: "100%", height: "auto", display: "block" }} />
+                                              {(d.annotations ?? []).map((ann) => (
+                                                <div
+                                                  key={ann.id}
+                                                  onPointerDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    draggingIdRef.current = ann.id;
+                                                    draggingPageIdRef.current = currentPage!.pageId;
+                                                    draggingBlockIndexRef.current = idx;
+                                                    setSelectedAnnotationId(ann.id);
+                                                    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+                                                  }}
+                                                  onPointerMove={(e) => {
+                                                    if (draggingIdRef.current !== ann.id) return;
+                                                    const container = diagramRef.current[diagramKey];
+                                                    if (!container) return;
+                                                    const { x, y } = getNormalizedPointFromEvent(e.nativeEvent, container);
+                                                    const pageId = draggingPageIdRef.current;
+                                                    const blockIdx = draggingBlockIndexRef.current;
+                                                    if (pageId != null && blockIdx != null) updateDiagramAnnotation(pageId, blockIdx, ann.id, { x, y });
+                                                  }}
+                                                  onPointerUp={(e) => {
+                                                    if (draggingIdRef.current === ann.id) draggingIdRef.current = null;
+                                                  }}
+                                                  onPointerCancel={(e) => {
+                                                    if (draggingIdRef.current === ann.id) draggingIdRef.current = null;
+                                                  }}
+                                                  style={{
+                                                    position: "absolute",
+                                                    left: `${((ann.x ?? 0.5) * 100)}%`,
+                                                    top: `${((ann.y ?? 0.5) * 100)}%`,
+                                                    transform: "translate(-50%, -50%)",
+                                                    padding: "4px 8px",
+                                                    borderRadius: 999,
+                                                    border: ann.id === selectedAnnotationId ? "2px solid #2563eb" : "1px solid #d1d5db",
+                                                    background: ann.id === selectedAnnotationId ? "#eff6ff" : "#fff",
+                                                    fontSize: 12,
+                                                    cursor: draggingIdRef.current === ann.id ? "grabbing" : "grab",
+                                                    userSelect: "none",
+                                                    boxShadow: draggingIdRef.current === ann.id ? "0 4px 10px rgba(0,0,0,0.12)" : "none",
+                                                    whiteSpace: "nowrap",
+                                                    maxWidth: 200,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                  }}
+                                                >
+                                                  {(ann.text ?? "").trim() ? ann.text.trim() : "Label"}
+                                                </div>
+                                              ))}
+                                            </>
+                                          ) : (
+                                            <div style={{ padding: 24, textAlign: "center", color: "#64748b", fontSize: 14 }}>Loading diagram…</div>
+                                          )}
+                                        </div>
+                                        <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#64748b" }}>
+                                          Drag labels on the diagram to position them. Saved with the lesson.
+                                        </p>
+                                      </div>
+                                    );
+                                  })()}
+                                  {(!d.visualId || (d.mode !== "annotated" && d.mode !== "step")) && (
+                                    <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
+                                      {d.visualId ? <span>Diagram: {String(d.visualId)}</span> : <span>No diagram selected</span>}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
                                   <span>No diagram selected</span>
-                                )}
-                              </div>
+                                </div>
+                              )}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption (optional)</div>
                                 <input
@@ -3107,10 +3292,25 @@ const EditLessonPage: React.FC = () => {
                                     + Add label
                                   </button>
                                   {(d.annotations ?? []).map((a, ai) => (
-                                    <div key={a.id} style={{ marginBottom: 12, padding: 10, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                                    <div
+                                      key={a.id}
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={() => setSelectedAnnotationId(a.id)}
+                                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedAnnotationId(a.id); }}
+                                      style={{
+                                        marginBottom: 12,
+                                        padding: 10,
+                                        background: a.id === selectedAnnotationId ? "#eff6ff" : "#f8fafc",
+                                        borderRadius: 8,
+                                        border: a.id === selectedAnnotationId ? "2px solid #2563eb" : "1px solid #e2e8f0",
+                                        cursor: "pointer",
+                                      }}
+                                    >
                                       <input
                                         type="text"
                                         value={a.text ?? ""}
+                                        onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => {
                                           const next = [...(d.annotations ?? [])];
                                           if (next[ai]) next[ai] = { ...next[ai], text: e.target.value };
@@ -3119,7 +3319,7 @@ const EditLessonPage: React.FC = () => {
                                         placeholder="Label text"
                                         style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 6 }}
                                       />
-                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }} onClick={(e) => e.stopPropagation()}>
                                         <span style={{ fontSize: 12, color: "#64748b" }}>X %</span>
                                         <input
                                           type="number"
@@ -3127,10 +3327,8 @@ const EditLessonPage: React.FC = () => {
                                           max={100}
                                           value={Math.round((a.x ?? 0.5) * 100)}
                                           onChange={(e) => {
-                                            const next = [...(d.annotations ?? [])];
-                                            const v = Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100;
-                                            if (next[ai]) next[ai] = { ...next[ai], x: v };
-                                            updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                            const v = clamp(Number(e.target.value) || 0, 0, 100) / 100;
+                                            updateDiagramAnnotation(currentPage!.pageId, idx, a.id, { x: v });
                                           }}
                                           style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #cbd5e1" }}
                                         />
@@ -3141,19 +3339,14 @@ const EditLessonPage: React.FC = () => {
                                           max={100}
                                           value={Math.round((a.y ?? 0.5) * 100)}
                                           onChange={(e) => {
-                                            const next = [...(d.annotations ?? [])];
-                                            const v = Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100;
-                                            if (next[ai]) next[ai] = { ...next[ai], y: v };
-                                            updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                            const v = clamp(Number(e.target.value) || 0, 0, 100) / 100;
+                                            updateDiagramAnnotation(currentPage!.pageId, idx, a.id, { y: v });
                                           }}
                                           style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #cbd5e1" }}
                                         />
                                         <button
                                           type="button"
-                                          onClick={() => {
-                                            const next = (d.annotations ?? []).filter((_, i) => i !== ai);
-                                            updateBlock(currentPage!.pageId, idx, { annotations: next });
-                                          }}
+                                          onClick={(e) => { e.stopPropagation(); const next = (d.annotations ?? []).filter((_, i) => i !== ai); updateBlock(currentPage!.pageId, idx, { annotations: next }); if (selectedAnnotationId === a.id) setSelectedAnnotationId(null); }}
                                           style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #f87171", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
                                         >
                                           Remove
