@@ -19,6 +19,7 @@ const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const { toLessonPreviewPayload, toLessonFullPayload } = require("../utils/lessonPayload");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
+const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 
 // ✅ ADDED: Import for revision validation
@@ -2017,6 +2018,28 @@ router.post("/:id/review", auth, requireLessonOwnerOrAdmin, async (req, res) => 
     });
   } catch (err) {
     console.error("POST /:id/review error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
+   PR8: GET /api/lessons/:id/diagram-suggestions — owner/admin, read-only
+   ========================================= */
+router.get("/:id/diagram-suggestions", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const lesson = await Lesson.findById(lessonId).select("topic topicKey").lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const result = await getDiagramSuggestionsForLesson(lesson, { limit: 8 });
+    return res.json({
+      ok: true,
+      lessonId,
+      topicKey: result.topicKey,
+      topic: result.topic,
+      suggestions: result.suggestions,
+    });
+  } catch (err) {
+    console.error("GET diagram-suggestions error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

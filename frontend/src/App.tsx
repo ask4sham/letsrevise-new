@@ -40,6 +40,10 @@ import EditProfilePage from "./pages/EditProfilePage";
 
 // ✅ Admin "View Lesson" route page (for /admin/lesson/:id)
 import AdminLessonViewPage from "./pages/AdminLessonViewPage";
+// PR9: Teacher classroom delivery view
+import ClassroomModePage from "./pages/ClassroomModePage";
+// PR10: Biology readiness report
+import BiologyReadinessReportPage from "./pages/BiologyReadinessReportPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 
 // ✅ Settings page (new)
@@ -343,6 +347,24 @@ function App() {
             element={
               <ProtectedRoute requireTeacher>
                 <EditLessonPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/classroom/:lessonId"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <ClassroomModePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/reports/biology-readiness"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <BiologyReadinessReportPage />
               </ProtectedRoute>
             }
           />

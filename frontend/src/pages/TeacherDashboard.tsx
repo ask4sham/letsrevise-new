@@ -886,9 +886,15 @@ const TeacherDashboard: React.FC = () => {
                   }}
                 />
               </div>
-              <div style={{ color: "#6b7280", fontSize: "12px" }}>
+              <div style={{ color: "#6b7280", fontSize: "12px", marginBottom: 8 }}>
                 Required Practicals covered: {coverage.coveredRPs} / {coverage.rpTotal}
               </div>
+              <Link
+                to="/teacher/reports/biology-readiness"
+                style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
+              >
+                View readiness report
+              </Link>
               {/* PR5: Collapsible "Topics not yet covered" */}
               {coverage.uncoveredTopics.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -1410,6 +1416,22 @@ const TeacherDashboard: React.FC = () => {
                             }}
                           >
                             Practice
+                          </button>
+
+                          <button
+                            onClick={() => navigate(`/teacher/classroom/${lesson._id}`)}
+                            style={{
+                              marginLeft: 4,
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              border: "1px solid #22c55e",
+                              background: "rgba(34,197,94,0.1)",
+                              color: "#15803d",
+                              cursor: "pointer",
+                              fontSize: 12,
+                            }}
+                          >
+                            Classroom
                           </button>
                         </div>
                       </td>

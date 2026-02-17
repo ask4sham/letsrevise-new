@@ -37,5 +37,8 @@ app.use("/api/ai", require("./routes/ai"));
 // Canonical taxonomy (teacher UI topic picker, diagram mapping)
 app.use("/api/taxonomy", require("./routes/taxonomy"));
 
+// PR10: Biology readiness report (teacher/admin)
+app.use("/api/reports", require("./routes/reports"));
+
 // ✅ Export for testing
 module.exports = app;

@@ -359,6 +359,11 @@ const EditLessonPage: React.FC = () => {
   const [autoAttachLimit, setAutoAttachLimit] = useState(10);
   const [autoAttachMessage, setAutoAttachMessage] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  /** PR8: diagram suggestions when lesson has no diagrams */
+  const [diagramSuggestionsLoading, setDiagramSuggestionsLoading] = useState(false);
+  const [diagramSuggestionsError, setDiagramSuggestionsError] = useState<string | null>(null);
+  const [diagramSuggestions, setDiagramSuggestions] = useState<Array<{ id: string; conceptKey: string; title: string; subject?: string; level?: string; examBoard?: string; imageUrl?: string; isPublished?: boolean }>>([]);
+  const [diagramAddedHint, setDiagramAddedHint] = useState(false);
 
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
@@ -2401,6 +2406,107 @@ const EditLessonPage: React.FC = () => {
                       );
                     })()}
                   </div>
+
+                  {/* PR8: Suggested diagrams when lesson has no diagrams */}
+                  {lesson?.readiness?.signals?.hasDiagrams === false && (
+                    <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
+                      <div style={{ fontWeight: 900, marginBottom: 8 }}>Suggested diagrams</div>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>
+                        Add a diagram to improve readiness. Choose one below and add it to page 1.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={diagramSuggestionsLoading || !id}
+                        onClick={async () => {
+                          if (!id) return;
+                          setDiagramSuggestionsError(null);
+                          setDiagramSuggestionsLoading(true);
+                          try {
+                            const res = await api.get(`/lessons/${id}/diagram-suggestions`);
+                            const data = res?.data;
+                            setDiagramSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
+                          } catch (e: any) {
+                            setDiagramSuggestionsError(e?.response?.data?.msg || e?.message || "Failed to load suggestions");
+                            setDiagramSuggestions([]);
+                          } finally {
+                            setDiagramSuggestionsLoading(false);
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: "2px solid rgba(59,130,246,0.4)",
+                          background: "rgba(59,130,246,0.08)",
+                          cursor: diagramSuggestionsLoading ? "not-allowed" : "pointer",
+                          fontWeight: 700,
+                          marginBottom: 10,
+                        }}
+                      >
+                        {diagramSuggestionsLoading ? "Loading…" : "Load suggestions"}
+                      </button>
+                      {diagramSuggestionsError && (
+                        <div style={{ color: "#b91c1c", fontSize: 13, marginBottom: 8 }}>{diagramSuggestionsError}</div>
+                      )}
+                      {diagramAddedHint && (
+                        <div style={{ color: "#15803d", fontSize: 13, marginBottom: 8 }}>Added. Click Save changes.</div>
+                      )}
+                      <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#374151" }}>
+                        {diagramSuggestions.map((s) => {
+                          const existingVisualIds = (lesson?.pages ?? [])
+                            .flatMap((p) => p.blocks ?? [])
+                            .filter((b: LessonPageBlock) => b.type === "diagram" && b.visualId)
+                            .map((b: LessonPageBlock) => String((b as { visualId?: string }).visualId));
+                          const alreadyAdded = existingVisualIds.includes(String(s.id));
+                          return (
+                            <li key={s.id} style={{ marginBottom: 8, listStyle: "none", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span>{s.title || s.conceptKey || s.id}</span>
+                              {s.imageUrl && (
+                                <img src={s.imageUrl} alt="" style={{ width: 48, height: 48, objectFit: "contain", border: "1px solid #e2e8f0", borderRadius: 4 }} />
+                              )}
+                              <button
+                                type="button"
+                                disabled={alreadyAdded}
+                                onClick={() => {
+                                  setLesson((prev) => {
+                                    if (!prev) return prev;
+                                    let pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
+                                    if (pages.length === 0) {
+                                      pages = [{
+                                        pageId: newId(),
+                                        title: "Page 1",
+                                        order: 1,
+                                        pageType: "",
+                                        hero: { type: "none", src: "", caption: "" },
+                                        blocks: [],
+                                        checkpoint: { question: "", options: ["", "", "", ""], answer: "" },
+                                      }];
+                                    }
+                                    const blocks = Array.isArray(pages[0].blocks) ? [...pages[0].blocks] : [];
+                                    blocks.unshift({ type: "diagram" as const, visualId: s.id, caption: "" });
+                                    pages[0] = { ...pages[0], blocks };
+                                    return { ...prev, pages };
+                                  });
+                                  setDiagramAddedHint(true);
+                                  setTimeout(() => setDiagramAddedHint(false), 5000);
+                                }}
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: 6,
+                                  border: "1px solid #94a3b8",
+                                  background: alreadyAdded ? "#e2e8f0" : "#f1f5f9",
+                                  cursor: alreadyAdded ? "not-allowed" : "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {alreadyAdded ? "Already added" : "Add to page 1"}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
 
                   <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
                     <div style={{ fontWeight: 900, marginBottom: 8 }}>Past paper questions</div>
