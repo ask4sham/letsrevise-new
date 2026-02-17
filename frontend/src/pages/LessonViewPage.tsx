@@ -1205,6 +1205,90 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
 }
 
 const PRACTICE_DISPLAY_LIMIT = 10;
+const TARGETED_PRACTICE_LIMIT = 6;
+
+function TargetedPracticeSection({
+  loading,
+  error,
+  questions,
+  allowed,
+  lessonId,
+}: {
+  loading: boolean;
+  error: string | null;
+  questions: PracticeQuestionLite[];
+  allowed: boolean | undefined;
+  lessonId: string | undefined;
+}) {
+  const displayQuestions = questions.slice(0, TARGETED_PRACTICE_LIMIT);
+
+  return (
+    <div
+      style={{
+        marginTop: 40,
+        paddingTop: 30,
+        borderTop: "1px solid #e2e8f0",
+        textAlign: "left",
+      }}
+    >
+      <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0, marginBottom: 16 }}>
+        Targeted practice for you
+      </h2>
+      {loading && (
+        <p style={{ color: "#6b7280", margin: 0 }}>Loading targeted practice…</p>
+      )}
+      {!loading && !error && allowed !== true && (
+        <>
+          <p style={{ color: "#4b5563", margin: 0, marginBottom: 12 }}>
+            Targeted practice is available with subscription or lesson unlock.
+          </p>
+          <SubscribeCTA lessonId={lessonId} />
+        </>
+      )}
+      {!loading && !error && allowed === true && (
+        <>
+          {displayQuestions.length === 0 ? (
+            <p style={{ color: "#6b7280", margin: 0 }}>
+              No targeted questions yet — try the practice questions below.
+            </p>
+          ) : (
+            <>
+              <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: "0.95rem" }}>
+                Based on your recent attempts.
+              </p>
+              {displayQuestions.map((q, idx) => (
+                <div
+                  key={q.id}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    border: "1px solid #e5e7eb",
+                    background: "#fafafa",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontWeight: 700, color: "#374151" }}>Q{idx + 1}</span>
+                    {q.marks != null && (
+                      <span style={{ fontSize: 13, color: "#6b7280" }}>({q.marks} {q.marks === 1 ? "mark" : "marks"})</span>
+                    )}
+                  </div>
+                  <div style={{ color: "#1f2937", marginBottom: 12 }}>{q.question}</div>
+                  {(q.type === "mcq" || (Array.isArray(q.options) && q.options.length > 0)) ? (
+                    <PracticeMCQQuestion q={q} lessonId={lessonId} />
+                  ) : (
+                    <PracticeShortQuestion q={q} lessonId={lessonId} />
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+      {error && <p style={{ color: "#dc2626", margin: 0 }}>{error}</p>}
+    </div>
+  );
+}
 
 function PracticeSection({
   practiceLoading,
@@ -1353,6 +1437,12 @@ const LessonViewPage: React.FC = () => {
   const [practiceAllowed, setPracticeAllowed] = useState<boolean | undefined>(undefined);
   const [practiceReason, setPracticeReason] = useState<string | null>(null);
 
+  // PR13.2: Targeted practice (misconception-driven) — entitled only
+  const [targetedPracticeLoading, setTargetedPracticeLoading] = useState(false);
+  const [targetedPracticeError, setTargetedPracticeError] = useState<string | null>(null);
+  const [targetedPracticeQuestions, setTargetedPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
+  const [targetedPracticeAllowed, setTargetedPracticeAllowed] = useState<boolean | undefined>(undefined);
+
   const pageParam = useMemo(() => searchParams.get("page") || "", [searchParams]);
 
   const hasStructuredPages = useMemo(
@@ -1483,6 +1573,33 @@ const LessonViewPage: React.FC = () => {
       })
       .finally(() => setPracticeLoading(false));
   }, [id, accessDecision?.allowed, accessDecision?.reason]);
+
+  // PR13.2: Fetch targeted practice (misconception-driven) when entitled
+  useEffect(() => {
+    if (!id || !accessDecision || accessDecision.allowed !== true) {
+      setTargetedPracticeAllowed(false);
+      setTargetedPracticeQuestions([]);
+      setTargetedPracticeError(null);
+      return;
+    }
+    setTargetedPracticeLoading(true);
+    setTargetedPracticeError(null);
+    api
+      .get<{ ok: boolean; allowed: boolean; questions: PracticeQuestionLite[] }>(`/lessons/${id}/targeted-practice`, {
+        params: { days: 14, limit: 6 },
+      })
+      .then((res) => {
+        const data = res?.data;
+        setTargetedPracticeAllowed(!!data?.allowed);
+        setTargetedPracticeQuestions(Array.isArray(data?.questions) ? data.questions : []);
+      })
+      .catch(() => {
+        setTargetedPracticeAllowed(false);
+        setTargetedPracticeQuestions([]);
+        setTargetedPracticeError("Failed to load targeted practice.");
+      })
+      .finally(() => setTargetedPracticeLoading(false));
+  }, [id, accessDecision?.allowed]);
 
   // ✅ Visual fetch (optional, silent fail)
   useEffect(() => {
@@ -3293,6 +3410,15 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* PR13.2: Targeted practice (entitled only) — above practice */}
+                <TargetedPracticeSection
+                  loading={targetedPracticeLoading}
+                  error={targetedPracticeError}
+                  questions={targetedPracticeQuestions}
+                  allowed={targetedPracticeAllowed}
+                  lessonId={id || undefined}
+                />
+
                 {/* PR3b: Practice questions (entitled only) */}
                 <PracticeSection
                   practiceLoading={practiceLoading}
@@ -3824,6 +3950,15 @@ const LessonViewPage: React.FC = () => {
             <SubscribeCTA lessonId={id || undefined} />
           </div>
         )}
+
+        {/* PR13.2: Targeted practice (entitled only) */}
+        <TargetedPracticeSection
+          loading={targetedPracticeLoading}
+          error={targetedPracticeError}
+          questions={targetedPracticeQuestions}
+          allowed={targetedPracticeAllowed}
+          lessonId={id || undefined}
+        />
 
         {/* PR3b: Practice questions (entitled only) */}
         <PracticeSection

@@ -12,6 +12,7 @@ const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
 const ExamQuestion = require("../models/ExamQuestion");
+const PracticeAttempt = require("../models/PracticeAttempt");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
@@ -1689,6 +1690,163 @@ router.get(
     } catch (err) {
       console.error("GET /api/lessons/:id/practice error:", err);
       return res.status(500).json({ error: "Failed to load practice questions" });
+    }
+  }
+);
+
+/* =========================================
+   PR13.2: GET /api/lessons/:id/targeted-practice — Student targeted set (misconception-driven).
+   Same access as /practice: auth + requirePublished; owner/admin bypass. Returns 200 allowed:false when not allowed.
+   ========================================= */
+router.get(
+  "/:id/targeted-practice",
+  auth,
+  async (req, res, next) => {
+    try {
+      const lessonId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      if (isOwnerOrAdminForPractice(req.user, lesson)) {
+        req.lesson = lesson;
+        req.accessDecision = { allowed: true, reason: "OWNER" };
+        return next();
+      }
+      return applyLessonAccess({ requirePublished: true })(req, res, next);
+    } catch (err) {
+      console.error("targeted-practice precheck error:", err);
+      return res.status(500).json({ error: "Failed to check access" });
+    }
+  },
+  async (req, res) => {
+    try {
+      const lessonId = req.params.id;
+      const days = Math.min(30, Math.max(1, parseInt(String(req.query.days || "14"), 10) || 14));
+      let limit = parseInt(String(req.query.limit || "10"), 10);
+      if (Number.isNaN(limit) || limit < 1) limit = 10;
+      if (limit > 20) limit = 20;
+
+      if (!req.accessDecision || !req.accessDecision.allowed) {
+        return res.status(200).json({
+          ok: true,
+          allowed: false,
+          reason: req.accessDecision?.reason || "UNKNOWN",
+          lessonId,
+          days,
+          questions: [],
+        });
+      }
+
+      const lesson = await Lesson.findById(lessonId)
+        .select("_id examQuestions teacherId")
+        .populate({
+          path: "examQuestions.questionId",
+          model: "ExamQuestion",
+          select: "question type marks options correctAnswer correctIndex markScheme topicKey topic",
+        })
+        .lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+      const questionIds = refs
+        .map((r) => r.questionId)
+        .filter((q) => q && q._id)
+        .map((q) => q._id);
+      if (questionIds.length === 0) {
+        return res.status(200).json({
+          ok: true,
+          allowed: true,
+          lessonId,
+          days,
+          questions: [],
+        });
+      }
+
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const userId = req.user._id;
+      const lessonOid = new mongoose.Types.ObjectId(lessonId);
+
+      const attempts = await PracticeAttempt.find({
+        userId,
+        lessonId: lessonOid,
+        source: "practice",
+        questionId: { $in: questionIds },
+        createdAt: { $gte: since },
+      }).lean();
+
+      const byQuestion = new Map();
+      for (const a of attempts) {
+        const qid = a.questionId ? String(a.questionId) : null;
+        if (!qid) continue;
+        if (!byQuestion.has(qid)) {
+          byQuestion.set(qid, { attempts: 0, wrong: 0, correct: 0, highConfidenceWrong: 0 });
+        }
+        const rec = byQuestion.get(qid);
+        rec.attempts += 1;
+        if (a.isCorrect) rec.correct += 1;
+        else rec.wrong += 1;
+        if (a.isCorrect === false && a.confidence === 3) rec.highConfidenceWrong += 1;
+      }
+
+      const scored = questionIds.map((qid) => {
+        const oid = qid._id || qid;
+        const idStr = String(oid);
+        const rec = byQuestion.get(idStr) || { attempts: 0, wrong: 0, correct: 0, highConfidenceWrong: 0 };
+        const score = rec.highConfidenceWrong * 3 + rec.wrong * 1 - rec.correct * 0.5;
+        const ref = refs.find((r) => r.questionId && String(r.questionId._id) === idStr);
+        const q = ref?.questionId;
+        const marks = typeof q?.marks === "number" ? q.marks : 1;
+        return { idStr, score, attempts: rec.attempts, marks, ref, q };
+      });
+
+      scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.attempts !== a.attempts) return b.attempts - a.attempts;
+        return (b.marks || 0) - (a.marks || 0);
+      });
+
+      const top = scored.slice(0, limit);
+      const questions = top
+        .filter((s) => s.q)
+        .map((s) => {
+          const q = s.q;
+          const options = Array.isArray(q.options) ? q.options : [];
+          const correctAnswer =
+            q.correctAnswer != null
+              ? String(q.correctAnswer)
+              : options[q.correctIndex] != null
+                ? String(options[q.correctIndex])
+                : "";
+          const explanation =
+            Array.isArray(q.markScheme) && q.markScheme.length > 0
+              ? q.markScheme.join("\n")
+              : "";
+          return {
+            id: s.idStr,
+            question: q.question != null ? String(q.question) : "",
+            type: q.type || "short",
+            marks: typeof q.marks === "number" ? q.marks : 1,
+            options: options.length > 0 ? options : undefined,
+            correctAnswer: correctAnswer || undefined,
+            explanation: explanation || undefined,
+            markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+            topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
+            topic: q.topic != null ? String(q.topic) : undefined,
+          };
+        });
+
+      return res.status(200).json({
+        ok: true,
+        allowed: true,
+        lessonId,
+        days,
+        questions,
+      });
+    } catch (err) {
+      console.error("GET /api/lessons/:id/targeted-practice error:", err);
+      return res.status(500).json({ error: "Failed to load targeted practice" });
     }
   }
 );
