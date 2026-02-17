@@ -1,8 +1,9 @@
 /**
  * PR18: Teacher "Needs attention" — lessons ranked by misconception severity (high-conf wrong).
+ * PR19: Cold-start — Setup needed (no practice attached / no attempts yet) + tabs.
  */
-import React, { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const DAYS_OPTIONS = [7, 14, 30] as const;
@@ -23,26 +24,45 @@ type NeedsAttentionItem = {
   correct: number;
 };
 
+type ColdStartRow = {
+  lessonId: string;
+  title: string;
+  topic: string;
+  tier?: string;
+  examBoard?: string;
+  status: string;
+  readiness: { status: string; signals?: Record<string, unknown> };
+};
+
 type NeedsAttentionResponse = {
   ok: boolean;
   days: number;
   items: NeedsAttentionItem[];
+  coldStart?: { noPracticeAttached: ColdStartRow[]; noAttemptsYet: ColdStartRow[] };
+  totals?: { needsAttention: number; noPracticeAttached: number; noAttemptsYet: number };
 };
 
+type Tab = "misconceptions" | "setup";
+
 export default function TeacherNeedsAttentionPage() {
+  const navigate = useNavigate();
   const [days, setDays] = useState<number>(7);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<NeedsAttentionResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>(() => (typeof window !== "undefined" && window.location?.hash === "#setup" ? "setup" : "misconceptions"));
   const [fixingLessonId, setFixingLessonId] = useState<string | null>(null);
+  const [attachingLessonId, setAttachingLessonId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [toastClassroomLessonId, setToastClassroomLessonId] = useState<string | null>(null);
+  const hasDefaultedToSetup = useRef(typeof window !== "undefined" && window.location?.hash === "#setup");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.get<NeedsAttentionResponse>("/reports/teacher/needs-attention", {
-        params: { days, limit: 20 },
+        params: { days, limit: 20, includeColdStart: true },
       });
       if (res?.data?.ok) setData(res.data);
     } catch (e: any) {
@@ -55,6 +75,18 @@ export default function TeacherNeedsAttentionPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // PR19: default to Setup needed tab once when misconceptions empty but cold-start has rows
+  useEffect(() => {
+    if (!data || hasDefaultedToSetup.current) return;
+    const cold = data.coldStart;
+    const noPractice = cold?.noPracticeAttached?.length ?? 0;
+    const noAttempts = cold?.noAttemptsYet?.length ?? 0;
+    if (data.items.length === 0 && (noPractice > 0 || noAttempts > 0)) {
+      hasDefaultedToSetup.current = true;
+      setActiveTab("setup");
+    }
+  }, [data]);
 
   const handleBulkFix = async (lessonId: string) => {
     setFixingLessonId(lessonId);
@@ -92,6 +124,29 @@ export default function TeacherNeedsAttentionPage() {
       setTimeout(() => setToast(null), 3000);
     } finally {
       setFixingLessonId(null);
+    }
+  };
+
+  const handleAttachPractice = async (lessonId: string) => {
+    setAttachingLessonId(lessonId);
+    try {
+      const res = await api.post<{ ok: boolean; added?: number }>(
+        `/lessons/${lessonId}/exam-questions/attach-by-topic`,
+        { limit: 10 }
+      );
+      const added = res?.data?.added ?? 0;
+      setToast(`Attached +${added} question${added !== 1 ? "s" : ""}`);
+      setToastClassroomLessonId(lessonId);
+      setTimeout(() => {
+        setToast(null);
+        setToastClassroomLessonId(null);
+      }, 5000);
+      load();
+    } catch (e: any) {
+      setToast(e?.response?.data?.error || e?.response?.data?.msg || "Attach failed");
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setAttachingLessonId(null);
     }
   };
 
@@ -141,8 +196,30 @@ export default function TeacherNeedsAttentionPage() {
       </div>
 
       {toast && (
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#d1fae5", color: "#065f46", borderRadius: 8, fontSize: 14 }}>
-          {toast}
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#d1fae5", color: "#065f46", borderRadius: 8, fontSize: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span>{toast}</span>
+          {toastClassroomLessonId && (
+            <button
+              type="button"
+              onClick={() => {
+                navigate(`/teacher/classroom/${toastClassroomLessonId}`);
+                setToast(null);
+                setToastClassroomLessonId(null);
+              }}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 6,
+                border: "1px solid #059669",
+                background: "rgba(5,150,105,0.2)",
+                color: "#047857",
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Open Classroom mode now
+            </button>
+          )}
         </div>
       )}
       {loading && <div style={{ color: "#6b7280", marginBottom: 16 }}>Loading…</div>}
@@ -150,116 +227,357 @@ export default function TeacherNeedsAttentionPage() {
 
       {!loading && data && (
         <>
-          {data.items.length === 0 ? (
-            <p style={{ color: "#6b7280" }}>No practice attempts in the last {data.days} days. Data will appear once students attempt your lessons.</p>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={thTdStyle}>Lesson · Topic</th>
-                    <th style={{ ...thTdStyle, textAlign: "right" }}>High-conf wrong</th>
-                    <th style={{ ...thTdStyle, textAlign: "right" }}>Accuracy</th>
-                    <th style={{ ...thTdStyle, textAlign: "right" }}>Attempts</th>
-                    <th style={{ ...thTdStyle, textAlign: "right" }}>Students</th>
-                    <th style={thTdStyle}>Readiness</th>
-                    <th style={thTdStyle}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((row) => (
-                    <tr key={row.lessonId}>
-                      <td style={thTdStyle}>
-                        <strong>{row.title || "—"}</strong>
-                        {row.topic && <span style={{ color: "#6b7280", fontSize: 12, display: "block" }}>{row.topic}</span>}
-                      </td>
-                      <td style={{ ...thTdStyle, textAlign: "right", color: row.highConfidenceWrong > 0 ? "#b91c1c" : undefined }}>
-                        {row.highConfidenceWrong}
-                      </td>
-                      <td style={{ ...thTdStyle, textAlign: "right" }}>{typeof row.accuracy === "number" ? `${(row.accuracy * 100).toFixed(0)}%` : "—"}</td>
-                      <td style={{ ...thTdStyle, textAlign: "right" }}>{row.attempts}</td>
-                      <td style={{ ...thTdStyle, textAlign: "right" }}>{row.uniqueStudents}</td>
-                      <td style={thTdStyle}>
-                        <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            background:
-                              row.readiness?.status === "READY"
-                                ? "#d1fae5"
-                                : row.readiness?.status === "NEEDS_REVIEW"
-                                  ? "#fef3c7"
-                                  : "#e5e7eb",
-                            color:
-                              row.readiness?.status === "READY"
-                                ? "#065f46"
-                                : row.readiness?.status === "NEEDS_REVIEW"
-                                  ? "#92400e"
-                                  : "#374151",
-                          }}
-                        >
-                          {row.readiness?.status ?? "DRAFT"}
-                        </span>
-                      </td>
-                      <td style={thTdStyle}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                          <button
-                            type="button"
-                            disabled={fixingLessonId === row.lessonId}
-                            onClick={() => handleBulkFix(row.lessonId)}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: "2px solid #059669",
-                              background: fixingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
-                              cursor: fixingLessonId === row.lessonId ? "not-allowed" : "pointer",
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: "#047857",
-                            }}
-                          >
-                            {fixingLessonId === row.lessonId ? "Fixing…" : "Fix top hotspots (3)"}
-                          </button>
-                          <Link
-                            to={`/teacher/reports/lesson/${row.lessonId}`}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: "1px solid #2563eb",
-                              background: "rgba(37,99,235,0.08)",
-                              color: "#2563eb",
-                              textDecoration: "none",
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                          >
-                            Open report
-                          </Link>
-                          <Link
-                            to={`/edit-lesson/${row.lessonId}`}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: "1px solid #64748b",
-                              background: "#f1f5f9",
-                              color: "#475569",
-                              textDecoration: "none",
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                          >
-                            Open editor
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {(() => {
+            const hasMisconceptions = data.items.length > 0;
+            const cold = data.coldStart;
+            const noPractice = cold?.noPracticeAttached ?? [];
+            const noAttempts = cold?.noAttemptsYet ?? [];
+            const hasSetup = noPractice.length > 0 || noAttempts.length > 0;
+            const showTabs = hasMisconceptions || hasSetup;
+
+            if (!showTabs) {
+              return (
+                <p style={{ color: "#6b7280" }}>
+                  No practice attempts in the last {data.days} days and no setup needed. Publish lessons and attach practice to see them here.
+                </p>
+              );
+            }
+
+            return (
+              <>
+                <div style={{ marginBottom: 16, display: "flex", gap: 4, borderBottom: "1px solid #e5e7eb" }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("misconceptions")}
+                    style={{
+                      padding: "8px 16px",
+                      border: "none",
+                      borderBottom: activeTab === "misconceptions" ? "2px solid #2563eb" : "2px solid transparent",
+                      background: "none",
+                      color: activeTab === "misconceptions" ? "#2563eb" : "#6b7280",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Student misconceptions {hasMisconceptions ? `(${data.items.length})` : ""}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("setup")}
+                    style={{
+                      padding: "8px 16px",
+                      border: "none",
+                      borderBottom: activeTab === "setup" ? "2px solid #2563eb" : "2px solid transparent",
+                      background: "none",
+                      color: activeTab === "setup" ? "#2563eb" : "#6b7280",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Setup needed {hasSetup ? `(${noPractice.length + noAttempts.length})` : ""}
+                  </button>
+                </div>
+
+                {activeTab === "misconceptions" && (
+                  <>
+                    {!hasMisconceptions ? (
+                      <p style={{ color: "#6b7280" }}>No practice attempts in the last {data.days} days. Use the Setup needed tab to attach practice and run Classroom mode.</p>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={tableStyle}>
+                          <thead>
+                            <tr>
+                              <th style={thTdStyle}>Lesson · Topic</th>
+                              <th style={{ ...thTdStyle, textAlign: "right" }}>High-conf wrong</th>
+                              <th style={{ ...thTdStyle, textAlign: "right" }}>Accuracy</th>
+                              <th style={{ ...thTdStyle, textAlign: "right" }}>Attempts</th>
+                              <th style={{ ...thTdStyle, textAlign: "right" }}>Students</th>
+                              <th style={thTdStyle}>Readiness</th>
+                              <th style={thTdStyle}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {data.items.map((row) => (
+                              <tr key={row.lessonId}>
+                                <td style={thTdStyle}>
+                                  <strong>{row.title || "—"}</strong>
+                                  {row.topic && <span style={{ color: "#6b7280", fontSize: 12, display: "block" }}>{row.topic}</span>}
+                                </td>
+                                <td style={{ ...thTdStyle, textAlign: "right", color: row.highConfidenceWrong > 0 ? "#b91c1c" : undefined }}>
+                                  {row.highConfidenceWrong}
+                                </td>
+                                <td style={{ ...thTdStyle, textAlign: "right" }}>{typeof row.accuracy === "number" ? `${(row.accuracy * 100).toFixed(0)}%` : "—"}</td>
+                                <td style={{ ...thTdStyle, textAlign: "right" }}>{row.attempts}</td>
+                                <td style={{ ...thTdStyle, textAlign: "right" }}>{row.uniqueStudents}</td>
+                                <td style={thTdStyle}>
+                                  <span
+                                    style={{
+                                      padding: "2px 8px",
+                                      borderRadius: 6,
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      background:
+                                        row.readiness?.status === "READY"
+                                          ? "#d1fae5"
+                                          : row.readiness?.status === "NEEDS_REVIEW"
+                                            ? "#fef3c7"
+                                            : "#e5e7eb",
+                                      color:
+                                        row.readiness?.status === "READY"
+                                          ? "#065f46"
+                                          : row.readiness?.status === "NEEDS_REVIEW"
+                                            ? "#92400e"
+                                            : "#374151",
+                                    }}
+                                  >
+                                    {row.readiness?.status ?? "DRAFT"}
+                                  </span>
+                                </td>
+                                <td style={thTdStyle}>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                    <button
+                                      type="button"
+                                      disabled={fixingLessonId === row.lessonId}
+                                      onClick={() => handleBulkFix(row.lessonId)}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "2px solid #059669",
+                                        background: fixingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                        cursor: fixingLessonId === row.lessonId ? "not-allowed" : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#047857",
+                                      }}
+                                    >
+                                      {fixingLessonId === row.lessonId ? "Fixing…" : "Fix top hotspots (3)"}
+                                    </button>
+                                    <Link
+                                      to={`/teacher/reports/lesson/${row.lessonId}`}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #2563eb",
+                                        background: "rgba(37,99,235,0.08)",
+                                        color: "#2563eb",
+                                        textDecoration: "none",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Open report
+                                    </Link>
+                                    <Link
+                                      to={`/edit-lesson/${row.lessonId}`}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #64748b",
+                                        background: "#f1f5f9",
+                                        color: "#475569",
+                                        textDecoration: "none",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Open editor
+                                    </Link>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeTab === "setup" && (
+                  <div>
+                    {!hasMisconceptions && (
+                      <p style={{ color: "#6b7280", marginBottom: 16 }}>
+                        No student attempts yet — start by attaching practice and using Classroom mode.
+                      </p>
+                    )}
+                    <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem" }}>No practice attached</h3>
+                    {noPractice.length === 0 ? (
+                      <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>All published lessons have practice attached.</p>
+                    ) : (
+                      <div style={{ overflowX: "auto", marginBottom: 24 }}>
+                        <table style={tableStyle}>
+                          <thead>
+                            <tr>
+                              <th style={thTdStyle}>Lesson · Topic</th>
+                              <th style={thTdStyle}>Readiness</th>
+                              <th style={thTdStyle}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {noPractice.map((row) => (
+                              <tr key={row.lessonId}>
+                                <td style={thTdStyle}>
+                                  <strong>{row.title || "—"}</strong>
+                                  {row.topic && <span style={{ color: "#6b7280", fontSize: 12, display: "block" }}>{row.topic}</span>}
+                                  {row.tier && <span style={{ fontSize: 12, color: "#6b7280" }}>{row.tier}</span>}
+                                </td>
+                                <td style={thTdStyle}>
+                                  <span
+                                    style={{
+                                      padding: "2px 8px",
+                                      borderRadius: 6,
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      background:
+                                        row.readiness?.status === "READY"
+                                          ? "#d1fae5"
+                                          : row.readiness?.status === "NEEDS_REVIEW"
+                                            ? "#fef3c7"
+                                            : "#e5e7eb",
+                                      color:
+                                        row.readiness?.status === "READY"
+                                          ? "#065f46"
+                                          : row.readiness?.status === "NEEDS_REVIEW"
+                                            ? "#92400e"
+                                            : "#374151",
+                                    }}
+                                  >
+                                    {row.readiness?.status ?? "DRAFT"}
+                                  </span>
+                                </td>
+                                <td style={thTdStyle}>
+                                  <button
+                                    type="button"
+                                    disabled={attachingLessonId === row.lessonId}
+                                    onClick={() => handleAttachPractice(row.lessonId)}
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      border: "2px solid #059669",
+                                      background: attachingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                      cursor: attachingLessonId === row.lessonId ? "not-allowed" : "pointer",
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      color: "#047857",
+                                    }}
+                                  >
+                                    {attachingLessonId === row.lessonId ? "Attaching…" : "Attach practice (top 10)"}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem" }}>No attempts yet</h3>
+                    {noAttempts.length === 0 ? (
+                      <p style={{ color: "#6b7280", fontSize: 14 }}>No published lessons with practice have zero attempts in the window.</p>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={tableStyle}>
+                          <thead>
+                            <tr>
+                              <th style={thTdStyle}>Lesson · Topic</th>
+                              <th style={thTdStyle}>Readiness</th>
+                              <th style={thTdStyle}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {noAttempts.map((row) => (
+                              <tr key={row.lessonId}>
+                                <td style={thTdStyle}>
+                                  <strong>{row.title || "—"}</strong>
+                                  {row.topic && <span style={{ color: "#6b7280", fontSize: 12, display: "block" }}>{row.topic}</span>}
+                                  {row.tier && <span style={{ fontSize: 12, color: "#6b7280" }}>{row.tier}</span>}
+                                </td>
+                                <td style={thTdStyle}>
+                                  <span
+                                    style={{
+                                      padding: "2px 8px",
+                                      borderRadius: 6,
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      background:
+                                        row.readiness?.status === "READY"
+                                          ? "#d1fae5"
+                                          : row.readiness?.status === "NEEDS_REVIEW"
+                                            ? "#fef3c7"
+                                            : "#e5e7eb",
+                                      color:
+                                        row.readiness?.status === "READY"
+                                          ? "#065f46"
+                                          : row.readiness?.status === "NEEDS_REVIEW"
+                                            ? "#92400e"
+                                            : "#374151",
+                                    }}
+                                  >
+                                    {row.readiness?.status ?? "DRAFT"}
+                                  </span>
+                                </td>
+                                <td style={thTdStyle}>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigate(`/teacher/classroom/${row.lessonId}`)}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #2563eb",
+                                        background: "rgba(37,99,235,0.08)",
+                                        color: "#2563eb",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Open classroom mode
+                                    </button>
+                                    <Link
+                                      to={`/lesson/${row.lessonId}`}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #64748b",
+                                        background: "#f1f5f9",
+                                        color: "#475569",
+                                        textDecoration: "none",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Open lesson
+                                    </Link>
+                                    <Link
+                                      to={`/teacher/reports/lesson/${row.lessonId}`}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #6366f1",
+                                        background: "rgba(99,102,241,0.08)",
+                                        color: "#6366f1",
+                                        textDecoration: "none",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Open report
+                                    </Link>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </>
       )}
     </div>

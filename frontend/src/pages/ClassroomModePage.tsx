@@ -322,6 +322,13 @@ const ClassroomModePage: React.FC = () => {
   const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
   const [reteachPlanError, setReteachPlanError] = useState<string | null>(null);
 
+  // PR19: Mark that teacher has used Classroom mode (for Quick setup checklist)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem("hasUsedClassroomMode", "true");
+    }
+  }, []);
+
   useEffect(() => {
     if (!lessonId) return;
     setLoading(true);

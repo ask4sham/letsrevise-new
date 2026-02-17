@@ -406,8 +406,11 @@ router.get("/teacher/needs-attention", auth, async (req, res) => {
 
     const lessonIds = await Lesson.find({ teacherId }).select("_id").lean();
     const ids = lessonIds.map((l) => l._id);
+    const includeColdStart = req.query.includeColdStart !== "false";
     if (ids.length === 0) {
-      return res.json({ ok: true, days, items: [] });
+      const empty = { ok: true, days, items: [], totals: { needsAttention: 0, noPracticeAttached: 0, noAttemptsYet: 0 } };
+      if (includeColdStart) empty.coldStart = { noPracticeAttached: [], noAttemptsYet: [] };
+      return res.json(empty);
     }
 
     const since = new Date();
@@ -479,7 +482,63 @@ router.get("/teacher/needs-attention", auth, async (req, res) => {
       };
     });
 
-    return res.json({ ok: true, days, items });
+    let coldStart = { noPracticeAttached: [], noAttemptsYet: [] };
+    let totals = { needsAttention: items.length, noPracticeAttached: 0, noAttemptsYet: 0 };
+
+    if (includeColdStart) {
+      const publishedFilter = { teacherId, $or: [{ isPublished: true }, { status: "published" }] };
+      const lessonFields = "title topic tier board status isPublished pages examQuestions reviewedAt updatedAt";
+      const noPractice = await Lesson.find({
+        ...publishedFilter,
+        $or: [{ examQuestions: { $size: 0 } }, { examQuestions: { $exists: false } }],
+      })
+        .select(lessonFields)
+        .sort({ updatedAt: -1 })
+        .limit(limit)
+        .lean();
+      const noPracticeWithReadiness = noPractice.map((l) => {
+        const r = computeLessonReadiness(l);
+        return {
+          lessonId: String(l._id),
+          title: l.title ?? "—",
+          topic: l.topic ?? "",
+          tier: l.tier ?? "",
+          examBoard: l.board ?? "",
+          status: l.status ?? "draft",
+          readiness: { status: r.status, signals: r.signals },
+        };
+      });
+      coldStart.noPracticeAttached = noPracticeWithReadiness;
+
+      const lessonIdsWithAttemptsInWindow = agg.map((r) => r._id);
+      const withPractice = await Lesson.find({
+        ...publishedFilter,
+        examQuestions: { $exists: true, $not: { $size: 0 } },
+        _id: { $nin: lessonIdsWithAttemptsInWindow },
+      })
+        .select(lessonFields)
+        .sort({ updatedAt: -1 })
+        .limit(limit)
+        .lean();
+      coldStart.noAttemptsYet = withPractice.map((l) => {
+        const r = computeLessonReadiness(l);
+        return {
+          lessonId: String(l._id),
+          title: l.title ?? "—",
+          topic: l.topic ?? "",
+          tier: l.tier ?? "",
+          examBoard: l.board ?? "",
+          status: l.status ?? "draft",
+          readiness: { status: r.status, signals: r.signals },
+        };
+      });
+      totals.noPracticeAttached = coldStart.noPracticeAttached.length;
+      totals.noAttemptsYet = coldStart.noAttemptsYet.length;
+    }
+
+    const body = { ok: true, days, items, totals };
+    if (includeColdStart) body.coldStart = coldStart;
+    return res.json(body);
   } catch (err) {
     console.error("GET teacher/needs-attention error:", err);
     return res.status(500).json({ error: "Server error" });

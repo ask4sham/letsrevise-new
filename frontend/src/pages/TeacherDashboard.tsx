@@ -34,6 +34,10 @@ type LessonRow = {
     score?: number;
     signals?: ReadinessSignals;
   };
+  /** PR19 Quick setup: count practice attached */
+  examQuestions?: unknown[];
+  /** PR19 Quick setup: mark lessons reviewed */
+  reviewedAt?: string | null;
 };
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
@@ -148,6 +152,23 @@ const TeacherDashboard: React.FC = () => {
     };
   }, [lessons, taxonomyUnits]);
 
+  // PR19: Quick setup counts (no backend changes)
+  const quickSetup = useMemo(() => {
+    const published = lessons.filter((l) => l.isPublished);
+    const noPracticeCount = published.filter(
+      (l) => !l.examQuestions || (Array.isArray(l.examQuestions) && l.examQuestions.length === 0)
+    ).length;
+    const notReviewedCount = published.filter((l) => !l.reviewedAt).length;
+    const hasUsedClassroomMode =
+      typeof window !== "undefined" && window.localStorage.getItem("hasUsedClassroomMode") === "true";
+    return {
+      noPracticeCount,
+      notReviewedCount,
+      hasUsedClassroomMode,
+      uncoveredCount: coverage.uncoveredTopics.length,
+    };
+  }, [lessons, coverage.uncoveredTopics.length]);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -248,6 +269,8 @@ const TeacherDashboard: React.FC = () => {
         createdAt: l.createdAt ?? l.created_at ?? new Date().toISOString(),
 
         readiness: l.readiness ?? undefined,
+        examQuestions: l.examQuestions,
+        reviewedAt: l.reviewedAt,
       }));
 
       setLessons(mapped);
@@ -851,8 +874,81 @@ const TeacherDashboard: React.FC = () => {
             marginBottom: "30px",
           }}
         >
-          {/* PR5: Coverage card (when taxonomy loaded) */}
+          {/* PR5: Coverage card (when taxonomy loaded); PR19: Quick setup */}
           {taxonomyUnits.length > 0 && (
+            <>
+            <div
+              style={{
+                marginBottom: "20px",
+                padding: "16px",
+                borderRadius: "10px",
+                border: "1px solid #e5e7eb",
+                background: "#f9fafb",
+              }}
+            >
+              <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>
+                Quick setup
+              </h3>
+              <ul style={{ margin: "0 0 16px 0", paddingLeft: 20, fontSize: 14, color: "#374151", listStyle: "disc" }}>
+                <li style={{ marginBottom: 6 }}>
+                  {quickSetup.noPracticeCount > 0 ? (
+                    <Link to="/teacher/reports/needs-attention#setup" style={{ color: "#2563eb", textDecoration: "none" }}>
+                      Attach practice to your published lessons
+                    </Link>
+                  ) : (
+                    <span>Attach practice to your published lessons</span>
+                  )}
+                  {quickSetup.noPracticeCount > 0 && (
+                    <span style={{ color: "#6b7280" }}> ({quickSetup.noPracticeCount})</span>
+                  )}
+                </li>
+                <li style={{ marginBottom: 6 }}>
+                  {quickSetup.uncoveredCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowUncoveredTopics(true)}
+                      style={{ background: "none", border: "none", padding: 0, color: "#2563eb", cursor: "pointer", textDecoration: "none", fontSize: "inherit" }}
+                    >
+                      Cover remaining topics
+                    </button>
+                  ) : (
+                    <span>Cover remaining topics</span>
+                  )}
+                  {quickSetup.uncoveredCount > 0 && (
+                    <span style={{ color: "#6b7280" }}> ({quickSetup.uncoveredCount})</span>
+                  )}
+                </li>
+                <li style={{ marginBottom: 6 }}>
+                  {!quickSetup.hasUsedClassroomMode ? (
+                    lessons.some((l) => l.isPublished) ? (
+                      <Link to={`/teacher/classroom/${lessons.find((l) => l.isPublished)?._id ?? ""}`} style={{ color: "#2563eb", textDecoration: "none" }}>
+                        Try Classroom mode once
+                      </Link>
+                    ) : (
+                      <span>Try Classroom mode once (publish a lesson first)</span>
+                    )
+                  ) : (
+                    <span style={{ color: "#16a34a" }}>Try Classroom mode once ✓</span>
+                  )}
+                </li>
+                <li>
+                  {quickSetup.notReviewedCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setFilterReadiness("NEEDS_REVIEW")}
+                      style={{ background: "none", border: "none", padding: 0, color: "#2563eb", cursor: "pointer", textDecoration: "none", fontSize: "inherit" }}
+                    >
+                      Mark lessons reviewed
+                    </button>
+                  ) : (
+                    <span>Mark lessons reviewed</span>
+                  )}
+                  {quickSetup.notReviewedCount > 0 && (
+                    <span style={{ color: "#6b7280" }}> ({quickSetup.notReviewedCount})</span>
+                  )}
+                </li>
+              </ul>
+            </div>
             <div
               style={{
                 marginBottom: "20px",
@@ -1036,6 +1132,7 @@ const TeacherDashboard: React.FC = () => {
                 </div>
               )}
             </div>
+            </>
           )}
 
           {/* PR5: Filter bar (when taxonomy loaded) */}
