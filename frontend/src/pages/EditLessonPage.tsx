@@ -3050,38 +3050,84 @@ const EditLessonPage: React.FC = () => {
                                           disabled={fixingTopicKey === t.topicKey}
                                           onClick={async () => {
                                             if (!id) return;
-                                            setFixingTopicKey(t.topicKey);
-                                            setFixErrorByTopic((prev) => ({ ...prev, [t.topicKey]: "" }));
+                                            const topicKey = String(t.topicKey || "");
+
+                                            setFixingTopicKey(topicKey);
+                                            setFixErrorByTopic((prev) => ({ ...prev, [topicKey]: "" }));
+
                                             try {
                                               const res = await api.post<{
                                                 ok: boolean;
-                                                attach: { requested: number; added: number; addedIds: string[] };
-                                                plan: { id: string | null; pinned: boolean; updatedAt: string | null; cached: boolean };
+                                                lessonId: string;
+                                                topicKey?: string;
+                                                topic?: string;
+                                                attach?: { requested: number; added: number; addedIds: string[] };
+                                                plan?: {
+                                                  status: "UPDATED" | "CACHED" | "NOT_CONFIGURED" | "RATE_LIMIT" | "ERROR" | "SKIPPED";
+                                                  id?: string | null;
+                                                  pinned?: boolean;
+                                                  updatedAt?: string | null;
+                                                  cached?: boolean;
+                                                };
                                               }>(`/reports/lessons/${id}/one-click-fix`, {
                                                 days: insightsDays,
-                                                topicKey: t.topicKey,
+                                                topicKey,
                                                 attachByTopic: true,
                                                 attachLimit: 10,
                                                 regeneratePlan: true,
                                                 planLimit: 10,
                                               });
+
                                               const data = res?.data;
-                                              if (data?.ok) {
+                                              if (!data?.ok) {
+                                                setFixErrorByTopic((prev) => ({ ...prev, [topicKey]: "One-click fix failed" }));
+                                                return;
+                                              }
+
+                                              const added = data?.attach?.added ?? 0;
+                                              const addedIds = Array.isArray(data?.attach?.addedIds) ? data.attach.addedIds : [];
+
+                                              if (addedIds.length > 0) {
+                                                setAttachedExamQuestions((prev) => {
+                                                  const existingIds = new Set(prev.map((q: any) => String(q?._id ?? q?.id ?? "")));
+                                                  const next = [...prev];
+                                                  for (const qid of addedIds) {
+                                                    if (!existingIds.has(String(qid))) {
+                                                      next.push({ _id: qid, question: "(attached)", marks: undefined });
+                                                    }
+                                                  }
+                                                  return next;
+                                                });
+                                              }
+
+                                              const planStatus = data?.plan?.status || "SKIPPED";
+                                              let planMsg = "plan updated";
+                                              if (planStatus === "CACHED") planMsg = "plan reused";
+                                              if (planStatus === "NOT_CONFIGURED") planMsg = "plan not generated (AI not configured)";
+                                              if (planStatus === "RATE_LIMIT") planMsg = "plan not generated (rate limited)";
+                                              if (planStatus === "ERROR") planMsg = "plan not generated";
+                                              if (planStatus === "SKIPPED") planMsg = "plan skipped";
+
+                                              setAttachByTopicToast(`Done: added ${added} question${added !== 1 ? "s" : ""} · ${planMsg}`);
+                                              setTimeout(() => setAttachByTopicToast(null), 4000);
+
+                                              try {
                                                 const listRes = await api.get(`/lessons/${id}/exam-questions`);
                                                 setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                                                const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`, { params: { days: insightsDays } });
-                                                if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
-                                                const added = data.attach?.added ?? 0;
-                                                const planCached = data.plan?.cached ?? false;
-                                                const planMsg = planCached ? "plan reused" : "plan updated";
-                                                setAttachByTopicToast(added > 0 ? `Done: added ${added} question${added !== 1 ? "s" : ""} · ${planMsg}` : `Done: no new questions · ${planMsg}`);
-                                                setTimeout(() => setAttachByTopicToast(null), 4000);
-                                              } else {
-                                                setFixErrorByTopic((prev) => ({ ...prev, [t.topicKey]: (res as any)?.data?.message || "One-click fix failed" }));
-                                              }
-                                            } catch (err: any) {
-                                              const msg = err?.response?.data?.message || err?.response?.data?.error || "One-click fix failed";
-                                              setFixErrorByTopic((prev) => ({ ...prev, [t.topicKey]: msg }));
+                                              } catch {}
+
+                                              try {
+                                                const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
+                                                if (planRes?.data?.ok && planRes.data.plan) {
+                                                  setReteachPlan(planRes.data.plan);
+                                                }
+                                              } catch {}
+                                            } catch (e: any) {
+                                              const msg =
+                                                e?.response?.data?.error ||
+                                                e?.response?.data?.message ||
+                                                "Failed to run one-click fix.";
+                                              setFixErrorByTopic((prev) => ({ ...prev, [topicKey]: msg }));
                                             } finally {
                                               setFixingTopicKey(null);
                                             }

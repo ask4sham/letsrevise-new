@@ -14,6 +14,7 @@ const ExamQuestion = require("../models/ExamQuestion");
 const LessonUnlock = require("../models/LessonUnlock");
 const User = require("../models/User");
 const ReteachPlan = require("../models/ReteachPlan");
+const Event = require("../models/Event");
 const auth = require("../middleware/auth");
 const { getLessonOwnerId } = require("../utils/lessonPayload");
 const { getBiologyTopics, findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
@@ -450,8 +451,12 @@ function requireLessonReportAccess(req, res, lessonId) {
 /**
  * PR16: Internal generator for reteach plan. Returns { planDoc, cached } or { error }.
  * Used by POST /reteach-plan and POST /one-click-fix.
+ * PR16.1: DISABLE_OPENAI=1 for deterministic tests (returns NOT_CONFIGURED without calling OpenAI).
  */
 async function generateReteachPlanInternal(lessonId, lesson, userId, opts = {}) {
+  if (process.env.DISABLE_OPENAI === "1") {
+    return { error: "NOT_CONFIGURED", message: "AI generation not configured" };
+  }
   let days = parseInt(String(opts.days ?? "14"), 10);
   if (days !== 7 && days !== 14 && days !== 30) days = 14;
   let limit = parseInt(String(opts.limit ?? "10"), 10);
@@ -792,36 +797,51 @@ router.post("/lessons/:lessonId/one-click-fix", auth, async (req, res) => {
       }
     }
 
-    let planPayload = { id: null, pinned: false, updatedAt: null, cached: false };
+    let plan = { status: "SKIPPED", id: null, pinned: false, updatedAt: null, cached: false };
     if (regeneratePlan) {
       const planResult = await generateReteachPlanInternal(lessonId, lesson, req.user._id, { days, limit: planLimit });
-      if (planResult.error) {
-        if (planResult.error === "NOT_CONFIGURED") {
-          return res.status(501).json({ error: planResult.message });
-        }
-        if (planResult.error === "RATE_LIMIT") {
-          return res.status(429).json({ error: planResult.message });
-        }
-      } else if (planResult.planDoc) {
+      if (planResult?.error === "NOT_CONFIGURED") {
+        plan = { ...plan, status: "NOT_CONFIGURED" };
+      } else if (planResult?.error === "RATE_LIMIT") {
+        plan = { ...plan, status: "RATE_LIMIT" };
+      } else if (planResult?.planDoc) {
         const p = planResult.planDoc;
-        planPayload = {
+        plan = {
+          status: planResult.cached ? "CACHED" : "UPDATED",
           id: p._id ? String(p._id) : null,
           pinned: !!p.pinned,
-          updatedAt: (p.editedAt || p.updatedAt || p.generatedAt) ? new Date(p.editedAt || p.updatedAt || p.generatedAt).toISOString() : null,
+          updatedAt: p.updatedAt != null && typeof p.updatedAt.toISOString === "function" ? p.updatedAt.toISOString() : (p.editedAt || p.generatedAt) ? new Date(p.editedAt || p.generatedAt).toISOString() : null,
           cached: !!planResult.cached,
         };
+      } else {
+        plan = { ...plan, status: "ERROR" };
       }
     }
 
     const displayTopic = topicKey ? findTopicByKey(topicKey)?.topic ?? topicKey : null;
-    return res.status(200).json({
+    const responseBody = {
       ok: true,
       lessonId,
       topicKey: topicKey || undefined,
       topic: displayTopic ?? undefined,
       attach: { requested: attach.requested, added: attach.added, addedIds: attach.addedIds },
-      plan: planPayload,
-    });
+      plan,
+    };
+    Event.create({
+      type: "ONE_CLICK_FIX",
+      userId: req.user._id,
+      lessonId: lesson._id,
+      meta: {
+        topicKey: topicKey || undefined,
+        days,
+        attachLimit,
+        planLimit,
+        attachAdded: attach.added,
+        planStatus: plan.status,
+        planCached: !!plan.cached,
+      },
+    }).catch(() => {});
+    return res.status(200).json(responseBody);
   } catch (err) {
     console.error("POST one-click-fix error:", err);
     return res.status(500).json({ error: "Server error" });
