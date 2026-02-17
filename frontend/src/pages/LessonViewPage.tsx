@@ -14,6 +14,24 @@ import { fetchLessonById } from "../api/lessons";
 import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 
+/** PR11: diagram annotation overlay */
+interface DiagramAnnotation {
+  id: string;
+  kind?: "label" | "callout";
+  text?: string;
+  x?: number;
+  y?: number;
+  color?: string;
+  align?: "left" | "center" | "right";
+}
+
+/** PR11: diagram step (reveal annotations) */
+interface DiagramStep {
+  id: string;
+  title?: string;
+  showAnnotationIds?: string[];
+}
+
 interface LessonPageBlock {
   type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram";
   content?: string;
@@ -24,6 +42,10 @@ interface LessonPageBlock {
   explanation?: string;
   visualId?: string;
   caption?: string;
+  /** PR11 */
+  mode?: "static" | "annotated" | "step";
+  annotations?: DiagramAnnotation[];
+  steps?: DiagramStep[];
 }
 
 interface LessonPageHero {
@@ -304,16 +326,33 @@ function DiagramBlockContent({
   visualId,
   caption,
   level,
+  mode: blockMode,
+  annotations = [],
+  steps = [],
   makeAbsoluteAssetUrl: resolveUrl,
 }: {
   visualId: string;
   caption: string;
   level: string;
+  mode?: "static" | "annotated" | "step";
+  annotations?: DiagramAnnotation[];
+  steps?: DiagramStep[];
   makeAbsoluteAssetUrl: (url: string) => string;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!visualId);
   const [error, setError] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  const mode = blockMode === "annotated" || blockMode === "step" ? blockMode : "static";
+  const hasSteps = mode === "step" && Array.isArray(steps) && steps.length > 0;
+  const currentStep = hasSteps ? steps[Math.max(0, Math.min(stepIndex, steps.length - 1))] : null;
+  const showIds = currentStep?.showAnnotationIds ?? [];
+  const visibleAnnotations =
+    mode === "step" && showIds.length >= 0
+      ? (annotations ?? []).filter((a) => showIds.includes(a.id))
+      : (annotations ?? []);
+  const showOverlay = mode !== "static" && visibleAnnotations.length > 0;
 
   useEffect(() => {
     if (!visualId || !visualId.trim()) {
@@ -371,18 +410,111 @@ function DiagramBlockContent({
 
   return (
     <div style={boxStyle}>
-      <img
-        src={src}
-        alt={caption || "Diagram"}
-        style={{
-          width: "100%",
-          maxWidth: 720,
-          height: "auto",
-          borderRadius: 12,
-          display: "block",
-          margin: "0 auto",
-        }}
-      />
+      <div style={{ position: "relative", display: "inline-block", maxWidth: 720, width: "100%" }}>
+        <img
+          src={src}
+          alt={caption || "Diagram"}
+          style={{
+            width: "100%",
+            maxWidth: 720,
+            height: "auto",
+            borderRadius: 12,
+            display: "block",
+            margin: "0 auto",
+          }}
+        />
+        {showOverlay && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              pointerEvents: "none",
+              borderRadius: 12,
+            }}
+          >
+            {visibleAnnotations.map((a) => {
+              const x = typeof a.x === "number" ? a.x : 0.5;
+              const y = typeof a.y === "number" ? a.y : 0.5;
+              const translateX = a.align === "left" ? "0" : a.align === "right" ? "100%" : "50%";
+              const text = (a.text ?? "").trim() || "";
+              return (
+                <div
+                  key={a.id}
+                  style={{
+                    position: "absolute",
+                    left: `${x * 100}%`,
+                    top: `${y * 100}%`,
+                    transform: `translate(-${translateX}, -50%)`,
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    background: (a.color && a.color.trim()) ? a.color : "rgba(34,197,94,0.9)",
+                    color: "#fff",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    maxWidth: "90%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {text}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {hasSteps && steps.length > 1 && (
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: "0.9rem", color: "#6b7280" }}>
+            Step {stepIndex + 1} / {steps.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+            disabled={stepIndex === 0}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #d1d5db",
+              background: "#fff",
+              cursor: stepIndex === 0 ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              opacity: stepIndex === 0 ? 0.6 : 1,
+            }}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
+            disabled={stepIndex >= steps.length - 1}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #22c55e",
+              background: "rgba(34,197,94,0.1)",
+              cursor: stepIndex >= steps.length - 1 ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              opacity: stepIndex >= steps.length - 1 ? 0.6 : 1,
+            }}
+          >
+            Next
+          </button>
+        </div>
+      )}
       {caption ? (
         <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>
           {caption}
@@ -1867,12 +1999,18 @@ const LessonViewPage: React.FC = () => {
     const visualId = block.visualId ?? "";
     const caption = block.caption ?? "";
     const level = lesson?.level ?? "GCSE";
+    const mode = block.mode === "annotated" || block.mode === "step" ? block.mode : "static";
+    const annotations = Array.isArray(block.annotations) ? block.annotations : [];
+    const steps = Array.isArray(block.steps) ? block.steps : [];
     return (
       <DiagramBlockContent
         key={`diagram-${idx}-${visualId}`}
         visualId={visualId}
         caption={caption}
         level={level}
+        mode={mode}
+        annotations={annotations}
+        steps={steps}
         makeAbsoluteAssetUrl={makeAbsoluteAssetUrl}
       />
     );

@@ -26,6 +26,10 @@ interface LessonPageBlock {
   /** Diagram block fields (when type === "diagram") */
   visualId?: string;
   caption?: string;
+  /** PR11: diagram depth */
+  mode?: "static" | "annotated" | "step";
+  annotations?: Array<{ id: string; kind?: "label" | "callout"; text?: string; x?: number; y?: number; color?: string; align?: "left" | "center" | "right" }>;
+  steps?: Array<{ id: string; title?: string; showAnnotationIds?: string[] }>;
 }
 
 interface LessonPageHero {
@@ -608,10 +612,28 @@ const EditLessonPage: React.FC = () => {
                   };
                 }
                 if (b?.type === "diagram") {
+                  const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
+                  const annotations = Array.isArray(b.annotations) ? b.annotations.map((a: any) => ({
+                    id: String(a?.id ?? ""),
+                    kind: a?.kind === "callout" ? "callout" : "label",
+                    text: typeof a?.text === "string" ? a.text : "",
+                    x: typeof a?.x === "number" ? a.x : 0.5,
+                    y: typeof a?.y === "number" ? a.y : 0.5,
+                    color: typeof a?.color === "string" ? a.color : "",
+                    align: a?.align === "left" || a?.align === "right" ? a.align : "center",
+                  })) : [];
+                  const steps = Array.isArray(b.steps) ? b.steps.map((s: any) => ({
+                    id: String(s?.id ?? ""),
+                    title: typeof s?.title === "string" ? s.title : "",
+                    showAnnotationIds: Array.isArray(s?.showAnnotationIds) ? s.showAnnotationIds.map((id: any) => String(id)) : [],
+                  })) : [];
                   return {
                     type: "diagram" as const,
                     visualId: b.visualId != null ? String(b.visualId) : "",
                     caption: safeStr(b.caption, ""),
+                    mode,
+                    annotations,
+                    steps,
                   };
                 }
                 return {
@@ -807,6 +829,9 @@ const EditLessonPage: React.FC = () => {
           type: "diagram",
           visualId: "",
           caption: "",
+          mode: "static",
+          annotations: [],
+          steps: [],
         });
       } else {
         blocks.push({ type, content: "" });
@@ -1730,10 +1755,16 @@ const EditLessonPage: React.FC = () => {
             };
           }
           if (b.type === "diagram") {
+            const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
+            const annotations = Array.isArray(b.annotations) ? b.annotations : [];
+            const steps = Array.isArray(b.steps) ? b.steps : [];
             return {
               type: "diagram",
               visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
               caption: b.caption != null ? String(b.caption).trim() : undefined,
+              mode,
+              annotations: annotations.length ? annotations : undefined,
+              steps: steps.length ? steps : undefined,
             };
           }
           return {
@@ -1811,10 +1842,16 @@ const EditLessonPage: React.FC = () => {
             };
           }
           if (b.type === "diagram") {
+            const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
+            const annotations = Array.isArray(b.annotations) ? b.annotations : [];
+            const steps = Array.isArray(b.steps) ? b.steps : [];
             return {
               type: "diagram",
               visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
               caption: b.caption != null ? String(b.caption).trim() : undefined,
+              mode,
+              annotations: annotations.length ? annotations : undefined,
+              steps: steps.length ? steps : undefined,
             };
           }
           return {
@@ -3035,6 +3072,161 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 />
                               </label>
+                              {/* PR11: diagram mode */}
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Mode</div>
+                                <select
+                                  value={d.mode === "annotated" || d.mode === "step" ? d.mode : "static"}
+                                  onChange={(e) => {
+                                    const v = e.target.value as "static" | "annotated" | "step";
+                                    updateBlock(currentPage!.pageId, idx, {
+                                      mode: v,
+                                      annotations: v !== "static" ? (d.annotations ?? []) : [],
+                                      steps: v === "step" ? (d.steps ?? []) : [],
+                                    });
+                                  }}
+                                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(0,0,0,0.14)" }}
+                                >
+                                  <option value="static">Static</option>
+                                  <option value="annotated">Annotated</option>
+                                  <option value="step">Step-by-step</option>
+                                </select>
+                              </label>
+                              {(d.mode === "annotated" || d.mode === "step") && (
+                                <>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Annotations</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const anns = Array.isArray(d.annotations) ? [...d.annotations] : [];
+                                      anns.push({ id: newId(), kind: "label" as const, text: "", x: 0.5, y: 0.5, align: "center" as const });
+                                      updateBlock(currentPage!.pageId, idx, { annotations: anns });
+                                    }}
+                                    style={{ padding: "6px 12px", borderRadius: 8, border: "2px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.08)", cursor: "pointer", fontWeight: 700, marginBottom: 8 }}
+                                  >
+                                    + Add label
+                                  </button>
+                                  {(d.annotations ?? []).map((a, ai) => (
+                                    <div key={a.id} style={{ marginBottom: 12, padding: 10, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                                      <input
+                                        type="text"
+                                        value={a.text ?? ""}
+                                        onChange={(e) => {
+                                          const next = [...(d.annotations ?? [])];
+                                          if (next[ai]) next[ai] = { ...next[ai], text: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                        }}
+                                        placeholder="Label text"
+                                        style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 6 }}
+                                      />
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 6 }}>
+                                        <span style={{ fontSize: 12, color: "#64748b" }}>X %</span>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={Math.round((a.x ?? 0.5) * 100)}
+                                          onChange={(e) => {
+                                            const next = [...(d.annotations ?? [])];
+                                            const v = Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100;
+                                            if (next[ai]) next[ai] = { ...next[ai], x: v };
+                                            updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                          }}
+                                          style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                        />
+                                        <span style={{ fontSize: 12, color: "#64748b" }}>Y %</span>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={Math.round((a.y ?? 0.5) * 100)}
+                                          onChange={(e) => {
+                                            const next = [...(d.annotations ?? [])];
+                                            const v = Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100;
+                                            if (next[ai]) next[ai] = { ...next[ai], y: v };
+                                            updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                          }}
+                                          style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = (d.annotations ?? []).filter((_, i) => i !== ai);
+                                            updateBlock(currentPage!.pageId, idx, { annotations: next });
+                                          }}
+                                          style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #f87171", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </>
+                              )}
+                              {d.mode === "step" && (
+                                <>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Steps</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const st = Array.isArray(d.steps) ? [...d.steps] : [];
+                                      st.push({ id: newId(), title: "", showAnnotationIds: [] });
+                                      updateBlock(currentPage!.pageId, idx, { steps: st });
+                                    }}
+                                    style={{ padding: "6px 12px", borderRadius: 8, border: "2px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.08)", cursor: "pointer", fontWeight: 700, marginBottom: 8 }}
+                                  >
+                                    + Add step
+                                  </button>
+                                  {(d.steps ?? []).map((s, si) => (
+                                    <div key={s.id} style={{ marginBottom: 12, padding: 10, background: "#eff6ff", borderRadius: 8, border: "1px solid #bfdbfe" }}>
+                                      <input
+                                        type="text"
+                                        value={s.title ?? ""}
+                                        onChange={(e) => {
+                                          const next = [...(d.steps ?? [])];
+                                          if (next[si]) next[si] = { ...next[si], title: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { steps: next });
+                                        }}
+                                        placeholder="Step title"
+                                        style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #93c5fd", marginBottom: 8 }}
+                                      />
+                                      <div style={{ fontSize: 12, color: "#1e40af", marginBottom: 4 }}>Show annotations:</div>
+                                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                        {(d.annotations ?? []).map((ann) => {
+                                          const showIds = s.showAnnotationIds ?? [];
+                                          const checked = showIds.includes(ann.id);
+                                          return (
+                                            <label key={ann.id} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => {
+                                                  const next = [...(d.steps ?? [])];
+                                                  const nextShow = checked ? showIds.filter((id) => id !== ann.id) : [...showIds, ann.id];
+                                                  if (next[si]) next[si] = { ...next[si], showAnnotationIds: nextShow };
+                                                  updateBlock(currentPage!.pageId, idx, { steps: next });
+                                                }}
+                                              />
+                                              <span>{ann.text?.trim() || ann.id.slice(0, 8)}</span>
+                                            </label>
+                                          );
+                                        })}
+                                        {(d.annotations ?? []).length === 0 && <span style={{ color: "#64748b" }}>Add annotations above first.</span>}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const next = (d.steps ?? []).filter((_, i) => i !== si);
+                                          updateBlock(currentPage!.pageId, idx, { steps: next });
+                                        }}
+                                        style={{ marginTop: 6, padding: "4px 10px", borderRadius: 6, border: "1px solid #f87171", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                                      >
+                                        Remove step
+                                      </button>
+                                    </div>
+                                  ))}
+                                </>
+                              )}
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <button
                                   type="button"

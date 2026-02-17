@@ -987,10 +987,23 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
         if (visual && pages.length > 0) {
           const targetPageIndex = pages.length > 1 ? 1 : 0;
           const target = pages[targetPageIndex];
+          // PR11: mode "annotated" by default; higher tier gets placeholder steps (no labels yet)
+          const makeStepId = () => `step_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+          let steps;
+          if (tier === "higher") {
+            steps = [
+              { id: makeStepId(), title: "Step 1", showAnnotationIds: [] },
+              { id: makeStepId(), title: "Step 2", showAnnotationIds: [] },
+              { id: makeStepId(), title: "Step 3", showAnnotationIds: [] },
+            ];
+          }
           const diagramBlock = {
             type: "diagram",
             visualId: visual._id,
             caption: "",
+            mode: "annotated",
+            annotations: [],
+            ...(steps ? { steps } : {}),
           };
           const blocks = Array.isArray(target.blocks) ? [...target.blocks] : [];
           blocks.unshift(diagramBlock);

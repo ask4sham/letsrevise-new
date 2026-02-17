@@ -138,10 +138,49 @@ function sanitisePageInput(p, isUpdate = false) {
             b?.visualId && mongoose.Types.ObjectId.isValid(String(b.visualId))
               ? b.visualId
               : undefined;
+          const mode = ["static", "annotated", "step"].includes(String(b?.mode || "").trim())
+            ? String(b.mode).trim()
+            : "static";
+          // PR11: sanitize annotations (max 30, text <= 80, x/y 0..1)
+          const rawAnnotations = Array.isArray(b?.annotations) ? b.annotations : [];
+          const annotations = rawAnnotations
+            .slice(0, 30)
+            .filter((a) => a && typeof a.id === "string" && String(a.id).trim())
+            .map((a) => {
+              const text = typeof a.text === "string" ? a.text.trim().slice(0, 80) : "";
+              const x = Math.max(0, Math.min(1, Number(a.x) || 0.5));
+              const y = Math.max(0, Math.min(1, Number(a.y) || 0.5));
+              return {
+                id: String(a.id).trim(),
+                kind: a.kind === "callout" ? "callout" : "label",
+                text,
+                x,
+                y,
+                color: typeof a.color === "string" ? a.color.trim().slice(0, 20) : "",
+                align: ["left", "center", "right"].includes(String(a.align || "").trim())
+                  ? String(a.align).trim()
+                  : "center",
+              };
+            });
+          // PR11: sanitize steps (max 10, title <= 60, showAnnotationIds string[])
+          const rawSteps = Array.isArray(b?.steps) ? b.steps : [];
+          const steps = rawSteps
+            .slice(0, 10)
+            .filter((s) => s && typeof s.id === "string" && String(s.id).trim())
+            .map((s) => ({
+              id: String(s.id).trim(),
+              title: typeof s.title === "string" ? s.title.trim().slice(0, 60) : "",
+              showAnnotationIds: Array.isArray(s.showAnnotationIds)
+                ? s.showAnnotationIds.map((id) => String(id)).filter(Boolean)
+                : [],
+            }));
           return {
             type: "diagram",
             visualId: visualId || undefined,
             caption: typeof b?.caption === "string" ? b.caption : "",
+            mode,
+            annotations: annotations.length ? annotations : undefined,
+            steps: steps.length ? steps : undefined,
           };
         }
         return {

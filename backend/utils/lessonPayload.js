@@ -50,13 +50,17 @@ function sanitizePageForPreview(page) {
         // Keep correctAnswer so frontend can show Correct/Not quite without revealing which option; never send explanation in preview
         return rest;
       }
-      // Diagram blocks: allow in preview; expose only type, visualId, caption
+      // Diagram blocks: allow in preview; PR11: include mode, annotations, steps (safe teacher-authored overlays)
       if (b && b.type === "diagram") {
-        return {
+        const out = {
           type: "diagram",
           visualId: b.visualId,
           caption: typeof b.caption === "string" ? b.caption : "",
+          mode: ["static", "annotated", "step"].includes(b.mode) ? b.mode : "static",
         };
+        if (Array.isArray(b.annotations)) out.annotations = b.annotations;
+        if (Array.isArray(b.steps)) out.steps = b.steps;
+        return out;
       }
       return b;
     });

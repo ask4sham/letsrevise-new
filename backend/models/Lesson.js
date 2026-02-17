@@ -18,6 +18,29 @@ const LESSON_STATUSES = ["draft", "in_review", "published", "archived", "flagged
  * =====================================================
  */
 
+// PR11: Diagram depth — annotations and steps (backward compatible: mode defaults static, arrays empty)
+const DiagramAnnotationSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    kind: { type: String, enum: ["label", "callout"], default: "label" },
+    text: { type: String, default: "" },
+    x: { type: Number, min: 0, max: 1, default: 0.5 },
+    y: { type: Number, min: 0, max: 1, default: 0.5 },
+    color: { type: String, default: "" },
+    align: { type: String, enum: ["left", "center", "right"], default: "center" },
+  },
+  { _id: false }
+);
+
+const DiagramStepSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    title: { type: String, default: "" },
+    showAnnotationIds: [{ type: String }],
+  },
+  { _id: false }
+);
+
 const LessonPageBlockSchema = new mongoose.Schema(
   {
     // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram"
@@ -33,9 +56,12 @@ const LessonPageBlockSchema = new mongoose.Schema(
     options: { type: [String], default: undefined },
     correctAnswer: { type: String, default: undefined },
     explanation: { type: String, default: undefined },
-    // diagram block (when type === "diagram") — references VisualModel
+    // diagram block (when type === "diagram") — references VisualModel; PR11: mode, annotations, steps
     visualId: { type: mongoose.Schema.Types.ObjectId, ref: "VisualModel", default: undefined },
     caption: { type: String, default: "" },
+    mode: { type: String, enum: ["static", "annotated", "step"], default: "static" },
+    annotations: { type: [DiagramAnnotationSchema], default: undefined },
+    steps: { type: [DiagramStepSchema], default: undefined },
   },
   { _id: false }
 );
