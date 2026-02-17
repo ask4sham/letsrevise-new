@@ -299,6 +299,13 @@ function CheckpointShortBlock({ block }: { block: LessonPageBlock }) {
   );
 }
 
+type TabMode = "lesson" | "reteach";
+
+interface ReteachPlanPayload {
+  ok: boolean;
+  plan?: { content: string; pinned?: boolean; studentSummary?: string };
+}
+
 const ClassroomModePage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
@@ -309,6 +316,11 @@ const ClassroomModePage: React.FC = () => {
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
   const [practiceLoading, setPracticeLoading] = useState(false);
   const [practiceAllowed, setPracticeAllowed] = useState(false);
+  /** PR15: Lesson | Reteach tab */
+  const [tab, setTab] = useState<TabMode>("lesson");
+  const [reteachPlan, setReteachPlan] = useState<{ content: string } | null>(null);
+  const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
+  const [reteachPlanError, setReteachPlanError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!lessonId) return;
@@ -351,6 +363,24 @@ const ClassroomModePage: React.FC = () => {
       })
       .finally(() => setPracticeLoading(false));
   }, [lessonId]);
+
+  /** PR15: Fetch reteach plan when Reteach tab is selected */
+  useEffect(() => {
+    if (!lessonId || tab !== "reteach") return;
+    setReteachPlanLoading(true);
+    setReteachPlanError(null);
+    api
+      .get<ReteachPlanPayload>(`/reports/lessons/${lessonId}/reteach-plan`)
+      .then((res) => {
+        if (res?.data?.ok && res.data.plan?.content != null) setReteachPlan({ content: res.data.plan.content });
+        else setReteachPlan(null);
+      })
+      .catch(() => {
+        setReteachPlan(null);
+        setReteachPlanError("Failed to load reteach plan.");
+      })
+      .finally(() => setReteachPlanLoading(false));
+  }, [lessonId, tab]);
 
   const orderedPages = useMemo(() => (lesson?.pages ? sortPages(lesson.pages) : []), [lesson]);
   const currentPage = orderedPages[pageIndex] || null;
@@ -410,23 +440,55 @@ const ClassroomModePage: React.FC = () => {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f7fa", padding: 18, fontSize: BASE_FONT }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        {/* Top bar */}
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {/* Top bar: Lesson | Reteach tabs + nav */}
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 20, padding: "12px 16px", background: "white", borderRadius: 12, border: "2px solid rgba(59,130,246,0.25)", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
           <div style={{ flex: "1 1 200px" }}>
             <h1 style={{ margin: 0, fontSize: "1.4rem", color: "#111827" }}>{lesson.title}</h1>
             <div style={{ marginTop: 4, color: "#6b7280", fontSize: "0.95rem" }}>{lesson.topic}{lesson.subject ? ` · ${lesson.subject}` : ""}{lesson.level ? ` · ${lesson.level}` : ""}</div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <button type="button" onClick={() => setTab("lesson")} style={{ padding: "8px 14px", borderRadius: 8, border: tab === "lesson" ? "2px solid #2563eb" : "2px solid #e2e8f0", background: tab === "lesson" ? "rgba(37,99,235,0.1)" : "white", color: tab === "lesson" ? "#1d4ed8" : "#64748b", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>Lesson</button>
+            <button type="button" onClick={() => setTab("reteach")} style={{ padding: "8px 14px", borderRadius: 8, border: tab === "reteach" ? "2px solid #2563eb" : "2px solid #e2e8f0", background: tab === "reteach" ? "rgba(37,99,235,0.1)" : "white", color: tab === "reteach" ? "#1d4ed8" : "#64748b", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>Reteach</button>
             <Link to={`/teacher/lesson/${lesson.id}`} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "#f1f5f9", color: "#334155", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Back to editor</Link>
-            <a href="#practice" style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.1)", color: "#1d4ed8", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Practice</a>
-            {prevPage && <button type="button" onClick={() => setPageIndex((i) => i - 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "white", cursor: "pointer", fontWeight: 700 }}>← Previous</button>}
-            {nextPage && <button type="button" onClick={() => setPageIndex((i) => i + 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "#22c55e", color: "white", cursor: "pointer", fontWeight: 700 }}>Next →</button>}
+            {tab === "lesson" && <a href="#practice" style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.1)", color: "#1d4ed8", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Practice</a>}
+            {tab === "lesson" && prevPage && <button type="button" onClick={() => setPageIndex((i) => i - 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #94a3b8", background: "white", cursor: "pointer", fontWeight: 700 }}>← Previous</button>}
+            {tab === "lesson" && nextPage && <button type="button" onClick={() => setPageIndex((i) => i + 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "#22c55e", color: "white", cursor: "pointer", fontWeight: 700 }}>Next →</button>}
           </div>
         </div>
 
-        {/* Main content: one page */}
-        {currentPage && (
+        {/* PR15: Reteach tab — full plan as handout + Print/Copy */}
+        {tab === "reteach" && (
+          <div style={{ background: "white", borderRadius: 14, padding: 28, marginBottom: 24, border: "2px solid rgba(0,0,0,0.06)", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+            <h2 style={{ margin: "0 0 16px", fontSize: "1.3rem", color: "#111827" }}>Reteach plan</h2>
+            {reteachPlanLoading && <p style={{ color: "#6b7280", margin: 0 }}>Loading reteach plan…</p>}
+            {reteachPlanError && <p style={{ color: "#dc2626", margin: 0 }}>{reteachPlanError}</p>}
+            {!reteachPlanLoading && !reteachPlanError && !reteachPlan?.content && <p style={{ color: "#6b7280", margin: 0 }}>No reteach plan yet. Generate one from the <Link to={`/teacher/reports/lesson/${lesson.id}`} style={{ color: "#2563eb", fontWeight: 600 }}>lesson report</Link>.</p>}
+            {!reteachPlanLoading && !reteachPlanError && reteachPlan?.content && (
+              <>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+                  <button type="button" onClick={() => window.print()} style={{ padding: "10px 18px", borderRadius: 8, border: "2px solid #059669", background: "#059669", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 14 }}>Print</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = reteachPlan.content.replace(/#{1,6}\s/g, "").replace(/\*\*/g, "");
+                      navigator.clipboard.writeText(text || reteachPlan.content).then(() => {}, () => {});
+                    }}
+                    style={{ padding: "10px 18px", borderRadius: 8, border: "2px solid #6366f1", background: "#6366f1", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 14 }}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div className="reteach-plan-content" style={{ fontSize: 22, lineHeight: 1.6, color: "#1f2937", textAlign: "left" }}>
+                  <ReactMarkdown>{reteachPlan.content}</ReactMarkdown>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Main content: one page (Lesson tab only) */}
+        {tab === "lesson" && currentPage && (
           <div style={{ background: "white", borderRadius: 14, padding: 24, marginBottom: 24, border: "2px solid rgba(0,0,0,0.06)", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
             <h2 style={{ margin: "0 0 16px", fontSize: "1.2rem", color: "#111827" }}>{currentPage.title || `Page ${pageIndex + 1}`}</h2>
             <div>
@@ -444,6 +506,8 @@ const ClassroomModePage: React.FC = () => {
           </div>
         )}
 
+        {tab === "lesson" && (
+        <>
         {/* Practice section */}
         <div id="practice" style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid #e2e8f0" }}>
           <h2 style={{ color: "#333", fontSize: "1.5rem", margin: "0 0 16px" }}>Practice</h2>
@@ -472,6 +536,8 @@ const ClassroomModePage: React.FC = () => {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

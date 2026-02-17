@@ -17,6 +17,8 @@ type ReteachPlanResponse = {
     days: number;
     sourceHash?: string;
     editedAt?: string | null;
+    studentSummary?: string;
+    classroomNotes?: string;
   };
 };
 
@@ -77,6 +79,8 @@ export default function LessonAttemptReportPage() {
   const [generateLoading, setGenerateLoading] = useState(false);
   const [planEditContent, setPlanEditContent] = useState("");
   const [planEditing, setPlanEditing] = useState(false);
+  const [studentSummaryEdit, setStudentSummaryEdit] = useState("");
+  const [studentSummarySaving, setStudentSummarySaving] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -344,6 +348,7 @@ export default function LessonAttemptReportPage() {
                       if (res?.data?.ok && res.data.plan) {
                         setPlan(res.data.plan);
                         setPlanEditContent(res.data.plan.content);
+                        setStudentSummaryEdit(res.data.plan.studentSummary ?? "");
                       }
                     } catch (e: any) {
                       setPlanError(e?.response?.data?.error || "Failed to generate plan.");
@@ -440,6 +445,60 @@ export default function LessonAttemptReportPage() {
                   }}
                 >
                   {plan.pinned ? "Pinned" : "Pin"}
+                </button>
+              </div>
+              {/* PR15: Student next steps (shown to students at end of lesson) */}
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+                <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem", fontWeight: 700 }}>Student next steps</h3>
+                <p style={{ margin: "0 0 8px 0", fontSize: 12, color: "#64748b" }}>
+                  Shown to subscribed/unlocked students at the end of the lesson.
+                </p>
+                <textarea
+                  value={studentSummaryEdit}
+                  onChange={(e) => setStudentSummaryEdit(e.target.value.slice(0, 1000))}
+                  maxLength={1000}
+                  placeholder="e.g. Review mitosis diagrams and try the practice questions again."
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    fontSize: 14,
+                    fontFamily: "inherit",
+                  }}
+                />
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>{studentSummaryEdit.length}/1000</div>
+                <button
+                  type="button"
+                  disabled={studentSummarySaving}
+                  onClick={async () => {
+                    if (!id) return;
+                    setStudentSummarySaving(true);
+                    try {
+                      const res = await api.patch<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, {
+                        studentSummary: studentSummaryEdit.trim().slice(0, 1000),
+                      });
+                      if (res?.data?.ok && res.data.plan) {
+                        setPlan(res.data.plan);
+                      }
+                    } finally {
+                      setStudentSummarySaving(false);
+                    }
+                  }}
+                  style={{
+                    marginTop: 8,
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    border: "2px solid #10b981",
+                    background: studentSummarySaving ? "#e5e7eb" : "rgba(16,185,129,0.12)",
+                    cursor: studentSummarySaving ? "not-allowed" : "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#047857",
+                  }}
+                >
+                  {studentSummarySaving ? "Saving…" : "Save"}
                 </button>
               </div>
               {planEditing ? (

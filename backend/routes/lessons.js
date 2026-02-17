@@ -13,6 +13,7 @@ const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
 const ExamQuestion = require("../models/ExamQuestion");
 const PracticeAttempt = require("../models/PracticeAttempt");
+const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
@@ -1847,6 +1848,75 @@ router.get(
     } catch (err) {
       console.error("GET /api/lessons/:id/targeted-practice error:", err);
       return res.status(500).json({ error: "Failed to load targeted practice" });
+    }
+  }
+);
+
+/* =========================================
+   PR15: GET /api/lessons/:id/next-steps — Student-safe next steps from pinned/latest reteach plan.
+   Same access as /practice. Returns only studentSummary (no full plan content).
+   ========================================= */
+router.get(
+  "/:id/next-steps",
+  auth,
+  async (req, res, next) => {
+    try {
+      const lessonId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished").lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      if (isOwnerOrAdminForPractice(req.user, lesson)) {
+        req.lesson = lesson;
+        req.accessDecision = { allowed: true, reason: "OWNER" };
+        return next();
+      }
+      return applyLessonAccess({ requirePublished: true })(req, res, next);
+    } catch (err) {
+      console.error("next-steps precheck error:", err);
+      return res.status(500).json({ error: "Failed to check access" });
+    }
+  },
+  async (req, res) => {
+    try {
+      const lessonId = req.params.id;
+      if (!req.accessDecision || !req.accessDecision.allowed) {
+        return res.status(200).json({
+          ok: true,
+          allowed: false,
+          reason: req.accessDecision?.reason || "UNKNOWN",
+          lessonId,
+          nextSteps: null,
+        });
+      }
+      const lessonOid = new mongoose.Types.ObjectId(lessonId);
+      const pinned = await ReteachPlan.findOne({ lessonId: lessonOid, pinned: true })
+        .sort({ generatedAt: -1 })
+        .select("studentSummary updatedAt editedAt generatedAt")
+        .lean();
+      const plan = pinned || (await ReteachPlan.findOne({ lessonId: lessonOid }).sort({ generatedAt: -1 }).select("studentSummary updatedAt editedAt generatedAt").lean());
+      if (!plan || !(String(plan.studentSummary || "").trim())) {
+        return res.status(200).json({
+          ok: true,
+          allowed: true,
+          lessonId,
+          nextSteps: null,
+        });
+      }
+      const updatedAt = plan.editedAt || plan.updatedAt || plan.generatedAt;
+      return res.status(200).json({
+        ok: true,
+        allowed: true,
+        lessonId,
+        nextSteps: {
+          studentSummary: String(plan.studentSummary || "").trim(),
+          updatedAt: updatedAt ? new Date(updatedAt).toISOString() : null,
+        },
+      });
+    } catch (err) {
+      console.error("GET /api/lessons/:id/next-steps error:", err);
+      return res.status(500).json({ error: "Server error" });
     }
   }
 );

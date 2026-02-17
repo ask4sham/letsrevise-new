@@ -1443,6 +1443,10 @@ const LessonViewPage: React.FC = () => {
   const [targetedPracticeQuestions, setTargetedPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
   const [targetedPracticeAllowed, setTargetedPracticeAllowed] = useState<boolean | undefined>(undefined);
 
+  // PR15: Student next steps (entitled only, from reteach plan)
+  const [nextStepsLoading, setNextStepsLoading] = useState(false);
+  const [nextSteps, setNextSteps] = useState<{ studentSummary: string; updatedAt: string | null } | null>(null);
+
   const pageParam = useMemo(() => searchParams.get("page") || "", [searchParams]);
 
   const hasStructuredPages = useMemo(
@@ -1599,6 +1603,30 @@ const LessonViewPage: React.FC = () => {
         setTargetedPracticeError("Failed to load targeted practice.");
       })
       .finally(() => setTargetedPracticeLoading(false));
+  }, [id, accessDecision?.allowed]);
+
+  // PR15: Fetch next steps when entitled (student-safe summary only)
+  useEffect(() => {
+    if (!id || !accessDecision || accessDecision.allowed !== true) {
+      setNextSteps(null);
+      return;
+    }
+    setNextStepsLoading(true);
+    api
+      .get<{ ok: boolean; allowed: boolean; lessonId?: string; nextSteps?: { studentSummary: string; updatedAt: string | null } | null }>(`/lessons/${id}/next-steps`)
+      .then((res) => {
+        const data = res?.data;
+        if (data?.allowed === true && data?.nextSteps?.studentSummary != null) {
+          setNextSteps({
+            studentSummary: String(data.nextSteps.studentSummary).trim(),
+            updatedAt: data.nextSteps.updatedAt ?? null,
+          });
+        } else {
+          setNextSteps(null);
+        }
+      })
+      .catch(() => setNextSteps(null))
+      .finally(() => setNextStepsLoading(false));
   }, [id, accessDecision?.allowed]);
 
   // ✅ Visual fetch (optional, silent fail)
@@ -4066,6 +4094,16 @@ const LessonViewPage: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* PR15: Next steps (entitled only) in legacy view */}
+        {!nextStepsLoading && nextSteps?.studentSummary && (
+          <div style={{ marginTop: "32px", paddingTop: "24px", borderTop: "1px solid #e2e8f0", textAlign: "left" }}>
+            <h2 style={{ color: "#333", fontSize: "1.65rem", margin: "0 0 16px" }}>What to do next</h2>
+            <div style={{ padding: "20px 24px", borderRadius: "12px", background: "#f0f9ff", border: "1px solid #bae6fd", color: "#0c4a6e", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+              {nextSteps.studentSummary}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

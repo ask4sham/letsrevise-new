@@ -394,8 +394,8 @@ const EditLessonPage: React.FC = () => {
   const [attachByTopicToast, setAttachByTopicToast] = useState<string | null>(null);
   const [attachingQuestionId, setAttachingQuestionId] = useState<string | null>(null);
   const [attachingTopicKey, setAttachingTopicKey] = useState<string | null>(null);
-  /** PR14: Reteach plan in sidebar (latest plan for lesson) */
-  const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number } | null>(null);
+  /** PR14/PR15: Reteach plan in sidebar (latest plan for lesson) */
+  const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number; studentSummary?: string } | null>(null);
   const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
   const [reteachPlanGenerateLoading, setReteachPlanGenerateLoading] = useState(false);
   /** PR8: diagram suggestions when lesson has no diagrams */
@@ -3071,12 +3071,15 @@ const EditLessonPage: React.FC = () => {
                         {!reteachPlan.pinned && (
                           <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b" }}>Plan available — open report to view or pin.</p>
                         )}
+                        <p style={{ margin: "0 0 8px 0", fontSize: 12, color: "#374151" }}>
+                          Student next steps: {reteachPlan.studentSummary?.trim() ? "✓" : "—"}
+                        </p>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           <Link
                             to={`/teacher/reports/lesson/${id}`}
                             style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
                           >
-                            Open full report
+                            Edit in report
                           </Link>
                           <button
                             type="button"
@@ -3115,7 +3118,7 @@ const EditLessonPage: React.FC = () => {
                         <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b" }}>No plan yet. Generate from report or here.</p>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           <Link to={`/teacher/reports/lesson/${id}`} style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
-                            Open full report
+                            Edit in report
                           </Link>
                           <button
                             type="button"
