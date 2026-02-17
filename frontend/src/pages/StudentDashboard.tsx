@@ -264,6 +264,13 @@ const StudentDashboard: React.FC = () => {
   const [lessons, setLessons] = useState<StudentLessonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+
+  // PR13.3: Recommended next (from misconception topics)
+  const [recLoading, setRecLoading] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [recTopics, setRecTopics] = useState<Array<{ topicKey: string; topic?: string; score: number; wrong: number; highConfidenceWrong: number }>>([]);
+  const [recLessons, setRecLessons] = useState<StudentLessonCard[]>([]);
+
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
     Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null; shamCoinPrice: number }>
   >({});
@@ -314,6 +321,61 @@ const StudentDashboard: React.FC = () => {
     loadPublishedLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // PR13.3: Fetch recommended next (student-facing)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setRecLessons([]);
+      setRecTopics([]);
+      return;
+    }
+    setRecLoading(true);
+    setRecError(null);
+    axios
+      .get(`${API_BASE}/api/reports/students/me/recommendations`, {
+        params: { days: 14, limit: 6 },
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const data = res?.data;
+        if (data?.ok) {
+          setRecTopics(Array.isArray(data.topics) ? data.topics : []);
+          const raw = Array.isArray(data.lessons) ? data.lessons : [];
+          setRecLessons(
+            raw.map((l: any) => ({
+              id: String(l.id ?? l._id ?? ""),
+              title: l.title ?? "Untitled",
+              description: l.description ?? "",
+              subject: l.subject ?? "Not set",
+              topic: l.topic ?? "Not set",
+              level: normalizeLevelLabel(l.level ?? "Not set"),
+              stage: l.level ?? "",
+              years: null,
+              teacherName: l.teacherName ?? "Teacher",
+              teacherId: "",
+              estimatedDuration: 0,
+              shamCoinPrice: 0,
+              views: 0,
+              averageRating: 0,
+              createdAt: "",
+              examBoardName: normalizeBoardName(l.examBoard ?? l.board ?? ""),
+              tier: "",
+              isFreePreview: Boolean(l.isFreePreview),
+              hasAccess: Boolean(l.hasAccess),
+              locked: Boolean(l.locked),
+              reason: l.reason,
+            }))
+          );
+        }
+      })
+      .catch(() => {
+        setRecError("Failed to load recommendations.");
+        setRecLessons([]);
+        setRecTopics([]);
+      })
+      .finally(() => setRecLoading(false));
+  }, [user]);
 
   // Batch-fetch lesson metadata for purchased lessons (no N+1)
   useEffect(() => {
@@ -1057,6 +1119,136 @@ const StudentDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* PR13.3: Recommended next (from misconception topics) */}
+        <div
+          style={{
+            marginBottom: 32,
+            paddingBottom: 24,
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          <h2 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1.5rem" }}>Recommended next</h2>
+          <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: "0.95rem" }}>Based on your recent attempts.</p>
+          {recLoading && <p style={{ color: "#6b7280", margin: 0 }}>Loading recommendations…</p>}
+          {recError && <p style={{ color: "#dc2626", margin: 0 }}>{recError}</p>}
+          {!recLoading && !recError && recLessons.length === 0 && recTopics.length === 0 && (
+            <p style={{ color: "#6b7280", margin: 0 }}>
+              Answer a few practice questions to get personalised recommendations.
+            </p>
+          )}
+          {!recLoading && !recError && (recTopics.length > 0 || recLessons.length > 0) && (
+            <>
+              {recTopics.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                  {recTopics.slice(0, 8).map((t) => (
+                    <span
+                      key={t.topicKey}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 20,
+                        background: "#fef3c7",
+                        color: "#92400e",
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {t.topic ?? t.topicKey}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {recLessons.length > 0 ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                    gap: "25px",
+                  }}
+                >
+                  {recLessons.map((lesson) => {
+                    return (
+                      <div
+                        key={lesson.id}
+                        onClick={() => navigate(`/lesson/${lesson.id}`)}
+                        style={{
+                          background: "white",
+                          borderRadius: "12px",
+                          overflow: "hidden",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          height: "100%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                            padding: "20px",
+                            color: "white",
+                          }}
+                        >
+                          <h3 style={{ margin: 0, fontSize: "1.25rem" }}>{lesson.title}</h3>
+                          <p style={{ margin: "5px 0 0 0", opacity: 0.9, fontSize: "0.9rem" }}>By {lesson.teacherName}</p>
+                        </div>
+                        <div style={{ padding: "20px", flexGrow: 1 }}>
+                          <div style={{ marginBottom: "12px" }}>
+                            <LessonAccessBadge
+                              hasAccess={lesson.hasAccess}
+                              locked={lesson.locked}
+                              reason={lesson.reason}
+                              isFreePreview={lesson.isFreePreview}
+                            />
+                          </div>
+                          {lesson.description?.trim() ? (
+                            <p
+                              style={{
+                                color: "#666",
+                                lineHeight: 1.5,
+                                marginBottom: "15px",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {lesson.description}
+                            </p>
+                          ) : null}
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                            <span
+                              style={{
+                                padding: "4px 10px",
+                                background: "#e2e8f0",
+                                borderRadius: "20px",
+                                fontSize: "0.8rem",
+                                color: "#4a5568",
+                              }}
+                            >
+                              {lesson.subject}
+                            </span>
+                            <span
+                              style={{
+                                padding: "4px 10px",
+                                background: "#bee3f8",
+                                borderRadius: "20px",
+                                fontSize: "0.8rem",
+                                color: "#2c5282",
+                              }}
+                            >
+                              {lesson.topic}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/* Results Count */}
