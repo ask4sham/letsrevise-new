@@ -388,6 +388,105 @@ router.get("/teacher/attempts-summary", auth, async (req, res) => {
 });
 
 /**
+ * PR18: GET /api/reports/teacher/needs-attention?days=7&limit=20
+ * Teacher (or admin) sees lessons ranked by misconception severity (high-conf wrong, wrong, attempts).
+ */
+router.get("/teacher/needs-attention", auth, async (req, res) => {
+  try {
+    if (!isTeacherOrAdmin(req.user)) {
+      return res.status(403).json({ error: "Teacher or admin only" });
+    }
+    const teacherId = req.user._id;
+    let days = parseInt(String(req.query.days || "7"), 10);
+    if (!Number.isFinite(days) || days < 1) days = 7;
+    if (days > 30) days = 30;
+    let limit = parseInt(String(req.query.limit || "20"), 10);
+    if (!Number.isFinite(limit) || limit < 1) limit = 20;
+    if (limit > 50) limit = 50;
+
+    const lessonIds = await Lesson.find({ teacherId }).select("_id").lean();
+    const ids = lessonIds.map((l) => l._id);
+    if (ids.length === 0) {
+      return res.json({ ok: true, days, items: [] });
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const pipeline = [
+      {
+        $match: {
+          lessonId: { $in: ids },
+          source: "practice",
+          createdAt: { $gte: since },
+        },
+      },
+      {
+        $group: {
+          _id: "$lessonId",
+          attempts: { $sum: 1 },
+          uniqueStudents: { $addToSet: "$userId" },
+          wrong: { $sum: { $cond: [{ $eq: ["$isCorrect", false] }, 1, 0] } },
+          correct: { $sum: { $cond: [{ $eq: ["$isCorrect", true] }, 1, 0] } },
+          highConfidenceWrong: {
+            $sum: { $cond: [{ $and: [{ $eq: ["$isCorrect", false] }, { $eq: ["$confidence", 3] }] }, 1, 0] },
+          },
+        },
+      },
+      { $sort: { highConfidenceWrong: -1, wrong: -1, attempts: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "lessons",
+          localField: "_id",
+          foreignField: "_id",
+          as: "lesson",
+          pipeline: [{ $project: { title: 1, topic: 1, tier: 1, board: 1, status: 1, isPublished: 1, pages: 1, examQuestions: 1, reviewedAt: 1 } }],
+        },
+      },
+      { $unwind: { path: "$lesson", preserveNullAndEmptyArrays: true } },
+    ];
+    const agg = await PracticeAttempt.aggregate(pipeline);
+    const lessonIdsFromAgg = agg.map((r) => r._id);
+    const lessonsForReadiness = await Lesson.find({ _id: { $in: lessonIdsFromAgg } })
+      .select("title topic tier board status isPublished pages examQuestions reviewedAt")
+      .lean();
+    const readinessByLessonId = new Map();
+    lessonsForReadiness.forEach((l) => {
+      const r = computeLessonReadiness(l);
+      readinessByLessonId.set(String(l._id), r);
+    });
+
+    const items = agg.map((r) => {
+      const lesson = r.lesson || {};
+      const readiness = readinessByLessonId.get(String(r._id)) || { status: "DRAFT", signals: {} };
+      const total = r.wrong + r.correct;
+      const accuracy = total > 0 ? r.correct / total : 0;
+      return {
+        lessonId: String(r._id),
+        title: lesson.title ?? "—",
+        topic: lesson.topic ?? "",
+        tier: lesson.tier ?? "",
+        examBoard: lesson.board ?? "",
+        status: lesson.status ?? "draft",
+        readiness: { status: readiness.status, signals: readiness.signals },
+        attempts: r.attempts,
+        uniqueStudents: Array.isArray(r.uniqueStudents) ? r.uniqueStudents.length : 0,
+        accuracy: Math.round(accuracy * 100) / 100,
+        highConfidenceWrong: r.highConfidenceWrong,
+        wrong: r.wrong,
+        correct: r.correct,
+      };
+    });
+
+    return res.json({ ok: true, days, items });
+  } catch (err) {
+    console.error("GET teacher/needs-attention error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
  * PR13: GET /api/reports/lessons/:lessonId/question-insights?days=7&limit=10
  * Auth required. Lesson owner or admin only. Practice-only (questionId present).
  * Returns top wrong questions (misconception-first) + topic hot-spots.

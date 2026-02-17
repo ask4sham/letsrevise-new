@@ -46,6 +46,7 @@ import ClassroomModePage from "./pages/ClassroomModePage";
 import BiologyReadinessReportPage from "./pages/BiologyReadinessReportPage";
 import LessonAttemptReportPage from "./pages/LessonAttemptReportPage";
 import TeacherAttemptsSummaryPage from "./pages/TeacherAttemptsSummaryPage";
+import TeacherNeedsAttentionPage from "./pages/TeacherNeedsAttentionPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 
 // ✅ Settings page (new)
@@ -385,6 +386,15 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherAttemptsSummaryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/reports/needs-attention"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherNeedsAttentionPage />
               </ProtectedRoute>
             }
           />

@@ -900,7 +900,14 @@ const TeacherDashboard: React.FC = () => {
                 to="/teacher/reports/attempts"
                 style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
               >
-                Practice monitoring →
+                Practice monitoring
+              </Link>
+              {" · "}
+              <Link
+                to="/teacher/reports/needs-attention"
+                style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
+              >
+                Needs attention →
               </Link>
               {/* PR5: Collapsible "Topics not yet covered" */}
               {coverage.uncoveredTopics.length > 0 && (
