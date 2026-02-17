@@ -711,6 +711,8 @@ function CheckpointShortBlock({
 }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
+  /** PR12.2: only log short attempt when student self-marks; null = not yet marked */
+  const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
 
   const hasAnswer = answer.trim() !== "";
 
@@ -738,12 +740,7 @@ function CheckpointShortBlock({
           <button
             type="button"
             disabled={!hasAnswer}
-            onClick={() => {
-              if (lessonId) {
-                logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: false });
-              }
-              setChecked(true);
-            }}
+            onClick={() => setChecked(true)}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -777,6 +774,37 @@ function CheckpointShortBlock({
                     {block.correctAnswer != null ? String(block.correctAnswer).trim() : "—"}
                   </div>
                 </div>
+                {selfMarked === null ? (
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (lessonId) {
+                          logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: true });
+                        }
+                        setSelfMarked(true);
+                      }}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "rgba(34,197,94,0.1)", color: "#15803d", cursor: "pointer", fontWeight: 700 }}
+                    >
+                      I was correct
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (lessonId) {
+                          logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: false });
+                        }
+                        setSelfMarked(false);
+                      }}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #dc2626", background: "rgba(220,38,38,0.1)", color: "#b91c1c", cursor: "pointer", fontWeight: 700 }}
+                    >
+                      I was incorrect
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
+                )}
                 {block.explanation ? (
                   <div
                     style={{
@@ -807,6 +835,7 @@ function CheckpointShortBlock({
               onClick={() => {
                 setAnswer("");
                 setChecked(false);
+                setSelfMarked(null);
               }}
               style={{
                 marginTop: 12,
@@ -937,6 +966,8 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
 function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
+  /** PR12.2: log only when student self-marks */
+  const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
   const hasAnswer = answer.trim() !== "";
 
   return (
@@ -963,12 +994,7 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
           <button
             type="button"
             disabled={!hasAnswer}
-            onClick={() => {
-              if (lessonId && q.id) {
-                logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "short", answerText: answer.trim(), isCorrect: false });
-              }
-              setChecked(true);
-            }}
+            onClick={() => setChecked(true)}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -991,6 +1017,37 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
                 {q.correctAnswer != null ? String(q.correctAnswer).trim() : "—"}
               </div>
             </div>
+            {selfMarked === null ? (
+              <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (lessonId && q.id) {
+                      logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "short", answerText: answer.trim(), isCorrect: true });
+                    }
+                    setSelfMarked(true);
+                  }}
+                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "rgba(34,197,94,0.1)", color: "#15803d", cursor: "pointer", fontWeight: 700 }}
+                >
+                  I was correct
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (lessonId && q.id) {
+                      logAttempt({ lessonId, source: "practice", questionId: q.id, questionType: "short", answerText: answer.trim(), isCorrect: false });
+                    }
+                    setSelfMarked(false);
+                  }}
+                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #dc2626", background: "rgba(220,38,38,0.1)", color: "#b91c1c", cursor: "pointer", fontWeight: 700 }}
+                >
+                  I was incorrect
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
+            )}
             {q.explanation ? (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
                 <strong style={{ color: "#374151" }}>Explanation:</strong>
@@ -999,7 +1056,7 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
             ) : null}
             <button
               type="button"
-              onClick={() => { setAnswer(""); setChecked(false); }}
+              onClick={() => { setAnswer(""); setChecked(false); setSelfMarked(null); }}
               style={{
                 marginTop: 12,
                 padding: "8px 14px",
