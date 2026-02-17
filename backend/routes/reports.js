@@ -849,6 +849,150 @@ router.post("/lessons/:lessonId/one-click-fix", auth, async (req, res) => {
 });
 
 /**
+ * PR17: POST /api/reports/lessons/:lessonId/one-click-fix-bulk
+ * Bulk: attach questions for top N hotspot topics + single plan regen. Owner or admin only.
+ * Body: { days?, topicKeys?, attachByTopic?, attachLimitPerTopic?, regeneratePlan?, planLimit? }
+ */
+router.post("/lessons/:lessonId/one-click-fix-bulk", auth, async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    if (requireLessonReportAccess(req, res, lessonId) !== true) return;
+    const lesson = await Lesson.findById(lessonId)
+      .select("teacherId topic board tier subject level status isPublished organisationId examQuestions")
+      .lean();
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+    const ownerId = getLessonOwnerId(lesson);
+    const userId = String(req.user._id);
+    if (ownerId !== userId && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Not the lesson owner" });
+    }
+
+    let days = parseInt(String(req.body?.days ?? "7"), 10);
+    if (!Number.isFinite(days) || days < 1) days = 7;
+    if (days > 30) days = 30;
+    const attachByTopic = req.body?.attachByTopic !== false;
+    let attachLimitPerTopic = parseInt(String(req.body?.attachLimitPerTopic ?? "10"), 10);
+    if (!Number.isFinite(attachLimitPerTopic) || attachLimitPerTopic < 1) attachLimitPerTopic = 10;
+    if (attachLimitPerTopic > 20) attachLimitPerTopic = 20;
+    const regeneratePlan = req.body?.regeneratePlan !== false;
+    let planLimit = parseInt(String(req.body?.planLimit ?? "10"), 10);
+    if (!Number.isFinite(planLimit) || planLimit < 1) planLimit = 10;
+    if (planLimit > 20) planLimit = 20;
+    let maxTopics = parseInt(String(req.body?.maxTopics ?? "3"), 10);
+    if (!Number.isFinite(maxTopics) || maxTopics < 1) maxTopics = 3;
+    if (maxTopics > 5) maxTopics = 5;
+
+    let topicKeys = [];
+    if (req.body?.topicKeys != null && Array.isArray(req.body.topicKeys) && req.body.topicKeys.length > 0) {
+      for (const raw of req.body.topicKeys) {
+        const k = String(raw).trim().toLowerCase();
+        if (!k) continue;
+        const found = findTopicByKey(k);
+        if (!found) {
+          return res.status(400).json({ error: "Invalid topicKey", message: `topicKey "${k}" is not in the Biology taxonomy.` });
+        }
+        topicKeys.push(found.key);
+      }
+      topicKeys = topicKeys.slice(0, maxTopics);
+    } else {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const lessonOid = new mongoose.Types.ObjectId(lessonId);
+      const { topics: hotspotTopics } = await getQuestionInsightsForLesson(lessonOid, since, 20);
+      for (let i = 0; i < Math.min(maxTopics, hotspotTopics.length); i++) {
+        const t = hotspotTopics[i];
+        const k = (t.topicKey ?? "").trim().toLowerCase();
+        if (!k || k === "(unknown)") continue;
+        const found = findTopicByKey(k);
+        if (found) topicKeys.push(found.key);
+      }
+    }
+
+    const topicsPayload = [];
+    let totalRequested = 0;
+    let totalAdded = 0;
+    const allAddedIds = new Set();
+
+    if (attachByTopic && topicKeys.length > 0) {
+      for (const topicKey of topicKeys) {
+        try {
+          const result = await attachExamQuestionsByTopic(lesson, { topicKey, limit: attachLimitPerTopic });
+          const addedIds = result.addedIds || [];
+          totalRequested += result.requested;
+          totalAdded += result.added;
+          addedIds.forEach((id) => allAddedIds.add(id));
+          topicsPayload.push({
+            topicKey: result.topicKey,
+            topic: result.topic ?? findTopicByKey(result.topicKey)?.topic ?? result.topicKey,
+            requested: result.requested,
+            added: result.added,
+            addedIds,
+          });
+          if (result.added > 0) {
+            const freshLesson = await Lesson.findById(lessonId).select("examQuestions").lean();
+            if (freshLesson) Object.assign(lesson, freshLesson);
+          }
+        } catch (attachErr) {
+          if (attachErr.code === "INVALID_TOPIC_KEY" || attachErr.code === "INVALID_TOPIC") {
+            return res.status(400).json({ error: attachErr.code === "INVALID_TOPIC_KEY" ? "Invalid topicKey" : "Invalid topic", message: attachErr.message });
+          }
+          throw attachErr;
+        }
+      }
+    }
+
+    let plan = { status: "SKIPPED", id: null, pinned: false, updatedAt: null, cached: false };
+    if (regeneratePlan) {
+      const planResult = await generateReteachPlanInternal(lessonId, lesson, req.user._id, { days, limit: planLimit });
+      if (planResult?.error === "NOT_CONFIGURED") {
+        plan = { ...plan, status: "NOT_CONFIGURED" };
+      } else if (planResult?.error === "RATE_LIMIT") {
+        plan = { ...plan, status: "RATE_LIMIT" };
+      } else if (planResult?.planDoc) {
+        const p = planResult.planDoc;
+        plan = {
+          status: planResult.cached ? "CACHED" : "UPDATED",
+          id: p._id ? String(p._id) : null,
+          pinned: !!p.pinned,
+          updatedAt: p.updatedAt != null && typeof p.updatedAt.toISOString === "function" ? p.updatedAt.toISOString() : (p.editedAt || p.generatedAt) ? new Date(p.editedAt || p.generatedAt).toISOString() : null,
+          cached: !!planResult.cached,
+        };
+      } else {
+        plan = { ...plan, status: "ERROR" };
+      }
+    }
+
+    const responseBody = {
+      ok: true,
+      lessonId,
+      days,
+      topics: topicsPayload,
+      attach: { requested: totalRequested, added: totalAdded, addedIds: [...allAddedIds] },
+      plan,
+    };
+    Event.create({
+      type: "ONE_CLICK_FIX_BULK",
+      userId: req.user._id,
+      lessonId: lesson._id,
+      meta: {
+        days,
+        topicKeys,
+        attachLimitPerTopic,
+        totalAttachAdded: totalAdded,
+        planStatus: plan.status,
+        planCached: !!plan.cached,
+      },
+    }).catch(() => {});
+    return res.status(200).json(responseBody);
+  } catch (err) {
+    console.error("POST one-click-fix-bulk error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
  * PR13.3: GET /api/reports/students/me/recommendations?days=14&limit=6
  * Auth required. Returns for req.user. Student-facing: top struggle topics + recommended lessons.
  */

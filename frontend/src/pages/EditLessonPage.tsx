@@ -397,6 +397,9 @@ const EditLessonPage: React.FC = () => {
   /** PR16: One-click fix (attach + regenerate plan) loading and per-topic error */
   const [fixingTopicKey, setFixingTopicKey] = useState<string | null>(null);
   const [fixErrorByTopic, setFixErrorByTopic] = useState<Record<string, string>>({});
+  /** PR17: Bulk fix top hotspots loading + error */
+  const [bulkFixLoading, setBulkFixLoading] = useState(false);
+  const [bulkFixError, setBulkFixError] = useState<string | null>(null);
   /** PR14/PR15: Reteach plan in sidebar (latest plan for lesson) */
   const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number; studentSummary?: string } | null>(null);
   const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
@@ -2931,7 +2934,87 @@ const EditLessonPage: React.FC = () => {
                                 {d} days
                               </button>
                             ))}
+                            <button
+                              type="button"
+                              disabled={fixingTopicKey !== null || bulkFixLoading}
+                              onClick={async () => {
+                                if (!id) return;
+                                setBulkFixLoading(true);
+                                setBulkFixError(null);
+                                try {
+                                  const res = await api.post<{
+                                    ok: boolean;
+                                    lessonId: string;
+                                    days: number;
+                                    topics: Array<{ topicKey: string; topic?: string; requested: number; added: number; addedIds: string[] }>;
+                                    attach: { requested: number; added: number; addedIds: string[] };
+                                    plan: { status: string; id?: string | null; pinned?: boolean; updatedAt?: string | null; cached?: boolean };
+                                  }>(`/reports/lessons/${id}/one-click-fix-bulk`, {
+                                    days: insightsDays,
+                                    attachByTopic: true,
+                                    attachLimitPerTopic: 10,
+                                    regeneratePlan: true,
+                                    planLimit: 10,
+                                  });
+                                  const data = res?.data;
+                                  if (!data?.ok) {
+                                    setBulkFixError("Bulk fix failed");
+                                    return;
+                                  }
+                                  const addedIds = Array.isArray(data?.attach?.addedIds) ? data.attach.addedIds : [];
+                                  if (addedIds.length > 0) {
+                                    setAttachedExamQuestions((prev) => {
+                                      const existingIds = new Set(prev.map((q: any) => String(q?._id ?? q?.id ?? "")));
+                                      const next = [...prev];
+                                      for (const qid of addedIds) {
+                                        if (!existingIds.has(String(qid))) {
+                                          next.push({ _id: qid, question: "(attached)", marks: undefined });
+                                        }
+                                      }
+                                      return next;
+                                    });
+                                  }
+                                  const planStatus = data?.plan?.status || "SKIPPED";
+                                  let planMsg = "plan updated";
+                                  if (planStatus === "CACHED") planMsg = "plan reused";
+                                  if (planStatus === "NOT_CONFIGURED") planMsg = "plan not generated (AI not configured)";
+                                  if (planStatus === "RATE_LIMIT") planMsg = "plan not generated (rate limited)";
+                                  if (planStatus === "ERROR") planMsg = "plan not generated";
+                                  if (planStatus === "SKIPPED") planMsg = "plan skipped";
+                                  const added = data?.attach?.added ?? 0;
+                                  setAttachByTopicToast(`Done: +${added} question${added !== 1 ? "s" : ""} · ${planMsg}`);
+                                  setTimeout(() => setAttachByTopicToast(null), 4000);
+                                  try {
+                                    const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                    setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                  } catch {}
+                                  try {
+                                    const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
+                                    if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
+                                  } catch {}
+                                } catch (e: any) {
+                                  setBulkFixError(e?.response?.data?.error || e?.response?.data?.message || "Failed to run bulk fix.");
+                                } finally {
+                                  setBulkFixLoading(false);
+                                }
+                              }}
+                              style={{
+                                padding: "6px 12px",
+                                borderRadius: 6,
+                                border: "2px solid #059669",
+                                background: bulkFixLoading || fixingTopicKey ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                cursor: bulkFixLoading || fixingTopicKey ? "not-allowed" : "pointer",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "#047857",
+                              }}
+                            >
+                              {bulkFixLoading ? "Fixing…" : "Fix top hotspots (3)"}
+                            </button>
                           </div>
+                          {bulkFixError && (
+                            <div style={{ marginBottom: 8, fontSize: 12, color: "#dc2626" }}>{bulkFixError}</div>
+                          )}
                           {misconceptionItems.length > 0 && (
                             <div style={{ marginBottom: 12 }}>
                               <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 6, color: "#374151" }}>Top misconceptions</div>

@@ -78,6 +78,7 @@ export default function LessonAttemptReportPage() {
   const [planError, setPlanError] = useState<string | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [oneClickFixLoading, setOneClickFixLoading] = useState(false);
+  const [bulkFixLoading, setBulkFixLoading] = useState(false);
   const [planEditContent, setPlanEditContent] = useState("");
   const [planEditing, setPlanEditing] = useState(false);
   const [studentSummaryEdit, setStudentSummaryEdit] = useState("");
@@ -413,6 +414,45 @@ export default function LessonAttemptReportPage() {
                       {oneClickFixLoading ? "Running…" : "Attach top 10 from worst topic + regenerate"}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    disabled={bulkFixLoading || generateLoading || oneClickFixLoading}
+                    onClick={async () => {
+                      if (!id) return;
+                      setBulkFixLoading(true);
+                      setPlanError(null);
+                      try {
+                        const res = await api.post<{ ok: boolean; plan?: ReteachPlanResponse["plan"] }>(
+                          `/reports/lessons/${id}/one-click-fix-bulk`,
+                          { days, attachByTopic: true, attachLimitPerTopic: 10, regeneratePlan: true, planLimit: 10 }
+                        );
+                        if (res?.data?.ok) {
+                          const planRes = await api.get<ReteachPlanResponse>(`/reports/lessons/${id}/reteach-plan`, { params: { days } });
+                          if (planRes?.data?.ok && planRes.data.plan) {
+                            setPlan(planRes.data.plan);
+                            setPlanEditContent(planRes.data.plan.content);
+                            setStudentSummaryEdit(planRes.data.plan.studentSummary ?? "");
+                          }
+                        }
+                      } catch (e: any) {
+                        setPlanError(e?.response?.data?.error || "Bulk fix failed.");
+                      } finally {
+                        setBulkFixLoading(false);
+                      }
+                    }}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "2px solid #0d9488",
+                      background: bulkFixLoading ? "#e5e7eb" : "rgba(13,148,136,0.12)",
+                      cursor: bulkFixLoading ? "not-allowed" : "pointer",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      color: "#0f766e",
+                    }}
+                  >
+                    {bulkFixLoading ? "Running…" : "Fix top hotspots + regenerate"}
+                  </button>
                 </div>
               </>
             );
