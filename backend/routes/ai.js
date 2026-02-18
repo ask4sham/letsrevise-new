@@ -123,7 +123,7 @@ const LESSON_DRAFT_SCHEMA = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["type", "content"],
+              required: ["type", "content", "prompt"],
               properties: {
                 type: {
                   type: "string",
