@@ -105,6 +105,8 @@ interface Lesson {
   isFreePreview?: boolean;
   isPublished: boolean;
   status?: string;
+  /** GCSE tier: foundation | higher (PR21 diagram defaults) */
+  tier?: string;
   views: number;
   averageRating: number;
   totalRatings: number;
@@ -709,6 +711,7 @@ const EditLessonPage: React.FC = () => {
         readiness: data.readiness ?? undefined,
         reviewedAt: data.reviewedAt ?? undefined,
         reviewedBy: data.reviewedBy ?? undefined,
+        tier: typeof data.tier === "string" ? data.tier : undefined,
       };
 
       if (Array.isArray(mapped.pages)) {
@@ -4180,6 +4183,42 @@ const EditLessonPage: React.FC = () => {
                                   <option value="step">Step-by-step</option>
                                 </select>
                               </label>
+                              {/* PR21: Apply tier defaults — recovery path for mode/steps */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const annotations = Array.isArray(d.annotations) ? [...d.annotations] : [];
+                                  const isHigher = (lesson?.tier ?? "").toLowerCase() === "higher";
+                                  if (isHigher) {
+                                    const existing = Array.isArray(d.steps) ? d.steps : [];
+                                    const steps = [
+                                      existing[0] ?? { id: newId(), title: "Step 1", showAnnotationIds: [] as string[] },
+                                      existing[1] ?? { id: newId(), title: "Step 2", showAnnotationIds: [] as string[] },
+                                      existing[2] ?? { id: newId(), title: "Step 3", showAnnotationIds: [] as string[] },
+                                    ].map((s) => ({
+                                      id: typeof s.id === "string" ? s.id : newId(),
+                                      title: typeof s.title === "string" ? s.title : "Step",
+                                      showAnnotationIds: Array.isArray(s.showAnnotationIds) ? s.showAnnotationIds : [],
+                                    }));
+                                    updateBlock(currentPage!.pageId, idx, { mode: "step", annotations, steps });
+                                  } else {
+                                    updateBlock(currentPage!.pageId, idx, { mode: "annotated", annotations, steps: [] });
+                                  }
+                                }}
+                                style={{
+                                  marginTop: 8,
+                                  padding: "6px 12px",
+                                  borderRadius: 8,
+                                  border: "2px solid #94a3b8",
+                                  background: "#f1f5f9",
+                                  color: "#475569",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Apply tier defaults
+                              </button>
                               {(d.mode === "annotated" || d.mode === "step") && (
                                 <>
                                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Annotations</div>

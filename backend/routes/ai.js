@@ -3,6 +3,7 @@ const express = require("express");
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
+const mongoose = require("mongoose");
 const router = express.Router();
 const auth = require("../middleware/auth");
 
@@ -987,23 +988,21 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
         if (visual && pages.length > 0) {
           const targetPageIndex = pages.length > 1 ? 1 : 0;
           const target = pages[targetPageIndex];
-          // PR11: mode "annotated" by default; higher tier gets placeholder steps (no labels yet)
-          const makeStepId = () => `step_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-          let steps;
-          if (tier === "higher") {
-            steps = [
-              { id: makeStepId(), title: "Step 1", showAnnotationIds: [] },
-              { id: makeStepId(), title: "Step 2", showAnnotationIds: [] },
-              { id: makeStepId(), title: "Step 3", showAnnotationIds: [] },
-            ];
-          }
+          // PR21: Foundation → annotated, no steps; Higher → step mode with 3 template steps (no labels)
+          const isHigher = tier === "higher";
           const diagramBlock = {
             type: "diagram",
             visualId: visual._id,
             caption: "",
-            mode: "annotated",
+            mode: isHigher ? "step" : "annotated",
             annotations: [],
-            ...(steps ? { steps } : {}),
+            steps: isHigher
+              ? [
+                  { id: new mongoose.Types.ObjectId().toString(), title: "Step 1", showAnnotationIds: [] },
+                  { id: new mongoose.Types.ObjectId().toString(), title: "Step 2", showAnnotationIds: [] },
+                  { id: new mongoose.Types.ObjectId().toString(), title: "Step 3", showAnnotationIds: [] },
+                ]
+              : [],
           };
           const blocks = Array.isArray(target.blocks) ? [...target.blocks] : [];
           blocks.unshift(diagramBlock);

@@ -301,4 +301,36 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
     expect(lesson.topic).toBe("Monoclonal antibodies");
     expect(lesson.tier).toBe("higher");
   });
+
+  test("PR21: Foundation topic with diagram mapping → diagram block mode annotated, steps.length === 0", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey: "photosynthesis", tier: "foundation" });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    const diagramBlocks = lesson.pages.flatMap((p) =>
+      (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
+    );
+    expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
+    expect(diagramBlocks[0].mode).toBe("annotated");
+    expect(Array.isArray(diagramBlocks[0].steps) ? diagramBlocks[0].steps.length : 0).toBe(0);
+  });
+
+  test("PR21: Higher topic with diagram mapping → diagram block mode step, steps.length === 3", async () => {
+    const res = await request(app)
+      .post("/api/ai/lesson-factory/aqa-gcse-biology")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey: "photosynthesis", tier: "higher" });
+
+    expect(res.status).toBe(200);
+    const lesson = await Lesson.findById(res.body.lessonId).lean();
+    const diagramBlocks = lesson.pages.flatMap((p) =>
+      (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
+    );
+    expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
+    expect(diagramBlocks[0].mode).toBe("step");
+    expect(Array.isArray(diagramBlocks[0].steps) ? diagramBlocks[0].steps.length : 0).toBe(3);
+  });
 });
