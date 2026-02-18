@@ -755,12 +755,16 @@ const EditLessonPage: React.FC = () => {
                     showAnnotationIds: Array.isArray(s?.showAnnotationIds) ? s.showAnnotationIds.map((id: any) => String(id)) : [],
                   })) : [];
                   return {
+                    ...b,
                     type: "diagram" as const,
                     visualId: b.visualId != null ? String(b.visualId) : "",
                     caption: safeStr(b.caption, ""),
                     mode,
                     annotations,
                     steps,
+                    imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
+                    imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
+                    alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
                   };
                 }
                 return {
@@ -1979,12 +1983,16 @@ const EditLessonPage: React.FC = () => {
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
             const steps = Array.isArray(b.steps) ? b.steps : [];
             return {
+              ...b,
               type: "diagram",
               visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
               caption: b.caption != null ? String(b.caption).trim() : undefined,
               mode,
               annotations: annotations.length ? annotations : undefined,
               steps: steps.length ? steps : undefined,
+              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
+              imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
+              alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
             };
           }
           return {
@@ -2099,12 +2107,16 @@ const EditLessonPage: React.FC = () => {
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
             const steps = Array.isArray(b.steps) ? b.steps : [];
             return {
+              ...b,
               type: "diagram",
               visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
               caption: b.caption != null ? String(b.caption).trim() : undefined,
               mode,
               annotations: annotations.length ? annotations : undefined,
               steps: steps.length ? steps : undefined,
+              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
+              imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
+              alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
             };
           }
           return {
@@ -3935,6 +3947,7 @@ const EditLessonPage: React.FC = () => {
                                 Edit diagram
                               </button>
                               {(() => {
+                                console.log("DIAGRAM BLOCK IN EDIT STATE", d);
                                 const diagramSrc = d.imageUrl ? makeAbsoluteAssetUrl(d.imageUrl) : null;
                                 const diagramAlt = d.alt ?? (d.caption || "Diagram");
                                 return (
