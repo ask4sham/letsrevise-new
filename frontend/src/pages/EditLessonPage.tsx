@@ -3949,7 +3949,11 @@ const EditLessonPage: React.FC = () => {
                               >
                                 Edit diagram
                               </button>
-                              {(d.source === "ai_fallback" && Array.isArray(d.elements) && d.elements.length > 0) ? (
+                              {(() => {
+                                const diagramSrc = d.imageUrl ? makeAbsoluteAssetUrl(d.imageUrl) : null;
+                                const diagramAlt = d.alt ?? (d.caption || "Diagram");
+                                return (
+                                (d.source === "ai_fallback" && Array.isArray(d.elements) && d.elements.length > 0) ? (
                                 <div
                                   ref={(el) => {
                                     const diagramKey = `${currentPage!.pageId}-${idx}-fb`;
@@ -4249,32 +4253,31 @@ const EditLessonPage: React.FC = () => {
                                   })()}
                                   {(!d.visualId || (d.mode !== "annotated" && d.mode !== "step")) && (
                                     <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
-                                      {d.visualId ? <span>Diagram: {String(d.visualId)}</span> : <span>No diagram selected</span>}
+                                      {d.visualId ? <span>Diagram: {String(d.visualId)}</span> : diagramSrc ? (
+                                        <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 720, margin: "0 auto" }}>
+                                          <img src={diagramSrc} alt={diagramAlt} style={{ width: "100%", height: "auto", borderRadius: 12 }} />
+                                        </div>
+                                      ) : (
+                                        <span>No diagram selected</span>
+                                      )}
                                     </div>
                                   )}
                                 </>
-                              ) : d.imageUrl ? (
-                                (() => {
-                                  const baseOrigin = (api as any)?.defaults?.baseURL
-                                    ? String((api as any).defaults.baseURL).replace(/\/api\/?$/i, "").replace(/\/+$/, "")
-                                    : window.location.origin;
-                                  const imgSrc = d.imageUrl.startsWith("http") ? d.imageUrl : baseOrigin + (d.imageUrl.startsWith("/") ? d.imageUrl : "/" + d.imageUrl);
-                                  return (
-                                    <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb", maxWidth: 520 }}>
-                                      <img
-                                        src={imgSrc}
-                                        alt={d.alt ?? d.caption ?? "Diagram"}
-                                        style={{ width: "100%", height: "auto", display: "block" }}
-                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                                      />
-                                    </div>
-                                  );
-                                })()
+                              ) : diagramSrc ? (
+                                <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 520 }}>
+                                  <img
+                                    src={diagramSrc}
+                                    alt={diagramAlt}
+                                    style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12 }}
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                  />
+                                </div>
                               ) : (
                                 <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
                                   <span>No diagram selected</span>
                                 </div>
-                              )}
+                              ));
+                            })()}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption (optional)</div>
                                 <input
