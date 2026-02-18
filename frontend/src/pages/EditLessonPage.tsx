@@ -348,6 +348,7 @@ const EditLessonPage: React.FC = () => {
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
+  const [diagramRegenerating, setDiagramRegenerating] = useState(false);
   const [visualsList, setVisualsList] = useState<Array<{ _id: string; conceptKey: string; topic?: string }>>([]);
 
   const [attachedExamQuestions, setAttachedExamQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string; topic?: string }>>([]);
@@ -4019,18 +4020,18 @@ const EditLessonPage: React.FC = () => {
                                     </div>
                                   ))}
                                 </div>
-                              ) : d.visualId ? (
+                              ) : (d.visualId || d.imageUrl) ? (
                                 <>
-                                  {/* PR11.1: diagram preview canvas (when annotated/step) */}
+                                  {/* PR11.1: diagram preview canvas (annotated/step) — works for both visualId and imageUrl */}
                                   {(d.mode === "annotated" || d.mode === "step") && (() => {
                                     const diagramKey = `${currentPage!.pageId}-${idx}`;
-                                    const rawUrl = diagramPreviewUrls[String(d.visualId)] ?? "";
+                                    const rawUrl = d.visualId ? (diagramPreviewUrls[String(d.visualId)] ?? "") : "";
                                     const baseOrigin = (api as any)?.defaults?.baseURL
                                       ? String((api as any).defaults.baseURL).replace(/\/api\/?$/i, "").replace(/\/+$/, "")
                                       : window.location.origin;
-                                    const diagramUrl = rawUrl
-                                      ? (rawUrl.startsWith("http") ? rawUrl : baseOrigin + (rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl))
-                                      : "";
+                                    const diagramUrl = d.visualId
+                                      ? (rawUrl ? (rawUrl.startsWith("http") ? rawUrl : baseOrigin + (rawUrl.startsWith("/") ? rawUrl : "/" + rawUrl)) : "")
+                                      : (diagramSrc ?? "");
                                     return (
                                       <div style={{ marginTop: 8 }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
@@ -4248,7 +4249,7 @@ const EditLessonPage: React.FC = () => {
                                       </div>
                                     );
                                   })()}
-                                  {(!d.visualId || (d.mode !== "annotated" && d.mode !== "step")) && (
+                                  {((d.mode !== "annotated" && d.mode !== "step") || (!d.visualId && !d.imageUrl)) && (
                                     <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
                                       {d.visualId ? <span>Diagram: {String(d.visualId)}</span> : diagramSrc ? (
                                         <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 720, margin: "0 auto" }}>
@@ -4529,6 +4530,39 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 >
                                   Clear diagram
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={diagramRegenerating || !id}
+                                  onClick={async () => {
+                                    if (!id || !lesson?.pages || !currentPage) return;
+                                    const pageIndex = lesson.pages.findIndex((p) => p.pageId === currentPage.pageId);
+                                    if (pageIndex < 0) return;
+                                    setDiagramRegenerating(true);
+                                    try {
+                                      const { data } = await api.post<{ ok: boolean; lesson: typeof lesson; block?: unknown }>(
+                                        `ai/lessons/${id}/diagram-regenerate`,
+                                        { pageIndex, blockIndex: idx, kind: "animal-cell" }
+                                      );
+                                      if (data.ok && data.lesson) setLesson(data.lesson);
+                                    } catch (e) {
+                                      console.error("Regenerate diagram failed:", e);
+                                    } finally {
+                                      setDiagramRegenerating(false);
+                                    }
+                                  }}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(59,130,246,0.35)",
+                                    background: "rgba(59,130,246,0.08)",
+                                    color: "#1d4ed8",
+                                    cursor: diagramRegenerating ? "not-allowed" : "pointer",
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {diagramRegenerating ? "Regenerating…" : "Regenerate diagram (AI)"}
                                 </button>
                                 <button
                                   type="button"
