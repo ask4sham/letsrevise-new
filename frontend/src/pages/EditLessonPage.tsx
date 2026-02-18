@@ -443,6 +443,8 @@ const EditLessonPage: React.FC = () => {
   /** PR11.2: nudge step 1% | 2% | 5% */
   const [nudgeStepPct, setNudgeStepPct] = useState(2);
   const diagramRef = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Ref for "Edit diagram" scroll-into-view (teacher note + affordance) */
+  const diagramBlockContainerRef = useRef<Record<string, HTMLDivElement | null>>({});
   const draggingIdRef = useRef<string | null>(null);
   const draggingPageIdRef = useRef<string | null>(null);
   const draggingBlockIndexRef = useRef<number | null>(null);
@@ -3905,7 +3907,36 @@ const EditLessonPage: React.FC = () => {
                               </label>
                             </div>
                           ) : isDiagram && d ? (
-                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div
+                              ref={(el) => {
+                                const diagramKey = `${currentPage!.pageId}-${idx}`;
+                                diagramBlockContainerRef.current[diagramKey] = el;
+                              }}
+                              style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}
+                            >
+                              <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
+                                Check this diagram is correct. Edit if needed.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const diagramKey = `${currentPage!.pageId}-${idx}`;
+                                  diagramBlockContainerRef.current[diagramKey]?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }}
+                                style={{
+                                  alignSelf: "flex-start",
+                                  padding: "8px 14px",
+                                  borderRadius: 8,
+                                  border: "2px solid #2563eb",
+                                  background: "rgba(37,99,235,0.08)",
+                                  color: "#2563eb",
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Edit diagram
+                              </button>
                               {d.visualId ? (
                                 <>
                                   {/* PR11.1: diagram preview canvas (when annotated/step) */}
@@ -4362,7 +4393,7 @@ const EditLessonPage: React.FC = () => {
                                   ))}
                                 </>
                               )}
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                                 <button
                                   type="button"
                                   onClick={() => setDiagramPickerTarget({ pageId: currentPage!.pageId, blockIndex: idx })}
@@ -4376,6 +4407,25 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 >
                                   Replace diagram
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const diagramKey = `${currentPage!.pageId}-${idx}`;
+                                    diagramBlockContainerRef.current[diagramKey]?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  }}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid #64748b",
+                                    background: "#f1f5f9",
+                                    color: "#475569",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  Done
                                 </button>
                               </div>
                             </div>
