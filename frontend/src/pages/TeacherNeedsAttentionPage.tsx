@@ -53,9 +53,26 @@ export default function TeacherNeedsAttentionPage() {
   const [activeTab, setActiveTab] = useState<Tab>(() => (typeof window !== "undefined" && window.location?.hash === "#setup" ? "setup" : "misconceptions"));
   const [fixingLessonId, setFixingLessonId] = useState<string | null>(null);
   const [attachingLessonId, setAttachingLessonId] = useState<string | null>(null);
+  /** PR22: Make classroom-ready per row */
+  const [preparingLessonId, setPreparingLessonId] = useState<string | null>(null);
+  const [prepareErrorLessonId, setPrepareErrorLessonId] = useState<string | null>(null);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [toastClassroomLessonId, setToastClassroomLessonId] = useState<string | null>(null);
   const hasDefaultedToSetup = useRef(typeof window !== "undefined" && window.location?.hash === "#setup");
+
+  /** PR22: plan status → toast suffix */
+  const formatPlanStatus = (status: string): string => {
+    switch (status) {
+      case "UPDATED": return "· plan updated";
+      case "CACHED": return "· plan reused";
+      case "NOT_CONFIGURED": return "· plan not generated (AI not configured)";
+      case "RATE_LIMIT": return "· plan not generated (rate limited)";
+      case "ERROR": return "· plan not generated";
+      case "SKIPPED": return "· plan skipped";
+      default: return "· plan skipped";
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -147,6 +164,50 @@ export default function TeacherNeedsAttentionPage() {
       setTimeout(() => setToast(null), 3000);
     } finally {
       setAttachingLessonId(null);
+    }
+  };
+
+  /** PR22: Make classroom-ready (PR20 endpoint) per row */
+  const handleMakeClassroomReady = async (lessonId: string) => {
+    setPrepareErrorLessonId(null);
+    setPrepareError(null);
+    setPreparingLessonId(lessonId);
+    try {
+      const res = await api.post<{
+        ok: boolean;
+        attach?: { added: number };
+        plan?: { status: string };
+        readiness?: { status: string };
+      }>(`/reports/lessons/${lessonId}/make-classroom-ready`, {
+        days,
+        attachPractice: true,
+        attachLimit: 10,
+        ensureDiagram: true,
+        regeneratePlan: true,
+        planLimit: 10,
+        markReviewed: true,
+        forcePlan: false,
+      });
+      const d = res?.data;
+      if (!d?.ok) {
+        setPrepareErrorLessonId(lessonId);
+        setPrepareError("Request failed");
+        return;
+      }
+      const added = d?.attach?.added ?? 0;
+      const planStatus = d?.plan?.status ?? "SKIPPED";
+      let msg = `Done: +${added} practice ${formatPlanStatus(planStatus)}`;
+      if (d?.readiness?.status === "READY") msg += " · Ready";
+      setToast(msg);
+      setTimeout(() => setToast(null), 4000);
+      load();
+    } catch (e: any) {
+      const errMsg = e?.response?.data?.error || e?.response?.data?.message || "Failed to prepare lesson.";
+      setPrepareErrorLessonId(lessonId);
+      setPrepareError(errMsg);
+      setToast(null);
+    } finally {
+      setPreparingLessonId(null);
     }
   };
 
@@ -336,7 +397,24 @@ export default function TeacherNeedsAttentionPage() {
                                   </span>
                                 </td>
                                 <td style={thTdStyle}>
-                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                    <button
+                                      type="button"
+                                      disabled={preparingLessonId === row.lessonId}
+                                      onClick={() => handleMakeClassroomReady(row.lessonId)}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "2px solid #059669",
+                                        background: preparingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                        cursor: preparingLessonId === row.lessonId ? "not-allowed" : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#047857",
+                                      }}
+                                    >
+                                      {preparingLessonId === row.lessonId ? "Preparing…" : "Make classroom-ready"}
+                                    </button>
                                     <button
                                       type="button"
                                       disabled={fixingLessonId === row.lessonId}
@@ -344,8 +422,8 @@ export default function TeacherNeedsAttentionPage() {
                                       style={{
                                         padding: "6px 10px",
                                         borderRadius: 6,
-                                        border: "2px solid #059669",
-                                        background: fixingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                        border: "1px solid #059669",
+                                        background: fixingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.08)",
                                         cursor: fixingLessonId === row.lessonId ? "not-allowed" : "pointer",
                                         fontSize: 12,
                                         fontWeight: 600,
@@ -385,6 +463,9 @@ export default function TeacherNeedsAttentionPage() {
                                       Open editor
                                     </Link>
                                   </div>
+                                  {prepareErrorLessonId === row.lessonId && prepareError && (
+                                    <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>{prepareError}</div>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -448,23 +529,45 @@ export default function TeacherNeedsAttentionPage() {
                                   </span>
                                 </td>
                                 <td style={thTdStyle}>
-                                  <button
-                                    type="button"
-                                    disabled={attachingLessonId === row.lessonId}
-                                    onClick={() => handleAttachPractice(row.lessonId)}
-                                    style={{
-                                      padding: "6px 10px",
-                                      borderRadius: 6,
-                                      border: "2px solid #059669",
-                                      background: attachingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
-                                      cursor: attachingLessonId === row.lessonId ? "not-allowed" : "pointer",
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      color: "#047857",
-                                    }}
-                                  >
-                                    {attachingLessonId === row.lessonId ? "Attaching…" : "Attach practice (top 10)"}
-                                  </button>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                    <button
+                                      type="button"
+                                      disabled={preparingLessonId === row.lessonId}
+                                      onClick={() => handleMakeClassroomReady(row.lessonId)}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "2px solid #059669",
+                                        background: preparingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                        cursor: preparingLessonId === row.lessonId ? "not-allowed" : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#047857",
+                                      }}
+                                    >
+                                      {preparingLessonId === row.lessonId ? "Preparing…" : "Make classroom-ready"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={attachingLessonId === row.lessonId}
+                                      onClick={() => handleAttachPractice(row.lessonId)}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #059669",
+                                        background: attachingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.08)",
+                                        cursor: attachingLessonId === row.lessonId ? "not-allowed" : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#047857",
+                                      }}
+                                    >
+                                      {attachingLessonId === row.lessonId ? "Attaching…" : "Attach practice (top 10)"}
+                                    </button>
+                                  </div>
+                                  {prepareErrorLessonId === row.lessonId && prepareError && (
+                                    <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>{prepareError}</div>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -518,7 +621,24 @@ export default function TeacherNeedsAttentionPage() {
                                   </span>
                                 </td>
                                 <td style={thTdStyle}>
-                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                    <button
+                                      type="button"
+                                      disabled={preparingLessonId === row.lessonId}
+                                      onClick={() => handleMakeClassroomReady(row.lessonId)}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 6,
+                                        border: "2px solid #059669",
+                                        background: preparingLessonId === row.lessonId ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                        cursor: preparingLessonId === row.lessonId ? "not-allowed" : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#047857",
+                                      }}
+                                    >
+                                      {preparingLessonId === row.lessonId ? "Preparing…" : "Make classroom-ready"}
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => navigate(`/teacher/classroom/${row.lessonId}`)}
@@ -566,6 +686,9 @@ export default function TeacherNeedsAttentionPage() {
                                       Open report
                                     </Link>
                                   </div>
+                                  {prepareErrorLessonId === row.lessonId && prepareError && (
+                                    <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>{prepareError}</div>
+                                  )}
                                 </td>
                               </tr>
                             ))}
