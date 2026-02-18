@@ -1655,6 +1655,24 @@ const TeacherDashboard: React.FC = () => {
               📋 Create Questions
             </Link>
 
+            <Link
+              to="/teacher/reports/needs-attention"
+              style={{
+                padding: "12px 24px",
+                background: "transparent",
+                color: "#2563eb",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                border: "2px solid #2563eb",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              Needs Attention
+            </Link>
+
             <button
               onClick={handleViewAnalytics}
               style={{
