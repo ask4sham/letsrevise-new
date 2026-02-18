@@ -57,6 +57,9 @@ export default function TeacherNeedsAttentionPage() {
   const [preparingLessonId, setPreparingLessonId] = useState<string | null>(null);
   const [prepareErrorLessonId, setPrepareErrorLessonId] = useState<string | null>(null);
   const [prepareError, setPrepareError] = useState<string | null>(null);
+  /** PR22.1: Ready quick actions (Open Classroom + Copy student link) */
+  const [readyActionsLessonId, setReadyActionsLessonId] = useState<string | null>(null);
+  const [copyLinkFeedback, setCopyLinkFeedback] = useState<"copied" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [toastClassroomLessonId, setToastClassroomLessonId] = useState<string | null>(null);
   const hasDefaultedToSetup = useRef(typeof window !== "undefined" && window.location?.hash === "#setup");
@@ -73,6 +76,31 @@ export default function TeacherNeedsAttentionPage() {
       default: return "· plan skipped";
     }
   };
+
+  /** PR22.1: clipboard helper (same as PR20.1) */
+  function copyToClipboard(text: string): Promise<void> {
+    if (navigator?.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise<void>((resolve, reject) => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (!ok) return reject(new Error("copy failed"));
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +199,8 @@ export default function TeacherNeedsAttentionPage() {
   const handleMakeClassroomReady = async (lessonId: string) => {
     setPrepareErrorLessonId(null);
     setPrepareError(null);
+    setReadyActionsLessonId(null);
+    setCopyLinkFeedback(null);
     setPreparingLessonId(lessonId);
     try {
       const res = await api.post<{
@@ -197,7 +227,12 @@ export default function TeacherNeedsAttentionPage() {
       const added = d?.attach?.added ?? 0;
       const planStatus = d?.plan?.status ?? "SKIPPED";
       let msg = `Done: +${added} practice ${formatPlanStatus(planStatus)}`;
-      if (d?.readiness?.status === "READY") msg += " · Ready";
+      if (d?.readiness?.status === "READY") {
+        msg += " · Ready";
+        setReadyActionsLessonId(lessonId);
+      } else {
+        setReadyActionsLessonId(null);
+      }
       setToast(msg);
       setTimeout(() => setToast(null), 4000);
       load();
@@ -281,6 +316,62 @@ export default function TeacherNeedsAttentionPage() {
               Open Classroom mode now
             </button>
           )}
+        </div>
+      )}
+      {readyActionsLessonId && (
+        <div
+          style={{
+            marginTop: 12,
+            marginBottom: 12,
+            padding: 12,
+            borderRadius: 10,
+            border: "1px solid rgba(0,0,0,0.12)",
+            background: "rgba(16,185,129,0.08)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ fontWeight: 800, color: "#047857" }}>Ready — next steps</div>
+          <button
+            type="button"
+            onClick={() => navigate(`/teacher/classroom/${readyActionsLessonId}`)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "2px solid #10b981",
+              background: "rgba(16,185,129,0.12)",
+              cursor: "pointer",
+              fontWeight: 800,
+              color: "#047857",
+            }}
+          >
+            Open Classroom mode
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const link = `${window.location.origin}/lesson/${readyActionsLessonId}`;
+              try {
+                await copyToClipboard(link);
+                setCopyLinkFeedback("copied");
+                setTimeout(() => setCopyLinkFeedback(null), 2000);
+              } catch {
+                // optional: inline error not required for v1
+              }
+            }}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.2)",
+              background: "#fff",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            {copyLinkFeedback === "copied" ? "Copied" : "Copy student link"}
+          </button>
         </div>
       )}
       {loading && <div style={{ color: "#6b7280", marginBottom: 16 }}>Loading…</div>}
