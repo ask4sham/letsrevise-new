@@ -406,6 +406,8 @@ const EditLessonPage: React.FC = () => {
   const [postPublishClassroomModalOpen, setPostPublishClassroomModalOpen] = useState(false);
   const [makeClassroomReadyLoading, setMakeClassroomReadyLoading] = useState(false);
   const [makeClassroomReadyError, setMakeClassroomReadyError] = useState<string | null>(null);
+  /** PR20.1: Copy student link feedback */
+  const [copyLinkFeedback, setCopyLinkFeedback] = useState(false);
   /** PR14/PR15: Reteach plan in sidebar (latest plan for lesson) */
   const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number; studentSummary?: string } | null>(null);
   const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
@@ -2652,6 +2654,67 @@ const EditLessonPage: React.FC = () => {
                             <li>Practice questions attached: {sig.practiceCount ?? 0}</li>
                             <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
                           </ul>
+                          {/* PR20.1: When READY, show Open Classroom mode + Copy student link */}
+                          {status === "READY" && (
+                            <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                              <button
+                                type="button"
+                                disabled={!id}
+                                onClick={() => id && navigate(`/teacher/classroom/${id}`)}
+                                style={{
+                                  padding: "8px 14px",
+                                  borderRadius: 8,
+                                  border: "2px solid #2563eb",
+                                  background: "rgba(37,99,235,0.12)",
+                                  color: "#2563eb",
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                  cursor: id ? "pointer" : "not-allowed",
+                                }}
+                              >
+                                Open Classroom mode
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!id}
+                                onClick={async () => {
+                                  if (!id) return;
+                                  const url = `${window.location.origin}/lesson/${id}`;
+                                  try {
+                                    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+                                      await navigator.clipboard.writeText(url);
+                                    } else {
+                                      const ta = document.createElement("textarea");
+                                      ta.value = url;
+                                      ta.style.position = "fixed";
+                                      ta.style.opacity = "0";
+                                      document.body.appendChild(ta);
+                                      ta.select();
+                                      document.execCommand("copy");
+                                      document.body.removeChild(ta);
+                                    }
+                                    setCopyLinkFeedback(true);
+                                    setTimeout(() => setCopyLinkFeedback(false), 2000);
+                                  } catch (_) {
+                                    setCopyLinkFeedback(false);
+                                  }
+                                }}
+                                style={{
+                                  padding: "8px 14px",
+                                  borderRadius: 8,
+                                  border: "2px solid #64748b",
+                                  background: "#f1f5f9",
+                                  color: "#475569",
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                  cursor: id ? "pointer" : "not-allowed",
+                                }}
+                              >
+                                Copy student link
+                              </button>
+                              {copyLinkFeedback && <span style={{ fontSize: 12, color: "#15803d", fontWeight: 600 }}>Copied</span>}
+                            </div>
+                          )}
                           <button
                             type="button"
                             disabled={reviewLoading}
@@ -2749,7 +2812,8 @@ const EditLessonPage: React.FC = () => {
                                   const diagramMsg = diagramStatus === "ATTACHED" ? "diagram attached" : diagramStatus === "ALREADY_PRESENT" ? "diagram already" : "no diagram";
                                   const planMsg =
                                     planStatus === "UPDATED" ? "plan updated" : planStatus === "CACHED" ? "plan reused" : planStatus === "NOT_CONFIGURED" ? "plan not generated" : planStatus === "RATE_LIMIT" ? "plan rate limited" : "plan skipped";
-                                  setSaveMsg(`Done: +${added} practice · ${diagramMsg} · ${planMsg} · ${reviewStatus === "MARKED" ? "reviewed" : reviewStatus === "ALREADY_REVIEWED" ? "already reviewed" : "review skipped"}`);
+                                  const baseMsg = `Done: +${added} practice · ${diagramMsg} · ${planMsg} · ${reviewStatus === "MARKED" ? "reviewed" : reviewStatus === "ALREADY_REVIEWED" ? "already reviewed" : "review skipped"}`;
+                                  setSaveMsg(d?.readiness?.status === "READY" ? `${baseMsg}. Ready. Open Classroom mode to start collecting attempts.` : baseMsg);
                                   setTimeout(() => setSaveMsg(""), 4000);
                                 } catch (e: any) {
                                   const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? e?.message ?? "Make classroom-ready failed";
@@ -5620,7 +5684,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                       setPublishGateIssues(nextIssues);
                       if (nextIssues.length === 0) {
                         setPublishGateOpen(false);
-                        setSaveMsg("Ready to publish. Click Publish Lesson when you're ready.");
+                        setSaveMsg("Ready. Open Classroom mode to start collecting attempts. Or click Publish Lesson when you're ready.");
                         setTimeout(() => setSaveMsg(""), 4000);
                       }
                     }
