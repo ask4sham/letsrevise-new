@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom"
 import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
+import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
   type LessonBlockType,
@@ -215,21 +216,6 @@ function buildMarkdownForFile(url: string, file: File) {
   if (isImage) return `\n\n![${alt}](${url})\n\n`;
   if (isVideo) return `\n\n[Video: ${alt}](${url})\n\n`;
   return `\n\n[${file.name}](${url})\n\n`;
-}
-
-function makeAbsoluteAssetUrl(maybeRelativeUrl: string) {
-  const s = safeStr(maybeRelativeUrl, "");
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  // Use backend origin for /uploads etc. (not window.location.origin — frontend may be :3000, backend :3001)
-  const apiBase = safeStr((api as any)?.defaults?.baseURL, "");
-  const apiOrigin = apiBase
-    ? apiBase.replace(/\/api\/?$/i, "").replace(/\/+$/i, "")
-    : "";
-  const envBase = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || "").trim();
-  const envOrigin = envBase ? envBase.replace(/\/api\/?$/i, "").replace(/\/+$/i, "") : "";
-  const base = apiOrigin || envOrigin || "http://localhost:3001";
-  return `${base}${s.startsWith("/") ? "" : "/"}${s}`;
 }
 
 // Function to download quiz CSV template
@@ -2180,7 +2166,7 @@ const EditLessonPage: React.FC = () => {
   const markdownComponents = {
     img: ({ ...props }: any) => {
       const rawSrc = safeStr(props.src, "");
-      const srcAbs = rawSrc ? makeAbsoluteAssetUrl(rawSrc) : "";
+      const srcAbs = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? "") : "";
 
       return (
         <img

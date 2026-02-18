@@ -1122,6 +1122,10 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
             annotations: [],
           });
           pages[0] = { ...page0, blocks };
+          console.log("✅ fallback diagram injected", {
+            imageUrl,
+            firstBlock: pages[0]?.blocks?.[0],
+          });
         } else {
           console.warn("⚠️ No default cell visual and AI image failed; skipping fallback diagram");
         }

@@ -75,9 +75,10 @@ const LessonPageBlockSchema = new mongoose.Schema(
       },
     ],
     // optional: AI-generated diagram image (when no VisualModel; Chalkie-like)
-    imageUrl: { type: String, default: undefined },
-    imageSource: { type: String, default: undefined },
-    alt: { type: String, default: undefined },
+    // No default so Mongoose persists when set; must survive save + GET for editor to render
+    imageUrl: { type: String },
+    imageSource: { type: String },
+    alt: { type: String },
   },
   { _id: false }
 );

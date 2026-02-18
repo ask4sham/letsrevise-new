@@ -14,6 +14,7 @@ import { fetchLessonById } from "../api/lessons";
 import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
+import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -301,31 +302,8 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-function makeAbsoluteAssetUrl(maybeRelativeUrl: string) {
-  const s = safeStr(maybeRelativeUrl, "");
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-
-  // 1) Preferred: derive from axios api baseURL (e.g. http://localhost:5000/api)
-  const apiBase = safeStr((api as any)?.defaults?.baseURL, "");
-  const apiOrigin = apiBase
-    ? apiBase.replace(/\/api\/?$/i, "").replace(/\/+$/i, "")
-    : "";
-
-  // 2) Fallback: current origin (works if frontend+backend are same host in prod)
-  let origin = window.location.origin;
-
-  // 3) Dev fallback: if frontend is on :3000 and visuals are served by backend on :5000
-  // (prevents /visuals/... resolving to the frontend server)
-  if (/:\d+$/.test(origin) && origin.endsWith(":3000")) {
-    origin = origin.replace(":3000", ":5000");
-  }
-
-  const base = apiOrigin || origin;
-
-  // Ensure exactly one slash between base and path
-  return `${base}${s.startsWith("/") ? "" : "/"}${s}`;
-}
+// Resolve URL for DiagramBlockContent (shared makeAbsoluteAssetUrl returns string | null; we pass string)
+const resolveAssetUrl = (url: string) => makeAbsoluteAssetUrl(url) ?? "";
 
 function DiagramBlockContent({
   visualId,
@@ -2222,7 +2200,7 @@ const LessonViewPage: React.FC = () => {
       ),
       img: ({ node, ...props }: any) => {
         const rawSrc = safeStr(props.src, "");
-        const srcAbs = rawSrc ? makeAbsoluteAssetUrl(rawSrc) : "";
+        const srcAbs = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? "") : "";
         const caption = props.title || "";
 
         return (
@@ -2401,7 +2379,7 @@ const LessonViewPage: React.FC = () => {
     if (block.imageUrl) {
       const src = block.imageUrl.startsWith("http")
         ? block.imageUrl
-        : makeAbsoluteAssetUrl(block.imageUrl);
+        : (makeAbsoluteAssetUrl(block.imageUrl) ?? "");
       return (
         <div
           key={`diagram-${idx}-img`}
@@ -2443,7 +2421,7 @@ const LessonViewPage: React.FC = () => {
         mode={mode}
         annotations={annotations}
         steps={steps}
-        makeAbsoluteAssetUrl={makeAbsoluteAssetUrl}
+        makeAbsoluteAssetUrl={resolveAssetUrl}
       />
     );
   };
@@ -2650,7 +2628,7 @@ const LessonViewPage: React.FC = () => {
       const derived = `/visuals/${visualData.conceptKey}/step-${
         visualStepIndex + 1
       }.png`;
-      const src = makeAbsoluteAssetUrl(step.image || derived);
+      const src = makeAbsoluteAssetUrl(step.image || derived) ?? "";
 
       return (
         <div style={wrapper}>

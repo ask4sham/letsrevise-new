@@ -6,6 +6,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import api, { getVisualById } from "../services/api";
+import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 
 interface DiagramAnnotation {
   id: string;
@@ -76,16 +77,7 @@ function sortPages(pages: LessonPage[]) {
   return [...pages].sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
-function makeAbsoluteAssetUrl(maybeRelativeUrl: string) {
-  const s = safeStr(maybeRelativeUrl, "");
-  if (!s || s.startsWith("http://") || s.startsWith("https://")) return s;
-  const apiBase = safeStr((api as any)?.defaults?.baseURL, "");
-  const apiOrigin = apiBase ? apiBase.replace(/\/api\/?$/i, "").replace(/\/+$/i, "") : "";
-  let origin = window.location.origin;
-  if (/:\d+$/.test(origin) && origin.endsWith(":3000")) origin = origin.replace(":3000", ":5000");
-  const base = apiOrigin || origin;
-  return `${base}${s.startsWith("/") ? "" : "/"}${s}`;
-}
+const resolveAssetUrl = (url: string) => makeAbsoluteAssetUrl(url) ?? "";
 
 function DiagramBlockContent({
   visualId,
@@ -105,7 +97,7 @@ function DiagramBlockContent({
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!visualId);
   const [stepIndex, setStepIndex] = useState(0);
-  const resolveUrl = makeAbsoluteAssetUrl;
+  const resolveUrl = resolveAssetUrl;
 
   const mode = blockMode === "annotated" || blockMode === "step" ? blockMode : "static";
   const hasSteps = mode === "step" && Array.isArray(steps) && steps.length > 0;
