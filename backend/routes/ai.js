@@ -80,6 +80,30 @@ function requireTeacherOrAdmin(req, res) {
   return true;
 }
 
+/** Returns true if any page has at least one block with type === "diagram". */
+function hasDiagram(pages) {
+  return Array.isArray(pages) && pages.some((page) =>
+    Array.isArray(page?.blocks) && page.blocks.some((block) => block?.type === "diagram")
+  );
+}
+
+/** Fallback diagram block for Biology when AI produces no diagram. Structured placeholder; teacher can replace via Edit diagram. */
+function getBiologyFallbackDiagramBlock() {
+  return {
+    type: "diagram",
+    source: "ai",
+    title: "Basic cell structure",
+    elements: [
+      { id: "cell_membrane", label: "Cell membrane" },
+      { id: "cytoplasm", label: "Cytoplasm" },
+      { id: "nucleus", label: "Nucleus" },
+    ],
+    note: "Check this diagram for accuracy. Edit if needed.",
+    caption: "Basic cell structure",
+    mode: "static",
+  };
+}
+
 /**
  * JSON Schema for Structured Outputs
  * - Matches your Lesson.pages[] structure in backend/models/Lesson.js
@@ -793,6 +817,17 @@ router.post("/generate-and-save", auth, async (req, res) => {
         return tp;
       });
 
+    // ✅ Biology fallback: ensure page 1 has a diagram if none present
+    const subjectNorm = subject.toLowerCase();
+    if (subjectNorm === "biology" && !hasDiagram(pagesMerged)) {
+      const page0 = pagesMerged[0];
+      if (page0) {
+        const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
+        blocks.unshift(getBiologyFallbackDiagramBlock());
+        pagesMerged[0] = { ...page0, blocks };
+      }
+    }
+
     // ✅ 7) Create the cloned lesson doc (required fields satisfied)
     const lessonDoc = new Lesson({
       // Required top-level fields
@@ -1011,6 +1046,14 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       } catch (e) {
         console.warn("⚠️ [Factory] Diagram block attach skipped:", e?.message || e);
       }
+    }
+
+    // Biology fallback: if still no diagram (e.g. topic not in map or VisualModel missing), inject on page 1
+    if (!hasDiagram(pages) && pages.length > 0) {
+      const page0 = pages[0];
+      const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
+      blocks.unshift(getBiologyFallbackDiagramBlock());
+      pages[0] = { ...page0, blocks };
     }
 
     const first = safeStr(req.user?.firstName, "");
