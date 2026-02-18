@@ -100,8 +100,13 @@ function hasDiagram(pages) {
 async function generateFallbackDiagramImage() {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
-  const prompt =
-    "Simple clean labelled diagram of an animal cell suitable for GCSE biology: cell membrane, cytoplasm, nucleus, mitochondria, ribosomes. Plain white background. Clear readable labels. No cartoon style.";
+  const prompt = `
+Create a clean, simple, high-contrast biology diagram of an ANIMAL CELL suitable for GCSE students.
+White background, clear shapes, neat lines.
+Do NOT include any text, labels, letters, or words in the image.
+Show: cell membrane outline, cytoplasm area, nucleus, mitochondria (2–3), ribosomes (dots), and a few generic organelles.
+Style: flat educational worksheet diagram, not cartoon.
+`.trim();
   try {
     const resp = await axios.post(
       "https://api.openai.com/v1/images/generations",
@@ -109,7 +114,7 @@ async function generateFallbackDiagramImage() {
         model: "dall-e-2",
         prompt,
         n: 1,
-        size: "512x512",
+        size: "1024x1024",
         response_format: "b64_json",
       },
       {
@@ -1112,6 +1117,13 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
         if (imageUrl) {
           const page0 = pages[0];
           const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
+          const defaultAnnotations = [
+            { id: "ann-nucleus", kind: "label", text: "Nucleus", x: 0.55, y: 0.45 },
+            { id: "ann-membrane", kind: "label", text: "Cell membrane", x: 0.3, y: 0.15 },
+            { id: "ann-cytoplasm", kind: "label", text: "Cytoplasm", x: 0.45, y: 0.65 },
+            { id: "ann-mitochondria", kind: "label", text: "Mitochondria", x: 0.7, y: 0.55 },
+            { id: "ann-ribosomes", kind: "label", text: "Ribosomes", x: 0.75, y: 0.75 },
+          ];
           blocks.unshift({
             type: "diagram",
             imageUrl,
@@ -1119,7 +1131,7 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
             alt: "Basic cell structure",
             caption: "Basic cell structure",
             mode: "annotated",
-            annotations: [],
+            annotations: defaultAnnotations,
           });
           pages[0] = { ...page0, blocks };
           console.log("✅ fallback diagram injected", {

@@ -3947,7 +3947,6 @@ const EditLessonPage: React.FC = () => {
                                 Edit diagram
                               </button>
                               {(() => {
-                                console.log("DIAGRAM BLOCK IN EDIT STATE", d);
                                 const diagramSrc = d.imageUrl ? makeAbsoluteAssetUrl(d.imageUrl) : null;
                                 const diagramAlt = d.alt ?? (d.caption || "Diagram");
                                 return (
@@ -4506,6 +4505,30 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 >
                                   Replace diagram
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateBlock(currentPage!.pageId, idx, {
+                                      visualId: undefined,
+                                      imageUrl: undefined,
+                                      imageSource: undefined,
+                                      alt: undefined,
+                                      annotations: [],
+                                    });
+                                  }}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(239,68,68,0.35)",
+                                    background: "rgba(239,68,68,0.08)",
+                                    color: "#b91c1c",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  Clear diagram
                                 </button>
                                 <button
                                   type="button"
