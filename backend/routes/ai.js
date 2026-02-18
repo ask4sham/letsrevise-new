@@ -4,21 +4,16 @@ const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
 const mongoose = require("mongoose");
-const crypto = require("crypto");
 const router = express.Router();
 const auth = require("../middleware/auth");
 
-/** Dir for AI-generated fallback diagram images (served at /uploads/ai-diagrams/). */
-const UPLOADS_AI_DIAGRAMS = path.join(__dirname, "..", "uploads", "ai-diagrams");
-
-const Lesson = require("../models/Lesson"); // ✅ needed for generate-and-save
+const Lesson = require("../models/Lesson");
 const VisualModel = require("../models/VisualModel");
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
-const { getLessonOwnerId } = require("../utils/lessonPayload");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -91,64 +86,6 @@ function hasDiagram(pages) {
   return Array.isArray(pages) && pages.some((page) =>
     Array.isArray(page?.blocks) && page.blocks.some((block) => block?.type === "diagram")
   );
-}
-
-/**
- * Generate a fallback diagram image via OpenAI (DALL-E) and save to uploads/ai-diagrams.
- * Used when no VisualModel match — Chalkie-like: teacher sees a diagram immediately.
- * @returns {Promise<string|null>} Public URL path e.g. /uploads/ai-diagrams/abc123-cell.png, or null on failure
- */
-async function generateFallbackDiagramImage() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-  const prompt = `
-Create a clean, high-quality biology diagram of an ANIMAL CELL suitable for GCSE.
-Style: flat educational worksheet / textbook diagram (not cartoon).
-White background, clean lines, high contrast.
-
-IMPORTANT:
-- NO TEXT
-- NO LABELS
-- NO LETTERS
-- NO WORDS
-- NO CAPTIONS inside the image
-- NO ARROWS
-- NO POINTER LINES
-- NO CALLOUTS
-
-Show: cell membrane outline, cytoplasm region, nucleus, mitochondria (2–3), ribosomes as small dots, and a few simple organelles. Clean base image only; labels and lines will be added as overlays.
-`.trim();
-  try {
-    const resp = await axios.post(
-      "https://api.openai.com/v1/images/generations",
-      {
-        model: "dall-e-2",
-        prompt,
-        n: 1,
-        size: "1024x1024",
-        response_format: "b64_json",
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        timeout: 60000,
-      }
-    );
-    const b64 = resp?.data?.data?.[0]?.b64_json;
-    if (!b64 || typeof b64 !== "string") return null;
-    if (!fs.existsSync(UPLOADS_AI_DIAGRAMS)) {
-      fs.mkdirSync(UPLOADS_AI_DIAGRAMS, { recursive: true });
-    }
-    const filename = `${crypto.randomBytes(8).toString("hex")}-cell.png`;
-    const filepath = path.join(UPLOADS_AI_DIAGRAMS, filename);
-    fs.writeFileSync(filepath, Buffer.from(b64, "base64"));
-    return `/uploads/ai-diagrams/${filename}`;
-  } catch (e) {
-    console.warn("⚠️ AI fallback diagram image generation failed:", e?.message || e);
-    return null;
-  }
 }
 
 /**
@@ -1105,9 +1042,8 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       }
     }
 
-    // Biology fallback: if still no diagram, try default cell visual from DB then AI image
+    // Biology fallback: if still no diagram, try default cell visual from DB only (no AI image generation)
     if (!hasDiagram(pages) && pages.length > 0) {
-      let injected = false;
       const visualId = await findDefaultCellVisualId();
       if (visualId) {
         const page0 = pages[0];
@@ -1121,30 +1057,6 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
           steps: [],
         });
         pages[0] = { ...page0, blocks };
-        injected = true;
-      }
-      if (!injected) {
-        const imageUrl = await generateFallbackDiagramImage();
-        if (imageUrl) {
-          const page0 = pages[0];
-          const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
-          blocks.unshift({
-            type: "diagram",
-            imageUrl,
-            imageSource: "ai",
-            alt: "Basic cell structure",
-            caption: "Basic cell structure",
-            mode: "annotated",
-            annotations: DEFAULT_CELL_ANNOTATIONS.map((a) => ({ ...a })),
-          });
-          pages[0] = { ...page0, blocks };
-          console.log("✅ fallback diagram injected", {
-            imageUrl,
-            firstBlock: pages[0]?.blocks?.[0],
-          });
-        } else {
-          console.warn("⚠️ No default cell visual and AI image failed; skipping fallback diagram");
-        }
       }
     }
 
@@ -1205,60 +1117,6 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
           ? String(error?.message || error)
           : undefined,
     });
-  }
-});
-
-/** Default editable annotations for AI-generated cell diagram (0–1 normalized). */
-const DEFAULT_CELL_ANNOTATIONS = [
-  { id: "ann-nucleus", kind: "label", text: "Nucleus", x: 0.55, y: 0.45 },
-  { id: "ann-membrane", kind: "label", text: "Cell membrane", x: 0.3, y: 0.15 },
-  { id: "ann-cytoplasm", kind: "label", text: "Cytoplasm", x: 0.45, y: 0.65 },
-  { id: "ann-mitochondria", kind: "label", text: "Mitochondria", x: 0.7, y: 0.55 },
-  { id: "ann-ribosomes", kind: "label", text: "Ribosomes", x: 0.75, y: 0.75 },
-];
-
-// @route   POST /api/ai/lessons/:lessonId/diagram-regenerate
-// Body: { pageIndex: 0, blockIndex: 0, kind: "animal-cell" }
-// Regenerates AI diagram for that block (NO TEXT prompt), resets annotations, saves lesson. Teacher/owner only.
-router.post("/lessons/:lessonId/diagram-regenerate", auth, async (req, res) => {
-  try {
-    const lessonId = req.params.lessonId;
-    if (!lessonId || !mongoose.Types.ObjectId.isValid(lessonId)) {
-      return res.status(400).json({ error: "Invalid lessonId" });
-    }
-    const lesson = await Lesson.findById(lessonId);
-    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
-    const ownerId = getLessonOwnerId(lesson);
-    const requesterId = String(req.user?._id ?? req.user?.id ?? "");
-    if (ownerId !== requesterId) {
-      return res.status(403).json({ error: "Only the lesson owner can regenerate the diagram" });
-    }
-    const pageIndex = Math.max(0, Number(req.body?.pageIndex ?? 0));
-    const blockIndex = Math.max(0, Number(req.body?.blockIndex ?? 0));
-    const pages = lesson.pages || [];
-    const page = pages[pageIndex];
-    if (!page || !Array.isArray(page.blocks)) {
-      return res.status(400).json({ error: "Invalid pageIndex or page has no blocks" });
-    }
-    const block = page.blocks[blockIndex];
-    if (!block || block.type !== "diagram") {
-      return res.status(400).json({ error: "Block is not a diagram block" });
-    }
-    const imageUrl = await generateFallbackDiagramImage();
-    if (!imageUrl) {
-      return res.status(500).json({ error: "AI diagram generation failed" });
-    }
-    block.imageUrl = imageUrl;
-    block.imageSource = "ai";
-    block.alt = "Basic cell structure";
-    block.annotations = DEFAULT_CELL_ANNOTATIONS.map((a) => ({ ...a }));
-    await lesson.save();
-    const out = lesson.toObject();
-    const updatedBlock = out.pages?.[pageIndex]?.blocks?.[blockIndex];
-    return res.json({ ok: true, lesson: out, block: updatedBlock });
-  } catch (err) {
-    console.error("diagram-regenerate error:", err);
-    return res.status(500).json({ error: "Diagram regenerate failed" });
   }
 });
 

@@ -350,7 +350,6 @@ const EditLessonPage: React.FC = () => {
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
-  const [diagramRegenerating, setDiagramRegenerating] = useState(false);
   const [visualsList, setVisualsList] = useState<Array<{ _id: string; conceptKey: string; topic?: string }>>([]);
 
   const [attachedExamQuestions, setAttachedExamQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string; topic?: string }>>([]);
@@ -3940,7 +3939,7 @@ const EditLessonPage: React.FC = () => {
                               style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}
                             >
                               <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
-                                {d.note ?? "Check this diagram is correct. Edit if needed."}
+                                {d.note ?? "Move labels and adjust as needed."}
                               </p>
                               <button
                                 type="button"
@@ -4613,39 +4612,6 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 >
                                   Clear diagram
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={diagramRegenerating || !id}
-                                  onClick={async () => {
-                                    if (!id || !lesson?.pages || !currentPage) return;
-                                    const pageIndex = lesson.pages.findIndex((p) => p.pageId === currentPage.pageId);
-                                    if (pageIndex < 0) return;
-                                    setDiagramRegenerating(true);
-                                    try {
-                                      const { data } = await api.post<{ ok: boolean; lesson: typeof lesson; block?: unknown }>(
-                                        `ai/lessons/${id}/diagram-regenerate`,
-                                        { pageIndex, blockIndex: idx, kind: "animal-cell" }
-                                      );
-                                      if (data.ok && data.lesson) setLesson(data.lesson);
-                                    } catch (e) {
-                                      console.error("Regenerate diagram failed:", e);
-                                    } finally {
-                                      setDiagramRegenerating(false);
-                                    }
-                                  }}
-                                  style={{
-                                    padding: "8px 14px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(59,130,246,0.35)",
-                                    background: "rgba(59,130,246,0.08)",
-                                    color: "#1d4ed8",
-                                    cursor: diagramRegenerating ? "not-allowed" : "pointer",
-                                    fontWeight: 600,
-                                    fontSize: 13,
-                                  }}
-                                >
-                                  {diagramRegenerating ? "Regenerating…" : "Regenerate diagram (AI)"}
                                 </button>
                                 <button
                                   type="button"

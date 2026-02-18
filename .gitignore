@@ -29,3 +29,6 @@ docs/ai/examples/generated-*.json
 
 # Local test artifact (assembled lesson sample)
 sample-lesson.json
+
+# AI-generated diagram images (no longer generated; keep legacy files out of repo)
+backend/uploads/ai-diagrams/
