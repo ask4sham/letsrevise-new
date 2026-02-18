@@ -127,6 +127,11 @@ const TeacherDashboard: React.FC = () => {
     });
   }, [lessons, taxonomyMap, filterUnit, filterTopicKey, filterTier, filterReadiness]);
 
+  /** At least one lesson is not classroom-ready → show Needs Attention as active (red) */
+  const hasNeedsAttention = lessons.some(
+    (lesson) => (lesson.readiness?.status ?? "DRAFT") !== "READY"
+  );
+
   // PR5: Coverage (published lessons only)
   const coverage = useMemo(() => {
     const coveredTopicKeys = new Set(
@@ -1249,33 +1254,54 @@ const TeacherDashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <Link to="/teacher/reports/needs-attention" style={{ marginLeft: 8, textDecoration: "none" }}>
+              {hasNeedsAttention ? (
+                <Link to="/teacher/reports/needs-attention" style={{ marginLeft: 8, textDecoration: "none" }}>
+                  <button
+                    type="button"
+                    style={{
+                      marginLeft: 0,
+                      padding: "4px 12px",
+                      borderRadius: 6,
+                      border: "1px solid #dc2626",
+                      background: "#fef2f2",
+                      color: "#15803d",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      transition: "background 0.15s, border-color 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#fee2e2";
+                      e.currentTarget.style.borderColor = "#b91c1c";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#fef2f2";
+                      e.currentTarget.style.borderColor = "#dc2626";
+                    }}
+                  >
+                    Needs Attention
+                  </button>
+                </Link>
+              ) : (
                 <button
                   type="button"
+                  disabled
+                  title="All lessons are classroom-ready"
                   style={{
-                    marginLeft: 0,
+                    marginLeft: 8,
                     padding: "4px 12px",
                     borderRadius: 6,
-                    border: "1px solid #dc2626",
-                    background: "#fef2f2",
-                    color: "#15803d",
+                    border: "1px solid #d1d5db",
+                    background: "#f3f4f6",
+                    color: "#9ca3af",
                     fontWeight: 600,
                     fontSize: 13,
-                    cursor: "pointer",
-                    transition: "background 0.15s, border-color 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#fee2e2";
-                    e.currentTarget.style.borderColor = "#b91c1c";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#fef2f2";
-                    e.currentTarget.style.borderColor = "#dc2626";
+                    cursor: "not-allowed",
                   }}
                 >
                   Needs Attention
                 </button>
-              </Link>
+              )}
             </div>
           )}
 
