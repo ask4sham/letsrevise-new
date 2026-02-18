@@ -1047,7 +1047,11 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       lesson: out,
     });
   } catch (error) {
-    console.error("❌ AI lesson-factory error:", error?.message || error);
+    console.error("❌ AI lesson-factory error:", {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
     if (error?.response?.status) {
       const status = error.response.status;
       const msg =
