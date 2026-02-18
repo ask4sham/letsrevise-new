@@ -400,6 +400,12 @@ const EditLessonPage: React.FC = () => {
   /** PR17: Bulk fix top hotspots loading + error */
   const [bulkFixLoading, setBulkFixLoading] = useState(false);
   const [bulkFixError, setBulkFixError] = useState<string | null>(null);
+  /** PR20: Publish gate modal + Make classroom-ready + Post-publish CTA */
+  const [publishGateOpen, setPublishGateOpen] = useState(false);
+  const [publishGateIssues, setPublishGateIssues] = useState<string[]>([]);
+  const [postPublishClassroomModalOpen, setPostPublishClassroomModalOpen] = useState(false);
+  const [makeClassroomReadyLoading, setMakeClassroomReadyLoading] = useState(false);
+  const [makeClassroomReadyError, setMakeClassroomReadyError] = useState<string | null>(null);
   /** PR14/PR15: Reteach plan in sidebar (latest plan for lesson) */
   const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number; studentSummary?: string } | null>(null);
   const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
@@ -2021,8 +2027,43 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
-  const handlePublishToggle = async () => {
+  /** PR20: Compute local publish issues for gate modal (checkpoints, diagrams, practice, reviewed). */
+  function computeLocalPublishIssues(
+    l: Lesson | null,
+    attachedCount: number
+  ): { issues: string[]; checkpointsCount: number; diagramsCount: number; practiceAttachedCount: number; notReviewed: boolean } {
+    const pages = l?.pages ?? [];
+    let checkpointsCount = 0;
+    let diagramsCount = 0;
+    for (const p of pages) {
+      for (const b of p.blocks ?? []) {
+        if (b?.type === "checkpoint") checkpointsCount++;
+        if (b?.type === "diagram") diagramsCount++;
+      }
+    }
+    const practiceAttachedCount = attachedCount;
+    const notReviewed = !l?.reviewedAt;
+    const issues: string[] = [];
+    if (checkpointsCount === 0) issues.push("No checkpoints");
+    if (diagramsCount === 0) issues.push("No diagrams");
+    if (practiceAttachedCount === 0) issues.push("No practice questions attached");
+    if (notReviewed) issues.push("Lesson not marked as reviewed");
+    return { issues, checkpointsCount, diagramsCount, practiceAttachedCount, notReviewed };
+  }
+
+  const handlePublishToggle = async (skipGate?: boolean) => {
     if (!lesson || !id || !isMongoObjectId(id)) return;
+
+    const newStatus = !lesson.isPublished;
+    /** PR20: Readiness gate — when publishing, if issues exist open modal unless skipGate */
+    if (newStatus && !skipGate) {
+      const { issues } = computeLocalPublishIssues(lesson, attachedExamQuestions.length);
+      if (issues.length > 0) {
+        setPublishGateIssues(issues);
+        setPublishGateOpen(true);
+        return;
+      }
+    }
 
     if (lesson?.createdFromTemplate && !lesson.isPublished) {
       const ok = window.confirm(
@@ -2031,8 +2072,6 @@ const EditLessonPage: React.FC = () => {
       if (!ok) return;
     }
 
-    const newStatus = !lesson.isPublished;
-    
     try {
       setPublishing(true);
       setSaveMsg("");
@@ -2100,7 +2139,8 @@ const EditLessonPage: React.FC = () => {
 
       setSaveMsg(newStatus ? "✅ Lesson published!" : "✅ Lesson unpublished.");
       setLesson(prev => prev ? { ...prev, isPublished: newStatus } : null);
-      
+      if (newStatus) setPostPublishClassroomModalOpen(true);
+      setPublishGateOpen(false);
       await fetchLessonSmart();
     } catch (e: any) {
       console.error(e);
@@ -2246,7 +2286,7 @@ const EditLessonPage: React.FC = () => {
             ) : null}
 
             <button
-              onClick={handlePublishToggle}
+              onClick={() => handlePublishToggle()}
               disabled={publishing}
               style={{
                 padding: "10px 14px",
@@ -2649,6 +2689,95 @@ const EditLessonPage: React.FC = () => {
                           >
                             {reviewLoading ? "Updating…" : isReviewed ? "Unmark review" : "Mark as reviewed"}
                           </button>
+                          {/* PR20: One-click Make classroom-ready */}
+                          <div style={{ marginTop: 12 }}>
+                            <button
+                              type="button"
+                              disabled={makeClassroomReadyLoading || !id}
+                              onClick={async () => {
+                                if (!id) return;
+                                setMakeClassroomReadyError(null);
+                                setMakeClassroomReadyLoading(true);
+                                try {
+                                  const res = await api.post<{
+                                    ok: boolean;
+                                    attach?: { added: number; addedIds?: string[] };
+                                    diagram?: { status: string };
+                                    plan?: { status: string };
+                                    review?: { status: string };
+                                    readiness?: { status: string; signals?: Record<string, unknown> };
+                                  }>(`/reports/lessons/${id}/make-classroom-ready`, {
+                                    days: insightsDays ?? 7,
+                                    attachPractice: true,
+                                    attachLimit: 10,
+                                    ensureDiagram: true,
+                                    regeneratePlan: true,
+                                    planLimit: 10,
+                                    markReviewed: true,
+                                  });
+                                  const d = res?.data;
+                                  if (!d?.ok) {
+                                    setMakeClassroomReadyError("Request failed");
+                                    return;
+                                  }
+                                  const added = d?.attach?.added ?? 0;
+                                  const diagramStatus = d?.diagram?.status ?? "";
+                                  const planStatus = d?.plan?.status ?? "";
+                                  const reviewStatus = d?.review?.status ?? "";
+                                  if (d?.attach?.addedIds?.length) {
+                                    setAttachedExamQuestions((prev) => {
+                                      const ids = new Set(d.attach!.addedIds!);
+                                      const existing = new Set(prev.map((q) => q._id));
+                                      const newOnes = d.attach!.addedIds!.filter((id) => !existing.has(id)).map((id) => ({ _id: id, question: "", type: "mcq" as const }));
+                                      return [...prev, ...newOnes];
+                                    });
+                                  }
+                                  const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                                  setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                                  const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
+                                  if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
+                                  setLesson((prev) =>
+                                    prev && d?.readiness
+                                      ? ({
+                                          ...prev,
+                                          readiness: d.readiness as Lesson["readiness"],
+                                          reviewedAt: d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED" ? new Date().toISOString() : prev.reviewedAt,
+                                        } as Lesson)
+                                      : prev
+                                  );
+                                  await fetchLessonSmart();
+                                  const diagramMsg = diagramStatus === "ATTACHED" ? "diagram attached" : diagramStatus === "ALREADY_PRESENT" ? "diagram already" : "no diagram";
+                                  const planMsg =
+                                    planStatus === "UPDATED" ? "plan updated" : planStatus === "CACHED" ? "plan reused" : planStatus === "NOT_CONFIGURED" ? "plan not generated" : planStatus === "RATE_LIMIT" ? "plan rate limited" : "plan skipped";
+                                  setSaveMsg(`Done: +${added} practice · ${diagramMsg} · ${planMsg} · ${reviewStatus === "MARKED" ? "reviewed" : reviewStatus === "ALREADY_REVIEWED" ? "already reviewed" : "review skipped"}`);
+                                  setTimeout(() => setSaveMsg(""), 4000);
+                                } catch (e: any) {
+                                  const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? e?.message ?? "Make classroom-ready failed";
+                                  setMakeClassroomReadyError(msg === "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey." ? "Set a valid topic (topicKey) for this lesson." : msg);
+                                } finally {
+                                  setMakeClassroomReadyLoading(false);
+                                }
+                              }}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                border: "2px solid #059669",
+                                background: makeClassroomReadyLoading ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                                cursor: makeClassroomReadyLoading ? "not-allowed" : "pointer",
+                                fontWeight: 700,
+                                fontSize: 13,
+                                color: "#047857",
+                              }}
+                            >
+                              {makeClassroomReadyLoading ? "Preparing…" : "Make classroom-ready"}
+                            </button>
+                            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
+                              Attaches practice, adds a diagram if missing, refreshes reteach plan, marks reviewed.
+                            </p>
+                            {makeClassroomReadyError && (
+                              <div style={{ marginTop: 6, fontSize: 13, color: "#b91c1c" }}>{makeClassroomReadyError}</div>
+                            )}
+                          </div>
                         </>
                       );
                     })()}
@@ -5409,6 +5538,210 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* PR20: Publish readiness gate modal */}
+      {publishGateOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10002,
+            padding: 20,
+          }}
+          onClick={() => setPublishGateOpen(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 24,
+              maxWidth: 440,
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 12, fontSize: 18 }}>This lesson isn't classroom-ready yet</div>
+            <p style={{ margin: "0 0 8px", fontSize: 14, color: "#374151", fontWeight: 600 }}>What's missing?</p>
+            <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 14, color: "#4b5563" }}>
+              {publishGateIssues.map((issue, i) => (
+                <li key={i}>{issue}</li>
+              ))}
+            </ul>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                disabled={makeClassroomReadyLoading || !id}
+                onClick={async () => {
+                  if (!id) return;
+                  setMakeClassroomReadyError(null);
+                  setMakeClassroomReadyLoading(true);
+                  try {
+                    const res = await api.post<{
+                      ok: boolean;
+                      attach?: { added: number; addedIds?: string[] };
+                      diagram?: { status: string };
+                      plan?: { status: string };
+                      review?: { status: string };
+                      readiness?: { status: string; signals?: Record<string, unknown> };
+                    }>(`/reports/lessons/${id}/make-classroom-ready`, {
+                      days: insightsDays ?? 7,
+                      attachPractice: true,
+                      attachLimit: 10,
+                      ensureDiagram: true,
+                      regeneratePlan: true,
+                      planLimit: 10,
+                      markReviewed: true,
+                    });
+                    const d = res?.data;
+                    if (d?.ok) {
+                      const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                      setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                      const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
+                      if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
+                      setLesson((prev) =>
+                        prev && d?.readiness
+                          ? ({ ...prev, readiness: d.readiness as Lesson["readiness"], reviewedAt: d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED" ? new Date().toISOString() : prev.reviewedAt } as Lesson)
+                          : prev
+                      );
+                      await fetchLessonSmart();
+                      const sig = d?.readiness?.signals ?? {};
+                      const nextIssues: string[] = [];
+                      if ((sig.checkpointCount ?? 0) === 0) nextIssues.push("No checkpoints");
+                      if ((sig.diagramCount ?? 0) === 0) nextIssues.push("No diagrams");
+                      if ((sig.practiceCount ?? 0) === 0) nextIssues.push("No practice questions attached");
+                      if (!sig.isReviewed) nextIssues.push("Lesson not marked as reviewed");
+                      setPublishGateIssues(nextIssues);
+                      if (nextIssues.length === 0) {
+                        setPublishGateOpen(false);
+                        setSaveMsg("Ready to publish. Click Publish Lesson when you're ready.");
+                        setTimeout(() => setSaveMsg(""), 4000);
+                      }
+                    }
+                  } catch (e: any) {
+                    setMakeClassroomReadyError(e?.response?.data?.error ?? e?.message ?? "Failed");
+                  } finally {
+                    setMakeClassroomReadyLoading(false);
+                  }
+                }}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #059669",
+                  background: "rgba(5,150,105,0.12)",
+                  color: "#047857",
+                  fontWeight: 700,
+                  cursor: makeClassroomReadyLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                {makeClassroomReadyLoading ? "Preparing…" : "Make classroom-ready"}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setPublishGateOpen(false);
+                  await handlePublishToggle(true);
+                }}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #94a3b8",
+                  background: "#f1f5f9",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Publish anyway
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishGateOpen(false)}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #e2e8f0",
+                  background: "#f8fafc",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            {makeClassroomReadyError && (
+              <div style={{ marginTop: 12, fontSize: 13, color: "#b91c1c" }}>{makeClassroomReadyError}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PR20: Post-publish "Start classroom mode" CTA */}
+      {postPublishClassroomModalOpen && id && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10002,
+            padding: 20,
+          }}
+          onClick={() => setPostPublishClassroomModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 24,
+              maxWidth: 380,
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 12, fontSize: 18 }}>Published.</div>
+            <p style={{ margin: "0 0 20px", fontSize: 14, color: "#374151" }}>Start Classroom mode?</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setPostPublishClassroomModalOpen(false)}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #e2e8f0",
+                  background: "#f8fafc",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPostPublishClassroomModalOpen(false);
+                  navigate(`/teacher/classroom/${id}`);
+                }}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #2563eb",
+                  background: "rgba(37,99,235,0.12)",
+                  color: "#2563eb",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Start classroom mode
+              </button>
+            </div>
           </div>
         </div>
       )}

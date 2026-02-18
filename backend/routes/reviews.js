@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
-const { applyLessonAccess } = require("../middleware");
+const { canAccessContent } = require("../middleware");
 const Lesson = require("../models/Lesson");
 const LessonReview = require("../models/LessonReview");
 
@@ -229,9 +229,9 @@ router.post("/lesson/:lessonId/reject", auth, async (req, res) => {
 
 /* =========================================================
    GET /api/reviews/lesson/:lessonId
-   Gated: auth + applyLessonAccess (only entitled users see reviews for a lesson).
+   Gated: auth + canAccessContent (only entitled users see reviews for a lesson).
 ========================================================= */
-router.get("/lesson/:lessonId", auth, applyLessonAccess({ requirePublished: true }), async (req, res) => {
+router.get("/lesson/:lessonId", auth, canAccessContent({ requirePublished: true }), async (req, res) => {
   try {
     const { page = 1, limit = 10, sort = "newest" } = req.query;
     const lessonId = req.params.lessonId;
@@ -384,9 +384,9 @@ router.get("/lesson/:lessonId", auth, applyLessonAccess({ requirePublished: true
 
 /* =========================================================
    POST /api/reviews/:lessonId — submit review (Supabase + Mongo)
-   Gated: auth + applyLessonAccess (entitled users only).
+   Gated: auth + canAccessContent (entitled users only).
 ========================================================= */
-router.post("/:lessonId", auth, applyLessonAccess({ requirePublished: true }), async (req, res) => {
+router.post("/:lessonId", auth, canAccessContent({ requirePublished: true }), async (req, res) => {
   try {
     const { rating, review } = req.body || {};
     const lessonId = req.params.lessonId;

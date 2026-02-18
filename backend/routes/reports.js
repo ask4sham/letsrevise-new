@@ -20,6 +20,8 @@ const { getLessonOwnerId } = require("../utils/lessonPayload");
 const { getBiologyTopics, findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
+const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
+const VisualModel = require("../models/VisualModel");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
 
@@ -1146,6 +1148,237 @@ router.post("/lessons/:lessonId/one-click-fix-bulk", auth, async (req, res) => {
     return res.status(200).json(responseBody);
   } catch (err) {
     console.error("POST one-click-fix-bulk error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * PR20: POST /api/reports/lessons/:lessonId/make-classroom-ready
+ * One-click: attach practice, ensure diagram (if missing), regenerate reteach plan, mark reviewed.
+ * Auth: required. Access: lesson owner or admin only.
+ * Body: { days?, topicKey?, attachPractice?, attachLimit?, ensureDiagram?, regeneratePlan?, planLimit?, forcePlan?, markReviewed? }
+ */
+router.post("/lessons/:lessonId/make-classroom-ready", auth, async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    if (requireLessonReportAccess(req, res, lessonId) !== true) return;
+
+    const lessonDoc = await Lesson.findById(lessonId).select(
+      "teacherId topic topicKey board tier subject level status isPublished organisationId examQuestions reviewedAt reviewedBy pages"
+    );
+    if (!lessonDoc) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+    const lesson = lessonDoc.toObject ? lessonDoc.toObject() : lessonDoc;
+    const ownerId = getLessonOwnerId(lesson);
+    const userId = String(req.user._id);
+    if (ownerId !== userId && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Not the lesson owner" });
+    }
+
+    let days = parseInt(String(req.body?.days ?? "7"), 10);
+    if (!Number.isFinite(days) || days < 1) days = 7;
+    if (days > 30) days = 30;
+    const attachPractice = req.body?.attachPractice !== false;
+    let attachLimit = parseInt(String(req.body?.attachLimit ?? "10"), 10);
+    if (!Number.isFinite(attachLimit) || attachLimit < 1) attachLimit = 10;
+    if (attachLimit > 20) attachLimit = 20;
+    const ensureDiagram = req.body?.ensureDiagram !== false;
+    const regeneratePlan = req.body?.regeneratePlan !== false;
+    let planLimit = parseInt(String(req.body?.planLimit ?? "10"), 10);
+    if (!Number.isFinite(planLimit) || planLimit < 1) planLimit = 10;
+    if (planLimit > 20) planLimit = 20;
+    const forcePlan = req.body?.forcePlan === true;
+    const markReviewed = req.body?.markReviewed === true;
+
+    let topicKey = req.body?.topicKey != null ? String(req.body.topicKey).trim() : null;
+    if (topicKey === "") topicKey = null;
+    if (topicKey != null) {
+      const found = findTopicByKey(topicKey.toLowerCase());
+      if (!found) {
+        return res.status(400).json({
+          error: "Invalid topicKey",
+          message: "topicKey is not in the Biology taxonomy.",
+        });
+      }
+      topicKey = found.key;
+    } else {
+      const derived = topicToKey(lesson.topic || "");
+      if (!derived) {
+        if (attachPractice) {
+          return res.status(400).json({
+            error: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
+          });
+        }
+        topicKey = null;
+      } else {
+        const found = findTopicByKey(derived);
+        if (!found && attachPractice) {
+          return res.status(400).json({
+            error: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
+          });
+        }
+        topicKey = found ? found.key : null;
+      }
+    }
+
+    const attach = { requested: attachLimit, added: 0, addedIds: [] };
+    if (attachPractice && topicKey) {
+      try {
+        const attachResult = await attachExamQuestionsByTopic(lesson, { topicKey, limit: attachLimit });
+        attach.requested = attachResult.requested;
+        attach.added = attachResult.added;
+        attach.addedIds = attachResult.addedIds || [];
+        if (attachResult.added > 0) {
+          const fresh = await Lesson.findById(lessonId).select("examQuestions").lean();
+          if (fresh) {
+            lesson.examQuestions = fresh.examQuestions;
+            lessonDoc.examQuestions = fresh.examQuestions;
+          }
+        }
+      } catch (attachErr) {
+        if (attachErr.code === "INVALID_TOPIC_KEY" || attachErr.code === "INVALID_TOPIC") {
+          return res.status(400).json({
+            error: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
+            message: attachErr.message,
+          });
+        }
+        throw attachErr;
+      }
+    }
+
+    let diagram = { status: "SKIPPED" };
+    if (ensureDiagram) {
+      const pages = lessonDoc.pages || lesson.pages || [];
+      const hasDiagram = pages.some(
+        (p) => Array.isArray(p.blocks) && p.blocks.some((b) => b && String(b.type) === "diagram")
+      );
+      if (hasDiagram) {
+        diagram = { status: "ALREADY_PRESENT" };
+      } else {
+        const suggestionsResult = await getDiagramSuggestionsForLesson(lesson, { limit: 8 });
+        const firstSuggestion = Array.isArray(suggestionsResult.suggestions) && suggestionsResult.suggestions[0];
+        const visualId = firstSuggestion && firstSuggestion.id ? firstSuggestion.id : null;
+        if (visualId) {
+          const visual = await VisualModel.findById(visualId).select("_id isPublished").lean();
+          if (visual && visual.isPublished) {
+            const caption = `${lesson.topic || "Diagram"} (AQA GCSE Biology)`;
+            const diagramBlock = {
+              type: "diagram",
+              visualId: new mongoose.Types.ObjectId(visualId),
+              caption,
+              mode: "annotated",
+              annotations: [],
+              steps: [],
+            };
+            const sortedPages = [...pages].sort((a, b) => (a.order || 0) - (b.order || 0));
+            const targetPage = sortedPages[0];
+            const fallbackPage = sortedPages[1];
+            const pageToUse =
+              targetPage && Array.isArray(targetPage.blocks) && targetPage.blocks.length > 8 && fallbackPage
+                ? fallbackPage
+                : targetPage;
+            if (pageToUse) {
+              if (!pageToUse.blocks) pageToUse.blocks = [];
+              pageToUse.blocks.push(diagramBlock);
+              lessonDoc.markModified("pages");
+              await lessonDoc.save();
+              diagram = { status: "ATTACHED", visualId: String(visualId) };
+            } else {
+              diagram = { status: "NO_SUGGESTION" };
+            }
+          } else {
+            diagram = { status: "NO_SUGGESTION" };
+          }
+        } else {
+          diagram = { status: "NO_SUGGESTION" };
+        }
+      }
+    }
+
+    let plan = { status: "SKIPPED", id: null, pinned: false, updatedAt: null, cached: false };
+    if (regeneratePlan) {
+      const planResult = await generateReteachPlanInternal(lessonId, lessonDoc.toObject ? lessonDoc.toObject() : lessonDoc, req.user._id, {
+        days,
+        limit: planLimit,
+        force: forcePlan,
+      });
+      if (planResult?.error === "NOT_CONFIGURED") {
+        plan = { ...plan, status: "NOT_CONFIGURED" };
+      } else if (planResult?.error === "RATE_LIMIT") {
+        plan = { ...plan, status: "RATE_LIMIT" };
+      } else if (planResult?.planDoc) {
+        const p = planResult.planDoc;
+        plan = {
+          status: planResult.cached ? "CACHED" : "UPDATED",
+          id: p._id ? String(p._id) : null,
+          pinned: !!p.pinned,
+          updatedAt:
+            p.updatedAt != null && typeof p.updatedAt.toISOString === "function"
+              ? p.updatedAt.toISOString()
+              : (p.editedAt || p.generatedAt)
+                ? new Date(p.editedAt || p.generatedAt).toISOString()
+                : null,
+          cached: !!planResult.cached,
+        };
+      } else {
+        plan = { ...plan, status: "ERROR" };
+      }
+    }
+
+    let review = { status: "SKIPPED" };
+    if (markReviewed) {
+      if (lessonDoc.reviewedAt) {
+        review = { status: "ALREADY_REVIEWED" };
+      } else {
+        lessonDoc.reviewedAt = new Date();
+        lessonDoc.reviewedBy = req.user._id;
+        await lessonDoc.save();
+        review = { status: "MARKED" };
+      }
+    }
+
+    const lessonAfter = lessonDoc.toObject ? lessonDoc.toObject() : lessonDoc;
+    const readiness = computeLessonReadiness(lessonAfter);
+
+    const responseBody = {
+      ok: true,
+      lessonId,
+      topicKey: topicKey || undefined,
+      topic: findTopicByKey(topicKey)?.topic ?? topicKey ?? undefined,
+      attach: { requested: attach.requested, added: attach.added, addedIds: attach.addedIds },
+      diagram: { status: diagram.status, visualId: diagram.visualId },
+      plan: {
+        status: plan.status,
+        id: plan.id,
+        pinned: plan.pinned,
+        updatedAt: plan.updatedAt,
+        cached: plan.cached,
+      },
+      review: { status: review.status },
+      readiness: { status: readiness.status, signals: readiness.signals },
+    };
+
+    Event.create({
+      type: "MAKE_CLASSROOM_READY",
+      userId: req.user._id,
+      lessonId: lessonDoc._id,
+      meta: {
+        topicKey: topicKey || undefined,
+        days,
+        attachLimit,
+        planLimit,
+        attachAdded: attach.added,
+        planStatus: plan.status,
+        planCached: plan.cached,
+        markReviewed,
+        readinessStatus: readiness.status,
+      },
+    }).catch(() => {});
+
+    return res.status(200).json(responseBody);
+  } catch (err) {
+    console.error("POST make-classroom-ready error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
