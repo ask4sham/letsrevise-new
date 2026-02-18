@@ -30,6 +30,11 @@ interface LessonPageBlock {
   mode?: "static" | "annotated" | "step";
   annotations?: Array<{ id: string; kind?: "label" | "callout"; text?: string; x?: number; y?: number; color?: string; align?: "left" | "center" | "right" }>;
   steps?: Array<{ id: string; title?: string; showAnnotationIds?: string[] }>;
+  /** ai_fallback diagram: persisted so fallback survives save and renders in editor */
+  source?: string;
+  title?: string;
+  note?: string;
+  elements?: Array<{ id: string; label: string; x?: number; y?: number }>;
 }
 
 interface LessonPageHero {
@@ -448,6 +453,9 @@ const EditLessonPage: React.FC = () => {
   const draggingIdRef = useRef<string | null>(null);
   const draggingPageIdRef = useRef<string | null>(null);
   const draggingBlockIndexRef = useRef<number | null>(null);
+  /** ai_fallback diagram: container refs keyed by pageId-blockIdx-fb for drag-to-position */
+  const fallbackContainerRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const fallbackDragRef = useRef<{ pageId: string; blockIdx: number; elementId: string } | null>(null);
 
   const blockTextareasRef = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
@@ -3915,7 +3923,7 @@ const EditLessonPage: React.FC = () => {
                               style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}
                             >
                               <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
-                                Check this diagram is correct. Edit if needed.
+                                {d.note ?? "Check this diagram is correct. Edit if needed."}
                               </p>
                               <button
                                 type="button"
@@ -3937,7 +3945,76 @@ const EditLessonPage: React.FC = () => {
                               >
                                 Edit diagram
                               </button>
-                              {d.visualId ? (
+                              {(d.source === "ai_fallback" && Array.isArray(d.elements) && d.elements.length > 0) ? (
+                                <div
+                                  ref={(el) => {
+                                    const diagramKey = `${currentPage!.pageId}-${idx}-fb`;
+                                    if (!fallbackContainerRef.current) fallbackContainerRef.current = {};
+                                    fallbackContainerRef.current[diagramKey] = el;
+                                  }}
+                                  style={{ position: "relative", width: "100%", maxWidth: 520, marginTop: 8, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}
+                                  onPointerMove={(e) => {
+                                    const state = fallbackDragRef.current;
+                                    if (!state) return;
+                                    const key = `${state.pageId}-${state.blockIdx}-fb`;
+                                    const container = fallbackContainerRef.current?.[key];
+                                    if (!container) return;
+                                    const rect = container.getBoundingClientRect();
+                                    const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                                    const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+                                    const page = lesson?.pages?.find((p) => p.pageId === state.pageId);
+                                    const block = page?.blocks?.[state.blockIdx];
+                                    const elements = Array.isArray(block?.elements) ? block.elements : [];
+                                    const next = elements.map((el) =>
+                                      el.id === state.elementId ? { ...el, x: nx, y: ny } : el
+                                    );
+                                    updateBlock(state.pageId, state.blockIdx, { elements: next });
+                                  }}
+                                  onPointerUp={() => { fallbackDragRef.current = null; }}
+                                  onPointerLeave={() => { fallbackDragRef.current = null; }}
+                                >
+                                  <svg viewBox="0 0 400 300" style={{ width: "100%", height: "auto", display: "block", background: "#f8fafc" }}>
+                                    <ellipse cx={200} cy={150} rx={175} ry={115} fill="none" stroke="#334155" strokeWidth={2} />
+                                    <circle cx={200} cy={95} r={28} fill="#e2e8f0" stroke="#64748b" strokeWidth={1.5} />
+                                    {d.elements.map((el) => {
+                                      const x = (el.x ?? 0.5) * 400;
+                                      const y = (el.y ?? 0.5) * 300;
+                                      return (
+                                        <g key={el.id}>
+                                          <line x1={x} y1={y} x2={x} y2={Math.max(0, y - 18)} stroke="#475569" strokeWidth={1.5} opacity={0.7} />
+                                          <text x={x} y={y - 8} textAnchor="middle" fontSize={12} fill="#1e293b" fontWeight={500}>{el.label}</text>
+                                        </g>
+                                      );
+                                    })}
+                                  </svg>
+                                  {d.elements.map((el) => (
+                                    <div
+                                      key={el.id}
+                                      onPointerDown={(e) => {
+                                        e.preventDefault();
+                                        fallbackDragRef.current = { pageId: currentPage!.pageId, blockIdx: idx, elementId: el.id };
+                                        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+                                      }}
+                                      style={{
+                                        position: "absolute",
+                                        left: `${((el.x ?? 0.5) * 100).toFixed(2)}%`,
+                                        top: `${((el.y ?? 0.5) * 100).toFixed(2)}%`,
+                                        transform: "translate(-50%, -50%)",
+                                        padding: "4px 8px",
+                                        borderRadius: 6,
+                                        border: "1px solid #94a3b8",
+                                        background: "#fff",
+                                        fontSize: 12,
+                                        cursor: "grab",
+                                        userSelect: "none",
+                                        boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                                      }}
+                                    >
+                                      {el.label}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : d.visualId ? (
                                 <>
                                   {/* PR11.1: diagram preview canvas (when annotated/step) */}
                                   {(d.mode === "annotated" || d.mode === "step") && (() => {

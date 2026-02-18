@@ -91,12 +91,12 @@ function hasDiagram(pages) {
 function getBiologyFallbackDiagramBlock() {
   return {
     type: "diagram",
-    source: "ai",
+    source: "ai_fallback",
     title: "Basic cell structure",
     elements: [
-      { id: "cell_membrane", label: "Cell membrane" },
-      { id: "cytoplasm", label: "Cytoplasm" },
-      { id: "nucleus", label: "Nucleus" },
+      { id: "cell_membrane", label: "Cell membrane", x: 0.5, y: 0.85 },
+      { id: "cytoplasm", label: "Cytoplasm", x: 0.5, y: 0.5 },
+      { id: "nucleus", label: "Nucleus", x: 0.5, y: 0.35 },
     ],
     note: "Check this diagram for accuracy. Edit if needed.",
     caption: "Basic cell structure",

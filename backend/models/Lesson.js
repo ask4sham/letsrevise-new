@@ -62,6 +62,18 @@ const LessonPageBlockSchema = new mongoose.Schema(
     mode: { type: String, enum: ["static", "annotated", "step"], default: "static" },
     annotations: { type: [DiagramAnnotationSchema], default: undefined },
     steps: { type: [DiagramStepSchema], default: undefined },
+    // optional: ai_fallback diagram (persisted so fallback survives save and readiness counts it)
+    source: { type: String, default: undefined },
+    title: { type: String, default: undefined },
+    note: { type: String, default: undefined },
+    elements: [
+      {
+        id: { type: String },
+        label: { type: String },
+        x: { type: Number },
+        y: { type: Number },
+      },
+    ],
   },
   { _id: false }
 );
