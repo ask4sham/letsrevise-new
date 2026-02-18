@@ -1279,14 +1279,14 @@ const TeacherDashboard: React.FC = () => {
                       e.currentTarget.style.borderColor = "#dc2626";
                     }}
                   >
-                    Needs Attention
+                    Action needed
                   </button>
                 </Link>
               ) : (
                 <button
                   type="button"
                   disabled
-                  title="All lessons are classroom-ready"
+                  title="No issues right now"
                   style={{
                     marginLeft: 8,
                     padding: "4px 12px",
@@ -1299,7 +1299,7 @@ const TeacherDashboard: React.FC = () => {
                     cursor: "not-allowed",
                   }}
                 >
-                  Needs Attention
+                  Action needed
                 </button>
               )}
             </div>
