@@ -50,7 +50,7 @@ function sanitizePageForPreview(page) {
         // Keep correctAnswer so frontend can show Correct/Not quite without revealing which option; never send explanation in preview
         return rest;
       }
-      // Diagram blocks: allow in preview; PR11: include mode, annotations, steps (safe teacher-authored overlays)
+      // Diagram blocks: allow in preview; PR11: include mode, annotations, steps; AI image fallback
       if (b && b.type === "diagram") {
         const out = {
           type: "diagram",
@@ -60,6 +60,9 @@ function sanitizePageForPreview(page) {
         };
         if (Array.isArray(b.annotations)) out.annotations = b.annotations;
         if (Array.isArray(b.steps)) out.steps = b.steps;
+        if (typeof b.imageUrl === "string" && b.imageUrl.trim()) out.imageUrl = b.imageUrl.trim();
+        if (typeof b.imageSource === "string" && b.imageSource.trim()) out.imageSource = b.imageSource.trim();
+        if (typeof b.alt === "string" && b.alt.trim()) out.alt = b.alt.trim();
         return out;
       }
       return b;

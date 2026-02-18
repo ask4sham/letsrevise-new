@@ -74,6 +74,10 @@ const LessonPageBlockSchema = new mongoose.Schema(
         y: { type: Number },
       },
     ],
+    // optional: AI-generated diagram image (when no VisualModel; Chalkie-like)
+    imageUrl: { type: String, default: undefined },
+    imageSource: { type: String, default: undefined },
+    alt: { type: String, default: undefined },
   },
   { _id: false }
 );

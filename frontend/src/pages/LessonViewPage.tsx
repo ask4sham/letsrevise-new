@@ -47,6 +47,10 @@ interface LessonPageBlock {
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
   steps?: DiagramStep[];
+  /** AI-generated diagram image (when no VisualModel) */
+  imageUrl?: string;
+  imageSource?: string;
+  alt?: string;
 }
 
 interface LessonPageHero {
@@ -2393,8 +2397,39 @@ const LessonViewPage: React.FC = () => {
   };
 
   const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
-    const visualId = block.visualId ?? "";
     const caption = block.caption ?? "";
+    if (block.imageUrl) {
+      const src = block.imageUrl.startsWith("http")
+        ? block.imageUrl
+        : makeAbsoluteAssetUrl(block.imageUrl);
+      return (
+        <div
+          key={`diagram-${idx}-img`}
+          style={{
+            marginTop: 14,
+            padding: 14,
+            borderRadius: 14,
+            background: "#f8f9fa",
+            border: "2px solid rgba(34,197,94,0.25)",
+            boxShadow: "0 0 0 2px rgba(34,197,94,0.08)",
+            textAlign: "center",
+          }}
+        >
+          <img
+            src={src}
+            alt={block.alt ?? (caption || "Diagram")}
+            style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12 }}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+          {caption ? (
+            <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>{caption}</div>
+          ) : null}
+        </div>
+      );
+    }
+    const visualId = block.visualId ?? "";
     const level = lesson?.level ?? "GCSE";
     const mode = block.mode === "annotated" || block.mode === "step" ? block.mode : "static";
     const annotations = Array.isArray(block.annotations) ? block.annotations : [];

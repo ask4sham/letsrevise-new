@@ -35,6 +35,10 @@ interface LessonPageBlock {
   title?: string;
   note?: string;
   elements?: Array<{ id: string; label: string; x?: number; y?: number }>;
+  /** AI-generated diagram image (when no VisualModel; Chalkie-like) */
+  imageUrl?: string;
+  imageSource?: string;
+  alt?: string;
 }
 
 interface LessonPageHero {
@@ -4249,6 +4253,23 @@ const EditLessonPage: React.FC = () => {
                                     </div>
                                   )}
                                 </>
+                              ) : d.imageUrl ? (
+                                (() => {
+                                  const baseOrigin = (api as any)?.defaults?.baseURL
+                                    ? String((api as any).defaults.baseURL).replace(/\/api\/?$/i, "").replace(/\/+$/, "")
+                                    : window.location.origin;
+                                  const imgSrc = d.imageUrl.startsWith("http") ? d.imageUrl : baseOrigin + (d.imageUrl.startsWith("/") ? d.imageUrl : "/" + d.imageUrl);
+                                  return (
+                                    <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb", maxWidth: 520 }}>
+                                      <img
+                                        src={imgSrc}
+                                        alt={d.alt ?? d.caption ?? "Diagram"}
+                                        style={{ width: "100%", height: "auto", display: "block" }}
+                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                      />
+                                    </div>
+                                  );
+                                })()
                               ) : (
                                 <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
                                   <span>No diagram selected</span>

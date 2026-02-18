@@ -4,8 +4,12 @@ const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 const router = express.Router();
 const auth = require("../middleware/auth");
+
+/** Dir for AI-generated fallback diagram images (served at /uploads/ai-diagrams/). */
+const UPLOADS_AI_DIAGRAMS = path.join(__dirname, "..", "uploads", "ai-diagrams");
 
 const Lesson = require("../models/Lesson"); // ✅ needed for generate-and-save
 const VisualModel = require("../models/VisualModel");
@@ -88,6 +92,48 @@ function hasDiagram(pages) {
   );
 }
 
+/**
+ * Generate a fallback diagram image via OpenAI (DALL-E) and save to uploads/ai-diagrams.
+ * Used when no VisualModel match — Chalkie-like: teacher sees a diagram immediately.
+ * @returns {Promise<string|null>} Public URL path e.g. /uploads/ai-diagrams/abc123-cell.png, or null on failure
+ */
+async function generateFallbackDiagramImage() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  const prompt =
+    "Simple clean labelled diagram of an animal cell suitable for GCSE biology: cell membrane, cytoplasm, nucleus, mitochondria, ribosomes. Plain white background. Clear readable labels. No cartoon style.";
+  try {
+    const resp = await axios.post(
+      "https://api.openai.com/v1/images/generations",
+      {
+        model: "dall-e-2",
+        prompt,
+        n: 1,
+        size: "512x512",
+        response_format: "b64_json",
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        timeout: 60000,
+      }
+    );
+    const b64 = resp?.data?.data?.[0]?.b64_json;
+    if (!b64 || typeof b64 !== "string") return null;
+    if (!fs.existsSync(UPLOADS_AI_DIAGRAMS)) {
+      fs.mkdirSync(UPLOADS_AI_DIAGRAMS, { recursive: true });
+    }
+    const filename = `${crypto.randomBytes(8).toString("hex")}-cell.png`;
+    const filepath = path.join(UPLOADS_AI_DIAGRAMS, filename);
+    fs.writeFileSync(filepath, Buffer.from(b64, "base64"));
+    return `/uploads/ai-diagrams/${filename}`;
+  } catch (e) {
+    console.warn("⚠️ AI fallback diagram image generation failed:", e?.message || e);
+    return null;
+  }
+}
 
 /**
  * JSON Schema for Structured Outputs
@@ -1043,8 +1089,9 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       }
     }
 
-    // Biology fallback: if still no diagram, attach default cell visual from DB (no env)
+    // Biology fallback: if still no diagram, try default cell visual from DB then AI image
     if (!hasDiagram(pages) && pages.length > 0) {
+      let injected = false;
       const visualId = await findDefaultCellVisualId();
       if (visualId) {
         const page0 = pages[0];
@@ -1058,8 +1105,26 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
           steps: [],
         });
         pages[0] = { ...page0, blocks };
-      } else {
-        console.warn("⚠️ No default cell visual found; skipping fallback diagram injection");
+        injected = true;
+      }
+      if (!injected) {
+        const imageUrl = await generateFallbackDiagramImage();
+        if (imageUrl) {
+          const page0 = pages[0];
+          const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
+          blocks.unshift({
+            type: "diagram",
+            imageUrl,
+            imageSource: "ai",
+            alt: "Basic cell structure",
+            caption: "Basic cell structure",
+            mode: "annotated",
+            annotations: [],
+          });
+          pages[0] = { ...page0, blocks };
+        } else {
+          console.warn("⚠️ No default cell visual and AI image failed; skipping fallback diagram");
+        }
       }
     }
 

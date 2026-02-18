@@ -177,7 +177,7 @@ function sanitisePageInput(p, isUpdate = false) {
                 ? s.showAnnotationIds.map((id) => String(id)).filter(Boolean)
                 : [],
             }));
-          return {
+          const diagramBlock = {
             type: "diagram",
             visualId: visualId || undefined,
             caption: typeof b?.caption === "string" ? b.caption : "",
@@ -185,6 +185,10 @@ function sanitisePageInput(p, isUpdate = false) {
             annotations: annotations.length ? annotations : undefined,
             steps: steps.length ? steps : undefined,
           };
+          if (typeof b?.imageUrl === "string" && b.imageUrl.trim()) diagramBlock.imageUrl = b.imageUrl.trim();
+          if (typeof b?.imageSource === "string" && b.imageSource.trim()) diagramBlock.imageSource = b.imageSource.trim();
+          if (typeof b?.alt === "string" && b.alt.trim()) diagramBlock.alt = b.alt.trim();
+          return diagramBlock;
         }
         return {
           type,
