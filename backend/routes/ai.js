@@ -12,6 +12,7 @@ const VisualModel = require("../models/VisualModel");
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
+const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
@@ -87,24 +88,6 @@ function hasDiagram(pages) {
   );
 }
 
-/**
- * Default biology diagram: map topic/title keywords to an existing VisualModel id (env).
- * When no VisualModel is mapped for the lesson, we auto-select this so a real diagram shows.
- * Set DEFAULT_VISUALID_CELL in .env to an existing VisualModel _id (e.g. from Replace diagram in editor).
- */
-function getDefaultVisualIdForTopic({ topicTitle, topicKey }) {
-  const t = `${topicTitle || ""} ${topicKey || ""}`.toLowerCase();
-  if (
-    t.includes("cell structure") ||
-    t.includes("animal and plant cells") ||
-    t.includes("animal-plant-cells") ||
-    t.includes("organelles")
-  ) {
-    const id = process.env.DEFAULT_VISUALID_CELL;
-    return id && String(id).trim() ? String(id).trim() : null;
-  }
-  return null;
-}
 
 /**
  * JSON Schema for Structured Outputs
@@ -819,13 +802,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
         return tp;
       });
 
-    // ✅ Biology fallback: ensure page 1 has a diagram if none present (use default cell visual when env set)
+    // ✅ Biology fallback: ensure page 1 has a real diagram (DB lookup; no env)
     const subjectNorm = subject.toLowerCase();
     if (subjectNorm === "biology" && !hasDiagram(pagesMerged)) {
-      const visualId = getDefaultVisualIdForTopic({
-        topicTitle: topic,
-        topicKey: req.body?.topicKey ?? "",
-      });
+      const visualId = await findDefaultCellVisualId();
       if (visualId && pagesMerged[0]) {
         const page0 = pagesMerged[0];
         const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
@@ -835,8 +815,11 @@ router.post("/generate-and-save", auth, async (req, res) => {
           caption: "Basic cell structure",
           mode: "annotated",
           annotations: [],
+          steps: [],
         });
         pagesMerged[0] = { ...page0, blocks };
+      } else if (!visualId) {
+        console.warn("⚠️ No default cell visual found; skipping fallback diagram injection");
       }
     }
 
@@ -1060,12 +1043,9 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       }
     }
 
-    // Biology fallback: if still no diagram, auto-select default cell visual when env set (no block if no id)
+    // Biology fallback: if still no diagram, attach default cell visual from DB (no env)
     if (!hasDiagram(pages) && pages.length > 0) {
-      const visualId = getDefaultVisualIdForTopic({
-        topicTitle: topic,
-        topicKey: topicKeyRaw ?? "",
-      });
+      const visualId = await findDefaultCellVisualId();
       if (visualId) {
         const page0 = pages[0];
         const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
@@ -1075,8 +1055,11 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
           caption: "Basic cell structure",
           mode: "annotated",
           annotations: [],
+          steps: [],
         });
         pages[0] = { ...page0, blocks };
+      } else {
+        console.warn("⚠️ No default cell visual found; skipping fallback diagram injection");
       }
     }
 

@@ -2663,7 +2663,7 @@ const EditLessonPage: React.FC = () => {
                           </div>
                           <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 13, color: "#374151" }}>
                             <li>Checkpoints: {sig.checkpointCount ?? 0}</li>
-                            <li>Diagrams: {sig.diagramCount ?? 0}</li>
+                            <li>Diagrams: {(lesson?.pages ?? []).flatMap((p) => p.blocks ?? []).filter((b) => b.type === "diagram").length}</li>
                             <li>Practice questions attached: {sig.practiceCount ?? 0}</li>
                             <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
                           </ul>

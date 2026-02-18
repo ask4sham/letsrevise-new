@@ -2233,7 +2233,7 @@ router.post("/:id/review", auth, requireLessonOwnerOrAdmin, async (req, res) => 
 router.get("/:id/diagram-suggestions", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
-    const lesson = await Lesson.findById(lessonId).select("topic topicKey").lean();
+    const lesson = await Lesson.findById(lessonId).select("topic topicKey subject").lean();
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     const result = await getDiagramSuggestionsForLesson(lesson, { limit: 8 });
     return res.json({
