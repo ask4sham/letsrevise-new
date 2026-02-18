@@ -986,13 +986,6 @@ const TeacherDashboard: React.FC = () => {
                 Required Practicals covered: {coverage.coveredRPs} / {coverage.rpTotal}
               </div>
               <Link
-                to="/teacher/reports/biology-readiness"
-                style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
-              >
-                View readiness report
-              </Link>
-              {" · "}
-              <Link
                 to="/teacher/reports/attempts"
                 style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
               >
@@ -1001,7 +994,15 @@ const TeacherDashboard: React.FC = () => {
               {" · "}
               <Link
                 to="/teacher/reports/needs-attention"
-                style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
+                style={{ fontSize: 13, color: "#dc2626", fontWeight: 600, textDecoration: "none" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.textDecoration = "underline";
+                  e.currentTarget.style.color = "#b91c1c";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.textDecoration = "none";
+                  e.currentTarget.style.color = "#dc2626";
+                }}
               >
                 Needs attention →
               </Link>
@@ -1236,11 +1237,12 @@ const TeacherDashboard: React.FC = () => {
                     style={{
                       padding: "6px 10px",
                       borderRadius: 6,
-                      border: "1px solid #d1d5db",
-                      background: filterReadiness === r ? "#e5e7eb" : "#fff",
+                      border: r === "NEEDS_REVIEW" ? "1px solid #fca5a5" : "1px solid #d1d5db",
+                      background: filterReadiness === r ? (r === "NEEDS_REVIEW" ? "#fef2f2" : "#e5e7eb") : "#fff",
                       fontSize: 12,
                       cursor: "pointer",
                       fontWeight: filterReadiness === r ? 600 : 400,
+                      color: r === "NEEDS_REVIEW" ? "#dc2626" : undefined,
                     }}
                   >
                     {r === "all" ? "All" : r === "READY" ? "Classroom-ready" : r === "NEEDS_REVIEW" ? "Needs review" : "Draft"}
@@ -1251,18 +1253,21 @@ const TeacherDashboard: React.FC = () => {
                 to="/teacher/reports/needs-attention"
                 style={{
                   fontSize: 13,
-                  color: "#2563eb",
+                  color: "#dc2626",
+                  fontWeight: 600,
                   textDecoration: "none",
                   marginLeft: 8,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.textDecoration = "underline";
+                  e.currentTarget.style.color = "#b91c1c";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.textDecoration = "none";
+                  e.currentTarget.style.color = "#dc2626";
                 }}
               >
-                View Needs Attention →
+                Needs attention →
               </Link>
             </div>
           )}
@@ -1676,18 +1681,18 @@ const TeacherDashboard: React.FC = () => {
               to="/teacher/reports/needs-attention"
               style={{
                 padding: "12px 24px",
-                background: "transparent",
-                color: "#2563eb",
+                background: "rgba(220,38,38,0.08)",
+                color: "#dc2626",
                 textDecoration: "none",
                 borderRadius: "6px",
                 fontWeight: "bold",
-                border: "2px solid #2563eb",
+                border: "2px solid #dc2626",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
               }}
             >
-              Needs Attention
+              Needs attention →
             </Link>
 
             <button
