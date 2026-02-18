@@ -1247,6 +1247,23 @@ const TeacherDashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
+              <Link
+                to="/teacher/reports/needs-attention"
+                style={{
+                  fontSize: 13,
+                  color: "#2563eb",
+                  textDecoration: "none",
+                  marginLeft: 8,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.textDecoration = "underline";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.textDecoration = "none";
+                }}
+              >
+                View Needs Attention →
+              </Link>
             </div>
           )}
 
