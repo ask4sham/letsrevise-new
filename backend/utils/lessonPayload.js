@@ -60,6 +60,7 @@ function sanitizePageForPreview(page) {
         };
         if (Array.isArray(b.annotations)) out.annotations = b.annotations;
         if (Array.isArray(b.steps)) out.steps = b.steps;
+        if (Array.isArray(b.connectors)) out.connectors = b.connectors;
         if (typeof b.imageUrl === "string" && b.imageUrl.trim()) out.imageUrl = b.imageUrl.trim();
         if (typeof b.imageSource === "string" && b.imageSource.trim()) out.imageSource = b.imageSource.trim();
         if (typeof b.alt === "string" && b.alt.trim()) out.alt = b.alt.trim();

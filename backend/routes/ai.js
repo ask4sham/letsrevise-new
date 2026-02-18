@@ -112,8 +112,11 @@ IMPORTANT:
 - NO LETTERS
 - NO WORDS
 - NO CAPTIONS inside the image
+- NO ARROWS
+- NO POINTER LINES
+- NO CALLOUTS
 
-Show: cell membrane outline, cytoplasm region, nucleus, mitochondria (2–3), ribosomes as small dots, and a few simple organelles.
+Show: cell membrane outline, cytoplasm region, nucleus, mitochondria (2–3), ribosomes as small dots, and a few simple organelles. Clean base image only; labels and lines will be added as overlays.
 `.trim();
   try {
     const resp = await axios.post(

@@ -41,6 +41,17 @@ const DiagramStepSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/** Leader line from a label to a point on the diagram (0–1 normalized). */
+const DiagramConnectorSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    labelId: { type: String, required: true },
+    x: { type: Number, min: 0, max: 1, default: 0.5 },
+    y: { type: Number, min: 0, max: 1, default: 0.5 },
+  },
+  { _id: false }
+);
+
 const LessonPageBlockSchema = new mongoose.Schema(
   {
     // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram"
@@ -62,6 +73,8 @@ const LessonPageBlockSchema = new mongoose.Schema(
     mode: { type: String, enum: ["static", "annotated", "step"], default: "static" },
     annotations: { type: [DiagramAnnotationSchema], default: undefined },
     steps: { type: [DiagramStepSchema], default: undefined },
+    /** Leader lines: from label (labelId) to point (x, y) on diagram. 0–1 normalized. */
+    connectors: { type: [DiagramConnectorSchema], default: undefined },
     // optional: ai_fallback diagram (persisted so fallback survives save and readiness counts it)
     source: { type: String, default: undefined },
     title: { type: String, default: undefined },

@@ -31,6 +31,8 @@ interface LessonPageBlock {
   mode?: "static" | "annotated" | "step";
   annotations?: Array<{ id: string; kind?: "label" | "callout"; text?: string; x?: number; y?: number; color?: string; align?: "left" | "center" | "right" }>;
   steps?: Array<{ id: string; title?: string; showAnnotationIds?: string[] }>;
+  /** Leader lines: from label (labelId) to point (x, y) on diagram. 0–1 normalized. */
+  connectors?: Array<{ id: string; labelId: string; x: number; y: number }>;
   /** ai_fallback diagram: persisted so fallback survives save and renders in editor */
   source?: string;
   title?: string;
@@ -433,6 +435,8 @@ const EditLessonPage: React.FC = () => {
 
   /** PR11.1: drag-to-position diagram annotations */
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  /** When set, next click on the diagram (for this block) adds a connector from this label to the click point. */
+  const [connectorPickTarget, setConnectorPickTarget] = useState<{ pageId: string; blockIndex: number; labelId: string } | null>(null);
   const [placeMode, setPlaceMode] = useState(false);
   const [diagramPreviewUrls, setDiagramPreviewUrls] = useState<Record<string, string>>({});
   /** PR11.2: nudge step 1% | 2% | 5% */
@@ -755,6 +759,12 @@ const EditLessonPage: React.FC = () => {
                     title: typeof s?.title === "string" ? s.title : "",
                     showAnnotationIds: Array.isArray(s?.showAnnotationIds) ? s.showAnnotationIds.map((id: any) => String(id)) : [],
                   })) : [];
+                  const connectors = Array.isArray(b.connectors) ? b.connectors.map((c: any) => ({
+                    id: String(c?.id ?? ""),
+                    labelId: String(c?.labelId ?? ""),
+                    x: typeof c?.x === "number" ? c.x : 0.5,
+                    y: typeof c?.y === "number" ? c.y : 0.5,
+                  })).filter((c) => c.id && c.labelId) : [];
                   return {
                     ...b,
                     type: "diagram" as const,
@@ -763,6 +773,7 @@ const EditLessonPage: React.FC = () => {
                     mode,
                     annotations,
                     steps,
+                    connectors: connectors.length ? connectors : undefined,
                     imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
                     imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
                     alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
@@ -1983,6 +1994,7 @@ const EditLessonPage: React.FC = () => {
             const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
             const steps = Array.isArray(b.steps) ? b.steps : [];
+            const connectors = Array.isArray(b.connectors) ? b.connectors : [];
             return {
               ...b,
               type: "diagram",
@@ -1991,6 +2003,7 @@ const EditLessonPage: React.FC = () => {
               mode,
               annotations: annotations.length ? annotations : undefined,
               steps: steps.length ? steps : undefined,
+              connectors: connectors.length ? connectors : undefined,
               imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
               imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
               alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
@@ -2107,6 +2120,7 @@ const EditLessonPage: React.FC = () => {
             const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
             const steps = Array.isArray(b.steps) ? b.steps : [];
+            const connectors = Array.isArray(b.connectors) ? b.connectors : [];
             return {
               ...b,
               type: "diagram",
@@ -2115,6 +2129,7 @@ const EditLessonPage: React.FC = () => {
               mode,
               annotations: annotations.length ? annotations : undefined,
               steps: steps.length ? steps : undefined,
+              connectors: connectors.length ? connectors : undefined,
               imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
               imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
               alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
@@ -4122,12 +4137,21 @@ const EditLessonPage: React.FC = () => {
                                             marginTop: 4,
                                             touchAction: "none",
                                             outline: "none",
+                                            cursor: connectorPickTarget && connectorPickTarget.pageId === currentPage!.pageId && connectorPickTarget.blockIndex === idx ? "crosshair" : undefined,
                                           }}
                                           onClick={(e) => {
-                                            if (!placeMode || !selectedAnnotationId) return;
                                             const el = diagramRef.current[diagramKey];
                                             if (!el) return;
                                             const { x, y } = getNormalizedPointFromEvent(e.nativeEvent, el);
+                                            const pick = connectorPickTarget && connectorPickTarget.pageId === currentPage!.pageId && connectorPickTarget.blockIndex === idx;
+                                            if (pick) {
+                                              const conns = (d.connectors ?? []).filter((c) => c.labelId !== connectorPickTarget.labelId);
+                                              conns.push({ id: newId(), labelId: connectorPickTarget.labelId, x, y });
+                                              updateBlock(currentPage!.pageId, idx, { connectors: conns });
+                                              setConnectorPickTarget(null);
+                                              return;
+                                            }
+                                            if (!placeMode || !selectedAnnotationId) return;
                                             updateDiagramAnnotation(currentPage!.pageId, idx, selectedAnnotationId, { x, y });
                                           }}
                                           onKeyDown={(e) => {
@@ -4167,6 +4191,24 @@ const EditLessonPage: React.FC = () => {
                                                         stroke="#111827"
                                                         strokeWidth="2"
                                                         opacity="0.55"
+                                                      />
+                                                    );
+                                                  })}
+                                                  {(d.connectors ?? []).map((c) => {
+                                                    const ann = (d.annotations ?? []).find((a) => a.id === c.labelId);
+                                                    if (!ann) return null;
+                                                    const x1 = (ann.x ?? 0.5);
+                                                    const y1 = (ann.y ?? 0.5);
+                                                    return (
+                                                      <line
+                                                        key={c.id}
+                                                        x1={`${x1 * 100}%`}
+                                                        y1={`${y1 * 100}%`}
+                                                        x2={`${(c.x ?? 0.5) * 100}%`}
+                                                        y2={`${(c.y ?? 0.5) * 100}%`}
+                                                        stroke="#64748b"
+                                                        strokeWidth="1.5"
+                                                        opacity="0.8"
                                                       />
                                                     );
                                                   })}
@@ -4416,9 +4458,50 @@ const EditLessonPage: React.FC = () => {
                                           }}
                                           style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1px solid #cbd5e1" }}
                                         />
+                                        {(d.connectors ?? []).find((c) => c.labelId === a.id) ? (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const next = (d.connectors ?? []).filter((c) => c.labelId !== a.id);
+                                              updateBlock(currentPage!.pageId, idx, { connectors: next });
+                                              setConnectorPickTarget(null);
+                                            }}
+                                            style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #94a3b8", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                                          >
+                                            Remove line
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setConnectorPickTarget(connectorPickTarget?.labelId === a.id ? null : { pageId: currentPage!.pageId, blockIndex: idx, labelId: a.id });
+                                            }}
+                                            style={{
+                                              padding: "4px 10px",
+                                              borderRadius: 6,
+                                              border: connectorPickTarget?.labelId === a.id ? "2px solid #2563eb" : "1px solid #94a3b8",
+                                              background: connectorPickTarget?.labelId === a.id ? "#eff6ff" : "#f8fafc",
+                                              color: "#475569",
+                                              cursor: "pointer",
+                                              fontSize: 12,
+                                              fontWeight: 600,
+                                            }}
+                                          >
+                                            {connectorPickTarget?.labelId === a.id ? "Click diagram to place line" : "Add line"}
+                                          </button>
+                                        )}
                                         <button
                                           type="button"
-                                          onClick={(e) => { e.stopPropagation(); const next = (d.annotations ?? []).filter((_, i) => i !== ai); updateBlock(currentPage!.pageId, idx, { annotations: next }); if (selectedAnnotationId === a.id) setSelectedAnnotationId(null); }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const next = (d.annotations ?? []).filter((_, i) => i !== ai);
+                                            const nextConnectors = (d.connectors ?? []).filter((c) => c.labelId !== a.id);
+                                            updateBlock(currentPage!.pageId, idx, { annotations: next, connectors: nextConnectors });
+                                            if (selectedAnnotationId === a.id) setSelectedAnnotationId(null);
+                                            if (connectorPickTarget?.labelId === a.id) setConnectorPickTarget(null);
+                                          }}
                                           style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #f87171", background: "#fef2f2", color: "#b91c1c", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
                                         >
                                           Remove

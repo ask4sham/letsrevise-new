@@ -177,6 +177,16 @@ function sanitisePageInput(p, isUpdate = false) {
                 ? s.showAnnotationIds.map((id) => String(id)).filter(Boolean)
                 : [],
             }));
+          const rawConnectors = Array.isArray(b?.connectors) ? b.connectors : [];
+          const connectors = rawConnectors
+            .slice(0, 50)
+            .filter((c) => c && typeof c.id === "string" && typeof c.labelId === "string")
+            .map((c) => ({
+              id: String(c.id).trim(),
+              labelId: String(c.labelId).trim(),
+              x: Math.max(0, Math.min(1, Number(c.x) ?? 0.5)),
+              y: Math.max(0, Math.min(1, Number(c.y) ?? 0.5)),
+            }));
           const diagramBlock = {
             type: "diagram",
             visualId: visualId || undefined,
@@ -184,6 +194,7 @@ function sanitisePageInput(p, isUpdate = false) {
             mode,
             annotations: annotations.length ? annotations : undefined,
             steps: steps.length ? steps : undefined,
+            connectors: connectors.length ? connectors : undefined,
           };
           if (typeof b?.imageUrl === "string" && b.imageUrl.trim()) diagramBlock.imageUrl = b.imageUrl.trim();
           if (typeof b?.imageSource === "string" && b.imageSource.trim()) diagramBlock.imageSource = b.imageSource.trim();
