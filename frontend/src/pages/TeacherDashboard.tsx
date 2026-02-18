@@ -1249,25 +1249,32 @@ const TeacherDashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <Link
-                to="/teacher/reports/needs-attention"
-                style={{
-                  fontSize: 13,
-                  color: "#dc2626",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  marginLeft: 8,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = "underline";
-                  e.currentTarget.style.color = "#b91c1c";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = "none";
-                  e.currentTarget.style.color = "#dc2626";
-                }}
-              >
-                Needs attention →
+              <Link to="/teacher/reports/needs-attention" style={{ marginLeft: 8, textDecoration: "none" }}>
+                <button
+                  type="button"
+                  style={{
+                    marginLeft: 0,
+                    padding: "4px 12px",
+                    borderRadius: 6,
+                    border: "1px solid #dc2626",
+                    background: "#fef2f2",
+                    color: "#15803d",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    transition: "background 0.15s, border-color 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#fee2e2";
+                    e.currentTarget.style.borderColor = "#b91c1c";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#fef2f2";
+                    e.currentTarget.style.borderColor = "#dc2626";
+                  }}
+                >
+                  Needs Attention
+                </button>
               </Link>
             </div>
           )}
