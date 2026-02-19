@@ -232,7 +232,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     setSeedBankMessage(null);
     setSeedBankLoading(true);
     api
-      .post("/admin/seed-question-bank")
+      .post("admin/seed-question-bank")
       .then((res) => {
         setSeedBankMessage(res?.data?.message || "Seed started. Refresh the question list in a minute.");
       })

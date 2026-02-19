@@ -757,7 +757,7 @@ const AdminDashboardPage: React.FC = () => {
                   setSeedBankMessage(null);
                   setSeedBankLoading(true);
                   api
-                    .post("/admin/seed-question-bank")
+                    .post("admin/seed-question-bank")
                     .then((res) => {
                       setSeedBankMessage(res?.data?.message || "Seed started. Teachers can refresh the Worksheet Builder in a minute.");
                     })
