@@ -1,14 +1,22 @@
 /**
  * PR-W4: Teacher report for one worksheet assignment. Route: /teacher/worksheet-assignments/:id/report
  * PR-W4.2: Attempts list + "View attempt" link to detail page.
+ * PR-W4.3: Close assignment button + Closed badge.
  */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getReportSummary, getAssignmentAttempts, type AttemptListItem } from "../api/worksheetAssignments";
+import {
+  getReportSummary,
+  getAssignmentAttempts,
+  getAssignment,
+  closeAssignment,
+  type AttemptListItem,
+} from "../api/worksheetAssignments";
 
 export default function TeacherWorksheetReportPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [assignment, setAssignment] = useState<{ isActive: boolean } | null>(null);
   const [summary, setSummary] = useState<{
     attemptsCount: number;
     submittedCount: number;
@@ -17,9 +25,13 @@ export default function TeacherWorksheetReportPage() {
   } | null>(null);
   const [attempts, setAttempts] = useState<AttemptListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [closing, setClosing] = useState(false);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     if (!id) return;
+    getAssignment(id)
+      .then((a) => setAssignment({ isActive: a.isActive }))
+      .catch(() => setAssignment(null));
     getReportSummary(id)
       .then(setSummary)
       .catch((e: any) => {
@@ -29,6 +41,25 @@ export default function TeacherWorksheetReportPage() {
       .then(setAttempts)
       .catch(() => setAttempts([]));
   }, [id]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleClose = useCallback(() => {
+    if (!id || closing || assignment?.isActive === false) return;
+    if (!window.confirm("Close this assignment? Students will no longer be able to start or submit attempts.")) return;
+    setClosing(true);
+    closeAssignment(id)
+      .then((a) => {
+        setAssignment({ isActive: a.isActive });
+        refresh();
+      })
+      .catch((e: any) => {
+        window.alert(e?.response?.data?.error || e?.message || "Failed to close assignment");
+      })
+      .finally(() => setClosing(false));
+  }, [id, closing, assignment?.isActive, refresh]);
 
   if (error) {
     return (
@@ -51,7 +82,23 @@ export default function TeacherWorksheetReportPage() {
 
   return (
     <div style={{ padding: "2rem", maxWidth: "720px", margin: "0 auto" }}>
-      <h1 style={{ marginBottom: "24px" }}>Assignment results</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "24px" }}>
+        <h1 style={{ margin: 0 }}>Assignment results</h1>
+        {assignment?.isActive === false ? (
+          <span style={{ padding: "6px 12px", borderRadius: "6px", background: "#f1f5f9", color: "#64748b", fontSize: "0.875rem", fontWeight: 500 }}>
+            Closed
+          </span>
+        ) : assignment?.isActive === true ? (
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={closing}
+            style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #dc2626", background: "#fff", color: "#dc2626", cursor: closing ? "wait" : "pointer", fontSize: "0.875rem" }}
+          >
+            {closing ? "Closing…" : "Close assignment"}
+          </button>
+        ) : null}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "16px" }}>
         <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
           <div style={{ fontSize: "0.875rem", color: "#64748b" }}>Attempts</div>
