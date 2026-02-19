@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { createWorksheet } from "../api/worksheets";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -111,6 +112,9 @@ const TeacherDashboard: React.FC = () => {
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
   const [generateErrors, setGenerateErrors] = useState<Record<string, string>>({});
   const [topicTierChoice, setTopicTierChoice] = useState<Record<string, "foundation" | "higher">>({});
+
+  // PR-W2: Create worksheet then navigate to builder
+  const [creatingWorksheet, setCreatingWorksheet] = useState(false);
 
   const navigate = useNavigate();
 
@@ -459,6 +463,18 @@ const TeacherDashboard: React.FC = () => {
   const openAiModal = () => {
     setAiError("");
     setAiOpen(true);
+  };
+
+  const handleCreateWorksheet = async () => {
+    setCreatingWorksheet(true);
+    try {
+      const worksheet = await createWorksheet({});
+      navigate(`/teacher/worksheets/${worksheet._id}/edit`);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || err?.message || "Failed to create worksheet");
+    } finally {
+      setCreatingWorksheet(false);
+    }
   };
 
   // ✅ AI Generate handler (calls backend and opens edit page)
@@ -1709,6 +1725,26 @@ const TeacherDashboard: React.FC = () => {
             >
               📋 Create Questions
             </Link>
+
+            <button
+              type="button"
+              onClick={handleCreateWorksheet}
+              disabled={creatingWorksheet}
+              style={{
+                padding: "12px 24px",
+                background: "#059669",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: creatingWorksheet ? "wait" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {creatingWorksheet ? "Creating…" : "📄 Create worksheet"}
+            </button>
 
             <Link
               to="/teacher/reports/needs-attention"
