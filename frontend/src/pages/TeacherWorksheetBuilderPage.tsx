@@ -219,6 +219,11 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     return questions.filter((q) => q.topicKey === filterTopicKey);
   }, [questions, filterTopicKey]);
 
+  const uniqueTopicKeys = React.useMemo(
+    () => Array.from(new Set(questions.map((q) => q.topicKey).filter(Boolean))),
+    [questions]
+  );
+
   const persist = useCallback(() => {
     const ws = latestWorksheetRef.current;
     if (!id || !ws) return;
@@ -324,12 +329,38 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
       </div>
 
       {showDevTools && (
-        <DevSmokePanel
-          navigate={navigate}
-          worksheetId={id}
-          setWorksheet={setWorksheet}
-          sampleQuestionIds={SAMPLE_QUESTION_IDS}
-        />
+        <>
+          <DevSmokePanel
+            navigate={navigate}
+            worksheetId={id}
+            setWorksheet={setWorksheet}
+            sampleQuestionIds={SAMPLE_QUESTION_IDS}
+          />
+          <div
+            className="no-print"
+            style={{
+              marginBottom: "1rem",
+              padding: "12px",
+              background: "#f0f9ff",
+              border: "1px solid #0ea5e9",
+              borderRadius: "8px",
+              fontSize: "0.875rem",
+            }}
+          >
+            <strong>Question Bank debug</strong> (PR-W2.2.1)
+            <div style={{ marginTop: "8px", fontFamily: "monospace" }}>
+              <div>selectedTopicKey: {filterTopicKey || "(none)"}</div>
+              <div>allQuestions.length: {questions.length}</div>
+              <div>filteredQuestions.length: {bankList.length}</div>
+              <div>first 10 topicKeys from API: {uniqueTopicKeys.slice(0, 10).join(", ") || "(none)"}</div>
+              {questions.length > 0 && bankList.length === 0 && filterTopicKey && (
+                <div style={{ color: "#b91c1c", fontWeight: 600, marginTop: "6px" }}>
+                  TopicKey mismatch: selected key not present in fetched questions.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       <div
