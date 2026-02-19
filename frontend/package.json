@@ -44,6 +44,11 @@
       "react-app/jest"
     ]
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router-dom$": "<rootDir>/src/__mocks__/react-router-dom.js"
+    }
+  },
   "proxy": "http://localhost:5000",
   "browserslist": {
     "production": [
