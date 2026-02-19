@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const TOPIC_SCRIPTS = [
   require("./seed_cell-biology__culturing-microorganisms"),
   require("./seed_cell-biology__rp-growth"),
+  require("./seed_cell-biology__cell-division"),
   require("./seed_cell-biology__chromosomes"),
   require("./seed_cell-biology__mitosis-cell-cycle"),
   require("./seed_cell-biology__stem-cells"),

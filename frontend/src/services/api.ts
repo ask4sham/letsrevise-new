@@ -41,7 +41,8 @@ function normalizeApiHost(raw: string) {
 }
 
 const API_HOST = normalizeApiHost(RAW_API_BASE);
-const BASE_URL = baseURL === "" ? "/api" : `${API_HOST}/api`;
+// In dev with proxy: baseURL "" so requests are same-origin; we'll send full path /api/... in interceptor.
+const BASE_URL = baseURL === "" ? "" : `${API_HOST}/api`;
 
 // ---- Guardrail logging + warnings (prevents silent drift) ----
 (function logApiTargetOnce() {
@@ -49,9 +50,9 @@ const BASE_URL = baseURL === "" ? "/api" : `${API_HOST}/api`;
   console.info("[LetsRevise] API_HOST:", API_HOST);
   // eslint-disable-next-line no-console
   console.info("[LetsRevise] axios baseURL:", BASE_URL);
-  if (BASE_URL === "/api") {
+  if (BASE_URL === "") {
     // eslint-disable-next-line no-console
-    console.info("[LetsRevise] Using dev proxy: requests go to same origin and are proxied to backend (ensure backend is running on port 5000).");
+    console.info("[LetsRevise] Using dev proxy: requests to /api/* are proxied to backend (ensure backend is running on port 5000).");
   }
 
   try {
@@ -95,10 +96,16 @@ const api: AxiosInstance = axios.create({
 });
 
 // ===============================
-// Request interceptor (JWT)
+// Request interceptor (baseURL + JWT)
 // ===============================
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // In dev with proxy (baseURL ""): ensure path is /api/... so proxy forwards to backend /api/...
+    if (BASE_URL === "" && config.url && !config.url.startsWith("/api")) {
+      const path = config.url.startsWith("/") ? config.url : `/${config.url}`;
+      config.url = `/api${path}`;
+    }
+
     const token = localStorage.getItem("token");
 
     if (token) {
