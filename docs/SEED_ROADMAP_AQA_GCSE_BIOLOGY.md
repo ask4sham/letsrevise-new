@@ -11,7 +11,7 @@
 | # | Topic | topicKey | Status |
 |---|--------|----------|--------|
 | 1 | Cell structure | `cell-structure` | ✅ PR-SEED-1 |
-| 2 | Eukaryotes and prokaryotes | `eukaryotes-prokaryotes` | ✅ PR-SEED-2 |
+| 2 | Eukaryotes & Prokaryotes | `eukaryotes-prokaryotes` | ✅ PR-SEED-2 |
 | 3 | Animal and plant cells | `animal-plant-cells` | |
 | 4 | Cell specialisation | `cell-specialisation` | |
 | 5 | Cell differentiation | `cell-differentiation` | |
@@ -62,5 +62,7 @@ Adaptation/competition → Communities → Abiotic/biotic → Ecosystems (+ RP) 
 
 ## PR approach
 
-- **Next after PR-SEED-2:** Either one topic per PR (2–6) or bundle Cell Biology Batch A (topics 2–6) in one PR once the pattern is stable.
-- **Script naming:** `seed_<topic_slug>_questions.js` or `seed_aqa_gcse_biology_<topic_slug>.js`; resolve `topicKey` from `config/aqa_gcse_biology_topics.json`.
+- **PR-SEED-ALL-1 (Commit 1):** Bulk pack for Cell Biology. One script per topic under `backend/scripts/aqa_gcse_biology/` using shared helper `_seedHelpers/aqaBioSeedUtils.js`. Topic-level idempotent; `status: "draft"`.
+- **NPM scripts:** `npm run seed:bio:cell-biology` (all Cell Biology topics); `npm run seed:bio:all` (all units, currently Cell Biology only); `npm run seed:bio:cell-biology:cell-structure` (single topic example).
+- **Script naming:** `seed_<unitKey>__<topicKey>.js` (e.g. `seed_cell-biology__cell-structure.js`). `topicKey` resolved from `config/aqa_gcse_biology_topics.json` via helper (no hardcoding).
+- **Commit 2:** Add unit runners for Organisation, Infection & Response, Bioenergetics, etc., and wire into `seed_all.js`.
