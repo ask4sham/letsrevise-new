@@ -111,11 +111,16 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<any>) => {
-    const message =
+    let message =
       (error.response?.data as any)?.msg ||
       (error.response?.data as any)?.message ||
       error.message ||
       "Something went wrong";
+    // Axios "Network Error" = request never reached server (backend down, wrong URL, CORS, etc.)
+    if (message === "Network Error" || (error.message && error.message === "Network Error")) {
+      message =
+        "Cannot reach server. Check that the backend is running and REACT_APP_API_BASE points to it (e.g. http://localhost:3001).";
+    }
 
     if (error.response?.status === 401) {
       // Preserve existing behaviour
@@ -171,5 +176,15 @@ export const getVisual = (conceptKey: string, level: string) =>
   api.get(`/visuals/${encodeURIComponent(conceptKey)}`, {
     params: { level },
   });
+
+// GET /api/visuals/id/:id — for diagram blocks (visualId)
+export const getVisualById = (id: string, level?: string) =>
+  api.get(`/visuals/id/${encodeURIComponent(id)}`, {
+    params: level ? { level } : undefined,
+  });
+
+// GET /api/visuals — list for diagram picker
+export const listVisuals = (subject?: string) =>
+  api.get("/visuals", { params: subject ? { subject } : undefined });
 
 export default api;
