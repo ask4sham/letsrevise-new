@@ -43,5 +43,8 @@ app.use("/api/reports", require("./routes/reports"));
 // PR12: Practice/checkpoint attempts (record only)
 app.use("/api/attempts", require("./routes/attempts"));
 
+// PR-W1: worksheets (teacher/admin only)
+app.use("/api/worksheets", require("./routes/worksheets"));
+
 // ✅ Export for testing
 module.exports = app;

@@ -51,6 +51,9 @@ const assessmentAttemptsRoutes = require("./routes/assessmentAttempts");
 // ✅ NEW: exam question bank (teacher only)
 const examQuestionsRoutes = require("./routes/examQuestions");
 
+// PR-W1: worksheets (teacher/admin only)
+const worksheetsRoutes = require("./routes/worksheets");
+
 // ✅ NEW: parent-link approval routes
 const parentLinkRoutes = require("./routes/parentLink");
 
@@ -265,6 +268,7 @@ app.use("/api/assessment-items", assessmentItemsRoutes);
 app.use("/api/assessment-attempts", assessmentAttemptsRoutes);
 
 app.use("/api/exam-questions", examQuestionsRoutes);
+app.use("/api/worksheets", worksheetsRoutes);
 
 app.use("/api/parent-link", parentLinkRoutes);
 app.use("/api/parent", require("./routes/parent"));
