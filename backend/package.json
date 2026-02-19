@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "seed:cell-structure": "node scripts/seed_cell_structure_questions.js",
     "seed:aqa-bio-cell-structure": "node scripts/seed_aqa_gcse_biology_cell_structure.js",
+    "seed:eukaryotes-prokaryotes": "node scripts/seed_eukaryotes_prokaryotes_questions.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:assessment": "jest tests/assessmentAttempts.integration.test.js",
