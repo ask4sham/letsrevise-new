@@ -32,8 +32,11 @@ describe("Worksheet Assignment (PR-W4)", () => {
     const loginRes = await request(app)
       .post("/api/auth/login")
       .send({ email: "assign-teacher@test.com", password: "password123" });
+    if (loginRes.status !== 200) {
+      throw new Error(`Login failed (${loginRes.status}): ${JSON.stringify(loginRes.body)}`);
+    }
     teacherToken = loginRes.body?.token;
-    if (!teacherToken) throw new Error("Failed to get teacher token");
+    if (!teacherToken) throw new Error("Login returned 200 but no token in body");
 
     const wsDraft = await Worksheet.create({
       ownerId: teacherId,

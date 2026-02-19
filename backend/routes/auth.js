@@ -1,4 +1,4 @@
-﻿// /backend/routes/auth.js
+// /backend/routes/auth.js
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
@@ -454,7 +454,7 @@ router.post(
         }
       }
 
-      // Create JWT (same rule as middleware, via utils)
+      // Create JWT (same rule as middleware — use getJwtSecret so sign and verify use same env var)
       const payload = {
         user: {
           id: user._id.toString(),
@@ -462,18 +462,13 @@ router.post(
         },
       };
 
-      // ✅ CHANGED: Use JWT_SECRET_KEY directly from environment
-      const jwtSecretKey = process.env.JWT_SECRET_KEY;
-      if (!jwtSecretKey) {
-        console.error("❌ JWT_SECRET_KEY environment variable is not set");
-        return res.status(500).json({ msg: "Server configuration error" });
-      }
+      const { getJwtSecret } = require("../utils/jwtSecret");
+      const jwtSecretKey = getJwtSecret();
 
       if (shouldDebugJwt()) {
-        console.log(`🔑 JWT_SECRET_KEY fingerprint (SIGN/login): ${secretFingerprint(jwtSecretKey)}`);
+        console.log(`🔑 JWT secret fingerprint (SIGN/login): ${secretFingerprint(jwtSecretKey)}`);
       }
 
-      // ✅ CHANGED: Sign with JWT_SECRET_KEY
       jwt.sign(payload, jwtSecretKey, { 
         algorithm: "HS256",
         expiresIn: "7d" 
@@ -523,12 +518,8 @@ router.get("/user", async (req, res) => {
       return res.status(401).json({ msg: "No token" });
     }
 
-    // ✅ CHANGED: Verify with JWT_SECRET_KEY
-    const jwtSecretKey = process.env.JWT_SECRET_KEY;
-    if (!jwtSecretKey) {
-      return res.status(500).json({ msg: "Server configuration error" });
-    }
-
+    const { getJwtSecret } = require("../utils/jwtSecret");
+    const jwtSecretKey = getJwtSecret();
     const decoded = jwt.verify(token, jwtSecretKey, { algorithms: ["HS256"] });
     const userId = decoded.user?.id || decoded.userId || decoded.id;
 
