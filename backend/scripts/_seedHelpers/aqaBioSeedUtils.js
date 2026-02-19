@@ -72,7 +72,7 @@ async function seedTopic(mongoose, opts) {
   const existingCount = await ExamQuestion.countDocuments({ topicKey });
   if (existingCount > 0) {
     console.log(`  [${topicLabel}] Already ${existingCount} question(s) for topicKey "${topicKey}". Skipping.`);
-    return { skipped: true };
+    return { skipped: true, topic: topicLabel };
   }
 
   const teacherId = new mongoose.Types.ObjectId(await getTeacherId(mongoose));
@@ -114,7 +114,7 @@ async function seedTopic(mongoose, opts) {
 
   await ExamQuestion.insertMany(docs);
   console.log(`  [${topicLabel}] ✔ Seeded 15 questions.`);
-  return { skipped: false, inserted: docs.length };
+  return { skipped: false, inserted: docs.length, topic: topicLabel };
 }
 
 module.exports = {

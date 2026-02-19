@@ -46,5 +46,8 @@ app.use("/api/attempts", require("./routes/attempts"));
 // PR-W1: worksheets (teacher/admin only)
 app.use("/api/worksheets", require("./routes/worksheets"));
 
+// PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
+app.use("/api/dev", require("./routes/devTools"));
+
 // ✅ Export for testing
 module.exports = app;

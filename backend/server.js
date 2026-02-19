@@ -284,6 +284,9 @@ app.use("/api/reports", require("./routes/reports"));
 // PR12: Practice/checkpoint attempts
 app.use("/api/attempts", require("./routes/attempts"));
 
+// PR-W2.3: Dev-only seed endpoints (ENABLE_DEV_TOOLS=1; teacher/admin)
+app.use("/api/dev", require("./routes/devTools"));
+
 /* ============================================================
    Phase 12.2: Admin Ops UI (read-only + controls) — Patched 12A/12D
    Protected with auth + requireAdmin; 401 returns gate page for token entry.

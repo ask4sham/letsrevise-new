@@ -10,6 +10,7 @@ import {
   type Worksheet,
   type WorksheetQuestionItem,
 } from "../api/worksheets";
+import { seedAqaBio } from "../api/devTools";
 
 type ExamQuestion = {
   _id: string;
@@ -26,39 +27,33 @@ type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 const DEBOUNCE_MS = 500;
 
-/** Dev smoke: use real IDs from your DB or leave placeholders and set via env. */
-const SAMPLE_QUESTION_IDS = [
-  process.env.REACT_APP_SAMPLE_QUESTION_ID_1 || "PUT_REAL_ID_1_HERE",
-  process.env.REACT_APP_SAMPLE_QUESTION_ID_2 || "PUT_REAL_ID_2_HERE",
-];
-
 const showDevTools =
   process.env.NODE_ENV !== "production" ||
   process.env.REACT_APP_DEV_TOOLS === "1";
 
-/** PR-W2.1: Dev-only smoke panel — uses exact PR-W1 request shapes. */
-function DevSmokePanel({
-  navigate,
-  worksheetId,
-  setWorksheet,
-  sampleQuestionIds,
+/** PR-W2.3: Dev-only panel — 1-click populate question bank by scope. */
+function DevToolsSeedPanel({
+  onSeedComplete,
 }: {
-  navigate: (path: string) => void;
-  worksheetId: string | undefined;
-  setWorksheet: React.Dispatch<React.SetStateAction<Worksheet | null>>;
-  sampleQuestionIds: string[];
+  onSeedComplete: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const run = async (label: string, fn: () => Promise<void>) => {
-    setMsg(null);
+  const run = async (scope: string, label: string) => {
+    setMessage(null);
     setBusy(true);
     try {
-      await fn();
-      setMsg(`${label} — OK`);
+      const res = await seedAqaBio(scope);
+      if (res.ok) {
+        const total = res.results?.reduce((s, r) => s + (r.inserted || 0), 0) ?? 0;
+        setMessage(`Seed complete: ${label} (${total} inserted). Refreshing list…`);
+        onSeedComplete();
+      } else {
+        setMessage(res.msg || "Seed failed");
+      }
     } catch (e: any) {
-      setMsg(`${label} — ${e?.response?.data?.error || e?.message || "Error"}`);
+      setMessage(e?.response?.data?.msg || e?.message || "Request failed");
     } finally {
       setBusy(false);
     }
@@ -70,70 +65,31 @@ function DevSmokePanel({
       style={{
         marginBottom: "1rem",
         padding: "12px",
-        background: "#fef3c7",
-        border: "1px solid #f59e0b",
+        background: "#f0fdf4",
+        border: "1px solid #22c55e",
         borderRadius: "8px",
         fontSize: "0.875rem",
       }}
     >
-      <strong>Smoke test</strong> (dev only)
+      <strong>Dev Tools</strong> — Populate question bank (dev only)
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            run("Create", async () => {
-              const ws = await createWorksheet({
-                title: "Cell Structure – Worksheet 1",
-                subject: "Biology",
-                examBoard: "AQA",
-                topicKey: "cell-structure",
-              });
-              navigate(`/teacher/worksheets/${ws._id}/edit`);
-            })
-          }
-        >
-          Create worksheet
+        <button type="button" disabled={busy} onClick={() => run("cell-biology", "Cell Biology (All)")}>
+          Populate Cell Biology (All)
         </button>
-        <button
-          type="button"
-          disabled={busy || !worksheetId}
-          onClick={() =>
-            run("Load", async () => {
-              const ws = await getWorksheet(worksheetId!);
-              setWorksheet(ws);
-            })
-          }
-        >
-          Load worksheet
+        <button type="button" disabled={busy} onClick={() => run("cell-biology-batch-a", "Batch A")}>
+          Populate Cell Biology (Batch A)
         </button>
-        <button
-          type="button"
-          disabled={busy || !worksheetId}
-          onClick={() =>
-            run("Update with sample questions", async () => {
-              const items = sampleQuestionIds.map((examQuestionId) => ({ examQuestionId }));
-              const ws = await updateWorksheet(worksheetId!, { questionItems: items });
-              setWorksheet(ws);
-            })
-          }
-        >
-          Update with sample questions
+        <button type="button" disabled={busy} onClick={() => run("cell-biology-batch-b", "Batch B")}>
+          Populate Cell Biology (Batch B)
         </button>
-        <button
-          type="button"
-          disabled={busy || !worksheetId}
-          onClick={() =>
-            run("Publish", async () => {
-              const ws = await publishWorksheet(worksheetId!);
-              setWorksheet(ws);
-            })
-          }
-        >
-          Publish worksheet
+        <button type="button" disabled={busy} onClick={() => run("cell-biology-batch-c", "Batch C")}>
+          Populate Cell Biology (Batch C)
+        </button>
+        <button type="button" disabled={busy} onClick={() => run("all", "Full GCSE Biology")}>
+          Populate Full GCSE Biology
         </button>
       </div>
-      {msg && <div style={{ marginTop: "8px" }}>{msg}</div>}
+      {message && <div style={{ marginTop: "8px", color: "#166534" }}>{message}</div>}
     </div>
   );
 }
@@ -247,11 +203,6 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     return questions.filter((q) => q.topicKey === filterTopicKey);
   }, [questions, filterTopicKey]);
 
-  const uniqueTopicKeys = React.useMemo(
-    () => Array.from(new Set(questions.map((q) => q.topicKey).filter(Boolean))),
-    [questions]
-  );
-
   const persist = useCallback(() => {
     const ws = latestWorksheetRef.current;
     if (!id || !ws) return;
@@ -357,43 +308,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
       </div>
 
       {showDevTools && (
-        <>
-          <DevSmokePanel
-            navigate={navigate}
-            worksheetId={id}
-            setWorksheet={setWorksheet}
-            sampleQuestionIds={SAMPLE_QUESTION_IDS}
-          />
-          <div
-            className="no-print"
-            style={{
-              marginBottom: "1rem",
-              padding: "12px",
-              background: "#f0f9ff",
-              border: "1px solid #0ea5e9",
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-            }}
-          >
-            <strong>Question Bank debug</strong> (PR-W2.2.1)
-            <div style={{ marginTop: "8px", fontFamily: "monospace" }}>
-              <div>selectedTopicKey: {filterTopicKey || "(none)"}</div>
-              <div>allQuestions.length: {questions.length}</div>
-              <div>filteredQuestions.length: {bankList.length}</div>
-              <div>first 10 topicKeys from API: {uniqueTopicKeys.slice(0, 10).join(", ") || "(none)"}</div>
-              {questions.length > 0 && (
-                <div style={{ marginTop: "4px" }}>
-                  sample topicKey (first question): {JSON.stringify(questions[0]?.topicKey ?? "undefined")}
-                </div>
-              )}
-              {questions.length > 0 && bankList.length === 0 && filterTopicKey && (
-                <div style={{ color: "#b91c1c", fontWeight: 600, marginTop: "6px" }}>
-                  TopicKey mismatch: selected key not present in fetched questions. Fetched questions have no/missing topicKey — run the seed for this topic in backend.
-                </div>
-              )}
-            </div>
-          </div>
-        </>
+        <DevToolsSeedPanel onSeedComplete={fetchQuestions} />
       )}
 
       <div

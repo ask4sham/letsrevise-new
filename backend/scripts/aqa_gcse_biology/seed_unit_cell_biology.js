@@ -27,24 +27,39 @@ const TOPIC_SCRIPTS = [
   require("./seed_cell-biology__rp-growth"),
 ];
 
-async function run() {
-  const MONGO_URI = process.env.MONGO_URI;
-  if (!MONGO_URI) {
-    console.error("MONGO_URI not set");
-    process.exit(1);
+async function run(mongooseConn) {
+  const selfConnect = mongooseConn == null;
+  if (selfConnect) {
+    const MONGO_URI = process.env.MONGO_URI;
+    if (!MONGO_URI) {
+      throw new Error("MONGO_URI not set");
+    }
+    console.log("Seeding unit: Cell Biology");
+    await mongoose.connect(MONGO_URI);
+    mongooseConn = mongoose;
   }
-  console.log("Seeding unit: Cell Biology");
-  await mongoose.connect(MONGO_URI);
-  for (const mod of TOPIC_SCRIPTS) {
-    await mod.run(mongoose);
+  const results = [];
+  try {
+    for (const mod of TOPIC_SCRIPTS) {
+      const r = await mod.run(mongooseConn);
+      results.push({ topic: r && r.topic ? r.topic : "?", skipped: !!r && r.skipped, inserted: (r && r.inserted) || 0 });
+    }
+    return results;
+  } finally {
+    if (selfConnect) await mongoose.disconnect();
   }
-  await mongoose.disconnect();
-  console.log("Cell Biology unit complete.");
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  run()
+    .then(() => {
+      console.log("Cell Biology unit complete.");
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
 
 module.exports = { run };
