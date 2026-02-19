@@ -3,10 +3,12 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import {
+  createWorksheet,
   getWorksheet,
   updateWorksheet,
+  publishWorksheet,
   type Worksheet,
-  type WorksheetItem,
+  type WorksheetQuestionItem,
 } from "../api/worksheets";
 
 type ExamQuestion = {
@@ -23,6 +25,118 @@ type ExamQuestion = {
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 const DEBOUNCE_MS = 500;
+
+/** Dev smoke: use real IDs from your DB or leave placeholders and set via env. */
+const SAMPLE_QUESTION_IDS = [
+  process.env.REACT_APP_SAMPLE_QUESTION_ID_1 || "PUT_REAL_ID_1_HERE",
+  process.env.REACT_APP_SAMPLE_QUESTION_ID_2 || "PUT_REAL_ID_2_HERE",
+];
+
+const showDevTools =
+  process.env.NODE_ENV !== "production" ||
+  process.env.REACT_APP_DEV_TOOLS === "1";
+
+/** PR-W2.1: Dev-only smoke panel — uses exact PR-W1 request shapes. */
+function DevSmokePanel({
+  navigate,
+  worksheetId,
+  setWorksheet,
+  sampleQuestionIds,
+}: {
+  navigate: (path: string) => void;
+  worksheetId: string | undefined;
+  setWorksheet: React.Dispatch<React.SetStateAction<Worksheet | null>>;
+  sampleQuestionIds: string[];
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const run = async (label: string, fn: () => Promise<void>) => {
+    setMsg(null);
+    setBusy(true);
+    try {
+      await fn();
+      setMsg(`${label} — OK`);
+    } catch (e: any) {
+      setMsg(`${label} — ${e?.response?.data?.error || e?.message || "Error"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="no-print"
+      style={{
+        marginBottom: "1rem",
+        padding: "12px",
+        background: "#fef3c7",
+        border: "1px solid #f59e0b",
+        borderRadius: "8px",
+        fontSize: "0.875rem",
+      }}
+    >
+      <strong>Smoke test</strong> (dev only)
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            run("Create", async () => {
+              const ws = await createWorksheet({
+                title: "Cell Structure – Worksheet 1",
+                subject: "Biology",
+                examBoard: "AQA",
+                topicKey: "cell-structure",
+              });
+              navigate(`/teacher/worksheets/${ws._id}/edit`);
+            })
+          }
+        >
+          Create worksheet
+        </button>
+        <button
+          type="button"
+          disabled={busy || !worksheetId}
+          onClick={() =>
+            run("Load", async () => {
+              const ws = await getWorksheet(worksheetId!);
+              setWorksheet(ws);
+            })
+          }
+        >
+          Load worksheet
+        </button>
+        <button
+          type="button"
+          disabled={busy || !worksheetId}
+          onClick={() =>
+            run("Update with sample questions", async () => {
+              const items = sampleQuestionIds.map((examQuestionId) => ({ examQuestionId }));
+              const ws = await updateWorksheet(worksheetId!, { questionItems: items });
+              setWorksheet(ws);
+            })
+          }
+        >
+          Update with sample questions
+        </button>
+        <button
+          type="button"
+          disabled={busy || !worksheetId}
+          onClick={() =>
+            run("Publish", async () => {
+              const ws = await publishWorksheet(worksheetId!);
+              setWorksheet(ws);
+            })
+          }
+        >
+          Publish worksheet
+        </button>
+      </div>
+      {msg && <div style={{ marginTop: "8px" }}>{msg}</div>}
+    </div>
+  );
+}
 
 const TeacherWorksheetBuilderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -131,7 +245,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     scheduleSave();
   };
 
-  const updateQuestionItems = (items: WorksheetItem[]) => {
+  const updateQuestionItems = (items: WorksheetQuestionItem[]) => {
     setWorksheet((prev) => (prev ? { ...prev, questionItems: items } : null));
     scheduleSave();
   };
@@ -183,16 +297,43 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
 
   return (
     <div style={{ padding: "1rem", maxWidth: "1400px", margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+      <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "8px" }}>
         <h1 style={{ margin: 0, fontSize: "1.5rem" }}>Worksheet Builder</h1>
-        <span style={{ fontSize: "0.875rem", color: "#6b7280" }}>
-          {saveStatus === "saving" && "Saving…"}
-          {saveStatus === "saved" && "Saved"}
-          {saveStatus === "error" && "Save failed"}
+        <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+            {saveStatus === "saving" && "Saving…"}
+            {saveStatus === "saved" && "Saved"}
+            {saveStatus === "error" && "Save failed"}
+          </span>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              padding: "8px 16px",
+              fontSize: "0.875rem",
+              background: "#111827",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            Print
+          </button>
         </span>
       </div>
 
+      {showDevTools && (
+        <DevSmokePanel
+          navigate={navigate}
+          worksheetId={id}
+          setWorksheet={setWorksheet}
+          sampleQuestionIds={SAMPLE_QUESTION_IDS}
+        />
+      )}
+
       <div
+        className="worksheet-builder-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "40% 1fr",
@@ -203,6 +344,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
       >
         {/* Left: Question Bank */}
         <div
+          className="worksheet-builder-left no-print"
           style={{
             border: "1px solid #e5e7eb",
             borderRadius: "12px",
@@ -290,6 +432,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
 
         {/* Right: Worksheet Preview */}
         <div
+          className="worksheet-builder-right worksheet-page"
           style={{
             border: "1px solid #e5e7eb",
             borderRadius: "12px",
@@ -299,7 +442,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
             background: "#fff",
           }}
         >
-          <div style={{ padding: "12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+          <div className="no-print" style={{ padding: "12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
             <h2 style={{ margin: "0 0 8px", fontSize: "1rem" }}>Worksheet Preview</h2>
             <input
               type="text"
@@ -326,6 +469,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
                   return (
                     <li
                       key={`${item.examQuestionId}-${index}`}
+                      className="worksheet-question"
                       style={{
                         border: "1px solid #e5e7eb",
                         borderRadius: "8px",
@@ -335,7 +479,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
                         position: "relative",
                       }}
                     >
-                      <div style={{ position: "absolute", top: "8px", right: "8px", display: "flex", gap: "4px" }}>
+                      <div className="no-print" style={{ position: "absolute", top: "8px", right: "8px", display: "flex", gap: "4px" }}>
                         <button
                           type="button"
                           title="Move up"

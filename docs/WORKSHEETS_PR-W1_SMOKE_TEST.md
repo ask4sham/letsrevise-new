@@ -231,3 +231,10 @@ curl -X POST http://localhost:5000/api/worksheets/66fae9c2c2b4c4a6a7d8e901/publi
 - **Publish:** `POST /api/worksheets/:id/publish` → `{ worksheet: Worksheet }`.
 
 `Worksheet.questionItems[]`: `{ examQuestionId: string, marksOverride?: number, notes?: string }`. Order is significant; duplicate `examQuestionId` returns 400.
+
+---
+
+## PR-W3 / PR-W3.1
+
+- **PR-W3 (done):** Worksheet Builder has a **Print** button; `@media print` CSS hides the question bank and controls (`.no-print`), shows A4-style preview only. Optional PDF export was **not** added (Puppeteer not in stack).
+- **PR-W3.1 (later):** Add `GET /api/worksheets/:id/export/pdf` (teacher/admin, owner-only), render HTML server-side and use Puppeteer to return a PDF buffer with `Content-Disposition: attachment; filename="worksheet.pdf"`.
