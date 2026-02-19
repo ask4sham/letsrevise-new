@@ -18,6 +18,8 @@
     "seed:bio:ecology": "node scripts/aqa_gcse_biology/seed_unit_ecology.js",
     "seed:bio:cell-biology:cell-structure": "node scripts/aqa_gcse_biology/seed_cell-biology__cell-structure.js",
     "seed:bio:cell-biology:batch-a": "node scripts/aqa_gcse_biology/seed_batch_cell_biology_A.js",
+    "seed:bio:cell-biology:batch-b": "node scripts/aqa_gcse_biology/seed_batch_cell_biology_B.js",
+    "seed:bio:cell-biology:batch-c": "node scripts/aqa_gcse_biology/seed_batch_cell_biology_C.js",
     "seed:bio:all": "node scripts/aqa_gcse_biology/seed_all.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
