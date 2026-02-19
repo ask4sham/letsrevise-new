@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const Worksheet = require("../models/Worksheet");
+const { TITLE_MAX_LENGTH } = require("../models/Worksheet");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -18,18 +19,55 @@ function isOwner(doc, req) {
   return ownerId === userId;
 }
 
-function normalizeQuestionItems(items) {
-  if (!Array.isArray(items)) return [];
-  return items
-    .filter((it) => it && mongoose.Types.ObjectId.isValid(String(it.examQuestionId)))
-    .map((it) => ({
+/** Normalize and validate questionItems. Returns { ok, items, error } — error set if invalid or duplicates. */
+function parseQuestionItems(items) {
+  if (!Array.isArray(items)) {
+    return { ok: false, items: [], error: "questionItems must be an array" };
+  }
+  const seen = new Set();
+  const result = [];
+  for (const it of items) {
+    if (!it || !mongoose.Types.ObjectId.isValid(String(it.examQuestionId))) {
+      return { ok: false, items: [], error: "Each item must include a valid examQuestionId" };
+    }
+    const idStr = mongoose.Types.ObjectId(it.examQuestionId).toString();
+    if (seen.has(idStr)) {
+      return { ok: false, items: [], error: "Duplicate examQuestionId in questionItems" };
+    }
+    seen.add(idStr);
+    result.push({
       examQuestionId: it.examQuestionId,
       marksOverride: typeof it.marksOverride === "number" && it.marksOverride >= 0 ? it.marksOverride : undefined,
       notes: typeof it.notes === "string" ? it.notes.trim().slice(0, 500) : "",
-    }));
+    });
+  }
+  return { ok: true, items: result, error: null };
 }
 
-// POST /api/worksheets — create empty worksheet (teacher/admin only)
+function sanitizeTitle(title) {
+  const t = (title != null && typeof title === "string" ? title : "").trim();
+  if (!t) return "Untitled worksheet";
+  return t.slice(0, TITLE_MAX_LENGTH);
+}
+
+// GET /api/worksheets — list worksheets (owner only; admin sees all)
+router.get("/", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ error: "Teachers and admins only" });
+  }
+  try {
+    const ownerId = req.user._id || req.user.userId || req.user.id;
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const query = isAdmin ? {} : { ownerId };
+    const list = await Worksheet.find(query).sort({ updatedAt: -1 }).lean();
+    return res.json({ worksheets: list });
+  } catch (err) {
+    console.error("Worksheets list error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/worksheets — create empty worksheet (teacher/admin only). questionItems always [] on create.
 router.post("/", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
@@ -38,11 +76,12 @@ router.post("/", auth, async (req, res) => {
     const ownerId = req.user._id || req.user.userId || req.user.id;
     const doc = await Worksheet.create({
       ownerId,
-      title: (req.body.title && String(req.body.title).trim()) || "Untitled worksheet",
+      title: sanitizeTitle(req.body.title),
       subject: (req.body.subject && String(req.body.subject).trim()) || "",
       examBoard: (req.body.examBoard && String(req.body.examBoard).trim()) || "",
+      level: (req.body.level && String(req.body.level).trim()) || "",
       topicKey: (req.body.topicKey && String(req.body.topicKey).trim()) || null,
-      questionItems: normalizeQuestionItems(req.body.questionItems || []),
+      questionItems: [],
       status: "DRAFT",
     });
     return res.status(201).json({ worksheet: doc.toObject() });
@@ -75,7 +114,7 @@ router.get("/:id", auth, async (req, res) => {
   }
 });
 
-// PUT /api/worksheets/:id — update title, items, metadata (owner or admin only, idempotent)
+// PUT /api/worksheets/:id — update title, items, metadata (owner or admin only). status is NOT writable here.
 router.put("/:id", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
@@ -91,11 +130,16 @@ router.put("/:id", auth, async (req, res) => {
     if (!isOwner(doc, req) && !isAdmin) {
       return res.status(403).json({ error: "You can only update your own worksheets" });
     }
-    if (req.body.title !== undefined) doc.title = String(req.body.title).trim() || "Untitled worksheet";
+    if (req.body.title !== undefined) doc.title = sanitizeTitle(req.body.title);
     if (req.body.subject !== undefined) doc.subject = String(req.body.subject).trim();
     if (req.body.examBoard !== undefined) doc.examBoard = String(req.body.examBoard).trim();
+    if (req.body.level !== undefined) doc.level = String(req.body.level).trim();
     if (req.body.topicKey !== undefined) doc.topicKey = (req.body.topicKey && String(req.body.topicKey).trim()) || null;
-    if (req.body.questionItems !== undefined) doc.questionItems = normalizeQuestionItems(req.body.questionItems);
+    if (req.body.questionItems !== undefined) {
+      const parsed = parseQuestionItems(req.body.questionItems);
+      if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+      doc.questionItems = parsed.items;
+    }
     await doc.save();
     return res.json({ worksheet: doc.toObject() });
   } catch (err) {
