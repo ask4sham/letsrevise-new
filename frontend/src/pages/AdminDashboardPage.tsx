@@ -125,6 +125,9 @@ const AdminDashboardPage: React.FC = () => {
   const [subscriptionUserId, setSubscriptionUserId] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
 
+  const [seedBankLoading, setSeedBankLoading] = useState(false);
+  const [seedBankMessage, setSeedBankMessage] = useState<string | null>(null);
+
   const [userFilters, setUserFilters] = useState({
     page: 1,
     limit: 20,
@@ -730,6 +733,62 @@ const AdminDashboardPage: React.FC = () => {
                 Total SC: {formatCurrency(stats.platform.totalShamCoins)}
               </div>
             </div>
+          </div>
+
+          {/* Question bank — populate so teachers see questions in Worksheet Builder */}
+          <div
+            style={{
+              backgroundColor: "white",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              padding: "1.5rem",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              marginBottom: "2rem",
+            }}
+          >
+            <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.125rem" }}>Question bank</h3>
+            <p style={{ margin: "0 0 1rem", color: "#666", fontSize: "0.9rem" }}>
+              Populate the exam question bank so teachers can build worksheets. Runs the AQA GCSE Biology seed (all topics). Idempotent — existing topics are skipped.
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSeedBankMessage(null);
+                  setSeedBankLoading(true);
+                  api
+                    .post("/admin/seed-question-bank")
+                    .then((res) => {
+                      setSeedBankMessage(res?.data?.message || "Seed started. Teachers can refresh the Worksheet Builder in a minute.");
+                    })
+                    .catch((err) => {
+                      setSeedBankMessage(err?.response?.data?.msg || err?.message || "Failed to start seed.");
+                    })
+                    .finally(() => setSeedBankLoading(false));
+                }}
+                disabled={seedBankLoading}
+                style={{
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#059669",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                  cursor: seedBankLoading ? "wait" : "pointer",
+                }}
+              >
+                {seedBankLoading ? "Starting…" : "Populate question bank"}
+              </button>
+              <Link
+                to="/teacher-dashboard"
+                style={{ fontSize: "0.9rem", color: "#0369a1" }}
+              >
+                Teacher dashboard (Worksheet Builder) →
+              </Link>
+            </div>
+            {seedBankMessage && (
+              <p style={{ margin: "0.75rem 0 0", fontSize: "0.875rem", color: "#0ea5e9" }}>{seedBankMessage}</p>
+            )}
           </div>
 
           {/* Additional stats sections... */}
