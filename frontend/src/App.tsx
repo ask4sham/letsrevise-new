@@ -72,6 +72,7 @@ import AssessmentPaperEditPage from "./pages/AssessmentPaperEditPage";
 import TeacherWorksheetBuilderPage from "./pages/TeacherWorksheetBuilderPage";
 import StudentWorksheetPage from "./pages/StudentWorksheetPage";
 import TeacherWorksheetReportPage from "./pages/TeacherWorksheetReportPage";
+import TeacherWorksheetAttemptPage from "./pages/TeacherWorksheetAttemptPage";
 
 import "./App.css";
 
@@ -429,6 +430,16 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherWorksheetReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PR-W4.2: Teacher single attempt view (read-only) */}
+          <Route
+            path="/teacher/worksheet-attempts/:attemptId"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherWorksheetAttemptPage />
               </ProtectedRoute>
             }
           />

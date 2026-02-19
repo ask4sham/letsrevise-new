@@ -1,9 +1,10 @@
 /**
  * PR-W4: Teacher report for one worksheet assignment. Route: /teacher/worksheet-assignments/:id/report
+ * PR-W4.2: Attempts list + "View attempt" link to detail page.
  */
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getReportSummary } from "../api/worksheetAssignments";
+import { getReportSummary, getAssignmentAttempts, type AttemptListItem } from "../api/worksheetAssignments";
 
 export default function TeacherWorksheetReportPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,7 @@ export default function TeacherWorksheetReportPage() {
     avgScore: number;
     maxScore: number;
   } | null>(null);
+  const [attempts, setAttempts] = useState<AttemptListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,6 +25,9 @@ export default function TeacherWorksheetReportPage() {
       .catch((e: any) => {
         setError(e?.response?.data?.error || e?.message || "Failed to load report");
       });
+    getAssignmentAttempts(id)
+      .then(setAttempts)
+      .catch(() => setAttempts([]));
   }, [id]);
 
   if (error) {
@@ -65,6 +70,49 @@ export default function TeacherWorksheetReportPage() {
           </div>
         </div>
       </div>
+
+      <h2 style={{ marginTop: "32px", marginBottom: "12px" }}>Attempts</h2>
+      {attempts.length === 0 ? (
+        <p style={{ color: "#64748b" }}>No attempts yet.</p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
+                <th style={{ padding: "10px 12px" }}>Student name</th>
+                <th style={{ padding: "10px 12px" }}>Status</th>
+                <th style={{ padding: "10px 12px" }}>Score</th>
+                <th style={{ padding: "10px 12px" }}>Submitted</th>
+                <th style={{ padding: "10px 12px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {attempts.map((a) => (
+                <tr key={a._id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "10px 12px" }}>{a.studentName || "—"}</td>
+                  <td style={{ padding: "10px 12px" }}>{a.status}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    {a.status === "SUBMITTED" ? `${a.score} / ${a.maxScore}` : "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    {a.submittedAt ? new Date(a.submittedAt).toLocaleString() : "—"}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/teacher/worksheet-attempts/${a._id}`)}
+                      style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", cursor: "pointer", fontSize: "0.8125rem" }}
+                    >
+                      View attempt
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <p style={{ marginTop: "24px" }}>
         <button type="button" onClick={() => navigate(-1)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #d1d5db" }}>
           Back
