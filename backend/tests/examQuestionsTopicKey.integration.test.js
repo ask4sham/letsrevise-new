@@ -179,6 +179,23 @@ describe("GET exam-questions draft and published (PR-W2.2)", () => {
       .set("Authorization", `Bearer ${studentToken}`);
     expect(res.status).toBe(403);
   });
+
+  test("GET response includes topicKey (and topic) for each question (PR-W2.2.2)", async () => {
+    const res = await request(app)
+      .get("/api/exam-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ topicKey: bankTopicKey });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    expect(res.body.questions.length).toBeGreaterThanOrEqual(2);
+    const withKey = res.body.questions.filter((q) => q.topicKey === bankTopicKey);
+    expect(withKey.length).toBeGreaterThanOrEqual(2);
+    withKey.forEach((q) => {
+      expect(q).toHaveProperty("topicKey");
+      expect(q.topicKey).toBe("cell-division");
+      expect(q).toHaveProperty("topic");
+    });
+  });
 });
 
 describe("Lesson exam-questions attach/remove", () => {

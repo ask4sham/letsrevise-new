@@ -53,6 +53,7 @@ router.post("/", auth, async (req, res) => {
 
 // GET /api/exam-questions — list (teacher/admin only; filters: subject, examBoard, level, topic, topicKey, type, status)
 // PR-W2.2: Teacher/admin see draft + published by default so Worksheet Builder Question Bank shows seeded drafts.
+// PR-W2.2.2: Response must include topicKey (and topic) on every item — do not use .select() that omits them.
 // Students are not allowed (403); if ever opened to students, enforce status: "published" only.
 router.get("/", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
