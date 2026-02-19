@@ -19,11 +19,19 @@ import axios, {
  * to prevent `/api/api` bugs.
  */
 
-// Raw value from env or fallback (default 5000 to match backend server.js)
+// In development, always use relative /api so CRA proxy forwards to backend (no env/CORS issues).
+const isDev =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+const rawFromEnv = (
+  process.env.REACT_APP_API_BASE ||
+  process.env.REACT_APP_API_URL ||
+  ""
+).trim();
+
 const baseURL =
-  (process.env.REACT_APP_API_BASE ||
-    process.env.REACT_APP_API_URL ||
-    "").trim() || "http://localhost:5000";
+  isDev ? "" : rawFromEnv || "http://localhost:5000"; // dev → proxy; prod → env or default
 const RAW_API_BASE = baseURL;
 
 // Normalize host (remove trailing slashes AND trailing /api)
@@ -33,7 +41,7 @@ function normalizeApiHost(raw: string) {
 }
 
 const API_HOST = normalizeApiHost(RAW_API_BASE);
-const BASE_URL = `${API_HOST}/api`;
+const BASE_URL = baseURL === "" ? "/api" : `${API_HOST}/api`;
 
 // ---- Guardrail logging + warnings (prevents silent drift) ----
 (function logApiTargetOnce() {
@@ -41,6 +49,10 @@ const BASE_URL = `${API_HOST}/api`;
   console.info("[LetsRevise] API_HOST:", API_HOST);
   // eslint-disable-next-line no-console
   console.info("[LetsRevise] axios baseURL:", BASE_URL);
+  if (BASE_URL === "/api") {
+    // eslint-disable-next-line no-console
+    console.info("[LetsRevise] Using dev proxy: requests go to same origin and are proxied to backend (ensure backend is running on port 5000).");
+  }
 
   try {
     const isLocalUI =
