@@ -148,8 +148,19 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
   const [filterTopicKey, setFilterTopicKey] = useState<string>("");
   const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [seedBankLoading, setSeedBankLoading] = useState(false);
+  const [seedBankMessage, setSeedBankMessage] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestWorksheetRef = useRef<Worksheet | null>(null);
+
+  const isAdmin = React.useMemo(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return (u?.userType || u?.type || "").toString().toLowerCase() === "admin";
+    } catch {
+      return false;
+    }
+  }, []);
   useEffect(() => {
     latestWorksheetRef.current = worksheet;
   }, [worksheet]);
@@ -200,12 +211,10 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     return map;
   }, [taxonomy]);
 
-  // Load exam questions (draft + published for Question Bank; filter by topic in bankList)
-  useEffect(() => {
+  const fetchQuestions = useCallback(() => {
     setQuestionsLoading(true);
-    const params: Record<string, string> = {};
     api
-      .get("/exam-questions", { params })
+      .get("/exam-questions", { params: {} })
       .then((res) => {
         const list = Array.isArray(res?.data?.questions) ? res.data.questions : [];
         setQuestions(list);
@@ -213,6 +222,25 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
       .catch(() => setQuestions([]))
       .finally(() => setQuestionsLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
+
+  const handlePopulateQuestionBank = useCallback(() => {
+    if (!isAdmin) return;
+    setSeedBankMessage(null);
+    setSeedBankLoading(true);
+    api
+      .post("/admin/seed-question-bank")
+      .then((res) => {
+        setSeedBankMessage(res?.data?.message || "Seed started. Refresh the question list in a minute.");
+      })
+      .catch((err) => {
+        setSeedBankMessage(err?.response?.data?.msg || err?.message || "Failed to start seed.");
+      })
+      .finally(() => setSeedBankLoading(false));
+  }, [isAdmin]);
 
   const bankList = React.useMemo(() => {
     if (!filterTopicKey) return questions;
@@ -406,6 +434,29 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
                 ))
               )}
             </select>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={fetchQuestions}
+                disabled={questionsLoading}
+                style={{ padding: "6px 10px", fontSize: "0.8125rem", borderRadius: "6px", border: "1px solid #d1d5db", background: "#fff", cursor: questionsLoading ? "wait" : "pointer" }}
+              >
+                {questionsLoading ? "Loading…" : "Refresh list"}
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handlePopulateQuestionBank}
+                  disabled={seedBankLoading}
+                  style={{ padding: "6px 10px", fontSize: "0.8125rem", borderRadius: "6px", border: "1px solid #059669", background: "#d1fae5", color: "#065f46", cursor: seedBankLoading ? "wait" : "pointer" }}
+                >
+                  {seedBankLoading ? "Starting…" : "Populate question bank"}
+                </button>
+              )}
+            </div>
+            {seedBankMessage && (
+              <p style={{ margin: "8px 0 0", fontSize: "0.8125rem", color: "#0ea5e9" }}>{seedBankMessage}</p>
+            )}
           </div>
           <div style={{ flex: 1, overflow: "auto", padding: "8px" }}>
             {questionsLoading ? (

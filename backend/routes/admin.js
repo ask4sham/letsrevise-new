@@ -2,6 +2,8 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const path = require("path");
+const { exec } = require("child_process");
 
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
@@ -28,6 +30,31 @@ const checkAdmin = (req, res, next) => {
   }
   next();
 };
+
+/* =========================================
+   POST /api/admin/seed-question-bank
+   Admin-only. Runs AQA GCSE Biology question seed (all units) in background.
+   Idempotent: existing topics are skipped. Teachers never need to run CLI seeds.
+   ========================================= */
+router.post("/seed-question-bank", auth, checkAdmin, async (req, res) => {
+  const backendDir = path.join(__dirname, "..");
+  const scriptPath = path.join(backendDir, "scripts", "aqa_gcse_biology", "seed_all.js");
+  exec(
+    `node "${scriptPath}"`,
+    { cwd: backendDir, env: process.env },
+    (err, stdout, stderr) => {
+      if (err) {
+        console.error("[admin/seed-question-bank] error:", err);
+        console.error("[admin/seed-question-bank] stderr:", stderr);
+      }
+      if (stdout) console.log("[admin/seed-question-bank] stdout:", stdout);
+    }
+  );
+  return res.status(202).json({
+    ok: true,
+    message: "Question bank seed started in the background. Refresh the Worksheet Builder in a minute.",
+  });
+});
 
 // Helper: determine lesson status even if schema doesn't have `status`
 function getLessonStatus(lesson) {

@@ -1,3 +1,17 @@
+## Question bank (Worksheet Builder)
+
+Teachers need exam questions in the Question Bank to build worksheets. You can automate this in two ways:
+
+1. **One-click (admin only)**  
+   In the app, open **Worksheet Builder** as an admin user. In the Question Bank panel, click **Populate question bank**. The seed runs in the background; after about a minute, click **Refresh list** (or reload the page) to see questions for all AQA GCSE Biology topics.
+
+2. **Deploy / first-time setup**  
+   Run once per environment so the bank is pre-filled and teachers never see an empty list:
+   ```bash
+   npm run seed:bio:all
+   ```
+   Idempotent: existing topics are skipped. Uses `MONGO_URI` from `.env`.
+
 ## AI Generation Jobs (Groundwork)
 
 - **Purpose**: Structural groundwork for AI generation jobs only; there is no execution or business logic yet.
