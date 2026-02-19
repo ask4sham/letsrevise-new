@@ -587,31 +587,38 @@ function CheckpointMCQBlock({
     <>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {options.map((opt, i) => (
-          <label
+          <div
             key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: getOptionBg(opt),
-              cursor: checked ? "default" : "pointer",
+            className="lr-mcq-option"
+            role="button"
+            tabIndex={0}
+            style={{ background: getOptionBg(opt), cursor: checked ? "default" : "pointer" }}
+            onClick={() => {
+              if (!checked) setSelected(String(opt ?? "").trim());
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (!checked) setSelected(String(opt ?? "").trim());
+              }
             }}
           >
-            <input
-              type="radio"
-              name={name}
-              value={String(opt ?? "")}
-              checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
-              onChange={() => {
-                if (!checked) setSelected(String(opt ?? "").trim());
-              }}
-              disabled={checked}
-            />
-            <span style={{ color: "#374151" }}>{opt}</span>
-          </label>
+            <div className="lr-mcq-text" style={{ color: "#374151" }}>
+              {opt}
+            </div>
+            <div className="lr-mcq-radio">
+              <input
+                type="radio"
+                name={name}
+                value={String(opt ?? "")}
+                checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
+                onChange={() => {
+                  if (!checked) setSelected(String(opt ?? "").trim());
+                }}
+                disabled={checked}
+              />
+            </div>
+          </div>
         ))}
       </div>
       <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -928,29 +935,36 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {options.map((opt, i) => (
-          <label
+          <div
             key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: getOptionBg(opt),
-              cursor: checked ? "default" : "pointer",
+            className="lr-mcq-option"
+            role="button"
+            tabIndex={0}
+            style={{ background: getOptionBg(opt), cursor: checked ? "default" : "pointer" }}
+            onClick={() => {
+              if (!checked) setSelected(String(opt ?? "").trim());
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (!checked) setSelected(String(opt ?? "").trim());
+              }
             }}
           >
-            <input
-              type="radio"
-              name={name}
-              value={String(opt ?? "")}
-              checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
-              onChange={() => { if (!checked) setSelected(String(opt ?? "").trim()); }}
-              disabled={checked}
-            />
-            <span style={{ color: "#374151" }}>{opt}</span>
-          </label>
+            <div className="lr-mcq-text" style={{ color: "#374151" }}>
+              {opt}
+            </div>
+            <div className="lr-mcq-radio">
+              <input
+                type="radio"
+                name={name}
+                value={String(opt ?? "")}
+                checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
+                onChange={() => { if (!checked) setSelected(String(opt ?? "").trim()); }}
+                disabled={checked}
+              />
+            </div>
+          </div>
         ))}
       </div>
       <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -3191,91 +3205,71 @@ const LessonViewPage: React.FC = () => {
                             ? "rgba(239,68,68,0.55)"
                             : "rgba(0,0,0,0.14)";
 
+                          const handleSelect = () => {
+                            setCheckpointSelectionByPage((prev) => ({
+                              ...prev,
+                              [currentPage.pageId]: optText,
+                            }));
+                            if (!hasAnswer) {
+                              setCheckpointFeedback({
+                                open: true,
+                                correct: true,
+                                message: "✅ Answer saved!",
+                              });
+                              return;
+                            }
+                            setCheckpointFeedback({
+                              open: true,
+                              correct: isCorrect,
+                              message: isCorrect
+                                ? "✅ Correct!"
+                                : "❌ Not quite — try again.",
+                            });
+                          };
+
                           return (
-                            <button
+                            <div
                               key={idx}
-                              onClick={() => {
-                                setCheckpointSelectionByPage((prev) => ({
-                                  ...prev,
-                                  [currentPage.pageId]: optText,
-                                }));
-
-                                if (!hasAnswer) {
-                                  setCheckpointFeedback({
-                                    open: true,
-                                    correct: true,
-                                    message: "✅ Answer saved!",
-                                  });
-                                  return;
-                                }
-
-                                setCheckpointFeedback({
-                                  open: true,
-                                  correct: isCorrect,
-                                  message: isCorrect
-                                    ? "✅ Correct!"
-                                    : "❌ Not quite — try again.",
-                                });
-                              }}
+                              className="lr-mcq-option"
+                              role="button"
+                              tabIndex={0}
                               style={{
-                                width: "100%",
-                                textAlign: "left",
-                                padding: "12px 12px",
-                                borderRadius: 12,
                                 border: `2px solid ${borderColor}`,
-                                background: "white",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: 12,
-                                fontWeight: 650,
-                                fontSize: BASE_FONT_SIZE,
-                                lineHeight: 1.8,
+                                background: selectedIsCorrect
+                                  ? "#dcfce7"
+                                  : selectedIsWrong
+                                  ? "#fee2e2"
+                                  : "white",
                                 boxShadow: selectedIsCorrect
                                   ? "0 0 0 2px rgba(16,185,129,0.12)"
                                   : selectedIsWrong
                                   ? "0 0 0 2px rgba(239,68,68,0.10)"
                                   : "none",
+                                fontWeight: 650,
+                                fontSize: BASE_FONT_SIZE,
+                                lineHeight: 1.8,
+                              }}
+                              onClick={handleSelect}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  handleSelect();
+                                }
                               }}
                             >
-                              <span style={{ flex: 1 }}>{opt}</span>
-
-                              <span
-                                style={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: 999,
-                                  border: `2px solid ${
-                                    selectedIsCorrect
-                                      ? "rgba(16,185,129,0.90)"
-                                      : selectedIsWrong
-                                      ? "rgba(239,68,68,0.70)"
-                                      : "rgba(0,0,0,0.35)"
-                                  }`,
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  background: selectedIsCorrect
-                                    ? "rgba(16,185,129,0.90)"
-                                    : "white",
-                                }}
-                              >
-                                {selected && !selectedIsCorrect ? (
-                                  <span
-                                    style={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: 999,
-                                      background: selectedIsWrong
-                                        ? "rgba(239,68,68,0.80)"
-                                        : "rgba(0,0,0,0.35)",
-                                      display: "inline-block",
-                                    }}
-                                  />
-                                ) : null}
-                              </span>
-                            </button>
+                              <div className="lr-mcq-text" style={{ color: "#111827" }}>
+                                {opt}
+                              </div>
+                              <div className="lr-mcq-radio">
+                                <input
+                                  type="radio"
+                                  name={`checkpoint-${currentPage.pageId}`}
+                                  value={optText}
+                                  checked={selected}
+                                  onChange={handleSelect}
+                                />
+                              </div>
+                            </div>
                           );
                         })}
                       </div>

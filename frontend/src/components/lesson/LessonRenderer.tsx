@@ -241,29 +241,32 @@ const QuizBlockView: React.FC<{ block: QuizBlock }> = ({ block }) => {
                 {idx + 1}. {q.question}
               </div>
 
-              <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {q.options.map((opt, i) => (
-                  <label
+                  <div
                     key={i}
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #eee",
-                      cursor: "pointer",
-                      background: picked === i ? "#f8f9fa" : "white",
+                    className="lr-mcq-option"
+                    role="button"
+                    tabIndex={0}
+                    style={{ background: picked === i ? "#f8f9fa" : "white", cursor: "pointer" }}
+                    onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: i }))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setAnswers((prev) => ({ ...prev, [q.id]: i }));
+                      }
                     }}
                   >
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={picked === i}
-                      onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: i }))}
-                    />
-                    <span>{opt}</span>
-                  </label>
+                    <div className="lr-mcq-text">{opt}</div>
+                    <div className="lr-mcq-radio">
+                      <input
+                        type="radio"
+                        name={q.id}
+                        checked={picked === i}
+                        onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: i }))}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
 

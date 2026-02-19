@@ -240,10 +240,36 @@ function CheckpointMCQBlock({ block, name }: { block: LessonPageBlock; name: str
     <>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {options.map((opt, i) => (
-          <label key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "1px solid #e5e7eb", background: getOptionBg(opt), cursor: checked ? "default" : "pointer" }}>
-            <input type="radio" name={name} value={String(opt ?? "")} checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()} onChange={() => { if (!checked) setSelected(String(opt ?? "").trim()); }} disabled={checked} />
-            <span style={{ color: "#374151" }}>{opt}</span>
-          </label>
+          <div
+            key={i}
+            className="lr-mcq-option"
+            role="button"
+            tabIndex={0}
+            style={{ background: getOptionBg(opt), cursor: checked ? "default" : "pointer" }}
+            onClick={() => {
+              if (!checked) setSelected(String(opt ?? "").trim());
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (!checked) setSelected(String(opt ?? "").trim());
+              }
+            }}
+          >
+            <div className="lr-mcq-text" style={{ color: "#374151" }}>
+              {opt}
+            </div>
+            <div className="lr-mcq-radio">
+              <input
+                type="radio"
+                name={name}
+                value={String(opt ?? "")}
+                checked={selected !== null && String(selected).trim() === String(opt ?? "").trim()}
+                onChange={() => { if (!checked) setSelected(String(opt ?? "").trim()); }}
+                disabled={checked}
+              />
+            </div>
+          </div>
         ))}
       </div>
       <div style={{ marginTop: 10 }}>

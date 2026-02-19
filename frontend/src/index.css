@@ -11,3 +11,31 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* MCQ option row: text left, radio right, fixed forever */
+.lr-mcq-option {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  align-items: center;
+  column-gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lr-mcq-text {
+  text-align: left;
+  justify-self: start;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lr-mcq-radio {
+  justify-self: end;
+  display: flex;
+  justify-content: flex-end;
+  width: 44px;
+}
