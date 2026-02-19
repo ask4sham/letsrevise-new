@@ -10,6 +10,12 @@ function isTeacher(req) {
   return req.user && req.user.userType === "teacher";
 }
 
+function isTeacherOrAdmin(req) {
+  if (!req.user) return false;
+  const t = (req.user.userType || req.user.role || "").toString().toLowerCase();
+  return t === "teacher" || t === "admin" || req.user.isAdmin === true;
+}
+
 function validateTopicKey(topicKey) {
   if (!topicKey || typeof topicKey !== "string") return null;
   const k = topicKey.trim().toLowerCase();
@@ -45,23 +51,33 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// GET /api/exam-questions — list (teacher only; filters: subject, examBoard, level, topic, topicKey, type, status; default status=draft)
+// GET /api/exam-questions — list (teacher/admin only; filters: subject, examBoard, level, topic, topicKey, type, status)
+// PR-W2.2: Teacher/admin see draft + published by default so Worksheet Builder Question Bank shows seeded drafts.
+// Students are not allowed (403); if ever opened to students, enforce status: "published" only.
 router.get("/", auth, async (req, res) => {
-  if (!isTeacher(req)) {
-    return res.status(403).json({ success: false, msg: "Teachers only" });
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers and admins only" });
   }
   try {
     const teacherId = req.user.userId || req.user._id;
-    const { subject, examBoard, level, topic, topicKey, type, status } = req.query;
-    const query = { teacherId };
+    const { subject, examBoard, level, topic, topicKey, type, status, mineOnly } = req.query;
+    const query = {};
+    // Teacher/admin: default = both draft and published (Worksheet Builder shows all bank questions)
+    if (status !== undefined && status !== "") {
+      query.status = String(status).trim().toLowerCase();
+    } else {
+      query.status = { $in: ["draft", "published"] };
+    }
+    // Restrict to current teacher only when mineOnly=1 (e.g. "my questions only")
+    if (String(mineOnly) === "1" || String(mineOnly) === "true") {
+      query.teacherId = teacherId;
+    }
     if (subject) query.subject = subject;
     if (examBoard) query.examBoard = examBoard;
     if (level) query.level = level;
     if (topic) query.topic = topic;
     if (topicKey) query.topicKey = topicKey.trim().toLowerCase();
     if (type) query.type = type;
-    if (status) query.status = status;
-    else query.status = "draft";
     const questions = await ExamQuestion.find(query).sort({ updatedAt: -1 }).lean();
     return res.json({ success: true, questions });
   } catch (err) {

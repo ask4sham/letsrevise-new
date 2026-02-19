@@ -200,7 +200,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     return map;
   }, [taxonomy]);
 
-  // Load exam questions (all for map; filter for bank display)
+  // Load exam questions (draft + published for Question Bank; filter by topic in bankList)
   useEffect(() => {
     setQuestionsLoading(true);
     const params: Record<string, string> = {};
