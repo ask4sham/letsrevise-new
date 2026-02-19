@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import api from "../../services/api";
 
 export type Flashcard = {
   id: string;
@@ -140,6 +141,30 @@ function parseBulkTextToFlashcards(input: string): Flashcard[] {
 
     if (currentQ.length || currentA.length) flush();
     return out;
+  }
+
+  // Bullet-style: "• Question?\nAnswer line(s)\n• Next question..."
+  const bulletLed = /(^|\n)\s*[•·]\s+/;
+  if (bulletLed.test(text)) {
+    const out: Flashcard[] = [];
+    const parts = text.split(/(?=(?:^|\n)\s*[•·]\s+)/);
+    for (const part of parts) {
+      const trimmed = part.replace(/^\s*[•·]\s*/, "").trim();
+      if (!trimmed) continue;
+      const firstNewline = trimmed.indexOf("\n");
+      const question = firstNewline === -1 ? trimmed : trimmed.slice(0, firstNewline).trim();
+      const answer = firstNewline === -1 ? "" : trimmed.slice(firstNewline + 1).trim();
+      if (question && answer) {
+        out.push({
+          id: newId(),
+          front: question.replace(/^\s*[•·]\s*/, "").trim(),
+          back: answer,
+          difficulty: 1,
+          tags: [],
+        });
+      }
+    }
+    if (out.length > 0) return out;
   }
 
   // Otherwise parse by blank-line blocks: first non-empty line is question, rest is answer.
@@ -308,6 +333,12 @@ export default function FlashcardsEditor({
   // Show/hide existing flashcards section
   const [showExisting, setShowExisting] = useState(true);
 
+  // Import from question bank (same source as Worksheet Builder)
+  type TaxonomyUnit = { unit: string; topics?: Array<{ topic: string; key: string }> };
+  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
+  const [topicKeyForBank, setTopicKeyForBank] = useState<string>("");
+  const [bankImportLoading, setBankImportLoading] = useState(false);
+
   useEffect(() => {
     const normalized = (initialCards || []).map((c: any) => ({
       id: c.id || newId(),
@@ -325,7 +356,64 @@ export default function FlashcardsEditor({
     setBulkCountPreview(parsed.length);
   }, [bulkText]);
 
+  useEffect(() => {
+    api.get("/taxonomy/aqa-gcse-biology").then((res) => setTaxonomy(res?.data ?? null)).catch(() => setTaxonomy(null));
+  }, []);
+
   const countLabel = useMemo(() => `${cards.length}`, [cards.length]);
+
+  type ExamQuestionItem = {
+    question: string;
+    type?: string;
+    options?: string[];
+    correctIndex?: number | null;
+    correctAnswer?: string | null;
+    markScheme?: string[];
+  };
+
+  const examQuestionToFlashcard = useCallback((q: ExamQuestionItem): Flashcard => {
+    const front = (q.question || "").trim() || "—";
+    let back = "—";
+    if (q.type === "mcq" && Array.isArray(q.options) && q.correctIndex != null && q.correctIndex >= 0 && q.correctIndex < q.options.length) {
+      back = q.options[q.correctIndex];
+    } else if (typeof q.correctAnswer === "string" && q.correctAnswer.trim()) {
+      back = q.correctAnswer.trim();
+    } else if (Array.isArray(q.markScheme) && q.markScheme.length > 0) {
+      back = q.markScheme.map((s) => String(s).trim()).filter(Boolean).join(" / ");
+    }
+    return {
+      id: newId(),
+      front,
+      back,
+      difficulty: 1,
+      tags: [],
+    };
+  }, []);
+
+  const importFromQuestionBank = useCallback(async () => {
+    resetMessages();
+    const topicKey = (topicKeyForBank || "").trim().toLowerCase();
+    if (!topicKey) {
+      setError("Select a topic to import from the question bank.");
+      return;
+    }
+    setBankImportLoading(true);
+    try {
+      const res = await api.get("/exam-questions", { params: { topicKey } });
+      const list = Array.isArray((res?.data as any)?.questions) ? (res.data as any).questions : [];
+      const imported = list.map((q: ExamQuestionItem) => examQuestionToFlashcard(q)).filter((c) => c.front && c.front !== "—");
+      if (imported.length === 0) {
+        setStatus("No questions found for this topic in the question bank. Populate the bank from Admin or seed scripts.");
+        return;
+      }
+      setCards((prev) => [...prev, ...imported]);
+      setStatus(`Imported ${imported.length} flashcards from the question bank. Click "Save flashcards" to save.`);
+    } catch (e: any) {
+      setError(e?.response?.data?.msg || e?.message || "Failed to load question bank.");
+    } finally {
+      setBankImportLoading(false);
+    }
+  }, [topicKeyForBank, examQuestionToFlashcard]);
 
   const styles: Record<string, React.CSSProperties> = {
     wrap: {
@@ -712,8 +800,7 @@ export default function FlashcardsEditor({
           <span style={{ fontFamily: "monospace" }}>
             Q: ...{"\n"}A: ...
           </span>
-          <br />
-          or blocks separated by a blank line: first line question, rest answer.
+          , or <b>• Question{"\n"}Answer</b> (bullet per card), or blocks separated by a blank line.
         </div>
 
         <textarea
@@ -736,6 +823,37 @@ export default function FlashcardsEditor({
               Import pasted text
             </button>
           </div>
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Import from question bank</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
+          Add flashcards from the same question bank used by the Worksheet Builder. Choose a topic and append questions as cards (front = question, back = correct answer / mark scheme).
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+          <select
+            value={topicKeyForBank}
+            onChange={(e) => setTopicKeyForBank(e.target.value)}
+            style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
+          >
+            <option value="">Select topic…</option>
+            {taxonomy?.units?.flatMap((u) =>
+              (u.topics || []).map((t) => (
+                <option key={t.key} value={t.key}>
+                  {u.unit} — {t.topic}
+                </option>
+              ))
+            )}
+          </select>
+          <button
+            type="button"
+            style={{ ...styles.btn, opacity: bankImportLoading ? 0.7 : 1 }}
+            onClick={importFromQuestionBank}
+            disabled={bankImportLoading}
+          >
+            {bankImportLoading ? "Loading…" : "Import from question bank (append)"}
+          </button>
         </div>
       </div>
 
