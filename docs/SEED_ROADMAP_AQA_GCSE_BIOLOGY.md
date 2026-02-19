@@ -3,7 +3,8 @@
 ## Seed strategy
 
 - **1 topicKey = 15 questions** (10 MCQ + 5 short answer) as baseline.
-- **Tagging:** `subject="Biology"`, `examBoard="AQA"`, `level="GCSE"`, `topicKey`, `topic` (display), `status="draft"` (teacher/admin review later) or `"published"` per PR.
+- **Tagging:** `subject="Biology"`, `examBoard="AQA"`, `level="GCSE"`, `topicKey`, `topic` (display).
+- **Global policy — draft-only:** All bulk-seeded questions use **`status: "draft"`** only. Auto-generate then review; publish per unit after review. Existing published seeds (e.g. from earlier standalone scripts) are left untouched; we’ll publish per unit after review.
 - **Idempotent:** Skip insertion if questions already exist for that `topicKey`.
 
 ## Unit 1 — Cell Biology (priority order)
