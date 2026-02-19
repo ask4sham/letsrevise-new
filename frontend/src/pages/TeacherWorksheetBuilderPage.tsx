@@ -11,6 +11,10 @@ import {
   type WorksheetQuestionItem,
 } from "../api/worksheets";
 import { seedAqaBio } from "../api/devTools";
+import {
+  createAssignment,
+  type Assignment,
+} from "../api/worksheetAssignments";
 
 type ExamQuestion = {
   _id: string;
@@ -106,6 +110,11 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [seedBankLoading, setSeedBankLoading] = useState(false);
   const [seedBankMessage, setSeedBankMessage] = useState<string | null>(null);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignTitle, setAssignTitle] = useState("");
+  const [assignDueAt, setAssignDueAt] = useState("");
+  const [assignCreating, setAssignCreating] = useState(false);
+  const [createdAssignment, setCreatedAssignment] = useState<Assignment | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestWorksheetRef = useRef<Worksheet | null>(null);
 
@@ -260,6 +269,52 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     updateQuestionItems(next);
   };
 
+  const handlePublishToAssign = useCallback(async () => {
+    if (!id) return;
+    try {
+      await publishWorksheet(id);
+      const ws = await getWorksheet(id);
+      setWorksheet(ws);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [id]);
+
+  const handleOpenAssignModal = useCallback(() => {
+    setCreatedAssignment(null);
+    setAssignTitle(worksheet?.title || "");
+    setAssignDueAt("");
+    setAssignModalOpen(true);
+  }, [worksheet?.title]);
+
+  const handleCreateAssignment = useCallback(async () => {
+    if (!id) return;
+    setAssignCreating(true);
+    try {
+      const a = await createAssignment({
+        worksheetId: id,
+        title: assignTitle.trim() || undefined,
+        dueAt: assignDueAt.trim() ? assignDueAt.trim() : null,
+      });
+      setCreatedAssignment(a);
+    } catch (e: any) {
+      console.error(e);
+      window.alert(e?.response?.data?.error || e?.message || "Failed to create assignment");
+    } finally {
+      setAssignCreating(false);
+    }
+  }, [id, assignTitle, assignDueAt]);
+
+  const studentLink = createdAssignment
+    ? `${window.location.origin}${window.location.pathname}#/w/${createdAssignment.shareId}`
+    : "";
+
+  const copyStudentLink = useCallback(() => {
+    if (!studentLink) return;
+    navigator.clipboard.writeText(studentLink);
+    window.alert("Link copied to clipboard.");
+  }, [studentLink]);
+
   if (loadError) {
     return (
       <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
@@ -289,6 +344,39 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
             {saveStatus === "saved" && "Saved"}
             {saveStatus === "error" && "Save failed"}
           </span>
+          {worksheet.status !== "PUBLISHED" ? (
+            <button
+              type="button"
+              onClick={handlePublishToAssign}
+              style={{
+                padding: "8px 16px",
+                fontSize: "0.875rem",
+                background: "#059669",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Publish to assign
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenAssignModal}
+              style={{
+                padding: "8px 16px",
+                fontSize: "0.875rem",
+                background: "#2563eb",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Assign
+            </button>
+          )}
           <button
             type="button"
             onClick={() => window.print()}
@@ -306,6 +394,93 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
           </button>
         </span>
       </div>
+
+      {assignModalOpen && (
+        <div
+          className="no-print"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+          onClick={() => !createdAssignment && setAssignModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "420px",
+              width: "90%",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: "0 0 16px", fontSize: "1.25rem" }}>Create assignment</h2>
+            {!createdAssignment ? (
+              <>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem" }}>
+                  Title (optional)
+                </label>
+                <input
+                  type="text"
+                  value={assignTitle}
+                  onChange={(e) => setAssignTitle(e.target.value)}
+                  placeholder="e.g. Cell Division HW"
+                  style={{ width: "100%", padding: "8px 12px", marginBottom: "12px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                />
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.875rem" }}>Due date (optional)</label>
+                <input
+                  type="datetime-local"
+                  value={assignDueAt}
+                  onChange={(e) => setAssignDueAt(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", marginBottom: "16px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                />
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <button type="button" onClick={() => setAssignModalOpen(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #d1d5db" }}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCreateAssignment}
+                    disabled={assignCreating}
+                    style={{ padding: "8px 16px", borderRadius: "6px", background: "#2563eb", color: "#fff", border: "none", cursor: assignCreating ? "wait" : "pointer" }}
+                  >
+                    {assignCreating ? "Creating…" : "Create assignment"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ margin: "0 0 12px", fontSize: "0.875rem", color: "#374151" }}>Share this link with students:</p>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={studentLink}
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: "6px", border: "1px solid #d1d5db", fontSize: "0.8125rem" }}
+                  />
+                  <button type="button" onClick={copyStudentLink} style={{ padding: "8px 16px", borderRadius: "6px", background: "#059669", color: "#fff", border: "none", cursor: "pointer" }}>
+                    Copy
+                  </button>
+                </div>
+                <p style={{ margin: "0 0 12px", fontSize: "0.875rem" }}>
+                  <a href={`#/teacher/worksheet-assignments/${createdAssignment._id}/report`} style={{ color: "#2563eb" }}>
+                    View results
+                  </a>
+                </p>
+                <button type="button" onClick={() => setAssignModalOpen(false)} style={{ padding: "8px 16px", borderRadius: "6px", background: "#111827", color: "#fff", border: "none", cursor: "pointer" }}>
+                  Done
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {showDevTools && (
         <DevToolsSeedPanel onSeedComplete={fetchQuestions} />

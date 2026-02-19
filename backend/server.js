@@ -270,6 +270,11 @@ app.use("/api/assessment-attempts", assessmentAttemptsRoutes);
 app.use("/api/exam-questions", examQuestionsRoutes);
 app.use("/api/worksheets", worksheetsRoutes);
 
+// PR-W4: Worksheet assignment + student attempt
+app.use("/api/worksheet-assignments", require("./routes/worksheetAssignments"));
+app.use("/api/worksheet-attempts", require("./routes/worksheetAttempts"));
+app.use("/api/worksheet-reports", require("./routes/worksheetReports"));
+
 app.use("/api/parent-link", parentLinkRoutes);
 app.use("/api/parent", require("./routes/parent"));
 

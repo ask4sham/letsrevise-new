@@ -70,6 +70,8 @@ import AssessmentPapersList from "./pages/AssessmentPapersList"; // ✅ ADDED
 import TeacherExamQuestionBankPage from "./pages/TeacherExamQuestionBankPage";
 import AssessmentPaperEditPage from "./pages/AssessmentPaperEditPage";
 import TeacherWorksheetBuilderPage from "./pages/TeacherWorksheetBuilderPage";
+import StudentWorksheetPage from "./pages/StudentWorksheetPage";
+import TeacherWorksheetReportPage from "./pages/TeacherWorksheetReportPage";
 
 import "./App.css";
 
@@ -414,6 +416,19 @@ function App() {
             element={
               <ProtectedRoute requireTeacher>
                 <TeacherWorksheetBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PR-W4: Public student worksheet by share link */}
+          <Route path="/w/:shareId" element={<StudentWorksheetPage />} />
+
+          {/* PR-W4: Teacher assignment report */}
+          <Route
+            path="/teacher/worksheet-assignments/:id/report"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherWorksheetReportPage />
               </ProtectedRoute>
             }
           />
