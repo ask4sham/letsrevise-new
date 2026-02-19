@@ -353,9 +353,14 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
               <div>allQuestions.length: {questions.length}</div>
               <div>filteredQuestions.length: {bankList.length}</div>
               <div>first 10 topicKeys from API: {uniqueTopicKeys.slice(0, 10).join(", ") || "(none)"}</div>
+              {questions.length > 0 && (
+                <div style={{ marginTop: "4px" }}>
+                  sample topicKey (first question): {JSON.stringify(questions[0]?.topicKey ?? "undefined")}
+                </div>
+              )}
               {questions.length > 0 && bankList.length === 0 && filterTopicKey && (
                 <div style={{ color: "#b91c1c", fontWeight: 600, marginTop: "6px" }}>
-                  TopicKey mismatch: selected key not present in fetched questions.
+                  TopicKey mismatch: selected key not present in fetched questions. Fetched questions have no/missing topicKey — run the seed for this topic in backend.
                 </div>
               )}
             </div>
@@ -406,7 +411,18 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
             {questionsLoading ? (
               <p style={{ color: "#6b7280" }}>Loading questions…</p>
             ) : bankList.length === 0 ? (
-              <p style={{ color: "#6b7280" }}>No questions in this topic.</p>
+              <div style={{ color: "#6b7280" }}>
+                <p style={{ margin: "0 0 8px" }}>No questions in this topic.</p>
+                {questions.length > 0 && filterTopicKey && (
+                  <p style={{ margin: 0, fontSize: "0.8125rem", color: "#0ea5e9" }}>
+                    Questions in the bank have no topicKey set. Seed this topic from backend:{" "}
+                    <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px" }}>
+                      node scripts/aqa_gcse_biology/seed_cell-biology__{filterTopicKey}.js
+                    </code>{" "}
+                    (same MONGO_URI as your app).
+                  </p>
+                )}
+              </div>
             ) : (
               <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {bankList.map((q) => (
