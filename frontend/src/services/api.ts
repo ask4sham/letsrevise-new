@@ -19,11 +19,11 @@ import axios, {
  * to prevent `/api/api` bugs.
  */
 
-// Raw value from env or fallback (default 3001 to match backend)
+// Raw value from env or fallback (default 5000 to match backend server.js)
 const baseURL =
   (process.env.REACT_APP_API_BASE ||
     process.env.REACT_APP_API_URL ||
-    "").trim() || "http://localhost:3001";
+    "").trim() || "http://localhost:5000";
 const RAW_API_BASE = baseURL;
 
 // Normalize host (remove trailing slashes AND trailing /api)
@@ -119,7 +119,7 @@ api.interceptors.response.use(
     // Axios "Network Error" = request never reached server (backend down, wrong URL, CORS, etc.)
     if (message === "Network Error" || (error.message && error.message === "Network Error")) {
       message =
-        "Cannot reach server. Check that the backend is running and REACT_APP_API_BASE points to it (e.g. http://localhost:3001).";
+        "Cannot reach server. Check that the backend is running and REACT_APP_API_BASE points to it (e.g. http://localhost:5000).";
     }
 
     if (error.response?.status === 401) {
