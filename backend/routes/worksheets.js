@@ -50,7 +50,7 @@ function sanitizeTitle(title) {
   return t.slice(0, TITLE_MAX_LENGTH);
 }
 
-// GET /api/worksheets — list worksheets (owner only; admin sees all)
+// GET /api/worksheets — list worksheets: owner-only (admin sees all), sorted updatedAt desc, no populate
 router.get("/", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
@@ -114,10 +114,13 @@ router.get("/:id", auth, async (req, res) => {
   }
 });
 
-// PUT /api/worksheets/:id — update title, items, metadata (owner or admin only). status is NOT writable here.
+// PUT /api/worksheets/:id — update title, items, metadata (owner or admin only). status is read-only; use POST /publish.
 router.put("/:id", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
+  }
+  if (req.body && Object.prototype.hasOwnProperty.call(req.body, "status")) {
+    return res.status(400).json({ error: "status is read-only; use /publish" });
   }
   try {
     const id = req.params.id;

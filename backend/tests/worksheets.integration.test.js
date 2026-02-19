@@ -201,7 +201,22 @@ describe("Worksheets API (PR-W1)", () => {
         ],
       });
     expect(putRes.status).toBe(400);
-    expect(putRes.body.error).toMatch(/duplicate|Duplicate/i);
+    expect(putRes.body.error).toBe("Duplicate examQuestionId in questionItems");
+  });
+
+  test("PUT with status in body returns 400", async () => {
+    const createRes = await request(app)
+      .post("/api/worksheets")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ title: "Status Reject" });
+    expect(createRes.status).toBe(201);
+    const id = createRes.body.worksheet._id;
+    const res = await request(app)
+      .put(`/api/worksheets/${id}`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ title: "Updated", status: "PUBLISHED" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("status is read-only; use /publish");
   });
 
   test("GET /api/worksheets/:id by non-owner returns 403", async () => {
