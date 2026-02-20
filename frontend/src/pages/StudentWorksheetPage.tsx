@@ -20,7 +20,7 @@ export default function StudentWorksheetPage() {
   const [payload, setPayload] = useState<SharedAssignmentPayload | null>(null);
   const [studentName, setStudentName] = useState("");
   const [attemptId, setAttemptId] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState<{ score: number; maxScore: number } | null>(null);
+  const [attempt, setAttempt] = useState<{ score?: number | null; maxScore?: number | null; resultsLocked?: boolean } | null>(null);
   const [answers, setAnswers] = useState<AttemptAnswer[]>([]);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -181,12 +181,19 @@ export default function StudentWorksheetPage() {
   }
 
   if (step === "submitted" && attempt) {
+    const showScore = !attempt.resultsLocked && attempt.score != null && attempt.maxScore != null;
     return (
       <div style={{ padding: "2rem", maxWidth: "560px", margin: "0 auto", textAlign: "center" }}>
         <h1 style={{ marginBottom: "8px" }}>Submitted</h1>
-        <p style={{ fontSize: "1.25rem" }}>
-          Score: <strong>{attempt.score}</strong> / {attempt.maxScore}
-        </p>
+        {showScore ? (
+          <p style={{ fontSize: "1.25rem" }}>
+            Score: <strong>{attempt.score}</strong> / {attempt.maxScore}
+          </p>
+        ) : (
+          <p style={{ fontSize: "1rem", color: "#64748b" }}>
+            Submitted. Your teacher will release results once marking is complete.
+          </p>
+        )}
       </div>
     );
   }

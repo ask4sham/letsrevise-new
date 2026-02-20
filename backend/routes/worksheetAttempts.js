@@ -79,6 +79,24 @@ function isAssignmentOwner(assignment, req) {
   return assignment.ownerId.toString() === userId;
 }
 
+/** For student/anonymous view: hide score and teacher marking until released. PR-W7 */
+function sanitizeAttemptForStudent(attempt) {
+  if (!attempt) return attempt;
+  const out = { ...attempt };
+  out.score = null;
+  out.maxScore = null;
+  out.resultsLocked = true;
+  out.answers = (attempt.answers || []).map((a) => ({
+    examQuestionId: a.examQuestionId,
+    answerIndex: a.answerIndex,
+    shortText: a.shortText,
+    awardedMarks: undefined,
+    teacherFeedback: undefined,
+    markedAt: undefined,
+  }));
+  return out;
+}
+
 // GET /api/worksheet-attempts/:attemptId/teacher — teacher/admin only, owner of assignment; returns attempt + questions
 router.get("/:attemptId/teacher", auth, async (req, res) => {
   try {
@@ -124,7 +142,7 @@ router.get("/:attemptId/teacher", auth, async (req, res) => {
   }
 });
 
-// GET /api/worksheet-attempts/:attemptId — allow anonymous OR student owner OR teacher owner
+// GET /api/worksheet-attempts/:attemptId — allow anonymous OR student owner OR teacher owner. PR-W7: student sees locked results until released.
 router.get("/:attemptId", attachUserIfToken, async (req, res) => {
   try {
     const loaded = await loadAttemptAndAssignment(req, res);
@@ -132,6 +150,12 @@ router.get("/:attemptId", attachUserIfToken, async (req, res) => {
     const { attempt, assignment } = loaded;
     if (!canAccessAttempt(attempt, assignment, req)) {
       return res.status(403).json({ error: "You cannot access this attempt" });
+    }
+    const isTeacherView = req.user && isTeacherOrAdmin(req) && isAssignmentOwner(assignment, req);
+    const isAdmin = req.user && ((req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true);
+    const canSeeFull = isTeacherView || isAdmin;
+    if (!canSeeFull && (attempt.status === "SUBMITTED" || attempt.status === "MARKED") && !attempt.isReleased) {
+      return res.json({ attempt: sanitizeAttemptForStudent(attempt) });
     }
     return res.json({ attempt });
   } catch (err) {
@@ -237,10 +261,11 @@ router.post("/:attemptId/submit", async (req, res) => {
       }
     );
     const updated = await WorksheetAttempt.findById(attempt._id).lean();
-    return res.json({
-      ok: true,
-      attempt: { ...updated, score: updated.score, maxScore: updated.maxScore, status: "SUBMITTED" },
-    });
+    const attemptPayload = { ...updated, score: updated.score, maxScore: updated.maxScore, status: "SUBMITTED" };
+    if (!updated.isReleased) {
+      return res.json({ ok: true, attempt: sanitizeAttemptForStudent(attemptPayload) });
+    }
+    return res.json({ ok: true, attempt: attemptPayload });
   } catch (err) {
     console.error("WorksheetAttempts submit error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -359,6 +384,35 @@ router.post("/:attemptId/mark", auth, async (req, res) => {
     return res.json({ attempt: updated });
   } catch (err) {
     console.error("WorksheetAttempts mark error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/worksheet-attempts/:attemptId/release — teacher/admin owner only; set isReleased=true. PR-W7
+router.post("/:attemptId/release", auth, async (req, res) => {
+  try {
+    if (!isTeacherOrAdmin(req)) {
+      return res.status(403).json({ error: "Teachers and admins only" });
+    }
+    const loaded = await loadAttemptAndAssignment(req, res);
+    if (!loaded) return;
+    const { attempt, assignment } = loaded;
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    if (!isAssignmentOwner(assignment, req) && !isAdmin) {
+      return res.status(403).json({ error: "You can only release attempts for your own assignments" });
+    }
+    if (attempt.status !== "SUBMITTED" && attempt.status !== "MARKED") {
+      return res.status(400).json({ error: "Only submitted or marked attempts can be released" });
+    }
+    const now = new Date();
+    await WorksheetAttempt.updateOne(
+      { _id: attempt._id },
+      { $set: { isReleased: true, releasedAt: now, updatedAt: now } }
+    );
+    const updated = await WorksheetAttempt.findById(attempt._id).lean();
+    return res.json({ attempt: updated });
+  } catch (err) {
+    console.error("WorksheetAttempts release error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
