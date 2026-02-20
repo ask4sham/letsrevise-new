@@ -62,6 +62,7 @@ import QuizStatsPage from "./pages/QuizStatsPage";
 import FlashcardsEditorPage from "./pages/FlashcardsEditorPage";
 import TeacherFlashcardBankPage from "./pages/TeacherFlashcardBankPage";
 import TeacherQuizBankPage from "./pages/TeacherQuizBankPage";
+import TeacherPastPapersBankPage from "./pages/TeacherPastPapersBankPage";
 
 // ✅ NEW: Assessment pages - ALL in src/pages/
 import AssessmentPaperStartPage from "./pages/AssessmentPaperStartPage";
@@ -262,6 +263,14 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherQuizBankPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/topic-banks/past-papers"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherPastPapersBankPage />
               </ProtectedRoute>
             }
           />

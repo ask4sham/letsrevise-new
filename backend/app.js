@@ -59,6 +59,12 @@ app.use("/api/topic-flashcards", require("./routes/topicFlashcards"));
 
 // PR-Q1: topic quiz bank (teacher/admin only)
 app.use("/api/topic-quiz-questions", require("./routes/topicQuizQuestions"));
+
+// PR-PP1: topic past paper bank (teacher/admin only)
+app.use("/api/topic-past-papers", require("./routes/topicPastPapers"));
+
+// PR-PP1: topic past paper bank (teacher/admin only)
+app.use("/api/topic-past-papers", require("./routes/topicPastPapers"));
 // PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson)
 app.use("/api/flashcard-bank", require("./routes/flashcardBank"));
 

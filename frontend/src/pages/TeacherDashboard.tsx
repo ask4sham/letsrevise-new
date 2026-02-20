@@ -728,6 +728,20 @@ const TeacherDashboard: React.FC = () => {
               Topic Banks → Quizzes
             </Link>
             <Link
+              to="/teacher/topic-banks/past-papers"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              Topic Banks → Past Papers
+            </Link>
+            <Link
               to="/dashboard"
               style={{
                 padding: "10px 16px",
@@ -1786,6 +1800,23 @@ const TeacherDashboard: React.FC = () => {
               }}
             >
               📝 Topic Banks → Quizzes
+            </Link>
+
+            <Link
+              to="/teacher/topic-banks/past-papers"
+              style={{
+                padding: "12px 24px",
+                background: "#0ea5e9",
+                color: "white",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📄 Topic Banks → Past Papers
             </Link>
 
             <button

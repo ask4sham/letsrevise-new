@@ -32,3 +32,6 @@ sample-lesson.json
 
 # AI-generated diagram images (no longer generated; keep legacy files out of repo)
 backend/uploads/ai-diagrams/
+
+# PR-PP1: Topic Past Paper uploads
+backend/uploads/past-papers/
