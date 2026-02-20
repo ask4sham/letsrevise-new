@@ -30,13 +30,14 @@ function parseQuestionItems(items) {
     if (!it || !mongoose.Types.ObjectId.isValid(String(it.examQuestionId))) {
       return { ok: false, items: [], error: "Each item must include a valid examQuestionId" };
     }
-    const idStr = mongoose.Types.ObjectId(it.examQuestionId).toString();
+    const oid = new mongoose.Types.ObjectId(it.examQuestionId);
+    const idStr = oid.toString();
     if (seen.has(idStr)) {
       return { ok: false, items: [], error: "Duplicate examQuestionId in questionItems" };
     }
     seen.add(idStr);
     result.push({
-      examQuestionId: it.examQuestionId,
+      examQuestionId: oid,
       marksOverride: typeof it.marksOverride === "number" && it.marksOverride >= 0 ? it.marksOverride : undefined,
       notes: typeof it.notes === "string" ? it.notes.trim().slice(0, 500) : "",
     });

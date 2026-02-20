@@ -137,7 +137,9 @@ describe("Worksheet Assignment (PR-W4)", () => {
     expect(submitRes.status).toBe(200);
     expect(submitRes.body.ok).toBe(true);
     expect(submitRes.body.attempt.status).toBe("SUBMITTED");
-    expect(submitRes.body.attempt.score).toBe(1);
-    expect(submitRes.body.attempt.maxScore).toBe(1);
+    // PR-W7: student submit response hides score until teacher releases (resultsLocked)
+    expect(submitRes.body.attempt.resultsLocked).toBe(true);
+    expect(submitRes.body.attempt.score).toBeNull();
+    expect(submitRes.body.attempt.maxScore).toBeNull();
   });
 });

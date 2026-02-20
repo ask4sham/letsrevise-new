@@ -478,7 +478,9 @@ router.post(
           return res.status(500).send("Server error");
         }
 
-        console.log(`✅ Login successful for ${normalizedEmail}, userType: ${user.userType}`);
+        if (process.env.NODE_ENV !== "test") {
+          console.log(`✅ Login successful for ${normalizedEmail}, userType: ${user.userType}`);
+        }
 
         res.json({
           token,

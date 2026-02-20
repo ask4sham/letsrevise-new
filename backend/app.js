@@ -51,6 +51,9 @@ app.use("/api/worksheet-assignments", require("./routes/worksheetAssignments"));
 app.use("/api/worksheet-attempts", require("./routes/worksheetAttempts"));
 app.use("/api/worksheet-reports", require("./routes/worksheetReports"));
 
+// PR-W2: exam question bank (teacher/admin; topicKey, draft/published)
+app.use("/api/exam-questions", require("./routes/examQuestions"));
+
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 

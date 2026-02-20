@@ -967,18 +967,22 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
     let pages = Array.isArray(sanitized.pages) ? sanitized.pages : [];
     pages = pages.slice(0, pageCount);
     if (pages.length < pageCount) {
-      // Pad with placeholder pages so we always have exactly pageCount
+      // Pad with placeholder pages so we always have exactly pageCount (checkpoint as block, not page-level)
       for (let i = pages.length; i < pageCount; i++) {
         pages.push({
           title: `Page ${i + 1}`,
           order: i + 1,
           pageType: "",
-          blocks: [{ type: "text", content: `## ${topic}\n\nAdd content here.` }],
-          checkpoint: {
-            question: "Which statement is correct?",
-            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-            answer: "Option 1",
-          },
+          blocks: [
+            { type: "text", content: `## ${topic}\n\nAdd content here.` },
+            {
+              type: "checkpoint",
+              questionType: "mcq",
+              prompt: "Which statement is correct?",
+              options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+              correctAnswer: "Option 1",
+            },
+          ],
         });
       }
     }

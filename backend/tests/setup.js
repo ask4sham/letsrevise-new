@@ -17,7 +17,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await mongoose.disconnect();
   if (mongoReplSet) await mongoReplSet.stop();
-});
+}, 15000);
 
 // ❌ REMOVED: afterEach cleanup block
 // This was deleting users/paper between tests, causing 401 errors

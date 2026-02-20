@@ -50,21 +50,25 @@ describe("opsNotifier", () => {
     expect(logs.some((l) => l.result === "SKIPPED")).toBe(true);
   });
 
-  test("failure to send Slack logs FAILED without throwing", async () => {
-    process.env.OPS_NOTIFY_SLACK = "1";
-    process.env.OPS_SLACK_WEBHOOK_URL = "https://httpstat.us/500";
-    const event = { ...baseEvent, incidentId: new mongoose.Types.ObjectId() };
-    let threw = false;
-    try {
-      await opsNotifier.notify(event);
-    } catch (e) {
-      threw = true;
-    }
-    expect(threw).toBe(false);
-    const log = await OpsNotificationLog.findOne({ dedupeKey: opsNotifier.dedupeKey(event) }).lean();
-    expect(log).toBeDefined();
-    expect(log.result).toBe("FAILED");
-  });
+  test(
+    "failure to send Slack logs FAILED without throwing",
+    async () => {
+      process.env.OPS_NOTIFY_SLACK = "1";
+      process.env.OPS_SLACK_WEBHOOK_URL = "https://httpstat.us/500";
+      const event = { ...baseEvent, incidentId: new mongoose.Types.ObjectId() };
+      let threw = false;
+      try {
+        await opsNotifier.notify(event);
+      } catch (e) {
+        threw = true;
+      }
+      expect(threw).toBe(false);
+      const log = await OpsNotificationLog.findOne({ dedupeKey: opsNotifier.dedupeKey(event) }).lean();
+      expect(log).toBeDefined();
+      expect(log.result).toBe("FAILED");
+    },
+    15000
+  );
 
   test("max/hour limit enforced", async () => {
     const orig = process.env.OPS_NOTIFY_MAX_PER_HOUR;
