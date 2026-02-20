@@ -137,9 +137,16 @@ export default function TeacherWorksheetReportPage() {
               {attempts.map((a) => (
                 <tr key={a._id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                   <td style={{ padding: "10px 12px" }}>{a.studentName || "—"}</td>
-                  <td style={{ padding: "10px 12px" }}>{a.status}</td>
                   <td style={{ padding: "10px 12px" }}>
-                    {a.status === "SUBMITTED" ? `${a.score} / ${a.maxScore}` : "—"}
+                    {a.status}
+                    {a.needsMarking && (
+                      <span style={{ marginLeft: "6px", padding: "2px 6px", borderRadius: "4px", background: "#fef3c7", color: "#92400e", fontSize: "0.75rem" }}>
+                        Needs marking
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    {a.status === "SUBMITTED" || a.status === "MARKED" ? `${a.score} / ${a.maxScore}` : "—"}
                   </td>
                   <td style={{ padding: "10px 12px" }}>
                     {a.submittedAt ? new Date(a.submittedAt).toLocaleString() : "—"}
