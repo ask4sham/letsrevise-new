@@ -5014,7 +5014,7 @@ const EditLessonPage: React.FC = () => {
                         >
                           {seedFlashcardsLoading ? "Loading…" : "Load from topic flashcards"}
                         </button>
-                        <Link to="/teacher/flashcards" style={{ fontSize: 14, color: "#2563eb" }}>
+                        <Link to="/teacher/topic-banks/flashcards" style={{ fontSize: 14, color: "#2563eb" }}>
                           Manage topic bank →
                         </Link>
                         {seedFlashcardsError && (

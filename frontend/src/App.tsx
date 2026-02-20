@@ -249,12 +249,16 @@ function App() {
             }
           />
           <Route
-            path="/teacher/flashcards"
+            path="/teacher/topic-banks/flashcards"
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherFlashcardBankPage />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/teacher/flashcards"
+            element={<Navigate to="/teacher/topic-banks/flashcards" replace />}
           />
 
           <Route

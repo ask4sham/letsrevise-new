@@ -700,6 +700,20 @@ const TeacherDashboard: React.FC = () => {
               Create Questions
             </Link>
             <Link
+              to="/teacher/topic-banks/flashcards"
+              style={{
+                padding: "10px 16px",
+                background: "white",
+                color: "#374151",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                border: "1px solid #d1d5db",
+              }}
+            >
+              Topic Banks → Flashcards
+            </Link>
+            <Link
               to="/dashboard"
               style={{
                 padding: "10px 16px",
@@ -1724,6 +1738,23 @@ const TeacherDashboard: React.FC = () => {
               }}
             >
               📋 Create Questions
+            </Link>
+
+            <Link
+              to="/teacher/topic-banks/flashcards"
+              style={{
+                padding: "12px 24px",
+                background: "#0ea5e9",
+                color: "white",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📚 Topic Banks → Flashcards
             </Link>
 
             <button
