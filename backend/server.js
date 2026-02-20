@@ -268,6 +268,8 @@ app.use("/api/assessment-items", assessmentItemsRoutes);
 app.use("/api/assessment-attempts", assessmentAttemptsRoutes);
 
 app.use("/api/exam-questions", examQuestionsRoutes);
+app.use("/api/topic-flashcards", require("./routes/topicFlashcards"));
+app.use("/api/flashcard-bank", require("./routes/flashcardBank"));
 app.use("/api/worksheets", worksheetsRoutes);
 
 // PR-W4: Worksheet assignment + student attempt

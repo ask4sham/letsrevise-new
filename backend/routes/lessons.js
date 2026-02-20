@@ -16,6 +16,7 @@ const PracticeAttempt = require("../models/PracticeAttempt");
 const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
+const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -2168,6 +2169,47 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
     return res.json({ ok: true, removed });
   } catch (err) {
     console.error("DELETE exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// PR-F1: Seed lesson.flashcards from topic flashcard bank (owner only)
+router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const topicKey =
+      (lesson.topicKey && String(lesson.topicKey).trim()) ||
+      (lesson.topic && topicToKey(lesson.topic)) ||
+      "";
+    if (!topicKey) {
+      return res.status(400).json({ msg: "Lesson has no topic or topicKey; set topic first" });
+    }
+    const ownerId = lesson.teacherId || lesson.createdBy;
+    if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
+    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, topicKey, 20);
+    if (bankCards.length === 0) {
+      return res.json({ ok: true, added: 0, message: "No topic flashcards in bank for this topic" });
+    }
+    const existing = Array.isArray(lesson.flashcards) ? lesson.flashcards : [];
+    if (existing.length === 0) {
+      lesson.flashcards = bankCards;
+    } else {
+      const existingFronts = new Set(existing.map((f) => (f.front || "").trim()));
+      const toAppend = bankCards.filter((c) => c.front && !existingFronts.has(c.front.trim()));
+      toAppend.forEach((c) => existingFronts.add(c.front.trim()));
+      lesson.flashcards = [...existing, ...toAppend];
+    }
+    await lesson.save();
+    const added = lesson.flashcards.length - (existing.length || 0);
+    return res.json({
+      ok: true,
+      added,
+      flashcardsCount: lesson.flashcards.length,
+    });
+  } catch (err) {
+    console.error("seed-flashcards-from-topic error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

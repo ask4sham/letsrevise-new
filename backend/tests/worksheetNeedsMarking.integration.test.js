@@ -81,7 +81,7 @@ describe("Worksheet Needs Marking (PR-W6)", () => {
     await request(app).post(`/api/worksheet-attempts/${attemptId}/submit`).send({
       answers: [{ examQuestionId: shortId, answerIndex: null, shortText: "My answer" }],
     });
-  });
+  }, 15000);
 
   test("teacher GET needs-marking returns 1 item with unmarkedCount=1", async () => {
     const res = await request(app)

@@ -80,7 +80,9 @@ module.exports = function canAccessContent(options = {}) {
       }
 
       const ownerId = getLessonOwnerId(lesson);
-      const isOwner = ownerId != null && ownerId === String(req.user._id || req.user.id);
+      const isOwner =
+        ownerId != null &&
+        String(ownerId) === String(req.user._id || req.user.id);
 
       if (requirePublished && !isPublished) {
         if (

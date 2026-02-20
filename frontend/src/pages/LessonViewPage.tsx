@@ -11,6 +11,7 @@ import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
+import { copyBankToLesson } from "../api/flashcardBank";
 import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
@@ -1395,6 +1396,9 @@ const LessonViewPage: React.FC = () => {
 
   // ✅ AI generation state
   const [isGenerating, setIsGenerating] = useState(false);
+  // PR-F1: Load flashcards from bank (teacher, when lesson has none)
+  const [loadFromBankLoading, setLoadFromBankLoading] = useState(false);
+  const [loadFromBankError, setLoadFromBankError] = useState<string | null>(null);
 
   // Unlock (1 ShamCoin) flow: error message when 400 "Not enough ShamCoins"
   const [unlockError, setUnlockError] = useState<string | null>(null);
@@ -1500,6 +1504,18 @@ const LessonViewPage: React.FC = () => {
     }
     // Fallback to empty array
     return [];
+  }, [lesson]);
+
+  // PR-F1: topicKey for "Load flashcards from bank" (lesson.topicKey or slug from lesson.topic)
+  const topicKeyForBank = useMemo(() => {
+    if (!lesson) return "";
+    const key = (lesson as { topicKey?: string }).topicKey;
+    if (typeof key === "string" && key.trim()) return key.trim().toLowerCase();
+    const t = (lesson as { topic?: string }).topic;
+    if (typeof t === "string" && t.trim()) {
+      return t.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    }
+    return "";
   }, [lesson]);
 
   useEffect(() => {
@@ -1979,6 +1995,22 @@ const LessonViewPage: React.FC = () => {
       alert('Error generating revision content');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // PR-F1: Load flashcards from bank into this lesson (teacher only, when lesson has none)
+  const handleLoadFromBank = async () => {
+    if (!id || !topicKeyForBank) return;
+    setLoadFromBankError(null);
+    setLoadFromBankLoading(true);
+    try {
+      await copyBankToLesson(topicKeyForBank, id);
+      await fetchLessonSmart();
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.message || "Failed to load from bank";
+      setLoadFromBankError(msg);
+    } finally {
+      setLoadFromBankLoading(false);
     }
   };
 
@@ -3533,6 +3565,31 @@ const LessonViewPage: React.FC = () => {
                         )}
                       </div>
                     )}
+                    {/* PR-F1: Load from bank — teacher only, when no flashcards */}
+                    {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
+                      <div style={{ marginBottom: 8 }}>
+                        <button
+                          type="button"
+                          onClick={handleLoadFromBank}
+                          disabled={loadFromBankLoading}
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: "8px",
+                            border: "1px solid #2563eb",
+                            background: loadFromBankLoading ? "#e5e7eb" : "#eff6ff",
+                            color: "#2563eb",
+                            cursor: loadFromBankLoading ? "not-allowed" : "pointer",
+                            fontWeight: 600,
+                            fontSize: "14px",
+                          }}
+                        >
+                          {loadFromBankLoading ? "Loading…" : "Load flashcards from bank"}
+                        </button>
+                        {loadFromBankError ? (
+                          <span style={{ marginLeft: 8, fontSize: 13, color: "#dc2626" }}>{loadFromBankError}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {/* ✅ RESTORED: Flashcard component using single source of truth */}
                     <FlashcardsView
                       title="Flashcards"
@@ -4102,6 +4159,30 @@ const LessonViewPage: React.FC = () => {
                 )}
               </div>
             )}
+            {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
+              <div style={{ marginBottom: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleLoadFromBank}
+                  disabled={loadFromBankLoading}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    border: "1px solid #2563eb",
+                    background: loadFromBankLoading ? "#e5e7eb" : "#eff6ff",
+                    color: "#2563eb",
+                    cursor: loadFromBankLoading ? "not-allowed" : "pointer",
+                    fontWeight: 600,
+                    fontSize: "14px",
+                  }}
+                >
+                  {loadFromBankLoading ? "Loading…" : "Load flashcards from bank"}
+                </button>
+                {loadFromBankError ? (
+                  <span style={{ marginLeft: 8, fontSize: 13, color: "#dc2626" }}>{loadFromBankError}</span>
+                ) : null}
+              </div>
+            ) : null}
             {/* ✅ RESTORED: Flashcard component with updated props in legacy view too */}
             <FlashcardsView
               title="Flashcards"

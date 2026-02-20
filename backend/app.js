@@ -54,6 +54,11 @@ app.use("/api/worksheet-reports", require("./routes/worksheetReports"));
 // PR-W2: exam question bank (teacher/admin; topicKey, draft/published)
 app.use("/api/exam-questions", require("./routes/examQuestions"));
 
+// PR-F1: topic flashcard bank (teacher/admin only)
+app.use("/api/topic-flashcards", require("./routes/topicFlashcards"));
+// PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson)
+app.use("/api/flashcard-bank", require("./routes/flashcardBank"));
+
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 

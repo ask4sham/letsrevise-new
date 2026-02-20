@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom"
 import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
+import { seedLessonFlashcardsFromTopic } from "../api/topicFlashcards";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
@@ -347,6 +348,8 @@ const EditLessonPage: React.FC = () => {
   });
   const [isQuizCollapsed, setIsQuizCollapsed] = useState(false);
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
+  const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
+  const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
@@ -4979,12 +4982,52 @@ const EditLessonPage: React.FC = () => {
               {!isFlashcardsCollapsed && (
                 <div style={{ padding: "20px" }}>
                   {revisionTab === "flashcards" && (
-                    <FlashcardsEditor
-                      lessonId={id || ""}
-                      initialCards={lesson?.flashcards || []}
-                      onSaved={() => fetchLessonSmart()}
-                      isAdmin={isAdmin}
-                    />
+                    <>
+                      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          disabled={seedFlashcardsLoading || !id}
+                          onClick={async () => {
+                            if (!id) return;
+                            setSeedFlashcardsError(null);
+                            setSeedFlashcardsLoading(true);
+                            try {
+                              const result = await seedLessonFlashcardsFromTopic(id);
+                              if (result.added > 0 || result.flashcardsCount > 0) {
+                                await fetchLessonSmart();
+                              }
+                            } catch (e: any) {
+                              setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Failed to load from topic bank");
+                            } finally {
+                              setSeedFlashcardsLoading(false);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "1px solid #2563eb",
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            fontWeight: 600,
+                            cursor: seedFlashcardsLoading || !id ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {seedFlashcardsLoading ? "Loading…" : "Load from topic flashcards"}
+                        </button>
+                        <Link to="/teacher/flashcards" style={{ fontSize: 14, color: "#2563eb" }}>
+                          Manage topic bank →
+                        </Link>
+                        {seedFlashcardsError && (
+                          <span style={{ color: "#dc2626", fontSize: 14 }}>{seedFlashcardsError}</span>
+                        )}
+                      </div>
+                      <FlashcardsEditor
+                        lessonId={id || ""}
+                        initialCards={lesson?.flashcards || []}
+                        onSaved={() => fetchLessonSmart()}
+                        isAdmin={isAdmin}
+                      />
+                    </>
                   )}
                 </div>
               )}

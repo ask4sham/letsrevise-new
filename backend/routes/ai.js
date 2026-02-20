@@ -9,6 +9,9 @@ const auth = require("../middleware/auth");
 
 const Lesson = require("../models/Lesson");
 const VisualModel = require("../models/VisualModel");
+const FlashcardBank = require("../models/FlashcardBank");
+const { validateAndNormalizeRevision } = require("../services/validateRevision");
+const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
@@ -1086,6 +1089,39 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       status: "draft",
       isPublished: false,
     });
+
+    // PR-F1: Auto-copy flashcards from bank when lesson has none (FlashcardBank first, then TopicFlashcard)
+    const existingFlashcards = Array.isArray(sanitized.flashcards) ? sanitized.flashcards : [];
+    if (existingFlashcards.length === 0) {
+      const seedKey = topicKeyRaw && topicKeyRaw.trim()
+        ? topicKeyRaw.trim().toLowerCase()
+        : topicToKey(topic);
+      const ownerId = req.user?._id || req.user?.userId || req.user?.id;
+      if (seedKey && ownerId) {
+        try {
+          const bank = await FlashcardBank.findOne({ ownerId, topicKey: seedKey }).lean();
+          if (bank && Array.isArray(bank.cards) && bank.cards.length > 0) {
+            const lessonCards = bank.cards.map((c, i) => ({
+              id: `fc_${Date.now()}_${i}`,
+              front: (c.front && String(c.front).trim()) || "",
+              back: (c.back && String(c.back).trim()) || "",
+              tags: Array.isArray(c.tags) ? c.tags : [],
+              difficulty: 1,
+            })).filter((fc) => fc.front && fc.back);
+            if (lessonCards.length > 0) {
+              const { flashcards } = validateAndNormalizeRevision({ flashcards: lessonCards });
+              lessonDoc.flashcards = flashcards;
+            }
+          }
+          if (!lessonDoc.flashcards || lessonDoc.flashcards.length === 0) {
+            const bankCards = await fetchTopicFlashcardsForSeed(ownerId, seedKey, 20);
+            if (bankCards.length > 0) lessonDoc.flashcards = bankCards;
+          }
+        } catch (e) {
+          console.warn("⚠️ [Factory] Topic flashcard seed skipped:", e?.message || e);
+        }
+      }
+    }
 
     await lessonDoc.save();
 

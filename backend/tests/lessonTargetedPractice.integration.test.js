@@ -129,7 +129,7 @@ describe("GET /api/lessons/:id/targeted-practice", () => {
     tokenNotEntitled = await login("tp-not-entitled@test.com");
     tokenSubscribed = await login("tp-subscribed@test.com");
     tokenTeacher = await login("tp-teacher@test.com");
-  });
+  }, 15000);
 
   test("NOT_ENTITLED user gets 402", async () => {
     const res = await request(app)

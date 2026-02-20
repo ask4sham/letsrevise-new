@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../services/api";
+import { importFlashcards } from "../../api/flashcardBank";
 
 export type Flashcard = {
   id: string;
@@ -338,6 +339,10 @@ export default function FlashcardsEditor({
   const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
   const [topicKeyForBank, setTopicKeyForBank] = useState<string>("");
   const [bankImportLoading, setBankImportLoading] = useState(false);
+  // PR-F1: Save current cards to topic bank
+  const [topicKeyForImport, setTopicKeyForImport] = useState<string>("");
+  const [topicNameForImport, setTopicNameForImport] = useState<string>("");
+  const [importToBankLoading, setImportToBankLoading] = useState(false);
 
   useEffect(() => {
     const normalized = (initialCards || []).map((c: any) => ({
@@ -414,6 +419,33 @@ export default function FlashcardsEditor({
       setBankImportLoading(false);
     }
   }, [topicKeyForBank, examQuestionToFlashcard]);
+
+  const importCurrentCardsToBank = useCallback(async () => {
+    resetMessages();
+    const key = (topicKeyForImport || "").trim().toLowerCase();
+    if (!key) {
+      setError("Enter or select a topic key to save to the bank.");
+      return;
+    }
+    if (cards.length === 0) {
+      setError("No cards to save. Add or import flashcards first.");
+      return;
+    }
+    setImportToBankLoading(true);
+    try {
+      const bankCards = cards.map((c) => ({
+        front: c.front,
+        back: c.back,
+        tags: Array.isArray(c.tags) ? c.tags : [],
+      }));
+      await importFlashcards(key, (topicNameForImport || "").trim() || key.replace(/-/g, " "), bankCards);
+      setStatus(`Saved ${cards.length} cards to topic bank (${key}). You can "Load flashcards from bank" on any lesson with this topic.`);
+    } catch (e: any) {
+      setError(e?.response?.data?.error || e?.message || "Failed to save to bank.");
+    } finally {
+      setImportToBankLoading(false);
+    }
+  }, [topicKeyForImport, topicNameForImport, cards]);
 
   const styles: Record<string, React.CSSProperties> = {
     wrap: {
@@ -856,6 +888,47 @@ export default function FlashcardsEditor({
           </button>
         </div>
       </div>
+
+      {/* PR-F1: Save current cards to topic bank */}
+      {cards.length > 0 ? (
+        <div style={styles.section}>
+          <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Save to topic bank</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
+            Save the current {cards.length} card(s) to the flashcard bank for a topic. Use &quot;Load flashcards from bank&quot; on a lesson with no flashcards to copy them in.
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+            <select
+              value={topicKeyForImport}
+              onChange={(e) => setTopicKeyForImport(e.target.value)}
+              style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
+            >
+              <option value="">Select topic…</option>
+              {taxonomy?.units?.flatMap((u) =>
+                (u.topics || []).map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {u.unit} — {t.topic}
+                  </option>
+                ))
+              )}
+            </select>
+            <input
+              type="text"
+              value={topicNameForImport}
+              onChange={(e) => setTopicNameForImport(e.target.value)}
+              placeholder="Topic name (optional)"
+              style={{ minWidth: 140, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+            />
+            <button
+              type="button"
+              style={{ ...styles.btn, opacity: importToBankLoading ? 0.7 : 1 }}
+              onClick={importCurrentCardsToBank}
+              disabled={importToBankLoading}
+            >
+              {importToBankLoading ? "Saving…" : "Import to bank"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Existing Flashcards Section with Show/Hide toggle */}
       <div style={{ marginTop: 16 }}>
