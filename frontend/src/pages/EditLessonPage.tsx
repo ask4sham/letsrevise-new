@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
+import { generateQuizFromTopic } from "../api/topicQuizQuestions";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
@@ -110,6 +111,7 @@ interface Lesson {
   subject: string;
   level: string;
   topic: string;
+  topicKey?: string;
   examBoardName: string | null;
   teacherName: string;
   teacherId: string;
@@ -351,6 +353,9 @@ const EditLessonPage: React.FC = () => {
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
+  const [seedQuizLoading, setSeedQuizLoading] = useState(false);
+  const [seedQuizError, setSeedQuizError] = useState<string | null>(null);
+  const [seedQuizSuccess, setSeedQuizSuccess] = useState<string | null>(null);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
@@ -5484,6 +5489,53 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                 <div style={{ padding: "20px" }}>
                   {revisionTab === "quizzes" && (
                     <div>
+                      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          disabled={seedQuizLoading || !id || !lesson?.topicKey}
+                          onClick={async () => {
+                            if (!id) return;
+                            setSeedQuizError(null);
+                            setSeedQuizSuccess(null);
+                            setSeedQuizLoading(true);
+                            try {
+                              const result = await generateQuizFromTopic(id);
+                              await fetchLessonSmart();
+                              const count = result.addedCount ?? result.questionsCount ?? 0;
+                              setSeedQuizSuccess(
+                                count > 0 ? `Added ${count} quiz questions from topic bank.` : "No published quiz questions in bank for this topic."
+                              );
+                            } catch (e: any) {
+                              setSeedQuizError(e?.response?.data?.msg || e?.message || "Failed to generate from topic bank");
+                            } finally {
+                              setSeedQuizLoading(false);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "1px solid #2563eb",
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            fontWeight: 600,
+                            cursor: seedQuizLoading || !id || !lesson?.topicKey ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {seedQuizLoading ? "Loading…" : "Generate Quiz from Topic Bank"}
+                        </button>
+                        <Link to="/teacher/topic-banks/quizzes" style={{ fontSize: 14, color: "#2563eb" }}>
+                          Manage quiz bank →
+                        </Link>
+                        {!lesson?.topicKey && (
+                          <span style={{ fontSize: 13, color: "#6b7280" }}>Set lesson topic to generate from bank.</span>
+                        )}
+                        {seedQuizError && (
+                          <span style={{ color: "#dc2626", fontSize: 14 }}>{seedQuizError}</span>
+                        )}
+                        {seedQuizSuccess && (
+                          <span style={{ color: "#059669", fontSize: 14 }}>{seedQuizSuccess}</span>
+                        )}
+                      </div>
                       <div style={{
                         background: "#fef3c7",
                         padding: "15px",

@@ -17,6 +17,7 @@ const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
+const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -2210,6 +2211,36 @@ router.post("/:id/generate/flashcards-from-topic", auth, requireLessonOwnerOrAdm
 
 // PR-F1: Alias (calls same handler)
 router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, handleGenerateFlashcardsFromTopic);
+
+// PR-Q2: Generate quiz from topic bank (published-only, replace)
+router.post("/:id/generate/quiz-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const result = await generateLessonQuizFromTopic({
+      lessonId,
+      userId: req.user._id || req.user.userId,
+      opts: { publishedOnly: true },
+    });
+    return res.json({
+      ok: true,
+      addedCount: result.addedCount,
+      questionsCount: result.questionsCount,
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ msg: err.message || "Lesson has no topicKey; cannot generate quiz." });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ msg: err.message || "Lesson not found" });
+    }
+    console.error("generate/quiz-from-topic error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
 
 // PR3a.1: One-click attach top N questions by topicKey (derived from lesson.topic if not provided). PR16: uses shared helper.
 router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
