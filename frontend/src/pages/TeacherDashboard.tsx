@@ -1747,6 +1747,24 @@ const TeacherDashboard: React.FC = () => {
             </button>
 
             <Link
+              to="/teacher/worksheets/needs-marking"
+              style={{
+                padding: "12px 24px",
+                background: "#fef3c7",
+                color: "#92400e",
+                textDecoration: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                border: "1px solid #f59e0b",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📋 Needs marking
+            </Link>
+
+            <Link
               to="/teacher/reports/needs-attention"
               style={{
                 padding: "12px 24px",

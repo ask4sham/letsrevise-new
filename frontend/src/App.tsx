@@ -73,6 +73,7 @@ import TeacherWorksheetBuilderPage from "./pages/TeacherWorksheetBuilderPage";
 import StudentWorksheetPage from "./pages/StudentWorksheetPage";
 import TeacherWorksheetReportPage from "./pages/TeacherWorksheetReportPage";
 import TeacherWorksheetAttemptPage from "./pages/TeacherWorksheetAttemptPage";
+import TeacherNeedsMarkingPage from "./pages/TeacherNeedsMarkingPage";
 
 import "./App.css";
 
@@ -412,6 +413,15 @@ function App() {
             }
           />
 
+          {/* PR-W6: Needs marking queue */}
+          <Route
+            path="/teacher/worksheets/needs-marking"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherNeedsMarkingPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/teacher/worksheets/:id/edit"
             element={
