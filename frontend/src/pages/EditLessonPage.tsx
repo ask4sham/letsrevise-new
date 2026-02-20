@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom"
 import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
-import { seedLessonFlashcardsFromTopic } from "../api/topicFlashcards";
+import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
@@ -350,6 +350,7 @@ const EditLessonPage: React.FC = () => {
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
+  const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
@@ -4990,14 +4991,17 @@ const EditLessonPage: React.FC = () => {
                           onClick={async () => {
                             if (!id) return;
                             setSeedFlashcardsError(null);
+                            setSeedFlashcardsSuccess(null);
                             setSeedFlashcardsLoading(true);
                             try {
-                              const result = await seedLessonFlashcardsFromTopic(id);
-                              if (result.added > 0 || result.flashcardsCount > 0) {
-                                await fetchLessonSmart();
-                              }
+                              const result = await generateFlashcardsFromTopic(id);
+                              await fetchLessonSmart();
+                              const count = result.addedCount ?? result.added ?? result.flashcardsCount ?? 0;
+                              setSeedFlashcardsSuccess(
+                                count > 0 ? `Added ${count} flashcards from topic bank.` : "No published flashcards in bank for this topic."
+                              );
                             } catch (e: any) {
-                              setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Failed to load from topic bank");
+                              setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Failed to generate from topic bank");
                             } finally {
                               setSeedFlashcardsLoading(false);
                             }
@@ -5012,13 +5016,16 @@ const EditLessonPage: React.FC = () => {
                             cursor: seedFlashcardsLoading || !id ? "not-allowed" : "pointer",
                           }}
                         >
-                          {seedFlashcardsLoading ? "Loading…" : "Load from topic flashcards"}
+                          {seedFlashcardsLoading ? "Loading…" : "Generate Flashcards from Topic Bank"}
                         </button>
                         <Link to="/teacher/topic-banks/flashcards" style={{ fontSize: 14, color: "#2563eb" }}>
                           Manage topic bank →
                         </Link>
                         {seedFlashcardsError && (
                           <span style={{ color: "#dc2626", fontSize: 14 }}>{seedFlashcardsError}</span>
+                        )}
+                        {seedFlashcardsSuccess && (
+                          <span style={{ color: "#059669", fontSize: 14 }}>{seedFlashcardsSuccess}</span>
                         )}
                       </div>
                       <FlashcardsEditor

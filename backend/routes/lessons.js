@@ -2173,8 +2173,8 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
   }
 });
 
-// PR-F1: Seed lesson.flashcards from topic flashcard bank (owner only)
-router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+// PR-FLOW-2: Generate lesson flashcards from topic bank (published only, replace semantics)
+async function handleGenerateFlashcardsFromTopic(req, res) {
   try {
     const lessonId = req.params.id;
     const lesson = await Lesson.findById(lessonId);
@@ -2184,35 +2184,32 @@ router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, 
       (lesson.topic && topicToKey(lesson.topic)) ||
       "";
     if (!topicKey) {
-      return res.status(400).json({ msg: "Lesson has no topic or topicKey; set topic first" });
+      return res.status(400).json({ msg: "Lesson has no topicKey; cannot generate flashcards." });
     }
     const ownerId = lesson.teacherId || lesson.createdBy;
     if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
-    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, topicKey, 20);
-    if (bankCards.length === 0) {
-      return res.json({ ok: true, added: 0, message: "No topic flashcards in bank for this topic" });
-    }
-    const existing = Array.isArray(lesson.flashcards) ? lesson.flashcards : [];
-    if (existing.length === 0) {
-      lesson.flashcards = bankCards;
-    } else {
-      const existingFronts = new Set(existing.map((f) => (f.front || "").trim()));
-      const toAppend = bankCards.filter((c) => c.front && !existingFronts.has(c.front.trim()));
-      toAppend.forEach((c) => existingFronts.add(c.front.trim()));
-      lesson.flashcards = [...existing, ...toAppend];
-    }
+    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, topicKey, 20, { publishedOnly: true });
+    lesson.flashcards = bankCards;
     await lesson.save();
-    const added = lesson.flashcards.length - (existing.length || 0);
+    const addedCount = bankCards.length;
     return res.json({
       ok: true,
-      added,
+      addedCount,
+      added: addedCount,
       flashcardsCount: lesson.flashcards.length,
+      lesson: lesson.toObject ? lesson.toObject() : lesson,
     });
   } catch (err) {
-    console.error("seed-flashcards-from-topic error:", err);
+    console.error("generate-flashcards-from-topic error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
-});
+}
+
+// PR-FLOW-2: New production endpoint (preferred)
+router.post("/:id/generate/flashcards-from-topic", auth, requireLessonOwnerOrAdmin, handleGenerateFlashcardsFromTopic);
+
+// PR-F1: Alias (calls same handler)
+router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, handleGenerateFlashcardsFromTopic);
 
 // PR3a.1: One-click attach top N questions by topicKey (derived from lesson.topic if not provided). PR16: uses shared helper.
 router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
