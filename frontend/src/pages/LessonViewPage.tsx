@@ -3504,6 +3504,35 @@ const LessonViewPage: React.FC = () => {
                   </div>
 
                   <div style={{ display: "grid", gap: "16px" }}>
+                    {/* Dev-only: debug flashcard payload (count, access reason, first 5 cards) */}
+                    {(process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          background: "#f0f9ff",
+                          border: "1px solid #bae6fd",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                          color: "#0c4a6e",
+                        }}
+                        data-dev="flashcard-debug"
+                      >
+                        <div><strong>Flashcard debug</strong></div>
+                        <div>Count from API: {flashcards.length}</div>
+                        <div>Lesson ID: {id ?? "—"}</div>
+                        <div>Access: {accessDecision?.reason ?? "—"}</div>
+                        {flashcards.length > 0 && (
+                          <div style={{ marginTop: 6 }}>
+                            First 5: {flashcards.slice(0, 5).map((c: any, i: number) => (
+                              <div key={c.id ?? i}>
+                                [{String(c.id ?? c._id ?? i).slice(0, 12)}] {(c.front || "").slice(0, 40)}{(c.front && c.front.length > 40) ? "…" : ""}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* ✅ RESTORED: Flashcard component using single source of truth */}
                     <FlashcardsView
                       title="Flashcards"
@@ -4045,6 +4074,34 @@ const LessonViewPage: React.FC = () => {
           </div>
 
           <div style={{ display: "grid", gap: "16px" }}>
+            {(process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
+              <div
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  background: "#f0f9ff",
+                  border: "1px solid #bae6fd",
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  color: "#0c4a6e",
+                }}
+                data-dev="flashcard-debug"
+              >
+                <div><strong>Flashcard debug</strong></div>
+                <div>Count from API: {flashcards.length}</div>
+                <div>Lesson ID: {id ?? "—"}</div>
+                <div>Access: {accessDecision?.reason ?? "—"}</div>
+                {flashcards.length > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    First 5: {flashcards.slice(0, 5).map((c: any, i: number) => (
+                      <div key={c.id ?? i}>
+                        [{String(c.id ?? c._id ?? i).slice(0, 12)}] {(c.front || "").slice(0, 40)}{(c.front && c.front.length > 40) ? "…" : ""}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {/* ✅ RESTORED: Flashcard component with updated props in legacy view too */}
             <FlashcardsView
               title="Flashcards"

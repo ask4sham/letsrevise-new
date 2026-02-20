@@ -190,6 +190,23 @@ describe("GET /api/lessons/:id content access (Phase 9)", () => {
     expect(res.body.quiz).toBeUndefined();
   });
 
+  test("owner of published lesson gets 200 and full content including flashcards (not FREE_PREVIEW)", async () => {
+    const tokenTeacher = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "phase9-teacher@test.com", password: "password123" })
+      .then((r) => r.body.token);
+    expect(tokenTeacher).toBeDefined();
+    const res = await request(app)
+      .get(`/api/lessons/${lessonAId}`)
+      .set("Authorization", `Bearer ${tokenTeacher}`);
+    expect(res.status).toBe(200);
+    expect(res.body.accessDecision?.reason).toBe("OWNER");
+    expect(Array.isArray(res.body.flashcards)).toBe(true);
+    expect(res.body.flashcards).toHaveLength(1);
+    expect(res.body.flashcards[0]).toMatchObject({ id: "f1", front: "F", back: "B" });
+    expect(res.body.pages).toHaveLength(2);
+  });
+
   test("Phase 9B: trialing status gets 200 full content", async () => {
     const res = await request(app)
       .get(`/api/lessons/${lessonAId}`)

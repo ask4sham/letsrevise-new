@@ -100,6 +100,16 @@ module.exports = function canAccessContent(options = {}) {
         );
       }
 
+      // Owner of a published lesson always gets full content (e.g. flashcards); avoids FREE_PREVIEW for own lesson.
+      if (isOwner) {
+        req.lesson = lesson;
+        req.accessDecision = { allowed: true, reason: "OWNER" };
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[canAccessContent]", { userId: req.user._id?.toString(), lessonId: lessonIdStr, reason: "OWNER" });
+        }
+        return next();
+      }
+
       const decision = await checkAccess(req.user, {
         _id: lesson._id,
         id: lesson._id?.toString(),
