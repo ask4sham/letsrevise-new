@@ -61,6 +61,7 @@ import QuizStatsPage from "./pages/QuizStatsPage";
 // ✅ NEW: Teacher flashcards editor page
 import FlashcardsEditorPage from "./pages/FlashcardsEditorPage";
 import TeacherFlashcardBankPage from "./pages/TeacherFlashcardBankPage";
+import TeacherQuizBankPage from "./pages/TeacherQuizBankPage";
 
 // ✅ NEW: Assessment pages - ALL in src/pages/
 import AssessmentPaperStartPage from "./pages/AssessmentPaperStartPage";
@@ -253,6 +254,14 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherFlashcardBankPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/topic-banks/quizzes"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherQuizBankPage />
               </ProtectedRoute>
             }
           />
