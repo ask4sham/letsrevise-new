@@ -273,6 +273,7 @@ const CreateLessonPage: React.FC = () => {
     externalResources: "",
     estimatedDuration: 60,
     shamCoinPrice: 0,
+    autoGenerateFromBanks: true,
   });
 
   // Pages editor (same data model as EditLessonPage)
@@ -695,10 +696,23 @@ const CreateLessonPage: React.FC = () => {
       };
 
       if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
+      payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;
 
-      await api.post(`/lessons`, payload);
+      const res = await api.post(`/lessons`, payload);
+      const data = res?.data;
 
-      setSuccess("✅ Lesson created successfully!");
+      const gen = data?.autoGenerateResult;
+      if (gen) {
+        const parts: string[] = [];
+        if (gen.flashcardsAdded) parts.push(`${gen.flashcardsAdded} flashcards`);
+        if (gen.quizAdded) parts.push(`${gen.quizAdded} quiz questions`);
+        if (gen.assessmentAdded) parts.push(`${gen.assessmentAdded} assessment questions`);
+        if (gen.pastPapersAdded) parts.push(`${gen.pastPapersAdded} past papers`);
+        const genMsg = parts.length > 0 ? ` Generated ${parts.join(", ")}.` : "";
+        setSuccess(`✅ Lesson created successfully!${genMsg}`);
+      } else {
+        setSuccess("✅ Lesson created successfully!");
+      }
       setTimeout(() => navigate("/teacher-dashboard"), 700);
     } catch (err: any) {
       console.error(err);
@@ -948,6 +962,23 @@ const CreateLessonPage: React.FC = () => {
                       style={ui.input}
                     />
                   </label>
+
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.autoGenerateFromBanks}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          autoGenerateFromBanks: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span style={{ ...ui.label, marginBottom: 0 }}>Auto-generate from topic banks</span>
+                  </label>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: -4, marginLeft: 24 }}>
+                    Flashcards, quiz, assessment &amp; past papers from published banks
+                  </div>
                 </div>
 
                 <label style={{ display: "block", width: "100%" }}>

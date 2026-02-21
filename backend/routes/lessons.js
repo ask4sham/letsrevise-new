@@ -493,6 +493,7 @@ async function createLessonHandler(req, res) {
       uploadedImages,
       pages,
       quiz,
+      autoGenerateFromBanks,
     } = req.body || {};
 
     const missing = {};
@@ -638,6 +639,45 @@ async function createLessonHandler(req, res) {
     await lesson.save();
     console.log("✅ [Lessons] Lesson saved:", lesson._id);
 
+    // PR-EDGE-1: Auto-generate from topic banks (flashcards, quiz, assessment, past papers)
+    let autoGenResult = { flashcardsAdded: 0, quizAdded: 0, assessmentAdded: 0, pastPapersAdded: 0 };
+    const shouldAutoGen = autoGenerateFromBanks === true || autoGenerateFromBanks === "true";
+    const topicKeyForGen =
+      (lesson.topicKey && String(lesson.topicKey).trim()) ||
+      (lesson.topic && topicToKey(lesson.topic)) ||
+      "";
+    if (shouldAutoGen && topicKeyForGen) {
+      const userId = req.user._id || req.user.userId;
+      try {
+        const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
+        const bankCards = await fetchTopicFlashcardsForSeed(lesson.teacherId, topicKeyForGen, 20, { publishedOnly: true });
+        lesson.flashcards = bankCards;
+        await lesson.save();
+        autoGenResult.flashcardsAdded = bankCards.length;
+      } catch (e) {
+        console.warn("⚠️ [Lessons] Auto-gen flashcards failed:", e?.message || e);
+      }
+      try {
+        const qRes = await generateLessonQuizFromTopic({ lessonId: lesson._id, userId, opts: { publishedOnly: true } });
+        autoGenResult.quizAdded = qRes.addedCount || 0;
+      } catch (e) {
+        console.warn("⚠️ [Lessons] Auto-gen quiz failed:", e?.message || e);
+      }
+      try {
+        const aRes = await generateLessonAssessmentFromTopic({ lessonId: lesson._id, userId });
+        autoGenResult.assessmentAdded = aRes.addedCount || 0;
+      } catch (e) {
+        console.warn("⚠️ [Lessons] Auto-gen assessment failed:", e?.message || e);
+      }
+      try {
+        const ppRes = await generateLessonPastPapersFromTopic({ lessonId: lesson._id, userId });
+        autoGenResult.pastPapersAdded = ppRes.addedCount || 0;
+      } catch (e) {
+        console.warn("⚠️ [Lessons] Auto-gen past papers failed:", e?.message || e);
+      }
+      console.log("✅ [Lessons] Auto-gen result:", autoGenResult);
+    }
+
     let updatedShamCoins = 0;
     try {
       const dbUser = await User.findById(req.user._id);
@@ -661,12 +701,16 @@ async function createLessonHandler(req, res) {
       console.error("⚠️ [Lessons] Failed to award ShamCoins:", coinErr);
     }
 
-    return res.json({
+    const resPayload = {
       success: true,
       msg: "Lesson created successfully! You earned 50 ShamCoins!",
       lesson,
       updatedShamCoins,
-    });
+    };
+    if (shouldAutoGen) {
+      resPayload.autoGenerateResult = autoGenResult;
+    }
+    return res.json(resPayload);
   } catch (err) {
     console.error("❌ [Lessons] Lesson creation error details:");
     console.error("Error message:", err.message);
