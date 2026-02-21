@@ -3595,7 +3595,7 @@ const LessonViewPage: React.FC = () => {
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                 />
 
-                {/* ✅ REVISION SECTION - ADDED */}
+                {/* Flashcards section — no "Revision" wrapper; FlashcardsView has its own title */}
                 <div
                   style={{
                     marginTop: "40px",
@@ -3606,15 +3606,11 @@ const LessonViewPage: React.FC = () => {
                 >
                   <div style={{ 
                     display: "flex", 
-                    justifyContent: "space-between", 
+                    justifyContent: "flex-end", 
                     alignItems: "center",
-                    marginBottom: "20px" 
+                    marginBottom: "16px" 
                   }}>
-                    <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0 }}>
-                      Revision
-                    </h2>
-                    
-                    {/* ✅ UPDATED: AI generation button - only show for teachers/admins */}
+                    {/* AI generation button - only show for teachers/admins */}
                     {isTeacherOrAdmin ? (
                       <button
                         onClick={handleAIGenerate}
@@ -4232,7 +4228,7 @@ const LessonViewPage: React.FC = () => {
           onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
         />
 
-        {/* ✅ REVISION SECTION - ADDED FOR LEGACY VIEW */}
+        {/* Flashcards section — no "Revision" wrapper; FlashcardsView has its own title */}
         <div
           style={{
             marginTop: "40px",
@@ -4243,15 +4239,11 @@ const LessonViewPage: React.FC = () => {
         >
           <div style={{ 
             display: "flex", 
-            justifyContent: "space-between", 
+            justifyContent: "flex-end", 
             alignItems: "center",
-            marginBottom: "20px" 
+            marginBottom: "16px" 
           }}>
-            <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0 }}>
-              Revision
-            </h2>
-            
-            {/* ✅ UPDATED: AI generation button for legacy view - only show for teachers/admins */}
+            {/* AI generation button - only show for teachers/admins */}
             {isTeacherOrAdmin ? (
               <button
                 onClick={handleAIGenerate}

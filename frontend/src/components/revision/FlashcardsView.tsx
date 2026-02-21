@@ -520,15 +520,19 @@ export default function FlashcardsView({
     },
   };
 
+  const hasBreadcrumb = (breadcrumbLeft ?? "").trim().length > 0;
+
   return (
     <section style={styles.wrap} data-proof="FlashcardsView-InlinePro">
-      {/* Breadcrumb */}
-      <div style={styles.breadcrumb}>
-        <span style={styles.crumbIcon} />
-        <span>{breadcrumbLeft ?? ""}</span>
-        {(breadcrumbLeft ?? "").trim() ? <span>›</span> : null}
-        <span style={{ color: "#374151", fontWeight: 700 }}>{breadcrumbRight}</span>
-      </div>
+      {/* Breadcrumb — only when we have parent context (avoids duplicate "Flashcards" heading) */}
+      {hasBreadcrumb ? (
+        <div style={styles.breadcrumb}>
+          <span style={styles.crumbIcon} />
+          <span>{breadcrumbLeft ?? ""}</span>
+          <span>›</span>
+          <span style={{ color: "#374151", fontWeight: 700 }}>{breadcrumbRight}</span>
+        </div>
+      ) : null}
 
       {/* Header */}
       <div style={styles.headerRow}>
