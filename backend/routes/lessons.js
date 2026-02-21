@@ -1687,7 +1687,7 @@ router.get(
         });
       }
       const lesson = await Lesson.findById(lessonId)
-        .select("_id examQuestions teacherId topic subject level organisationId")
+        .select("_id examQuestions teacherId topic topicKey subject level organisationId")
         .populate({
           path: "examQuestions.questionId",
           model: "ExamQuestion",
@@ -1730,10 +1730,7 @@ router.get(
 
       // PR-LESSON-AUDIT-3: When no attached questions, fall back to published ExamQuestions from bank by topicKey
       if (questions.length === 0) {
-        const topicKey =
-          (lesson.topicKey && String(lesson.topicKey).trim()) ||
-          (lesson.topic && topicToKey(lesson.topic)) ||
-          "";
+        const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
         const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
         if (validatedKey) {
           const ownershipFilter = {
@@ -1833,13 +1830,10 @@ router.get(
         });
       }
       const lesson = await Lesson.findById(lessonId)
-        .select("_id topic subject level teacherId organisationId")
+        .select("_id topic topicKey subject level teacherId organisationId")
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
-      const topicKey =
-        (lesson.topicKey && String(lesson.topicKey).trim()) ||
-        (lesson.topic && topicToKey(lesson.topic)) ||
-        "";
+      const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
       const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
       if (!validatedKey) {
         return res.status(200).json({
