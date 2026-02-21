@@ -22,10 +22,46 @@ import {
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 type Tab = "urls" | "upload" | "list";
+type ExamBoard = "" | "AQA" | "OCR" | "Edexcel" | "Other";
+
+function isUrlOnAqa(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const h = (u.hostname || "").toLowerCase();
+    return h === "aqa.org.uk" || h.endsWith(".aqa.org.uk");
+  } catch {
+    return false;
+  }
+}
+
+function extractUrlsFromImportText(format: "json" | "csv", text: string): string[] {
+  const urls: string[] = [];
+  try {
+    if (format === "json") {
+      const arr = JSON.parse(text) as Array<{ url?: string }>;
+      if (Array.isArray(arr)) arr.forEach((x) => { if (typeof x?.url === "string") urls.push(x.url); });
+    } else {
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      const header = lines[0]?.toLowerCase();
+      const urlIdx = header ? header.split(/[,\t;]/).map((s) => s.trim()).indexOf("url") : -1;
+      if (urlIdx >= 0) {
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(/[,\t;]/).map((s) => s.trim());
+          const v = cols[urlIdx];
+          if (typeof v === "string" && /^https?:\/\//i.test(v)) urls.push(v);
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return urls;
+}
 
 const TeacherPastPapersBankPage: React.FC = () => {
   const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
   const [topicKey, setTopicKey] = useState<string>("");
+  const [examBoard, setExamBoard] = useState<ExamBoard>("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
   const [activeTab, setActiveTab] = useState<Tab>("list");
   const [items, setItems] = useState<TopicPastPaper[]>([]);
@@ -80,6 +116,10 @@ const TeacherPastPapersBankPage: React.FC = () => {
     fetchItems();
   }, [topicKey, statusFilter]);
 
+  useEffect(() => {
+    if (examBoard === "AQA" && activeTab === "upload") setActiveTab("list");
+  }, [examBoard]);
+
   const handlePreview = async () => {
     if (!topicKey) {
       setMessage("Select a topic to preview.");
@@ -88,6 +128,14 @@ const TeacherPastPapersBankPage: React.FC = () => {
     if (!importText.trim()) {
       setMessage("Paste text to preview.");
       return;
+    }
+    if (examBoard === "AQA") {
+      const urls = extractUrlsFromImportText(importFormat, importText);
+      const invalid = urls.filter((u) => !isUrlOnAqa(u));
+      if (invalid.length > 0) {
+        setMessage("AQA past papers must be from aqa.org.uk. Some URLs in your input are not. Fix them before preview.");
+        return;
+      }
     }
     setPreviewLoading(true);
     setMessage(null);
@@ -111,6 +159,14 @@ const TeacherPastPapersBankPage: React.FC = () => {
     if (!topicKey || !previewResult || previewResult.summary.wouldCreate === 0) {
       setMessage("No new items to import (run Preview first and ensure wouldCreate > 0).");
       return;
+    }
+    if (examBoard === "AQA") {
+      const urls = previewResult.previewItems.map((x) => x.url).filter(Boolean);
+      const invalid = urls.filter((u) => !isUrlOnAqa(u));
+      if (invalid.length > 0) {
+        setMessage("AQA past papers must be from aqa.org.uk. Some preview items are not. Re-run preview after fixing.");
+        return;
+      }
     }
     setImportLoading(true);
     setMessage(null);
@@ -245,21 +301,43 @@ const TeacherPastPapersBankPage: React.FC = () => {
         Add past papers by topic via URLs (bulk JSON/CSV) or file upload (PDF, doc, docx). Deduplication is applied.
       </p>
 
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Topic</label>
-        <select
-          value={topicKey}
-          onChange={(e) => setTopicKey(e.target.value)}
-          style={{ padding: "8px 12px", minWidth: 260, borderRadius: 8, border: "1px solid #d1d5db" }}
-        >
-          <option value="">— Select topic —</option>
-          {allTopics.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.topic}
-            </option>
-          ))}
-        </select>
+      <div style={{ marginBottom: 20, display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Topic</label>
+          <select
+            value={topicKey}
+            onChange={(e) => setTopicKey(e.target.value)}
+            style={{ padding: "8px 12px", minWidth: 260, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">— Select topic —</option>
+            {allTopics.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.topic}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Exam board</label>
+          <select
+            value={examBoard}
+            onChange={(e) => setExamBoard(e.target.value as ExamBoard)}
+            style={{ padding: "8px 12px", minWidth: 140, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">(blank)</option>
+            <option value="AQA">AQA</option>
+            <option value="OCR">OCR</option>
+            <option value="Edexcel">Edexcel</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
       </div>
+
+      {examBoard === "AQA" && (
+        <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: "#fef3c7", border: "1px solid #f59e0b", color: "#92400e" }}>
+          AQA past papers must be linked from aqa.org.uk (uploads disabled).
+        </div>
+      )}
 
       <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <label style={{ fontWeight: 600 }}>Show:</label>
@@ -281,22 +359,26 @@ const TeacherPastPapersBankPage: React.FC = () => {
         ))}
         <span style={{ width: 16 }} />
         <label style={{ fontWeight: 600 }}>Tab:</label>
-        {(["list", "urls", "upload"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setActiveTab(t)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              background: activeTab === t ? "#e0e7ff" : "#fff",
-              fontWeight: activeTab === t ? 700 : 400,
-            }}
-          >
-            {t === "list" ? "List" : t === "urls" ? "Import URLs" : "Upload files"}
-          </button>
-        ))}
+        {(["list", "urls", "upload"] as Tab[]).map((t) => {
+          const hideUpload = t === "upload" && examBoard === "AQA";
+          if (hideUpload) return null;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setActiveTab(t)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                background: activeTab === t ? "#e0e7ff" : "#fff",
+                fontWeight: activeTab === t ? 700 : 400,
+              }}
+            >
+              {t === "list" ? "List" : t === "urls" ? "Import URLs" : "Upload files"}
+            </button>
+          );
+        })}
       </div>
 
       {message && (
@@ -421,7 +503,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
         </section>
       )}
 
-      {activeTab === "upload" && (
+      {activeTab === "upload" && examBoard !== "AQA" && (
         <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Upload files</h2>
           {!topicKey && <p style={{ color: "#6b7280", marginBottom: 12 }}>Select a topic first.</p>}
@@ -539,7 +621,14 @@ const TeacherPastPapersBankPage: React.FC = () => {
                 <tbody>
                   {items.map((p) => (
                     <tr key={p._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                      <td style={{ padding: 8 }}>{p.title}</td>
+                      <td style={{ padding: 8 }}>
+                        {p.title}
+                        {p.officialSource === true && (
+                          <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 11, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
+                            Official (AQA)
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: 8, color: "#4b5563" }}>
                         {[p.year, p.paper, p.type].filter(Boolean).join(" · ") || "—"}
                       </td>
