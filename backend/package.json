@@ -27,6 +27,7 @@
     "test:assessment:watch": "jest --watch tests/assessmentAttempts.integration.test.js",
     "migrate:all": "node scripts/migrations/backfill_topic_quiz_kind.js && node scripts/migrations/backfill_topic_flashcard_fingerprint.js",
     "verify:indexes": "node scripts/verify-indexes.js",
+    "sync:indexes": "node scripts/sync-indexes.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

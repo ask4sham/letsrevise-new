@@ -69,7 +69,7 @@ npm run verify:indexes
 Bulk import may return `E11000 duplicate key` when (ownerId, topicKey, fingerprint) already exists. **Do not crash.** The API handles this with 409 or skips. To fix:
 
 1. Run `npm run verify:indexes` — ensure unique index exists on topicflashcards, topicquizquestions, topicpastpapers.
-2. If index is missing: `cd backend && npx mongoose syncIndexes` or restart app (Mongoose will create indexes from schema). Then `npm run migrate:all`.
+2. If index is missing: `cd backend && npm run sync:indexes` (syncs schema indexes to MongoDB). Then rerun `npm run verify:indexes` to confirm.
 3. For duplicate data: dedupe manually or use `dedupeMode: skip` on bulk import.
 
 ### How to recover from partial bulk imports
