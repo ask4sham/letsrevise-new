@@ -173,6 +173,22 @@ const Header: React.FC = () => {
                   <>
                     <li>
                       <Link
+                        to="/student/my-work"
+                        style={{
+                          color: "#667eea",
+                          textDecoration: "none",
+                          fontWeight: "500",
+                          fontSize: "1rem",
+                          padding: "8px 16px",
+                          borderRadius: "4px",
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        My Work
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
                         to="/progress"
                         style={{
                           color: "#667eea",
