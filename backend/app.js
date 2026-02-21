@@ -73,6 +73,9 @@ app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardB
 // PR-EDGE-3: Teacher overview dashboard
 app.use("/api/teacher", require("./routes/teacher"));
 
+// PR-EDGE-4: Student My Work dashboard
+app.use("/api/student", require("./routes/student"));
+
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { createWorksheet } from "../api/worksheets";
 import { getTeacherOverview, type TeacherOverview } from "../api/teacherOverview";
+import { getQuestionAnalytics, type QuestionAnalyticsItem } from "../api/teacherAnalytics";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -119,6 +120,8 @@ const TeacherDashboard: React.FC = () => {
 
   // PR-EDGE-3: Teacher overview (needs marking, awaiting release, due soon)
   const [overview, setOverview] = useState<TeacherOverview | null>(null);
+  // PR-EDGE-5: Questions causing difficulty
+  const [questionAnalytics, setQuestionAnalytics] = useState<QuestionAnalyticsItem[]>([]);
 
   const navigate = useNavigate();
 
@@ -210,6 +213,17 @@ const TeacherDashboard: React.FC = () => {
           setOverview(ov);
         } catch {
           setOverview(null);
+        }
+
+        // 3c) PR-EDGE-5: Load question analytics (questions causing difficulty)
+        try {
+          const taxRes = await api.get("/taxonomy/aqa-gcse-biology");
+          const firstTopicKey = taxRes?.data?.units?.[0]?.topics?.[0]?.key ?? "cell-structure";
+          const analytics = await getQuestionAnalytics(firstTopicKey, 30);
+          const difficult = (analytics.items || []).filter((q) => q.percentCorrect != null && q.attempts >= 3).slice(0, 5);
+          setQuestionAnalytics(difficult);
+        } catch {
+          setQuestionAnalytics([]);
         }
 
         // 4) PR4: Load taxonomy for unit/topic/requiredPractical badges
@@ -708,6 +722,42 @@ const TeacherDashboard: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* PR-EDGE-5: Questions causing difficulty */}
+          {questionAnalytics.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+                marginBottom: 20,
+                padding: 16,
+                background: "rgba(254,243,199,0.5)",
+                borderRadius: 12,
+                border: "1px solid rgba(245,158,11,0.3)",
+              }}
+            >
+              <div style={{ fontWeight: 700, marginRight: 12, marginBottom: 4, width: "100%" }}>Questions causing difficulty</div>
+              {questionAnalytics.slice(0, 5).map((q, i) => (
+                <div
+                  key={q.questionId}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#fff",
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                    fontSize: 13,
+                    maxWidth: 320,
+                  }}
+                >
+                  <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                    {q.percentCorrect != null ? `${Math.round(q.percentCorrect)}%` : "—"} · {q.attempts} attempts
+                  </div>
+                  <div style={{ fontWeight: 500 }}>{(q.questionPreview || "").slice(0, 60)}…</div>
+                </div>
+              ))}
             </div>
           )}
 

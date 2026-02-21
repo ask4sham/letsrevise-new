@@ -77,6 +77,8 @@ import StudentWorksheetPage from "./pages/StudentWorksheetPage";
 import TeacherWorksheetReportPage from "./pages/TeacherWorksheetReportPage";
 import TeacherWorksheetAttemptPage from "./pages/TeacherWorksheetAttemptPage";
 import TeacherNeedsMarkingPage from "./pages/TeacherNeedsMarkingPage";
+import StudentMyWorkPage from "./pages/StudentMyWorkPage";
+import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 
 import "./App.css";
 
@@ -358,6 +360,24 @@ function App() {
             element={
               <ProtectedRoute requireStudent>
                 <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/my-work"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentMyWorkPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/worksheet-attempts/:attemptId"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentWorksheetAttemptViewPage />
               </ProtectedRoute>
             }
           />
