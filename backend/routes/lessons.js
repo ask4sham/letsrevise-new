@@ -1641,7 +1641,25 @@ router.post("/:id/unpublish", auth, async (req, res) => {
 });
 
 /* =========================================
+   PR-PRACTICE-1: Deterministic seeded shuffle for practice randomisation
+   ========================================= */
+function deterministicShuffle(arr, seed) {
+  if (!Array.isArray(arr) || arr.length <= 1) return [...(arr || [])];
+  const copy = [...arr];
+  let h = 0;
+  const s = String(seed || "");
+  for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) >>> 0;
+  for (let i = copy.length - 1; i > 0; i--) {
+    h = ((h * 1103515245) + 12345) >>> 0;
+    const j = h % (i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/* =========================================
    PR3b/PR3b.1: GET /api/lessons/:id/practice — Student practice (entitled only).
+   PR-PRACTICE-1: limit, seed, mode params; deterministic bank shuffle.
    Teacher/Admin owner can view practice on draft lessons; students require published + entitlement.
    No question content unless accessDecision.allowed === true.
    ========================================= */
@@ -1684,8 +1702,19 @@ router.get(
           reason: req.accessDecision?.reason || "UNKNOWN",
           lessonId,
           questions: [],
+          source: null,
+          limit: 10,
+          seedUsed: null,
         });
       }
+
+      // PR-PRACTICE-1: limit (default 10, max 25), seed, mode
+      let limit = parseInt(String(req.query.limit || "10"), 10);
+      if (Number.isNaN(limit) || limit < 1) return res.status(400).json({ error: "Invalid limit (min 1)" });
+      if (limit > 25) limit = 25;
+      const seed = typeof req.query.seed === "string" ? req.query.seed : null;
+      const mode = req.query.mode === "bank-only" ? "bank-only" : "attached-first";
+
       const lesson = await Lesson.findById(lessonId)
         .select("_id examQuestions teacherId topic topicKey subject level organisationId")
         .populate({
@@ -1695,86 +1724,73 @@ router.get(
         })
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
-      const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
-      let questions = refs
-        .map((ref) => {
-          const q = ref.questionId;
-          if (!q) return null;
-          const id = q._id ? String(q._id) : null;
-          if (!id) return null;
-          const options = Array.isArray(q.options) ? q.options : [];
-          const correctAnswer =
-            q.correctAnswer != null
-              ? String(q.correctAnswer)
-              : options[q.correctIndex] != null
-                ? String(options[q.correctIndex])
-                : "";
-          const explanation =
-            Array.isArray(q.markScheme) && q.markScheme.length > 0
-              ? q.markScheme.join("\n")
-              : "";
-          return {
-            id,
-            question: q.question != null ? String(q.question) : "",
-            type: q.type || "short",
-            marks: typeof q.marks === "number" ? q.marks : 1,
-            options: options.length > 0 ? options : undefined,
-            correctAnswer: correctAnswer || undefined,
-            explanation: explanation || undefined,
-            markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
-            topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
-            topic: q.topic != null ? String(q.topic) : undefined,
-          };
-        })
-        .filter(Boolean);
 
-      // PR-LESSON-AUDIT-3: When no attached questions, fall back to published ExamQuestions from bank by topicKey
-      if (questions.length === 0) {
-        const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
-        const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
-        if (validatedKey) {
-          const ownershipFilter = {
-            $or: [
-              { teacherId: lesson.teacherId },
-              ...(lesson.organisationId ? [{ scope: "organisation", organisationId: lesson.organisationId }] : []),
-              { scope: "platform" },
-            ],
-          };
-          const bankQuestions = await ExamQuestion.find({
-            topicKey: validatedKey,
-            status: "published",
-            ...ownershipFilter,
+      const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
+      const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
+
+      const mapQuestion = (q) => {
+        const options = Array.isArray(q.options) ? q.options : [];
+        const correctAnswer =
+          q.correctAnswer != null
+            ? String(q.correctAnswer)
+            : options[q.correctIndex] != null
+              ? String(options[q.correctIndex])
+              : "";
+        const explanation =
+          Array.isArray(q.markScheme) && q.markScheme.length > 0
+            ? q.markScheme.join("\n")
+            : "";
+        return {
+          id: String(q._id),
+          question: q.question != null ? String(q.question) : "",
+          type: q.type || "short",
+          marks: typeof q.marks === "number" ? q.marks : 1,
+          options: options.length > 0 ? options : undefined,
+          correctAnswer: correctAnswer || undefined,
+          explanation: explanation || undefined,
+          markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+          topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
+          topic: q.topic != null ? String(q.topic) : undefined,
+        };
+      };
+
+      const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
+      let questions = [];
+      let source = null;
+
+      if (mode !== "bank-only" && refs.length > 0) {
+        questions = refs
+          .map((ref) => {
+            const q = ref.questionId;
+            if (!q || !q._id) return null;
+            return mapQuestion(q);
           })
-            .select("_id question type marks options correctAnswer correctIndex markScheme topicKey topic")
-            .sort({ marks: -1, createdAt: -1 })
-            .limit(25)
-            .lean();
-          questions = bankQuestions.map((q) => {
-            const options = Array.isArray(q.options) ? q.options : [];
-            const correctAnswer =
-              q.correctAnswer != null
-                ? String(q.correctAnswer)
-                : options[q.correctIndex] != null
-                  ? String(options[q.correctIndex])
-                  : "";
-            const explanation =
-              Array.isArray(q.markScheme) && q.markScheme.length > 0
-                ? q.markScheme.join("\n")
-                : "";
-            return {
-              id: String(q._id),
-              question: q.question != null ? String(q.question) : "",
-              type: q.type || "short",
-              marks: typeof q.marks === "number" ? q.marks : 1,
-              options: options.length > 0 ? options : undefined,
-              correctAnswer: correctAnswer || undefined,
-              explanation: explanation || undefined,
-              markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
-              topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
-              topic: q.topic != null ? String(q.topic) : undefined,
-            };
-          });
-        }
+          .filter(Boolean);
+        questions = questions.slice(0, limit);
+        source = "attached";
+      }
+
+      if (questions.length === 0 && validatedKey) {
+        const ownershipFilter = {
+          $or: [
+            { teacherId: lesson.teacherId },
+            ...(lesson.organisationId ? [{ scope: "organisation", organisationId: lesson.organisationId }] : []),
+            { scope: "platform" },
+          ],
+        };
+        let bankRaw = await ExamQuestion.find({
+          topicKey: validatedKey,
+          status: "published",
+          ...ownershipFilter,
+        })
+          .select("_id question type marks options correctAnswer correctIndex markScheme topicKey topic")
+          .sort({ _id: 1 })
+          .limit(200)
+          .lean();
+        const effectiveSeed = seed || `${lessonId}:${req.user?._id ?? "anon"}:${new Date().toISOString().slice(0, 10)}`;
+        bankRaw = deterministicShuffle(bankRaw, effectiveSeed);
+        questions = bankRaw.slice(0, limit).map((q) => mapQuestion(q));
+        source = "bank";
       }
 
       return res.status(200).json({
@@ -1782,6 +1798,10 @@ router.get(
         allowed: true,
         reason: req.accessDecision.reason,
         lessonId,
+        topicKey: validatedKey || undefined,
+        source: source || undefined,
+        limit,
+        seedUsed: source === "bank" ? (seed || `${lessonId}:date`) : undefined,
         questions,
       });
     } catch (err) {

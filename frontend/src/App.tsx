@@ -46,6 +46,7 @@ import ClassroomModePage from "./pages/ClassroomModePage";
 import BiologyReadinessReportPage from "./pages/BiologyReadinessReportPage";
 import LessonAttemptReportPage from "./pages/LessonAttemptReportPage";
 import TeacherAttemptsSummaryPage from "./pages/TeacherAttemptsSummaryPage";
+import TeacherAtRiskPage from "./pages/TeacherAtRiskPage";
 import TeacherNeedsAttentionPage from "./pages/TeacherNeedsAttentionPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 
@@ -443,6 +444,15 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherAttemptsSummaryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/reports/at-risk"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherAtRiskPage />
               </ProtectedRoute>
             }
           />

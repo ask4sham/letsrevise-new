@@ -694,8 +694,59 @@ const TeacherDashboard: React.FC = () => {
                 (overview.awaitingRelease?.assessments?.count ?? 0) > 0 ||
                 (overview.dueSoon?.worksheets?.count ?? 0) > 0 ||
                 (overview.dueSoon?.quizzes?.count ?? 0) > 0 ||
-                (overview.dueSoon?.assessments?.count ?? 0) > 0) && (
+                (overview.dueSoon?.assessments?.count ?? 0) > 0 ||
+                (overview.quizSubmissionsToday ?? 0) > 0 ||
+                (overview.lowScoreCount ?? 0) > 0 ||
+                (overview.awaitingReleaseTotal ?? 0) > 0) && (
                 <>
+                  {(overview.quizSubmissionsToday ?? 0) > 0 && (
+                    <Link
+                      to="/teacher/reports/attempts"
+                      style={{
+                        padding: "8px 14px",
+                        background: "#dbeafe",
+                        color: "#1e40af",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        border: "1px solid #3b82f6",
+                      }}
+                    >
+                      {overview.quizSubmissionsToday} quiz submission{overview.quizSubmissionsToday !== 1 ? "s" : ""} today
+                    </Link>
+                  )}
+                  {(overview.lowScoreCount ?? 0) > 0 && (
+                    <Link
+                      to="/teacher/reports/at-risk?threshold=0.4&days=7"
+                      style={{
+                        padding: "8px 14px",
+                        background: "#fee2e2",
+                        color: "#991b1b",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        border: "1px solid #ef4444",
+                      }}
+                    >
+                      {overview.lowScoreCount} attempt{(overview.lowScoreCount ?? 0) !== 1 ? "s" : ""} &lt; 40%
+                    </Link>
+                  )}
+                  {(overview.awaitingReleaseTotal ?? 0) > 0 && (
+                    <Link
+                      to="/teacher/reports/attempts"
+                      style={{
+                        padding: "8px 14px",
+                        background: "#f3f4f6",
+                        color: "#4b5563",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        border: "1px solid #9ca3af",
+                      }}
+                    >
+                      {overview.awaitingReleaseTotal} awaiting release
+                    </Link>
+                  )}
                   {(overview.needsMarking?.worksheets?.count ?? 0) > 0 && (
                     <Link
                       to={overview.needsMarking.worksheets.link || "/teacher/worksheets/needs-marking"}
@@ -828,7 +879,10 @@ const TeacherDashboard: React.FC = () => {
                 (overview.awaitingRelease?.assessments?.count ?? 0) === 0 &&
                 (overview.dueSoon?.worksheets?.count ?? 0) === 0 &&
                 (overview.dueSoon?.quizzes?.count ?? 0) === 0 &&
-                (overview.dueSoon?.assessments?.count ?? 0) === 0 && (
+                (overview.dueSoon?.assessments?.count ?? 0) === 0 &&
+                (overview.quizSubmissionsToday ?? 0) === 0 &&
+                (overview.lowScoreCount ?? 0) === 0 &&
+                (overview.awaitingReleaseTotal ?? 0) === 0 && (
                 <span style={{ color: "#6b7280", fontSize: 14 }}>Nothing urgent.</span>
               )}
               {overview && overview.recentActivity && overview.recentActivity.length > 0 && (

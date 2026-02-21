@@ -1299,15 +1299,20 @@ function PracticeSection({
   practiceQuestions,
   practiceAllowed,
   lessonId,
+  practiceSource,
+  onTryAnotherSet,
 }: {
   practiceLoading: boolean;
   practiceError: string | null;
   practiceQuestions: PracticeQuestionLite[];
   practiceAllowed: boolean | undefined;
   lessonId: string | undefined;
+  practiceSource?: "attached" | "bank" | null;
+  onTryAnotherSet?: () => void;
 }) {
   const displayQuestions = practiceQuestions.slice(0, PRACTICE_DISPLAY_LIMIT);
   const hasMore = practiceQuestions.length > PRACTICE_DISPLAY_LIMIT;
+  const canTryAnother = practiceSource === "bank" && practiceQuestions.length > 0 && typeof onTryAnotherSet === "function";
 
   return (
     <div
@@ -1318,9 +1323,17 @@ function PracticeSection({
         textAlign: "left",
       }}
     >
-      <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0, marginBottom: 16 }}>
-        Practice questions
-      </h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+        <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0 }}>
+          Practice questions
+        </h2>
+        {practiceSource === "attached" && (
+          <span style={{ fontSize: 12, color: "#6b7280" }}>From lesson</span>
+        )}
+        {practiceSource === "bank" && (
+          <span style={{ fontSize: 12, color: "#6b7280" }}>From question bank</span>
+        )}
+      </div>
       {practiceLoading && (
         <p style={{ color: "#6b7280", margin: 0 }}>Loading practice questions…</p>
       )}
@@ -1370,6 +1383,25 @@ function PracticeSection({
                 <p style={{ color: "#6b7280", marginTop: 8 }}>
                   Showing first {PRACTICE_DISPLAY_LIMIT} of {practiceQuestions.length} questions.
                 </p>
+              )}
+              {canTryAnother && (
+                <button
+                  type="button"
+                  onClick={onTryAnotherSet}
+                  style={{
+                    marginTop: 12,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: "1px solid #2563eb",
+                    background: "#eff6ff",
+                    color: "#2563eb",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  Try another set
+                </button>
               )}
             </>
           )}
@@ -1442,6 +1474,8 @@ const LessonViewPage: React.FC = () => {
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
   const [practiceAllowed, setPracticeAllowed] = useState<boolean | undefined>(undefined);
   const [practiceReason, setPracticeReason] = useState<string | null>(null);
+  const [practiceSource, setPracticeSource] = useState<"attached" | "bank" | null>(null);
+  const [practiceSeedCounter, setPracticeSeedCounter] = useState(0);
 
   // PR13.2: Targeted practice (misconception-driven) — entitled only
   const [targetedPracticeLoading, setTargetedPracticeLoading] = useState(false);
@@ -1564,37 +1598,48 @@ const LessonViewPage: React.FC = () => {
     }
   }, [location.hash, id]);
 
-  // PR3b: Fetch practice questions only when entitled (no content leak for non-entitled)
+  // PR3b + PR-PRACTICE-1: Fetch practice questions with limit, seed, source
+  const practiceSeed = useMemo(() => {
+    if (!id) return "";
+    const today = new Date().toISOString().slice(0, 10);
+    const uid = user?._id ?? (user as { id?: string })?.id ?? "anon";
+    const base = `${id}:${uid}:${today}`;
+    return practiceSeedCounter > 0 ? `${base}:${practiceSeedCounter}` : base;
+  }, [id, user, practiceSeedCounter]);
+
   useEffect(() => {
     if (!id || !accessDecision) return;
     if (accessDecision.allowed !== true) {
       setPracticeAllowed(false);
       setPracticeReason(accessDecision.reason ?? null);
       setPracticeQuestions([]);
+      setPracticeSource(null);
       setPracticeError(null);
       return;
     }
     setPracticeLoading(true);
     setPracticeError(null);
     api
-      .get(`/lessons/${id}/practice`)
+      .get(`/lessons/${id}/practice`, { params: { limit: 10, seed: practiceSeed } })
       .then((res) => {
         const data = res?.data;
         setPracticeAllowed(!!data?.allowed);
         setPracticeReason(data?.reason ?? null);
         setPracticeQuestions(Array.isArray(data?.questions) ? data.questions : []);
+        setPracticeSource(data?.source ?? null);
       })
       .catch((err) => {
         if (err?.response?.status === 402) {
           setPracticeAllowed(false);
           setPracticeReason("NOT_ENTITLED");
           setPracticeQuestions([]);
+          setPracticeSource(null);
         } else {
           setPracticeError("Failed to load practice questions.");
         }
       })
       .finally(() => setPracticeLoading(false));
-  }, [id, accessDecision?.allowed, accessDecision?.reason]);
+  }, [id, accessDecision?.allowed, accessDecision?.reason, practiceSeed]);
 
   // PR13.2: Fetch targeted practice (misconception-driven) when entitled
   useEffect(() => {
@@ -3526,6 +3571,8 @@ const LessonViewPage: React.FC = () => {
                   practiceQuestions={practiceQuestions}
                   practiceAllowed={practiceAllowed}
                   lessonId={id || undefined}
+                  practiceSource={practiceSource}
+                  onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                 />
 
                 {/* ✅ REVISION SECTION - ADDED */}
@@ -3911,8 +3958,8 @@ const LessonViewPage: React.FC = () => {
         ← Back to Dashboard
       </Link>
 
-      {/* Lesson Integrity debug panel — teacher/admin only (legacy view) */}
-      {isTeacherOrAdmin && lesson && (
+      {/* Lesson Integrity debug panel — teacher/admin only, dev tools or non-prod (legacy view) */}
+      {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && lesson && (
         <div
           style={{
             marginTop: 16,
@@ -4161,6 +4208,8 @@ const LessonViewPage: React.FC = () => {
           practiceQuestions={practiceQuestions}
           practiceAllowed={practiceAllowed}
           lessonId={id || undefined}
+          practiceSource={practiceSource}
+          onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
         />
 
         {/* ✅ REVISION SECTION - ADDED FOR LEGACY VIEW */}

@@ -21,6 +21,16 @@ npm start              # port 3000, proxies /api → backend
 
 ---
 
+## Debug UI (PR-OPS-DEBUG-1)
+
+Teacher/admin debug panels (Lesson Integrity, Flashcard debug) are hidden from students. They are shown to teachers/admins only when:
+- `NODE_ENV !== "production"` (development), OR
+- `REACT_APP_DEV_TOOLS=1` (explicit opt-in in production)
+
+Set `REACT_APP_DEV_TOOLS=1` in your `.env` or build env to enable debug panels for teachers in production.
+
+---
+
 ## Seeding / Dev Tools
 
 ```bash
@@ -111,6 +121,20 @@ Bulk import is transactional per item; partial success is normal. The response i
 - [ ] **Body limits**: Enforce max body size on bulk routes (PR-HARD-2).
 - [ ] **Migrations**: Run `npm run migrate:all` before/after deploy.
 - [ ] **Indexes**: Run `npm run verify:indexes`. Unique indexes required on TopicFlashcard, TopicQuizQuestion, TopicPastPaper (ownerId + topicKey + fingerprint). Server logs warning at startup if missing.
+
+---
+
+## Manual QA Checklist (PR-QA-CLOSE-1)
+
+Use for regression verification after lesson/quiz/flashcard/practice changes:
+
+- [ ] **Lesson auto-generate ON** → CYU (Check your understanding) + flashcards present in Revision section
+- [ ] **CYU empty** → Fallback message: "No quiz questions generated for this topic yet."
+- [ ] **Practice** → Uses attached questions if present; else published bank fallback (by topicKey)
+- [ ] **Practice "Try another set"** → Fetches new set when source is bank
+- [ ] **Revision debug** → Not visible to students (teacher only + REACT_APP_DEV_TOOLS or non-prod)
+- [ ] **AQA past papers** → Open on AQA; uploads blocked for non-AQA (if applicable)
+- [ ] **Release gating** → QuizAttempt and WorksheetAttempt scores hidden from student until released
 
 ---
 
