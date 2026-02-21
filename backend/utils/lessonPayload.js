@@ -117,6 +117,11 @@ function toLessonFullPayload(lesson) {
   };
   // PR0: canonical examBoard (stored as board; lean() has no virtuals)
   out.examBoard = lesson?.examBoard ?? lesson?.board ?? "";
+  // Lesson Integrity: topicKey for bank linkage (derived from topic if not stored)
+  out.topicKey =
+    (lesson?.topicKey && String(lesson.topicKey).trim()) ||
+    (lesson?.topic && topicToKey(lesson.topic)) ||
+    "";
   return out;
 }
 

@@ -132,6 +132,12 @@ interface Lesson {
       markScheme?: string[];
     }>;
   };
+  /** Lesson Integrity: topicKey for bank linkage (from backend) */
+  topicKey?: string;
+  /** Assessment questions (from topic bank snapshot) */
+  assessment?: { questions?: Array<unknown> };
+  /** Past papers (from topic bank snapshot) */
+  pastPapers?: Array<unknown>;
 }
 
 // ✅ Define a type for the flashcards with proper difficulty
@@ -1858,6 +1864,9 @@ const LessonViewPage: React.FC = () => {
           timeSeconds: quizData.timeSeconds || 600,
           questions: Array.isArray(quizData.questions) ? quizData.questions : []
         },
+        topicKey: typeof data.topicKey === "string" ? data.topicKey : undefined,
+        assessment: data.assessment,
+        pastPapers: Array.isArray(data.pastPapers) ? data.pastPapers : undefined,
       };
 
       // Phase C3: Detect preview mode from backend flag (or accessDecision)
@@ -2893,6 +2902,30 @@ const LessonViewPage: React.FC = () => {
             </Link>
           </div>
 
+          {/* Lesson Integrity debug panel — teacher/admin only */}
+          {isTeacherOrAdmin && lesson && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px 16px",
+                borderRadius: 10,
+                background: "#f0f9ff",
+                border: "1px solid #bae6fd",
+                fontSize: 12,
+                fontFamily: "monospace",
+                color: "#0c4a6e",
+              }}
+              data-dev="lesson-integrity-debug"
+            >
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Lesson Integrity</div>
+              <div>lessonId: {lesson.id ?? "—"}</div>
+              <div>topicKey: {(lesson as { topicKey?: string }).topicKey || topicKeyForBank || "—"}</div>
+              <div>
+                counts: pages={orderedPages.length}, blocks={orderedPages.reduce((s, p) => s + (Array.isArray(p.blocks) ? p.blocks.length : 0), 0)}, flashcards={flashcards.length}, quiz={quizQuestions.length}, assessment={Array.isArray(lesson.assessment?.questions) ? lesson.assessment.questions.length : 0}, pastPapers={Array.isArray(lesson.pastPapers) ? lesson.pastPapers.length : 0}
+              </div>
+            </div>
+          )}
+
           {accessDecision?.reason === "FREE_PREVIEW" && (
             <div
               style={{
@@ -3536,8 +3569,8 @@ const LessonViewPage: React.FC = () => {
                   </div>
 
                   <div style={{ display: "grid", gap: "16px" }}>
-                    {/* Dev-only: debug flashcard payload (count, access reason, first 5 cards) */}
-                    {(process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
+                    {/* Dev/teacher-only: debug flashcard payload (never shown to students) */}
+                    {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
                       <div
                         style={{
                           padding: "10px 12px",
@@ -3604,9 +3637,23 @@ const LessonViewPage: React.FC = () => {
                       }))}
                     />
 
-                    {/* ✅ FIXED: Quiz component using single source of truth */}
+                    {/* Check your understanding: from lesson.quiz.questions (topic bank snapshot) */}
+                    {quizQuestions.length === 0 ? (
+                      <div
+                        style={{
+                          padding: 16,
+                          borderRadius: 12,
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          color: "#64748b",
+                          fontSize: 14,
+                        }}
+                      >
+                        No quiz questions generated for this topic yet.
+                      </div>
+                    ) : (
                     <QuizView
-                      title="Quiz"
+                      title="Check your understanding"
                       questions={
                         quizQuestions.map((q: any, i: number) => {
                           const base = {
@@ -3644,6 +3691,7 @@ const LessonViewPage: React.FC = () => {
                         })
                       }
                     />
+                    )}
                   </div>
                 </div>
 
@@ -3862,6 +3910,31 @@ const LessonViewPage: React.FC = () => {
       <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
         ← Back to Dashboard
       </Link>
+
+      {/* Lesson Integrity debug panel — teacher/admin only (legacy view) */}
+      {isTeacherOrAdmin && lesson && (
+        <div
+          style={{
+            marginTop: 16,
+            marginBottom: 16,
+            padding: "12px 16px",
+            borderRadius: 10,
+            background: "#f0f9ff",
+            border: "1px solid #bae6fd",
+            fontSize: 12,
+            fontFamily: "monospace",
+            color: "#0c4a6e",
+          }}
+          data-dev="lesson-integrity-debug"
+        >
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Lesson Integrity</div>
+          <div>lessonId: {lesson.id ?? "—"}</div>
+          <div>topicKey: {(lesson as { topicKey?: string }).topicKey || topicKeyForBank || "—"}</div>
+          <div>
+            counts: pages=0, blocks=0, flashcards={flashcards.length}, quiz={quizQuestions.length}, assessment={Array.isArray(lesson.assessment?.questions) ? lesson.assessment.questions.length : 0}, pastPapers={Array.isArray(lesson.pastPapers) ? lesson.pastPapers.length : 0}
+          </div>
+        </div>
+      )}
 
       <div
         style={{
@@ -4131,7 +4204,7 @@ const LessonViewPage: React.FC = () => {
           </div>
 
           <div style={{ display: "grid", gap: "16px" }}>
-            {(process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
+            {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
               <div
                 style={{
                   padding: "10px 12px",
@@ -4183,7 +4256,7 @@ const LessonViewPage: React.FC = () => {
                 ) : null}
               </div>
             ) : null}
-            {/* ✅ RESTORED: Flashcard component with updated props in legacy view too */}
+            {/* Flashcards viewer (simple flip cards) */}
             <FlashcardsView
               title="Flashcards"
               cards={flashcards.map((flashcard: any, i: number) => ({
@@ -4197,9 +4270,23 @@ const LessonViewPage: React.FC = () => {
               }))}
             />
 
-            {/* ✅ FIXED: Quiz component using single source of truth in legacy view */}
+            {/* Check your understanding: from lesson.quiz.questions (topic bank snapshot) */}
+            {quizQuestions.length === 0 ? (
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  color: "#64748b",
+                  fontSize: 14,
+                }}
+              >
+                No quiz questions generated for this topic yet.
+              </div>
+            ) : (
             <QuizView
-              title="Quiz"
+              title="Check your understanding"
               questions={
                 quizQuestions.map((q: any, i: number) => {
                   const base = {
@@ -4237,6 +4324,7 @@ const LessonViewPage: React.FC = () => {
                 })
               }
             />
+            )}
           </div>
         </div>
 

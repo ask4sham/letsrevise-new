@@ -1687,16 +1687,16 @@ router.get(
         });
       }
       const lesson = await Lesson.findById(lessonId)
-        .select("_id examQuestions teacherId")
+        .select("_id examQuestions teacherId topic subject level organisationId")
         .populate({
           path: "examQuestions.questionId",
           model: "ExamQuestion",
-          select: "question type marks options correctAnswer correctIndex markScheme topicKey topic",
+          select: "question type marks options correctAnswer correctIndex markScheme topicKey topic status",
         })
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
       const refs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
-      const questions = refs
+      let questions = refs
         .map((ref) => {
           const q = ref.questionId;
           if (!q) return null;
@@ -1727,6 +1727,59 @@ router.get(
           };
         })
         .filter(Boolean);
+
+      // PR-LESSON-AUDIT-3: When no attached questions, fall back to published ExamQuestions from bank by topicKey
+      if (questions.length === 0) {
+        const topicKey =
+          (lesson.topicKey && String(lesson.topicKey).trim()) ||
+          (lesson.topic && topicToKey(lesson.topic)) ||
+          "";
+        const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
+        if (validatedKey) {
+          const ownershipFilter = {
+            $or: [
+              { teacherId: lesson.teacherId },
+              ...(lesson.organisationId ? [{ scope: "organisation", organisationId: lesson.organisationId }] : []),
+              { scope: "platform" },
+            ],
+          };
+          const bankQuestions = await ExamQuestion.find({
+            topicKey: validatedKey,
+            status: "published",
+            ...ownershipFilter,
+          })
+            .select("_id question type marks options correctAnswer correctIndex markScheme topicKey topic")
+            .sort({ marks: -1, createdAt: -1 })
+            .limit(25)
+            .lean();
+          questions = bankQuestions.map((q) => {
+            const options = Array.isArray(q.options) ? q.options : [];
+            const correctAnswer =
+              q.correctAnswer != null
+                ? String(q.correctAnswer)
+                : options[q.correctIndex] != null
+                  ? String(options[q.correctIndex])
+                  : "";
+            const explanation =
+              Array.isArray(q.markScheme) && q.markScheme.length > 0
+                ? q.markScheme.join("\n")
+                : "";
+            return {
+              id: String(q._id),
+              question: q.question != null ? String(q.question) : "",
+              type: q.type || "short",
+              marks: typeof q.marks === "number" ? q.marks : 1,
+              options: options.length > 0 ? options : undefined,
+              correctAnswer: correctAnswer || undefined,
+              explanation: explanation || undefined,
+              markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+              topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
+              topic: q.topic != null ? String(q.topic) : undefined,
+            };
+          });
+        }
+      }
+
       return res.status(200).json({
         ok: true,
         allowed: true,
@@ -1736,6 +1789,115 @@ router.get(
       });
     } catch (err) {
       console.error("GET /api/lessons/:id/practice error:", err);
+      return res.status(500).json({ error: "Failed to load practice questions" });
+    }
+  }
+);
+
+/* =========================================
+   PR-LESSON-AUDIT-3: GET /api/lessons/:id/practice-questions — Same access as /practice.
+   Returns published ExamQuestions from bank by topicKey (10–25). Used when attached list is empty.
+   ========================================= */
+router.get(
+  "/:id/practice-questions",
+  auth,
+  async (req, res, next) => {
+    try {
+      const lessonId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).select("_id teacherId status isPublished topic subject level organisationId").lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      if (isOwnerOrAdminForPractice(req.user, lesson)) {
+        req.lesson = lesson;
+        req.accessDecision = { allowed: true, reason: "OWNER" };
+        return next();
+      }
+      return applyLessonAccess({ requirePublished: true })(req, res, next);
+    } catch (err) {
+      console.error("practice-questions precheck error:", err);
+      return res.status(500).json({ error: "Failed to check access" });
+    }
+  },
+  async (req, res) => {
+    try {
+      const lessonId = req.params.id;
+      if (!req.accessDecision || !req.accessDecision.allowed) {
+        return res.status(200).json({
+          ok: true,
+          allowed: false,
+          reason: req.accessDecision?.reason || "UNKNOWN",
+          lessonId,
+          questions: [],
+        });
+      }
+      const lesson = await Lesson.findById(lessonId)
+        .select("_id topic subject level teacherId organisationId")
+        .lean();
+      if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+      const topicKey =
+        (lesson.topicKey && String(lesson.topicKey).trim()) ||
+        (lesson.topic && topicToKey(lesson.topic)) ||
+        "";
+      const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
+      if (!validatedKey) {
+        return res.status(200).json({
+          ok: true,
+          allowed: true,
+          lessonId,
+          questions: [],
+        });
+      }
+      const ownershipFilter = {
+        $or: [
+          { teacherId: lesson.teacherId },
+          ...(lesson.organisationId ? [{ scope: "organisation", organisationId: lesson.organisationId }] : []),
+          { scope: "platform" },
+        ],
+      };
+      const bankQuestions = await ExamQuestion.find({
+        topicKey: validatedKey,
+        status: "published",
+        ...ownershipFilter,
+      })
+        .select("_id question type marks options correctAnswer correctIndex markScheme topicKey topic")
+        .sort({ marks: -1, createdAt: -1 })
+        .limit(25)
+        .lean();
+      const questions = bankQuestions.map((q) => {
+        const options = Array.isArray(q.options) ? q.options : [];
+        const correctAnswer =
+          q.correctAnswer != null
+            ? String(q.correctAnswer)
+            : options[q.correctIndex] != null
+              ? String(options[q.correctIndex])
+              : "";
+        const explanation =
+          Array.isArray(q.markScheme) && q.markScheme.length > 0
+            ? q.markScheme.join("\n")
+            : "";
+        return {
+          id: String(q._id),
+          question: q.question != null ? String(q.question) : "",
+          type: q.type || "short",
+          marks: typeof q.marks === "number" ? q.marks : 1,
+          options: options.length > 0 ? options : undefined,
+          correctAnswer: correctAnswer || undefined,
+          explanation: explanation || undefined,
+          markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+          topicKey: q.topicKey != null ? String(q.topicKey) : undefined,
+          topic: q.topic != null ? String(q.topic) : undefined,
+        };
+      });
+      return res.status(200).json({
+        ok: true,
+        allowed: true,
+        lessonId,
+        questions,
+      });
+    } catch (err) {
+      console.error("GET /api/lessons/:id/practice-questions error:", err);
       return res.status(500).json({ error: "Failed to load practice questions" });
     }
   }
