@@ -81,6 +81,9 @@ Bank (TopicFlashcard / TopicQuizQuestion / TopicPastPaper)
 ```bash
 cd backend
 
+# Index verification (PR-HARD-3)
+npm run verify:indexes
+
 # All integration tests
 npm test
 

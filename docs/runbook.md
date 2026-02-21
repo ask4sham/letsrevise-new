@@ -53,7 +53,39 @@ node backend/scripts/migrations/backfill_topic_flashcard_fingerprint.js
 
 # Run all known migrations (from backend/)
 cd backend && npm run migrate:all
+
+# Verify fingerprinted collection indexes (PR-HARD-3)
+npm run verify:indexes
 ```
+
+`migrate:all` covers: topic quiz kind backfill, flashcard fingerprint backfill. Past papers: if DB is empty, no migration needed; fingerprint is set on create.
+
+---
+
+## Operational Notes (PR-HARD-3)
+
+### What to do if unique index conflicts appear
+
+Bulk import may return `E11000 duplicate key` when (ownerId, topicKey, fingerprint) already exists. **Do not crash.** The API handles this with 409 or skips. To fix:
+
+1. Run `npm run verify:indexes` — ensure unique index exists on topicflashcards, topicquizquestions, topicpastpapers.
+2. If index is missing: `cd backend && npx mongoose syncIndexes` or restart app (Mongoose will create indexes from schema). Then `npm run migrate:all`.
+3. For duplicate data: dedupe manually or use `dedupeMode: skip` on bulk import.
+
+### How to recover from partial bulk imports
+
+Bulk import is transactional per item; partial success is normal. The response includes `createdCount`, `skipped`, `rejected`. If the process crashed mid-import:
+
+- Re-run the import with the same payload; duplicates will be skipped (dedupeMode: skip).
+- Check `createdIds` vs expected; retry only the failed slice if needed.
+- No orphan cleanup required — each item is independent.
+
+### Uploads cleanup policy (local storage)
+
+- **Path**: `backend/uploads/past-papers/` (per ownerId subfolder).
+- **Orphan files**: If a TopicPastPaper is deleted but the FileAsset file remains on disk, it becomes orphaned. Periodic cleanup: list FileAsset refs, compare to on-disk files, delete unreferenced files (manual or cron).
+- **Retention**: No auto-delete. Plan for disk growth; consider S3/comparable for production.
+- **Backup**: Include `uploads/` in backups if storing user-uploaded past papers.
 
 ---
 
@@ -78,7 +110,7 @@ cd backend && npm run migrate:all
 - [ ] **Rate limits**: Add express-rate-limit to bulk preview/import, upload, attempt save/submit (PR-HARD-2).
 - [ ] **Body limits**: Enforce max body size on bulk routes (PR-HARD-2).
 - [ ] **Migrations**: Run `npm run migrate:all` before/after deploy.
-- [ ] **Indexes**: Ensure unique indexes on TopicFlashcard, TopicQuizQuestion, TopicPastPaper (ownerId + topicKey + fingerprint).
+- [ ] **Indexes**: Run `npm run verify:indexes`. Unique indexes required on TopicFlashcard, TopicQuizQuestion, TopicPastPaper (ownerId + topicKey + fingerprint). Server logs warning at startup if missing.
 
 ---
 
