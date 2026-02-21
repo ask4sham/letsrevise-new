@@ -7,6 +7,7 @@ import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
 import { generatePastPapersFromTopic, downloadTopicPastPaperFile } from "../api/topicPastPapers";
 import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
+import { autoGenerateFromBanks } from "../api/lessons";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
@@ -154,6 +155,8 @@ interface Lesson {
     url?: string;
     fileId?: string;
     originalName?: string;
+    officialSource?: boolean;
+    officialHost?: string;
   }>;
 }
 
@@ -381,6 +384,7 @@ const EditLessonPage: React.FC = () => {
   const [seedAssessmentLoading, setSeedAssessmentLoading] = useState(false);
   const [seedAssessmentError, setSeedAssessmentError] = useState<string | null>(null);
   const [seedAssessmentSuccess, setSeedAssessmentSuccess] = useState<string | null>(null);
+  const [generateAllLoading, setGenerateAllLoading] = useState(false);
   const [isAssessmentsCollapsed, setIsAssessmentsCollapsed] = useState(false);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
@@ -4960,6 +4964,33 @@ const EditLessonPage: React.FC = () => {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                 <button
                   type="button"
+                  disabled={generateAllLoading || !id || !(lesson?.topicKey || lesson?.topic)}
+                  onClick={async () => {
+                    if (!id) return;
+                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                    setSeedQuizError(null); setSeedQuizSuccess(null);
+                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
+                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
+                    setGenerateAllLoading(true);
+                    try {
+                      const r = await autoGenerateFromBanks(id);
+                      await fetchLessonSmart();
+                      const parts: string[] = [];
+                      if (r.results.flashcardsAdded) parts.push(`${r.results.flashcardsAdded} flashcards`);
+                      if (r.results.quizAdded) parts.push(`${r.results.quizAdded} quiz`);
+                      if (r.results.assessmentAdded) parts.push(`${r.results.assessmentAdded} assessment`);
+                      if (r.results.pastPapersAdded) parts.push(`${r.results.pastPapersAdded} past papers`);
+                      setSeedFlashcardsSuccess(parts.length > 0 ? `Generated ${parts.join(", ")}.` : "No published items for topic.");
+                    } catch (e: any) {
+                      setSeedFlashcardsError(e?.message || "Generate All failed");
+                    } finally { setGenerateAllLoading(false); }
+                  }}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #059669", background: "#ecfdf5", color: "#059669", fontWeight: 700, cursor: generateAllLoading || !id ? "not-allowed" : "pointer" }}
+                >
+                  {generateAllLoading ? "…" : "Generate All"}
+                </button>
+                <button
+                  type="button"
                   disabled={seedFlashcardsLoading || !id}
                   onClick={async () => {
                     if (!id) return;
@@ -6139,7 +6170,21 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                                   </span>
                                 )}
                                 {pp.sourceType === "url" && pp.url && (
-                                  <a href={pp.url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: "#2563eb" }}>Open</a>
+                                  pp.officialSource === true && pp.officialHost === "aqa.org.uk" ? (
+                                    <a
+                                      href={pp.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Copyright © AQA. Hosted on aqa.org.uk."
+                                      style={{ marginLeft: 8, color: "#2563eb" }}
+                                    >
+                                      Open on AQA website
+                                    </a>
+                                  ) : (
+                                    <a href={pp.url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: "#2563eb" }}>
+                                      Open link
+                                    </a>
+                                  )
                                 )}
                                 {pp.sourceType === "file" && pp.fileId && (
                                   <button

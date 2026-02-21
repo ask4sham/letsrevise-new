@@ -20,6 +20,7 @@ const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFr
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
+const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -556,6 +557,9 @@ async function createLessonHandler(req, res) {
       isPublished: false,
       ...flags,
     };
+    if (autoGenerateFromBanks === true || autoGenerateFromBanks === "true") {
+      lessonData.autoGenerateFromBanks = true;
+    }
 
     // PR0: accept examBoard or board, store as board
     const boardValue = examBoard !== undefined && examBoard !== null ? String(examBoard).trim() : (board !== undefined && board !== null ? String(board).trim() : "");
@@ -639,43 +643,21 @@ async function createLessonHandler(req, res) {
     await lesson.save();
     console.log("✅ [Lessons] Lesson saved:", lesson._id);
 
-    // PR-EDGE-1: Auto-generate from topic banks (flashcards, quiz, assessment, past papers)
+    // PR-EDGE-1: Auto-generate from topic banks via orchestrator
     let autoGenResult = { flashcardsAdded: 0, quizAdded: 0, assessmentAdded: 0, pastPapersAdded: 0 };
     const shouldAutoGen = autoGenerateFromBanks === true || autoGenerateFromBanks === "true";
-    const topicKeyForGen =
-      (lesson.topicKey && String(lesson.topicKey).trim()) ||
-      (lesson.topic && topicToKey(lesson.topic)) ||
-      "";
-    if (shouldAutoGen && topicKeyForGen) {
-      const userId = req.user._id || req.user.userId;
+    if (shouldAutoGen) {
       try {
-        const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
-        const bankCards = await fetchTopicFlashcardsForSeed(lesson.teacherId, topicKeyForGen, 20, { publishedOnly: true });
-        lesson.flashcards = bankCards;
-        await lesson.save();
-        autoGenResult.flashcardsAdded = bankCards.length;
+        const orch = await autoGenerateLessonFromBanks({
+          lessonId: lesson._id,
+          userId: req.user._id || req.user.userId,
+        });
+        autoGenResult = orch.results;
+        Object.assign(lesson, orch.lesson);
+        console.log("✅ [Lessons] Auto-gen result:", autoGenResult);
       } catch (e) {
-        console.warn("⚠️ [Lessons] Auto-gen flashcards failed:", e?.message || e);
+        console.warn("⚠️ [Lessons] Auto-gen failed:", e?.message || e);
       }
-      try {
-        const qRes = await generateLessonQuizFromTopic({ lessonId: lesson._id, userId, opts: { publishedOnly: true } });
-        autoGenResult.quizAdded = qRes.addedCount || 0;
-      } catch (e) {
-        console.warn("⚠️ [Lessons] Auto-gen quiz failed:", e?.message || e);
-      }
-      try {
-        const aRes = await generateLessonAssessmentFromTopic({ lessonId: lesson._id, userId });
-        autoGenResult.assessmentAdded = aRes.addedCount || 0;
-      } catch (e) {
-        console.warn("⚠️ [Lessons] Auto-gen assessment failed:", e?.message || e);
-      }
-      try {
-        const ppRes = await generateLessonPastPapersFromTopic({ lessonId: lesson._id, userId });
-        autoGenResult.pastPapersAdded = ppRes.addedCount || 0;
-      } catch (e) {
-        console.warn("⚠️ [Lessons] Auto-gen past papers failed:", e?.message || e);
-      }
-      console.log("✅ [Lessons] Auto-gen result:", autoGenResult);
     }
 
     let updatedShamCoins = 0;
@@ -2214,6 +2196,33 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
     return res.json({ ok: true, removed });
   } catch (err) {
     console.error("DELETE exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// PR-EDGE-1: Generate all from topic banks (flashcards + quiz + assessment + past papers)
+router.post("/:id/auto-generate", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const result = await autoGenerateLessonFromBanks({
+      lessonId,
+      userId: req.user._id || req.user.userId,
+    });
+    return res.json({
+      ok: true,
+      lessonId: result.lessonId,
+      topicKey: result.topicKey,
+      results: result.results,
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    if (err.statusCode === 404) {
+      return res.status(404).json({ msg: err.message || "Lesson not found" });
+    }
+    console.error("auto-generate error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

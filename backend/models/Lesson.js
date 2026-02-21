@@ -352,6 +352,8 @@ const LessonSchema = new mongoose.Schema(
         tags: [{ type: String }],
         sourceType: { type: String, enum: ["url", "file"] },
         url: { type: String, default: "" },
+        officialSource: { type: Boolean, default: false },
+        officialHost: { type: String, default: "" },
         fileId: { type: mongoose.Schema.Types.ObjectId, ref: "FileAsset", default: undefined },
         originalName: { type: String, default: "" },
         mimeType: { type: String, default: "" },
@@ -362,6 +364,9 @@ const LessonSchema = new mongoose.Schema(
     /** PR7: Teacher review — when set, lesson is marked as reviewed by teacher. Readiness is computed, not stored. */
     reviewedAt: { type: Date, default: null },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
+    /** PR-EDGE-1: When true, teacher opted in to auto-generate from topic banks on create/topic change. */
+    autoGenerateFromBanks: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

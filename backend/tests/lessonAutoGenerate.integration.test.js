@@ -131,6 +131,54 @@ describe("Lesson create with autoGenerateFromBanks (PR-EDGE-1)", () => {
     expect(lesson.pastPapers.length).toBe(0);
   });
 
+  test("POST /:id/auto-generate — owner can run on demand", async () => {
+    const createRes = await request(app)
+      .post("/api/lessons")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ ...basePayload, autoGenerateFromBanks: false });
+    const lessonId = createRes.body.lesson._id;
+
+    const genRes = await request(app)
+      .post(`/api/lessons/${lessonId}/auto-generate`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+
+    expect(genRes.status).toBe(200);
+    expect(genRes.body.ok).toBe(true);
+    expect(genRes.body.results).toBeDefined();
+    expect(genRes.body.results.flashcardsAdded).toBeGreaterThanOrEqual(1);
+    expect(genRes.body.results.quizAdded).toBeGreaterThanOrEqual(1);
+    expect(genRes.body.results.assessmentAdded).toBeGreaterThanOrEqual(1);
+    expect(genRes.body.results.pastPapersAdded).toBeGreaterThanOrEqual(1);
+    expect(genRes.body.lesson).toBeDefined();
+  });
+
+  test("POST /:id/auto-generate — non-owner gets 404", async () => {
+    const otherTeacher = await User.create({
+      firstName: "Other",
+      lastName: "Teacher",
+      email: "other-autogen@test.com",
+      password: hashedPassword,
+      userType: "teacher",
+    });
+    const otherLogin = await request(app).post("/api/auth/login").send({ email: "other-autogen@test.com", password: "password123" });
+    const otherToken = otherLogin.body?.token;
+    if (!otherToken) throw new Error("Other teacher login failed");
+
+    const createRes = await request(app)
+      .post("/api/lessons")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ ...basePayload, autoGenerateFromBanks: false });
+    const lessonId = createRes.body.lesson._id;
+
+    const genRes = await request(app)
+      .post(`/api/lessons/${lessonId}/auto-generate`)
+      .set("Authorization", `Bearer ${otherToken}`);
+
+    expect(genRes.status).toBe(404);
+
+    await User.deleteOne({ _id: otherTeacher._id });
+  });
+
   test("missing topicKey (invalid topic) → auto-generate ignored safely", async () => {
     const res = await request(app)
       .post("/api/lessons")
