@@ -155,13 +155,13 @@ describe("Worksheet Marking (PR-W5)", () => {
     expect(res.body.error).toMatch(/MCQ|auto-scored/i);
   });
 
-  test("non-owner teacher gets 403 on mark", async () => {
+  test("non-owner teacher gets 404 on mark (no existence leak)", async () => {
     const res = await request(app)
       .post(`/api/worksheet-attempts/${attemptId}/mark`)
       .set("Authorization", `Bearer ${otherTeacherToken}`)
       .send({
         marks: [{ examQuestionId: shortId, awardedMarks: 1, teacherFeedback: "" }],
       });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 });

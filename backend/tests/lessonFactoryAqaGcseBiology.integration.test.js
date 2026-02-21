@@ -80,6 +80,9 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
   let teacherId;
 
   beforeAll(async () => {
+    // Ensure key exists so callOpenAI passes; axios is mocked so no real API call
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "sk-test-dummy";
+
     const teacher = await User.create({
       firstName: "Factory",
       lastName: "Teacher",

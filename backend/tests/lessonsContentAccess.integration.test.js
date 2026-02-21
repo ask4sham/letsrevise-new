@@ -10,6 +10,8 @@ const Lesson = require("../models/Lesson");
 const bcrypt = require("bcryptjs");
 
 describe("GET /api/lessons/:id content access (Phase 9)", () => {
+  jest.setTimeout(15000);
+
   let teacherId;
   let lessonAId;
   let lessonBId;

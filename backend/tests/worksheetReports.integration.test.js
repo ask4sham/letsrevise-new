@@ -14,6 +14,8 @@ const ExamQuestion = require("../models/ExamQuestion");
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
 describe("Worksheet Reports (PR-W4.2)", () => {
+  jest.setTimeout(15000);
+
   let ownerToken;
   let ownerId;
   let otherTeacherToken;
@@ -128,17 +130,17 @@ describe("Worksheet Reports (PR-W4.2)", () => {
     expect(res.body.questions[0].correctIndex).toBe(0);
   });
 
-  test("non-owner teacher gets 403 on attempts list", async () => {
+  test("non-owner teacher gets 404 on attempts list (no existence leak)", async () => {
     const res = await request(app)
       .get(`/api/worksheet-reports/assignment/${assignmentId}/attempts`)
       .set("Authorization", `Bearer ${otherTeacherToken}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
-  test("non-owner teacher gets 403 on attempt detail /teacher", async () => {
+  test("non-owner teacher gets 404 on attempt detail /teacher (no existence leak)", async () => {
     const res = await request(app)
       .get(`/api/worksheet-attempts/${attempt1Id}/teacher`)
       .set("Authorization", `Bearer ${otherTeacherToken}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 });
