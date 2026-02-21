@@ -107,9 +107,7 @@ router.get("/:attemptId/teacher", auth, async (req, res) => {
     if (!loaded) return;
     const { attempt, assignment } = loaded;
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    if (!isAssignmentOwner(assignment, req) && !isAdmin) {
-      return res.status(403).json({ error: "You can only view attempts for your own assignments" });
-    }
+    if (!isAssignmentOwner(assignment, req) && !isAdmin) return res.status(404).json({ error: "Attempt not found" });
     const worksheet = await Worksheet.findById(attempt.worksheetId).lean();
     if (!worksheet) return res.status(404).json({ error: "Worksheet not found" });
     const questionIds = (worksheet.questionItems || []).map((it) => it.examQuestionId);
@@ -282,9 +280,7 @@ router.post("/:attemptId/mark", auth, async (req, res) => {
     if (!loaded) return;
     const { attempt, assignment } = loaded;
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    if (!isAssignmentOwner(assignment, req) && !isAdmin) {
-      return res.status(403).json({ error: "You can only mark attempts for your own assignments" });
-    }
+    if (!isAssignmentOwner(assignment, req) && !isAdmin) return res.status(404).json({ error: "Attempt not found" });
     if (attempt.status !== "SUBMITTED" && attempt.status !== "MARKED") {
       return res.status(400).json({ error: "Attempt must be submitted before marking" });
     }
@@ -398,9 +394,7 @@ router.post("/:attemptId/release", auth, async (req, res) => {
     if (!loaded) return;
     const { attempt, assignment } = loaded;
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    if (!isAssignmentOwner(assignment, req) && !isAdmin) {
-      return res.status(403).json({ error: "You can only release attempts for your own assignments" });
-    }
+    if (!isAssignmentOwner(assignment, req) && !isAdmin) return res.status(404).json({ error: "Attempt not found" });
     if (attempt.status !== "SUBMITTED" && attempt.status !== "MARKED") {
       return res.status(400).json({ error: "Only submitted or marked attempts can be released" });
     }

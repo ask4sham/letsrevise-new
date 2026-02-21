@@ -105,9 +105,7 @@ router.get("/:id", auth, async (req, res) => {
     const doc = await Worksheet.findById(id).lean();
     if (!doc) return res.status(404).json({ error: "Worksheet not found" });
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    if (!isOwner(doc, req) && !isAdmin) {
-      return res.status(403).json({ error: "You can only access your own worksheets" });
-    }
+    if (!isOwner(doc, req) && !isAdmin) return res.status(404).json({ error: "Worksheet not found" });
     return res.json({ worksheet: doc });
   } catch (err) {
     console.error("Worksheets GET error:", err);
@@ -165,9 +163,7 @@ router.post("/:id/publish", auth, async (req, res) => {
     const doc = await Worksheet.findById(id);
     if (!doc) return res.status(404).json({ error: "Worksheet not found" });
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    if (!isOwner(doc, req) && !isAdmin) {
-      return res.status(403).json({ error: "You can only publish your own worksheets" });
-    }
+    if (!isOwner(doc, req) && !isAdmin) return res.status(404).json({ error: "Worksheet not found" });
     doc.status = "PUBLISHED";
     await doc.save();
     return res.json({ worksheet: doc.toObject() });

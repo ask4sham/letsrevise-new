@@ -2094,9 +2094,7 @@ async function requireLessonOwnerOrAdmin(req, res, next) {
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     const isOwner = String(lesson.teacherId) === String(req.user._id);
     const isAdminUser = isAdmin(req.user);
-    if (!isOwner && !isAdminUser) {
-      return res.status(403).json({ msg: "Not authorised to edit this lesson" });
-    }
+    if (!isOwner && !isAdminUser) return res.status(404).json({ msg: "Lesson not found" });
     req._lesson = lesson;
     next();
   } catch (err) {
