@@ -257,7 +257,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchItems();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Bulk publish failed");
+      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk publish failed"));
     } finally {
       setBulkLoading(false);
     }
@@ -271,7 +271,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchItems();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Bulk unpublish failed");
+      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk unpublish failed"));
     } finally {
       setBulkLoading(false);
     }

@@ -128,6 +128,18 @@ export async function unpublishTopicQuizQuestion(id: string): Promise<TopicQuizQ
   return res.data!.question;
 }
 
+export type BulkPublishResult = { ok: boolean; matchedCount: number; updatedCount: number };
+
+export async function bulkPublishTopicQuizQuestions(ids: string[]): Promise<BulkPublishResult> {
+  const res = await api.post<BulkPublishResult>("/topic-quiz-questions/bulk/publish", { ids });
+  return res.data!;
+}
+
+export async function bulkUnpublishTopicQuizQuestions(ids: string[]): Promise<BulkPublishResult> {
+  const res = await api.post<BulkPublishResult>("/topic-quiz-questions/bulk/unpublish", { ids });
+  return res.data!;
+}
+
 export async function deleteTopicQuizQuestion(id: string): Promise<void> {
   await api.delete(`/topic-quiz-questions/${id}`);
 }

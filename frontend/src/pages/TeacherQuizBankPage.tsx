@@ -154,7 +154,7 @@ const TeacherQuizBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Bulk publish failed");
+      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk publish failed"));
     } finally {
       setBulkLoading(false);
     }
@@ -168,7 +168,7 @@ const TeacherQuizBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Bulk unpublish failed");
+      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk unpublish failed"));
     } finally {
       setBulkLoading(false);
     }

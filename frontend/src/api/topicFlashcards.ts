@@ -131,13 +131,15 @@ export async function unpublishTopicFlashcard(id: string): Promise<TopicFlashcar
   return res.data!.flashcard;
 }
 
-export async function bulkPublishTopicFlashcards(ids: string[]): Promise<{ updatedCount: number }> {
-  const res = await api.post<{ updatedCount: number }>("/topic-flashcards/bulk/publish", { ids });
+export type BulkPublishResult = { ok: boolean; matchedCount: number; updatedCount: number };
+
+export async function bulkPublishTopicFlashcards(ids: string[]): Promise<BulkPublishResult> {
+  const res = await api.post<BulkPublishResult>("/topic-flashcards/bulk/publish", { ids });
   return res.data!;
 }
 
-export async function bulkUnpublishTopicFlashcards(ids: string[]): Promise<{ updatedCount: number }> {
-  const res = await api.post<{ updatedCount: number }>("/topic-flashcards/bulk/unpublish", { ids });
+export async function bulkUnpublishTopicFlashcards(ids: string[]): Promise<BulkPublishResult> {
+  const res = await api.post<BulkPublishResult>("/topic-flashcards/bulk/unpublish", { ids });
   return res.data!;
 }
 

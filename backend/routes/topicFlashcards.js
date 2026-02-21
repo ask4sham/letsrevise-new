@@ -286,19 +286,26 @@ router.post("/bulk", auth, async (req, res) => {
   }
 });
 
+const BULK_IDS_MAX = 500;
+
 // PR-EDGE-2: POST /api/topic-flashcards/bulk/publish
 router.post("/bulk/publish", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
   try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) return res.status(400).json({ error: "ids array is required and must not be empty" });
+    if (ids.length > BULK_IDS_MAX) return res.status(400).json({ error: `Too many ids (max ${BULK_IDS_MAX})` });
+    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+    if (validIds.length !== ids.length) return res.status(400).json({ error: "All ids must be valid ObjectIds" });
+    const objIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
-    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id));
-    if (validIds.length === 0) return res.json({ updatedCount: 0 });
-    const query = { _id: { $in: validIds } };
+    const query = { _id: { $in: objIds } };
     if (!isAdmin) query.ownerId = ownerId;
+    const permitted = await TopicFlashcard.countDocuments(query);
+    if (!isAdmin && permitted === 0) return res.status(404).json({ error: "Not found" });
     const result = await TopicFlashcard.updateMany(query, { $set: { status: "published" } });
-    return res.json({ updatedCount: result.modifiedCount });
+    return res.json({ ok: true, matchedCount: result.matchedCount, updatedCount: result.modifiedCount });
   } catch (err) {
     console.error("TopicFlashcards bulk publish error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -309,15 +316,20 @@ router.post("/bulk/publish", auth, async (req, res) => {
 router.post("/bulk/unpublish", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
   try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) return res.status(400).json({ error: "ids array is required and must not be empty" });
+    if (ids.length > BULK_IDS_MAX) return res.status(400).json({ error: `Too many ids (max ${BULK_IDS_MAX})` });
+    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+    if (validIds.length !== ids.length) return res.status(400).json({ error: "All ids must be valid ObjectIds" });
+    const objIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
-    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id));
-    if (validIds.length === 0) return res.json({ updatedCount: 0 });
-    const query = { _id: { $in: validIds } };
+    const query = { _id: { $in: objIds } };
     if (!isAdmin) query.ownerId = ownerId;
+    const permitted = await TopicFlashcard.countDocuments(query);
+    if (!isAdmin && permitted === 0) return res.status(404).json({ error: "Not found" });
     const result = await TopicFlashcard.updateMany(query, { $set: { status: "draft" } });
-    return res.json({ updatedCount: result.modifiedCount });
+    return res.json({ ok: true, matchedCount: result.matchedCount, updatedCount: result.modifiedCount });
   } catch (err) {
     console.error("TopicFlashcards bulk unpublish error:", err);
     return res.status(500).json({ error: "Server error" });
