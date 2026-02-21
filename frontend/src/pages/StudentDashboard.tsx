@@ -888,7 +888,7 @@ const StudentDashboard: React.FC = () => {
             </button>
             
             <button
-              onClick={() => navigate("/progress")}
+              onClick={() => navigate("/student/my-progress")}
               style={{
                 padding: "12px 24px",
                 background: "#667eea",

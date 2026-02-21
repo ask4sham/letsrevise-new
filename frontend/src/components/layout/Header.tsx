@@ -189,7 +189,7 @@ const Header: React.FC = () => {
                     </li>
                     <li>
                       <Link
-                        to="/progress"
+                        to="/student/my-progress"
                         style={{
                           color: "#667eea",
                           textDecoration: "none",

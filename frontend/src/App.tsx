@@ -80,6 +80,7 @@ import TeacherWorksheetReportPage from "./pages/TeacherWorksheetReportPage";
 import TeacherWorksheetAttemptPage from "./pages/TeacherWorksheetAttemptPage";
 import TeacherNeedsMarkingPage from "./pages/TeacherNeedsMarkingPage";
 import StudentMyWorkPage from "./pages/StudentMyWorkPage";
+import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 
 import "./App.css";
@@ -371,6 +372,15 @@ function App() {
             element={
               <ProtectedRoute requireStudent>
                 <StudentMyWorkPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/my-progress"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentMyProgressPage />
               </ProtectedRoute>
             }
           />
