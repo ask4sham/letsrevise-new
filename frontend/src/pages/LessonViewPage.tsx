@@ -3636,8 +3636,8 @@ const LessonViewPage: React.FC = () => {
                   </div>
 
                   <div style={{ display: "grid", gap: "16px" }}>
-                    {/* Dev/teacher-only: debug flashcard payload (never shown to students) */}
-                    {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
+                    {/* Debug only: requires REACT_APP_DEV_TOOLS=1 (hidden from teachers to avoid confusion) */}
+                    {process.env.REACT_APP_DEV_TOOLS === "1" && (
                       <div
                         style={{
                           padding: "10px 12px",
@@ -4273,7 +4273,7 @@ const LessonViewPage: React.FC = () => {
           </div>
 
           <div style={{ display: "grid", gap: "16px" }}>
-            {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && (
+            {process.env.REACT_APP_DEV_TOOLS === "1" && (
               <div
                 style={{
                   padding: "10px 12px",
