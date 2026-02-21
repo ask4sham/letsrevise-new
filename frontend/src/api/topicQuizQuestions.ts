@@ -7,6 +7,7 @@ export type TopicQuizQuestion = {
   _id: string;
   ownerId: string;
   topicKey: string;
+  kind?: QuizKind;
   questionText: string;
   choices: string[];
   correctIndex: number;
@@ -17,10 +18,13 @@ export type TopicQuizQuestion = {
   updatedAt?: string;
 };
 
+export type QuizKind = "quiz" | "assessment";
+
 export type ListParams = {
   topicKey: string;
   status?: "draft" | "published" | "all";
   mineOnly?: boolean;
+  kind?: QuizKind;
 };
 
 export type BulkPreviewSummary = {
@@ -53,12 +57,13 @@ export type BulkPreviewResponse = {
 
 export async function listTopicQuizQuestions(
   topicKey: string,
-  opts: { status?: ListParams["status"]; mineOnly?: boolean } = {}
+  opts: { status?: ListParams["status"]; mineOnly?: boolean; kind?: QuizKind } = {}
 ): Promise<TopicQuizQuestion[]> {
   const q = new URLSearchParams();
   q.set("topicKey", topicKey);
   if (opts.status) q.set("status", opts.status);
   if (opts.mineOnly) q.set("mineOnly", "1");
+  if (opts.kind) q.set("kind", opts.kind);
   const res = await api.get<{ items: TopicQuizQuestion[] }>(`/topic-quiz-questions?${q.toString()}`);
   return res.data?.items ?? [];
 }
@@ -69,6 +74,7 @@ export async function previewBulkImportTopicQuizQuestions(params: {
   text: string;
   dedupeMode?: "skip" | "error" | "allow";
   csvOptions?: { delimiter?: "," | "\t" | ";" };
+  kind?: QuizKind;
 }): Promise<BulkPreviewResponse> {
   const res = await api.post<BulkPreviewResponse>("/topic-quiz-questions/bulk/preview", {
     topicKey: params.topicKey,
@@ -76,6 +82,7 @@ export async function previewBulkImportTopicQuizQuestions(params: {
     text: params.text,
     dedupeMode: params.dedupeMode ?? "skip",
     csvOptions: params.csvOptions,
+    kind: params.kind ?? "quiz",
   });
   return res.data!;
 }
@@ -90,6 +97,7 @@ export async function bulkCreateTopicQuizQuestions(body: {
     tags?: string[];
   }>;
   dedupeMode?: "skip" | "error" | "allow";
+  kind?: QuizKind;
 }): Promise<{
   ok: boolean;
   createdCount: number;
@@ -105,6 +113,7 @@ export async function bulkCreateTopicQuizQuestions(body: {
     topicKey: body.topicKey,
     items: body.items,
     dedupeMode: body.dedupeMode ?? "skip",
+    kind: body.kind ?? "quiz",
   });
   return res.data!;
 }
@@ -121,6 +130,22 @@ export async function unpublishTopicQuizQuestion(id: string): Promise<TopicQuizQ
 
 export async function deleteTopicQuizQuestion(id: string): Promise<void> {
   await api.delete(`/topic-quiz-questions/${id}`);
+}
+
+/** PR-A1: Generate assessment from topic bank (kind=assessment, published-only, replace). */
+export async function generateAssessmentFromTopic(lessonId: string): Promise<{
+  ok: boolean;
+  addedCount: number;
+  questionsCount: number;
+  lesson: any;
+}> {
+  const res = await api.post<{
+    ok: boolean;
+    addedCount: number;
+    questionsCount: number;
+    lesson: any;
+  }>(`/lessons/${lessonId}/generate/assessment-from-topic`);
+  return res.data!;
 }
 
 /** PR-Q2: Generate quiz from topic bank into lesson (published-only, replace). */

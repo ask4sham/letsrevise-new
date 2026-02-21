@@ -6,6 +6,7 @@ import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
 import { generatePastPapersFromTopic, downloadTopicPastPaperFile } from "../api/topicPastPapers";
+import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
@@ -131,6 +132,11 @@ interface Lesson {
   createdFromTemplate?: boolean;
   flashcards?: Flashcard[];
   quiz?: {
+    timeSeconds?: number;
+    questions?: QuizQuestion[];
+  };
+  /** PR-A1: Assessment questions (from topic bank kind=assessment) */
+  assessment?: {
     timeSeconds?: number;
     questions?: QuizQuestion[];
   };
@@ -350,7 +356,7 @@ const EditLessonPage: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<string>("");
   const [uploadingKey, setUploadingKey] = useState<string>("");
   const [uploadMsg, setUploadMsg] = useState<string>("");
-  const [revisionTab, setRevisionTab] = useState<"flashcards" | "quizzes" | "pastPapers">("flashcards");
+  const [revisionTab, setRevisionTab] = useState<"flashcards" | "quizzes" | "assessments" | "pastPapers">("flashcards");
   const [isGenerating, setIsGenerating] = useState(false);
   const [newFlashcard, setNewFlashcard] = useState({ front: "", back: "", tags: "" });
   const [newQuizQuestion, setNewQuizQuestion] = useState({
@@ -372,6 +378,10 @@ const EditLessonPage: React.FC = () => {
   const [seedPastPapersLoading, setSeedPastPapersLoading] = useState(false);
   const [seedPastPapersError, setSeedPastPapersError] = useState<string | null>(null);
   const [seedPastPapersSuccess, setSeedPastPapersSuccess] = useState<string | null>(null);
+  const [seedAssessmentLoading, setSeedAssessmentLoading] = useState(false);
+  const [seedAssessmentError, setSeedAssessmentError] = useState<string | null>(null);
+  const [seedAssessmentSuccess, setSeedAssessmentSuccess] = useState<string | null>(null);
+  const [isAssessmentsCollapsed, setIsAssessmentsCollapsed] = useState(false);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
@@ -532,6 +542,7 @@ const EditLessonPage: React.FC = () => {
 
   const flashcards = useMemo(() => lesson?.flashcards || [], [lesson]);
   const quizQuestions = useMemo(() => lesson?.quiz?.questions || [], [lesson]);
+  const assessmentQuestions = useMemo(() => lesson?.assessment?.questions || [], [lesson]);
 
   useEffect(() => {
     fetchLessonSmart();
@@ -4937,6 +4948,117 @@ const EditLessonPage: React.FC = () => {
                 {isGenerating ? 'Generating...' : '✨ Generate with AI'}
               </button>
             </div>
+
+            <div style={{
+              marginBottom: "20px",
+              padding: "14px 16px",
+              background: "#f0f9ff",
+              borderRadius: "10px",
+              border: "1px solid #bae6fd"
+            }}>
+              <div style={{ fontWeight: 700, marginBottom: 10, color: "#0c4a6e" }}>Generate from Topic Bank</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                <button
+                  type="button"
+                  disabled={seedFlashcardsLoading || !id}
+                  onClick={async () => {
+                    if (!id) return;
+                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                    setSeedQuizError(null); setSeedQuizSuccess(null);
+                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
+                    setSeedFlashcardsLoading(true);
+                    try {
+                      const r = await generateFlashcardsFromTopic(id);
+                      await fetchLessonSmart();
+                      const c = r.addedCount ?? r.added ?? r.flashcardsCount ?? 0;
+                      setSeedFlashcardsSuccess(c > 0 ? `Added ${c} flashcards` : "No published flashcards for topic");
+                    } catch (e: any) {
+                      setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Failed");
+                    } finally { setSeedFlashcardsLoading(false); }
+                  }}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedFlashcardsLoading || !id ? "not-allowed" : "pointer" }}
+                >
+                  {seedFlashcardsLoading ? "…" : "Flashcards"} ({flashcards.length})
+                </button>
+                <button
+                  type="button"
+                  disabled={seedQuizLoading || !id || !(lesson?.topicKey || lesson?.topic)}
+                  onClick={async () => {
+                    if (!id) return;
+                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                    setSeedQuizError(null); setSeedQuizSuccess(null);
+                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
+                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
+                    setSeedQuizLoading(true);
+                    try {
+                      const r = await generateQuizFromTopic(id);
+                      await fetchLessonSmart();
+                      const c = r.addedCount ?? r.questionsCount ?? 0;
+                      setSeedQuizSuccess(c > 0 ? `Added ${c} quiz questions` : "No published quiz questions for topic");
+                    } catch (e: any) {
+                      setSeedQuizError(e?.response?.data?.msg || e?.message || "Failed");
+                    } finally { setSeedQuizLoading(false); }
+                  }}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedQuizLoading || !id ? "not-allowed" : "pointer" }}
+                >
+                  {seedQuizLoading ? "…" : "Quiz"} ({quizQuestions.length})
+                </button>
+                <button
+                  type="button"
+                  disabled={seedAssessmentLoading || !id || !(lesson?.topicKey || lesson?.topic)}
+                  onClick={async () => {
+                    if (!id) return;
+                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                    setSeedQuizError(null); setSeedQuizSuccess(null);
+                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
+                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
+                    setSeedAssessmentLoading(true);
+                    try {
+                      const r = await generateAssessmentFromTopic(id);
+                      await fetchLessonSmart();
+                      const c = r.addedCount ?? r.questionsCount ?? 0;
+                      setSeedAssessmentSuccess(c > 0 ? `Added ${c} assessment questions` : "No published assessment questions for topic");
+                    } catch (e: any) {
+                      setSeedAssessmentError(e?.response?.data?.msg || e?.message || "Failed");
+                    } finally { setSeedAssessmentLoading(false); }
+                  }}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedAssessmentLoading || !id ? "not-allowed" : "pointer" }}
+                >
+                  {seedAssessmentLoading ? "…" : "Assessment"} ({assessmentQuestions.length})
+                </button>
+                <button
+                  type="button"
+                  disabled={seedPastPapersLoading || !id || !(lesson?.topicKey || lesson?.topic)}
+                  onClick={async () => {
+                    if (!id) return;
+                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                    setSeedQuizError(null); setSeedQuizSuccess(null);
+                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
+                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
+                    setSeedPastPapersLoading(true);
+                    try {
+                      const r = await generatePastPapersFromTopic(id);
+                      await fetchLessonSmart();
+                      const c = r.addedCount ?? r.pastPapersCount ?? 0;
+                      setSeedPastPapersSuccess(c > 0 ? `Added ${c} past papers` : "No published past papers for topic");
+                    } catch (e: any) {
+                      setSeedPastPapersError(e?.response?.data?.msg || e?.message || "Failed");
+                    } finally { setSeedPastPapersLoading(false); }
+                  }}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedPastPapersLoading || !id ? "not-allowed" : "pointer" }}
+                >
+                  {seedPastPapersLoading ? "…" : "Past Papers"} ({(lesson?.pastPapers || []).length})
+                </button>
+                <Link to="/teacher/topic-banks/flashcards" style={{ fontSize: 13, color: "#2563eb" }}>Flashcards</Link>
+                <Link to="/teacher/topic-banks/quizzes" style={{ fontSize: 13, color: "#2563eb" }}>Quizzes</Link>
+                <Link to="/teacher/topic-banks/past-papers" style={{ fontSize: 13, color: "#2563eb" }}>Past Papers</Link>
+                {(seedFlashcardsSuccess || seedFlashcardsError || seedQuizSuccess || seedQuizError || seedAssessmentSuccess || seedAssessmentError || seedPastPapersSuccess || seedPastPapersError) && (
+                  <span style={{ fontSize: 13, color: (seedFlashcardsError || seedQuizError || seedAssessmentError || seedPastPapersError) ? "#dc2626" : "#059669" }}>
+                    {seedFlashcardsError || seedFlashcardsSuccess || seedQuizError || seedQuizSuccess || seedAssessmentError || seedAssessmentSuccess || seedPastPapersError || seedPastPapersSuccess}
+                  </span>
+                )}
+              </div>
+            </div>
             
             <div style={{ 
               display: "flex", 
@@ -4972,6 +5094,20 @@ const EditLessonPage: React.FC = () => {
                 }}
               >
                 Quiz Questions ({quizQuestions.length})
+              </button>
+              <button
+                onClick={() => { setRevisionTab("assessments"); setIsAssessmentsCollapsed(false); }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: revisionTab === "assessments" ? "#3b82f6" : "#f3f4f6",
+                  color: revisionTab === "assessments" ? "white" : "#374151",
+                  cursor: "pointer",
+                  fontWeight: revisionTab === "assessments" ? "bold" : "normal"
+                }}
+              >
+                Assessments ({assessmentQuestions.length})
               </button>
               <button
                 onClick={() => { setRevisionTab("pastPapers"); setIsPastPapersCollapsed(false); }}
@@ -5817,6 +5953,96 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                         Deleting existing questions is admin-only and enforced server-side.
                       </div>
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              marginBottom: "30px",
+              background: "#f8fafc",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              overflow: "hidden"
+            }}>
+              <div
+                onClick={() => setIsAssessmentsCollapsed(!isAssessmentsCollapsed)}
+                style={{
+                  padding: "15px 20px",
+                  background: "#e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}
+              >
+                <h3 style={{ margin: 0, color: "#1e293b" }}>
+                  Assessments
+                </h3>
+                <span style={{ fontSize: "20px" }}>
+                  {isAssessmentsCollapsed ? "▶" : "▼"}
+                </span>
+              </div>
+
+              {!isAssessmentsCollapsed && (
+                <div style={{ padding: "20px" }}>
+                  {revisionTab === "assessments" && (
+                    <>
+                      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          disabled={seedAssessmentLoading || !id || !(lesson?.topicKey || lesson?.topic)}
+                          onClick={async () => {
+                            if (!id) return;
+                            setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                            setSeedQuizError(null); setSeedQuizSuccess(null);
+                            setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
+                            setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
+                            setSeedAssessmentLoading(true);
+                            try {
+                              const result = await generateAssessmentFromTopic(id);
+                              await fetchLessonSmart();
+                              const count = result.addedCount ?? result.questionsCount ?? 0;
+                              setSeedAssessmentSuccess(
+                                count > 0 ? `Added ${count} assessment questions from topic bank.` : "No published assessment questions in bank for this topic."
+                              );
+                            } catch (e: any) {
+                              setSeedAssessmentError(e?.response?.data?.msg || e?.message || "Failed to generate from topic bank");
+                            } finally {
+                              setSeedAssessmentLoading(false);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "1px solid #2563eb",
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            fontWeight: 600,
+                            cursor: seedAssessmentLoading || !id || !(lesson?.topicKey || lesson?.topic) ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {seedAssessmentLoading ? "Loading…" : "Generate Assessment from Topic Bank"}
+                        </button>
+                        <Link to="/teacher/topic-banks/quizzes?kind=assessment" style={{ fontSize: 14, color: "#2563eb" }}>
+                          Manage assessment bank →
+                        </Link>
+                        {!(lesson?.topicKey || lesson?.topic) && (
+                          <span style={{ fontSize: 13, color: "#6b7280" }}>Set lesson topic to generate from bank.</span>
+                        )}
+                        {seedAssessmentError && (
+                          <span style={{ color: "#dc2626", fontSize: 14 }}>{seedAssessmentError}</span>
+                        )}
+                        {seedAssessmentSuccess && (
+                          <span style={{ color: "#059669", fontSize: 14 }}>{seedAssessmentSuccess}</span>
+                        )}
+                      </div>
+                      <p style={{ color: "#6b7280", margin: 0 }}>
+                        {assessmentQuestions.length === 0
+                          ? "No assessment questions yet. Generate from the topic bank to add assessment MCQs."
+                          : `${assessmentQuestions.length} assessment question(s) from topic bank.`}
+                      </p>
+                    </>
                   )}
                 </div>
               )}

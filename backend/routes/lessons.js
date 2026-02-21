@@ -19,6 +19,7 @@ const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTo
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
+const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -2268,6 +2269,35 @@ router.post("/:id/generate/past-papers-from-topic", auth, requireLessonOwnerOrAd
       return res.status(404).json({ msg: err.message || "Lesson not found" });
     }
     console.error("generate/past-papers-from-topic error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// PR-A1: Generate assessment from topic bank (kind=assessment, published-only, replace)
+router.post("/:id/generate/assessment-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const result = await generateLessonAssessmentFromTopic({
+      lessonId,
+      userId: req.user._id || req.user.userId,
+    });
+    return res.json({
+      ok: true,
+      addedCount: result.addedCount,
+      questionsCount: result.questionsCount,
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ msg: err.message || "Lesson has no topicKey; cannot generate assessment." });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ msg: err.message || "Lesson not found" });
+    }
+    console.error("generate/assessment-from-topic error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

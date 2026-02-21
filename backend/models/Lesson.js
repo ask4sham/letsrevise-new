@@ -265,6 +265,25 @@ const LessonSchema = new mongoose.Schema(
       ]
     },
 
+    /** PR-A1: Assessment questions (same shape as quiz.questions; from topic bank kind=assessment) */
+    assessment: {
+      timeSeconds: { type: Number, default: 600 },
+      questions: [
+        {
+          id: { type: String, required: true },
+          type: { type: String, enum: ["mcq", "short", "exam"], required: true },
+          question: { type: String, required: true },
+          options: { type: [String], default: undefined },
+          correctAnswer: { type: String, default: "" },
+          markScheme: { type: [String], default: undefined },
+          explanation: { type: String, default: "" },
+          tags: { type: [String], default: [] },
+          difficulty: { type: Number, min: 1, max: 3, default: 1 },
+          marks: { type: Number, default: 1 },
+        }
+      ],
+    },
+
     // publishing / stats
     isPublished: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
