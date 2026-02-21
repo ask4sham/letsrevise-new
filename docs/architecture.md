@@ -94,6 +94,6 @@ npm test -- tests/lessonGenerateQuizFromTopic.integration.test.js
 npm test -- tests/lessonGeneratePastPapersFromTopic.integration.test.js
 npm test -- tests/lessonGenerateAssessmentFromTopic.integration.test.js
 npm test -- tests/worksheetAssignment.integration.test.js
-npm test -- tests/worksheetAssignment.integration.test.js
+npm test -- tests/limitsAndRateLimit.integration.test.js
 npm test -- tests/lessonsContentAccess.integration.test.js
 ```

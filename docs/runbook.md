@@ -65,7 +65,9 @@ cd backend && npm run migrate:all
 | CORS errors | Backend CORS allows `http://localhost:3000`. Check FRONTEND_URL. |
 | 404 on /api/* | Backend not running or wrong PORT. Default 5000. |
 | MongoDB connection | Check MONGODB_URI in .env. Local: `mongodb://localhost:27017/letsrevise` |
-| Upload fails | Ensure `backend/uploads/past-papers/` exists (created on first upload). FILE_UPLOAD_MAX_MB (default 25). |
+| Upload fails | Ensure `backend/uploads/past-papers/` exists (created on first upload). FILE_UPLOAD_MAX_MB (default 25). MAX_FILES_PER_REQUEST (default 10). |
+| 413 Payload too large | Bulk body limit 2MB (BULK_BODY_LIMIT_BYTES). Text length cap 2MB (BULK_MAX_TEXT_LENGTH). |
+| 429 Too many requests | Rate limits: RATE_LIMIT_ENABLED=1, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_BULK/UPLOAD/ATTEMPT. |
 
 ---
 

@@ -3,6 +3,8 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const bodyLimit = require("./middleware/bodyLimit");
+const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
 const app = express();
 
 // ✅ CORS configuration to allow frontend origin
@@ -11,12 +13,15 @@ app.use(cors({
   credentials: true,
 }));
 
-// ✅ Add minimal essential middleware that Supertest needs
-app.use(express.json());
+// PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
+app.use(bodyLimit);
+
+// ✅ Add minimal essential middleware that Supertest needs (2MB global limit)
+app.use(express.json({ limit: "2mb" }));
 
 // ✅ Register routes that are needed for tests (add any others as needed)
 app.use("/api/assessment-papers", require("./routes/assessmentPapers"));
-app.use("/api/assessment-attempts", require("./routes/assessmentAttempts"));
+app.use("/api/assessment-attempts", createAttemptLimiter(), require("./routes/assessmentAttempts"));
 app.use("/api/assessment-items", require("./routes/assessmentItems"));
 
 // ✅ Add auth routes if your assessment endpoints need auth middleware
@@ -46,27 +51,24 @@ app.use("/api/attempts", require("./routes/attempts"));
 // PR-W1: worksheets (teacher/admin only)
 app.use("/api/worksheets", require("./routes/worksheets"));
 
-// PR-W4: worksheet assignment + attempts + reports
+// PR-W4: worksheet assignment + attempts + reports + PR-HARD-2 rate limit on attempts
 app.use("/api/worksheet-assignments", require("./routes/worksheetAssignments"));
-app.use("/api/worksheet-attempts", require("./routes/worksheetAttempts"));
+app.use("/api/worksheet-attempts", createAttemptLimiter(), require("./routes/worksheetAttempts"));
 app.use("/api/worksheet-reports", require("./routes/worksheetReports"));
 
 // PR-W2: exam question bank (teacher/admin; topicKey, draft/published)
 app.use("/api/exam-questions", require("./routes/examQuestions"));
 
-// PR-F1: topic flashcard bank (teacher/admin only)
-app.use("/api/topic-flashcards", require("./routes/topicFlashcards"));
+// PR-F1: topic flashcard bank (teacher/admin only) + PR-HARD-2 rate limit
+app.use("/api/topic-flashcards", createBulkLimiter(), require("./routes/topicFlashcards"));
 
-// PR-Q1: topic quiz bank (teacher/admin only)
-app.use("/api/topic-quiz-questions", require("./routes/topicQuizQuestions"));
+// PR-Q1: topic quiz bank (teacher/admin only) + PR-HARD-2 rate limit
+app.use("/api/topic-quiz-questions", createBulkLimiter(), require("./routes/topicQuizQuestions"));
 
-// PR-PP1: topic past paper bank (teacher/admin only)
-app.use("/api/topic-past-papers", require("./routes/topicPastPapers"));
-
-// PR-PP1: topic past paper bank (teacher/admin only)
-app.use("/api/topic-past-papers", require("./routes/topicPastPapers"));
-// PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson)
-app.use("/api/flashcard-bank", require("./routes/flashcardBank"));
+// PR-PP1: topic past paper bank (teacher/admin only) + PR-HARD-2 rate limit
+app.use("/api/topic-past-papers", createUploadLimiter(), require("./routes/topicPastPapers"));
+// PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson) + PR-HARD-2 rate limit
+app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardBank"));
 
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
