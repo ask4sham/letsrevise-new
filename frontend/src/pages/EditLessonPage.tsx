@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
+import { generatePastPapersFromTopic, downloadTopicPastPaperFile } from "../api/topicPastPapers";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import {
@@ -137,6 +138,17 @@ interface Lesson {
   readiness?: LessonReadiness;
   reviewedAt?: string | null;
   reviewedBy?: string | null;
+  /** PR-PP2: Past papers (snapshot from topic bank) */
+  pastPapers?: Array<{
+    title: string;
+    year?: number;
+    paper?: string;
+    type?: string;
+    sourceType: "url" | "file";
+    url?: string;
+    fileId?: string;
+    originalName?: string;
+  }>;
 }
 
 type ExamBoardRow = { name: string };
@@ -338,7 +350,7 @@ const EditLessonPage: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<string>("");
   const [uploadingKey, setUploadingKey] = useState<string>("");
   const [uploadMsg, setUploadMsg] = useState<string>("");
-  const [revisionTab, setRevisionTab] = useState<"flashcards" | "quizzes">("flashcards");
+  const [revisionTab, setRevisionTab] = useState<"flashcards" | "quizzes" | "pastPapers">("flashcards");
   const [isGenerating, setIsGenerating] = useState(false);
   const [newFlashcard, setNewFlashcard] = useState({ front: "", back: "", tags: "" });
   const [newQuizQuestion, setNewQuizQuestion] = useState({
@@ -349,6 +361,7 @@ const EditLessonPage: React.FC = () => {
     explanation: ""
   });
   const [isQuizCollapsed, setIsQuizCollapsed] = useState(false);
+  const [isPastPapersCollapsed, setIsPastPapersCollapsed] = useState(false);
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
@@ -356,6 +369,9 @@ const EditLessonPage: React.FC = () => {
   const [seedQuizLoading, setSeedQuizLoading] = useState(false);
   const [seedQuizError, setSeedQuizError] = useState<string | null>(null);
   const [seedQuizSuccess, setSeedQuizSuccess] = useState<string | null>(null);
+  const [seedPastPapersLoading, setSeedPastPapersLoading] = useState(false);
+  const [seedPastPapersError, setSeedPastPapersError] = useState<string | null>(null);
+  const [seedPastPapersSuccess, setSeedPastPapersSuccess] = useState<string | null>(null);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
@@ -4957,6 +4973,20 @@ const EditLessonPage: React.FC = () => {
               >
                 Quiz Questions ({quizQuestions.length})
               </button>
+              <button
+                onClick={() => { setRevisionTab("pastPapers"); setIsPastPapersCollapsed(false); }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: revisionTab === "pastPapers" ? "#3b82f6" : "#f3f4f6",
+                  color: revisionTab === "pastPapers" ? "white" : "#374151",
+                  cursor: "pointer",
+                  fontWeight: revisionTab === "pastPapers" ? "bold" : "normal"
+                }}
+              >
+                Past Papers ({(lesson?.pastPapers || []).length})
+              </button>
             </div>
             
             <div style={{
@@ -5787,6 +5817,125 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                         Deleting existing questions is admin-only and enforced server-side.
                       </div>
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              marginBottom: "30px",
+              background: "#f8fafc",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              overflow: "hidden"
+            }}>
+              <div
+                onClick={() => setIsPastPapersCollapsed(!isPastPapersCollapsed)}
+                style={{
+                  padding: "15px 20px",
+                  background: "#e2e8f0",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}
+              >
+                <h3 style={{ margin: 0, color: "#1e293b" }}>
+                  Past Papers
+                </h3>
+                <span style={{ fontSize: "20px" }}>
+                  {isPastPapersCollapsed ? "▶" : "▼"}
+                </span>
+              </div>
+
+              {!isPastPapersCollapsed && (
+                <div style={{ padding: "20px" }}>
+                  {revisionTab === "pastPapers" && (
+                    <>
+                      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          disabled={seedPastPapersLoading || !id || !(lesson?.topicKey || lesson?.topic)}
+                          onClick={async () => {
+                            if (!id) return;
+                            setSeedPastPapersError(null);
+                            setSeedPastPapersSuccess(null);
+                            setSeedPastPapersLoading(true);
+                            try {
+                              const result = await generatePastPapersFromTopic(id);
+                              await fetchLessonSmart();
+                              const count = result.addedCount ?? result.pastPapersCount ?? 0;
+                              setSeedPastPapersSuccess(
+                                count > 0 ? `Added ${count} past papers from topic bank.` : "No published past papers in bank for this topic."
+                              );
+                            } catch (e: any) {
+                              setSeedPastPapersError(e?.response?.data?.msg || e?.message || "Failed to generate from topic bank");
+                            } finally {
+                              setSeedPastPapersLoading(false);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "1px solid #2563eb",
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            fontWeight: 600,
+                            cursor: seedPastPapersLoading || !id || !(lesson?.topicKey || lesson?.topic) ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {seedPastPapersLoading ? "Loading…" : "Generate Past Papers from Topic Bank"}
+                        </button>
+                        <Link to="/teacher/topic-banks/past-papers" style={{ fontSize: 14, color: "#2563eb" }}>
+                          Manage past paper bank →
+                        </Link>
+                        {!(lesson?.topicKey || lesson?.topic) && (
+                          <span style={{ fontSize: 13, color: "#6b7280" }}>Set lesson topic to generate from bank.</span>
+                        )}
+                        {seedPastPapersError && (
+                          <span style={{ color: "#dc2626", fontSize: 14 }}>{seedPastPapersError}</span>
+                        )}
+                        {seedPastPapersSuccess && (
+                          <span style={{ color: "#059669", fontSize: 14 }}>{seedPastPapersSuccess}</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 14, color: "#4b5563" }}>
+                        {((lesson?.pastPapers) || []).length === 0 ? (
+                          <p style={{ margin: 0, color: "#6b7280" }}>No past papers yet. Click &quot;Generate Past Papers from Topic Bank&quot; to copy published items from the bank.</p>
+                        ) : (
+                          <ul style={{ margin: 0, paddingLeft: 20, listStyle: "disc" }}>
+                            {(lesson?.pastPapers || []).map((pp, i) => (
+                              <li key={i} style={{ marginBottom: 8 }}>
+                                <strong>{pp.title}</strong>
+                                {[pp.year, pp.paper, pp.type].filter(Boolean).length > 0 && (
+                                  <span style={{ marginLeft: 8, color: "#6b7280" }}>
+                                    ({[pp.year, pp.paper, pp.type].filter(Boolean).join(" · ")})
+                                  </span>
+                                )}
+                                {pp.sourceType === "url" && pp.url && (
+                                  <a href={pp.url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: "#2563eb" }}>Open</a>
+                                )}
+                                {pp.sourceType === "file" && pp.fileId && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        await downloadTopicPastPaperFile(pp.fileId!, pp.originalName || "past-paper.pdf");
+                                      } catch (e: any) {
+                                        setSeedPastPapersError(e?.message || "Download failed");
+                                      }
+                                    }}
+                                    style={{ marginLeft: 8, color: "#2563eb", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontSize: "inherit" }}
+                                  >
+                                    Download
+                                  </button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               )}

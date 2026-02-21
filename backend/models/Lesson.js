@@ -318,6 +318,28 @@ const LessonSchema = new mongoose.Schema(
       },
     ],
 
+    /** PR-PP2: Past papers (snapshot from Topic Past Paper bank). No references to TopicPastPaper _id. */
+    pastPapers: [
+      {
+        title: { type: String, default: "" },
+        examBoard: { type: String, default: "" },
+        qualification: { type: String, default: "" },
+        subject: { type: String, default: "" },
+        year: { type: Number, default: undefined },
+        paper: { type: String, default: "" },
+        session: { type: String, default: "" },
+        tier: { type: String, default: "" },
+        type: { type: String, default: "" },
+        tags: [{ type: String }],
+        sourceType: { type: String, enum: ["url", "file"] },
+        url: { type: String, default: "" },
+        fileId: { type: mongoose.Schema.Types.ObjectId, ref: "FileAsset", default: undefined },
+        originalName: { type: String, default: "" },
+        mimeType: { type: String, default: "" },
+        size: { type: Number, default: 0 },
+      },
+    ],
+
     /** PR7: Teacher review — when set, lesson is marked as reviewed by teacher. Readiness is computed, not stored. */
     reviewedAt: { type: Date, default: null },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },

@@ -18,6 +18,7 @@ const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
+const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -2238,6 +2239,35 @@ router.post("/:id/generate/quiz-from-topic", auth, requireLessonOwnerOrAdmin, as
       return res.status(404).json({ msg: err.message || "Lesson not found" });
     }
     console.error("generate/quiz-from-topic error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// PR-PP2: Generate past papers from topic bank (published-only, replace)
+router.post("/:id/generate/past-papers-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const result = await generateLessonPastPapersFromTopic({
+      lessonId,
+      userId: req.user._id || req.user.userId,
+    });
+    return res.json({
+      ok: true,
+      addedCount: result.addedCount,
+      pastPapersCount: result.pastPapersCount,
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    if (err.statusCode === 400) {
+      return res.status(400).json({ msg: err.message || "Lesson has no topicKey; cannot generate past papers." });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ msg: err.message || "Lesson not found" });
+    }
+    console.error("generate/past-papers-from-topic error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });
