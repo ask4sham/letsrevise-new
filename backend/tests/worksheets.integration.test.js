@@ -219,7 +219,7 @@ describe("Worksheets API (PR-W1)", () => {
     expect(res.body.error).toBe("status is read-only; use /publish");
   });
 
-  test("GET /api/worksheets/:id by non-owner returns 403", async () => {
+  test("GET /api/worksheets/:id by non-owner returns 404 (no existence leak)", async () => {
     const createRes = await request(app)
       .post("/api/worksheets")
       .set("Authorization", `Bearer ${teacherToken}`)
@@ -230,8 +230,7 @@ describe("Worksheets API (PR-W1)", () => {
     const res = await request(app)
       .get(`/api/worksheets/${id}`)
       .set("Authorization", `Bearer ${otherTeacherToken}`);
-    expect(res.status).toBe(403);
-    expect(res.body.error).toMatch(/own|access/i);
+    expect(res.status).toBe(404);
   });
 
   test("PUT /api/worksheets/:id by non-owner returns 403", async () => {
