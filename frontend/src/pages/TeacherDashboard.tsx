@@ -120,6 +120,8 @@ const TeacherDashboard: React.FC = () => {
 
   // PR-EDGE-3: Teacher overview (needs marking, awaiting release, due soon)
   const [overview, setOverview] = useState<TeacherOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
   // PR-EDGE-5: Questions causing difficulty
   const [questionAnalytics, setQuestionAnalytics] = useState<QuestionAnalyticsItem[]>([]);
 
@@ -208,11 +210,16 @@ const TeacherDashboard: React.FC = () => {
         await fetchTeacherStatsFromBackend();
 
         // 3b) PR-EDGE-3: Load teacher overview (needs marking, awaiting release, etc.)
+        setOverviewLoading(true);
+        setOverviewError(null);
         try {
           const ov = await getTeacherOverview();
           setOverview(ov);
         } catch {
           setOverview(null);
+          setOverviewError("Could not load overview");
+        } finally {
+          setOverviewLoading(false);
         }
 
         // 3c) PR-EDGE-5: Load question analytics (questions causing difficulty)
@@ -657,11 +664,41 @@ const TeacherDashboard: React.FC = () => {
               }}
             >
               <div style={{ fontWeight: 700, marginRight: 12, marginBottom: 4 }}>Today</div>
-              {(overview.needsMarking > 0 || overview.awaitingRelease > 0 || (overview.dueSoon?.worksheets || 0) > 0) && (
+              {overviewLoading && <span style={{ color: "#6b7280", fontSize: 14 }}>Loading…</span>}
+              {overviewError && (
+                <span style={{ color: "#991b1b", fontSize: 14, marginRight: 8 }}>{overviewError}. </span>
+              )}
+              {overviewError && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setOverviewLoading(true);
+                    setOverviewError(null);
+                    try {
+                      const ov = await getTeacherOverview();
+                      setOverview(ov);
+                    } catch {
+                      setOverviewError("Could not load overview");
+                    } finally {
+                      setOverviewLoading(false);
+                    }
+                  }}
+                  style={{ padding: "4px 10px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}
+                >
+                  Retry
+                </button>
+              )}
+              {overview && !overviewLoading && ((overview.needsMarking?.worksheets?.count ?? 0) > 0 ||
+                (overview.awaitingRelease?.worksheets?.count ?? 0) > 0 ||
+                (overview.awaitingRelease?.quizzes?.count ?? 0) > 0 ||
+                (overview.awaitingRelease?.assessments?.count ?? 0) > 0 ||
+                (overview.dueSoon?.worksheets?.count ?? 0) > 0 ||
+                (overview.dueSoon?.quizzes?.count ?? 0) > 0 ||
+                (overview.dueSoon?.assessments?.count ?? 0) > 0) && (
                 <>
-                  {overview.needsMarking > 0 && (
+                  {(overview.needsMarking?.worksheets?.count ?? 0) > 0 && (
                     <Link
-                      to="/teacher/worksheets/needs-marking"
+                      to={overview.needsMarking.worksheets.link || "/teacher/worksheets/needs-marking"}
                       style={{
                         padding: "8px 14px",
                         background: "#fef3c7",
@@ -672,52 +709,134 @@ const TeacherDashboard: React.FC = () => {
                         border: "1px solid #f59e0b",
                       }}
                     >
-                      Needs marking ({overview.needsMarking})
+                      Needs marking ({overview.needsMarking.worksheets.count})
                     </Link>
                   )}
-                  {overview.awaitingRelease > 0 && (
-                    <Link
-                      to="/teacher/worksheets"
-                      style={{
-                        padding: "8px 14px",
-                        background: "#dbeafe",
-                        color: "#1e40af",
-                        borderRadius: 8,
-                        textDecoration: "none",
-                        fontWeight: 600,
-                        border: "1px solid #3b82f6",
-                      }}
-                    >
-                      Awaiting release ({overview.awaitingRelease})
-                    </Link>
+                  {((overview.awaitingRelease?.worksheets?.count ?? 0) > 0 ||
+                    (overview.awaitingRelease?.quizzes?.count ?? 0) > 0 ||
+                    (overview.awaitingRelease?.assessments?.count ?? 0) > 0) && (
+                    <>
+                      {(overview.awaitingRelease?.worksheets?.count ?? 0) > 0 && (
+                        <Link
+                          to={overview.awaitingRelease?.worksheets?.link || "/teacher/worksheets"}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#dbeafe",
+                            color: "#1e40af",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            border: "1px solid #3b82f6",
+                          }}
+                        >
+                          Awaiting release — worksheets ({overview.awaitingRelease.worksheets.count})
+                        </Link>
+                      )}
+                      {(overview.awaitingRelease?.quizzes?.count ?? 0) > 0 && (
+                        <Link
+                          to={overview.awaitingRelease?.quizzes?.link || "/teacher/reports/attempts"}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#dbeafe",
+                            color: "#1e40af",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            border: "1px solid #3b82f6",
+                          }}
+                        >
+                          Awaiting release — quizzes ({overview.awaitingRelease.quizzes.count})
+                        </Link>
+                      )}
+                      {(overview.awaitingRelease?.assessments?.count ?? 0) > 0 && (
+                        <Link
+                          to={overview.awaitingRelease?.assessments?.link || "/teacher/reports/attempts"}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#dbeafe",
+                            color: "#1e40af",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            border: "1px solid #3b82f6",
+                          }}
+                        >
+                          Awaiting release — assessments ({overview.awaitingRelease.assessments.count})
+                        </Link>
+                      )}
+                    </>
                   )}
-                  {(overview.dueSoon?.worksheets || 0) > 0 && (
-                    <Link
-                      to="/teacher/worksheets/needs-marking"
-                      style={{
-                        padding: "8px 14px",
-                        background: "#f3e8ff",
-                        color: "#6b21a8",
-                        borderRadius: 8,
-                        textDecoration: "none",
-                        fontWeight: 600,
-                        border: "1px solid #a855f7",
-                      }}
-                    >
-                      Due soon — worksheets ({overview.dueSoon.worksheets})
-                    </Link>
+                  {((overview.dueSoon?.worksheets?.count ?? 0) > 0 ||
+                    (overview.dueSoon?.quizzes?.count ?? 0) > 0 ||
+                    (overview.dueSoon?.assessments?.count ?? 0) > 0) && (
+                    <>
+                      {(overview.dueSoon?.worksheets?.count ?? 0) > 0 && (
+                        <Link
+                          to={overview.dueSoon?.worksheets?.link || "/teacher/worksheets"}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#f3e8ff",
+                            color: "#6b21a8",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            border: "1px solid #a855f7",
+                          }}
+                        >
+                          Due soon — worksheets ({overview.dueSoon.worksheets.count})
+                        </Link>
+                      )}
+                      {(overview.dueSoon?.quizzes?.count ?? 0) > 0 && (
+                        <Link
+                          to={overview.dueSoon?.quizzes?.link || "/teacher/reports/attempts"}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#f3e8ff",
+                            color: "#6b21a8",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            border: "1px solid #a855f7",
+                          }}
+                        >
+                          Due soon — quizzes ({overview.dueSoon.quizzes.count})
+                        </Link>
+                      )}
+                      {(overview.dueSoon?.assessments?.count ?? 0) > 0 && (
+                        <Link
+                          to={overview.dueSoon?.assessments?.link || "/teacher/reports/attempts"}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#f3e8ff",
+                            color: "#6b21a8",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            border: "1px solid #a855f7",
+                          }}
+                        >
+                          Due soon — assessments ({overview.dueSoon.assessments.count})
+                        </Link>
+                      )}
+                    </>
                   )}
                 </>
               )}
-              {overview.needsMarking === 0 && overview.awaitingRelease === 0 && (overview.dueSoon?.worksheets || 0) === 0 && (
+              {(overview.needsMarking?.worksheets?.count ?? 0) === 0 &&
+                (overview.awaitingRelease?.worksheets?.count ?? 0) === 0 &&
+                (overview.awaitingRelease?.quizzes?.count ?? 0) === 0 &&
+                (overview.awaitingRelease?.assessments?.count ?? 0) === 0 &&
+                (overview.dueSoon?.worksheets?.count ?? 0) === 0 &&
+                (overview.dueSoon?.quizzes?.count ?? 0) === 0 &&
+                (overview.dueSoon?.assessments?.count ?? 0) === 0 && (
                 <span style={{ color: "#6b7280", fontSize: 14 }}>Nothing urgent.</span>
               )}
-              {overview.recentActivity && overview.recentActivity.length > 0 && (
+              {overview && overview.recentActivity && overview.recentActivity.length > 0 && (
                 <div style={{ width: "100%", marginTop: 8, fontSize: 13 }}>
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>Recent</div>
-                  {overview.recentActivity.slice(0, 4).map((a, i) => (
-                    <Link key={i} to={a.linkTo} style={{ display: "block", color: "#4b5563", marginBottom: 2, textDecoration: "none" }}>
-                      {a.studentName} · {a.assignmentTitle}
+                  {overview.recentActivity.slice(0, 10).map((a, i) => (
+                    <Link key={i} to={a.link} style={{ display: "block", color: "#4b5563", marginBottom: 2, textDecoration: "none" }}>
+                      {a.label}
                     </Link>
                   ))}
                 </div>
