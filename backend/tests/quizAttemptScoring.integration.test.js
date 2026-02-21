@@ -78,24 +78,26 @@ describe("Quiz attempt scoring (PR-EDGE-4.2)", () => {
     await Lesson.deleteMany({ teacherId });
   });
 
-  test("create attempt via share link", async () => {
+  test("create attempt via share link returns attemptId and attemptToken", async () => {
     const res = await request(app)
       .post(`/api/quiz-assignments/share/${shareId}/attempts`)
       .send({ studentId: studentId.toString(), studentName: "Score Student" });
     expect(res.status).toBe(201);
     expect(res.body.attemptId).toBeDefined();
+    expect(res.body.attemptToken).toBeDefined();
   });
 
   test("submit with correct MCQ answers and get score", async () => {
     const createRes = await request(app)
       .post(`/api/quiz-assignments/share/${shareId}/attempts`)
       .send({ studentId: studentId.toString() });
-    const attemptId = createRes.body.attemptId;
+    const { attemptId, attemptToken } = createRes.body;
 
     const res = await request(app)
       .post(`/api/quiz-attempts/${attemptId}/submit`)
       .set("Authorization", `Bearer ${studentToken}`)
       .send({
+        token: attemptToken,
         answers: [
           { questionId: "q1", selectedIndex: 1 },
           { questionId: "q2", selectedIndex: 1 },
@@ -113,11 +115,12 @@ describe("Quiz attempt scoring (PR-EDGE-4.2)", () => {
     const createRes = await request(app)
       .post(`/api/quiz-assignments/share/${shareId}/attempts`)
       .send({ studentId: studentId.toString() });
-    const attemptId = createRes.body.attemptId;
+    const { attemptId, attemptToken } = createRes.body;
 
     await request(app)
       .post(`/api/quiz-attempts/${attemptId}/submit`)
       .send({
+        token: attemptToken,
         answers: [
           { questionId: "q1", selectedIndex: 1 },
           { questionId: "q2", selectedIndex: 1 },
@@ -134,10 +137,10 @@ describe("Quiz attempt scoring (PR-EDGE-4.2)", () => {
     const createRes = await request(app)
       .post(`/api/quiz-assignments/share/${shareId}/attempts`)
       .send({ studentId: studentId.toString() });
-    const attemptId = createRes.body.attemptId;
+    const { attemptId, attemptToken } = createRes.body;
     await request(app)
       .post(`/api/quiz-attempts/${attemptId}/submit`)
-      .send({ answers: [{ questionId: "q1", selectedIndex: 0 }, { questionId: "q2", selectedIndex: 0 }] });
+      .send({ token: attemptToken, answers: [{ questionId: "q1", selectedIndex: 0 }, { questionId: "q2", selectedIndex: 0 }] });
 
     const res = await request(app)
       .get(`/api/quiz-attempts/${attemptId}`)
@@ -152,10 +155,10 @@ describe("Quiz attempt scoring (PR-EDGE-4.2)", () => {
     const createRes = await request(app)
       .post(`/api/quiz-assignments/share/${shareId}/attempts`)
       .send({ studentId: studentId.toString() });
-    const attemptId = createRes.body.attemptId;
+    const { attemptId, attemptToken } = createRes.body;
     await request(app)
       .post(`/api/quiz-attempts/${attemptId}/submit`)
-      .send({ answers: [{ questionId: "q1", selectedIndex: 1 }, { questionId: "q2", selectedIndex: 1 }] });
+      .send({ token: attemptToken, answers: [{ questionId: "q1", selectedIndex: 1 }, { questionId: "q2", selectedIndex: 1 }] });
     await QuizAttempt.updateOne({ _id: attemptId }, { $set: { isReleased: true } });
 
     const res = await request(app)
@@ -165,6 +168,18 @@ describe("Quiz attempt scoring (PR-EDGE-4.2)", () => {
     expect(res.body.attempt.resultsLocked).toBeUndefined();
     expect(res.body.attempt.score).toBe(3);
     expect(res.body.attempt.maxScore).toBe(3);
+  });
+
+  test("submit without token returns 403 for new attempts", async () => {
+    const createRes = await request(app)
+      .post(`/api/quiz-assignments/share/${shareId}/attempts`)
+      .send({ studentId: studentId.toString() });
+    const attemptId = createRes.body.attemptId;
+    const res = await request(app)
+      .post(`/api/quiz-attempts/${attemptId}/submit`)
+      .send({ answers: [{ questionId: "q1", selectedIndex: 1 }] });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/token/i);
   });
 
   test("submit rejects paper-based assignment", async () => {
@@ -181,7 +196,7 @@ describe("Quiz attempt scoring (PR-EDGE-4.2)", () => {
       .send({ studentId: studentId.toString() });
     const res = await request(app)
       .post(`/api/quiz-attempts/${createRes.body.attemptId}/submit`)
-      .send({ answers: [] });
+      .send({ token: createRes.body.attemptToken, answers: [] });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/lesson-based|paper/i);
     await QuizAssignment.deleteOne({ _id: paperAssign._id });
