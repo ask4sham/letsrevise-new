@@ -2,6 +2,7 @@
  * Explicit payload helpers for GET /api/lessons/:id (Phase 9).
  * Prevents handlers from accidentally leaking full content into FREE_PREVIEW.
  */
+const { topicToKey } = require("./topicTaxonomy");
 
 /**
  * Canonical lesson owner id (teacher/creator). Use for draft access and ownership checks.

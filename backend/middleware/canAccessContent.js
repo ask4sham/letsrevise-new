@@ -39,6 +39,14 @@ function denyBody(lessonId, reason, error, published) {
   };
 }
 
+/** PR-LESSON-VIEW-FIX-1: 404 no-existence-leak when access denied (not 402/401). */
+function notFoundBody(reason) {
+  return {
+    error: "LESSON_NOT_FOUND",
+    reason: reason || "ACCESS_DENIED",
+  };
+}
+
 module.exports = function canAccessContent(options = {}) {
   const {
     requirePublished = true,
@@ -80,9 +88,11 @@ module.exports = function canAccessContent(options = {}) {
       }
 
       const ownerId = getLessonOwnerId(lesson);
+      const userId = req.user?._id ?? req.user?.id ?? req.user?.userId;
       const isOwner =
         ownerId != null &&
-        String(ownerId) === String(req.user._id || req.user.id);
+        userId != null &&
+        String(ownerId) === String(userId);
 
       if (requirePublished && !isPublished) {
         if (
@@ -97,9 +107,7 @@ module.exports = function canAccessContent(options = {}) {
           }
           return next();
         }
-        return res.status(403).json(
-          denyBody(lessonIdStr, "NOT_PUBLISHED", "Lesson not published", false)
-        );
+        return res.status(404).json(notFoundBody("NOT_PUBLISHED"));
       }
 
       // Owner of a published lesson always gets full content (e.g. flashcards); avoids FREE_PREVIEW for own lesson.
@@ -110,6 +118,11 @@ module.exports = function canAccessContent(options = {}) {
           console.info("[canAccessContent]", { userId: req.user._id?.toString(), lessonId: lessonIdStr, reason: "OWNER" });
         }
         return next();
+      }
+
+      // PR-LESSON-VIEW-FIX-1: Other teacher (not owner) gets 404 — no existence leak
+      if ((isTeacher(req.user) || req.user?.isTeacher) && !isOwner) {
+        return res.status(404).json(notFoundBody("ACCESS_DENIED"));
       }
 
       const decision = await checkAccess(req.user, {
@@ -140,9 +153,7 @@ module.exports = function canAccessContent(options = {}) {
         if (decision.reason === "FREE_PREVIEW") {
           return next();
         }
-        return res.status(403).json(
-          denyBody(lessonIdStr, decision.reason, "FORBIDDEN", isPublished)
-        );
+        return res.status(404).json(notFoundBody(decision.reason));
       }
 
       return next();

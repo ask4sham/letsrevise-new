@@ -1422,6 +1422,8 @@ const LessonViewPage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  /** PR-LESSON-VIEW-FIX-1: Store API error details for teacher/dev debug display */
+  const [loadErrorDetails, setLoadErrorDetails] = useState<{ status?: number; reason?: string; error?: string } | null>(null);
 
   // Phase B: entitlement UI state
   const [subscriptionRequired, setSubscriptionRequired] = useState(false);
@@ -1774,6 +1776,7 @@ const LessonViewPage: React.FC = () => {
     try {
       setLoading(true);
       setError("");
+      setLoadErrorDetails(null);
       setLesson(null);
        // Reset entitlement flags before each load
       setSubscriptionRequired(false);
@@ -1836,6 +1839,13 @@ const LessonViewPage: React.FC = () => {
 
         if (status === 403) {
           setError(error || "You don't have access to this content.");
+          setLesson(null);
+          return;
+        }
+
+        // PR-LESSON-VIEW-FIX-1: 404 = access denied (no existence leak)
+        if (status === 404) {
+          setError("Lesson not found");
           setLesson(null);
           return;
         }
@@ -1937,6 +1947,7 @@ const LessonViewPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Backend lesson fetch error:", err);
+      setLoadErrorDetails({ error: err?.message });
       setError(err?.message || "Failed to load lesson");
       setLesson(null);
     }
@@ -2882,9 +2893,18 @@ const LessonViewPage: React.FC = () => {
   }
 
   if (error || !lesson) {
+    const showDebugError =
+      (user?.userType === "teacher" || user?.userType === "admin" || (user as any)?.isAdmin === true) ||
+      process.env.NODE_ENV !== "production" ||
+      process.env.REACT_APP_DEV_TOOLS === "1";
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
         <h2>{error || "Lesson not found"}</h2>
+        {showDebugError && loadErrorDetails && (
+          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>
+            Load failed ({loadErrorDetails.status ?? "?"}): {loadErrorDetails.reason ?? loadErrorDetails.error ?? "unknown"}
+          </p>
+        )}
         <div style={{ marginTop: 12 }}>
           <button
             onClick={() => navigate("/dashboard")}
