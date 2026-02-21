@@ -70,6 +70,9 @@ app.use("/api/topic-past-papers", createUploadLimiter(), require("./routes/topic
 // PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson) + PR-HARD-2 rate limit
 app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardBank"));
 
+// PR-EDGE-3: Teacher overview dashboard
+app.use("/api/teacher", require("./routes/teacher"));
+
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 

@@ -12,6 +12,8 @@ import {
   uploadTopicPastPapers,
   publishTopicPastPaper,
   unpublishTopicPastPaper,
+  bulkPublishTopicPastPapers,
+  bulkUnpublishTopicPastPapers,
   deleteTopicPastPaper,
   downloadTopicPastPaperFile,
   type TopicPastPaper,
@@ -84,6 +86,8 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     api.get("/taxonomy/aqa-gcse-biology").then((res) => setTaxonomy(res?.data ?? null)).catch(() => setTaxonomy(null));
@@ -229,6 +233,47 @@ const TeacherPastPapersBankPage: React.FC = () => {
       setMessage(err?.message || "Upload failed");
     } finally {
       setUploadLoading(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === items.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(items.map((p) => p._id)));
+  };
+  const handleBulkPublish = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await bulkPublishTopicPastPapers(Array.from(selectedIds));
+      setMessage(`Published ${res.updatedCount} past paper(s).`);
+      setSelectedIds(new Set());
+      fetchItems();
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.message || "Bulk publish failed");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+  const handleBulkUnpublish = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await bulkUnpublishTopicPastPapers(Array.from(selectedIds));
+      setMessage(`Unpublished ${res.updatedCount} past paper(s).`);
+      setSelectedIds(new Set());
+      fetchItems();
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.message || "Bulk unpublish failed");
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -607,10 +652,34 @@ const TeacherPastPapersBankPage: React.FC = () => {
           {topicKey && loading && <p>Loading…</p>}
           {topicKey && !loading && items.length === 0 && <p style={{ color: "#6b7280" }}>No past papers yet. Import URLs or upload files.</p>}
           {topicKey && !loading && items.length > 0 && (
-            <div style={{ overflowX: "auto" }}>
+            <>
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, color: "#6b7280" }}>Bulk:</span>
+                <button
+                  type="button"
+                  onClick={handleBulkPublish}
+                  disabled={selectedIds.size === 0 || bulkLoading}
+                  style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: selectedIds.size > 0 && !bulkLoading ? "pointer" : "not-allowed" }}
+                >
+                  {bulkLoading ? "…" : "Publish"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkUnpublish}
+                  disabled={selectedIds.size === 0 || bulkLoading}
+                  style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: selectedIds.size > 0 && !bulkLoading ? "pointer" : "not-allowed" }}
+                >
+                  Unpublish
+                </button>
+                {selectedIds.size > 0 && <span style={{ fontSize: 12, color: "#6b7280" }}>{selectedIds.size} selected</span>}
+              </div>
+              <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ textAlign: "left", padding: 8, width: 36 }}>
+                      <input type="checkbox" checked={selectedIds.size === items.length && items.length > 0} onChange={toggleSelectAll} />
+                    </th>
                     <th style={{ textAlign: "left", padding: 8 }}>Title</th>
                     <th style={{ textAlign: "left", padding: 8 }}>Year / Paper / Type</th>
                     <th style={{ textAlign: "left", padding: 8 }}>Source</th>
@@ -621,6 +690,9 @@ const TeacherPastPapersBankPage: React.FC = () => {
                 <tbody>
                   {items.map((p) => (
                     <tr key={p._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: 8 }}>
+                        <input type="checkbox" checked={selectedIds.has(p._id)} onChange={() => toggleSelect(p._id)} />
+                      </td>
                       <td style={{ padding: 8 }}>
                         {p.title}
                         {p.officialSource === true && (
@@ -700,6 +772,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       )}

@@ -325,6 +325,44 @@ router.post("/upload", auth, upload.array("files", 20), async (req, res) => {
   }
 });
 
+// PR-EDGE-2: POST /api/topic-past-papers/bulk/publish
+router.post("/bulk/publish", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(id)).map((id) => mongoose.Types.ObjectId(id));
+    if (validIds.length === 0) return res.json({ updatedCount: 0 });
+    const query = { _id: { $in: validIds } };
+    if (!isAdmin) query.ownerId = ownerId;
+    const result = await TopicPastPaper.updateMany(query, { $set: { status: "published" } });
+    return res.json({ updatedCount: result.modifiedCount });
+  } catch (err) {
+    console.error("TopicPastPapers bulk publish error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PR-EDGE-2: POST /api/topic-past-papers/bulk/unpublish
+router.post("/bulk/unpublish", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(id)).map((id) => mongoose.Types.ObjectId(id));
+    if (validIds.length === 0) return res.json({ updatedCount: 0 });
+    const query = { _id: { $in: validIds } };
+    if (!isAdmin) query.ownerId = ownerId;
+    const result = await TopicPastPaper.updateMany(query, { $set: { status: "draft" } });
+    return res.json({ updatedCount: result.modifiedCount });
+  } catch (err) {
+    console.error("TopicPastPapers bulk unpublish error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // GET /api/topic-past-papers/file/:fileId (download)
 router.get("/file/:fileId", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
@@ -347,6 +385,44 @@ router.get("/file/:fileId", auth, async (req, res) => {
     stream.pipe(res);
   } catch (err) {
     console.error("TopicPastPapers file download error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PR-EDGE-2: Bulk publish — owner/admin only
+router.post("/bulk/publish", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    if (ids.length === 0) return res.json({ updatedCount: 0 });
+    const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id));
+    const query = { _id: { $in: validIds } };
+    if (!isAdmin) query.ownerId = ownerId;
+    const result = await TopicPastPaper.updateMany(query, { $set: { status: "published" } });
+    return res.json({ updatedCount: result.modifiedCount });
+  } catch (err) {
+    console.error("TopicPastPapers bulk publish error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PR-EDGE-2: Bulk unpublish — owner/admin only
+router.post("/bulk/unpublish", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+    if (ids.length === 0) return res.json({ updatedCount: 0 });
+    const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id));
+    const query = { _id: { $in: validIds } };
+    if (!isAdmin) query.ownerId = ownerId;
+    const result = await TopicPastPaper.updateMany(query, { $set: { status: "draft" } });
+    return res.json({ updatedCount: result.modifiedCount });
+  } catch (err) {
+    console.error("TopicPastPapers bulk unpublish error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });

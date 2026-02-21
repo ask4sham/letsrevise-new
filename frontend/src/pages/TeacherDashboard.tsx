@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { createWorksheet } from "../api/worksheets";
+import { getTeacherOverview, type TeacherOverview } from "../api/teacherOverview";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -116,6 +117,9 @@ const TeacherDashboard: React.FC = () => {
   // PR-W2: Create worksheet then navigate to builder
   const [creatingWorksheet, setCreatingWorksheet] = useState(false);
 
+  // PR-EDGE-3: Teacher overview (needs marking, awaiting release, due soon)
+  const [overview, setOverview] = useState<TeacherOverview | null>(null);
+
   const navigate = useNavigate();
 
   // PR5 + PR7: Client-side filtering
@@ -199,6 +203,14 @@ const TeacherDashboard: React.FC = () => {
 
         // 3) Load teacher stats (earnings, purchases, etc.) from BACKEND
         await fetchTeacherStatsFromBackend();
+
+        // 3b) PR-EDGE-3: Load teacher overview (needs marking, awaiting release, etc.)
+        try {
+          const ov = await getTeacherOverview();
+          setOverview(ov);
+        } catch {
+          setOverview(null);
+        }
 
         // 4) PR4: Load taxonomy for unit/topic/requiredPractical badges
         try {
@@ -615,6 +627,89 @@ const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* PR-EDGE-3: Today panel — actionable summary */}
+          {overview && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+                marginBottom: 20,
+                padding: 16,
+                background: "rgba(255,255,255,0.9)",
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.08)",
+              }}
+            >
+              <div style={{ fontWeight: 700, marginRight: 12, marginBottom: 4 }}>Today</div>
+              {(overview.needsMarking > 0 || overview.awaitingRelease > 0 || (overview.dueSoon?.worksheets || 0) > 0) && (
+                <>
+                  {overview.needsMarking > 0 && (
+                    <Link
+                      to="/teacher/worksheets/needs-marking"
+                      style={{
+                        padding: "8px 14px",
+                        background: "#fef3c7",
+                        color: "#92400e",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        border: "1px solid #f59e0b",
+                      }}
+                    >
+                      Needs marking ({overview.needsMarking})
+                    </Link>
+                  )}
+                  {overview.awaitingRelease > 0 && (
+                    <Link
+                      to="/teacher/worksheets"
+                      style={{
+                        padding: "8px 14px",
+                        background: "#dbeafe",
+                        color: "#1e40af",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        border: "1px solid #3b82f6",
+                      }}
+                    >
+                      Awaiting release ({overview.awaitingRelease})
+                    </Link>
+                  )}
+                  {(overview.dueSoon?.worksheets || 0) > 0 && (
+                    <Link
+                      to="/teacher/worksheets/needs-marking"
+                      style={{
+                        padding: "8px 14px",
+                        background: "#f3e8ff",
+                        color: "#6b21a8",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        border: "1px solid #a855f7",
+                      }}
+                    >
+                      Due soon — worksheets ({overview.dueSoon.worksheets})
+                    </Link>
+                  )}
+                </>
+              )}
+              {overview.needsMarking === 0 && overview.awaitingRelease === 0 && (overview.dueSoon?.worksheets || 0) === 0 && (
+                <span style={{ color: "#6b7280", fontSize: 14 }}>Nothing urgent.</span>
+              )}
+              {overview.recentActivity && overview.recentActivity.length > 0 && (
+                <div style={{ width: "100%", marginTop: 8, fontSize: 13 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Recent</div>
+                  {overview.recentActivity.slice(0, 4).map((a, i) => (
+                    <Link key={i} to={a.linkTo} style={{ display: "block", color: "#4b5563", marginBottom: 2, textDecoration: "none" }}>
+                      {a.studentName} · {a.assignmentTitle}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Row 2: Action buttons (Create+AI group, then outline buttons) */}
           <div
