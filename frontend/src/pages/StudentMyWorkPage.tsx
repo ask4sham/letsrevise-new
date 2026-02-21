@@ -26,7 +26,7 @@ function ItemRow({ item }: { item: MyWorkItem }) {
   const primaryLink =
     item.rawStatus === "IN_PROGRESS" || item.rawStatus === "in_progress"
       ? item.linkTo
-      : (item as { viewLink?: string }).viewLink ?? item.linkTo;
+      : item.viewLink ?? item.linkTo;
   return (
     <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
       <td style={{ padding: 12, fontWeight: 600 }}>{item.title}</td>

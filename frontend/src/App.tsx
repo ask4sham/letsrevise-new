@@ -74,6 +74,7 @@ import TeacherExamQuestionBankPage from "./pages/TeacherExamQuestionBankPage";
 import AssessmentPaperEditPage from "./pages/AssessmentPaperEditPage";
 import TeacherWorksheetBuilderPage from "./pages/TeacherWorksheetBuilderPage";
 import StudentWorksheetPage from "./pages/StudentWorksheetPage";
+import StudentQuizPage from "./pages/StudentQuizPage";
 import TeacherWorksheetReportPage from "./pages/TeacherWorksheetReportPage";
 import TeacherWorksheetAttemptPage from "./pages/TeacherWorksheetAttemptPage";
 import TeacherNeedsMarkingPage from "./pages/TeacherNeedsMarkingPage";
@@ -484,6 +485,9 @@ function App() {
 
           {/* PR-W4: Public student worksheet by share link */}
           <Route path="/w/:shareId" element={<StudentWorksheetPage />} />
+
+          {/* PR-EDGE-4.1: Public quiz/assessment by share link */}
+          <Route path="/q/:shareId" element={<StudentQuizPage />} />
 
           {/* PR-W4: Teacher assignment report */}
           <Route

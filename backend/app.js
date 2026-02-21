@@ -76,6 +76,9 @@ app.use("/api/teacher", require("./routes/teacher"));
 // PR-EDGE-4: Student My Work dashboard
 app.use("/api/student", require("./routes/student"));
 
+// PR-EDGE-4.1: Quiz/Assessment assignment share (public by shareId for /q/:shareId)
+app.use("/api/quiz-assignments", require("./routes/quizAssignments"));
+
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 
