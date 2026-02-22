@@ -1087,6 +1087,16 @@ const EditLessonPage: React.FC = () => {
       const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
       const pIdx = pages.findIndex((p) => String(p.pageId) === String(pageId));
       if (pIdx < 0) return prev;
+      const page = pages[pIdx];
+      // PR-EDITOR-GUARD-1: Don't add checkpoint block when page.checkpoint has content
+      if (type === "checkpoint") {
+        const hasPageCheckpoint = Boolean(
+          page?.checkpoint?.question?.trim() &&
+          Array.isArray(page?.checkpoint?.options) &&
+          (page.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
+        );
+        if (hasPageCheckpoint) return prev;
+      }
       const blocks = Array.isArray(pages[pIdx].blocks)
         ? [...(pages[pIdx].blocks as any[])]
         : [];
@@ -3661,11 +3671,23 @@ const EditLessonPage: React.FC = () => {
                       <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {BLOCK_TYPES_FOR_BUTTONS.map((blockType) => {
                           const meta = BLOCK_META[blockType];
+                          // PR-EDITOR-GUARD-1: Don't allow adding checkpoint block when page.checkpoint is used
+                          const hasPageCheckpoint = Boolean(
+                            currentPage?.checkpoint?.question?.trim() &&
+                            Array.isArray(currentPage?.checkpoint?.options) &&
+                            (currentPage!.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
+                          );
+                          const isCheckpointDisabled = blockType === "checkpoint" && hasPageCheckpoint;
                           return (
                             <button
                               key={blockType}
-                              onClick={() => addBlock(currentPage!.pageId, blockType)}
-                              style={getBlockButtonStyle(blockType)}
+                              onClick={() => !isCheckpointDisabled && addBlock(currentPage!.pageId, blockType)}
+                              disabled={isCheckpointDisabled}
+                              title={isCheckpointDisabled ? "Page checkpoint takes precedence; checkpoint blocks are ignored in student view." : undefined}
+                              style={{
+                                ...getBlockButtonStyle(blockType),
+                                ...(isCheckpointDisabled ? { opacity: 0.5, cursor: "not-allowed" } : {}),
+                              }}
                             >
                               + {meta.label}
                             </button>
@@ -3719,7 +3741,13 @@ const EditLessonPage: React.FC = () => {
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
                       const cpWarnings: string[] = [];
+                      const hasPageCheckpointContent = Boolean(
+                        currentPage?.checkpoint?.question?.trim() &&
+                        Array.isArray(currentPage?.checkpoint?.options) &&
+                        (currentPage!.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
+                      );
                       if (isCheckpoint && cp) {
+                        if (hasPageCheckpointContent) cpWarnings.push("Ignored in student view (page checkpoint takes precedence).");
                         if (!(String(cp.prompt ?? "").trim())) cpWarnings.push("Prompt is required.");
                         if (cp.questionType === "mcq") {
                           const filled = (cp.options ?? []).filter((o) => String(o ?? "").trim()).length;
