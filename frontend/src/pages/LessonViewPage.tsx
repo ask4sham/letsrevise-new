@@ -2062,7 +2062,7 @@ const LessonViewPage: React.FC = () => {
       seen.add(lower);
       return true;
     });
-    return deduped.length > 0 ? deduped : null;
+    return deduped.length >= 2 ? deduped : null; // 1 item looks weird as a callout; render as normal text
   };
 
   const renderCallout = (
