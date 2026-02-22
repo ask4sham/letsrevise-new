@@ -1333,20 +1333,30 @@ const TeacherDashboard: React.FC = () => {
                 </Link>
                 <Link
                   to="/teacher/reports/attempts"
-                  style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #3b82f6",
+                    background: "#dbeafe",
+                    color: "#1e40af",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
                 >
                   Monitor Practice
                 </Link>
                 <Link
                   to="/teacher/reports/needs-attention"
-                  style={{ fontSize: 13, color: "#dc2626", fontWeight: 600, textDecoration: "none" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = "underline";
-                    e.currentTarget.style.color = "#b91c1c";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = "none";
-                    e.currentTarget.style.color = "#dc2626";
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "2px solid #dc2626",
+                    background: "#fee2e2",
+                    color: "#b91c1c",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    fontSize: 13,
                   }}
                 >
                   Needs attention →
