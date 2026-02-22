@@ -287,6 +287,9 @@ const StudentDashboard: React.FC = () => {
   // Topic suggestion narrowing (within selected subject) — still useful even with typeable Topic
   const [topicNarrow, setTopicNarrow] = useState("");
 
+  // PR-UX-STU-DASH-2: Filters collapsed by default on desktop
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   // Determine user type best-effort
   const userType = useMemo(() => {
     try {
@@ -758,19 +761,19 @@ const StudentDashboard: React.FC = () => {
       style={{
         minHeight: "100vh",
         background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-        padding: "20px",
+        padding: "16px",
       }}
     >
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Header */}
+        {/* Header - PR-UX-STU-DASH-2.3: reduced spacing */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "30px",
+            marginBottom: "16px",
             flexWrap: "wrap",
-            gap: "20px",
+            gap: "12px",
           }}
         >
           <div>
@@ -795,6 +798,9 @@ const StudentDashboard: React.FC = () => {
                 🔥 Advanced mode enabled (Deeper knowledge)
               </div>
             )}
+            <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: "8px 0 0 0" }}>
+              This week: Start a lesson to begin tracking progress.
+            </p>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
@@ -838,22 +844,22 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Actions Section */}
+        {/* Start learning - PR-UX-STU-DASH-2: compact */}
         <div
           style={{
             background: "white",
-            padding: "25px",
+            padding: "14px 20px",
             borderRadius: "12px",
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            marginBottom: "30px",
+            marginBottom: "16px",
           }}
         >
-          <h3 style={{ color: "#333", marginBottom: "20px" }}>Quick Actions</h3>
-          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
+          <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Start learning</h3>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
             <button
               onClick={() => navigate("/browse-lessons")}
               style={{
-                padding: "12px 24px",
+                padding: "10px 18px",
                 background: "#48bb78",
                 color: "white",
                 border: "none",
@@ -867,12 +873,10 @@ const StudentDashboard: React.FC = () => {
             >
               🔍 Browse Lessons
             </button>
-            
-            {/* ✅ UPDATED: Exam Practice button in Quick Actions - Now goes to /assessments/papers */}
             <button
               onClick={handleExamPractice}
               style={{
-                padding: "12px 24px",
+                padding: "10px 18px",
                 background: "#4f46e5",
                 color: "white",
                 border: "none",
@@ -886,29 +890,10 @@ const StudentDashboard: React.FC = () => {
             >
               📝 Exam Practice
             </button>
-            
-            <button
-              onClick={() => navigate("/student/my-progress")}
-              style={{
-                padding: "12px 24px",
-                background: "#667eea",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📊 View Progress
-            </button>
-
             <Link
               to="/student/my-work"
               style={{
-                padding: "12px 24px",
+                padding: "10px 18px",
                 background: "#059669",
                 color: "white",
                 border: "none",
@@ -923,74 +908,54 @@ const StudentDashboard: React.FC = () => {
             >
               📋 My Work
             </Link>
+            <button
+              onClick={() => navigate("/student/my-progress")}
+              style={{
+                padding: "10px 18px",
+                background: "#667eea",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              📊 View Progress
+            </button>
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters - PR-UX-STU-DASH-2.1: collapsible, collapsed by default */}
         <div
           style={{
             background: "white",
-            padding: "25px",
+            padding: filtersOpen ? "20px" : "14px 20px",
             borderRadius: "12px",
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            marginBottom: "30px",
+            marginBottom: "16px",
           }}
         >
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
+              flexWrap: "wrap",
               alignItems: "center",
               gap: 12,
-              flexWrap: "wrap",
-              marginBottom: "20px",
+              marginBottom: filtersOpen ? 16 : 0,
             }}
           >
-            <h3 style={{ color: "#333", margin: 0 }}>Filter Lessons</h3>
-
-            {/* ✅ UPDATED: Toggle button with localStorage persistence */}
-            <button
-              type="button"
-              onClick={() => {
-                setAdvancedMode((v) => {
-                  const newValue = !v;
-                  localStorage.setItem("advancedMode", String(newValue));
-                  return newValue;
-                });
-              }}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.18)",
-                background: advancedMode ? "#111827" : "#3b82f6",
-                color: "white",
-                fontWeight: 800,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {advancedMode ? "Deeper knowledge: ON" : "Deeper knowledge"}
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: "15px",
-              alignItems: "end",
-            }}
-          >
-            {/* Subject */}
-            <div>
-              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
+            <div style={{ minWidth: 140 }}>
+              <label style={{ display: "block", marginBottom: 4, color: "#666", fontSize: "0.85rem", fontWeight: 600 }}>
                 Subject
               </label>
               <select
                 name="subject"
                 value={filters.subject}
                 onChange={handleFilterChange}
-                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: 14 }}
               >
                 <option value="">All Subjects</option>
                 {subjectOptions.map((s) => (
@@ -1001,6 +966,50 @@ const StudentDashboard: React.FC = () => {
               </select>
             </div>
 
+            {/* Search - always visible when collapsed */}
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <label style={{ display: "block", marginBottom: 4, color: "#666", fontSize: "0.85rem", fontWeight: 600 }}>
+                Search
+              </label>
+              <input
+                type="text"
+                name="search"
+                placeholder="Search title, subject, topic..."
+                value={filters.search}
+                onChange={handleFilterChange}
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: 14 }}
+              />
+            </div>
+
+            {/* Advanced filters toggle */}
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                background: filtersOpen ? "#e5e7eb" : "white",
+                color: "#374151",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: "pointer",
+                alignSelf: "flex-end",
+              }}
+            >
+              {filtersOpen ? "Hide filters" : "Advanced filters"}
+            </button>
+
+            {filtersOpen && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "15px",
+                alignItems: "end",
+                marginTop: 16,
+              }}
+            >
             {/* Topic (TYPEABLE) */}
             <div>
               <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
@@ -1086,36 +1095,29 @@ const StudentDashboard: React.FC = () => {
               />
             </div>
 
-            {/* Search */}
-            <div style={{ gridColumn: "span 2" }}>
-              <label style={{ display: "block", marginBottom: "8px", color: "#666", fontWeight: "bold" }}>
-                Search
-              </label>
-              <input
-                type="text"
-                name="search"
-                placeholder="Search title, subject, topic, level, board..."
-                value={filters.search}
-                onChange={handleFilterChange}
-                style={{ width: "100%", padding: "10px", border: "2px solid #e2e8f0", borderRadius: "6px" }}
-              />
+            {/* Deeper knowledge toggle */}
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
               <button
                 type="button"
                 onClick={() => {
-                  loadPublishedLessons();
+                  setAdvancedMode((v) => {
+                    const newValue = !v;
+                    localStorage.setItem("advancedMode", String(newValue));
+                    return newValue;
+                  });
                 }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid rgba(0,0,0,0.18)",
-                  background: "#3b82f6",
+                  background: advancedMode ? "#111827" : "#3b82f6",
                   color: "white",
                   fontWeight: 800,
                   cursor: "pointer",
-                  marginTop: 10,
+                  whiteSpace: "nowrap",
                 }}
               >
-                Search
+                {advancedMode ? "Deeper knowledge: ON" : "Deeper knowledge"}
               </button>
             </div>
 
@@ -1137,146 +1139,111 @@ const StudentDashboard: React.FC = () => {
                 </select>
               </div>
             )}
+            </div>
+            )}
           </div>
         </div>
 
-        {/* PR13.3: Recommended next (from misconception topics) */}
+        {/* PR-UX-STU-DASH-1: Recommended next - PR-UX-STU-DASH-2.2: slim, single row */}
         <div
           style={{
-            marginBottom: 32,
-            paddingBottom: 24,
-            borderBottom: "1px solid #e2e8f0",
+            background: "white",
+            padding: "12px 16px",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            marginBottom: "16px",
           }}
         >
-          <h2 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1.5rem" }}>Recommended next</h2>
-          <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: "0.95rem" }}>Based on your recent attempts.</p>
-          {recLoading && <p style={{ color: "#6b7280", margin: 0 }}>Loading recommendations…</p>}
-          {recError && <p style={{ color: "#dc2626", margin: 0 }}>{recError}</p>}
-          {!recLoading && !recError && recLessons.length === 0 && recTopics.length === 0 && (
-            <p style={{ color: "#6b7280", margin: 0 }}>
-              Answer a few practice questions to get personalised recommendations.
-            </p>
-          )}
-          {!recLoading && !recError && (recTopics.length > 0 || recLessons.length > 0) && (
-            <>
-              {recTopics.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-                  {recTopics.slice(0, 8).map((t) => (
-                    <span
-                      key={t.topicKey}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 20,
-                        background: "#fef3c7",
-                        color: "#92400e",
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {t.topic ?? t.topicKey}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {recLessons.length > 0 ? (
+          {filteredLessons.length > 0 ? (
+            (() => {
+              const recommendedLesson = filteredLessons[0];
+              return (
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
-                    gap: "25px",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: 12,
                   }}
                 >
-                  {recLessons.map((lesson) => {
-                    return (
-                      <div
-                        key={lesson.id}
-                        onClick={() => navigate(`/lesson/${lesson.id}`)}
+                  <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b7280", marginRight: 4 }}>Recommended next</span>
+                  <span style={{ fontSize: "1rem", fontWeight: 600, color: "#111827" }}>{recommendedLesson.title}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        background: "#e2e8f0",
+                        borderRadius: 12,
+                        fontSize: "0.75rem",
+                        color: "#4a5568",
+                      }}
+                    >
+                      {recommendedLesson.subject}
+                    </span>
+                    {recommendedLesson.examBoardName && recommendedLesson.examBoardName !== "Not set" && (
+                      <span
                         style={{
-                          background: "white",
-                          borderRadius: "12px",
-                          overflow: "hidden",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          cursor: "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          height: "100%",
+                          padding: "2px 8px",
+                          background: "#fef3c7",
+                          borderRadius: 12,
+                          fontSize: "0.75rem",
+                          color: "#92400e",
                         }}
                       >
-                        <div
-                          style={{
-                            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                            padding: "20px",
-                            color: "white",
-                          }}
-                        >
-                          <h3 style={{ margin: 0, fontSize: "1.25rem" }}>{lesson.title}</h3>
-                          <p style={{ margin: "5px 0 0 0", opacity: 0.9, fontSize: "0.9rem" }}>By {lesson.teacherName}</p>
-                        </div>
-                        <div style={{ padding: "20px", flexGrow: 1 }}>
-                          <div style={{ marginBottom: "12px" }}>
-                            <LessonAccessBadge
-                              hasAccess={lesson.hasAccess}
-                              locked={lesson.locked}
-                              reason={lesson.reason}
-                              isFreePreview={lesson.isFreePreview}
-                            />
-                          </div>
-                          {lesson.description?.trim() ? (
-                            <p
-                              style={{
-                                color: "#666",
-                                lineHeight: 1.5,
-                                marginBottom: "15px",
-                                display: "-webkit-box",
-                                WebkitLineClamp: 3,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                              }}
-                            >
-                              {lesson.description}
-                            </p>
-                          ) : null}
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                            <span
-                              style={{
-                                padding: "4px 10px",
-                                background: "#e2e8f0",
-                                borderRadius: "20px",
-                                fontSize: "0.8rem",
-                                color: "#4a5568",
-                              }}
-                            >
-                              {lesson.subject}
-                            </span>
-                            <span
-                              style={{
-                                padding: "4px 10px",
-                                background: "#bee3f8",
-                                borderRadius: "20px",
-                                fontSize: "0.8rem",
-                                color: "#2c5282",
-                              }}
-                            >
-                              {lesson.topic}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        {recommendedLesson.examBoardName}
+                      </span>
+                    )}
+                  </div>
+                  <Link to={`/lesson/${recommendedLesson.id}`} style={{ marginLeft: "auto" }}>
+                    <button
+                      style={{
+                        padding: "8px 16px",
+                        background: "#48bb78",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Continue
+                    </button>
+                  </Link>
                 </div>
-              ) : null}
-            </>
+              );
+            })()
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b7280" }}>Recommended next</span>
+              <span style={{ fontSize: "0.95rem", color: "#374151" }}>Start your first lesson</span>
+              <Link to="/browse-lessons">
+                <button
+                  style={{
+                    padding: "8px 16px",
+                    background: "#48bb78",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  Browse lessons
+                </button>
+              </Link>
+            </div>
           )}
         </div>
 
-        {/* Results Count */}
+        {/* Results Count - PR-UX-STU-DASH-2.3: reduced spacing */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "20px",
+            marginBottom: "12px",
           }}
         >
           <h2 style={{ color: "#333", margin: 0 }}>Available Lessons</h2>
