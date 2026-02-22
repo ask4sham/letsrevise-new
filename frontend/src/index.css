@@ -39,3 +39,13 @@ code {
   justify-content: flex-end;
   width: 44px;
 }
+
+/* PR-UX-DASH-TEACH-2: Teacher dashboard 3-column layout stacks on mobile */
+@media (max-width: 900px) {
+  .teacher-dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .teacher-dashboard-main { order: 1; }
+  .teacher-dashboard-left { order: 2; }
+  .teacher-dashboard-right { order: 3; }
+}

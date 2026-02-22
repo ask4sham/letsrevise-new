@@ -609,8 +609,41 @@ const TeacherDashboard: React.FC = () => {
         padding: "20px",
       }}
     >
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        {/* Header — 3 explicit rows: title+ShamCoins | buttons | helper */}
+      {/* PR-UX-DASH-TEACH-2: 3-column layout — left Content stack | middle main | right Tools+Stats */}
+      <div
+        className="teacher-dashboard-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "260px minmax(0, 1fr) 240px",
+          gap: 24,
+          maxWidth: 1400,
+          margin: "0 auto",
+        }}
+      >
+        {/* LEFT: Content actions (vertical stack) */}
+        <aside className="teacher-dashboard-left" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+            <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Content</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Lessons</div>
+              <Link to="/create-lesson" style={{ padding: "10px 14px", background: "#48bb78", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, textAlign: "center" }}>+ Create lesson</Link>
+              <button type="button" onClick={openAiModal} style={{ padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>✨ Generate with AI</button>
+              <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Browse lessons</Link>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Banks</div>
+              <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic Banks → Flashcards</Link>
+              <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic Banks → Quizzes</Link>
+              <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic Banks → Past Papers</Link>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Worksheets</div>
+              <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "#059669", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%" }}>{creatingWorksheet ? "Creating…" : "📄 Create worksheet"}</button>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Assessment</div>
+              <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment Papers</Link>
+              <Link to="/teacher/exam-question-bank" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create Questions</Link>
+            </div>
+          </div>
+        </aside>
+
+        {/* MIDDLE: Main dashboard content */}
+        <main className="teacher-dashboard-main" style={{ minWidth: 0 }}>
         <div style={{ marginBottom: "30px" }}>
           {/* Row 1: Title + Welcome (left), ShamCoins (right) */}
           <div
@@ -649,46 +682,52 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* PR-EDGE-3: Today panel — actionable summary */}
+          {/* PR-EDGE-3: Today panel — actionable summary; PR-UX-DASH-TEACH-1: renamed + badge strip */}
           {overview && (
             <div
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                gap: 12,
+                flexDirection: "column",
+                gap: 16,
                 marginBottom: 20,
-                padding: 16,
+                padding: 20,
                 background: "rgba(255,255,255,0.9)",
                 borderRadius: 12,
                 border: "1px solid rgba(0,0,0,0.08)",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
               }}
             >
-              <div style={{ fontWeight: 700, marginRight: 12, marginBottom: 4 }}>Today</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: 2 }}>Today&apos;s interaction</div>
+                <div style={{ fontSize: 13, color: "#6b7280" }}>What students did today</div>
+              </div>
               {overviewLoading && <span style={{ color: "#6b7280", fontSize: 14 }}>Loading…</span>}
               {overviewError && (
-                <span style={{ color: "#991b1b", fontSize: 14, marginRight: 8 }}>{overviewError}. </span>
+                <>
+                  <span style={{ color: "#991b1b", fontSize: 14, marginRight: 8 }}>{overviewError}. </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setOverviewLoading(true);
+                      setOverviewError(null);
+                      try {
+                        const ov = await getTeacherOverview();
+                        setOverview(ov);
+                      } catch {
+                        setOverviewError("Could not load overview");
+                      } finally {
+                        setOverviewLoading(false);
+                      }
+                    }}
+                    style={{ padding: "4px 10px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}
+                  >
+                    Retry
+                  </button>
+                </>
               )}
-              {overviewError && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setOverviewLoading(true);
-                    setOverviewError(null);
-                    try {
-                      const ov = await getTeacherOverview();
-                      setOverview(ov);
-                    } catch {
-                      setOverviewError("Could not load overview");
-                    } finally {
-                      setOverviewLoading(false);
-                    }
-                  }}
-                  style={{ padding: "4px 10px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}
-                >
-                  Retry
-                </button>
-              )}
-              {overview && !overviewLoading && ((overview.needsMarking?.worksheets?.count ?? 0) > 0 ||
+              {overview && !overviewLoading && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              {((overview.needsMarking?.worksheets?.count ?? 0) > 0 ||
                 (overview.awaitingRelease?.worksheets?.count ?? 0) > 0 ||
                 (overview.awaitingRelease?.quizzes?.count ?? 0) > 0 ||
                 (overview.awaitingRelease?.assessments?.count ?? 0) > 0 ||
@@ -885,8 +924,10 @@ const TeacherDashboard: React.FC = () => {
                 (overview.awaitingReleaseTotal ?? 0) === 0 && (
                 <span style={{ color: "#6b7280", fontSize: 14 }}>Nothing urgent.</span>
               )}
+              </div>
+              )}
               {overview && overview.recentActivity && overview.recentActivity.length > 0 && (
-                <div style={{ width: "100%", marginTop: 8, fontSize: 13 }}>
+                <div style={{ width: "100%", paddingTop: 12, borderTop: "1px solid #e5e7eb", fontSize: 13 }}>
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>Recent</div>
                   {overview.recentActivity.slice(0, 10).map((a, i) => (
                     <Link key={i} to={a.link} style={{ display: "block", color: "#4b5563", marginBottom: 2, textDecoration: "none" }}>
@@ -934,151 +975,6 @@ const TeacherDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Row 2: Action buttons (Create+AI group, then outline buttons) */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              flexWrap: "wrap",
-              marginBottom: "6px",
-            }}
-          >
-            <div style={{ display: "flex", gap: "8px" }}>
-              <Link
-                to="/create-lesson"
-                style={{
-                  padding: "10px 20px",
-                  background: "#48bb78",
-                  color: "white",
-                  textDecoration: "none",
-                  borderRadius: "6px",
-                  fontWeight: "bold",
-                }}
-              >
-                + Create lesson (manual)
-              </Link>
-              <button
-                type="button"
-                onClick={openAiModal}
-                style={{
-                  padding: "10px 16px",
-                  background: "#0d6efd",
-                  color: "#fff",
-                  border: "1px solid #0d6efd",
-                  borderRadius: "6px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-                title="Generate a first draft lesson from a topic (template + AI content)"
-              >
-                ✨ Generate with AI
-              </button>
-            </div>
-            <Link
-              to="/browse-lessons"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Browse Lessons
-            </Link>
-            <Link
-              to="/assessments/papers/builder"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              📝 Assessment Papers
-            </Link>
-            <Link
-              to="/teacher/exam-question-bank"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Create Questions
-            </Link>
-            <Link
-              to="/teacher/topic-banks/flashcards"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Topic Banks → Flashcards
-            </Link>
-            <Link
-              to="/teacher/topic-banks/quizzes"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Topic Banks → Quizzes
-            </Link>
-            <Link
-              to="/teacher/topic-banks/past-papers"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Topic Banks → Past Papers
-            </Link>
-            <Link
-              to="/dashboard"
-              style={{
-                padding: "10px 16px",
-                background: "white",
-                color: "#374151",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              Main Dashboard
-            </Link>
-          </div>
-
-          {/* Row 3: AI helper (bigger + bolder) */}
-          <div style={{ fontSize: "14px", fontWeight: 600, color: "#1f6feb", marginBottom: "14px" }}>
-            AI: optional first-draft from a topic. May be limited during rollout.
-          </div>
         </div>
 
         {/* Start Here: collapsible (default collapsed) */}
@@ -1181,68 +1077,6 @@ const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Teacher Stats */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-            gap: "20px",
-            marginBottom: "30px",
-          }}
-        >
-          <div
-            style={{
-              background: "white",
-              padding: "25px",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div style={{ fontSize: "2rem", color: "#667eea", marginBottom: "10px" }}>📚</div>
-            <h3 style={{ color: "#333", marginBottom: "5px" }}>{stats.totalLessons}</h3>
-            <p style={{ color: "#666", fontSize: "0.9rem" }}>Total Lessons Created</p>
-          </div>
-
-          <div
-            style={{
-              background: "white",
-              padding: "25px",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div style={{ fontSize: "2rem", color: "#48bb78", marginBottom: "10px" }}>👁️</div>
-            <h3 style={{ color: "#333", marginBottom: "5px" }}>{stats.publishedLessons}</h3>
-            <p style={{ color: "#666", fontSize: "0.9rem" }}>Published Lessons</p>
-          </div>
-
-          <div
-            style={{
-              background: "white",
-              padding: "25px",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div style={{ fontSize: "2rem", color: "#ed8936", marginBottom: "10px" }}>💰</div>
-            <h3 style={{ color: "#333", marginBottom: "5px" }}>{stats.totalEarnings} ShamCoins</h3>
-            <p style={{ color: "#666", fontSize: "0.9rem" }}>Total Earnings</p>
-          </div>
-
-          <div
-            style={{
-              background: "white",
-              padding: "25px",
-              borderRadius: "12px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div style={{ fontSize: "2rem", color: "#9f7aea", marginBottom: "10px" }}>🛒</div>
-            <h3 style={{ color: "#333", marginBottom: "5px" }}>{stats.totalPurchases}</h3>
-            <p style={{ color: "#666", fontSize: "0.9rem" }}>Total Purchases</p>
-          </div>
         </div>
 
         {/* Lessons List */}
@@ -2004,250 +1838,44 @@ const TeacherDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div
-          style={{
-            background: "white",
-            padding: "25px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          }}
-        >
-          <h3 style={{ color: "#333", marginBottom: "20px" }}>Quick Actions</h3>
-          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
-            {/* ✅ NEW: AI button in quick actions */}
-            <button
-              onClick={openAiModal}
-              style={{
-                padding: "12px 24px",
-                background: "#111827",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              ✨ Generate with AI
-            </button>
+        </main>
 
-            <Link
-              to="/create-lesson"
-              style={{
-                padding: "12px 24px",
-                background: "#48bb78",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <span>+</span> Create lesson (manual)
-            </Link>
-
-            {/* ✅ NEW: Assessment Paper Builder in Quick Actions */}
-            <Link
-              to="/assessments/papers/builder"
-              style={{
-                padding: "12px 24px",
-                background: "#4f46e5",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📝 Assessment Papers
-            </Link>
-
-            <Link
-              to="/teacher/exam-question-bank"
-              style={{
-                padding: "12px 24px",
-                background: "#4f46e5",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📋 Create Questions
-            </Link>
-
-            <Link
-              to="/teacher/topic-banks/flashcards"
-              style={{
-                padding: "12px 24px",
-                background: "#0ea5e9",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📚 Topic Banks → Flashcards
-            </Link>
-
-            <Link
-              to="/teacher/topic-banks/quizzes"
-              style={{
-                padding: "12px 24px",
-                background: "#0ea5e9",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📝 Topic Banks → Quizzes
-            </Link>
-
-            <Link
-              to="/teacher/topic-banks/past-papers"
-              style={{
-                padding: "12px 24px",
-                background: "#0ea5e9",
-                color: "white",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📄 Topic Banks → Past Papers
-            </Link>
-
-            <button
-              type="button"
-              onClick={handleCreateWorksheet}
-              disabled={creatingWorksheet}
-              style={{
-                padding: "12px 24px",
-                background: "#059669",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: creatingWorksheet ? "wait" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              {creatingWorksheet ? "Creating…" : "📄 Create worksheet"}
-            </button>
-
-            <Link
-              to="/teacher/worksheets/needs-marking"
-              style={{
-                padding: "12px 24px",
-                background: "#fef3c7",
-                color: "#92400e",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                border: "1px solid #f59e0b",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📋 Needs marking
-            </Link>
-
-            <Link
-              to="/teacher/reports/needs-attention"
-              style={{
-                padding: "12px 24px",
-                background: "rgba(220,38,38,0.08)",
-                color: "#dc2626",
-                textDecoration: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                border: "2px solid #dc2626",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              Needs attention →
-            </Link>
-
-            <button
-              onClick={handleViewAnalytics}
-              style={{
-                padding: "12px 24px",
-                background: "#667eea",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📊 View Analytics
-            </button>
-
-            <button
-              onClick={handleCashOut}
-              style={{
-                padding: "12px 24px",
-                background: "#ed8936",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              💰 Cash Out Earnings
-            </button>
-
-            <button
-              onClick={fixEarnings}
-              style={{
-                padding: "12px 24px",
-                background: "#9f7aea",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              🔧 Fix Earnings
-            </button>
+        {/* RIGHT: Teacher tools + compact stats (vertical stack) */}
+        <aside className="teacher-dashboard-right" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+            <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Teacher tools</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Link to="/teacher/worksheets/needs-marking" style={{ padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📋 Needs marking</Link>
+              <Link to="/teacher/reports/needs-attention" style={{ padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>Needs attention →</Link>
+              <button type="button" onClick={handleViewAnalytics} style={{ padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>📊 View analytics</button>
+              <button type="button" onClick={handleCashOut} style={{ padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>💰 Cash out earnings</button>
+              <button type="button" onClick={fixEarnings} style={{ padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>🔧 Fix earnings</button>
+              <Link to="/dashboard" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Main Dashboard</Link>
+            </div>
           </div>
-        </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ background: "white", padding: 10, borderRadius: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}>
+              <div style={{ fontSize: "1rem", color: "#667eea", marginBottom: 2 }}>📚</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem", color: "#333" }}>{stats.totalLessons}</div>
+              <div style={{ fontSize: 10, color: "#6b7280" }}>Total lessons</div>
+            </div>
+            <div style={{ background: "white", padding: 10, borderRadius: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}>
+              <div style={{ fontSize: "1rem", color: "#48bb78", marginBottom: 2 }}>👁️</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem", color: "#333" }}>{stats.publishedLessons}</div>
+              <div style={{ fontSize: 10, color: "#6b7280" }}>Published</div>
+            </div>
+            <div style={{ background: "white", padding: 10, borderRadius: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}>
+              <div style={{ fontSize: "1rem", color: "#ed8936", marginBottom: 2 }}>💰</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem", color: "#333" }}>{stats.totalEarnings}</div>
+              <div style={{ fontSize: 10, color: "#6b7280" }}>Earnings</div>
+            </div>
+            <div style={{ background: "white", padding: 10, borderRadius: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", textAlign: "center" }}>
+              <div style={{ fontSize: "1rem", color: "#9f7aea", marginBottom: 2 }}>🛒</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem", color: "#333" }}>{stats.totalPurchases}</div>
+              <div style={{ fontSize: 10, color: "#6b7280" }}>Purchases</div>
+            </div>
+          </div>
+        </aside>
 
         {/* ✅ Checklist Modal */}
         {checklistOpen && (
