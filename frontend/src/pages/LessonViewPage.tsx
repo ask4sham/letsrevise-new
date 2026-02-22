@@ -10,6 +10,7 @@ import { ReviewList, ReviewForm } from "../components/reviews";
 import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
 import { Section } from "../components/lesson/Section";
+import { LessonCheckpoint } from "../components/lesson/LessonCheckpoint";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -262,12 +263,6 @@ function getUserLevel(u: User | null): string {
     safeStr((u as any).academicLevel, "");
   return normalizeLevelForCompare(candidate);
 }
-
-type CheckpointFeedback = {
-  open: boolean;
-  correct: boolean;
-  message: string;
-};
 
 // ============================
 // Style-only constants
@@ -1480,17 +1475,6 @@ const LessonViewPage: React.FC = () => {
   // ✅ Only enable legacy reviews when lessonId is a Mongo ObjectId.
   const reviewsEnabled = isMongoObjectId(id);
 
-  // ✅ Checkpoint UI state (per page)
-  const [checkpointSelectionByPage, setCheckpointSelectionByPage] = useState<
-    Record<string, string>
-  >({});
-  const [checkpointFeedback, setCheckpointFeedback] =
-    useState<CheckpointFeedback>({
-      open: false,
-      correct: false,
-      message: "",
-    });
-
   // ============================
   // Visuals (concept diagrams / animations)
   // ============================
@@ -2594,62 +2578,6 @@ const LessonViewPage: React.FC = () => {
     );
   };
 
-  const renderCheckpointBlock = (block: LessonPageBlock, idx: number) => {
-    const questionType = block.questionType === "short" ? "short" : "mcq";
-    const options = Array.isArray(block.options) ? block.options : [];
-    // PR-UX-LESSON-2: Don't render empty checkpoint blocks
-    const hasItems =
-      (questionType === "short" && block.prompt != null && String(block.prompt).trim().length > 0) ||
-      (questionType === "mcq" && options.filter((o: any) => o != null && String(o).trim()).length >= 2);
-    if (!hasItems) return null;
-
-    const prompt = block.prompt ?? "Quick check";
-    const name = `checkpoint-${idx}-${currentPage?.pageId ?? idx}`;
-    const entitled = Boolean(accessDecision?.allowed);
-
-    return (
-      <div
-        key={`checkpoint-${idx}`}
-        style={{
-          marginTop: 14,
-          padding: 16,
-          borderRadius: 14,
-          background: "#f8f9fa",
-          border: "2px solid rgba(59,130,246,0.25)",
-          boxShadow: "0 0 0 2px rgba(59,130,246,0.08)",
-          textAlign: "left",
-        }}
-      >
-        <div style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>
-          Checkpoint
-        </div>
-        <div style={{ fontWeight: 800, marginBottom: 10, color: "#111827", fontSize: BASE_FONT_SIZE }}>
-          {prompt}
-        </div>
-        {questionType === "mcq" && options.length > 0 ? (
-          <CheckpointMCQBlock
-            block={block}
-            name={name}
-            entitled={entitled}
-            lessonId={id ?? undefined}
-          />
-        ) : questionType === "short" ? (
-          <CheckpointShortBlock
-            block={block}
-            entitled={entitled}
-            lessonId={id ?? undefined}
-          />
-        ) : (
-          <CheckpointShortBlock
-            block={block}
-            entitled={entitled}
-            lessonId={id ?? undefined}
-          />
-        )}
-      </div>
-    );
-  };
-
   const renderHero = (hero?: LessonPageHero) => {
     const h = hero || { type: "none", src: "", caption: "" };
     const src = normalizeHeroSrc(h);
@@ -3005,9 +2933,44 @@ const LessonViewPage: React.FC = () => {
         ? Math.round((progressCount / orderedPages.length) * 100)
         : 0;
 
-    const currentSelection =
-      checkpointSelectionByPage[currentPage.pageId] || "";
-    const correctAnswer = safeStr(currentPage.checkpoint?.answer, "");
+    // PR-UX-LESSON-3: Single checkpoint per page — prefer page.checkpoint, else first valid block
+    const pageCp = currentPage.checkpoint;
+    const hasPageCheckpoint =
+      Boolean(pageCp?.question && Array.isArray(pageCp?.options)) &&
+      (pageCp!.options!.filter((o: any) => o != null && String(o).trim()).length >= 2);
+    const blocks = currentPage.blocks || [];
+    const blocksToRender = blocks.filter((b) => {
+      if (b.type === "stretch" && !showDeeperKnowledge) return false;
+      if (b.type === "checkpoint") return false; // PR-UX-LESSON-3: always render checkpoint via LessonCheckpoint
+      return true;
+    });
+    const firstCheckpointBlock = blocks.find((b) => {
+      if (b.type !== "checkpoint") return false;
+      const qType = b.questionType === "short" ? "short" : "mcq";
+      const opts = Array.isArray(b.options) ? b.options : [];
+      const hasItems =
+        (qType === "short" && b.prompt != null && String(b.prompt).trim().length > 0) ||
+        (qType === "mcq" && opts.filter((o: any) => o != null && String(o).trim()).length >= 2);
+      return hasItems;
+    });
+    const checkpointData = hasPageCheckpoint
+      ? {
+          mode: "mcq" as const,
+          prompt: safeStr(pageCp!.question, ""),
+          options: (pageCp!.options || []).filter((o: any) => o != null && String(o).trim()),
+          correctAnswer: safeStr(pageCp!.answer, ""),
+          name: `checkpoint-${currentPage.pageId}`,
+        }
+      : firstCheckpointBlock
+      ? {
+          mode: (firstCheckpointBlock.questionType === "short" ? "short" : "mcq") as "mcq" | "short",
+          prompt: firstCheckpointBlock.prompt ?? "Quick check",
+          options: Array.isArray(firstCheckpointBlock.options) ? firstCheckpointBlock.options.filter((o: any) => o != null && String(o).trim()) : [],
+          correctAnswer: safeStr(firstCheckpointBlock.correctAnswer, ""),
+          explanation: firstCheckpointBlock.explanation,
+          name: `checkpoint-${currentPage.pageId}`,
+        }
+      : null;
 
     return (
       <div
@@ -3319,155 +3282,28 @@ const LessonViewPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Blocks */}
+                {/* Blocks — checkpoint blocks rendered via LessonCheckpoint below */}
                 <div>
-                  {(currentPage.blocks || [])
-                    .filter((b) => (b.type === "stretch" ? showDeeperKnowledge : true))
-                    .map((b, idx) =>
-                      b.type === "checkpoint"
-                        ? renderCheckpointBlock(b, idx)
-                        : b.type === "diagram"
-                        ? renderDiagramBlock(b, idx)
-                        : renderCallout(b.type, safeStr(b.content, ""), idx)
-                    )}
+                  {blocksToRender.map((b, idx) =>
+                    b.type === "diagram"
+                      ? renderDiagramBlock(b, idx)
+                      : renderCallout(b.type, safeStr(b.content, ""), idx)
+                  )}
                 </div>
 
-                {/* Checkpoint - UPDATED WITH LARGER FONTS */}
-                {currentPage.checkpoint?.question &&
-                  Array.isArray(currentPage.checkpoint?.options) &&
-                  (currentPage.checkpoint?.options?.length || 0) > 0 && (
-                    <div
-                      style={{
-                        marginTop: 18,
-                        padding: 16,
-                        borderRadius: 14,
-                        background: "#f8f9fa",
-                        border: "3px solid rgba(59,130,246,0.25)",
-                        boxShadow: "0 0 0 2px rgba(59,130,246,0.08)",
-                        textAlign: "left",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: 900,
-                          marginBottom: 10,
-                          color: "#111827",
-                          textAlign: "left",
-                          fontSize: "1.2rem",
-                        }}
-                      >
-                        Checkpoint
-                      </div>
-                      <div
-                        style={{
-                          marginBottom: 10,
-                          color: "#111827",
-                          fontWeight: 700,
-                          textAlign: "left",
-                          fontSize: BASE_FONT_SIZE,
-                          lineHeight: 1.8,
-                        }}
-                      >
-                        {currentPage.checkpoint.question}
-                      </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 10,
-                        }}
-                      >
-                        {currentPage.checkpoint.options!.map((opt, idx) => {
-                          const optText = safeStr(opt, "");
-                          const selected =
-                            optText.trim() === currentSelection.trim();
-
-                          const hasAnswer = Boolean(correctAnswer.trim());
-                          const isCorrect = hasAnswer
-                            ? optText.trim() === correctAnswer.trim()
-                            : false;
-
-                          const selectedIsCorrect = selected && isCorrect;
-                          const selectedIsWrong =
-                            selected && hasAnswer && !isCorrect;
-
-                          const borderColor = selectedIsCorrect
-                            ? "rgba(16,185,129,0.70)"
-                            : selectedIsWrong
-                            ? "rgba(239,68,68,0.55)"
-                            : "rgba(0,0,0,0.14)";
-
-                          const handleSelect = () => {
-                            setCheckpointSelectionByPage((prev) => ({
-                              ...prev,
-                              [currentPage.pageId]: optText,
-                            }));
-                            if (!hasAnswer) {
-                              setCheckpointFeedback({
-                                open: true,
-                                correct: true,
-                                message: "✅ Answer saved!",
-                              });
-                              return;
-                            }
-                            setCheckpointFeedback({
-                              open: true,
-                              correct: isCorrect,
-                              message: isCorrect
-                                ? "✅ Correct!"
-                                : "❌ Not quite — try again.",
-                            });
-                          };
-
-                          return (
-                            <div
-                              key={idx}
-                              className="lr-mcq-option"
-                              role="button"
-                              tabIndex={0}
-                              style={{
-                                border: `2px solid ${borderColor}`,
-                                background: selectedIsCorrect
-                                  ? "#dcfce7"
-                                  : selectedIsWrong
-                                  ? "#fee2e2"
-                                  : "white",
-                                boxShadow: selectedIsCorrect
-                                  ? "0 0 0 2px rgba(16,185,129,0.12)"
-                                  : selectedIsWrong
-                                  ? "0 0 0 2px rgba(239,68,68,0.10)"
-                                  : "none",
-                                fontWeight: 650,
-                                fontSize: BASE_FONT_SIZE,
-                                lineHeight: 1.8,
-                              }}
-                              onClick={handleSelect}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  handleSelect();
-                                }
-                              }}
-                            >
-                              <div className="lr-mcq-text" style={{ color: "#111827" }}>
-                                {opt}
-                              </div>
-                              <div className="lr-mcq-radio">
-                                <input
-                                  type="radio"
-                                  name={`checkpoint-${currentPage.pageId}`}
-                                  value={optText}
-                                  checked={selected}
-                                  onChange={handleSelect}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}
+                {checkpointData && (
+                  <LessonCheckpoint
+                    mode={checkpointData.mode}
+                    prompt={checkpointData.prompt}
+                    options={checkpointData.options}
+                    correctAnswer={checkpointData.correctAnswer}
+                    explanation={checkpointData.explanation}
+                    name={checkpointData.name}
+                    lessonId={id ?? undefined}
+                    entitled={Boolean(accessDecision?.allowed)}
+                  />
+                )}
 
                 {/* Prev / Next */}
                 <div
@@ -3915,71 +3751,6 @@ const LessonViewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ✅ Non-blocking feedback modal */}
-        {checkpointFeedback.open && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.30)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-              zIndex: 9999,
-              fontSize: BASE_FONT_SIZE,
-            }}
-            onClick={() =>
-              setCheckpointFeedback((p) => ({ ...p, open: false }))
-            }
-          >
-            <div
-              style={{
-                width: "min(520px, 95vw)",
-                background: "white",
-                borderRadius: 14,
-                padding: 16,
-                border: `3px solid ${
-                  checkpointFeedback.correct
-                    ? "rgba(16,185,129,0.55)"
-                    : "rgba(239,68,68,0.45)"
-                }`,
-                boxShadow: "0 18px 46px rgba(0,0,0,0.18)",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                style={{
-                  fontWeight: 950 as any,
-                  fontSize: "1.1rem",
-                  marginBottom: 10,
-                }}
-              >
-                {checkpointFeedback.message}
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={() =>
-                    setCheckpointFeedback((p) => ({ ...p, open: false }))
-                  }
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    border: "2px solid rgba(0,0,0,0.16)",
-                    background: "white",
-                    cursor: "pointer",
-                    fontWeight: 900,
-                  }}
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
