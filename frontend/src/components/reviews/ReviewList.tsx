@@ -11,12 +11,14 @@ type ReviewRow = {
 
 interface ReviewListProps {
   lessonId: string;
+  /** PR-UX-REVIEWS-1: When true, parent Section provides the title */
+  hideTitle?: boolean;
 }
 
 const PAGE_SIZE = 5;
 const API_HOST = "http://localhost:5000";
 
-const ReviewList: React.FC<ReviewListProps> = ({ lessonId }) => {
+const ReviewList: React.FC<ReviewListProps> = ({ lessonId, hideTitle = false }) => {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -99,10 +101,12 @@ const ReviewList: React.FC<ReviewListProps> = ({ lessonId }) => {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-        <h3 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
-          Student Reviews ({reviews.length})
-        </h3>
+      <div style={{ display: "flex", justifyContent: hideTitle ? "flex-end" : "space-between", marginBottom: "1.5rem" }}>
+        {!hideTitle && (
+          <h3 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+            Student Reviews ({reviews.length})
+          </h3>
+        )}
 
         <select
           value={sortBy}

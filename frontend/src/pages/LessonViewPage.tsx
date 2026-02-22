@@ -2616,6 +2616,11 @@ const LessonViewPage: React.FC = () => {
         ? Math.round((progressCount / orderedPages.length) * 100)
         : 0;
 
+    // PR-UX-REVIEWS-1: Show Student Reviews only on last page
+    const totalPages = orderedPages.length;
+    const isSinglePage = totalPages <= 1;
+    const isLastPage = isSinglePage || currentPageIndex === totalPages - 1;
+
     // PR-UX-LESSON-3: Single checkpoint per page — prefer page.checkpoint, else first valid block
     const pageCp = currentPage.checkpoint;
     const hasPageCheckpoint =
@@ -3305,100 +3310,87 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 </Section>
 
-                {/* Reviews block */}
-                <div
-                  style={{
-                    marginTop: "40px",
-                    paddingTop: "30px",
-                    borderTop: "1px solid #e2e8f0",
-                    textAlign: "left",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "20px",
-                    }}
-                  >
-                    <h2 style={{ color: "#333", fontSize: "1.65rem" }}>
-                      Student Reviews
-                    </h2>
-
-                    {reviewsEnabled ? (
-                      <button
-                        onClick={() => setShowReviewForm(true)}
-                        style={{
-                          padding: "10px 20px",
-                          background: "#48bb78",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        ✏️ TEST: Write a Review
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {!reviewsEnabled && (
-                    <div
-                      style={{
-                        padding: "14px",
-                        borderRadius: "10px",
-                        background: "#f7f7ff",
-                        color: "rgba(0,0,0,0.75)",
-                        border: "1px solid rgba(0,0,0,0.08)",
-                      }}
-                    >
-                      Reviews are coming soon for these lessons.
-                    </div>
-                  )}
-
-                  {reviewsEnabled && showReviewForm && (
-                    <div style={{ marginBottom: "30px" }}>
-                      <ReviewForm
-                        lessonId={lesson.id}
-                        onReviewSubmitted={handleReviewSubmitted}
-                      />
-                      <div style={{ textAlign: "right", marginTop: "10px" }}>
+                {/* PR-UX-REVIEWS-1: Student Reviews only on last page */}
+                {isLastPage && (
+                  <Section
+                    title="Student Reviews"
+                    id="student-reviews"
+                    right={
+                      reviewsEnabled ? (
                         <button
-                          onClick={() => setShowReviewForm(false)}
+                          onClick={() => setShowReviewForm(true)}
                           style={{
-                            padding: "8px 16px",
-                            background: "#e2e8f0",
-                            color: "#4a5568",
+                            padding: "10px 20px",
+                            background: "#48bb78",
+                            color: "white",
                             border: "none",
                             borderRadius: "6px",
                             cursor: "pointer",
+                            fontWeight: "bold",
                           }}
                         >
-                          Cancel
+                          ✏️ TEST: Write a Review
                         </button>
+                      ) : undefined
+                    }
+                    variant="plain"
+                  >
+                    {!reviewsEnabled && (
+                      <div
+                        style={{
+                          padding: "14px",
+                          borderRadius: "10px",
+                          background: "#f7f7ff",
+                          color: "rgba(0,0,0,0.75)",
+                          border: "1px solid rgba(0,0,0,0.08)",
+                        }}
+                      >
+                        Reviews are coming soon for these lessons.
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {reviewsEnabled && reviewSubmitted && (
-                    <div
-                      style={{
-                        backgroundColor: "#d4edda",
-                        color: "#155724",
-                        padding: "1rem",
-                        borderRadius: "0.375rem",
-                        marginBottom: "1.5rem",
-                        border: "1px solid #c3e6cb",
-                      }}
-                    >
-                      ✅ Thank you for your review!
-                    </div>
-                  )}
+                    {reviewsEnabled && showReviewForm && (
+                      <div style={{ marginBottom: "30px" }}>
+                        <ReviewForm
+                          lessonId={lesson.id}
+                          onReviewSubmitted={handleReviewSubmitted}
+                        />
+                        <div style={{ textAlign: "right", marginTop: "10px" }}>
+                          <button
+                            onClick={() => setShowReviewForm(false)}
+                            style={{
+                              padding: "8px 16px",
+                              background: "#e2e8f0",
+                              color: "#4a5568",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
-                  {reviewsEnabled ? <ReviewList lessonId={lesson.id} /> : null}
-                </div>
+                    {reviewsEnabled && reviewSubmitted && (
+                      <div
+                        style={{
+                          backgroundColor: "#d4edda",
+                          color: "#155724",
+                          padding: "1rem",
+                          borderRadius: "0.375rem",
+                          marginBottom: "1.5rem",
+                          border: "1px solid #c3e6cb",
+                        }}
+                      >
+                        ✅ Thank you for your review!
+                      </div>
+                    )}
+
+                    {reviewsEnabled ? <ReviewList lessonId={lesson.id} hideTitle /> : null}
+                  </Section>
+                )}
               </div>
             </main>
 
