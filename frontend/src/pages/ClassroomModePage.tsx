@@ -25,7 +25,7 @@ interface DiagramStep {
 }
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram";
+  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram" | "keyWords";
   content?: string;
   prompt?: string;
   questionType?: "mcq" | "short";
@@ -412,12 +412,35 @@ const ClassroomModePage: React.FC = () => {
   const prevPage = pageIndex > 0 ? orderedPages[pageIndex - 1] : null;
   const nextPage = pageIndex < orderedPages.length - 1 ? orderedPages[pageIndex + 1] : null;
 
-  const renderCallout = (kind: LessonPageBlock["type"], text: string, idx: number) => {
+  const maybeParseKeywordsFromText = (blockText: string): string[] | null => {
+    const t = String(blockText ?? "").trim();
+    if (t.length === 0 || t.length > 250) return null;
+    if (!t.includes(",")) return null;
+    if (/[.!?]/.test(t)) return null;
+    const items = t.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    const seen = new Set<string>();
+    const deduped = items.filter((s) => {
+      const lower = s.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
+    return deduped.length > 0 ? deduped : null;
+  };
+
+  const renderCallout = (kind: LessonPageBlock["type"] | "keyWords", text: string, idx: number) => {
     const base: React.CSSProperties = { padding: 14, borderRadius: 12, margin: "14px 0", lineHeight: 1.8, background: "white", textAlign: "left", fontSize: BASE_FONT };
-    if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key idea</div><ReactMarkdown>{text}</ReactMarkdown></div>;
+    if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key Idea(s)</div><ReactMarkdown>{text}</ReactMarkdown></div>;
     if (kind === "examTip") return <div key={idx} style={{ ...base, background: "#eef2ff", border: "2px solid rgba(99,102,241,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>🧠 Exam insight</div><ReactMarkdown>{text}</ReactMarkdown></div>;
-    if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake</div><ReactMarkdown>{text}</ReactMarkdown></div>;
+    if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake(s)</div><ReactMarkdown>{text}</ReactMarkdown></div>;
     if (kind === "stretch") return <div key={idx} style={{ ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#5b21b6" }}>🔍 Deeper knowledge</div><ReactMarkdown>{text}</ReactMarkdown></div>;
+    const keywords = (kind === "keyWords" || kind === "text") ? maybeParseKeywordsFromText(text) : null;
+    if (keywords && keywords.length > 0) return (
+      <div key={idx} style={{ ...base, background: "rgba(139,92,246,0.06)", border: "2px solid rgba(139,92,246,0.30)" }}>
+        <div style={{ fontWeight: 900, marginBottom: 8, color: "#5b21b6" }}>🔑 Key words</div>
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>{keywords.map((item, i) => <li key={i}>{item}</li>)}</ul>
+      </div>
+    );
     return <div key={idx} style={{ ...base, background: "#fbfbfc", border: "2px solid rgba(0,0,0,0.10)" }}><ReactMarkdown>{text}</ReactMarkdown></div>;
   };
 

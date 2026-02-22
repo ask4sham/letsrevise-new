@@ -38,7 +38,7 @@ interface DiagramStep {
 }
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram";
+  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram" | "keyWords";
   content?: string;
   prompt?: string;
   questionType?: "mcq" | "short";
@@ -2045,8 +2045,28 @@ const LessonViewPage: React.FC = () => {
     };
   }, []);
 
+  /** PR-UX-LESSON-4: Detect comma-separated keywords list for "Key words" callout. TODO: Long-term: migrate keywords blocks to structured type: keyWords. */
+  const maybeParseKeywordsFromText = (blockText: string): string[] | null => {
+    const t = String(blockText ?? "").trim();
+    if (t.length === 0 || t.length > 250) return null;
+    if (!t.includes(",")) return null;
+    if (/[.!?]/.test(t)) return null; // sentence punctuation → not keywords
+    const items = t
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const seen = new Set<string>();
+    const deduped = items.filter((s) => {
+      const lower = s.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
+    return deduped.length > 0 ? deduped : null;
+  };
+
   const renderCallout = (
-    kind: LessonPageBlock["type"],
+    kind: LessonPageBlock["type"] | "keyWords",
     text: string,
     idx: number
   ) => {
@@ -2072,7 +2092,7 @@ const LessonViewPage: React.FC = () => {
           }}
         >
           <div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>
-            🔑 Key idea
+            🔑 Key Idea(s)
           </div>
           <ReactMarkdown components={markdownComponents as any}>
             {text}
@@ -2112,7 +2132,7 @@ const LessonViewPage: React.FC = () => {
           }}
         >
           <div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>
-            ⚠️ Common mistake
+            ⚠️ Common mistake(s)
           </div>
           <ReactMarkdown components={markdownComponents as any}>
             {text}
@@ -2139,6 +2159,31 @@ const LessonViewPage: React.FC = () => {
           <ReactMarkdown components={markdownComponents as any}>
             {text}
           </ReactMarkdown>
+        </div>
+      );
+    }
+
+    // PR-UX-LESSON-4: Key words callout — explicit keyWords block or text that looks like comma-separated keywords
+    const keywords = kind === "keyWords" || kind === "text" ? maybeParseKeywordsFromText(text) : null;
+    if (keywords && keywords.length > 0) {
+      return (
+        <div
+          key={idx}
+          style={{
+            ...base,
+            background: "rgba(139,92,246,0.06)",
+            border: "2px solid rgba(139,92,246,0.30)",
+            boxShadow: "0 0 0 2px rgba(139,92,246,0.08)",
+          }}
+        >
+          <div style={{ fontWeight: 900, marginBottom: 8, color: "#5b21b6" }}>
+            🔑 Key words
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
+            {keywords.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
         </div>
       );
     }
