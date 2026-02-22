@@ -28,6 +28,8 @@ interface FlashcardsViewProps {
 
   onCardFlip?: (cardId: string) => void;
   onDifficultyChange?: (cardId: string, difficulty: number) => void;
+  /** PR-UX-LESSON-1: When true, parent provides the section title (e.g. via Section) */
+  hideTitle?: boolean;
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -58,6 +60,7 @@ export default function FlashcardsView({
   lessonId = "default_lesson", // ✅ Default value for persistence
   onCardFlip,
   onDifficultyChange,
+  hideTitle = false,
 }: FlashcardsViewProps) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -536,10 +539,12 @@ export default function FlashcardsView({
 
       {/* Header */}
       <div style={styles.headerRow}>
-        <div>
-          <h2 style={styles.title}>{title}</h2>
-          {examCode ? <div style={styles.examCode}>Exam code: {examCode}</div> : null}
-        </div>
+        {!hideTitle ? (
+          <div>
+            <h2 style={styles.title}>{title}</h2>
+            {examCode ? <div style={styles.examCode}>Exam code: {examCode}</div> : null}
+          </div>
+        ) : null}
 
         <div style={styles.rightHeader}>
           <span>{progressText}</span>

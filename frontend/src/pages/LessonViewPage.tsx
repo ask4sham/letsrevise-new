@@ -1,5 +1,5 @@
 // frontend/src/pages/LessonViewPage.tsx
-import React, { useMemo, useEffect, useState, useRef } from "react";
+import React, { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
@@ -9,6 +9,7 @@ import api, { getVisual, getVisualById } from "../services/api";
 import { ReviewList, ReviewForm } from "../components/reviews";
 import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
+import { Section } from "../components/lesson/Section";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -1226,17 +1227,7 @@ function TargetedPracticeSection({
   const displayQuestions = questions.slice(0, TARGETED_PRACTICE_LIMIT);
 
   return (
-    <div
-      style={{
-        marginTop: 40,
-        paddingTop: 30,
-        borderTop: "1px solid #e2e8f0",
-        textAlign: "left",
-      }}
-    >
-      <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0, marginBottom: 16 }}>
-        Targeted practice for you
-      </h2>
+    <Section title="Targeted practice for you" variant="plain">
       {loading && (
         <p style={{ color: "#6b7280", margin: 0 }}>Loading targeted practice…</p>
       )}
@@ -1289,7 +1280,7 @@ function TargetedPracticeSection({
         </>
       )}
       {error && <p style={{ color: "#dc2626", margin: 0 }}>{error}</p>}
-    </div>
+    </Section>
   );
 }
 
@@ -1300,7 +1291,9 @@ function PracticeSection({
   practiceAllowed,
   lessonId,
   practiceSource,
+  topicKey,
   onTryAnotherSet,
+  onLoadBankOnly,
 }: {
   practiceLoading: boolean;
   practiceError: string | null;
@@ -1308,32 +1301,26 @@ function PracticeSection({
   practiceAllowed: boolean | undefined;
   lessonId: string | undefined;
   practiceSource?: "attached" | "bank" | null;
+  topicKey?: string;
   onTryAnotherSet?: () => void;
+  onLoadBankOnly?: () => void;
 }) {
   const displayQuestions = practiceQuestions.slice(0, PRACTICE_DISPLAY_LIMIT);
   const hasMore = practiceQuestions.length > PRACTICE_DISPLAY_LIMIT;
   const canTryAnother = practiceSource === "bank" && practiceQuestions.length > 0 && typeof onTryAnotherSet === "function";
+  const isEmptyAttached = practiceSource === "attached" && practiceQuestions.length === 0;
+  const isEmptyBank = practiceSource === "bank" && practiceQuestions.length === 0;
+  const browseUrl = topicKey ? `/browse-lessons?topicKey=${encodeURIComponent(topicKey)}` : "/browse-lessons";
+
+  const rightLabel = practiceSource === "attached" ? "From lesson" : practiceSource === "bank" ? "From question bank" : null;
 
   return (
-    <div
-      style={{
-        marginTop: 40,
-        paddingTop: 30,
-        borderTop: "1px solid #e2e8f0",
-        textAlign: "left",
-      }}
+    <Section
+      title="Practice questions"
+      id="practice"
+      right={rightLabel ? <span style={{ fontSize: 12, color: "#6b7280" }}>{rightLabel}</span> : undefined}
+      variant="plain"
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-        <h2 style={{ color: "#333", fontSize: "1.65rem", margin: 0 }}>
-          Practice questions
-        </h2>
-        {practiceSource === "attached" && (
-          <span style={{ fontSize: 12, color: "#6b7280" }}>From lesson</span>
-        )}
-        {practiceSource === "bank" && (
-          <span style={{ fontSize: 12, color: "#6b7280" }}>From question bank</span>
-        )}
-      </div>
       {practiceLoading && (
         <p style={{ color: "#6b7280", margin: 0 }}>Loading practice questions…</p>
       )}
@@ -1350,8 +1337,54 @@ function PracticeSection({
       )}
       {!practiceLoading && !practiceError && practiceAllowed === true && (
         <>
-          {practiceQuestions.length === 0 ? (
-            <p style={{ color: "#6b7280", margin: 0 }}>No practice questions attached yet.</p>
+          {isEmptyAttached ? (
+            <div style={{ padding: 16, textAlign: "center" }}>
+              <p style={{ fontWeight: 600, color: "#374151", margin: "0 0 8px 0" }}>No practice questions yet</p>
+              <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: 14 }}>
+                This lesson doesn&apos;t have any attached practice questions. You can practise a set from the question bank instead.
+              </p>
+              {typeof onLoadBankOnly === "function" && (
+                <button
+                  type="button"
+                  onClick={onLoadBankOnly}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: "1px solid #2563eb",
+                    background: "#eff6ff",
+                    color: "#2563eb",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  Try question bank set
+                </button>
+              )}
+            </div>
+          ) : isEmptyBank ? (
+            <div style={{ padding: 16, textAlign: "center" }}>
+              <p style={{ fontWeight: 600, color: "#374151", margin: "0 0 8px 0" }}>No practice questions available</p>
+              <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: 14 }}>
+                There aren&apos;t any published question bank items for this topic yet.
+              </p>
+              <Link
+                to={browseUrl}
+                style={{
+                  display: "inline-block",
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "1px solid #2563eb",
+                  background: "#eff6ff",
+                  color: "#2563eb",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  textDecoration: "none",
+                }}
+              >
+                Browse lessons
+              </Link>
+            </div>
           ) : (
             <>
               {displayQuestions.map((q, idx) => (
@@ -1407,7 +1440,7 @@ function PracticeSection({
           )}
         </>
       )}
-    </div>
+    </Section>
   );
 }
 
@@ -1642,6 +1675,30 @@ const LessonViewPage: React.FC = () => {
       })
       .finally(() => setPracticeLoading(false));
   }, [id, accessDecision?.allowed, accessDecision?.reason, practiceSeed]);
+
+  const loadBankOnly = useCallback(async () => {
+    if (!id || accessDecision?.allowed !== true) return;
+    setPracticeLoading(true);
+    setPracticeError(null);
+    try {
+      const bankSeed = `${practiceSeed}:bank`;
+      const res = await api.get(`/lessons/${id}/practice`, { params: { limit: 10, seed: bankSeed, mode: "bank-only" } });
+      const data = res?.data;
+      setPracticeAllowed(!!data?.allowed);
+      setPracticeQuestions(Array.isArray(data?.questions) ? data.questions : []);
+      setPracticeSource(data?.source ?? "bank");
+    } catch (err: any) {
+      if (err?.response?.status === 402) {
+        setPracticeAllowed(false);
+        setPracticeQuestions([]);
+        setPracticeSource(null);
+      } else {
+        setPracticeError("Failed to load practice questions.");
+      }
+    } finally {
+      setPracticeLoading(false);
+    }
+  }, [id, accessDecision?.allowed, practiceSeed]);
 
   // PR13.2: Fetch targeted practice (misconception-driven) when entitled
   useEffect(() => {
@@ -2538,9 +2595,15 @@ const LessonViewPage: React.FC = () => {
   };
 
   const renderCheckpointBlock = (block: LessonPageBlock, idx: number) => {
-    const prompt = block.prompt ?? "Quick check";
     const questionType = block.questionType === "short" ? "short" : "mcq";
     const options = Array.isArray(block.options) ? block.options : [];
+    // PR-UX-LESSON-2: Don't render empty checkpoint blocks
+    const hasItems =
+      (questionType === "short" && block.prompt != null && String(block.prompt).trim().length > 0) ||
+      (questionType === "mcq" && options.filter((o: any) => o != null && String(o).trim()).length >= 2);
+    if (!hasItems) return null;
+
+    const prompt = block.prompt ?? "Quick check";
     const name = `checkpoint-${idx}-${currentPage?.pageId ?? idx}`;
     const entitled = Boolean(accessDecision?.allowed);
 
@@ -2558,7 +2621,7 @@ const LessonViewPage: React.FC = () => {
         }}
       >
         <div style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: 6, fontWeight: 600 }}>
-          Check your understanding
+          Checkpoint
         </div>
         <div style={{ fontWeight: 800, marginBottom: 10, color: "#111827", fontSize: BASE_FONT_SIZE }}>
           {prompt}
@@ -3293,7 +3356,7 @@ const LessonViewPage: React.FC = () => {
                           fontSize: "1.2rem",
                         }}
                       >
-                        ✅ Check your understanding
+                        Checkpoint
                       </div>
                       <div
                         style={{
@@ -3575,6 +3638,38 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* Check your understanding — Section for consistent spacing */}
+                <Section title="Check your understanding" variant="card">
+                  {quizQuestions.length === 0 ? (
+                    <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
+                      No quiz questions generated for this topic yet.
+                    </div>
+                  ) : (
+                    <QuizView
+                      title=""
+                      questions={
+                        quizQuestions.map((q: any, i: number) => {
+                          const base = {
+                            id: q.id ?? `q_${String(i + 1).padStart(3, "0")}`,
+                            question: q.question ?? "",
+                            explanation: q.explanation,
+                            tags: q.tags,
+                            difficulty: q.difficulty,
+                            marks: q.marks
+                          };
+                          if (q.type === "mcq") {
+                            return { ...base, type: "mcq" as const, options: Array.isArray(q.options) ? q.options : [], correctAnswer: q.correctAnswer ?? "" };
+                          }
+                          if (q.type === "exam") {
+                            return { ...base, type: "exam" as const, markScheme: Array.isArray(q.markScheme) ? q.markScheme : [], correctAnswer: q.correctAnswer ?? "See mark scheme." };
+                          }
+                          return { ...base, type: "short" as const, correctAnswer: q.correctAnswer ?? "" };
+                        })
+                      }
+                    />
+                  )}
+                </Section>
+
                 {/* PR13.2: Targeted practice (entitled only) — above practice */}
                 <TargetedPracticeSection
                   loading={targetedPracticeLoading}
@@ -3592,26 +3687,15 @@ const LessonViewPage: React.FC = () => {
                   practiceAllowed={practiceAllowed}
                   lessonId={id || undefined}
                   practiceSource={practiceSource}
+                  topicKey={topicKeyForBank || undefined}
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
+                  onLoadBankOnly={loadBankOnly}
                 />
 
-                {/* Flashcards section — no "Revision" wrapper; FlashcardsView has its own title */}
-                <div
-                  style={{
-                    marginTop: "40px",
-                    paddingTop: "30px",
-                    borderTop: "1px solid #e2e8f0",
-                    textAlign: "left",
-                  }}
-                >
-                  <div style={{ 
-                    display: "flex", 
-                    justifyContent: "flex-end", 
-                    alignItems: "center",
-                    marginBottom: "16px" 
-                  }}>
-                    {/* AI generation button - only show for teachers/admins */}
-                    {isTeacherOrAdmin ? (
+                {/* Flashcards section — Section provides standard header and spacing */}
+                <Section
+                  title="Flashcards"
+                  right={isTeacherOrAdmin ? (
                       <button
                         onClick={handleAIGenerate}
                         disabled={isGenerating}
@@ -3628,9 +3712,9 @@ const LessonViewPage: React.FC = () => {
                       >
                         {isGenerating ? "Generating..." : "Generate revision with AI"}
                       </button>
-                    ) : null}
-                  </div>
-
+                    ) : undefined}
+                  variant="plain"
+                >
                   <div style={{ display: "grid", gap: "16px" }}>
                     {/* Debug only: requires REACT_APP_DEV_TOOLS=1 (hidden from teachers to avoid confusion) */}
                     {process.env.REACT_APP_DEV_TOOLS === "1" && (
@@ -3686,9 +3770,9 @@ const LessonViewPage: React.FC = () => {
                         ) : null}
                       </div>
                     ) : null}
-                    {/* ✅ RESTORED: Flashcard component using single source of truth */}
-                    <FlashcardsView
-                      title="Flashcards"
+            <FlashcardsView
+              title="Flashcards"
+              hideTitle
                       cards={flashcards.map((flashcard: any, i: number) => ({
                         id: flashcard.id ?? flashcard._id ?? String(i),
                         front: flashcard.front ?? flashcard.question ?? "",
@@ -3699,64 +3783,8 @@ const LessonViewPage: React.FC = () => {
                         tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
                       }))}
                     />
-
-                    {/* Check your understanding: from lesson.quiz.questions (topic bank snapshot) */}
-                    {quizQuestions.length === 0 ? (
-                      <div
-                        style={{
-                          padding: 16,
-                          borderRadius: 12,
-                          background: "#f8fafc",
-                          border: "1px solid #e2e8f0",
-                          color: "#64748b",
-                          fontSize: 14,
-                        }}
-                      >
-                        No quiz questions generated for this topic yet.
-                      </div>
-                    ) : (
-                    <QuizView
-                      title="Check your understanding"
-                      questions={
-                        quizQuestions.map((q: any, i: number) => {
-                          const base = {
-                            id: q.id ?? `q_${String(i + 1).padStart(3, "0")}`,
-                            question: q.question ?? "",
-                            explanation: q.explanation,
-                            tags: q.tags,
-                            difficulty: q.difficulty,
-                            marks: q.marks
-                          };
-
-                          if (q.type === "mcq") {
-                            return {
-                              ...base,
-                              type: "mcq" as const,
-                              options: Array.isArray(q.options) ? q.options : [],
-                              correctAnswer: q.correctAnswer ?? ""
-                            };
-                          }
-
-                          if (q.type === "exam") {
-                            return {
-                              ...base,
-                              type: "exam" as const,
-                              markScheme: Array.isArray(q.markScheme) ? q.markScheme : [],
-                              correctAnswer: q.correctAnswer ?? "See mark scheme."
-                            };
-                          }
-
-                          return {
-                            ...base,
-                            type: "short" as const,
-                            correctAnswer: q.correctAnswer ?? ""
-                          };
-                        })
-                      }
-                    />
-                    )}
                   </div>
-                </div>
+                </Section>
 
                 {/* Reviews block */}
                 <div
@@ -4208,6 +4236,38 @@ const LessonViewPage: React.FC = () => {
           </div>
         )}
 
+        {/* Check your understanding — Section for consistent spacing */}
+        <Section title="Check your understanding" variant="card">
+          {quizQuestions.length === 0 ? (
+            <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
+              No quiz questions generated for this topic yet.
+            </div>
+          ) : (
+            <QuizView
+              title=""
+              questions={
+                quizQuestions.map((q: any, i: number) => {
+                  const base = {
+                    id: q.id ?? `q_${String(i + 1).padStart(3, "0")}`,
+                    question: q.question ?? "",
+                    explanation: q.explanation,
+                    tags: q.tags,
+                    difficulty: q.difficulty,
+                    marks: q.marks
+                  };
+                  if (q.type === "mcq") {
+                    return { ...base, type: "mcq" as const, options: Array.isArray(q.options) ? q.options : [], correctAnswer: q.correctAnswer ?? "" };
+                  }
+                  if (q.type === "exam") {
+                    return { ...base, type: "exam" as const, markScheme: Array.isArray(q.markScheme) ? q.markScheme : [], correctAnswer: q.correctAnswer ?? "See mark scheme." };
+                  }
+                  return { ...base, type: "short" as const, correctAnswer: q.correctAnswer ?? "" };
+                })
+              }
+            />
+          )}
+        </Section>
+
         {/* PR13.2: Targeted practice (entitled only) */}
         <TargetedPracticeSection
           loading={targetedPracticeLoading}
@@ -4225,45 +4285,34 @@ const LessonViewPage: React.FC = () => {
           practiceAllowed={practiceAllowed}
           lessonId={id || undefined}
           practiceSource={practiceSource}
+          topicKey={topicKeyForBank || undefined}
           onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
+          onLoadBankOnly={loadBankOnly}
         />
 
-        {/* Flashcards section — no "Revision" wrapper; FlashcardsView has its own title */}
-        <div
-          style={{
-            marginTop: "40px",
-            paddingTop: "30px",
-            borderTop: "1px solid #e2e8f0",
-            textAlign: "left",
-          }}
+        {/* Flashcards section — Section for consistent spacing */}
+        <Section
+          title="Flashcards"
+          right={isTeacherOrAdmin ? (
+            <button
+              onClick={handleAIGenerate}
+              disabled={isGenerating}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "10px",
+                border: "2px solid #10b981",
+                background: isGenerating ? "#e5e7eb" : "#10b981",
+                color: "white",
+                cursor: isGenerating ? "not-allowed" : "pointer",
+                fontWeight: "bold",
+                fontSize: "14px"
+              }}
+            >
+              {isGenerating ? "Generating..." : "Generate revision with AI"}
+            </button>
+          ) : undefined}
+          variant="plain"
         >
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "flex-end", 
-            alignItems: "center",
-            marginBottom: "16px" 
-          }}>
-            {/* AI generation button - only show for teachers/admins */}
-            {isTeacherOrAdmin ? (
-              <button
-                onClick={handleAIGenerate}
-                disabled={isGenerating}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "10px",
-                  border: "2px solid #10b981",
-                  background: isGenerating ? "#e5e7eb" : "#10b981",
-                  color: "white",
-                  cursor: isGenerating ? "not-allowed" : "pointer",
-                  fontWeight: "bold",
-                  fontSize: "14px"
-                }}
-              >
-                {isGenerating ? "Generating..." : "Generate revision with AI"}
-              </button>
-            ) : null}
-          </div>
-
           <div style={{ display: "grid", gap: "16px" }}>
             {process.env.REACT_APP_DEV_TOOLS === "1" && (
               <div
@@ -4317,9 +4366,9 @@ const LessonViewPage: React.FC = () => {
                 ) : null}
               </div>
             ) : null}
-            {/* Flashcards viewer (simple flip cards) */}
             <FlashcardsView
               title="Flashcards"
+              hideTitle
               cards={flashcards.map((flashcard: any, i: number) => ({
                 id: flashcard.id ?? flashcard._id ?? String(i),
                 front: flashcard.front ?? flashcard.question ?? "",
@@ -4330,64 +4379,8 @@ const LessonViewPage: React.FC = () => {
                 tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
               }))}
             />
-
-            {/* Check your understanding: from lesson.quiz.questions (topic bank snapshot) */}
-            {quizQuestions.length === 0 ? (
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 12,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  color: "#64748b",
-                  fontSize: 14,
-                }}
-              >
-                No quiz questions generated for this topic yet.
-              </div>
-            ) : (
-            <QuizView
-              title="Check your understanding"
-              questions={
-                quizQuestions.map((q: any, i: number) => {
-                  const base = {
-                    id: q.id ?? `q_${String(i + 1).padStart(3, "0")}`,
-                    question: q.question ?? "",
-                    explanation: q.explanation,
-                    tags: q.tags,
-                    difficulty: q.difficulty,
-                    marks: q.marks
-                  };
-
-                  if (q.type === "mcq") {
-                    return {
-                      ...base,
-                      type: "mcq" as const,
-                      options: Array.isArray(q.options) ? q.options : [],
-                      correctAnswer: q.correctAnswer ?? ""
-                    };
-                  }
-
-                  if (q.type === "exam") {
-                    return {
-                      ...base,
-                      type: "exam" as const,
-                      markScheme: Array.isArray(q.markScheme) ? q.markScheme : [],
-                      correctAnswer: q.correctAnswer ?? "See mark scheme."
-                    };
-                  }
-
-                  return {
-                    ...base,
-                    type: "short" as const,
-                    correctAnswer: q.correctAnswer ?? ""
-                  };
-                })
-              }
-            />
-            )}
           </div>
-        </div>
+        </Section>
 
         {/* PR15: Next steps (entitled only) in legacy view */}
         {!nextStepsLoading && nextSteps?.studentSummary && (
