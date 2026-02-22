@@ -1346,21 +1346,39 @@ const TeacherDashboard: React.FC = () => {
                 >
                   Monitor Practice
                 </Link>
-                <Link
-                  to="/teacher/reports/needs-attention"
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    border: "2px solid #dc2626",
-                    background: "#fee2e2",
-                    color: "#b91c1c",
-                    textDecoration: "none",
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  Needs attention →
-                </Link>
+                {hasNeedsAttention ? (
+                  <Link
+                    to="/teacher/reports/needs-attention"
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "2px solid #dc2626",
+                      background: "#fee2e2",
+                      color: "#b91c1c",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      fontSize: 13,
+                    }}
+                  >
+                    Needs Attention →
+                  </Link>
+                ) : (
+                  <span
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "1px solid #d1d5db",
+                      background: "#f3f4f6",
+                      color: "#9ca3af",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: "default",
+                    }}
+                    title="No issues right now"
+                  >
+                    Needs Attention
+                  </span>
+                )}
               </div>
               {/* PR5: Topics not yet covered (toggled by "View uncovered topics" CTA above) */}
               {coverage.uncoveredTopics.length > 0 && showUncoveredTopics && (
