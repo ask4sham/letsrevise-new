@@ -3311,7 +3311,12 @@ const LessonViewPage: React.FC = () => {
                 </Section>
 
                 {/* PR-UX-REVIEWS-1: Student Reviews only on last page */}
+                {/* TODO: Consider prompting for a review after final checkpoint completion */}
                 {isLastPage && (
+                  <>
+                    <p style={{ marginTop: 24, marginBottom: 8, color: "#64748b", fontSize: 14 }}>
+                      Finished the lesson? See what other students thought.
+                    </p>
                   <Section
                     title="Student Reviews"
                     id="student-reviews"
@@ -3390,6 +3395,7 @@ const LessonViewPage: React.FC = () => {
 
                     {reviewsEnabled ? <ReviewList lessonId={lesson.id} hideTitle /> : null}
                   </Section>
+                  </>
                 )}
               </div>
             </main>
