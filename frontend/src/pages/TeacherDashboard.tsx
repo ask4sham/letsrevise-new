@@ -100,9 +100,9 @@ const TeacherDashboard: React.FC = () => {
   const [quickSetupCollapsed, setQuickSetupCollapsedState] = useState<boolean>(() => {
     try {
       const s = localStorage.getItem("teacherDashboard.quickSetupCollapsed");
-      return s === "true";
+      return s !== "false";
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -988,7 +988,7 @@ const TeacherDashboard: React.FC = () => {
                           textDecoration: "underline",
                         }}
                       >
-                        {showAllRecent ? "Show less" : `View all (${overview.recentActivity.length})`}
+                        {showAllRecent ? "Show less" : `View all activity (${overview.recentActivity.length})`}
                       </button>
                     )}
                   </div>
