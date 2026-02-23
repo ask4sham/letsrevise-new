@@ -1,61 +1,24 @@
-/**
- * PR-PP1: Fingerprint and dedupe for topic past papers.
- */
+const crypto = require("crypto");
 
-function normalizeText(s) {
-  if (s == null || typeof s !== "string") return "";
-  return s
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+function normalizeText(v) {
+  return String(v || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
 }
 
-function fingerprintUrl(item) {
-  const nt = (x) => normalizeText(x);
-  return [
-    nt(item.title),
-    item.year != null ? String(item.year) : "",
-    nt(item.paper),
-    nt(item.session),
-    nt(item.tier),
-    nt(item.type),
-    nt(item.url),
-  ].join("||");
+function pastPaperFingerprint({ specKey, examBoard, level, year, series, paperCode, tier }) {
+  const payload = {
+    specKey: normalizeText(specKey),
+    examBoard: normalizeText(examBoard),
+    level: normalizeText(level),
+    year: normalizeText(year),
+    series: normalizeText(series),
+    paperCode: normalizeText(paperCode),
+    tier: normalizeText(tier),
+  };
+
+  return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
-function fingerprintFile(item) {
-  const nt = (x) => normalizeText(x);
-  const sha = item.sha256 || item.file?.sha256 || "";
-  return [
-    nt(item.title),
-    item.year != null ? String(item.year) : "",
-    nt(item.paper),
-    nt(item.session),
-    nt(item.tier),
-    nt(item.type),
-    sha,
-  ].join("||");
-}
-
-function dedupeIncoming(items, fingerprintFn) {
-  const seen = new Set();
-  const uniqueItems = [];
-  const duplicatesInPayload = [];
-  for (let i = 0; i < items.length; i++) {
-    const fp = fingerprintFn(items[i]);
-    if (seen.has(fp)) {
-      duplicatesInPayload.push({ index: i, ...items[i] });
-    } else {
-      seen.add(fp);
-      uniqueItems.push({ ...items[i], fingerprint: fp });
-    }
-  }
-  return { uniqueItems, duplicatesInPayload };
-}
-
-module.exports = {
-  normalizeText,
-  fingerprintUrl,
-  fingerprintFile,
-  dedupeIncoming,
-};
+module.exports = { pastPaperFingerprint };

@@ -57,6 +57,10 @@ Run locally:
 
 Admin media upload endpoint: `POST /api/admin/media/upload` (auth required). Accepts multipart file upload (png/jpg/webp/pdf), stores under `backend/uploads/` (local storage), dedupes by SHA-256 per owner. Uploaded files are served at `/uploads/...`. Bulk import payloads (flashcards, exam questions) can include `assets: [{ type, mediaId, url, alt }]` to reference uploaded media.
 
+## Past papers bulk import (PR-BULK-INGEST-4)
+
+Admin bulk import: `POST /api/admin/bulk-import/past-papers` and `POST /api/admin/bulk-import/past-paper-questions` (auth required). CSV→JSON converters: `npm run convert:past-papers-csv -- <specKey> <path/to.csv>` and `npm run convert:past-paper-questions-csv -- <specKey> <path/to.csv>`. See `backend/scripts/examples/` for PowerShell examples (dryRun by default).
+
 ## PR expectations
 
 Each new subject/spec should be delivered in:
