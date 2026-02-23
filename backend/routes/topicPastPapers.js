@@ -63,7 +63,7 @@ router.get("/", auth, async (req, res) => {
   try {
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const { topicKey, specKey: specKeyQ, status, mineOnly } = req.query;
+    const { topicKey, specKey: specKeyQ, status, mineOnly, year, series, tier, paper } = req.query;
     if (!topicKey) return res.status(400).json({ error: "topicKey query is required" });
     const candidates = resolveTopicKeyForQuery(specKeyQ, topicKey);
     if (!candidates || candidates.length === 0) return res.status(400).json({ error: "Invalid topicKey" });
@@ -73,6 +73,14 @@ router.get("/", auth, async (req, res) => {
     if (status && String(status).toLowerCase() === "all") { /* no filter */ }
     else if (status && ["draft", "published"].includes(String(status).toLowerCase())) query.status = String(status).toLowerCase();
     else query.status = { $in: ["draft", "published"] };
+
+    if (year != null && String(year).trim() !== "") {
+      const y = Number(year) || parseInt(String(year), 10);
+      if (!Number.isNaN(y)) query.year = y;
+    }
+    if (series != null && String(series).trim() !== "") query.session = String(series).trim();
+    if (tier != null && String(tier).trim() !== "") query.tier = String(tier).trim();
+    if (paper != null && String(paper).trim() !== "") query.paper = String(paper).trim();
 
     const items = await TopicPastPaper.find(query).sort({ updatedAt: -1 }).lean();
     return res.json({ items });
@@ -234,6 +242,14 @@ router.post("/bulk", auth, async (req, res) => {
 // POST /api/topic-past-papers/upload (files)
 router.post("/upload", auth, upload.array("files", 20), async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  // PR-PAST-PAPERS-UI-1: Require rights confirmation (multipart sends string "true"/"false")
+  const confirm = req.body?.confirmCopyright;
+  const confirmed = confirm === true || confirm === "true";
+  if (!confirmed) {
+    return res.status(400).json({
+      error: "You must confirm you have permission to upload and use this material.",
+    });
+  }
   try {
     const ownerId = getOwnerId(req);
     const topicKey = req.body.topicKey;

@@ -1,5 +1,6 @@
 /**
  * PR-PP1: Topic Past Paper Bank — teacher/admin manage past papers by topicKey.
+ * PR-PAST-PAPERS-UI-1: Copyright-safe copy, rights confirmation, "View uploaded PDF".
  * Route: /teacher/topic-banks/past-papers
  */
 import React, { useState, useEffect, useRef } from "react";
@@ -14,11 +15,13 @@ import {
   bulkPublishTopicPastPapers,
   bulkUnpublishTopicPastPapers,
   deleteTopicPastPaper,
-  downloadTopicPastPaperFile,
+  viewTopicPastPaperFile as openPastPaperPdfInNewTab,
   type TopicPastPaper,
   type BulkPreviewResponse,
   type UploadMetadata,
 } from "../api/topicPastPapers";
+import { CopyrightNotice } from "../components/pastPapers/CopyrightNotice";
+import { ConfirmUploadRightsModal } from "../components/pastPapers/ConfirmUploadRightsModal";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -70,6 +73,10 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [topicKey, setTopicKey] = useState<string>("");
   const [examBoard, setExamBoard] = useState<ExamBoard>("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
+  const [yearFilter, setYearFilter] = useState<string>("");
+  const [seriesFilter, setSeriesFilter] = useState<string>("");
+  const [tierFilter, setTierFilter] = useState<string>("");
+  const [paperFilter, setPaperFilter] = useState<string>("");
   const [activeTab, setActiveTab] = useState<Tab>("list");
   const [items, setItems] = useState<TopicPastPaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +96,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadMetadata, setUploadMetadata] = useState<UploadMetadata>({});
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [showUploadRightsModal, setShowUploadRightsModal] = useState(false);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -115,6 +123,10 @@ const TeacherPastPapersBankPage: React.FC = () => {
         specKey,
         status: statusFilter,
         mineOnly: true,
+        ...(yearFilter.trim() && { year: yearFilter.trim() }),
+        ...(seriesFilter.trim() && { series: seriesFilter.trim() }),
+        ...(tierFilter.trim() && { tier: tierFilter.trim() }),
+        ...(paperFilter.trim() && { paper: paperFilter.trim() }),
       });
       setItems(list);
     } catch (err: any) {
@@ -232,6 +244,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
         specKey,
         files: selectedFiles,
         metadata: Object.keys(uploadMetadata).length > 0 ? uploadMetadata : undefined,
+        confirmCopyright: true,
       });
       setSelectedFiles([]);
       setUploadMetadata({});
@@ -324,16 +337,17 @@ const TeacherPastPapersBankPage: React.FC = () => {
     }
   };
 
-  const handleDownload = async (item: TopicPastPaper) => {
+  const handleViewUploadedPdf = async (item: TopicPastPaper) => {
     if (item.sourceType !== "file" || !item.file?.fileId) {
-      setMessage("This item has no file to download.");
+      setMessage("This item has no file to view.");
       return;
     }
     setActionLoading(item._id);
     try {
-      await downloadTopicPastPaperFile(item.file.fileId, item.file.originalName || "past-paper.pdf");
+      const fileId = String(item.file.fileId);
+      await openPastPaperPdfInNewTab(fileId);
     } catch (err: any) {
-      setMessage(err?.message || "Download failed");
+      setMessage(err?.message || "Failed to open PDF");
     } finally {
       setActionLoading(null);
     }
@@ -349,15 +363,26 @@ const TeacherPastPapersBankPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
+      <ConfirmUploadRightsModal
+        isOpen={showUploadRightsModal}
+        onCancel={() => setShowUploadRightsModal(false)}
+        onConfirm={() => {
+          setShowUploadRightsModal(false);
+          handleUpload();
+        }}
+      />
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
         <Link to="/teacher-dashboard" style={{ color: "#2563eb", fontWeight: 600 }}>
           ← Dashboard
         </Link>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Topic Past Paper Bank</h1>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Past Papers & Exam Resources</h1>
       </div>
-      <p style={{ color: "#6b7280", marginBottom: 20 }}>
-        Add past papers by topic via URLs (bulk JSON/CSV) or file upload (PDF, doc, docx). Deduplication is applied.
+      <p style={{ color: "#6b7280", marginBottom: 12 }}>
+        Upload and organise exam resources you already have permission to use, and link questions to topics for targeted practice.
       </p>
+      <div style={{ marginBottom: 20 }}>
+        <CopyrightNotice />
+      </div>
 
       <div style={{ marginBottom: 20, display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" }}>
         <SpecSelector value={specKey} onChange={onSpecChange} />
@@ -655,7 +680,9 @@ const TeacherPastPapersBankPage: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={handleUpload}
+            onClick={() => {
+              if (topicKey && selectedFiles.length > 0 && !uploadLoading) setShowUploadRightsModal(true);
+            }}
             disabled={uploadLoading || !topicKey || selectedFiles.length === 0}
             style={{
               padding: "8px 14px",
@@ -675,11 +702,55 @@ const TeacherPastPapersBankPage: React.FC = () => {
       {activeTab === "list" && (
         <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>
-            Past papers {topicKey ? `(${items.length})` : ""}
+            Your uploaded resources {topicKey ? `(${items.length})` : ""}
           </h2>
+          <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 12px" }}>
+            Teacher-uploaded resources are private. LetsRevise does not provide official exam papers.
+          </p>
           {!topicKey && <p style={{ color: "#6b7280" }}>Select a topic to list items.</p>}
           {topicKey && loading && <p>Loading…</p>}
-          {topicKey && !loading && items.length === 0 && <p style={{ color: "#6b7280" }}>No past papers yet. Import URLs or upload files.</p>}
+          {topicKey && !loading && (
+            <>
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Filter:</span>
+                <input
+                  type="text"
+                  placeholder="Year"
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  style={{ width: 72, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+                />
+                <input
+                  type="text"
+                  placeholder="Series"
+                  value={seriesFilter}
+                  onChange={(e) => setSeriesFilter(e.target.value)}
+                  style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+                />
+                <input
+                  type="text"
+                  placeholder="Tier"
+                  value={tierFilter}
+                  onChange={(e) => setTierFilter(e.target.value)}
+                  style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+                />
+                <input
+                  type="text"
+                  placeholder="Paper"
+                  value={paperFilter}
+                  onChange={(e) => setPaperFilter(e.target.value)}
+                  style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+                />
+              </div>
+              {items.length === 0 && (
+                <p style={{ color: "#6b7280" }}>
+                  {yearFilter || seriesFilter || tierFilter || paperFilter
+                    ? "No resources match the current filters."
+                    : "No resources uploaded yet. Upload exam resources you are authorised to use (e.g. school-licensed materials)."}
+                </p>
+              )}
+            </>
+          )}
           {topicKey && !loading && items.length > 0 && (
             <>
               <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -724,6 +795,9 @@ const TeacherPastPapersBankPage: React.FC = () => {
                       </td>
                       <td style={{ padding: 8 }}>
                         {p.title}
+                        <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 11, background: "#f3f4f6", color: "#4b5563", fontWeight: 600 }}>
+                          Teacher-uploaded
+                        </span>
                         {p.officialSource === true && (
                           <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 11, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
                             Official (AQA)
@@ -757,14 +831,14 @@ const TeacherPastPapersBankPage: React.FC = () => {
                       </td>
                       <td style={{ padding: 8 }}>
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          {p.sourceType === "file" && (
+                          {p.sourceType === "file" && p.file?.fileId && (
                             <button
                               type="button"
-                              onClick={() => handleDownload(p)}
+                              onClick={() => handleViewUploadedPdf(p)}
                               disabled={!!actionLoading}
                               style={{ padding: "4px 8px", fontSize: 12, color: "#2563eb" }}
                             >
-                              {actionLoading === p._id ? "…" : "Download"}
+                              {actionLoading === p._id ? "…" : "View uploaded PDF"}
                             </button>
                           )}
                           {p.status === "draft" ? (

@@ -44,10 +44,20 @@ describe("POST /api/admin/media/upload", () => {
     await request(app).post("/api/admin/media/upload").expect(401);
   });
 
+  it("rejects upload without confirmCopyright", async () => {
+    const res = await request(app)
+      .post("/api/admin/media/upload")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .attach("file", TINY_PNG_BUFFER, "tiny.png")
+      .expect(400);
+    expect(res.body.error).toMatch(/confirm|permission/);
+  });
+
   it("uploads a file and returns media metadata", async () => {
     const res = await request(app)
       .post("/api/admin/media/upload")
       .set("Authorization", `Bearer ${teacherToken}`)
+      .field("confirmCopyright", "true")
       .attach("file", TINY_PNG_BUFFER, "tiny.png")
       .expect(201);
 
@@ -65,6 +75,7 @@ describe("POST /api/admin/media/upload", () => {
     const first = await request(app)
       .post("/api/admin/media/upload")
       .set("Authorization", `Bearer ${teacherToken}`)
+      .field("confirmCopyright", "true")
       .attach("file", TINY_PNG_BUFFER, "tiny2.png");
     expect([200, 201]).toContain(first.status);
     expect(first.body).toHaveProperty("mediaId");
@@ -73,6 +84,7 @@ describe("POST /api/admin/media/upload", () => {
     const second = await request(app)
       .post("/api/admin/media/upload")
       .set("Authorization", `Bearer ${teacherToken}`)
+      .field("confirmCopyright", "true")
       .attach("file", TINY_PNG_BUFFER, "tiny2.png")
       .expect(200);
 

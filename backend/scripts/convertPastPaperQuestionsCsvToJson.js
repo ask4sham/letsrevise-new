@@ -1,21 +1,13 @@
 #!/usr/bin/env node
 /**
  * PR-BULK-INGEST-4: Convert past paper questions CSV to JSON for POST /api/admin/bulk-import/past-paper-questions.
+ * Uses csv-parse/sync for safe handling of commas inside quoted fields (e.g. markScheme).
  * Required: pastPaperId, topicKey, question. Optional: questionNumber, marks, markScheme.
  */
 /* eslint-disable no-console */
 const fs = require("fs");
 const path = require("path");
-
-function parseCsvLine(line) {
-  return line.split(",").map((s) => {
-    let cell = s.trim();
-    if (cell.length >= 2 && cell.startsWith('"') && cell.endsWith('"')) {
-      cell = cell.slice(1, -1).replace(/""/g, '"');
-    }
-    return cell;
-  });
-}
+const { parse } = require("csv-parse/sync");
 
 function main() {
   const [, , specKey, csvPath] = process.argv;
@@ -37,37 +29,45 @@ function main() {
     } else throw e;
     process.exit(1);
   }
-  const lines = raw.split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) {
+
+  let records;
+  try {
+    records = parse(raw, {
+      columns: true,
+      skip_empty_lines: true,
+      relax_quotes: true,
+      trim: true,
+    });
+  } catch (e) {
+    console.error("CSV parse error:", e.message);
+    process.exit(1);
+  }
+
+  if (!records.length) {
     console.error("CSV must include a header row and at least one data row.");
     process.exit(1);
   }
 
-  const headers = parseCsvLine(lines[0]);
-  const idx = (name) => headers.indexOf(name);
-
+  const first = records[0];
   const required = ["pastPaperId", "topicKey", "question"];
   for (const r of required) {
-    if (idx(r) === -1) {
+    if (!(r in first)) {
       console.error(`Missing required column: ${r}`);
       process.exit(1);
     }
   }
 
-  const items = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i]);
-
-    items.push({
-      pastPaperId: cols[idx("pastPaperId")],
-      topicKey: cols[idx("topicKey")],
-      questionNumber: idx("questionNumber") !== -1 ? (cols[idx("questionNumber")] || null) : null,
-      marks: idx("marks") !== -1 && cols[idx("marks")] ? Number(cols[idx("marks")]) : null,
-      question: cols[idx("question")],
-      markScheme: idx("markScheme") !== -1 ? (cols[idx("markScheme")] || "") : "",
-    });
-  }
+  const items = records.map((row) => {
+    const marksVal = row.marks != null && String(row.marks).trim() !== "" ? Number(row.marks) : null;
+    return {
+      pastPaperId: String(row.pastPaperId ?? "").trim(),
+      topicKey: String(row.topicKey ?? "").trim(),
+      questionNumber: row.questionNumber != null && String(row.questionNumber).trim() !== "" ? String(row.questionNumber).trim() : null,
+      marks: marksVal != null && !Number.isNaN(marksVal) ? marksVal : null,
+      question: String(row.question ?? "").trim(),
+      markScheme: row.markScheme != null ? String(row.markScheme).trim() : "",
+    };
+  });
 
   console.log(JSON.stringify({ specKey, dryRun: true, items }, null, 2));
 }
