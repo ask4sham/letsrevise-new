@@ -103,6 +103,15 @@ const ExamQuestionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    /** PR-BULK-INGEST-3: Asset references (images, diagrams, PDFs). */
+    assets: [
+      {
+        type: { type: String, default: "image" },
+        mediaId: { type: mongoose.Schema.Types.ObjectId, ref: "Media", default: null },
+        url: { type: String, default: null },
+        alt: { type: String, default: null },
+      },
+    ],
   },
   { timestamps: true }
 );

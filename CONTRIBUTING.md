@@ -53,6 +53,10 @@ Run locally:
 - `npm run validate:taxonomies`
 - `npm test`
 
+## Media upload (PR-BULK-INGEST-3)
+
+Admin media upload endpoint: `POST /api/admin/media/upload` (auth required). Accepts multipart file upload (png/jpg/webp/pdf), stores under `backend/uploads/` (local storage), dedupes by SHA-256 per owner. Uploaded files are served at `/uploads/...`. Bulk import payloads (flashcards, exam questions) can include `assets: [{ type, mediaId, url, alt }]` to reference uploaded media.
+
 ## PR expectations
 
 Each new subject/spec should be delivered in:

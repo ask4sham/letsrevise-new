@@ -1,6 +1,7 @@
 // backend/app.js
 require("dotenv").config();
 
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const bodyLimit = require("./middleware/bodyLimit");
@@ -18,6 +19,12 @@ app.use(bodyLimit);
 
 // ✅ Add minimal essential middleware that Supertest needs (2MB global limit)
 app.use(express.json({ limit: "2mb" }));
+
+// PR-BULK-INGEST-3: Serve uploaded files (local storage)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// PR-BULK-INGEST-3: Admin media upload (store + reference + dedupe)
+app.use("/api/admin/media", require("./routes/adminMedia"));
 
 // ✅ Register routes that are needed for tests (add any others as needed)
 app.use("/api/assessment-papers", require("./routes/assessmentPapers"));

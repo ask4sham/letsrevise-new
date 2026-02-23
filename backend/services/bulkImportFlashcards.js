@@ -103,6 +103,15 @@ async function bulkImportFlashcards({ specKey, items, dryRun = false, actorId = 
       continue;
     }
 
+    const assets = Array.isArray(p.raw.assets)
+      ? p.raw.assets.map((a) => ({
+          type: a && typeof a.type === "string" ? a.type : "image",
+          mediaId: a && a.mediaId != null ? a.mediaId : null,
+          url: a && typeof a.url === "string" ? a.url : null,
+          alt: a && typeof a.alt === "string" ? a.alt : null,
+        }))
+      : [];
+
     const doc = {
       ownerId: actorId,
       topicKey: p.namespacedTopicKey,
@@ -110,6 +119,7 @@ async function bulkImportFlashcards({ specKey, items, dryRun = false, actorId = 
       back: p.back,
       status: "draft",
       fingerprint: p.fingerprint,
+      assets,
     };
 
     toInsert.push(doc);

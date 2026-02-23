@@ -35,3 +35,6 @@ backend/uploads/ai-diagrams/
 
 # PR-PP1: Topic Past Paper uploads
 backend/uploads/past-papers/
+
+# PR-BULK-INGEST-3: Admin media uploads (local storage)
+backend/uploads/
