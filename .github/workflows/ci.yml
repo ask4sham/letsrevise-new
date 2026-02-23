@@ -33,6 +33,7 @@ jobs:
 
   backend:
     name: Backend (tests + taxonomy validation)
+    needs: taxonomy-validate
     runs-on: ubuntu-latest
     env:
       CI: true
@@ -62,6 +63,7 @@ jobs:
 
   frontend:
     name: Frontend (build)
+    needs: taxonomy-validate
     runs-on: ubuntu-latest
     env:
       CI: true
