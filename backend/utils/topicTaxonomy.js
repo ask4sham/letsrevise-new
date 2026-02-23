@@ -1,18 +1,32 @@
 /**
- * Canonical AQA GCSE Biology topic taxonomy.
- * Used by: teacher UI topic picker, Biology factory prompts, diagram mapping, question bank tagging.
+ * Canonical AQA GCSE Biology and Chemistry topic taxonomies.
+ * Used by: teacher UI topic picker, factory prompts, diagram mapping, question bank tagging.
  */
 const path = require("path");
 const fs = require("fs");
 
-let _taxonomy = null;
+let _biologyTaxonomy = null;
+let _chemistryTaxonomy = null;
 
-function loadTaxonomy() {
-  if (_taxonomy) return _taxonomy;
+function loadBiologyTaxonomy() {
+  if (_biologyTaxonomy) return _biologyTaxonomy;
   const filePath = path.join(__dirname, "..", "config", "aqa_gcse_biology_topics.json");
   const raw = fs.readFileSync(filePath, "utf8");
-  _taxonomy = JSON.parse(raw);
-  return _taxonomy;
+  _biologyTaxonomy = JSON.parse(raw);
+  return _biologyTaxonomy;
+}
+
+function loadChemistryTaxonomy() {
+  if (_chemistryTaxonomy) return _chemistryTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_gcse_chemistry_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _chemistryTaxonomy = JSON.parse(raw);
+  return _chemistryTaxonomy;
+}
+
+/** @deprecated use loadBiologyTaxonomy */
+function loadTaxonomy() {
+  return loadBiologyTaxonomy();
 }
 
 /**
@@ -20,7 +34,15 @@ function loadTaxonomy() {
  * @returns {Object} { subject, examBoard, level, units: [{ unit, topics: [{ topic, key, tier, requiredPractical }] }] }
  */
 function getBiologyTopics() {
-  return loadTaxonomy();
+  return loadBiologyTaxonomy();
+}
+
+/**
+ * Get full AQA GCSE Chemistry taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, units: [{ unit, topics: [{ topic, key, tier, requiredPractical }] }] }
+ */
+function getChemistryTopics() {
+  return loadChemistryTaxonomy();
 }
 
 /**
@@ -60,6 +82,10 @@ function topicToKey(topic) {
 
 module.exports = {
   getBiologyTopics,
+  getChemistryTopics,
   findTopicByKey,
+  findChemistryTopicByKey,
   topicToKey,
+  loadBiologyTaxonomy,
+  loadChemistryTaxonomy,
 };
