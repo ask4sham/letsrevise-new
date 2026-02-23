@@ -7,10 +7,11 @@ $body = @{
   dryRun  = $true
   items   = @(
     @{
-      topicKey = "cell-structure"
-      question = "What is the nucleus?"
-      answer   = "Controls the cell"
-      marks    = 1
+      topicKey   = "cell-structure"
+      question   = "Explain one function of the nucleus."
+      markScheme = "Award 1 mark for stating it controls cell activities; accept references to genetic information."
+      marks      = 2
+      source     = "original"
     }
   )
 } | ConvertTo-Json -Depth 5

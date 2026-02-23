@@ -29,6 +29,7 @@
     "verify:indexes": "node scripts/verify-indexes.js",
     "sync:indexes": "node scripts/sync-indexes.js",
     "validate:taxonomies": "node scripts/validateTaxonomies.js",
+    "convert:exam-csv": "node scripts/convertExamQuestionsCsvToJson.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
