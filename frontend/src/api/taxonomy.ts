@@ -30,7 +30,8 @@ export type SpecKey =
   | "aqa-gcse-maths-foundation"
   | "aqa-gcse-maths-higher"
   | "aqa-l2-further-maths"
-  | "aqa-gcse-english-literature";
+  | "aqa-gcse-english-literature"
+  | "aqa-gcse-english-language";
 
 export async function fetchTaxonomy(specKey: SpecKey): Promise<TaxonomyResponse> {
   const res = await api.get<TaxonomyResponse>(`/taxonomy/${specKey}`);

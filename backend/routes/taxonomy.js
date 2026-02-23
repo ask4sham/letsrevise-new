@@ -146,4 +146,25 @@ router.get("/aqa-gcse-english-literature", (req, res) => {
   }
 });
 
+/**
+ * GET /api/taxonomy/aqa-gcse-english-language
+ * Returns the full AQA GCSE English Language taxonomy (subject, examBoard, level, specKey, units).
+ */
+router.get("/aqa-gcse-english-language", (req, res) => {
+  try {
+    const taxonomy = getTaxonomyBySpecKey("aqa-gcse-english-language");
+    if (!taxonomy) return res.status(404).json({ error: "Taxonomy not found" });
+    return res.json({
+      subject: taxonomy.subject,
+      examBoard: taxonomy.examBoard,
+      level: taxonomy.level,
+      specKey: taxonomy.specKey || "aqa-gcse-english-language",
+      units: taxonomy.units,
+    });
+  } catch (err) {
+    console.error("Taxonomy fetch error:", err);
+    return res.status(500).json({ error: "Failed to load English Language taxonomy" });
+  }
+});
+
 module.exports = router;

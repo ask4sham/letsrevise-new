@@ -13,6 +13,7 @@ let _mathsFoundationTaxonomy = null;
 let _mathsHigherTaxonomy = null;
 let _furtherMathsTaxonomy = null;
 let _englishLiteratureTaxonomy = null;
+let _englishLanguageTaxonomy = null;
 
 function loadBiologyTaxonomy() {
   if (_biologyTaxonomy) return _biologyTaxonomy;
@@ -68,6 +69,14 @@ function loadEnglishLiteratureTaxonomy() {
   const raw = fs.readFileSync(filePath, "utf8");
   _englishLiteratureTaxonomy = JSON.parse(raw);
   return _englishLiteratureTaxonomy;
+}
+
+function loadEnglishLanguageTaxonomy() {
+  if (_englishLanguageTaxonomy) return _englishLanguageTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_gcse_english_language_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _englishLanguageTaxonomy = JSON.parse(raw);
+  return _englishLanguageTaxonomy;
 }
 
 /** @deprecated use loadBiologyTaxonomy */
@@ -129,6 +138,14 @@ function getFurtherMathsTopics() {
  */
 function getEnglishLiteratureTopics() {
   return loadEnglishLiteratureTaxonomy();
+}
+
+/**
+ * Get full AQA GCSE English Language taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, specKey, tier, units }
+ */
+function getEnglishLanguageTopics() {
+  return loadEnglishLanguageTaxonomy();
 }
 
 /**
@@ -265,6 +282,25 @@ function findEnglishLiteratureTopicByKey(key) {
 }
 
 /**
+ * Find an English Language topic by its canonical key (e.g. "paper-1-overview", "exams-2027-plus-check-updates").
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findEnglishLanguageTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadEnglishLanguageTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
  * PR-CHEM-3: Check if topicKey exists in the given spec taxonomy.
  * Strips namespace from topicKey before lookup.
  * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation" | "aqa-gcse-maths-higher" | "aqa-l2-further-maths" | "aqa-gcse-english-literature"
@@ -297,6 +333,9 @@ function isValidTopicForSpec(specKey, topicKey) {
   if (specKey === "aqa-gcse-english-literature") {
     return findEnglishLiteratureTopicByKey(k) !== null;
   }
+  if (specKey === "aqa-gcse-english-language") {
+    return findEnglishLanguageTopicByKey(k) !== null;
+  }
   return false;
 }
 
@@ -304,7 +343,7 @@ function isValidTopicForSpec(specKey, topicKey) {
  * PR-CHEM-3: Find topic by spec and key (strip namespace from key first).
  * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation" | "aqa-gcse-maths-higher" | "aqa-l2-further-maths" | "aqa-gcse-english-literature"
  * @param {string} topicKey - Possibly namespaced key
- * @returns {Object|null} Topic with unit for chemistry/physics/maths/english-literature; topic only for biology
+ * @returns {Object|null} Topic with unit for chemistry/physics/maths/english-literature/english-language; topic only for biology
  */
 function findTopicBySpecAndKey(specKey, topicKey) {
   if (!specKey || !topicKey) return null;
@@ -331,6 +370,9 @@ function findTopicBySpecAndKey(specKey, topicKey) {
   }
   if (specKey === "aqa-gcse-english-literature") {
     return findEnglishLiteratureTopicByKey(k);
+  }
+  if (specKey === "aqa-gcse-english-language") {
+    return findEnglishLanguageTopicByKey(k);
   }
   return null;
 }
@@ -372,6 +414,8 @@ function getTaxonomyBySpecKey(specKey) {
       return getFurtherMathsTopics();
     case "aqa-gcse-english-literature":
       return getEnglishLiteratureTopics();
+    case "aqa-gcse-english-language":
+      return getEnglishLanguageTopics();
     default:
       return null;
   }
@@ -385,6 +429,7 @@ module.exports = {
   getMathsHigherTopics,
   getFurtherMathsTopics,
   getEnglishLiteratureTopics,
+  getEnglishLanguageTopics,
   getTaxonomyBySpecKey,
   findTopicByKey,
   findChemistryTopicByKey,
@@ -393,6 +438,7 @@ module.exports = {
   findMathsHigherTopicByKey,
   findFurtherMathsTopicByKey,
   findEnglishLiteratureTopicByKey,
+  findEnglishLanguageTopicByKey,
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
@@ -403,4 +449,5 @@ module.exports = {
   loadMathsHigherTaxonomy,
   loadFurtherMathsTaxonomy,
   loadEnglishLiteratureTaxonomy,
+  loadEnglishLanguageTaxonomy,
 };
