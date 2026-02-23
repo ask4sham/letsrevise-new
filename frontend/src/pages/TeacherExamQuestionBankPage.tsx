@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 
 const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
 const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "Other"];
@@ -40,7 +44,8 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [filterTopicKey, setFilterTopicKey] = useState<string>(topicKeyFromUrl);
-  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomy } = useTaxonomy(specKey);
   const [form, setForm] = useState({
     subject: "Biology",
     examBoard: "AQA",
@@ -83,11 +88,10 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    api.get("/taxonomy/aqa-gcse-biology").then((res) => {
-      setTaxonomy(res?.data ?? null);
-    }).catch(() => setTaxonomy(null));
-  }, []);
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
+  };
 
   // Pre-set topic filter from URL when opening from Misconceptions panel
   useEffect(() => {
@@ -98,7 +102,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     fetchQuestions();
-  }, [filterTopicKey]);
+  }, [filterTopicKey, specKey]);
 
   function validateForm(): string | null {
     const q = form.questionText.trim();
@@ -184,6 +188,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         level: form.level || undefined,
         topic: form.topic || undefined,
         topicKey: form.topicKey?.trim() || undefined,
+        specKey: specKey || undefined,
         type: form.questionType,
         marks: form.marks,
         question: form.questionText.trim(),
@@ -259,6 +264,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       </div>
 
       <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <SpecSelector value={specKey} onChange={onSpecChange} />
         <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Filter by topic:</label>
         <select
           value={filterTopicKey}

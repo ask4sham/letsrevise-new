@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../services/api";
 import { importFlashcards } from "../../api/flashcardBank";
+import { SpecSelector } from "../SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../../utils/specKey";
+import { useTaxonomy } from "../../hooks/useTaxonomy";
+import type { SpecKey } from "../../api/taxonomy";
 
 export type Flashcard = {
   id: string;
@@ -336,13 +340,21 @@ export default function FlashcardsEditor({
 
   // Import from question bank (same source as Worksheet Builder)
   type TaxonomyUnit = { unit: string; topics?: Array<{ topic: string; key: string }> };
-  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomy } = useTaxonomy(specKey);
   const [topicKeyForBank, setTopicKeyForBank] = useState<string>("");
   const [bankImportLoading, setBankImportLoading] = useState(false);
   // PR-F1: Save current cards to topic bank
   const [topicKeyForImport, setTopicKeyForImport] = useState<string>("");
   const [topicNameForImport, setTopicNameForImport] = useState<string>("");
   const [importToBankLoading, setImportToBankLoading] = useState(false);
+
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
+    setTopicKeyForBank("");
+    setTopicKeyForImport("");
+  };
 
   useEffect(() => {
     const normalized = (initialCards || []).map((c: any) => ({
@@ -361,9 +373,6 @@ export default function FlashcardsEditor({
     setBulkCountPreview(parsed.length);
   }, [bulkText]);
 
-  useEffect(() => {
-    api.get("/taxonomy/aqa-gcse-biology").then((res) => setTaxonomy(res?.data ?? null)).catch(() => setTaxonomy(null));
-  }, []);
 
   const countLabel = useMemo(() => `${cards.length}`, [cards.length]);
 
@@ -860,6 +869,9 @@ export default function FlashcardsEditor({
 
       <div style={styles.section}>
         <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Import from question bank</div>
+        <div style={{ marginBottom: 10 }}>
+          <SpecSelector value={specKey} onChange={onSpecChange} />
+        </div>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
           Add flashcards from the same question bank used by the Worksheet Builder. Choose a topic and append questions as cards (front = question, back = correct answer / mark scheme).
         </div>

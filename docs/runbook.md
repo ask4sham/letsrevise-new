@@ -61,6 +61,12 @@ node backend/scripts/migrations/backfill_topic_quiz_kind.js
 # Backfill TopicFlashcard fingerprint (if missing)
 node backend/scripts/migrations/backfill_topic_flashcard_fingerprint.js
 
+# PR-CHEM-3: Migrate legacy topicKeys to namespaced (specKey:topicKey). Optional.
+# Dry run (log only):
+node backend/scripts/migrate-topicKeys-to-namespaced.js
+# Apply updates (prefix legacy keys with aqa-gcse-biology:):
+node backend/scripts/migrate-topicKeys-to-namespaced.js --apply
+
 # Run all known migrations (from backend/)
 cd backend && npm run migrate:all
 

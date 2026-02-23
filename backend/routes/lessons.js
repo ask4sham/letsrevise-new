@@ -14,7 +14,8 @@ const VisualModel = require("../models/VisualModel");
 const ExamQuestion = require("../models/ExamQuestion");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const ReteachPlan = require("../models/ReteachPlan");
-const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("../utils/topicTaxonomy");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
@@ -1726,7 +1727,12 @@ router.get(
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
       const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
-      const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
+      const parsed = parseTopicKey(topicKey);
+      const specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
+      const topicOnly = parsed.topicKey || topicKey.trim().toLowerCase();
+      const validatedKey =
+        topicKey && (findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(topicKey)) ? topicKey : null;
+      const topicQueryCandidates = validatedKey ? queryCandidates(specKey, topicOnly) : [];
 
       const mapQuestion = (q) => {
         const options = Array.isArray(q.options) ? q.options : [];
@@ -1770,7 +1776,7 @@ router.get(
         source = "attached";
       }
 
-      if (questions.length === 0 && validatedKey) {
+      if (questions.length === 0 && validatedKey && topicQueryCandidates.length > 0) {
         const ownershipFilter = {
           $or: [
             { teacherId: lesson.teacherId },
@@ -1779,7 +1785,7 @@ router.get(
           ],
         };
         let bankRaw = await ExamQuestion.find({
-          topicKey: validatedKey,
+          topicKey: { $in: topicQueryCandidates },
           status: "published",
           ...ownershipFilter,
         })
@@ -1854,8 +1860,13 @@ router.get(
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
       const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
-      const validatedKey = topicKey && findTopicByKey(topicKey) ? topicKey : null;
-      if (!validatedKey) {
+      const parsed = parseTopicKey(topicKey);
+      const specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
+      const topicOnly = parsed.topicKey || topicKey.trim().toLowerCase();
+      const validatedKey =
+        topicKey && (findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(topicKey)) ? topicKey : null;
+      const topicQueryCandidates = validatedKey ? queryCandidates(specKey, topicOnly) : [];
+      if (!validatedKey || topicQueryCandidates.length === 0) {
         return res.status(200).json({
           ok: true,
           allowed: true,
@@ -1871,7 +1882,7 @@ router.get(
         ],
       };
       const bankQuestions = await ExamQuestion.find({
-        topicKey: validatedKey,
+        topicKey: { $in: topicQueryCandidates },
         status: "published",
         ...ownershipFilter,
       })

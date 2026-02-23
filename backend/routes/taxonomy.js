@@ -29,7 +29,13 @@ router.get("/aqa-gcse-biology", (req, res) => {
 router.get("/aqa-gcse-chemistry", (req, res) => {
   try {
     const taxonomy = getChemistryTopics();
-    return res.json(taxonomy);
+    return res.json({
+      subject: taxonomy.subject,
+      examBoard: taxonomy.examBoard,
+      level: taxonomy.level,
+      specKey: taxonomy.specKey || "aqa-gcse-chemistry",
+      units: taxonomy.units,
+    });
   } catch (err) {
     console.error("Taxonomy fetch error:", err);
     return res.status(500).json({ error: "Failed to load Chemistry taxonomy" });

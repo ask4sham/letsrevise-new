@@ -4,7 +4,6 @@
  */
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import api from "../services/api";
 import {
   listTopicPastPapers,
   previewBulkImportTopicPastPapers,
@@ -20,6 +19,10 @@ import {
   type BulkPreviewResponse,
   type UploadMetadata,
 } from "../api/topicPastPapers";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
@@ -61,7 +64,9 @@ function extractUrlsFromImportText(format: "json" | "csv", text: string): string
 }
 
 const TeacherPastPapersBankPage: React.FC = () => {
-  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomy } = useTaxonomy(specKey);
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
   const [topicKey, setTopicKey] = useState<string>("");
   const [examBoard, setExamBoard] = useState<ExamBoard>("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
@@ -89,9 +94,12 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
-  useEffect(() => {
-    api.get("/taxonomy/aqa-gcse-biology").then((res) => setTaxonomy(res?.data ?? null)).catch(() => setTaxonomy(null));
-  }, []);
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
+    setSelectedUnit("");
+    setTopicKey("");
+  };
 
   const fetchItems = async () => {
     if (!topicKey) {
@@ -104,6 +112,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
     try {
       const list = await listTopicPastPapers({
         topicKey,
+        specKey,
         status: statusFilter,
         mineOnly: true,
       });
@@ -147,6 +156,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
     try {
       const result = await previewBulkImportTopicPastPapers({
         topicKey,
+        specKey,
         format: importFormat,
         text: importText,
         dedupeMode,
@@ -188,7 +198,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
         subject: x.subject,
         tags: x.tags,
       }));
-      const result = await bulkImportTopicPastPapers({ topicKey, items: bulkItems, dedupeMode });
+      const result = await bulkImportTopicPastPapers({ topicKey, specKey, items: bulkItems, dedupeMode });
       setImportText("");
       setPreviewResult(null);
       setMessage(
@@ -219,6 +229,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
     try {
       const result = await uploadTopicPastPapers({
         topicKey,
+        specKey,
         files: selectedFiles,
         metadata: Object.keys(uploadMetadata).length > 0 ? uploadMetadata : undefined,
       });
@@ -328,7 +339,9 @@ const TeacherPastPapersBankPage: React.FC = () => {
     }
   };
 
-  const allTopics = taxonomy?.units?.flatMap((u) => u.topics || []) ?? [];
+  const units = taxonomy?.units ?? [];
+  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
+  const allTopics = units.flatMap((u) => u.topics || []);
 
   const sourceLabel = (p: TopicPastPaper) => (p.sourceType === "url" ? "URL" : "File");
   const sourceValue = (p: TopicPastPaper) =>
@@ -346,7 +359,21 @@ const TeacherPastPapersBankPage: React.FC = () => {
         Add past papers by topic via URLs (bulk JSON/CSV) or file upload (PDF, doc, docx). Deduplication is applied.
       </p>
 
-      <div style={{ marginBottom: 20, display: "flex", gap: 24, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 20, display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <SpecSelector value={specKey} onChange={onSpecChange} />
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Collection</label>
+          <select
+            value={selectedUnit}
+            onChange={(e) => { setSelectedUnit(e.target.value); setTopicKey(""); }}
+            style={{ padding: "8px 12px", minWidth: 220, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">— Select collection —</option>
+            {units.map((u) => (
+              <option key={u.unit} value={u.unit}>{u.unit}</option>
+            ))}
+          </select>
+        </div>
         <div>
           <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Topic</label>
           <select
@@ -355,11 +382,13 @@ const TeacherPastPapersBankPage: React.FC = () => {
             style={{ padding: "8px 12px", minWidth: 260, borderRadius: 8, border: "1px solid #d1d5db" }}
           >
             <option value="">— Select topic —</option>
-            {allTopics.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.topic}
-              </option>
-            ))}
+            {selectedUnit
+              ? topicsInUnit.map((t) => (
+                  <option key={t.key} value={t.key}>{t.topic}</option>
+                ))
+              : allTopics.map((t) => (
+                  <option key={t.key} value={t.key}>{t.topic}</option>
+                ))}
           </select>
         </div>
         <div>

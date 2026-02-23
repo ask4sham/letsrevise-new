@@ -15,6 +15,10 @@ import {
   createAssignment,
   type Assignment,
 } from "../api/worksheetAssignments";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 
 type ExamQuestion = {
   _id: string;
@@ -106,7 +110,8 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [filterTopicKey, setFilterTopicKey] = useState<string>("");
-  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomy } = useTaxonomy(specKey);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [seedBankLoading, setSeedBankLoading] = useState(false);
   const [seedBankMessage, setSeedBankMessage] = useState<string | null>(null);
@@ -161,10 +166,11 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     };
   }, [id]);
 
-  // Taxonomy for topic filter
-  useEffect(() => {
-    api.get("/taxonomy/aqa-gcse-biology").then((res) => setTaxonomy(res?.data ?? null)).catch(() => setTaxonomy(null));
-  }, []);
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
+    if (filterTopicKey) setFilterTopicKey("");
+  };
 
   const keyToTopic = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -510,6 +516,9 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
         >
           <div style={{ padding: "12px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
             <h2 style={{ margin: "0 0 8px", fontSize: "1rem" }}>Question Bank</h2>
+            <div style={{ marginBottom: 8 }}>
+              <SpecSelector value={specKey} onChange={onSpecChange} />
+            </div>
             <select
               value={filterTopicKey}
               onChange={(e) => setFilterTopicKey(e.target.value)}

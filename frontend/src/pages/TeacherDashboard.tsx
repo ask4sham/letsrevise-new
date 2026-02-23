@@ -4,6 +4,10 @@ import api from "../services/api";
 import { createWorksheet } from "../api/worksheets";
 import { getTeacherOverview, type TeacherOverview } from "../api/teacherOverview";
 import { getQuestionAnalytics, type QuestionAnalyticsItem } from "../api/teacherAnalytics";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -118,10 +122,38 @@ const TeacherDashboard: React.FC = () => {
   // PR-UX-DASH-INNOV-2: Today's interaction - show all recent or top 5
   const [showAllRecent, setShowAllRecent] = useState(false);
 
-  // PR4: AQA GCSE Biology taxonomy for unit/topic/requiredPractical
-  const [taxonomyMap, setTaxonomyMap] = useState<Record<string, TaxonomyTopicInfo>>({});
-  // PR5: full units list for filters and coverage
-  const [taxonomyUnits, setTaxonomyUnits] = useState<TaxonomyUnit[]>([]);
+  // PR-CHEM-2: Subject/spec selector (Biology vs Chemistry)
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomyData } = useTaxonomy(specKey);
+  // PR4/PR5: taxonomy map and units derived from selected spec
+  const { taxonomyMap, taxonomyUnits } = useMemo(() => {
+    const units = Array.isArray(taxonomyData?.units) ? taxonomyData.units : [];
+    const map: Record<string, TaxonomyTopicInfo> = {};
+    for (const u of units) {
+      const unitName = u?.unit ?? "";
+      const topics = Array.isArray(u?.topics) ? u.topics : [];
+      for (const t of topics) {
+        const key = t?.key ?? topicToKey(t?.topic);
+        if (key) {
+          map[key] = {
+            topic: t?.topic ?? "",
+            unit: unitName,
+            requiredPractical: !!t?.requiredPractical,
+          };
+        }
+      }
+    }
+    const taxonomyUnitsMapped: TaxonomyUnit[] = units.map((u: any) => ({
+      unit: u?.unit ?? "",
+      topics: (Array.isArray(u?.topics) ? u.topics : []).map((t: any) => ({
+        topic: t?.topic ?? "",
+        key: t?.key ?? topicToKey(t?.topic),
+        requiredPractical: !!t?.requiredPractical,
+        tier: Array.isArray(t?.tier) ? t.tier : [],
+      })),
+    }));
+    return { taxonomyMap: map, taxonomyUnits: taxonomyUnitsMapped };
+  }, [taxonomyData]);
 
   // PR5: Topic filter state
   const [filterUnit, setFilterUnit] = useState<string>("all");
@@ -267,49 +299,11 @@ const TeacherDashboard: React.FC = () => {
 
         // 3c) PR-EDGE-5: Load question analytics (questions causing difficulty)
         try {
-          const taxRes = await api.get("/taxonomy/aqa-gcse-biology");
-          const firstTopicKey = taxRes?.data?.units?.[0]?.topics?.[0]?.key ?? "cell-structure";
-          const analytics = await getQuestionAnalytics(firstTopicKey, 30);
+          const analytics = await getQuestionAnalytics("cell-structure", 30);
           const difficult = (analytics.items || []).filter((q) => q.percentCorrect != null && q.attempts >= 3).slice(0, 5);
           setQuestionAnalytics(difficult);
         } catch {
           setQuestionAnalytics([]);
-        }
-
-        // 4) PR4: Load taxonomy for unit/topic/requiredPractical badges
-        try {
-          const taxRes = await api.get("/taxonomy/aqa-gcse-biology");
-          const tax = taxRes?.data;
-          const units = Array.isArray(tax?.units) ? tax.units : [];
-          const map: Record<string, TaxonomyTopicInfo> = {};
-          for (const u of units) {
-            const unitName = u?.unit ?? "";
-            const topics = Array.isArray(u?.topics) ? u.topics : [];
-            for (const t of topics) {
-              const key = t?.key ?? topicToKey(t?.topic);
-              if (key) {
-                map[key] = {
-                  topic: t?.topic ?? "",
-                  unit: unitName,
-                  requiredPractical: !!t?.requiredPractical,
-                };
-              }
-            }
-          }
-          setTaxonomyMap(map);
-          setTaxonomyUnits(
-            units.map((u: any) => ({
-              unit: u?.unit ?? "",
-              topics: (Array.isArray(u?.topics) ? u.topics : []).map((t: any) => ({
-                topic: t?.topic ?? "",
-                key: t?.key ?? topicToKey(t?.topic),
-                requiredPractical: !!t?.requiredPractical,
-                tier: Array.isArray(t?.tier) ? t.tier : [],
-              })),
-            }))
-          );
-        } catch {
-          // non-blocking; badges will degrade gracefully
         }
       } finally {
         setLoading(false);
@@ -381,6 +375,11 @@ const TeacherDashboard: React.FC = () => {
         draftLessons: 0,
       }));
     }
+  };
+
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
   };
 
   // PR6: Generate draft lesson for an uncovered topic
@@ -1266,8 +1265,11 @@ const TeacherDashboard: React.FC = () => {
                 background: "#f9fafb",
               }}
             >
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <SpecSelector value={specKey} onChange={onSpecChange} />
+              </div>
               <h3 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1rem", fontWeight: 600 }}>
-                AQA GCSE Biology coverage
+                {taxonomyData?.subject && taxonomyData?.level ? `${taxonomyData.subject} ${taxonomyData.level} coverage` : "AQA GCSE Biology coverage"}
               </h3>
               <div style={{ color: "#6b7280", fontSize: "13px", marginBottom: 12 }}>
                 Covered: {coverage.coveredCount} / {coverage.totalCount} topics

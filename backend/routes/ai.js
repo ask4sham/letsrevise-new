@@ -17,6 +17,7 @@ const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFr
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -1099,7 +1100,8 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
       const ownerId = req.user?._id || req.user?.userId || req.user?.id;
       if (seedKey && ownerId) {
         try {
-          const bank = await FlashcardBank.findOne({ ownerId, topicKey: seedKey }).lean();
+          const candidates = queryCandidates(DEFAULT_SPEC_LEGACY, parseTopicKey(seedKey).topicKey || seedKey);
+          const bank = await FlashcardBank.findOne({ ownerId, topicKey: { $in: candidates } }).lean();
           if (bank && Array.isArray(bank.cards) && bank.cards.length > 0) {
             const lessonCards = bank.cards.map((c, i) => ({
               id: `fc_${Date.now()}_${i}`,

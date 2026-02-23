@@ -4,7 +4,6 @@
  */
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import api from "../services/api";
 import {
   listTopicQuizQuestions,
   previewBulkImportTopicQuizQuestions,
@@ -19,6 +18,10 @@ import {
   type QuizKind,
 } from "../api/topicQuizQuestions";
 import { getQuestionAnalytics } from "../api/teacherAnalytics";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
@@ -27,7 +30,9 @@ const TeacherQuizBankPage: React.FC = () => {
   const kindFromUrl = (searchParams.get("kind") || "quiz").toLowerCase() as QuizKind;
   const initialKind: QuizKind = kindFromUrl === "assessment" ? "assessment" : "quiz";
 
-  const [taxonomy, setTaxonomy] = useState<{ units: TaxonomyUnit[] } | null>(null);
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomy } = useTaxonomy(specKey);
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
   const [topicKey, setTopicKey] = useState<string>("");
   const [kind, setKind] = useState<QuizKind>(initialKind);
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
@@ -51,9 +56,12 @@ const TeacherQuizBankPage: React.FC = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [topicAccuracy, setTopicAccuracy] = useState<number | null>(null);
 
-  useEffect(() => {
-    api.get("/taxonomy/aqa-gcse-biology").then((res) => setTaxonomy(res?.data ?? null)).catch(() => setTaxonomy(null));
-  }, []);
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
+    setSelectedUnit("");
+    setTopicKey("");
+  };
 
   const fetchQuestions = async () => {
     if (!topicKey) {
@@ -64,7 +72,7 @@ const TeacherQuizBankPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const list = await listTopicQuizQuestions(topicKey, { status: statusFilter, mineOnly: true, kind });
+      const list = await listTopicQuizQuestions(topicKey, { specKey, status: statusFilter, mineOnly: true, kind });
       setQuestions(list);
     } catch (err: any) {
       setError(err?.message || "Failed to load questions");
@@ -76,7 +84,7 @@ const TeacherQuizBankPage: React.FC = () => {
 
   useEffect(() => {
     fetchQuestions();
-  }, [topicKey, statusFilter]);
+  }, [topicKey, specKey, statusFilter]);
 
   const handlePreview = async () => {
     if (!topicKey) {
@@ -121,7 +129,7 @@ const TeacherQuizBankPage: React.FC = () => {
         explanation: x.explanation,
         tags: x.tags,
       }));
-      const result = await bulkCreateTopicQuizQuestions({ topicKey, items, dedupeMode, kind });
+      const result = await bulkCreateTopicQuizQuestions({ topicKey, specKey, items, dedupeMode, kind });
       setImportText("");
       setPreviewResult(null);
       setMessage(`Imported ${result.createdCount} draft(s). Skipped: ${result.skipped.duplicatesInPayload + result.skipped.duplicatesInDb} duplicate(s), ${result.skipped.invalid} invalid.`);
@@ -210,7 +218,9 @@ const TeacherQuizBankPage: React.FC = () => {
     }
   };
 
-  const allTopics = taxonomy?.units?.flatMap((u) => u.topics || []) ?? [];
+  const units = taxonomy?.units ?? [];
+  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
+  const allTopics = units.flatMap((u) => u.topics || []);
 
   function getCorrectLabel(q: TopicQuizQuestion) {
     const labels = "ABCDEF";
@@ -272,20 +282,38 @@ const TeacherQuizBankPage: React.FC = () => {
         Add {kind === "assessment" ? "assessment" : "quiz"} MCQ questions by topic. Bulk import from JSON or CSV, then publish when ready.
       </p>
 
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Topic</label>
-        <select
-          value={topicKey}
-          onChange={(e) => setTopicKey(e.target.value)}
-          style={{ padding: "8px 12px", minWidth: 260, borderRadius: 8, border: "1px solid #d1d5db" }}
-        >
-          <option value="">— Select topic —</option>
-          {allTopics.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.topic}
-            </option>
-          ))}
-        </select>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, marginBottom: 20 }}>
+        <SpecSelector value={specKey} onChange={onSpecChange} />
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Collection</label>
+          <select
+            value={selectedUnit}
+            onChange={(e) => { setSelectedUnit(e.target.value); setTopicKey(""); }}
+            style={{ padding: "8px 12px", minWidth: 220, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">— Select collection —</option>
+            {units.map((u) => (
+              <option key={u.unit} value={u.unit}>{u.unit}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Topic</label>
+          <select
+            value={topicKey}
+            onChange={(e) => setTopicKey(e.target.value)}
+            style={{ padding: "8px 12px", minWidth: 260, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">— Select topic —</option>
+            {selectedUnit
+              ? topicsInUnit.map((t) => (
+                  <option key={t.key} value={t.key}>{t.topic}</option>
+                ))
+              : allTopics.map((t) => (
+                  <option key={t.key} value={t.key}>{t.topic}</option>
+                ))}
+          </select>
+        </div>
       </div>
 
       <div style={{ marginBottom: 12 }}>

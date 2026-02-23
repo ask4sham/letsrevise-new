@@ -20,6 +20,7 @@ export type TopicFlashcard = {
 
 export type ListParams = {
   topicKey?: string;
+  specKey?: string;
   status?: "draft" | "published" | "all";
   mineOnly?: boolean;
 };
@@ -27,6 +28,7 @@ export type ListParams = {
 export async function listTopicFlashcards(params: ListParams = {}): Promise<TopicFlashcard[]> {
   const q = new URLSearchParams();
   if (params.topicKey) q.set("topicKey", params.topicKey);
+  if (params.specKey) q.set("specKey", params.specKey);
   if (params.status) q.set("status", params.status);
   if (params.mineOnly) q.set("mineOnly", "1");
   const res = await api.get<{ items: TopicFlashcard[] }>(
@@ -37,6 +39,7 @@ export async function listTopicFlashcards(params: ListParams = {}): Promise<Topi
 
 export async function createTopicFlashcard(body: {
   topicKey: string;
+  specKey?: string;
   topic?: string;
   front: string;
   back: string;
@@ -69,6 +72,7 @@ export type BulkPreviewResponse = {
 
 export async function previewBulkImportTopicFlashcards(params: {
   topicKey: string;
+  specKey?: string;
   format: "json" | "newline" | "csv";
   text: string;
   dedupeMode?: "skip" | "error" | "allow";
@@ -76,6 +80,7 @@ export async function previewBulkImportTopicFlashcards(params: {
 }): Promise<BulkPreviewResponse> {
   const res = await api.post<BulkPreviewResponse>("/topic-flashcards/bulk/preview", {
     topicKey: params.topicKey,
+    specKey: params.specKey,
     format: params.format,
     text: params.text,
     dedupeMode: params.dedupeMode ?? "skip",
@@ -86,6 +91,7 @@ export async function previewBulkImportTopicFlashcards(params: {
 
 export async function bulkCreateTopicFlashcards(body: {
   topicKey: string;
+  specKey?: string;
   topic?: string;
   items: Array<{ front: string; back: string; tags?: string[] }>;
   dedupeMode?: "skip" | "error" | "allow";
@@ -102,6 +108,7 @@ export async function bulkCreateTopicFlashcards(body: {
     createdIds: string[];
   }>("/topic-flashcards/bulk", {
     topicKey: body.topicKey,
+    specKey: body.specKey,
     topic: body.topic,
     items: body.items,
     dedupeMode: body.dedupeMode ?? "skip",

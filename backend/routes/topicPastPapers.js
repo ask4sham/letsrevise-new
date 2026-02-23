@@ -10,7 +10,8 @@ const multer = require("multer");
 const TopicPastPaper = require("../models/TopicPastPaper");
 const FileAsset = require("../models/FileAsset");
 const auth = require("../middleware/auth");
-const { findTopicByKey } = require("../utils/topicTaxonomy");
+const { isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { buildTopicKey, parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 const { fingerprintUrl, fingerprintFile, dedupeIncoming } = require("../utils/pastPaperDedupe");
 const { parseValidateDedupe, MAX_ITEMS } = require("../utils/parseBulkPastPapers");
 const { saveUploadAndHash, ALLOWED_MIMES, MAX_SIZE } = require("../utils/saveUploadAndHash");
@@ -32,26 +33,42 @@ function getOwnerId(req) {
   return req.user._id || req.user.userId || req.user.id;
 }
 
-function validateTopicKey(topicKey) {
-  if (!topicKey || typeof topicKey !== "string") return null;
-  const k = topicKey.trim().toLowerCase();
-  if (!k) return null;
-  const found = findTopicByKey(k);
-  return found ? k : null;
+function resolveStoredTopicKey(specKeyFromReq, topicKeyFromReq) {
+  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") return { error: "topicKey is required" };
+  const trimmed = topicKeyFromReq.trim();
+  if (!trimmed) return { error: "topicKey is required" };
+  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
+  const { specKey: parsedSpec, topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
+  if (isNamespaced && parsedSpec && rawTopic) {
+    if (!isValidTopicForSpec(parsedSpec, rawTopic)) return { error: `Invalid topicKey for spec ${parsedSpec}` };
+    return { storedKey: trimmed };
+  }
+  const topicOnly = rawTopic || trimmed;
+  if (!isValidTopicForSpec(specKey, topicOnly)) return { error: `Invalid topicKey for spec ${specKey}` };
+  return { storedKey: buildTopicKey(specKey, topicOnly) };
 }
 
-// GET /api/topic-past-papers?topicKey=...&status=...&mineOnly=1
+function resolveTopicKeyForQuery(specKeyFromReq, topicKeyFromReq) {
+  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") return null;
+  const trimmed = topicKeyFromReq.trim();
+  if (!trimmed) return null;
+  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
+  const { topicKey: rawTopic } = parseTopicKey(trimmed);
+  return queryCandidates(specKey, rawTopic || trimmed);
+}
+
+// GET /api/topic-past-papers?topicKey=...&specKey=...&status=...&mineOnly=1
 router.get("/", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
   try {
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const { topicKey, status, mineOnly } = req.query;
+    const { topicKey, specKey: specKeyQ, status, mineOnly } = req.query;
     if (!topicKey) return res.status(400).json({ error: "topicKey query is required" });
-    const valid = validateTopicKey(topicKey);
-    if (!valid) return res.status(400).json({ error: "Invalid topicKey" });
+    const candidates = resolveTopicKeyForQuery(specKeyQ, topicKey);
+    if (!candidates || candidates.length === 0) return res.status(400).json({ error: "Invalid topicKey" });
 
-    const query = { topicKey: valid };
+    const query = { topicKey: { $in: candidates } };
     if (String(mineOnly) === "1" || String(mineOnly) === "true" || !isAdmin) query.ownerId = ownerId;
     if (status && String(status).toLowerCase() === "all") { /* no filter */ }
     else if (status && ["draft", "published"].includes(String(status).toLowerCase())) query.status = String(status).toLowerCase();
@@ -70,9 +87,10 @@ router.post("/bulk/preview", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
   try {
     const ownerId = getOwnerId(req);
-    const { topicKey, format, text, dedupeMode, csvOptions } = req.body;
-    const validKey = validateTopicKey(topicKey);
-    if (!validKey) return res.status(400).json({ error: "Valid topicKey is required" });
+    const { topicKey, specKey: specKeyBody, format, text, dedupeMode, csvOptions } = req.body;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const validKey = resolved.storedKey;
     if (!text || typeof text !== "string") return res.status(400).json({ error: "text is required" });
     const { BULK_MAX_TEXT_LENGTH } = require("../config/limits");
     if (text.length > BULK_MAX_TEXT_LENGTH) return res.status(413).json({ error: "Text too long", maxLength: BULK_MAX_TEXT_LENGTH });
@@ -93,7 +111,10 @@ router.post("/bulk/preview", auth, async (req, res) => {
     }
 
     const fps = validItems.map((x) => x.fingerprint);
-    const existing = await TopicPastPaper.find({ ownerId, topicKey: validKey, fingerprint: { $in: fps } }).lean();
+    const spec = (specKeyBody && String(specKeyBody).trim()) || DEFAULT_SPEC_LEGACY;
+    const parsed = parseTopicKey(topicKey || "");
+    const queryKeys = queryCandidates(spec, parsed.topicKey || String(topicKey || "").trim());
+    const existing = await TopicPastPaper.find({ ownerId, topicKey: { $in: queryKeys }, fingerprint: { $in: fps } }).lean();
     const existingFps = new Set(existing.map((e) => e.fingerprint));
     const duplicatesInDb = validItems.filter((x) => existingFps.has(x.fingerprint));
     const wouldCreate = validItems.filter((x) => !existingFps.has(x.fingerprint));
@@ -132,9 +153,10 @@ router.post("/bulk", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
   try {
     const ownerId = getOwnerId(req);
-    const { topicKey, items, dedupeMode } = req.body;
-    const validKey = validateTopicKey(topicKey);
-    if (!validKey) return res.status(400).json({ error: "Invalid topicKey" });
+    const { topicKey, specKey: specKeyBody, items, dedupeMode } = req.body;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const storedTopicKey = resolved.storedKey;
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "items array is required" });
     if (items.length > MAX_ITEMS) return res.status(400).json({ error: `Too many items (max ${MAX_ITEMS})` });
 
@@ -154,7 +176,10 @@ router.post("/bulk", auth, async (req, res) => {
 
     const { uniqueItems, duplicatesInPayload } = dedupeIncoming(valid, fingerprintUrl);
     const fps = uniqueItems.map((x) => x.fingerprint);
-    const existing = await TopicPastPaper.find({ ownerId, topicKey: validKey, fingerprint: { $in: fps } }).lean();
+    const spec = (specKeyBody && String(specKeyBody).trim()) || DEFAULT_SPEC_LEGACY;
+    const parsed = parseTopicKey(topicKey || "");
+    const queryKeys = queryCandidates(spec, parsed.topicKey || String(topicKey || "").trim());
+    const existing = await TopicPastPaper.find({ ownerId, topicKey: { $in: queryKeys }, fingerprint: { $in: fps } }).lean();
     const existingFps = new Set(existing.map((e) => e.fingerprint));
     const toInsert = uniqueItems.filter((x) => !existingFps.has(x.fingerprint));
     const duplicatesInDb = uniqueItems.filter((x) => existingFps.has(x.fingerprint));
@@ -211,9 +236,11 @@ router.post("/upload", auth, upload.array("files", 20), async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
   try {
     const ownerId = getOwnerId(req);
-    const topicKey = req.body.topicKey || (req.body.metadata && JSON.parse(req.body.metadata || "{}").topicKey);
-    const validKey = validateTopicKey(topicKey);
-    if (!validKey) return res.status(400).json({ error: "Valid topicKey is required" });
+    const topicKey = req.body.topicKey;
+    const specKeyBody = req.body.specKey;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const validKey = resolved.storedKey;
 
     let meta = {};
     try {
@@ -276,7 +303,8 @@ router.post("/upload", auth, upload.array("files", 20), async (req, res) => {
         const fp = fingerprintFile(item);
         item.fingerprint = fp;
 
-        const exists = await TopicPastPaper.findOne({ ownerId, topicKey: validKey, fingerprint: fp }).lean();
+        const queryKeys = queryCandidates((specKeyBody && String(specKeyBody).trim()) || DEFAULT_SPEC_LEGACY, parseTopicKey(topicKey || "").topicKey || topicKey);
+        const exists = await TopicPastPaper.findOne({ ownerId, topicKey: { $in: queryKeys }, fingerprint: fp }).lean();
         if (exists && dedupeMode === "error") {
           rejected.push({ name: file.originalname, reason: "Duplicate (dedupeMode=error)" });
           continue;

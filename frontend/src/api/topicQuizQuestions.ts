@@ -22,6 +22,7 @@ export type QuizKind = "quiz" | "assessment";
 
 export type ListParams = {
   topicKey: string;
+  specKey?: string;
   status?: "draft" | "published" | "all";
   mineOnly?: boolean;
   kind?: QuizKind;
@@ -57,10 +58,11 @@ export type BulkPreviewResponse = {
 
 export async function listTopicQuizQuestions(
   topicKey: string,
-  opts: { status?: ListParams["status"]; mineOnly?: boolean; kind?: QuizKind } = {}
+  opts: { specKey?: string; status?: ListParams["status"]; mineOnly?: boolean; kind?: QuizKind } = {}
 ): Promise<TopicQuizQuestion[]> {
   const q = new URLSearchParams();
   q.set("topicKey", topicKey);
+  if (opts.specKey) q.set("specKey", opts.specKey);
   if (opts.status) q.set("status", opts.status);
   if (opts.mineOnly) q.set("mineOnly", "1");
   if (opts.kind) q.set("kind", opts.kind);
@@ -89,6 +91,7 @@ export async function previewBulkImportTopicQuizQuestions(params: {
 
 export async function bulkCreateTopicQuizQuestions(body: {
   topicKey: string;
+  specKey?: string;
   items: Array<{
     questionText: string;
     choices: string[];
@@ -111,6 +114,7 @@ export async function bulkCreateTopicQuizQuestions(body: {
     createdIds: string[];
   }>("/topic-quiz-questions/bulk", {
     topicKey: body.topicKey,
+    specKey: body.specKey,
     items: body.items,
     dedupeMode: body.dedupeMode ?? "skip",
     kind: body.kind ?? "quiz",

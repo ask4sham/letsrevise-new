@@ -10,6 +10,10 @@ import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
 import { autoGenerateFromBanks } from "../api/lessons";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 import {
   type LessonBlockType,
   BLOCK_META,
@@ -393,7 +397,9 @@ const EditLessonPage: React.FC = () => {
 
   const [attachedExamQuestions, setAttachedExamQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string; topic?: string }>>([]);
   const [addFromBankModalOpen, setAddFromBankModalOpen] = useState(false);
-  const [taxonomyUnits, setTaxonomyUnits] = useState<Array<{ unit: string; topics: { topic: string; key: string }[] }>>([]);
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomyData } = useTaxonomy(specKey);
+  const taxonomyUnits = useMemo(() => Array.isArray(taxonomyData?.units) ? taxonomyData!.units : [], [taxonomyData]);
   const [bankTopicKey, setBankTopicKey] = useState("");
   const [bankQuestions, setBankQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string }>>([]);
   const [selectedBankQuestionIds, setSelectedBankQuestionIds] = useState<Set<string>>(new Set());
@@ -643,12 +649,11 @@ const EditLessonPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [id, userType]);
 
-  useEffect(() => {
-    if (!addFromBankModalOpen) return;
-    api.get("/taxonomy/aqa-gcse-biology").then((res: any) => {
-      setTaxonomyUnits(Array.isArray(res?.data?.units) ? res.data.units : []);
-    }).catch(() => setTaxonomyUnits([]));
-  }, [addFromBankModalOpen]);
+  const onSpecChange = (v: SpecKey) => {
+    setSpecKey(v);
+    setStoredSpecKey(v);
+    setBankTopicKey("");
+  };
 
   useEffect(() => {
     if (!addFromBankModalOpen) return;
@@ -6270,6 +6275,9 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontWeight: 900, marginBottom: 12 }}>Add from Question Bank</div>
+            <div style={{ marginBottom: 10 }}>
+              <SpecSelector value={specKey} onChange={onSpecChange} />
+            </div>
             <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 600 }}>Topic</label>
             <select
               value={bankTopicKey}

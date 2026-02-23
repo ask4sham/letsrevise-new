@@ -110,7 +110,8 @@ describe("Topic Flashcard Bank (PR-F1)", () => {
     expect(Array.isArray(listRes.body.items)).toBe(true);
     expect(listRes.body.items.length).toBeGreaterThanOrEqual(2);
     listRes.body.items.forEach((f) => {
-      expect(f.topicKey).toBe(topicKey);
+      // PR-CHEM-3: stored key may be namespaced (aqa-gcse-biology:cell-structure) or legacy (cell-structure)
+      expect(f.topicKey === topicKey || f.topicKey === `aqa-gcse-biology:${topicKey}`).toBe(true);
       expect(f.front).toBeDefined();
       expect(f.back).toBeDefined();
       expect(f.status).toBe("draft");

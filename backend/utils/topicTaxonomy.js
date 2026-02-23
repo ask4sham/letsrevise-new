@@ -4,6 +4,7 @@
  */
 const path = require("path");
 const fs = require("fs");
+const { parseTopicKey } = require("./topicKey");
 
 let _biologyTaxonomy = null;
 let _chemistryTaxonomy = null;
@@ -65,6 +66,66 @@ function findTopicByKey(key) {
 }
 
 /**
+ * Find a Chemistry topic by its canonical key (e.g. "simple-model-of-the-atom").
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findChemistryTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadChemistryTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
+ * PR-CHEM-3: Check if topicKey exists in the given spec taxonomy.
+ * Strips namespace from topicKey before lookup.
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry"
+ * @param {string} topicKey - Possibly namespaced key; only the suffix is used for lookup.
+ * @returns {boolean}
+ */
+function isValidTopicForSpec(specKey, topicKey) {
+  if (!specKey || !topicKey) return false;
+  const { topicKey: raw } = parseTopicKey(topicKey);
+  const k = raw.trim().toLowerCase();
+  if (!k) return false;
+  if (specKey === "aqa-gcse-biology") {
+    return findTopicByKey(k) !== null;
+  }
+  if (specKey === "aqa-gcse-chemistry") {
+    return findChemistryTopicByKey(k) !== null;
+  }
+  return false;
+}
+
+/**
+ * PR-CHEM-3: Find topic by spec and key (strip namespace from key first).
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry"
+ * @param {string} topicKey - Possibly namespaced key
+ * @returns {Object|null} Topic with unit for chemistry; topic only for biology
+ */
+function findTopicBySpecAndKey(specKey, topicKey) {
+  if (!specKey || !topicKey) return null;
+  const { topicKey: raw } = parseTopicKey(topicKey);
+  const k = raw.trim().toLowerCase();
+  if (!k) return null;
+  if (specKey === "aqa-gcse-biology") {
+    return findTopicByKey(k);
+  }
+  if (specKey === "aqa-gcse-chemistry") {
+    return findChemistryTopicByKey(k);
+  }
+  return null;
+}
+
+/**
  * Normalize a free-text topic to a key (lowercase, hyphenated, no punctuation).
  * @param {string} topic - Display name or free text.
  * @returns {string} Normalized key.
@@ -85,6 +146,8 @@ module.exports = {
   getChemistryTopics,
   findTopicByKey,
   findChemistryTopicByKey,
+  findTopicBySpecAndKey,
+  isValidTopicForSpec,
   topicToKey,
   loadBiologyTaxonomy,
   loadChemistryTaxonomy,
