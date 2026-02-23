@@ -4,7 +4,7 @@
  */
 const express = require("express");
 const router = express.Router();
-const { getBiologyTopics, getChemistryTopics, getPhysicsTopics } = require("../utils/topicTaxonomy");
+const { getBiologyTopics, getChemistryTopics, getPhysicsTopics, getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 
 /**
  * GET /api/taxonomy/aqa-gcse-biology
@@ -59,6 +59,27 @@ router.get("/aqa-gcse-physics", (req, res) => {
   } catch (err) {
     console.error("Taxonomy fetch error:", err);
     return res.status(500).json({ error: "Failed to load Physics taxonomy" });
+  }
+});
+
+/**
+ * GET /api/taxonomy/aqa-gcse-maths-foundation
+ * Returns the full AQA GCSE Maths (Foundation) taxonomy (subject, examBoard, level, specKey, units).
+ */
+router.get("/aqa-gcse-maths-foundation", (req, res) => {
+  try {
+    const taxonomy = getTaxonomyBySpecKey("aqa-gcse-maths-foundation");
+    if (!taxonomy) return res.status(404).json({ error: "Taxonomy not found" });
+    return res.json({
+      subject: taxonomy.subject,
+      examBoard: taxonomy.examBoard,
+      level: taxonomy.level,
+      specKey: taxonomy.specKey || "aqa-gcse-maths-foundation",
+      units: taxonomy.units,
+    });
+  } catch (err) {
+    console.error("Taxonomy fetch error:", err);
+    return res.status(500).json({ error: "Failed to load Maths Foundation taxonomy" });
   }
 });
 

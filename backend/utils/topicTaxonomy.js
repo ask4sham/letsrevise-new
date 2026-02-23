@@ -9,6 +9,7 @@ const { parseTopicKey } = require("./topicKey");
 let _biologyTaxonomy = null;
 let _chemistryTaxonomy = null;
 let _physicsTaxonomy = null;
+let _mathsFoundationTaxonomy = null;
 
 function loadBiologyTaxonomy() {
   if (_biologyTaxonomy) return _biologyTaxonomy;
@@ -32,6 +33,14 @@ function loadPhysicsTaxonomy() {
   const raw = fs.readFileSync(filePath, "utf8");
   _physicsTaxonomy = JSON.parse(raw);
   return _physicsTaxonomy;
+}
+
+function loadMathsFoundationTaxonomy() {
+  if (_mathsFoundationTaxonomy) return _mathsFoundationTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_gcse_maths_foundation_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _mathsFoundationTaxonomy = JSON.parse(raw);
+  return _mathsFoundationTaxonomy;
 }
 
 /** @deprecated use loadBiologyTaxonomy */
@@ -61,6 +70,14 @@ function getChemistryTopics() {
  */
 function getPhysicsTopics() {
   return loadPhysicsTaxonomy();
+}
+
+/**
+ * Get full AQA GCSE Maths (Foundation) taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, specKey, tier, units: [{ unit, key?, topics }] }
+ */
+function getMathsFoundationTopics() {
+  return loadMathsFoundationTaxonomy();
 }
 
 /**
@@ -102,9 +119,47 @@ function findChemistryTopicByKey(key) {
 }
 
 /**
+ * Find a Physics topic by its canonical key (e.g. "energy-stores-and-transfers").
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findPhysicsTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadPhysicsTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
+ * Find a Maths (Foundation) topic by its canonical key (e.g. "fractions").
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findMathsFoundationTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadMathsFoundationTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
  * PR-CHEM-3: Check if topicKey exists in the given spec taxonomy.
  * Strips namespace from topicKey before lookup.
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation"
  * @param {string} topicKey - Possibly namespaced key; only the suffix is used for lookup.
  * @returns {boolean}
  */
@@ -122,14 +177,17 @@ function isValidTopicForSpec(specKey, topicKey) {
   if (specKey === "aqa-gcse-physics") {
     return findPhysicsTopicByKey(k) !== null;
   }
+  if (specKey === "aqa-gcse-maths-foundation") {
+    return findMathsFoundationTopicByKey(k) !== null;
+  }
   return false;
 }
 
 /**
  * PR-CHEM-3: Find topic by spec and key (strip namespace from key first).
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation"
  * @param {string} topicKey - Possibly namespaced key
- * @returns {Object|null} Topic with unit for chemistry/physics; topic only for biology
+ * @returns {Object|null} Topic with unit for chemistry/physics/maths; topic only for biology
  */
 function findTopicBySpecAndKey(specKey, topicKey) {
   if (!specKey || !topicKey) return null;
@@ -144,6 +202,9 @@ function findTopicBySpecAndKey(specKey, topicKey) {
   }
   if (specKey === "aqa-gcse-physics") {
     return findPhysicsTopicByKey(k);
+  }
+  if (specKey === "aqa-gcse-maths-foundation") {
+    return findMathsFoundationTopicByKey(k);
   }
   return null;
 }
@@ -164,17 +225,41 @@ function topicToKey(topic) {
     .replace(/^-|-$/g, "");
 }
 
+/**
+ * Get taxonomy by spec key (for routes / generic dispatch).
+ * @param {string} specKey
+ * @returns {Object|null} Full taxonomy or null
+ */
+function getTaxonomyBySpecKey(specKey) {
+  switch (specKey) {
+    case "aqa-gcse-biology":
+      return getBiologyTopics();
+    case "aqa-gcse-chemistry":
+      return getChemistryTopics();
+    case "aqa-gcse-physics":
+      return getPhysicsTopics();
+    case "aqa-gcse-maths-foundation":
+      return getMathsFoundationTopics();
+    default:
+      return null;
+  }
+}
+
 module.exports = {
   getBiologyTopics,
   getChemistryTopics,
   getPhysicsTopics,
+  getMathsFoundationTopics,
+  getTaxonomyBySpecKey,
   findTopicByKey,
   findChemistryTopicByKey,
   findPhysicsTopicByKey,
+  findMathsFoundationTopicByKey,
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
   loadBiologyTaxonomy,
   loadChemistryTaxonomy,
   loadPhysicsTaxonomy,
+  loadMathsFoundationTaxonomy,
 };
