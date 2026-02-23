@@ -1,0 +1,98 @@
+{
+  "subject": "Further Mathematics",
+  "examBoard": "AQA",
+  "level": "Level 2 Certificate",
+  "specKey": "aqa-l2-further-maths",
+  "tier": [],
+  "units": [
+    {
+      "unit": "SS1. Number",
+      "key": "ss1-number",
+      "topics": [
+        { "topic": "Simplifying Surds", "key": "simplifying-surds", "tier": [], "requiredPractical": false },
+        { "topic": "Rationalising Denominators", "key": "rationalising-denominators", "tier": [], "requiredPractical": false },
+        { "topic": "Counting Principles", "key": "counting-principles", "tier": [], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "SS1. Algebra & Functions",
+      "key": "ss1-algebra-functions",
+      "topics": [
+        { "topic": "Expanding & Factorising", "key": "expanding-factorising", "tier": [], "requiredPractical": false },
+        { "topic": "Factorising Quadratics", "key": "factorising-quadratics", "tier": [], "requiredPractical": false },
+        { "topic": "Quadratics Factorising Methods", "key": "quadratics-factorising-methods", "tier": [], "requiredPractical": false },
+        { "topic": "Completing the Square", "key": "completing-the-square", "tier": [], "requiredPractical": false },
+        { "topic": "Solving Quadratic Equations", "key": "solving-quadratic-equations", "tier": [], "requiredPractical": false },
+        { "topic": "Equating Coefficients", "key": "equating-coefficients", "tier": [], "requiredPractical": false },
+        { "topic": "Forming & Solving Equations", "key": "forming-solving-equations", "tier": [], "requiredPractical": false },
+        { "topic": "Binomial Expansion", "key": "binomial-expansion", "tier": [], "requiredPractical": false },
+        { "topic": "Problem Solving with Binomial Expansion", "key": "problem-solving-binomial-expansion", "tier": [], "requiredPractical": false },
+        { "topic": "Algebraic Fractions", "key": "algebraic-fractions", "tier": [], "requiredPractical": false },
+        { "topic": "Rearranging Formulae", "key": "rearranging-formulae", "tier": [], "requiredPractical": false },
+        { "topic": "Indices", "key": "indices", "tier": [], "requiredPractical": false },
+        { "topic": "Algebraic Proof", "key": "algebraic-proof", "tier": [], "requiredPractical": false },
+        { "topic": "Factor Theorem", "key": "factor-theorem", "tier": [], "requiredPractical": false },
+        { "topic": "Applications of Factor Theorem", "key": "applications-of-factor-theorem", "tier": [], "requiredPractical": false },
+        { "topic": "Quadratic & Polynomial Graphs", "key": "quadratic-polynomial-graphs", "tier": [], "requiredPractical": false },
+        { "topic": "Exponential Graphs", "key": "exponential-graphs", "tier": [], "requiredPractical": false },
+        { "topic": "Solving Equations using Graphs", "key": "solving-equations-using-graphs", "tier": [], "requiredPractical": false },
+        { "topic": "Linear Simultaneous Equations", "key": "linear-simultaneous-equations", "tier": [], "requiredPractical": false },
+        { "topic": "Quadratic Simultaneous Equations", "key": "quadratic-simultaneous-equations", "tier": [], "requiredPractical": false },
+        { "topic": "Simultaneous Equations with 3 Variables", "key": "simultaneous-equations-3-variables", "tier": [], "requiredPractical": false },
+        { "topic": "Linear Inequalities", "key": "linear-inequalities", "tier": [], "requiredPractical": false },
+        { "topic": "Quadratic Inequalities", "key": "quadratic-inequalities", "tier": [], "requiredPractical": false },
+        { "topic": "Functions Toolkit", "key": "functions-toolkit", "tier": [], "requiredPractical": false },
+        { "topic": "Composite & Inverse Functions", "key": "composite-inverse-functions", "tier": [], "requiredPractical": false },
+        { "topic": "Finding nth Terms of Sequences", "key": "finding-nth-terms-of-sequences", "tier": [], "requiredPractical": false },
+        { "topic": "Using nth Terms of Sequences", "key": "using-nth-terms-of-sequences", "tier": [], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "SS1. Coordinate Geometry",
+      "key": "ss1-coordinate-geometry",
+      "topics": [
+        { "topic": "Coordinate Geometry", "key": "coordinate-geometry", "tier": [], "requiredPractical": false },
+        { "topic": "Gradients", "key": "gradients", "tier": [], "requiredPractical": false },
+        { "topic": "Equation of a Straight Line", "key": "equation-of-a-straight-line", "tier": [], "requiredPractical": false },
+        { "topic": "Equation of a Circle", "key": "equation-of-a-circle", "tier": [], "requiredPractical": false },
+        { "topic": "Tangents to Circles", "key": "tangents-to-circles", "tier": [], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "SS1. Calculus",
+      "key": "ss1-calculus",
+      "topics": [
+        { "topic": "Definition of Gradient", "key": "definition-of-gradient", "tier": [], "requiredPractical": false },
+        { "topic": "Differentiating Powers of x", "key": "differentiating-powers-of-x", "tier": [], "requiredPractical": false },
+        { "topic": "Tangents & Normals", "key": "tangents-normals", "tier": [], "requiredPractical": false },
+        { "topic": "Increasing & Decreasing Functions", "key": "increasing-decreasing-functions", "tier": [], "requiredPractical": false },
+        { "topic": "Second Derivatives", "key": "second-derivatives", "tier": [], "requiredPractical": false },
+        { "topic": "Stationary Points & Turning Points", "key": "stationary-points-turning-points", "tier": [], "requiredPractical": false },
+        { "topic": "Modelling with Differentiation and Optimisation", "key": "modelling-differentiation-optimisation", "tier": [], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "SS1. Matrix Transformations",
+      "key": "ss1-matrix-transformations",
+      "topics": [
+        { "topic": "Introduction to Matrices", "key": "introduction-to-matrices", "tier": [], "requiredPractical": false },
+        { "topic": "Multiplying Matrices", "key": "multiplying-matrices", "tier": [], "requiredPractical": false },
+        { "topic": "Transformations with Matrices", "key": "transformations-with-matrices", "tier": [], "requiredPractical": false },
+        { "topic": "Combining Matrix Transformations", "key": "combining-matrix-transformations", "tier": [], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "SS1. Geometry",
+      "key": "ss1-geometry",
+      "topics": [
+        { "topic": "Geometric Proof", "key": "geometric-proof", "tier": [], "requiredPractical": false },
+        { "topic": "Right-Angled Trigonometry", "key": "right-angled-trigonometry", "tier": [], "requiredPractical": false },
+        { "topic": "Sine, Cosine Rule & Area of Triangles", "key": "sine-cosine-rule-area-of-triangles", "tier": [], "requiredPractical": false },
+        { "topic": "3D Pythagoras & Trigonometry", "key": "3d-pythagoras-trigonometry", "tier": [], "requiredPractical": false },
+        { "topic": "Trigonometric Graphs", "key": "trigonometric-graphs", "tier": [], "requiredPractical": false },
+        { "topic": "Trigonometric Identities", "key": "trigonometric-identities", "tier": [], "requiredPractical": false },
+        { "topic": "Solving Trig Equations", "key": "solving-trig-equations", "tier": [], "requiredPractical": false }
+      ]
+    }
+  ]
+}

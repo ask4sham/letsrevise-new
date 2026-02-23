@@ -83,4 +83,46 @@ router.get("/aqa-gcse-maths-foundation", (req, res) => {
   }
 });
 
+/**
+ * GET /api/taxonomy/aqa-gcse-maths-higher
+ * Returns the full AQA GCSE Maths (Higher) taxonomy (subject, examBoard, level, specKey, units).
+ */
+router.get("/aqa-gcse-maths-higher", (req, res) => {
+  try {
+    const taxonomy = getTaxonomyBySpecKey("aqa-gcse-maths-higher");
+    if (!taxonomy) return res.status(404).json({ error: "Taxonomy not found" });
+    return res.json({
+      subject: taxonomy.subject,
+      examBoard: taxonomy.examBoard,
+      level: taxonomy.level,
+      specKey: taxonomy.specKey || "aqa-gcse-maths-higher",
+      units: taxonomy.units,
+    });
+  } catch (err) {
+    console.error("Taxonomy fetch error:", err);
+    return res.status(500).json({ error: "Failed to load Maths Higher taxonomy" });
+  }
+});
+
+/**
+ * GET /api/taxonomy/aqa-l2-further-maths
+ * Returns the full AQA Level 2 Further Maths taxonomy (subject, examBoard, level, specKey, units).
+ */
+router.get("/aqa-l2-further-maths", (req, res) => {
+  try {
+    const taxonomy = getTaxonomyBySpecKey("aqa-l2-further-maths");
+    if (!taxonomy) return res.status(404).json({ error: "Taxonomy not found" });
+    return res.json({
+      subject: taxonomy.subject,
+      examBoard: taxonomy.examBoard,
+      level: taxonomy.level,
+      specKey: taxonomy.specKey || "aqa-l2-further-maths",
+      units: taxonomy.units,
+    });
+  } catch (err) {
+    console.error("Taxonomy fetch error:", err);
+    return res.status(500).json({ error: "Failed to load Further Maths taxonomy" });
+  }
+});
+
 module.exports = router;

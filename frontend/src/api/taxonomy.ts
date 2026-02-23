@@ -23,7 +23,13 @@ export type TaxonomyResponse = {
   units: TaxonomyUnit[];
 };
 
-export type SpecKey = "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation";
+export type SpecKey =
+  | "aqa-gcse-biology"
+  | "aqa-gcse-chemistry"
+  | "aqa-gcse-physics"
+  | "aqa-gcse-maths-foundation"
+  | "aqa-gcse-maths-higher"
+  | "aqa-l2-further-maths";
 
 export async function fetchTaxonomy(specKey: SpecKey): Promise<TaxonomyResponse> {
   const res = await api.get<TaxonomyResponse>(`/taxonomy/${specKey}`);

@@ -10,6 +10,8 @@ let _biologyTaxonomy = null;
 let _chemistryTaxonomy = null;
 let _physicsTaxonomy = null;
 let _mathsFoundationTaxonomy = null;
+let _mathsHigherTaxonomy = null;
+let _furtherMathsTaxonomy = null;
 
 function loadBiologyTaxonomy() {
   if (_biologyTaxonomy) return _biologyTaxonomy;
@@ -78,6 +80,22 @@ function getPhysicsTopics() {
  */
 function getMathsFoundationTopics() {
   return loadMathsFoundationTaxonomy();
+}
+
+/**
+ * Get full AQA GCSE Maths (Higher) taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, specKey, tier, units }
+ */
+function getMathsHigherTopics() {
+  return loadMathsHigherTaxonomy();
+}
+
+/**
+ * Get full AQA Level 2 Further Maths taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, specKey, tier, units }
+ */
+function getFurtherMathsTopics() {
+  return loadFurtherMathsTaxonomy();
 }
 
 /**
@@ -180,6 +198,12 @@ function isValidTopicForSpec(specKey, topicKey) {
   if (specKey === "aqa-gcse-maths-foundation") {
     return findMathsFoundationTopicByKey(k) !== null;
   }
+  if (specKey === "aqa-gcse-maths-higher") {
+    return findMathsHigherTopicByKey(k) !== null;
+  }
+  if (specKey === "aqa-l2-further-maths") {
+    return findFurtherMathsTopicByKey(k) !== null;
+  }
   return false;
 }
 
@@ -240,6 +264,10 @@ function getTaxonomyBySpecKey(specKey) {
       return getPhysicsTopics();
     case "aqa-gcse-maths-foundation":
       return getMathsFoundationTopics();
+    case "aqa-gcse-maths-higher":
+      return getMathsHigherTopics();
+    case "aqa-l2-further-maths":
+      return getFurtherMathsTopics();
     default:
       return null;
   }
@@ -250,11 +278,15 @@ module.exports = {
   getChemistryTopics,
   getPhysicsTopics,
   getMathsFoundationTopics,
+  getMathsHigherTopics,
+  getFurtherMathsTopics,
   getTaxonomyBySpecKey,
   findTopicByKey,
   findChemistryTopicByKey,
   findPhysicsTopicByKey,
   findMathsFoundationTopicByKey,
+  findMathsHigherTopicByKey,
+  findFurtherMathsTopicByKey,
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
@@ -262,4 +294,6 @@ module.exports = {
   loadChemistryTaxonomy,
   loadPhysicsTaxonomy,
   loadMathsFoundationTaxonomy,
+  loadMathsHigherTaxonomy,
+  loadFurtherMathsTaxonomy,
 };
