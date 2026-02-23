@@ -26,6 +26,18 @@ This repo uses `npm ci` in CI for deterministic installs.
 - Do not remove `backend/package-lock.json` or `frontend/package-lock.json`
 - If you add dependencies, commit the updated lockfile(s)
 
+Example commits (use separate lines):
+
+```bash
+git add .github/workflows/ci.yml CONTRIBUTING.md
+git commit -m "chore: enforce lockfile policy and harden CI"
+```
+
+```bash
+git add backend/package-lock.json frontend/package-lock.json
+git commit -m "chore: commit lockfiles for deterministic installs"
+```
+
 ## Validation
 
 All taxonomy files are validated by:
