@@ -97,10 +97,17 @@ const ExamQuestionSchema = new mongoose.Schema(
       enum: ["draft", "published"],
       default: "draft",
     },
+    /** PR-BULK-INGEST-2: Stable hash for dedupe (stem + answer/markscheme + type + marks). */
+    fingerprint: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );
 
 ExamQuestionSchema.index({ teacherId: 1, status: 1 });
+ExamQuestionSchema.index({ fingerprint: 1 }, { sparse: true });
 
 module.exports = mongoose.model("ExamQuestion", ExamQuestionSchema);
