@@ -12,6 +12,7 @@ let _physicsTaxonomy = null;
 let _mathsFoundationTaxonomy = null;
 let _mathsHigherTaxonomy = null;
 let _furtherMathsTaxonomy = null;
+let _englishLiteratureTaxonomy = null;
 
 function loadBiologyTaxonomy() {
   if (_biologyTaxonomy) return _biologyTaxonomy;
@@ -59,6 +60,14 @@ function loadFurtherMathsTaxonomy() {
   const raw = fs.readFileSync(filePath, "utf8");
   _furtherMathsTaxonomy = JSON.parse(raw);
   return _furtherMathsTaxonomy;
+}
+
+function loadEnglishLiteratureTaxonomy() {
+  if (_englishLiteratureTaxonomy) return _englishLiteratureTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_gcse_english_literature_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _englishLiteratureTaxonomy = JSON.parse(raw);
+  return _englishLiteratureTaxonomy;
 }
 
 /** @deprecated use loadBiologyTaxonomy */
@@ -112,6 +121,14 @@ function getMathsHigherTopics() {
  */
 function getFurtherMathsTopics() {
   return loadFurtherMathsTaxonomy();
+}
+
+/**
+ * Get full AQA GCSE English Literature taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, specKey, tier, units }
+ */
+function getEnglishLiteratureTopics() {
+  return loadEnglishLiteratureTaxonomy();
 }
 
 /**
@@ -229,9 +246,28 @@ function findFurtherMathsTopicByKey(key) {
 }
 
 /**
+ * Find an English Literature topic by its canonical key (e.g. "macbeth-overview", "novel-structuring-the-essay").
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findEnglishLiteratureTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadEnglishLiteratureTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
  * PR-CHEM-3: Check if topicKey exists in the given spec taxonomy.
  * Strips namespace from topicKey before lookup.
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation" | "aqa-gcse-maths-higher" | "aqa-l2-further-maths"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation" | "aqa-gcse-maths-higher" | "aqa-l2-further-maths" | "aqa-gcse-english-literature"
  * @param {string} topicKey - Possibly namespaced key; only the suffix is used for lookup.
  * @returns {boolean}
  */
@@ -258,14 +294,17 @@ function isValidTopicForSpec(specKey, topicKey) {
   if (specKey === "aqa-l2-further-maths") {
     return findFurtherMathsTopicByKey(k) !== null;
   }
+  if (specKey === "aqa-gcse-english-literature") {
+    return findEnglishLiteratureTopicByKey(k) !== null;
+  }
   return false;
 }
 
 /**
  * PR-CHEM-3: Find topic by spec and key (strip namespace from key first).
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation" | "aqa-gcse-maths-higher" | "aqa-l2-further-maths" | "aqa-gcse-english-literature"
  * @param {string} topicKey - Possibly namespaced key
- * @returns {Object|null} Topic with unit for chemistry/physics/maths; topic only for biology
+ * @returns {Object|null} Topic with unit for chemistry/physics/maths/english-literature; topic only for biology
  */
 function findTopicBySpecAndKey(specKey, topicKey) {
   if (!specKey || !topicKey) return null;
@@ -289,6 +328,9 @@ function findTopicBySpecAndKey(specKey, topicKey) {
   }
   if (specKey === "aqa-l2-further-maths") {
     return findFurtherMathsTopicByKey(k);
+  }
+  if (specKey === "aqa-gcse-english-literature") {
+    return findEnglishLiteratureTopicByKey(k);
   }
   return null;
 }
@@ -328,6 +370,8 @@ function getTaxonomyBySpecKey(specKey) {
       return getMathsHigherTopics();
     case "aqa-l2-further-maths":
       return getFurtherMathsTopics();
+    case "aqa-gcse-english-literature":
+      return getEnglishLiteratureTopics();
     default:
       return null;
   }
@@ -340,6 +384,7 @@ module.exports = {
   getMathsFoundationTopics,
   getMathsHigherTopics,
   getFurtherMathsTopics,
+  getEnglishLiteratureTopics,
   getTaxonomyBySpecKey,
   findTopicByKey,
   findChemistryTopicByKey,
@@ -347,6 +392,7 @@ module.exports = {
   findMathsFoundationTopicByKey,
   findMathsHigherTopicByKey,
   findFurtherMathsTopicByKey,
+  findEnglishLiteratureTopicByKey,
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
@@ -356,4 +402,5 @@ module.exports = {
   loadMathsFoundationTaxonomy,
   loadMathsHigherTaxonomy,
   loadFurtherMathsTaxonomy,
+  loadEnglishLiteratureTaxonomy,
 };
