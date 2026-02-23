@@ -1,6 +1,7 @@
 /**
  * PR-PP1: Topic Past Paper Bank — teacher/admin manage past papers by topicKey.
  * PR-PAST-PAPERS-UI-1: Copyright-safe copy, rights confirmation, "View uploaded PDF".
+ * PR-PAST-PAPERS-API-1: GET /api/past-papers/mine + UI uses PastPaper records.
  * Route: /teacher/topic-banks/past-papers
  */
 import React, { useState, useEffect, useRef } from "react";
@@ -20,6 +21,7 @@ import {
   type BulkPreviewResponse,
   type UploadMetadata,
 } from "../api/topicPastPapers";
+import { fetchMyPastPapers, type PastPaper } from "../api/pastPapers";
 import { CopyrightNotice } from "../components/pastPapers/CopyrightNotice";
 import { ConfirmUploadRightsModal } from "../components/pastPapers/ConfirmUploadRightsModal";
 import { SpecSelector } from "../components/SpecSelector";
@@ -29,7 +31,7 @@ import type { SpecKey } from "../api/taxonomy";
 
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
-type Tab = "urls" | "upload" | "list";
+type Tab = "urls" | "upload" | "list" | "mine";
 type ExamBoard = "" | "AQA" | "OCR" | "Edexcel" | "Other";
 
 function isUrlOnAqa(url: string): boolean {
@@ -77,7 +79,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [seriesFilter, setSeriesFilter] = useState<string>("");
   const [tierFilter, setTierFilter] = useState<string>("");
   const [paperFilter, setPaperFilter] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<Tab>("list");
+  const [activeTab, setActiveTab] = useState<Tab>("mine");
   const [items, setItems] = useState<TopicPastPaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +103,11 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // PR-PAST-PAPERS-API-1: PastPaper records from /api/past-papers/mine
+  const [pastPapersMine, setPastPapersMine] = useState<PastPaper[]>([]);
+  const [pastPapersMineLoading, setPastPapersMineLoading] = useState(false);
+  const [qSearch, setQSearch] = useState("");
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -139,7 +146,39 @@ const TeacherPastPapersBankPage: React.FC = () => {
 
   useEffect(() => {
     fetchItems();
-  }, [topicKey, statusFilter]);
+  }, [topicKey, specKey, statusFilter, yearFilter, seriesFilter, tierFilter, paperFilter]);
+
+  const fetchMine = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setPastPapersMine([]);
+      setPastPapersMineLoading(false);
+      return;
+    }
+    setPastPapersMineLoading(true);
+    setError(null);
+    try {
+      const data = await fetchMyPastPapers({
+        token,
+        specKey,
+        ...(yearFilter.trim() && { year: yearFilter.trim() }),
+        ...(seriesFilter.trim() && { series: seriesFilter.trim() }),
+        ...(tierFilter.trim() && { tier: tierFilter.trim() }),
+        ...(qSearch.trim() && { q: qSearch.trim() }),
+        limit: 50,
+      });
+      setPastPapersMine(data.items);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load past papers");
+      setPastPapersMine([]);
+    } finally {
+      setPastPapersMineLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "mine") fetchMine();
+  }, [activeTab, specKey, yearFilter, seriesFilter, tierFilter, qSearch]);
 
   useEffect(() => {
     if (examBoard === "AQA" && activeTab === "upload") setActiveTab("list");
@@ -458,7 +497,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
         ))}
         <span style={{ width: 16 }} />
         <label style={{ fontWeight: 600 }}>Tab:</label>
-        {(["list", "urls", "upload"] as Tab[]).map((t) => {
+        {(["mine", "list", "urls", "upload"] as Tab[]).map((t) => {
           const hideUpload = t === "upload" && examBoard === "AQA";
           if (hideUpload) return null;
           return (
@@ -474,7 +513,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
                 fontWeight: activeTab === t ? 700 : 400,
               }}
             >
-              {t === "list" ? "List" : t === "urls" ? "Import URLs" : "Upload files"}
+              {t === "mine" ? "My papers" : t === "list" ? "By topic" : t === "urls" ? "Import URLs" : "Upload files"}
             </button>
           );
         })}
@@ -489,6 +528,99 @@ const TeacherPastPapersBankPage: React.FC = () => {
         <div style={{ padding: 10, marginBottom: 12, borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
           {error}
         </div>
+      )}
+
+      {activeTab === "mine" && (
+        <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Your uploaded resources</h2>
+          <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 12px" }}>
+            Teacher-uploaded resources are private. LetsRevise does not provide official exam papers.
+          </p>
+          <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Filter:</span>
+            <input
+              type="text"
+              placeholder="Search title / paper / series"
+              value={qSearch}
+              onChange={(e) => setQSearch(e.target.value)}
+              style={{ width: 200, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+            />
+            <input
+              type="text"
+              placeholder="Year"
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              style={{ width: 72, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+            />
+            <input
+              type="text"
+              placeholder="Series"
+              value={seriesFilter}
+              onChange={(e) => setSeriesFilter(e.target.value)}
+              style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+            />
+            <input
+              type="text"
+              placeholder="Tier"
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value)}
+              style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+            />
+          </div>
+          {pastPapersMineLoading && <p>Loading…</p>}
+          {!pastPapersMineLoading && !localStorage.getItem("token") && (
+            <p style={{ color: "#6b7280" }}>Sign in to view your past papers.</p>
+          )}
+          {!pastPapersMineLoading && localStorage.getItem("token") && pastPapersMine.length === 0 && (
+            <p style={{ color: "#6b7280" }}>
+              {qSearch || yearFilter || seriesFilter || tierFilter
+                ? "No resources match the current filters."
+                : "No past papers yet. Use bulk import or add papers by topic."}
+            </p>
+          )}
+          {!pastPapersMineLoading && pastPapersMine.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ textAlign: "left", padding: 8 }}>Title</th>
+                    <th style={{ textAlign: "left", padding: 8 }}>Year / Series / Tier / Paper</th>
+                    <th style={{ textAlign: "left", padding: 8 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastPapersMine.map((p) => (
+                    <tr key={p._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: 8 }}>
+                        {p.title || `${p.examBoard} ${p.level} ${p.year} ${p.paperCode}`}
+                        <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 11, background: "#f3f4f6", color: "#4b5563", fontWeight: 600 }}>
+                          Teacher-uploaded
+                        </span>
+                      </td>
+                      <td style={{ padding: 8, color: "#4b5563" }}>
+                        {[p.year, p.series, p.tier, p.paperCode].filter(Boolean).join(" · ") || "—"}
+                      </td>
+                      <td style={{ padding: 8 }}>
+                        {p.pdf?.url ? (
+                          <a
+                            href={p.pdf.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#2563eb" }}
+                          >
+                            View uploaded PDF
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 12, color: "#6b7280" }}>No PDF attached</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
 
       {activeTab === "urls" && (

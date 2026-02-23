@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
-import { generatePastPapersFromTopic, downloadTopicPastPaperFile } from "../api/topicPastPapers";
+import { generatePastPapersFromTopic, viewTopicPastPaperFile as openPastPaperPdfInNewTab } from "../api/topicPastPapers";
 import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
 import { autoGenerateFromBanks } from "../api/lessons";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
@@ -6224,14 +6224,14 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                                     type="button"
                                     onClick={async () => {
                                       try {
-                                        await downloadTopicPastPaperFile(pp.fileId!, pp.originalName || "past-paper.pdf");
+                                        await openPastPaperPdfInNewTab(pp.fileId!);
                                       } catch (e: any) {
-                                        setSeedPastPapersError(e?.message || "Download failed");
+                                        setSeedPastPapersError(e?.message || "Failed to open PDF");
                                       }
                                     }}
                                     style={{ marginLeft: 8, color: "#2563eb", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontSize: "inherit" }}
                                   >
-                                    Download
+                                    View uploaded PDF
                                   </button>
                                 )}
                               </li>
