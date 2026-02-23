@@ -33,6 +33,8 @@ All taxonomy files are validated by:
 - `backend/scripts/validateTaxonomies.js`
 - and a Jest test that runs this script in CI.
 
+CI includes a fast-fail taxonomy validation job. If this check fails, the PR will not run full tests or builds.
+
 Run locally:
 
 - `cd backend`
