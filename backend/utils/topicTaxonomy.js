@@ -8,6 +8,7 @@ const { parseTopicKey } = require("./topicKey");
 
 let _biologyTaxonomy = null;
 let _chemistryTaxonomy = null;
+let _physicsTaxonomy = null;
 
 function loadBiologyTaxonomy() {
   if (_biologyTaxonomy) return _biologyTaxonomy;
@@ -23,6 +24,14 @@ function loadChemistryTaxonomy() {
   const raw = fs.readFileSync(filePath, "utf8");
   _chemistryTaxonomy = JSON.parse(raw);
   return _chemistryTaxonomy;
+}
+
+function loadPhysicsTaxonomy() {
+  if (_physicsTaxonomy) return _physicsTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_gcse_physics_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _physicsTaxonomy = JSON.parse(raw);
+  return _physicsTaxonomy;
 }
 
 /** @deprecated use loadBiologyTaxonomy */
@@ -44,6 +53,14 @@ function getBiologyTopics() {
  */
 function getChemistryTopics() {
   return loadChemistryTaxonomy();
+}
+
+/**
+ * Get full AQA GCSE Physics taxonomy (subject, examBoard, level, units with topics).
+ * @returns {Object} { subject, examBoard, level, units: [{ unit, topics: [{ topic, key, tier, requiredPractical }] }] }
+ */
+function getPhysicsTopics() {
+  return loadPhysicsTaxonomy();
 }
 
 /**
@@ -87,7 +104,7 @@ function findChemistryTopicByKey(key) {
 /**
  * PR-CHEM-3: Check if topicKey exists in the given spec taxonomy.
  * Strips namespace from topicKey before lookup.
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics"
  * @param {string} topicKey - Possibly namespaced key; only the suffix is used for lookup.
  * @returns {boolean}
  */
@@ -102,14 +119,17 @@ function isValidTopicForSpec(specKey, topicKey) {
   if (specKey === "aqa-gcse-chemistry") {
     return findChemistryTopicByKey(k) !== null;
   }
+  if (specKey === "aqa-gcse-physics") {
+    return findPhysicsTopicByKey(k) !== null;
+  }
   return false;
 }
 
 /**
  * PR-CHEM-3: Find topic by spec and key (strip namespace from key first).
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics"
  * @param {string} topicKey - Possibly namespaced key
- * @returns {Object|null} Topic with unit for chemistry; topic only for biology
+ * @returns {Object|null} Topic with unit for chemistry/physics; topic only for biology
  */
 function findTopicBySpecAndKey(specKey, topicKey) {
   if (!specKey || !topicKey) return null;
@@ -121,6 +141,9 @@ function findTopicBySpecAndKey(specKey, topicKey) {
   }
   if (specKey === "aqa-gcse-chemistry") {
     return findChemistryTopicByKey(k);
+  }
+  if (specKey === "aqa-gcse-physics") {
+    return findPhysicsTopicByKey(k);
   }
   return null;
 }
@@ -144,11 +167,14 @@ function topicToKey(topic) {
 module.exports = {
   getBiologyTopics,
   getChemistryTopics,
+  getPhysicsTopics,
   findTopicByKey,
   findChemistryTopicByKey,
+  findPhysicsTopicByKey,
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
   loadBiologyTaxonomy,
   loadChemistryTaxonomy,
+  loadPhysicsTaxonomy,
 };

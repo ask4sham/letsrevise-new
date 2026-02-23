@@ -4,7 +4,7 @@
  */
 const express = require("express");
 const router = express.Router();
-const { getBiologyTopics, getChemistryTopics } = require("../utils/topicTaxonomy");
+const { getBiologyTopics, getChemistryTopics, getPhysicsTopics } = require("../utils/topicTaxonomy");
 
 /**
  * GET /api/taxonomy/aqa-gcse-biology
@@ -39,6 +39,26 @@ router.get("/aqa-gcse-chemistry", (req, res) => {
   } catch (err) {
     console.error("Taxonomy fetch error:", err);
     return res.status(500).json({ error: "Failed to load Chemistry taxonomy" });
+  }
+});
+
+/**
+ * GET /api/taxonomy/aqa-gcse-physics
+ * Returns the full AQA GCSE Physics taxonomy (subject, examBoard, level, units with topics).
+ */
+router.get("/aqa-gcse-physics", (req, res) => {
+  try {
+    const taxonomy = getPhysicsTopics();
+    return res.json({
+      subject: taxonomy.subject,
+      examBoard: taxonomy.examBoard,
+      level: taxonomy.level,
+      specKey: taxonomy.specKey || "aqa-gcse-physics",
+      units: taxonomy.units,
+    });
+  } catch (err) {
+    console.error("Taxonomy fetch error:", err);
+    return res.status(500).json({ error: "Failed to load Physics taxonomy" });
   }
 });
 
