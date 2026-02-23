@@ -1,0 +1,67 @@
+{
+  "subject": "Mathematics",
+  "examBoard": "AQA",
+  "level": "GCSE",
+  "specKey": "aqa-gcse-maths-foundation",
+  "tier": ["foundation"],
+  "units": [
+    {
+      "unit": "SS1: Number, Algebra & Ratio",
+      "key": "ss1-number-algebra-ratio",
+      "topics": [
+        { "topic": "Number Operations", "key": "number-operations", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Types of Numbers, Factors, HCF & LCM", "key": "types-of-numbers-factors-hcf-lcm", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Powers, Roots & Standard Form", "key": "powers-roots-standard-form", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Fractions", "key": "fractions", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Percentages", "key": "percentages", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Simple & Compound Interest, Growth & Decay", "key": "interest-growth-decay", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Fractions, Decimals & Percentages", "key": "fractions-decimals-percentages", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Percentages & Reverse Percentages", "key": "percentages-reverse-percentages", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Ratio & Proportion", "key": "ratio-proportion", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Using a Calculator", "key": "using-a-calculator", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Introduction to Algebra", "key": "introduction-to-algebra", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Algebraic Terms & Substitution", "key": "algebraic-terms-substitution", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Expanding Brackets", "key": "expanding-brackets", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Factorising", "key": "factorising", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Rearranging Formulae", "key": "rearranging-formulae", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Algebraic Reasoning", "key": "algebraic-reasoning", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Linear Equations", "key": "linear-equations", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Solving Quadratic Equations", "key": "solving-quadratic-equations", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Simultaneous Equations", "key": "simultaneous-equations", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Forming & Solving Inequalities", "key": "inequalities", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Functions", "key": "functions", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Coordinate Geometry", "key": "coordinate-geometry", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Linear Graphs", "key": "linear-graphs", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Graphs of Functions", "key": "graphs-of-functions", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Real-Life Graphs", "key": "real-life-graphs", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Solving Using Graphs", "key": "solving-using-graphs", "tier": ["foundation"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "SS2: Geometry, Measures, Statistics & Probability",
+      "key": "ss2-geometry-measures-statistics-probability",
+      "topics": [
+        { "topic": "Ratio, Proportion & Rates of Change", "key": "rates-of-change", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Introduction to Vectors", "key": "vectors", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Angles, Polygons & Bearings", "key": "angles-polygons-bearings", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Circles & Sectors", "key": "circles-sectors", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "2D & 3D Shapes", "key": "2d-3d-shapes", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Triangles, Pythagoras & Trigonometry", "key": "pythagoras-trigonometry", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Congruence, Similarity & Enlargement (Proof)", "key": "congruence-similarity-enlargement", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Transformations", "key": "transformations", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Measures", "key": "measures", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Perimeter, Area & Volume", "key": "perimeter-area-volume", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Circles, Arcs & Sectors", "key": "arcs-sectors", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Surface Area", "key": "surface-area", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Statistics", "key": "statistics", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Averages, Range & Data", "key": "averages-range-data", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Statistical Diagrams", "key": "statistical-diagrams", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Scatter Graphs & Correlation", "key": "scatter-graphs-correlation", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Probability", "key": "probability", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Introduction to Probability", "key": "introduction-to-probability", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Simple Probability Diagrams", "key": "simple-probability-diagrams", "tier": ["foundation"], "requiredPractical": false },
+        { "topic": "Theoretical & Experimental Probability", "key": "theoretical-experimental-probability", "tier": ["foundation"], "requiredPractical": false }
+      ]
+    }
+  ]
+}
