@@ -45,6 +45,22 @@ function loadMathsFoundationTaxonomy() {
   return _mathsFoundationTaxonomy;
 }
 
+function loadMathsHigherTaxonomy() {
+  if (_mathsHigherTaxonomy) return _mathsHigherTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_gcse_maths_higher_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _mathsHigherTaxonomy = JSON.parse(raw);
+  return _mathsHigherTaxonomy;
+}
+
+function loadFurtherMathsTaxonomy() {
+  if (_furtherMathsTaxonomy) return _furtherMathsTaxonomy;
+  const filePath = path.join(__dirname, "..", "config", "aqa_l2_further_maths_topics.json");
+  const raw = fs.readFileSync(filePath, "utf8");
+  _furtherMathsTaxonomy = JSON.parse(raw);
+  return _furtherMathsTaxonomy;
+}
+
 /** @deprecated use loadBiologyTaxonomy */
 function loadTaxonomy() {
   return loadBiologyTaxonomy();
@@ -175,9 +191,47 @@ function findMathsFoundationTopicByKey(key) {
 }
 
 /**
+ * Find a Maths (Higher) topic by its canonical key (e.g. "fractions", "higher-surds-exact-values").
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findMathsHigherTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadMathsHigherTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
+ * Find a Further Maths (L2) topic by its canonical key.
+ * @param {string} key - Topic key (lowercase, hyphenated).
+ * @returns {Object|null} Topic object with unit: { unit, topic, key, tier, requiredPractical } or null.
+ */
+function findFurtherMathsTopicByKey(key) {
+  if (!key || typeof key !== "string") return null;
+  const k = key.trim().toLowerCase();
+  if (!k) return null;
+  const taxonomy = loadFurtherMathsTaxonomy();
+  if (!Array.isArray(taxonomy.units)) return null;
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) return { unit: u.unit, ...found };
+  }
+  return null;
+}
+
+/**
  * PR-CHEM-3: Check if topicKey exists in the given spec taxonomy.
  * Strips namespace from topicKey before lookup.
- * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation"
+ * @param {string} specKey - "aqa-gcse-biology" | "aqa-gcse-chemistry" | "aqa-gcse-physics" | "aqa-gcse-maths-foundation" | "aqa-gcse-maths-higher" | "aqa-l2-further-maths"
  * @param {string} topicKey - Possibly namespaced key; only the suffix is used for lookup.
  * @returns {boolean}
  */
@@ -229,6 +283,12 @@ function findTopicBySpecAndKey(specKey, topicKey) {
   }
   if (specKey === "aqa-gcse-maths-foundation") {
     return findMathsFoundationTopicByKey(k);
+  }
+  if (specKey === "aqa-gcse-maths-higher") {
+    return findMathsHigherTopicByKey(k);
+  }
+  if (specKey === "aqa-l2-further-maths") {
+    return findFurtherMathsTopicByKey(k);
   }
   return null;
 }
