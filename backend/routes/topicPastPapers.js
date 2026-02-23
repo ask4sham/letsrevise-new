@@ -195,7 +195,7 @@ router.post("/bulk", auth, async (req, res) => {
         const { officialSource, officialHost } = getOfficialSourceFromUrl(x.url);
         const doc = await TopicPastPaper.create({
           ownerId,
-          topicKey: validKey,
+          topicKey: storedTopicKey,
           title: x.title,
           url: x.url,
           officialSource: officialSource || false,
