@@ -68,6 +68,48 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+// GET /api/exam-questions/mine — teacher's own questions only; specKey, topicKey (slug or namespaced), q, limit.
+// PR-PAST-PAPERS-UI-3: For "attach from bank" flow.
+function clampInt(v, opts) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return opts.fallback;
+  return Math.min(opts.max, Math.max(opts.min, Math.floor(n)));
+}
+
+router.get("/mine", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers and admins only" });
+  }
+  try {
+    const teacherId = req.user.userId || req.user._id;
+    if (!teacherId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { specKey, topicKey: topicKeyQ, q, limit } = req.query || {};
+    const lim = clampInt(limit, { min: 1, max: 200, fallback: 50 });
+
+    const query = { teacherId, status: { $in: ["draft", "published"] } };
+
+    if (topicKeyQ && String(topicKeyQ).trim()) {
+      const spec = (specKey && String(specKey).trim()) || DEFAULT_SPEC_LEGACY;
+      const candidates = queryCandidates(spec, parseTopicKey(String(topicKeyQ).trim()).topicKey || String(topicKeyQ).trim());
+      if (candidates.length) query.topicKey = { $in: candidates };
+    } else if (specKey && String(specKey).trim()) {
+      const spec = String(specKey).trim();
+      query.topicKey = { $regex: "^" + spec.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ":" };
+    }
+
+    if (q && String(q).trim()) {
+      query.question = { $regex: String(q).trim(), $options: "i" };
+    }
+
+    const items = await ExamQuestion.find(query).sort({ updatedAt: -1 }).limit(lim).lean();
+    return res.status(200).json({ items: items.map(toResponseQuestion) });
+  } catch (err) {
+    console.error("ExamQuestions GET /mine error:", err);
+    return res.status(400).json({ error: err.message || "Failed to load exam questions" });
+  }
+});
+
 // GET /api/exam-questions — list (teacher/admin only; filters: subject, examBoard, level, topic, topicKey, type, status)
 // PR-W2.2: Teacher/admin see draft + published by default so Worksheet Builder Question Bank shows seeded drafts.
 // PR-W2.2.2: Response must include topicKey (and topic) on every item — do not use .select() that omits them.

@@ -12,6 +12,7 @@ import type { TaxonomyResponse } from "../../api/taxonomy";
 import { PastPaperQuestionsList } from "./PastPaperQuestionsList";
 import { PastPaperTopicsSummary } from "./PastPaperTopicsSummary";
 import { AddPastPaperQuestionModal } from "./AddPastPaperQuestionModal";
+import { AttachFromBankModal } from "./AttachFromBankModal";
 
 type Props = {
   paper: PastPaper;
@@ -25,6 +26,7 @@ export function PastPaperDetailPanel({ paper, onClose, token, specKey, taxonomy 
   const [questions, setQuestions] = useState<PastPaperQuestionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
 
   const loadQuestions = async () => {
     setLoading(true);
@@ -130,6 +132,15 @@ export function PastPaperDetailPanel({ paper, onClose, token, specKey, taxonomy 
             });
             await loadQuestions();
           }}
+        />
+        <AttachFromBankModal
+          isOpen={attachOpen}
+          onClose={() => setAttachOpen(false)}
+          token={token}
+          specKey={paper.specKey ?? specKey}
+          pastPaperId={paper._id}
+          taxonomy={taxonomy}
+          onAttached={loadQuestions}
         />
       </div>
     </>
