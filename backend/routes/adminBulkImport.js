@@ -10,7 +10,7 @@ const { bulkImportExamQuestions } = require("../services/bulkImportExamQuestions
 const { bulkImportPastPapers } = require("../services/bulkImportPastPapers");
 const { bulkImportPastPaperQuestions } = require("../services/bulkImportPastPaperQuestions");
 
-router.post("/flashcards", async (req, res) => {
+router.post("/flashcards", auth, async (req, res) => {
   try {
     const { specKey, items, dryRun } = req.body || {};
     const actorId = req.user?._id || req.user?.id || null;
@@ -30,7 +30,7 @@ router.post("/flashcards", async (req, res) => {
   }
 });
 
-router.post("/exam-questions", async (req, res) => {
+router.post("/exam-questions", auth, async (req, res) => {
   try {
     const { specKey, items, dryRun } = req.body || {};
     const actorId = req.user?.userId || req.user?._id || req.user?.id || null;

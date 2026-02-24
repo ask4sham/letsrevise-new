@@ -49,6 +49,7 @@ import TeacherAttemptsSummaryPage from "./pages/TeacherAttemptsSummaryPage";
 import TeacherAtRiskPage from "./pages/TeacherAtRiskPage";
 import TeacherNeedsAttentionPage from "./pages/TeacherNeedsAttentionPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
+import AdminIngestPage from "./pages/AdminIngestPage";
 
 // ✅ Settings page (new)
 import SettingsPage from "./pages/SettingsPage";
@@ -627,6 +628,14 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <AdminMetricsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ingest"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminIngestPage />
               </ProtectedRoute>
             }
           />

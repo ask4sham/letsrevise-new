@@ -580,6 +580,21 @@ const AdminDashboardPage: React.FC = () => {
           </h1>
           <p style={{ color: "#666" }}>Platform administration and management</p>
         </div>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <Link
+          to="/admin/ingest"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#f5f0ff",
+            color: "#5b21b6",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Bulk import →
+        </Link>
         <Link
           to="/admin/metrics"
           style={{
@@ -594,6 +609,7 @@ const AdminDashboardPage: React.FC = () => {
         >
           Paywall metrics →
         </Link>
+      </div>
       </div>
 
       {/* Message Display */}
