@@ -97,7 +97,7 @@ describe("POST /api/teacher/at-risk/assign", () => {
       expect(res.body.lessonId).toBeDefined();
       expect(res.body.assignmentId).toBeDefined();
       expect(res.body.shareId).toBeDefined();
-      expect(res.body.shareUrl).toMatch(/^\/q\/[a-zA-Z0-9]+/);
+      expect(res.body.shareUrl).toMatch(/^\/q\/[a-zA-Z0-9_-]+/);
       expect(res.body.generated).toBeDefined();
       expect(res.body.generated.addedCount).toBeGreaterThanOrEqual(1);
       expect(res.body.generated.questionsCount).toBeGreaterThanOrEqual(1);
@@ -157,7 +157,7 @@ describe("POST /api/teacher/at-risk/assign", () => {
 
       expect(res.body.ok).toBe(true);
       expect(res.body.kind).toBe("assessment");
-      expect(res.body.shareUrl).toMatch(/^\/q\/[a-zA-Z0-9]+/);
+      expect(res.body.shareUrl).toMatch(/^\/q\/[a-zA-Z0-9_-]+/);
 
       const assignment = await QuizAssignment.findById(res.body.assignmentId).lean();
       expect(assignment).toBeDefined();

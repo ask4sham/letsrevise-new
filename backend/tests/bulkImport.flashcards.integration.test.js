@@ -1,13 +1,47 @@
 /**
  * PR-BULK-INGEST-1: Admin bulk import flashcards — taxonomy validation, namespacing, dry-run.
+ * Routes use auth middleware; tests send a valid token.
  */
 const request = require("supertest");
+const bcrypt = require("bcryptjs");
 const app = require("../app");
+const User = require("../models/User");
+
+const hashedPassword = bcrypt.hashSync("Password123!", 10);
 
 describe("POST /api/admin/bulk-import/flashcards", () => {
+  let token;
+
+  beforeAll(async () => {
+    const user = await User.create({
+      firstName: "Bulk",
+      lastName: "Flashcards",
+      email: `bulk_flash_${Date.now()}@example.com`,
+      password: hashedPassword,
+      userType: "teacher",
+    });
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: user.email, password: "Password123!" })
+      .expect(200);
+    token = login.body.token;
+  }, 15000);
+
+  it("returns 401 without auth", async () => {
+    await request(app)
+      .post("/api/admin/bulk-import/flashcards")
+      .send({
+        specKey: "aqa-gcse-biology",
+        dryRun: true,
+        items: [{ topicKey: "cell-structure", question: "Q?", answer: "A" }],
+      })
+      .expect(401);
+  });
+
   it("dryRun rejects invalid topicKey", async () => {
     const res = await request(app)
       .post("/api/admin/bulk-import/flashcards")
+      .set("Authorization", `Bearer ${token}`)
       .send({
         specKey: "aqa-gcse-biology",
         dryRun: true,
@@ -22,6 +56,7 @@ describe("POST /api/admin/bulk-import/flashcards", () => {
   it("dryRun rejects unknown specKey", async () => {
     const res = await request(app)
       .post("/api/admin/bulk-import/flashcards")
+      .set("Authorization", `Bearer ${token}`)
       .send({
         specKey: "unknown-spec",
         dryRun: true,
@@ -35,6 +70,7 @@ describe("POST /api/admin/bulk-import/flashcards", () => {
   it("dryRun accepts valid items and returns would_insert", async () => {
     const res = await request(app)
       .post("/api/admin/bulk-import/flashcards")
+      .set("Authorization", `Bearer ${token}`)
       .send({
         specKey: "aqa-gcse-biology",
         dryRun: true,

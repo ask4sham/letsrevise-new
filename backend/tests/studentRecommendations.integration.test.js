@@ -4,11 +4,14 @@
 const request = require("supertest");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const { buildTopicKey } = require("../utils/topicKey");
 const app = require("../app");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const ExamQuestion = require("../models/ExamQuestion");
 const PracticeAttempt = require("../models/PracticeAttempt");
+
+const SPEC_KEY = "aqa-gcse-biology";
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
@@ -84,7 +87,7 @@ describe("GET /api/reports/students/me/recommendations", () => {
   });
 
   test("with auth and no attempts returns empty topics and lessons", async () => {
-    await PracticeAttempt.deleteMany({ userId: studentId });
+    await PracticeAttempt.deleteMany({ studentId });
     const res = await request(app)
       .get("/api/reports/students/me/recommendations?days=14&limit=6")
       .set("Authorization", `Bearer ${studentToken}`);
@@ -97,10 +100,11 @@ describe("GET /api/reports/students/me/recommendations", () => {
   });
 
   test("with attempts returns topics sorted by score", async () => {
+    const topicKeyNamespaced = buildTopicKey(SPEC_KEY, "cell-structure");
     await PracticeAttempt.create([
-      { userId: studentId, lessonId, source: "practice", questionId, questionType: "mcq", isCorrect: false, confidence: 3 },
-      { userId: studentId, lessonId, source: "practice", questionId, questionType: "mcq", isCorrect: false, confidence: 3 },
-      { userId: studentId, lessonId, source: "practice", questionId, questionType: "mcq", isCorrect: true, confidence: 2 },
+      { studentId, teacherId, specKey: SPEC_KEY, topicKey: topicKeyNamespaced, sourceType: "examQuestion", sourceId: questionId, outcome: "wrong", confidence: 3 },
+      { studentId, teacherId, specKey: SPEC_KEY, topicKey: topicKeyNamespaced, sourceType: "examQuestion", sourceId: questionId, outcome: "wrong", confidence: 3 },
+      { studentId, teacherId, specKey: SPEC_KEY, topicKey: topicKeyNamespaced, sourceType: "examQuestion", sourceId: questionId, outcome: "correct", confidence: 2 },
     ]);
 
     const res = await request(app)

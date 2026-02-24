@@ -18,6 +18,7 @@ const Event = require("../models/Event");
 const auth = require("../middleware/auth");
 const { getLessonOwnerId } = require("../utils/lessonPayload");
 const { getBiologyTopics, findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { parseTopicKey } = require("../utils/topicKey");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
@@ -108,7 +109,7 @@ async function getQuestionInsightsForLesson(lessonOid, since, limit) {
     PracticeAttempt.aggregate(questionInsightsPipeline),
     PracticeAttempt.aggregate(topicPipeline),
   ]);
-  const topics = topicDocs.map((t) => ({
+  let topics = topicDocs.map((t) => ({
     topicKey: t.topicKey ?? "(unknown)",
     topic: t.topic ?? t.topicKey ?? "(unknown)",
     attempts: t.attempts,
@@ -116,6 +117,45 @@ async function getQuestionInsightsForLesson(lessonOid, since, limit) {
     correct: t.correct,
     highConfidenceWrong: t.highConfidenceWrong,
   }));
+  if (topics.length === 0) {
+    const lesson = await Lesson.findById(lessonOid).select("teacherId").lean();
+    if (lesson?.teacherId) {
+      const teacherTopicAgg = await PracticeAttempt.aggregate([
+        { $match: { teacherId: lesson.teacherId, createdAt: { $gte: since } } },
+        {
+          $group: {
+            _id: "$topicKey",
+            attempts: { $sum: 1 },
+            wrong: { $sum: { $cond: [{ $eq: ["$outcome", "wrong"] }, 1, 0] } },
+            correct: { $sum: { $cond: [{ $eq: ["$outcome", "correct"] }, 1, 0] } },
+            highConfidenceWrong: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $eq: ["$outcome", "wrong"] }, { $eq: ["$confidence", 3] }] },
+                  1,
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        { $sort: { highConfidenceWrong: -1, wrong: -1, attempts: -1 } },
+        { $limit: limit },
+      ]);
+      topics = teacherTopicAgg.map((r) => {
+        const slug = parseTopicKey(r._id || "").topicKey || r._id || "(unknown)";
+        const found = findTopicByKey(slug);
+        return {
+          topicKey: slug,
+          topic: found?.topic ?? slug,
+          attempts: r.attempts,
+          wrong: r.wrong,
+          correct: r.correct,
+          highConfidenceWrong: r.highConfidenceWrong,
+        };
+      });
+    }
+  }
   return { items, topics };
 }
 
@@ -421,60 +461,44 @@ router.get("/teacher/needs-attention", auth, async (req, res) => {
     const pipeline = [
       {
         $match: {
-          lessonId: { $in: ids },
-          source: "practice",
+          teacherId: teacherId,
           createdAt: { $gte: since },
         },
       },
       {
         $group: {
-          _id: "$lessonId",
+          _id: { specKey: "$specKey", topicKey: "$topicKey" },
           attempts: { $sum: 1 },
-          uniqueStudents: { $addToSet: "$userId" },
-          wrong: { $sum: { $cond: [{ $eq: ["$isCorrect", false] }, 1, 0] } },
-          correct: { $sum: { $cond: [{ $eq: ["$isCorrect", true] }, 1, 0] } },
+          uniqueStudents: { $addToSet: "$studentId" },
+          wrong: { $sum: { $cond: [{ $eq: ["$outcome", "wrong"] }, 1, 0] } },
+          correct: { $sum: { $cond: [{ $eq: ["$outcome", "correct"] }, 1, 0] } },
+          partial: { $sum: { $cond: [{ $eq: ["$outcome", "partial"] }, 1, 0] } },
           highConfidenceWrong: {
-            $sum: { $cond: [{ $and: [{ $eq: ["$isCorrect", false] }, { $eq: ["$confidence", 3] }] }, 1, 0] },
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$outcome", "wrong"] }, { $eq: ["$confidence", 3] }] },
+                1,
+                0,
+              ],
+            },
           },
         },
       },
       { $sort: { highConfidenceWrong: -1, wrong: -1, attempts: -1 } },
       { $limit: limit },
-      {
-        $lookup: {
-          from: "lessons",
-          localField: "_id",
-          foreignField: "_id",
-          as: "lesson",
-          pipeline: [{ $project: { title: 1, topic: 1, tier: 1, board: 1, status: 1, isPublished: 1, pages: 1, examQuestions: 1, reviewedAt: 1 } }],
-        },
-      },
-      { $unwind: { path: "$lesson", preserveNullAndEmptyArrays: true } },
     ];
     const agg = await PracticeAttempt.aggregate(pipeline);
-    const lessonIdsFromAgg = agg.map((r) => r._id);
-    const lessonsForReadiness = await Lesson.find({ _id: { $in: lessonIdsFromAgg } })
-      .select("title topic tier board status isPublished pages examQuestions reviewedAt")
-      .lean();
-    const readinessByLessonId = new Map();
-    lessonsForReadiness.forEach((l) => {
-      const r = computeLessonReadiness(l);
-      readinessByLessonId.set(String(l._id), r);
-    });
-
     const items = agg.map((r) => {
-      const lesson = r.lesson || {};
-      const readiness = readinessByLessonId.get(String(r._id)) || { status: "DRAFT", signals: {} };
-      const total = r.wrong + r.correct;
-      const accuracy = total > 0 ? r.correct / total : 0;
+      const total = r.wrong + r.correct + (r.partial || 0);
+      const accuracy = total > 0 ? (r.correct + (r.partial || 0) * 0.5) / total : 0;
+      const specKey = r._id?.specKey ?? "";
+      const topicKey = r._id?.topicKey ?? "";
+      const title = topicKey ? `${specKey}:${topicKey}` : "—";
       return {
-        lessonId: String(r._id),
-        title: lesson.title ?? "—",
-        topic: lesson.topic ?? "",
-        tier: lesson.tier ?? "",
-        examBoard: lesson.board ?? "",
-        status: lesson.status ?? "draft",
-        readiness: { status: readiness.status, signals: readiness.signals },
+        specKey,
+        topicKey,
+        title,
+        readiness: { status: "READY", signals: {} },
         attempts: r.attempts,
         uniqueStudents: Array.isArray(r.uniqueStudents) ? r.uniqueStudents.length : 0,
         accuracy: Math.round(accuracy * 100) / 100,
@@ -512,11 +536,10 @@ router.get("/teacher/needs-attention", auth, async (req, res) => {
       });
       coldStart.noPracticeAttached = noPracticeWithReadiness;
 
-      const lessonIdsWithAttemptsInWindow = agg.map((r) => r._id);
+      // Topic-based attempts don't map to lesson ids; noAttemptsYet = all published lessons with practice
       const withPractice = await Lesson.find({
         ...publishedFilter,
         examQuestions: { $exists: true, $not: { $size: 0 } },
-        _id: { $nin: lessonIdsWithAttemptsInWindow },
       })
         .select(lessonFields)
         .sort({ updatedAt: -1 })
@@ -1399,38 +1422,28 @@ router.get("/students/me/recommendations", auth, async (req, res) => {
     since.setDate(since.getDate() - days);
 
     const attempts = await PracticeAttempt.find({
-      userId,
-      source: "practice",
-      questionId: { $ne: null },
+      studentId: userId,
       createdAt: { $gte: since },
     })
-      .select("questionId isCorrect confidence")
+      .select("topicKey outcome confidence")
       .lean();
 
     if (attempts.length === 0) {
       return res.json({ ok: true, days, topics: [], lessons: [] });
     }
 
-    const questionIds = [...new Set(attempts.map((a) => String(a.questionId)).filter(Boolean))];
-    const examQuestions = await ExamQuestion.find({ _id: { $in: questionIds } })
-      .select("topicKey")
-      .lean();
-    const qidToTopicKey = new Map();
-    examQuestions.forEach((q) => {
-      const key = q.topicKey != null && String(q.topicKey).trim() !== "" ? String(q.topicKey).trim().toLowerCase() : null;
-      if (key) qidToTopicKey.set(String(q._id), key);
-    });
-
     const byTopic = new Map();
     for (const a of attempts) {
-      const topicKey = qidToTopicKey.get(String(a.questionId));
+      const rawKey = (a.topicKey != null && String(a.topicKey).trim()) || "";
+      const slug = parseTopicKey(rawKey).topicKey || rawKey;
+      const topicKey = slug ? slug.toLowerCase() : "";
       if (!topicKey) continue;
       if (!byTopic.has(topicKey)) {
         byTopic.set(topicKey, { wrong: 0, correct: 0, highConfidenceWrong: 0 });
       }
       const rec = byTopic.get(topicKey);
-      if (a.isCorrect) rec.correct += 1;
-      else {
+      if (a.outcome === "correct") rec.correct += 1;
+      else if (a.outcome === "wrong") {
         rec.wrong += 1;
         if (a.confidence === 3) rec.highConfidenceWrong += 1;
       }
