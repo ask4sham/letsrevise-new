@@ -112,6 +112,10 @@ const ExamQuestionSchema = new mongoose.Schema(
         alt: { type: String, default: null },
       },
     ],
+    /** PR-METADATA-1: optional metadata for filtering. */
+    difficulty: { type: Number, min: 1, max: 5, default: null },
+    skill: { type: String, enum: ["recall", "application", "analysis", "exam-technique"], default: null },
+    estimatedTimeSec: { type: Number, min: 1, default: null },
   },
   { timestamps: true }
 );

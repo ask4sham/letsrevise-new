@@ -1,8 +1,10 @@
 /**
  * PR-PAST-PAPERS-UI-2: Manual add past paper question (teacher-authored only).
+ * PR-METADATA-1: Optional difficulty, skill, estimatedTimeSec.
  */
 import React, { useMemo, useState } from "react";
 import type { TaxonomyResponse } from "../../api/taxonomy";
+import { SKILLS, SKILL_LABELS, type Skill } from "../../constants/metadata";
 
 export type AddPastPaperQuestionPayload = {
   topicKey: string;
@@ -10,6 +12,9 @@ export type AddPastPaperQuestionPayload = {
   marks?: number | null;
   question: string;
   markScheme: string;
+  difficulty?: number | null;
+  skill?: Skill | string | null;
+  estimatedTimeSec?: number | null;
 };
 
 type Props = {
@@ -26,6 +31,9 @@ export function AddPastPaperQuestionModal({ isOpen, onClose, taxonomy, onSubmit 
   const [marks, setMarks] = useState<string>("");
   const [question, setQuestion] = useState<string>("");
   const [markScheme, setMarkScheme] = useState<string>("");
+  const [difficulty, setDifficulty] = useState<string>("");
+  const [skill, setSkill] = useState<string>("");
+  const [estimatedTimeSec, setEstimatedTimeSec] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const units = taxonomy?.units ?? [];
@@ -47,12 +55,18 @@ export function AddPastPaperQuestionModal({ isOpen, onClose, taxonomy, onSubmit 
         marks: marks ? Number(marks) : null,
         question: question.trim(),
         markScheme: markScheme.trim(),
+        difficulty: difficulty ? Math.min(5, Math.max(1, parseInt(difficulty, 10) || 0)) : null,
+        skill: skill || null,
+        estimatedTimeSec: estimatedTimeSec ? Math.max(1, parseInt(estimatedTimeSec, 10) || 0) : null,
       });
       setTopicKey("");
       setQuestionNumber("");
       setMarks("");
       setQuestion("");
       setMarkScheme("");
+      setDifficulty("");
+      setSkill("");
+      setEstimatedTimeSec("");
       onClose();
     } finally {
       setSaving(false);
@@ -145,6 +159,46 @@ export function AddPastPaperQuestionModal({ isOpen, onClose, taxonomy, onSubmit 
                 style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
                 value={marks}
                 onChange={(e) => setMarks(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Difficulty (1–5)</label>
+              <select
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+              >
+                <option value="">Optional</option>
+                {[1, 2, 3, 4, 5].map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Skill</label>
+              <select
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
+                value={skill}
+                onChange={(e) => setSkill(e.target.value)}
+              >
+                <option value="">Optional</option>
+                {SKILLS.map((s) => (
+                  <option key={s} value={s}>{SKILL_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Est. time (sec)</label>
+              <input
+                type="number"
+                min={1}
+                placeholder="Optional"
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }}
+                value={estimatedTimeSec}
+                onChange={(e) => setEstimatedTimeSec(e.target.value)}
               />
             </div>
           </div>

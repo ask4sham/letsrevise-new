@@ -84,7 +84,7 @@ router.get("/mine", auth, async (req, res) => {
     const teacherId = req.user.userId || req.user._id;
     if (!teacherId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { specKey, topicKey: topicKeyQ, q, limit } = req.query || {};
+    const { specKey, topicKey: topicKeyQ, q, limit, difficulty, difficultyMin, difficultyMax, skill, estimatedTimeMaxSec } = req.query || {};
     const lim = clampInt(limit, { min: 1, max: 200, fallback: 50 });
 
     const query = { teacherId, status: { $in: ["draft", "published"] } };
@@ -100,6 +100,26 @@ router.get("/mine", auth, async (req, res) => {
 
     if (q && String(q).trim()) {
       query.question = { $regex: String(q).trim(), $options: "i" };
+    }
+
+    if ((difficultyMin != null && String(difficultyMin).trim() !== "") || (difficultyMax != null && String(difficultyMax).trim() !== "")) {
+      const range = {};
+      const dMin = difficultyMin != null && String(difficultyMin).trim() !== "" ? parseInt(String(difficultyMin).trim(), 10) : NaN;
+      const dMax = difficultyMax != null && String(difficultyMax).trim() !== "" ? parseInt(String(difficultyMax).trim(), 10) : NaN;
+      if (Number.isFinite(dMin) && dMin >= 1 && dMin <= 5) range.$gte = dMin;
+      if (Number.isFinite(dMax) && dMax >= 1 && dMax <= 5) range.$lte = dMax;
+      if (Object.keys(range).length) query.difficulty = range;
+    } else if (difficulty !== undefined && difficulty !== "" && String(difficulty).trim() !== "") {
+      const d = parseInt(String(difficulty).trim(), 10);
+      if (Number.isFinite(d) && d >= 1 && d <= 5) query.difficulty = d;
+    }
+    if (skill !== undefined && String(skill).trim() !== "") {
+      const s = String(skill).trim().toLowerCase();
+      if (["recall", "application", "analysis", "exam-technique"].includes(s)) query.skill = s;
+    }
+    if (estimatedTimeMaxSec !== undefined && String(estimatedTimeMaxSec).trim() !== "") {
+      const t = parseInt(String(estimatedTimeMaxSec).trim(), 10);
+      if (Number.isFinite(t) && t >= 1) query.estimatedTimeSec = { $lte: t };
     }
 
     const items = await ExamQuestion.find(query).sort({ updatedAt: -1 }).limit(lim).lean();

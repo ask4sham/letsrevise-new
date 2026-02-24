@@ -1,18 +1,21 @@
 /**
  * PR-PAST-PAPERS-UI-2: Detail panel for one past paper (info + questions + topics + link flow).
+ * PR-METADATA-1: Filter bar (difficulty, skill) for linked questions list.
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import type { PastPaper } from "../../api/pastPapers";
 import {
   fetchPastPaperQuestions,
   createPastPaperQuestion,
   type PastPaperQuestionItem,
+  type PastPaperQuestionFilters,
 } from "../../api/pastPaperQuestions";
 import type { TaxonomyResponse } from "../../api/taxonomy";
 import { PastPaperQuestionsList } from "./PastPaperQuestionsList";
 import { PastPaperTopicsSummary } from "./PastPaperTopicsSummary";
 import { AddPastPaperQuestionModal } from "./AddPastPaperQuestionModal";
 import { AttachFromBankModal } from "./AttachFromBankModal";
+import { DifficultySkillFilter, type DifficultySkillFilterValues } from "../filters/DifficultySkillFilter";
 
 type Props = {
   paper: PastPaper;
@@ -27,22 +30,28 @@ export function PastPaperDetailPanel({ paper, onClose, token, specKey, taxonomy 
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [filterValues, setFilterValues] = useState<DifficultySkillFilterValues>({});
 
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchPastPaperQuestions(paper._id, token);
+      const filters: PastPaperQuestionFilters = {};
+      if (filterValues.difficulty != null) filters.difficulty = filterValues.difficulty;
+      if (filterValues.difficultyMin != null) filters.difficultyMin = filterValues.difficultyMin;
+      if (filterValues.difficultyMax != null) filters.difficultyMax = filterValues.difficultyMax;
+      if (filterValues.skill) filters.skill = String(filterValues.skill);
+      const data = await fetchPastPaperQuestions(paper._id, token, Object.keys(filters).length ? filters : undefined);
       setQuestions(data.items);
     } catch {
       setQuestions([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [paper._id, token, filterValues.difficulty, filterValues.difficultyMin, filterValues.difficultyMax, filterValues.skill]);
 
   useEffect(() => {
     loadQuestions();
-  }, [paper._id, token]);
+  }, [loadQuestions]);
 
   const title = paper.title || `${paper.examBoard} ${paper.level} ${paper.year} ${paper.paperCode}`;
   const meta = [paper.year, paper.series, paper.tier, paper.paperCode].filter(Boolean).join(" · ") || "—";
@@ -96,6 +105,13 @@ export function PastPaperDetailPanel({ paper, onClose, token, specKey, taxonomy 
         )}
 
         <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Linked questions</div>
+        <div style={{ marginBottom: 12 }}>
+          <DifficultySkillFilter
+            values={filterValues}
+            onChange={setFilterValues}
+            showRange
+          />
+        </div>
         {loading ? (
           <p style={{ fontSize: 13, color: "#6b7280" }}>Loading…</p>
         ) : (
@@ -129,6 +145,9 @@ export function PastPaperDetailPanel({ paper, onClose, token, specKey, taxonomy 
               marks: payload.marks ?? null,
               question: payload.question,
               markScheme: payload.markScheme,
+              difficulty: payload.difficulty ?? null,
+              skill: payload.skill ?? null,
+              estimatedTimeSec: payload.estimatedTimeSec ?? null,
             });
             await loadQuestions();
           }}

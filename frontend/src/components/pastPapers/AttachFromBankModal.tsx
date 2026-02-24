@@ -1,9 +1,11 @@
 /**
  * PR-PAST-PAPERS-UI-3: Attach from exam question bank — search, filter by topic, multi-select, optional question numbers.
+ * PR-METADATA-1: Filter by difficulty and skill.
  */
 import React, { useMemo, useState } from "react";
 import { fetchMyExamQuestions, attachFromBank, type ExamQuestion } from "../../api/examQuestions";
 import type { TaxonomyResponse } from "../../api/taxonomy";
+import { DifficultySkillFilter, type DifficultySkillFilterValues } from "../filters/DifficultySkillFilter";
 
 type Props = {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export function AttachFromBankModal({
   const [selectedUnitName, setSelectedUnitName] = useState("");
   const [topicKey, setTopicKey] = useState("");
   const [q, setQ] = useState("");
+  const [filterValues, setFilterValues] = useState<DifficultySkillFilterValues>({});
   const [items, setItems] = useState<ExamQuestion[]>([]);
   const [selected, setSelected] = useState<Record<string, { questionNumber?: string }>>({});
   const [loading, setLoading] = useState(false);
@@ -50,6 +53,10 @@ export function AttachFromBankModal({
         topicKey: topicKey || undefined,
         q: q.trim() || undefined,
         limit: 100,
+        difficulty: filterValues.difficulty ?? undefined,
+        difficultyMin: filterValues.difficultyMin ?? undefined,
+        difficultyMax: filterValues.difficultyMax ?? undefined,
+        skill: filterValues.skill ? String(filterValues.skill) : undefined,
       });
       setItems(res.items ?? []);
     } finally {
@@ -155,6 +162,11 @@ export function AttachFromBankModal({
                 onChange={(e) => setQ(e.target.value)}
               />
             </div>
+          </div>
+
+          <div style={{ marginTop: 4 }}>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Difficulty & skill</label>
+            <DifficultySkillFilter values={filterValues} onChange={setFilterValues} />
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
