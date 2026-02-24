@@ -72,3 +72,9 @@ PR-PAST-PAPERS-API-1: Add /api/past-papers/mine + filtering + UI uses PastPaper 
 ```
 Adds an authenticated endpoint to fetch teacher-owned PastPaper records with filtering and cursor pagination. Updates Past Papers UI to use PastPaper model for listing (new "My papers" tab) while retaining copyright-safe copy ("teacher-uploaded", "view uploaded PDF") and existing upload rights guardrails. Includes integration tests using the existing JWT login pattern. Consistency sweep: EditLessonPage past paper file action uses "View uploaded PDF" and viewTopicPastPaperFile.
 ```
+
+---
+
+## E) CTO note: what’s next (after merge)
+
+**PR-PAST-PAPERS-UI-2** (filters UI + link past paper questions + show linked topics) is the recommended next step — this API PR is the correct foundation. When ready, ask for: *“Generate PR-PAST-PAPERS-UI-2 (filters UI + link past paper questions + show linked topics)”* for a Cursor-ready spec.
