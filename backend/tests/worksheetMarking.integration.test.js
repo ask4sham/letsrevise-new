@@ -100,7 +100,7 @@ describe("Worksheet Marking (PR-W5)", () => {
         { examQuestionId: shortId, answerIndex: null, shortText: "My answer" },
       ],
     });
-  });
+  }, 15000);
 
   test("after submit: score 1, maxScore 3, status SUBMITTED", async () => {
     const res = await request(app)

@@ -81,6 +81,9 @@ app.use("/api/topic-past-papers", createUploadLimiter(), require("./routes/topic
 // PR-PAST-PAPERS-API-1: teacher-owned PastPaper records (mine + filtering)
 app.use("/api/past-papers", require("./routes/pastPapers"));
 
+// PR-PAST-PAPERS-UI-2: past paper questions (mine + link)
+app.use("/api/past-paper-questions", require("./routes/pastPaperQuestions"));
+
 // PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson) + PR-HARD-2 rate limit
 app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardBank"));
 

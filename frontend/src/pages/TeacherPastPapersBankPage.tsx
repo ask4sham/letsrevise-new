@@ -2,6 +2,7 @@
  * PR-PP1: Topic Past Paper Bank — teacher/admin manage past papers by topicKey.
  * PR-PAST-PAPERS-UI-1: Copyright-safe copy, rights confirmation, "View uploaded PDF".
  * PR-PAST-PAPERS-API-1: GET /api/past-papers/mine + UI uses PastPaper records.
+ * PR-PAST-PAPERS-UI-2: Filters + detail panel + linked questions + topic summary.
  * Route: /teacher/topic-banks/past-papers
  */
 import React, { useState, useEffect, useRef } from "react";
@@ -24,6 +25,8 @@ import {
 import { fetchMyPastPapers, type PastPaper } from "../api/pastPapers";
 import { CopyrightNotice } from "../components/pastPapers/CopyrightNotice";
 import { ConfirmUploadRightsModal } from "../components/pastPapers/ConfirmUploadRightsModal";
+import { PastPapersFilters } from "../components/pastPapers/PastPapersFilters";
+import { PastPaperDetailPanel } from "../components/pastPapers/PastPaperDetailPanel";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -108,6 +111,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
   const [pastPapersMine, setPastPapersMine] = useState<PastPaper[]>([]);
   const [pastPapersMineLoading, setPastPapersMineLoading] = useState(false);
   const [qSearch, setQSearch] = useState("");
+  const [selectedPaper, setSelectedPaper] = useState<PastPaper | null>(null);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -410,6 +414,18 @@ const TeacherPastPapersBankPage: React.FC = () => {
           handleUpload();
         }}
       />
+      {selectedPaper && (() => {
+        const token = localStorage.getItem("token");
+        return token ? (
+          <PastPaperDetailPanel
+            paper={selectedPaper}
+            onClose={() => setSelectedPaper(null)}
+            token={token}
+            specKey={specKey}
+            taxonomy={taxonomy ?? null}
+          />
+        ) : null;
+      })()}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
         <Link to="/teacher-dashboard" style={{ color: "#2563eb", fontWeight: 600 }}>
           ← Dashboard
@@ -536,35 +552,21 @@ const TeacherPastPapersBankPage: React.FC = () => {
           <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 12px" }}>
             Teacher-uploaded resources are private. LetsRevise does not provide official exam papers.
           </p>
-          <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Filter:</span>
-            <input
-              type="text"
-              placeholder="Search title / paper / series"
-              value={qSearch}
-              onChange={(e) => setQSearch(e.target.value)}
-              style={{ width: 200, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
-            />
-            <input
-              type="text"
-              placeholder="Year"
-              value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-              style={{ width: 72, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
-            />
-            <input
-              type="text"
-              placeholder="Series"
-              value={seriesFilter}
-              onChange={(e) => setSeriesFilter(e.target.value)}
-              style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
-            />
-            <input
-              type="text"
-              placeholder="Tier"
-              value={tierFilter}
-              onChange={(e) => setTierFilter(e.target.value)}
-              style={{ width: 88, padding: "6px 8px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db" }}
+          <div style={{ marginBottom: 12 }}>
+            <PastPapersFilters
+              values={{ q: qSearch, year: yearFilter, series: seriesFilter, tier: tierFilter }}
+              onChange={(v) => {
+                setQSearch(v.q);
+                setYearFilter(v.year);
+                setSeriesFilter(v.series);
+                setTierFilter(v.tier);
+              }}
+              onClear={() => {
+                setQSearch("");
+                setYearFilter("");
+                setSeriesFilter("");
+                setTierFilter("");
+              }}
             />
           </div>
           {pastPapersMineLoading && <p>Loading…</p>}
@@ -590,7 +592,11 @@ const TeacherPastPapersBankPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {pastPapersMine.map((p) => (
-                    <tr key={p._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                    <tr
+                      key={p._id}
+                      style={{ borderBottom: "1px solid #e5e7eb", cursor: "pointer" }}
+                      onClick={() => setSelectedPaper(p)}
+                    >
                       <td style={{ padding: 8 }}>
                         {p.title || `${p.examBoard} ${p.level} ${p.year} ${p.paperCode}`}
                         <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 11, background: "#f3f4f6", color: "#4b5563", fontWeight: 600 }}>
@@ -600,7 +606,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
                       <td style={{ padding: 8, color: "#4b5563" }}>
                         {[p.year, p.series, p.tier, p.paperCode].filter(Boolean).join(" · ") || "—"}
                       </td>
-                      <td style={{ padding: 8 }}>
+                      <td style={{ padding: 8 }} onClick={(e) => e.stopPropagation()}>
                         {p.pdf?.url ? (
                           <a
                             href={p.pdf.url}

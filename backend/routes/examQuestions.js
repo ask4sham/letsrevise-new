@@ -4,7 +4,8 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
-const { findTopicByKey } = require("../utils/topicTaxonomy");
+const { isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { buildTopicKey, parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 
 function isTeacher(req) {
   return req.user && req.user.userType === "teacher";
@@ -16,12 +17,26 @@ function isTeacherOrAdmin(req) {
   return t === "teacher" || t === "admin" || req.user.isAdmin === true;
 }
 
-function validateTopicKey(topicKey) {
-  if (!topicKey || typeof topicKey !== "string") return null;
-  const k = topicKey.trim().toLowerCase();
-  if (!k) return null;
-  const found = findTopicByKey(k);
-  return found ? k : null;
+function resolveStoredTopicKey(specKeyFromReq, topicKeyFromReq) {
+  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") return { error: "topicKey is required" };
+  const trimmed = topicKeyFromReq.trim();
+  if (!trimmed) return { error: "topicKey is required" };
+  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
+  const { specKey: parsedSpec, topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
+  if (isNamespaced && parsedSpec && rawTopic) {
+    if (!isValidTopicForSpec(parsedSpec, rawTopic)) return { error: `Invalid topicKey for spec ${parsedSpec}` };
+    return { storedKey: trimmed };
+  }
+  const topicOnly = rawTopic || trimmed;
+  if (!isValidTopicForSpec(specKey, topicOnly)) return { error: `Invalid topicKey for spec ${specKey}` };
+  return { storedKey: buildTopicKey(specKey, topicOnly) };
+}
+
+/** Return question object with topicKey normalized to short form (topic slug only) for API responses. */
+function toResponseQuestion(q) {
+  if (!q) return q;
+  const shortKey = parseTopicKey(q.topicKey || "").topicKey || q.topicKey;
+  return { ...q, topicKey: shortKey };
 }
 
 // POST /api/exam-questions — create draft (teacher only)
@@ -30,13 +45,15 @@ router.post("/", auth, async (req, res) => {
     return res.status(403).json({ success: false, msg: "Teachers only" });
   }
   try {
-    if (req.body.topicKey != null) {
-      const validKey = validateTopicKey(req.body.topicKey);
-      if (req.body.topicKey.trim() !== "" && !validKey) {
-        return res.status(400).json({ success: false, msg: "Invalid topicKey", error: "Invalid topicKey" });
+    const specKeyBody = req.body.specKey;
+    if (req.body.topicKey != null && String(req.body.topicKey).trim() !== "") {
+      const resolved = resolveStoredTopicKey(specKeyBody, req.body.topicKey);
+      if (resolved.error) {
+        return res.status(400).json({ success: false, msg: resolved.error, error: resolved.error });
       }
-      if (validKey) req.body.topicKey = validKey;
-      else req.body.topicKey = undefined;
+      req.body.topicKey = resolved.storedKey;
+    } else if (req.body.topicKey != null) {
+      req.body.topicKey = undefined;
     }
     const teacherId = req.user.userId || req.user._id;
     const question = await ExamQuestion.create({
@@ -44,7 +61,7 @@ router.post("/", auth, async (req, res) => {
       teacherId,
       status: "draft",
     });
-    return res.status(201).json({ success: true, question });
+    return res.status(201).json({ success: true, question: toResponseQuestion(question.toObject ? question.toObject() : question) });
   } catch (err) {
     console.error("ExamQuestions POST error:", err);
     return res.status(400).json({ success: false, msg: err.message });
@@ -61,7 +78,7 @@ router.get("/", auth, async (req, res) => {
   }
   try {
     const teacherId = req.user.userId || req.user._id;
-    const { subject, examBoard, level, topic, topicKey, type, status, mineOnly } = req.query;
+    const { subject, examBoard, level, topic, topicKey, specKey: specKeyQ, type, status, mineOnly } = req.query;
     const query = {};
     // Teacher/admin: default = both draft and published (Worksheet Builder shows all bank questions)
     if (status !== undefined && status !== "") {
@@ -77,10 +94,15 @@ router.get("/", auth, async (req, res) => {
     if (examBoard) query.examBoard = examBoard;
     if (level) query.level = level;
     if (topic) query.topic = topic;
-    if (topicKey) query.topicKey = topicKey.trim().toLowerCase();
+    if (topicKey) {
+      const spec = (specKeyQ && String(specKeyQ).trim()) || DEFAULT_SPEC_LEGACY;
+      const parsed = parseTopicKey(String(topicKey).trim());
+      const candidates = queryCandidates(spec, parsed.topicKey || String(topicKey).trim());
+      query.topicKey = candidates.length ? { $in: candidates } : String(topicKey).trim().toLowerCase();
+    }
     if (type) query.type = type;
     const questions = await ExamQuestion.find(query).sort({ updatedAt: -1 }).lean();
-    return res.json({ success: true, questions });
+    return res.json({ success: true, questions: questions.map(toResponseQuestion) });
   } catch (err) {
     console.error("ExamQuestions GET error:", err);
     return res.status(500).json({ success: false, msg: "Server error" });
@@ -103,11 +125,15 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(404).json({ success: false, msg: "Question not found" });
     }
     if (req.body.topicKey != null) {
-      const validKey = validateTopicKey(req.body.topicKey);
-      if (req.body.topicKey && String(req.body.topicKey).trim() !== "" && !validKey) {
-        return res.status(400).json({ success: false, msg: "Invalid topicKey", error: "Invalid topicKey" });
+      if (req.body.topicKey && String(req.body.topicKey).trim() !== "") {
+        const resolved = resolveStoredTopicKey(req.body.specKey, req.body.topicKey);
+        if (resolved.error) {
+          return res.status(400).json({ success: false, msg: resolved.error, error: resolved.error });
+        }
+        question.topicKey = resolved.storedKey;
+      } else {
+        question.topicKey = undefined;
       }
-      question.topicKey = validKey || undefined;
     }
     const { subject, examBoard, level, topic, unitKey, type, marks, question: qText, options, correctIndex, correctAnswer, markScheme, content, status } = req.body;
     if (subject !== undefined) question.subject = subject;
@@ -125,7 +151,7 @@ router.put("/:id", auth, async (req, res) => {
     if (content !== undefined) question.content = content;
     if (status !== undefined) question.status = status;
     await question.save();
-    return res.json({ success: true, question });
+    return res.json({ success: true, question: toResponseQuestion(question.toObject ? question.toObject() : question) });
   } catch (err) {
     console.error("ExamQuestions PUT error:", err);
     return res.status(500).json({ success: false, msg: "Server error" });

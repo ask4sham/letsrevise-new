@@ -18,6 +18,25 @@ const CONFIG_DIR = path.join(__dirname, "..", "config");
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SPEC_KEY_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Derive specKey from filename e.g. aqa_gcse_biology_topics.json → aqa-gcse-biology */
+function specKeyFromFilename(filePath) {
+  const base = path.basename(filePath, path.extname(filePath));
+  const withoutSuffix = base.replace(/_topics$/, "");
+  return withoutSuffix.replace(/_/g, "-").toLowerCase();
+}
+
+/** Slugify unit name for derived unit key e.g. "Cell Biology" → cell-biology. Collapses multiple hyphens. */
+function slugify(s) {
+  if (typeof s !== "string") return "";
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function fail(errors) {
   console.error("\n❌ Taxonomy validation failed:\n");
   for (const e of errors) console.error(`- ${e}`);
@@ -79,22 +98,21 @@ function validateTaxonomyFile(filePath, taxonomy, errors) {
   const okSubject = assertString(taxonomy, "subject", fileLabel, errors);
   const okExamBoard = assertString(taxonomy, "examBoard", fileLabel, errors);
   const okLevel = assertString(taxonomy, "level", fileLabel, errors);
-  const okSpecKey = assertString(taxonomy, "specKey", fileLabel, errors);
-  const okTier = assertArray(taxonomy, "tier", fileLabel, errors);
   const okUnits = assertArray(taxonomy, "units", fileLabel, errors);
 
-  if (okSpecKey) {
-    if (!SPEC_KEY_RE.test(taxonomy.specKey)) {
-      errors.push(`${fileLabel}: specKey "${taxonomy.specKey}" must be lowercase hyphenated`);
-    }
+  // specKey: required for namespacing; if missing, derive from filename
+  if (typeof taxonomy.specKey !== "string" || taxonomy.specKey.trim() === "") {
+    taxonomy.specKey = specKeyFromFilename(filePath);
+  }
+  const okSpecKey = !!taxonomy.specKey;
+  if (okSpecKey && !SPEC_KEY_RE.test(taxonomy.specKey)) {
+    errors.push(`${fileLabel}: specKey "${taxonomy.specKey}" must be lowercase hyphenated`);
+  }
 
-    // Optional: enforce filename begins with specKey
-    const base = path.basename(filePath);
-    if (!base.startsWith(taxonomy.specKey.replace(/-/g, "_")) && !base.startsWith(taxonomy.specKey)) {
-      // Not hard-failing because your existing naming may differ. Warn-only by default.
-      // If you want strict enforcement, change this to errors.push(...)
-      console.warn(`⚠️  ${fileLabel}: filename does not appear to match specKey (${taxonomy.specKey}).`);
-    }
+  // tier at root is optional (tier is per-topic in existing configs)
+  const hasRootTier = Array.isArray(taxonomy.tier);
+  if (hasRootTier && taxonomy.tier.some((t) => typeof t !== "string")) {
+    errors.push(`${fileLabel}: tier (if present) must be array of strings`);
   }
 
   if (!okUnits) return;
@@ -111,17 +129,28 @@ function validateTaxonomyFile(filePath, taxonomy, errors) {
     }
 
     const okUnitName = assertString(unit, "unit", unitPath, errors);
-    const okUnitKey = assertString(unit, "key", unitPath, errors);
+    // unit.key optional: derive from unit.unit when missing (e.g. "Cell Biology" → "cell-biology")
+    const rawUnitKey = unit.key;
+    let unitKey =
+      typeof rawUnitKey === "string" && rawUnitKey.trim() !== ""
+        ? rawUnitKey.trim()
+        : slugify(unit.unit || "");
+    // Normalize: collapse multiple hyphens so "atomic-structure--the-periodic-table" passes slug rule
+    unitKey = unitKey.replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+    if (!unitKey && okUnitName) {
+      errors.push(`${unitPath}: unit.key is required or unit name must be non-empty to derive key`);
+    }
+    const okUnitKey = !!unitKey;
     const okTopics = assertArray(unit, "topics", unitPath, errors);
 
     if (okUnitKey) {
-      if (!SLUG_RE.test(unit.key)) {
-        errors.push(`${unitPath}: unit.key "${unit.key}" must be lowercase hyphenated`);
+      if (!SLUG_RE.test(unitKey)) {
+        errors.push(`${unitPath}: unit.key "${unitKey}" must be lowercase hyphenated`);
       }
-      if (unitKeySet.has(unit.key)) {
-        errors.push(`${unitPath}: duplicate unit.key "${unit.key}" within spec`);
+      if (unitKeySet.has(unitKey)) {
+        errors.push(`${unitPath}: duplicate unit.key "${unitKey}" within spec`);
       }
-      unitKeySet.add(unit.key);
+      unitKeySet.add(unitKey);
     }
 
     if (!okTopics) return;

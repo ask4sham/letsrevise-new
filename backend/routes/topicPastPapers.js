@@ -242,31 +242,15 @@ router.post("/bulk", auth, async (req, res) => {
 // POST /api/topic-past-papers/upload (files)
 router.post("/upload", auth, upload.array("files", 20), async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
-  // PR-PAST-PAPERS-UI-1: Require rights confirmation (multipart sends string "true"/"false")
-  const confirm = req.body?.confirmCopyright;
-  const confirmed = confirm === true || confirm === "true";
-  if (!confirmed) {
-    return res.status(400).json({
-      error: "You must confirm you have permission to upload and use this material.",
-    });
-  }
   try {
-    const ownerId = getOwnerId(req);
-    const topicKey = req.body.topicKey;
-    const specKeyBody = req.body.specKey;
-    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
-    if (resolved.error) return res.status(400).json({ error: resolved.error });
-    const validKey = resolved.storedKey;
-
     let meta = {};
     try {
       if (req.body.metadata && typeof req.body.metadata === "string") meta = JSON.parse(req.body.metadata);
     } catch {}
-    const dedupeMode = req.body.dedupeMode || meta.dedupeMode || "skip";
-
-    // PR-COMP-AQA-1: Block AQA file uploads (compliance)
     const examBoard = (meta.examBoard || "").toString().trim().toUpperCase();
     const title = (meta.title || "").toString();
+
+    // PR-COMP-AQA-1: Block AQA file uploads (compliance) — check before permission so AQA gets specific error
     if (examBoard === "AQA") {
       return res.status(400).json({ error: "AQA past papers must be linked from aqa.org.uk and cannot be uploaded." });
     }
@@ -279,6 +263,23 @@ router.post("/upload", auth, upload.array("files", 20), async (req, res) => {
         return res.status(400).json({ error: "AQA past papers must be linked from aqa.org.uk and cannot be uploaded." });
       }
     }
+
+    // PR-PAST-PAPERS-UI-1: Require rights confirmation (multipart sends string "true"/"false")
+    const confirm = req.body?.confirmCopyright;
+    const confirmed = confirm === true || confirm === "true";
+    if (!confirmed) {
+      return res.status(400).json({
+        error: "You must confirm you have permission to upload and use this material.",
+      });
+    }
+
+    const ownerId = getOwnerId(req);
+    const topicKey = req.body.topicKey;
+    const specKeyBody = req.body.specKey;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const validKey = resolved.storedKey;
+    const dedupeMode = req.body.dedupeMode || meta.dedupeMode || "skip";
     const createdIds = [];
     const rejected = [];
     const processed = [];

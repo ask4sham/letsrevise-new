@@ -7,7 +7,8 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const auth = require("../middleware/auth");
-const { findTopicByKey } = require("../utils/topicTaxonomy");
+const { isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { buildTopicKey, parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 const { fingerprint, dedupeIncoming } = require("../utils/flashcardDedupe");
 const { parseValidateDedupe, validateBulkItems, MAX_ITEMS } = require("../utils/parseBulkFlashcards");
 
@@ -21,12 +22,48 @@ function getOwnerId(req) {
   return req.user._id || req.user.userId || req.user.id;
 }
 
-function validateTopicKey(topicKey) {
-  if (!topicKey || typeof topicKey !== "string") return null;
-  const k = topicKey.trim().toLowerCase();
-  if (!k) return null;
-  const found = findTopicByKey(k);
-  return found ? k : null;
+/**
+ * PR-CHEM-3: Resolve request topicKey + specKey to stored namespaced key. Validates against taxonomy.
+ * @returns {{ storedKey: string } | { error: string }}
+ */
+function resolveStoredTopicKey(specKeyFromReq, topicKeyFromReq) {
+  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") {
+    return { error: "topicKey is required" };
+  }
+  const trimmed = topicKeyFromReq.trim();
+  if (!trimmed) return { error: "topicKey is required" };
+
+  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
+  const { specKey: parsedSpec, topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
+
+  if (isNamespaced && parsedSpec && rawTopic) {
+    if (!isValidTopicForSpec(parsedSpec, rawTopic)) {
+      return { error: `Invalid topicKey for spec ${parsedSpec}` };
+    }
+    return { storedKey: trimmed };
+  }
+
+  const topicOnly = rawTopic || trimmed;
+  if (!isValidTopicForSpec(specKey, topicOnly)) {
+    return { error: `Invalid topicKey for spec ${specKey}` };
+  }
+  return { storedKey: buildTopicKey(specKey, topicOnly) };
+}
+
+/** Return short (topic-only) topicKey for API responses. */
+function responseTopicKey(storedKey) {
+  return parseTopicKey(storedKey || "").topicKey || storedKey || "";
+}
+
+/** Resolve topicKey + specKey for GET list: return array for $in query (namespaced + legacy). */
+function resolveTopicKeyForQuery(specKeyFromReq, topicKeyFromReq) {
+  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") return null;
+  const trimmed = topicKeyFromReq.trim();
+  if (!trimmed) return null;
+  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
+  const { topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
+  const topicOnly = rawTopic || trimmed;
+  return queryCandidates(specKey, topicOnly);
 }
 
 // GET /api/topic-flashcards?topicKey=cell-structure&status=draft|published|all&mineOnly=1
@@ -37,15 +74,15 @@ router.get("/", auth, async (req, res) => {
   try {
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const { topicKey, status, mineOnly } = req.query;
+    const { topicKey, specKey: specKeyQ, status, mineOnly } = req.query;
 
     if (!topicKey) {
       return res.status(400).json({ error: "topicKey query is required" });
     }
-    const valid = validateTopicKey(topicKey);
-    if (!valid) return res.status(400).json({ error: "Invalid topicKey" });
+    const candidates = resolveTopicKeyForQuery(specKeyQ, topicKey);
+    if (!candidates || candidates.length === 0) return res.status(400).json({ error: "Invalid topicKey" });
 
-    const query = { topicKey: valid };
+    const query = { topicKey: { $in: candidates } };
     if (String(mineOnly) === "1" || String(mineOnly) === "true" || !isAdmin) {
       query.ownerId = ownerId;
     }
@@ -72,13 +109,13 @@ router.post("/", auth, async (req, res) => {
   }
   try {
     const ownerId = getOwnerId(req);
-    let { topicKey, topic, front, back, status } = req.body;
+    let { topicKey, specKey: specKeyBody, topic, front, back, status } = req.body;
     if (!topicKey || typeof front !== "string" || typeof back !== "string") {
       return res.status(400).json({ error: "topicKey, front, and back are required" });
     }
-    const validKey = validateTopicKey(topicKey);
-    if (!validKey) return res.status(400).json({ error: "Invalid topicKey" });
-    topicKey = validKey;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const storedTopicKey = resolved.storedKey;
     front = String(front).trim();
     back = String(back).trim();
     if (!front || front.length > 500) return res.status(400).json({ error: "front must be 1–500 characters" });
@@ -88,7 +125,7 @@ router.post("/", auth, async (req, res) => {
 
     const card = await TopicFlashcard.create({
       ownerId,
-      topicKey,
+      topicKey: storedTopicKey,
       topic: topic != null ? String(topic).trim() : "",
       front,
       back,
@@ -110,9 +147,10 @@ router.post("/bulk/preview", auth, async (req, res) => {
   }
   try {
     const ownerId = getOwnerId(req);
-    const { topicKey, format, text, csvBase64, filename, csvOptions, dedupeMode } = req.body;
-    const validKey = validateTopicKey(topicKey);
-    if (!validKey) return res.status(400).json({ error: "Valid topicKey is required" });
+    const { topicKey, specKey: specKeyBody, format, text, csvBase64, filename, csvOptions, dedupeMode } = req.body;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const validKey = resolved.storedKey;
 
     let inputText = text;
     if (format === "csv" && csvBase64 && typeof csvBase64 === "string") {
@@ -146,7 +184,11 @@ router.post("/bulk/preview", auth, async (req, res) => {
     }
 
     const fps = validItems.map((x) => x.fingerprint);
-    const existing = await TopicFlashcard.find({ ownerId, topicKey: validKey, fingerprint: { $in: fps } }).lean();
+    const spec = (specKeyBody && String(specKeyBody).trim()) || DEFAULT_SPEC_LEGACY;
+    const parsed = parseTopicKey(topicKey || "");
+    const topicOnly = parsed.topicKey || String(topicKey || "").trim();
+    const queryKeys = queryCandidates(spec, topicOnly);
+    const existing = await TopicFlashcard.find({ ownerId, topicKey: { $in: queryKeys }, fingerprint: { $in: fps } }).lean();
     const existingFps = new Set(existing.map((e) => e.fingerprint));
     const duplicatesInDb = validItems.filter((x) => existingFps.has(x.fingerprint));
     const wouldCreate = validItems.filter((x) => !existingFps.has(x.fingerprint));
@@ -176,7 +218,7 @@ router.post("/bulk/preview", auth, async (req, res) => {
 
     return res.json({
       ok: true,
-      topicKey: validKey,
+      topicKey: responseTopicKey(validKey),
       summary: {
         totalParsed,
         validCount: validItems.length,
@@ -219,10 +261,10 @@ router.post("/bulk", auth, async (req, res) => {
     if (items.length > MAX_ITEMS) {
       return res.status(400).json({ error: `Too many items (max ${MAX_ITEMS})` });
     }
-    let { topicKey, topic, dedupeMode } = raw;
-    const validKey = validateTopicKey(topicKey);
-    if (!validKey) return res.status(400).json({ error: "Invalid topicKey" });
-    topicKey = validKey;
+    let { topicKey, specKey: specKeyBody, topic, dedupeMode } = raw;
+    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    const storedTopicKey = resolved.storedKey;
     const topicStr = topic != null ? String(topic).trim() : "";
     const mode = ["skip", "error", "allow"].includes(String(dedupeMode || "").toLowerCase()) ? String(dedupeMode).toLowerCase() : "skip";
 
@@ -231,7 +273,10 @@ router.post("/bulk", auth, async (req, res) => {
     const { uniqueItems, duplicatesInPayload } = dedupeIncoming(valid);
 
     const fps = uniqueItems.map((x) => x.fingerprint);
-    const existing = await TopicFlashcard.find({ ownerId, topicKey, fingerprint: { $in: fps } }).lean();
+    const spec = (specKeyBody && String(specKeyBody).trim()) || DEFAULT_SPEC_LEGACY;
+    const parsed = parseTopicKey(topicKey || "");
+    const queryKeys = queryCandidates(spec, parsed.topicKey || String(topicKey || "").trim());
+    const existing = await TopicFlashcard.find({ ownerId, topicKey: { $in: queryKeys }, fingerprint: { $in: fps } }).lean();
     const existingFps = new Set(existing.map((e) => e.fingerprint));
     const toInsert = uniqueItems.filter((x) => !existingFps.has(x.fingerprint));
     const duplicatesInDb = uniqueItems.filter((x) => existingFps.has(x.fingerprint));
@@ -254,7 +299,7 @@ router.post("/bulk", auth, async (req, res) => {
       try {
         const doc = await TopicFlashcard.create({
           ownerId,
-          topicKey,
+          topicKey: storedTopicKey,
           topic: topicStr,
           front: x.front,
           back: x.back,

@@ -107,7 +107,7 @@ module.exports = function canAccessContent(options = {}) {
           }
           return next();
         }
-        return res.status(404).json(notFoundBody("NOT_PUBLISHED"));
+        return res.status(403).json(denyBody(lessonIdStr, "NOT_PUBLISHED", "Lesson not published", isPublished));
       }
 
       // Owner of a published lesson always gets full content (e.g. flashcards); avoids FREE_PREVIEW for own lesson.
