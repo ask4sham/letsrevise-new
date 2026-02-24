@@ -3,14 +3,19 @@
  */
 import api from "../services/api";
 
+export type QuizQuestionType = "mcq" | "short-answer";
+
 export type TopicQuizQuestion = {
   _id: string;
   ownerId: string;
   topicKey: string;
   kind?: QuizKind;
+  type?: QuizQuestionType;
   questionText: string;
   choices: string[];
   correctIndex: number;
+  acceptableAnswers?: string[];
+  matchMode?: "exact" | "contains";
   explanation?: string;
   tags?: string[];
   status: "draft" | "published";
@@ -43,13 +48,16 @@ export type BulkPreviewResponse = {
   summary: BulkPreviewSummary;
   invalid: Array<{ index: number; reason: string; raw: string }>;
   duplicates: {
-    inPayload: Array<{ index: number; questionText: string; choices: string[] }>;
-    inDb: Array<{ questionText: string; choices: string[] }>;
+    inPayload: Array<{ index: number; questionText: string; choices: string[]; type?: string }>;
+    inDb: Array<{ questionText: string; choices: string[]; type?: string }>;
   };
   previewItems: Array<{
     questionText: string;
+    type?: QuizQuestionType;
     choices: string[];
     correctIndex: number;
+    acceptableAnswers?: string[];
+    matchMode?: "exact" | "contains";
     explanation?: string;
     tags: string[];
     fingerprint: string;
@@ -72,6 +80,7 @@ export async function listTopicQuizQuestions(
 
 export async function previewBulkImportTopicQuizQuestions(params: {
   topicKey: string;
+  specKey?: string;
   format: "json" | "csv";
   text: string;
   dedupeMode?: "skip" | "error" | "allow";
@@ -80,6 +89,7 @@ export async function previewBulkImportTopicQuizQuestions(params: {
 }): Promise<BulkPreviewResponse> {
   const res = await api.post<BulkPreviewResponse>("/topic-quiz-questions/bulk/preview", {
     topicKey: params.topicKey,
+    specKey: params.specKey,
     format: params.format,
     text: params.text,
     dedupeMode: params.dedupeMode ?? "skip",
@@ -89,16 +99,21 @@ export async function previewBulkImportTopicQuizQuestions(params: {
   return res.data!;
 }
 
+export type BulkCreateQuizItem = {
+  type?: QuizQuestionType;
+  questionText: string;
+  choices?: string[];
+  correctIndex?: number;
+  acceptableAnswers?: string[];
+  matchMode?: "exact" | "contains";
+  explanation?: string;
+  tags?: string[];
+};
+
 export async function bulkCreateTopicQuizQuestions(body: {
   topicKey: string;
   specKey?: string;
-  items: Array<{
-    questionText: string;
-    choices: string[];
-    correctIndex: number;
-    explanation?: string;
-    tags?: string[];
-  }>;
+  items: BulkCreateQuizItem[];
   dedupeMode?: "skip" | "error" | "allow";
   kind?: QuizKind;
 }): Promise<{

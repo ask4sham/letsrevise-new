@@ -16,6 +16,8 @@ import {
   type TopicQuizQuestion,
   type BulkPreviewResponse,
   type QuizKind,
+  type QuizQuestionType,
+  type BulkCreateQuizItem,
 } from "../api/topicQuizQuestions";
 import { getQuestionAnalytics } from "../api/teacherAnalytics";
 import { SpecSelector } from "../components/SpecSelector";
@@ -45,9 +47,29 @@ const TeacherQuizBankPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [importType, setImportType] = useState<QuizQuestionType>("mcq");
   const [importFormat, setImportFormat] = useState<"json" | "csv">("json");
   const [importText, setImportText] = useState("");
   const [dedupeMode, setDedupeMode] = useState<"skip" | "error" | "allow">("skip");
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addForm, setAddForm] = useState<{
+    type: QuizQuestionType;
+    questionText: string;
+    choices: string[];
+    correctIndex: number;
+    acceptableAnswers: string[];
+    matchMode: "exact" | "contains";
+    explanation: string;
+  }>({
+    type: "mcq",
+    questionText: "",
+    choices: ["", ""],
+    correctIndex: 0,
+    acceptableAnswers: [""],
+    matchMode: "contains",
+    explanation: "",
+  });
+  const [addSaving, setAddSaving] = useState(false);
   const [previewResult, setPreviewResult] = useState<BulkPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -101,6 +123,7 @@ const TeacherQuizBankPage: React.FC = () => {
     try {
       const result = await previewBulkImportTopicQuizQuestions({
         topicKey,
+        specKey,
         format: importFormat,
         text: importText,
         dedupeMode,
@@ -122,13 +145,27 @@ const TeacherQuizBankPage: React.FC = () => {
     setImportLoading(true);
     setMessage(null);
     try {
-      const items = previewResult.previewItems.map((x) => ({
-        questionText: x.questionText,
-        choices: x.choices,
-        correctIndex: x.correctIndex,
-        explanation: x.explanation,
-        tags: x.tags,
-      }));
+      const items: BulkCreateQuizItem[] = previewResult.previewItems.map((x) => {
+        const type = (x.type === "short-answer" ? "short-answer" : "mcq") as QuizQuestionType;
+        if (type === "short-answer") {
+          return {
+            type: "short-answer",
+            questionText: x.questionText,
+            acceptableAnswers: x.acceptableAnswers ?? [],
+            matchMode: x.matchMode ?? "contains",
+            explanation: x.explanation,
+            tags: x.tags,
+          };
+        }
+        return {
+          type: "mcq",
+          questionText: x.questionText,
+          choices: x.choices ?? [],
+          correctIndex: x.correctIndex ?? 0,
+          explanation: x.explanation,
+          tags: x.tags,
+        };
+      });
       const result = await bulkCreateTopicQuizQuestions({ topicKey, specKey, items, dedupeMode, kind });
       setImportText("");
       setPreviewResult(null);
@@ -215,6 +252,73 @@ const TeacherQuizBankPage: React.FC = () => {
       setMessage(err?.response?.data?.error || "Delete failed");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleAddQuestion = async () => {
+    if (!topicKey || !addForm.questionText.trim()) {
+      setMessage("Select a topic and enter question text.");
+      return;
+    }
+    if (addForm.type === "mcq") {
+      const validChoices = addForm.choices.map((c) => c.trim()).filter(Boolean);
+      if (validChoices.length < 2) {
+        setMessage("MCQ needs at least 2 choices.");
+        return;
+      }
+      if (addForm.correctIndex < 0 || addForm.correctIndex >= validChoices.length) {
+        setMessage("Select a valid correct answer.");
+        return;
+      }
+    } else {
+      const validAnswers = addForm.acceptableAnswers.map((a) => a.trim()).filter(Boolean);
+      if (validAnswers.length === 0) {
+        setMessage("Short answer needs at least one acceptable answer.");
+        return;
+      }
+    }
+    setAddSaving(true);
+    setMessage(null);
+    try {
+      const item: BulkCreateQuizItem =
+        addForm.type === "mcq"
+          ? {
+              type: "mcq",
+              questionText: addForm.questionText.trim(),
+              choices: addForm.choices.map((c) => c.trim()).filter(Boolean),
+              correctIndex: addForm.correctIndex,
+              explanation: addForm.explanation.trim() || undefined,
+            }
+          : {
+              type: "short-answer",
+              questionText: addForm.questionText.trim(),
+              acceptableAnswers: addForm.acceptableAnswers.map((a) => a.trim()).filter(Boolean),
+              matchMode: addForm.matchMode,
+              explanation: addForm.explanation.trim() || undefined,
+            };
+      await bulkCreateTopicQuizQuestions({
+        topicKey,
+        specKey,
+        items: [item],
+        dedupeMode: "skip",
+        kind,
+      });
+      setAddModalOpen(false);
+      setAddForm({
+        type: "mcq",
+        questionText: "",
+        choices: ["", ""],
+        correctIndex: 0,
+        acceptableAnswers: [""],
+        matchMode: "contains",
+        explanation: "",
+      });
+      setMessage("Question added as draft.");
+      fetchQuestions();
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.message || "Add failed");
+    } finally {
+      setAddSaving(false);
     }
   };
 
@@ -351,23 +455,45 @@ const TeacherQuizBankPage: React.FC = () => {
       <div style={{ display: "grid", gap: 24 }}>
         <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Import</h2>
-          {!topicKey && <p style={{ color: "#6b7280", marginBottom: 12 }}>Enter a topicKey to preview/import.</p>}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontWeight: 600, marginRight: 8 }}>Format:</label>
-            <select
-              value={importFormat}
-              onChange={(e) => setImportFormat(e.target.value as "json" | "csv")}
-              style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
-            >
-              <option value="json">JSON</option>
-              <option value="csv">CSV</option>
-            </select>
+          {!topicKey && <p style={{ color: "#6b7280", marginBottom: 12 }}>Select a topic to preview/import.</p>}
+          <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <label style={{ fontWeight: 600, marginRight: 8 }}>Type:</label>
+              <select
+                value={importType}
+                onChange={(e) => { setImportType(e.target.value as QuizQuestionType); setPreviewResult(null); }}
+                style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+              >
+                <option value="mcq">MCQ</option>
+                <option value="short-answer">Short Answer</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, marginRight: 8 }}>Format:</label>
+              <select
+                value={importFormat}
+                onChange={(e) => setImportFormat(e.target.value as "json" | "csv")}
+                style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+              >
+                <option value="json">JSON</option>
+                <option value="csv">CSV</option>
+              </select>
+            </div>
           </div>
+          {importType === "short-answer" && (
+            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+              Short answer: use <code style={{ background: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>acceptableAnswers</code> with <code style={{ background: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>|</code> separator; <code style={{ background: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>matchMode</code> optional (exact | contains).
+            </p>
+          )}
           <textarea
             placeholder={
-              importFormat === "json"
-                ? '[{"questionText":"What is diffusion?","choices":["A","B","C"],"correctIndex":0}]'
-                : "questionText,choiceA,choiceB,choiceC,choiceD,correct,tags\nWhat is mitosis?,A,B,C,D,B,cell-cycle"
+              importType === "short-answer"
+                ? importFormat === "json"
+                  ? '[{"type":"short-answer","questionText":"Name the organelle that contains DNA.","acceptableAnswers":["nucleus","the nucleus"],"matchMode":"contains"}]'
+                  : "topicKey,type,question,acceptableAnswers,matchMode,explanation\ncell-structure,short-answer,Name the organelle.,nucleus|the nucleus,contains,"
+                : importFormat === "json"
+                  ? '[{"questionText":"What is diffusion?","choices":["A","B","C"],"correctIndex":0}]'
+                  : "questionText,choiceA,choiceB,choiceC,choiceD,correct,tags\nWhat is mitosis?,A,B,C,D,B,cell-cycle"
             }
             value={importText}
             onChange={(e) => {
@@ -435,7 +561,13 @@ const TeacherQuizBankPage: React.FC = () => {
                   <strong>First {Math.min(10, previewResult.previewItems.length)} questions:</strong>
                   <ul style={{ margin: "4px 0 0 16px", padding: 0, fontSize: 12 }}>
                     {previewResult.previewItems.slice(0, 10).map((item, i) => (
-                      <li key={i} style={{ marginBottom: 4 }}>{item.questionText.slice(0, 80)}{item.questionText.length > 80 ? "…" : ""} → correct: {String.fromCharCode(65 + item.correctIndex)}</li>
+                      <li key={i} style={{ marginBottom: 4 }}>
+                        {item.questionText.slice(0, 80)}{item.questionText.length > 80 ? "…" : ""}
+                        {" → "}
+                        {(item.type === "short-answer")
+                          ? `Short answer: ${(item.acceptableAnswers ?? []).join(", ") || "—"}`
+                          : `correct: ${String.fromCharCode(65 + (item.correctIndex ?? 0))}`}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -470,27 +602,38 @@ const TeacherQuizBankPage: React.FC = () => {
                 </span>
               )}
             </h2>
-            {topicKey && !loading && questions.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
-                  <input type="checkbox" checked={selectedIds.size === questions.length && questions.length > 0} onChange={toggleSelectAll} />
-                  Select all
-                </label>
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "publish") handleBulkPublish();
-                    else if (v === "unpublish") handleBulkUnpublish();
-                    e.target.value = "";
-                  }}
-                  disabled={selectedIds.size === 0 || bulkLoading}
-                  style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+            {topicKey && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setAddModalOpen(true)}
+                  style={{ padding: "6px 12px", borderRadius: 8, background: "#059669", color: "#fff", fontWeight: 600, border: "none", cursor: "pointer" }}
                 >
-                  <option value="">Bulk actions</option>
-                  <option value="publish">Publish selected ({selectedIds.size})</option>
-                  <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
-                </select>
+                  Add question
+                </button>
+                {!loading && questions.length > 0 && (
+                  <>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
+                      <input type="checkbox" checked={selectedIds.size === questions.length && questions.length > 0} onChange={toggleSelectAll} />
+                      Select all
+                    </label>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "publish") handleBulkPublish();
+                        else if (v === "unpublish") handleBulkUnpublish();
+                        e.target.value = "";
+                      }}
+                      disabled={selectedIds.size === 0 || bulkLoading}
+                      style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                    >
+                      <option value="">Bulk actions</option>
+                      <option value="publish">Publish selected ({selectedIds.size})</option>
+                      <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
+                    </select>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -517,13 +660,22 @@ const TeacherQuizBankPage: React.FC = () => {
                   <label style={{ display: "flex", alignItems: "flex-start", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }}>
                     <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => toggleSelect(q._id)} style={{ marginTop: 4 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{q.questionText.length > 120 ? q.questionText.slice(0, 120) + "…" : q.questionText}</div>
-                    <div style={{ fontSize: 13, color: "#4b5563" }}>
-                      {q.choices.map((c, i) => (
-                        <span key={i} style={{ marginRight: 8 }}>{String.fromCharCode(65 + i)}: {c.length > 40 ? c.slice(0, 40) + "…" : c}</span>
-                      ))}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 600 }}>{q.questionText.length > 120 ? q.questionText.slice(0, 120) + "…" : q.questionText}</span>
+                      <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: (q.type === "short-answer") ? "#e0e7ff" : "#dbeafe", color: "#3730a3" }}>
+                        {(q.type === "short-answer") ? "Short" : "MCQ"}
+                      </span>
                     </div>
-                    <span style={{ fontSize: 12, color: "#9ca3af" }}>Correct: {getCorrectLabel(q)} · {q.status}</span>
+                    <div style={{ fontSize: 13, color: "#4b5563" }}>
+                      {(q.type === "short-answer")
+                        ? (q.acceptableAnswers?.length ? <span>Acceptable: {(q.acceptableAnswers ?? []).slice(0, 5).join(", ")}{(q.acceptableAnswers?.length ?? 0) > 5 ? "…" : ""}</span> : null)
+                        : (q.choices ?? []).map((c, i) => (
+                            <span key={i} style={{ marginRight: 8 }}>{String.fromCharCode(65 + i)}: {c.length > 40 ? c.slice(0, 40) + "…" : c}</span>
+                          ))}
+                    </div>
+                    <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                      {(q.type === "short-answer") ? `Match: ${q.matchMode ?? "contains"}` : `Correct: ${getCorrectLabel(q)}`} · {q.status}
+                    </span>
                   </div>
                   </label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -546,6 +698,160 @@ const TeacherQuizBankPage: React.FC = () => {
           )}
         </section>
       </div>
+
+      {addModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+          onClick={() => !addSaving && setAddModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 520,
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 700 }}>Add quiz question</h3>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Type</label>
+              <select
+                value={addForm.type}
+                onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as QuizQuestionType }))}
+                style={{ padding: "8px 12px", width: "100%", borderRadius: 8, border: "1px solid #d1d5db" }}
+              >
+                <option value="mcq">MCQ</option>
+                <option value="short-answer">Short Answer</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Question</label>
+              <textarea
+                value={addForm.questionText}
+                onChange={(e) => setAddForm((f) => ({ ...f, questionText: e.target.value }))}
+                rows={3}
+                placeholder="Question text…"
+                style={{ padding: 8, width: "100%", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+              />
+            </div>
+            {addForm.type === "mcq" && (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Choices (2–6)</label>
+                  {(addForm.choices.length < 6 ? [...addForm.choices, ""] : addForm.choices).map((choice, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ width: 24, fontWeight: 600 }}>{String.fromCharCode(65 + i)}</span>
+                      <input
+                        type="text"
+                        value={i < addForm.choices.length ? choice : ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const next = [...addForm.choices];
+                          while (next.length <= i) next.push("");
+                          next[i] = val;
+                          if (i === next.length - 1 && val && next.length < 6) next.push("");
+                          const trimmed = next.filter((c, j) => j < next.length - 1 || (c && c.trim()));
+                          setAddForm((f) => ({
+                            ...f,
+                            choices: trimmed.length >= 2 ? trimmed : trimmed.length === 1 ? [trimmed[0], ""] : ["", ""],
+                            correctIndex: Math.min(f.correctIndex, Math.max(0, trimmed.length - 1)),
+                          }));
+                        }}
+                        placeholder={`Choice ${String.fromCharCode(65 + i)}`}
+                        style={{ flex: 1, padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Correct answer</label>
+                  <select
+                    value={Math.min(addForm.correctIndex, Math.max(0, addForm.choices.filter((c) => c.trim()).length - 1))}
+                    onChange={(e) => setAddForm((f) => ({ ...f, correctIndex: Number(e.target.value) }))}
+                    style={{ padding: "8px 12px", width: "100%", borderRadius: 8, border: "1px solid #d1d5db" }}
+                  >
+                    {addForm.choices.filter((c) => c.trim()).length === 0 ? (
+                      <option value={0}>— Add choices first —</option>
+                    ) : (
+                      addForm.choices.filter((c) => c.trim()).map((c, i) => (
+                        <option key={i} value={i}>{String.fromCharCode(65 + i)}: {c.slice(0, 50)}{c.length > 50 ? "…" : ""}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </>
+            )}
+            {addForm.type === "short-answer" && (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Acceptable answers (one per line or comma-separated)</label>
+                  <textarea
+                    value={addForm.acceptableAnswers.join("\n")}
+                    onChange={(e) => setAddForm((f) => ({
+                      ...f,
+                      acceptableAnswers: e.target.value.split(/[\n,]/).map((a) => a.trim()).filter(Boolean).slice(0, 10) || [""],
+                    }))}
+                    rows={3}
+                    placeholder="nucleus&#10;the nucleus"
+                    style={{ padding: 8, width: "100%", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+                  />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Match mode</label>
+                  <select
+                    value={addForm.matchMode}
+                    onChange={(e) => setAddForm((f) => ({ ...f, matchMode: e.target.value as "exact" | "contains" }))}
+                    style={{ padding: "8px 12px", width: "100%", borderRadius: 8, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="contains">Contains (keyword/phrase)</option>
+                    <option value="exact">Exact (normalized)</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Explanation (optional)</label>
+              <textarea
+                value={addForm.explanation}
+                onChange={(e) => setAddForm((f) => ({ ...f, explanation: e.target.value }))}
+                rows={2}
+                placeholder="Optional explanation shown after answer"
+                style={{ padding: 8, width: "100%", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => !addSaving && setAddModalOpen(false)}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: addSaving ? "not-allowed" : "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddQuestion}
+                disabled={addSaving}
+                style={{ padding: "8px 16px", borderRadius: 8, background: "#059669", color: "#fff", fontWeight: 600, border: "none", cursor: addSaving ? "not-allowed" : "pointer" }}
+              >
+                {addSaving ? "Saving…" : "Add draft"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
