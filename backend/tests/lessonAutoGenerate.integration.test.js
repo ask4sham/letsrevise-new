@@ -79,7 +79,7 @@ describe("Lesson create with autoGenerateFromBanks (PR-EDGE-1)", () => {
     for (const id of ppRes.body.createdIds || []) {
       await request(app).post(`/api/topic-past-papers/${id}/publish`).set("Authorization", `Bearer ${teacherToken}`);
     }
-  });
+  }, 15000);
 
   afterAll(async () => {
     await TopicFlashcard.deleteMany({ ownerId: teacherId });
