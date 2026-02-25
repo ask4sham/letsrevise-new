@@ -623,3 +623,18 @@ curl -X POST "%BASE_URL%/api/admin/student-teacher-links" \
 **Response:** `201` + `{ "ok": true, "linkId": "..." }` or `200` + `{ "ok": true, "linkId": "...", "message": "Link already exists" }`.
 
 Students need this link before they can generate practice sets or submit attempts for that teacher.
+
+### Post-merge smoke test (~5 min)
+
+- **Teacher/admin:** Create link via cURL/Postman (see above).
+- **Student:** Go to `/student/practice` → paste teacherId → pick spec + add one topicKey → Generate set → submit one MCQ and one non-MCQ.
+- **Teacher:** Go to `/teacher/reports/topic-performance` → choose spec → confirm attempts increment, accuracy shows, order is lowest-accuracy first.
+
+### Scheduled tweaks (not blocking beta)
+
+1. **Linked-teacher dropdown** — Replace teacherId free-text with dropdown. Add `GET /api/students/me/linked-teachers` (from StudentTeacherLink), populate dropdown; reduces support tickets.
+2. **MCQ attempt feedback (no leakage)** — Optionally return `{ ok: true, isCorrect: true/false }` in attempt response so UI can show correct/incorrect without exposing the actual answer.
+
+### Next PR after beta
+
+**PR-PRACTICE-LOOP-2** — Student history + “Continue where I left off”: `GET /api/practice-sets/mine` + minimal UI. When ready, ask: “Start PR-PRACTICE-LOOP-2 Cursor-ready”.
