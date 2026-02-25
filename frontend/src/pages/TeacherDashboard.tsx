@@ -1349,6 +1349,21 @@ const TeacherDashboard: React.FC = () => {
                 >
                   Monitor Practice
                 </Link>
+                <Link
+                  to="/teacher/reports/topic-performance"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #7c3aed",
+                    background: "#ede9fe",
+                    color: "#5b21b6",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  Topic performance
+                </Link>
                 {hasNeedsAttention ? (
                   <Link
                     to="/teacher/reports/needs-attention"

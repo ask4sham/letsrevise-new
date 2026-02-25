@@ -86,6 +86,7 @@ import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
+import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 
 import "./App.css";
 
@@ -503,6 +504,15 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherNeedsAttentionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/reports/topic-performance"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherTopicPerformancePage />
               </ProtectedRoute>
             }
           />
