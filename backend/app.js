@@ -78,6 +78,7 @@ app.use("/api/topic-quiz-questions", createBulkLimiter(), require("./routes/topi
 // PR-PRACTICE-LOOP-1: student practice set + attempt tracking + teacher topic stats
 app.use("/api/practice", require("./routes/practice"));
 app.use("/api/practice-attempts", require("./routes/practiceAttempts"));
+app.use("/api/practice-sets", require("./routes/practiceSets"));
 
 // PR-PP1: topic past paper bank (teacher/admin only) + PR-HARD-2 rate limit
 app.use("/api/topic-past-papers", createUploadLimiter(), require("./routes/topicPastPapers"));
