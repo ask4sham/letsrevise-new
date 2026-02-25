@@ -65,6 +65,7 @@ import FlashcardsEditorPage from "./pages/FlashcardsEditorPage";
 import TeacherFlashcardBankPage from "./pages/TeacherFlashcardBankPage";
 import TeacherQuizBankPage from "./pages/TeacherQuizBankPage";
 import TeacherPastPapersBankPage from "./pages/TeacherPastPapersBankPage";
+import TeacherCoveragePage from "./pages/TeacherCoveragePage";
 
 // ✅ NEW: Assessment pages - ALL in src/pages/
 import AssessmentPaperStartPage from "./pages/AssessmentPaperStartPage";
@@ -83,6 +84,8 @@ import TeacherNeedsMarkingPage from "./pages/TeacherNeedsMarkingPage";
 import StudentMyWorkPage from "./pages/StudentMyWorkPage";
 import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
+import StudentPracticePage from "./pages/StudentPracticePage";
+import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 
 import "./App.css";
 
@@ -284,6 +287,14 @@ function App() {
             path="/teacher/flashcards"
             element={<Navigate to="/teacher/topic-banks/flashcards" replace />}
           />
+          <Route
+            path="/teacher/content-coverage"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherCoveragePage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/create-lesson"
@@ -446,6 +457,16 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <LessonAttemptReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PR-PRACTICE-LOOP-1: Teacher topic performance stats */}
+          <Route
+            path="/topic-stats"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherTopicStatsPage />
               </ProtectedRoute>
             }
           />

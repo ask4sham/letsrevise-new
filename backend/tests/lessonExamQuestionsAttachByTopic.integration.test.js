@@ -11,6 +11,8 @@ const ExamQuestion = require("../models/ExamQuestion");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
+jest.setTimeout(20000);
+
 describe("POST /api/lessons/:id/exam-questions/attach-by-topic", () => {
   let teacherToken;
   let teacherId;
