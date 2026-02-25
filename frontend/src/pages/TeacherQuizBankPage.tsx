@@ -124,6 +124,7 @@ const TeacherQuizBankPage: React.FC = () => {
       const result = await previewBulkImportTopicQuizQuestions({
         topicKey,
         specKey,
+        type: importType,
         format: importFormat,
         text: importText,
         dedupeMode,
@@ -166,7 +167,7 @@ const TeacherQuizBankPage: React.FC = () => {
           tags: x.tags,
         };
       });
-      const result = await bulkCreateTopicQuizQuestions({ topicKey, specKey, items, dedupeMode, kind });
+      const result = await bulkCreateTopicQuizQuestions({ topicKey, specKey, type: importType, items, dedupeMode, kind });
       setImportText("");
       setPreviewResult(null);
       setMessage(`Imported ${result.createdCount} draft(s). Skipped: ${result.skipped.duplicatesInPayload + result.skipped.duplicatesInDb} duplicate(s), ${result.skipped.invalid} invalid.`);
@@ -332,7 +333,7 @@ const TeacherQuizBankPage: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24, width: "100%", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
         <Link to="/teacher-dashboard" style={{ color: "#2563eb", fontWeight: 600 }}>
           ← Dashboard
@@ -452,8 +453,8 @@ const TeacherQuizBankPage: React.FC = () => {
         </div>
       )}
 
-      <div style={{ display: "grid", gap: 24 }}>
-        <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24 }}>
+        <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12, width: "100%", minWidth: 0 }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Import</h2>
           {!topicKey && <p style={{ color: "#6b7280", marginBottom: 12 }}>Select a topic to preview/import.</p>}
           <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -480,9 +481,16 @@ const TeacherQuizBankPage: React.FC = () => {
               </select>
             </div>
           </div>
+          {importType === "mcq" && importFormat === "csv" && (
+            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+              CSV columns: topicKey, question, choiceA.., correctChoice, explanation
+            </p>
+          )}
           {importType === "short-answer" && (
             <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
-              Short answer: use <code style={{ background: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>acceptableAnswers</code> with <code style={{ background: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>|</code> separator; <code style={{ background: "#f3f4f6", padding: "2px 4px", borderRadius: 4 }}>matchMode</code> optional (exact | contains).
+              {importFormat === "csv"
+                ? "CSV columns: topicKey, question, acceptableAnswers (use | separator), explanation"
+                : "Short answer: acceptableAnswers with | separator; matchMode optional (exact | contains)."}
             </p>
           )}
           <textarea
@@ -490,10 +498,10 @@ const TeacherQuizBankPage: React.FC = () => {
               importType === "short-answer"
                 ? importFormat === "json"
                   ? '[{"type":"short-answer","questionText":"Name the organelle that contains DNA.","acceptableAnswers":["nucleus","the nucleus"],"matchMode":"contains"}]'
-                  : "topicKey,type,question,acceptableAnswers,matchMode,explanation\ncell-structure,short-answer,Name the organelle.,nucleus|the nucleus,contains,"
+                  : "topicKey,question,acceptableAnswers,explanation\ndiffusion,Name the organelle.,nucleus|the nucleus,"
                 : importFormat === "json"
                   ? '[{"questionText":"What is diffusion?","choices":["A","B","C"],"correctIndex":0}]'
-                  : "questionText,choiceA,choiceB,choiceC,choiceD,correct,tags\nWhat is mitosis?,A,B,C,D,B,cell-cycle"
+                  : "topicKey,question,choiceA,choiceB,choiceC,choiceD,correctChoice,explanation\ndiffusion,What is mitosis?,A,B,C,D,B,"
             }
             value={importText}
             onChange={(e) => {
@@ -592,7 +600,7 @@ const TeacherQuizBankPage: React.FC = () => {
           )}
         </section>
 
-        <section style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12 }}>
+        <section className="teacher-quiz-bank-questions-section" style={{ padding: 16, border: "1px solid #e5e7eb", borderRadius: 12, width: "100%", minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
               Questions {topicKey ? `(${questions.length})` : ""}
@@ -641,8 +649,10 @@ const TeacherQuizBankPage: React.FC = () => {
           {topicKey && loading && <p>Loading…</p>}
           {topicKey && !loading && questions.length === 0 && <p style={{ color: "#6b7280" }}>No questions yet. Import above.</p>}
           {topicKey && !loading && questions.length > 0 && (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {questions.map((q) => (
+            <ul className="teacher-quiz-bank-questions-list" style={{ listStyle: "none", padding: 0, margin: 0, width: "100%", minWidth: 0 }}>
+              {questions.map((q) => {
+                const isShortAnswer = q.type === "short-answer" || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0 && !(Array.isArray(q.choices) && q.choices.length >= 2));
+                return (
                 <li
                   key={q._id}
                   style={{
@@ -652,48 +662,66 @@ const TeacherQuizBankPage: React.FC = () => {
                     borderRadius: 8,
                     border: "1px solid #e5e7eb",
                     display: "flex",
-                    justifyContent: "space-between",
                     alignItems: "flex-start",
                     gap: 12,
+                    width: "100%",
+                    boxSizing: "border-box",
                   }}
                 >
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }}>
-                    <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => toggleSelect(q._id)} style={{ marginTop: 4 }} />
+                  <label style={{ flexShrink: 0, marginTop: 2 }}>
+                    <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => toggleSelect(q._id)} />
+                  </label>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>{q.questionText.length > 120 ? q.questionText.slice(0, 120) + "…" : q.questionText}</span>
-                      <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: (q.type === "short-answer") ? "#e0e7ff" : "#dbeafe", color: "#3730a3" }}>
-                        {(q.type === "short-answer") ? "Short" : "MCQ"}
-                      </span>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: "#111827", wordBreak: "break-word", overflowWrap: "break-word" }}>
+                      {q.questionText ?? (q as { question?: string }).question}
                     </div>
-                    <div style={{ fontSize: 13, color: "#4b5563" }}>
-                      {(q.type === "short-answer")
-                        ? (q.acceptableAnswers?.length ? <span>Acceptable: {(q.acceptableAnswers ?? []).slice(0, 5).join(", ")}{(q.acceptableAnswers?.length ?? 0) > 5 ? "…" : ""}</span> : null)
-                        : (q.choices ?? []).map((c, i) => (
-                            <span key={i} style={{ marginRight: 8 }}>{String.fromCharCode(65 + i)}: {c.length > 40 ? c.slice(0, 40) + "…" : c}</span>
-                          ))}
-                    </div>
+                    {isShortAnswer ? (
+                      q.acceptableAnswers?.length ? (
+                        <div style={{ fontSize: 14, color: "#4b5563", marginBottom: 4, wordBreak: "break-word", overflowWrap: "break-word" }}>
+                          <span style={{ fontWeight: 600 }}>Acceptable answers:</span>{" "}
+                          {(q.acceptableAnswers ?? []).join(" • ")}
+                        </div>
+                      ) : null
+                    ) : (
+                      <div style={{ fontSize: 14, color: "#4b5563", marginBottom: 4 }}>
+                        {(q.choices ?? []).map((c, i) => (
+                          <div key={i} style={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
+                            {String.fromCharCode(65 + i)}. {c}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <span style={{ fontSize: 12, color: "#9ca3af" }}>
-                      {(q.type === "short-answer") ? `Match: ${q.matchMode ?? "contains"}` : `Correct: ${getCorrectLabel(q)}`} · {q.status}
+                      {isShortAnswer ? `Match: ${q.matchMode ?? "contains"}` : `Correct: ${getCorrectLabel(q)}`} · {q.status}
                     </span>
                   </div>
-                  </label>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {q.status === "draft" ? (
-                      <button type="button" onClick={() => handlePublish(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}>
-                        {actionLoading === q._id ? "…" : "Publish"}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 4 }}>
+                      <span style={{ padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#374151", fontSize: 11 }}>
+                        {isShortAnswer ? "Short" : "MCQ"}
+                      </span>
+                      {q.difficulty != null && (
+                        <span style={{ padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#374151", fontSize: 11 }}>D{q.difficulty}</span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {q.status === "draft" ? (
+                        <button type="button" onClick={() => handlePublish(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#059669", border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, cursor: actionLoading ? "not-allowed" : "pointer" }}>
+                          {actionLoading === q._id ? "…" : "Publish"}
+                        </button>
+                      ) : (
+                        <button type="button" onClick={() => handleUnpublish(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280", border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, cursor: actionLoading ? "not-allowed" : "pointer" }}>
+                          {actionLoading === q._id ? "…" : "Unpublish"}
+                        </button>
+                      )}
+                      <button type="button" onClick={() => handleDelete(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626", border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, cursor: actionLoading ? "not-allowed" : "pointer" }}>
+                        Delete
                       </button>
-                    ) : (
-                      <button type="button" onClick={() => handleUnpublish(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280" }}>
-                        {actionLoading === q._id ? "…" : "Unpublish"}
-                      </button>
-                    )}
-                    <button type="button" onClick={() => handleDelete(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}>
-                      Delete
-                    </button>
+                    </div>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </section>

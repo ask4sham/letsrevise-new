@@ -381,3 +381,8 @@ tr:hover td {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Topic Quiz Bank: ensure question row content can grow (match Cards/Flashcard layout) */
+.teacher-quiz-bank-questions-section .teacher-quiz-bank-questions-list li > div:nth-child(2) {
+  min-width: 0 !important;
+}

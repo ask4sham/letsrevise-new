@@ -2794,59 +2794,74 @@ router.post("/:id/purchase", auth, async (req, res) => {
       });
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const maxAttempts = 2;
     let ledgerDoc = null;
-    try {
-      // Order: insert ledger first so duplicate (userId, lessonId) aborts without debiting
-      const [created] = await LessonPurchase.create(
-        [
-          {
-            userId,
-            lessonId: lesson._id,
-            cost,
-            idempotencyKey,
-          },
-        ],
-        { session }
-      );
-      ledgerDoc = created;
-
-      const purchaseRecord = {
-        lessonId: lesson._id,
-        price: cost,
-        purchasedAt: new Date(),
-      };
-      await User.findByIdAndUpdate(
-        userId,
-        {
-          $inc: { shamCoins: -cost },
-          $addToSet: { purchasedLessons: purchaseRecord },
-        },
-        { session }
-      );
-      await session.commitTransaction();
-    } catch (txErr) {
-      await session.abortTransaction();
-      const isDuplicateKey =
-        txErr.code === 11000 ||
-        txErr.codeName === "DuplicateKey" ||
-        (txErr.writeErrors && txErr.writeErrors.some((e) => e.code === 11000));
-      if (isDuplicateKey) {
-        const userAfter = await User.findById(userId).select("shamCoins purchasedLessons").lean();
-        return res.status(200).json(
-          stableResponse({
-            success: true,
-            alreadyPurchased: true,
-            idempotentReplay: false,
-            entitlements: entitlementsPayload(userAfter || {}),
-          })
+    let lastTxErr = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      try {
+        // Order: insert ledger first so duplicate (userId, lessonId) aborts without debiting
+        const [created] = await LessonPurchase.create(
+          [
+            {
+              userId,
+              lessonId: lesson._id,
+              cost,
+              idempotencyKey,
+            },
+          ],
+          { session }
         );
+        ledgerDoc = created;
+
+        const purchaseRecord = {
+          lessonId: lesson._id,
+          price: cost,
+          purchasedAt: new Date(),
+        };
+        await User.findByIdAndUpdate(
+          userId,
+          {
+            $inc: { shamCoins: -cost },
+            $addToSet: { purchasedLessons: purchaseRecord },
+          },
+          { session }
+        );
+        await session.commitTransaction();
+        lastTxErr = null;
+        break;
+      } catch (txErr) {
+        await session.abortTransaction();
+        lastTxErr = txErr;
+        const isDuplicateKey =
+          txErr.code === 11000 ||
+          txErr.codeName === "DuplicateKey" ||
+          (txErr.writeErrors && txErr.writeErrors.some((e) => e.code === 11000));
+        if (isDuplicateKey) {
+          const userAfter = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+          return res.status(200).json(
+            stableResponse({
+              success: true,
+              alreadyPurchased: true,
+              idempotentReplay: false,
+              entitlements: entitlementsPayload(userAfter || {}),
+            })
+          );
+        }
+        const isTransientTx =
+          txErr.code === 112 ||
+          txErr.codeName === "WriteConflict" ||
+          (txErr.errorLabelSet && txErr.errorLabelSet.has && txErr.errorLabelSet.has("TransientTransactionError"));
+        if (isTransientTx && attempt < maxAttempts) {
+          continue;
+        }
+        throw txErr;
+      } finally {
+        session.endSession();
       }
-      throw txErr;
-    } finally {
-      session.endSession();
     }
+    if (lastTxErr) throw lastTxErr;
 
     const updatedUser = await User.findById(userId).select("shamCoins purchasedLessons").lean();
     const teacherEarnings = Math.floor(cost * 0.7);

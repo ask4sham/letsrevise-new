@@ -18,6 +18,8 @@ export type TopicQuizQuestion = {
   matchMode?: "exact" | "contains";
   explanation?: string;
   tags?: string[];
+  difficulty?: number;
+  skill?: string;
   status: "draft" | "published";
   createdAt?: string;
   updatedAt?: string;
@@ -81,6 +83,7 @@ export async function listTopicQuizQuestions(
 export async function previewBulkImportTopicQuizQuestions(params: {
   topicKey: string;
   specKey?: string;
+  type?: QuizQuestionType;
   format: "json" | "csv";
   text: string;
   dedupeMode?: "skip" | "error" | "allow";
@@ -90,6 +93,7 @@ export async function previewBulkImportTopicQuizQuestions(params: {
   const res = await api.post<BulkPreviewResponse>("/topic-quiz-questions/bulk/preview", {
     topicKey: params.topicKey,
     specKey: params.specKey,
+    type: params.type ?? "mcq",
     format: params.format,
     text: params.text,
     dedupeMode: params.dedupeMode ?? "skip",
@@ -113,6 +117,7 @@ export type BulkCreateQuizItem = {
 export async function bulkCreateTopicQuizQuestions(body: {
   topicKey: string;
   specKey?: string;
+  type?: QuizQuestionType;
   items: BulkCreateQuizItem[];
   dedupeMode?: "skip" | "error" | "allow";
   kind?: QuizKind;
@@ -130,6 +135,7 @@ export async function bulkCreateTopicQuizQuestions(body: {
   }>("/topic-quiz-questions/bulk", {
     topicKey: body.topicKey,
     specKey: body.specKey,
+    type: body.type ?? "mcq",
     items: body.items,
     dedupeMode: body.dedupeMode ?? "skip",
     kind: body.kind ?? "quiz",

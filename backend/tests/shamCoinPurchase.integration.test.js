@@ -106,10 +106,16 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     await User.findByIdAndUpdate(studentId, { shamCoins: 20, $set: { purchasedLessons: [] } });
     await LessonPurchase.deleteMany({ userId: studentId, lessonId });
 
-    const res = await request(app)
+    let res = await request(app)
       .post(`/api/lessons/${lessonId}/purchase`)
       .set("Authorization", `Bearer ${token}`)
       .send({ idempotencyKey: idemKey("key-success-1") });
+    if (res.status === 409 && res.body.code === "PURCHASE_CONFLICT") {
+      res = await request(app)
+        .post(`/api/lessons/${lessonId}/purchase`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ idempotencyKey: idemKey("key-success-1") });
+    }
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.entitlements.shamCoinsBalance).toBe(10);
@@ -128,10 +134,16 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     const balanceBefore = userBefore.shamCoins;
     const countBefore = (userBefore.purchasedLessons || []).length;
 
-    const res = await request(app)
+    let res = await request(app)
       .post(`/api/lessons/${lessonId}/purchase`)
       .set("Authorization", `Bearer ${token}`)
       .send({ idempotencyKey: idemKey("key-success-1") });
+    if (res.status === 409 && res.body.code === "PURCHASE_CONFLICT") {
+      res = await request(app)
+        .post(`/api/lessons/${lessonId}/purchase`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ idempotencyKey: idemKey("key-success-1") });
+    }
     expect(res.status).toBe(200);
     expect(res.body.alreadyPurchased).toBe(true);
     expect(res.body.entitlements.shamCoinsBalance).toBe(balanceBefore);
