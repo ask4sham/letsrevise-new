@@ -568,3 +568,58 @@ You're launch-ready when all 3 are true:
 3. Recruit 3–5 teachers for beta and measure: time-to-first-practice, attempts per student per week, topics practiced per week, teacher return rate
 
 That's enough to decide what to build next with confidence.
+
+---
+
+## 10) Beta: Invite 3 Teachers — PR-PRACTICE-LOOP-1 loop-complete
+
+**Status:** Practice loop (backend + student UX + teacher topic performance) is implemented and build-green. Ready for CTO sign-off and beta onboarding.
+
+### CTO sign-off checklist
+
+**A) Student loop — ✅**
+- Student can select teacher (ID input; link enforced by backend).
+- Student can select spec (SpecSelector) and topic(s) (namespaced add-topic with validation).
+- Student can generate set (POST /api/practice-sets/generate).
+- Submit: **MCQ** via `selectedChoiceIndex` (no `isCorrect` from client); **non-MCQ** via self-mark “I got it right” / “I got it wrong” (`isCorrect`).
+- On submit, UI shows **Saved ✓** and **Next**.
+- If not linked: student sees **“You’re not linked to this teacher yet. Ask your teacher to add you.”** and cannot proceed (403).
+
+**B) Teacher loop — ✅**
+- Teacher can open **/teacher/reports/topic-performance**.
+- Choose spec (SpecSelector); data loads on mount and via Refresh.
+- Table shows **lowest-accuracy topics first** (server order).
+- Empty state: **“No data for this spec yet. Students need to submit practice attempts.”**
+
+**C) Integrity — ✅**
+- Attempts cannot be written unless **StudentTeacherLink** exists (practice-attempts + practice-sets both check; 403 if missing).
+- **MCQ** attempts: backend rejects `isCorrect`, requires `selectedChoiceIndex`; correctness computed server-side from TopicQuizQuestion.
+
+**D) Ops sanity —**
+- Full backend test suite: `cd backend && npm test`
+- Frontend build: `cd frontend && npm run build`
+- Taxonomy: `cd backend && npm run validate:taxonomies`
+- No UI wording regressions: “View/Open attached resource” (no “download past papers” in practice flow).
+
+### Linking students to teachers during beta (no admin UI yet)
+
+Use **POST /api/admin/student-teacher-links** with a teacher or admin token. Teachers can only create links where they are the `teacherId`; admins can create any link.
+
+**cURL (replace BASE_URL, TOKEN, STUDENT_ID, TEACHER_ID):**
+
+```bash
+curl -X POST "%BASE_URL%/api/admin/student-teacher-links" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer %TOKEN%" \
+  -d "{\"studentId\":\"%STUDENT_ID%\",\"teacherId\":\"%TEACHER_ID%\"}"
+```
+
+**Postman:**
+- Method: POST  
+- URL: `{{baseUrl}}/api/admin/student-teacher-links`  
+- Headers: `Authorization: Bearer {{token}}`, `Content-Type: application/json`  
+- Body (raw JSON): `{ "studentId": "<student ObjectId>", "teacherId": "<teacher ObjectId>" }`
+
+**Response:** `201` + `{ "ok": true, "linkId": "..." }` or `200` + `{ "ok": true, "linkId": "...", "message": "Link already exists" }`.
+
+Students need this link before they can generate practice sets or submit attempts for that teacher.
