@@ -22,6 +22,7 @@ const PastPaperQuestionSchema = new mongoose.Schema(
       },
     ],
     fingerprint: { type: String, required: true, index: true },
+    isArchived: { type: Boolean, default: false },
     /** PR-METADATA-1: optional metadata for filtering. */
     difficulty: { type: Number, min: 1, max: 5, default: null },
     skill: { type: String, enum: ["recall", "application", "analysis", "exam-technique"], default: null },

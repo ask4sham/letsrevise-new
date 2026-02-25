@@ -87,7 +87,7 @@ router.get("/mine", auth, async (req, res) => {
     const { specKey, topicKey: topicKeyQ, q, limit, difficulty, difficultyMin, difficultyMax, skill, estimatedTimeMaxSec } = req.query || {};
     const lim = clampInt(limit, { min: 1, max: 200, fallback: 50 });
 
-    const query = { teacherId, status: { $in: ["draft", "published"] } };
+    const query = { teacherId, status: { $in: ["draft", "published"] }, isArchived: { $ne: true } };
 
     if (topicKeyQ && String(topicKeyQ).trim()) {
       const spec = (specKey && String(specKey).trim()) || DEFAULT_SPEC_LEGACY;
@@ -168,6 +168,29 @@ router.get("/", auth, async (req, res) => {
   } catch (err) {
     console.error("ExamQuestions GET error:", err);
     return res.status(500).json({ success: false, msg: "Server error" });
+  }
+});
+
+// PATCH /api/exam-questions/:id — partial update (teacher owner or admin)
+router.patch("/:id", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const id = req.params.id;
+    const teacherId = req.user.userId || req.user._id;
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+    const item = await ExamQuestion.findById(id);
+    if (!item) return res.status(404).json({ error: "Not found" });
+    if (!isAdmin && String(item.teacherId) !== String(teacherId)) return res.status(403).json({ error: "Forbidden" });
+    const patch = req.body || {};
+    if (patch.question != null) item.question = String(patch.question);
+    if (patch.markScheme != null) item.markScheme = Array.isArray(patch.markScheme) ? patch.markScheme.map(String) : [String(patch.markScheme)];
+    if (patch.marks != null) item.marks = Number(patch.marks);
+    if (patch.isArchived != null) item.isArchived = !!patch.isArchived;
+    await item.save();
+    return res.json({ item: toResponseQuestion(item.toObject ? item.toObject() : item) });
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message || "Update failed" });
   }
 });
 

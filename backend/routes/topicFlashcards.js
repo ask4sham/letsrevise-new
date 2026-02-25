@@ -82,7 +82,7 @@ router.get("/", auth, async (req, res) => {
     const candidates = resolveTopicKeyForQuery(specKeyQ, topicKey);
     if (!candidates || candidates.length === 0) return res.status(400).json({ error: "Invalid topicKey" });
 
-    const query = { topicKey: { $in: candidates } };
+    const query = { topicKey: { $in: candidates }, isArchived: { $ne: true } };
     if (String(mineOnly) === "1" || String(mineOnly) === "true" || !isAdmin) {
       query.ownerId = ownerId;
     }
@@ -426,6 +426,28 @@ router.post("/:id/unpublish", auth, async (req, res) => {
   } catch (err) {
     console.error("TopicFlashcards unpublish error:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PATCH /api/topic-flashcards/:id — partial update (teacher owner or admin)
+router.patch("/:id", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const id = req.params.id;
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+    const item = await TopicFlashcard.findById(id);
+    if (!item) return res.status(404).json({ error: "Not found" });
+    if (!isAdmin && String(item.ownerId) !== String(ownerId)) return res.status(403).json({ error: "Forbidden" });
+    const patch = req.body || {};
+    if (patch.front != null) item.front = String(patch.front).trim().slice(0, 500) || item.front;
+    if (patch.back != null) item.back = String(patch.back).trim().slice(0, 2000) || item.back;
+    if (patch.isArchived != null) item.isArchived = !!patch.isArchived;
+    await item.save();
+    return res.json({ item: item.toObject ? item.toObject() : item });
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message || "Update failed" });
   }
 });
 

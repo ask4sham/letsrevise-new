@@ -116,6 +116,7 @@ const ExamQuestionSchema = new mongoose.Schema(
     difficulty: { type: Number, min: 1, max: 5, default: null },
     skill: { type: String, enum: ["recall", "application", "analysis", "exam-technique"], default: null },
     estimatedTimeSec: { type: Number, min: 1, default: null },
+    isArchived: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
