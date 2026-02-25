@@ -695,29 +695,34 @@ const TeacherQuizBankPage: React.FC = () => {
                       {isShortAnswer ? `Match: ${q.matchMode ?? "contains"}` : `Correct: ${getCorrectLabel(q)}`} · {q.status}
                     </span>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 4 }}>
-                      <span style={{ padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#374151", fontSize: 11 }}>
-                        {isShortAnswer ? "Short" : "MCQ"}
-                      </span>
-                      {q.difficulty != null && (
-                        <span style={{ padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#374151", fontSize: 11 }}>D{q.difficulty}</span>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {q.status === "draft" ? (
-                        <button type="button" onClick={() => handlePublish(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#059669", border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, cursor: actionLoading ? "not-allowed" : "pointer" }}>
-                          {actionLoading === q._id ? "…" : "Publish"}
-                        </button>
-                      ) : (
-                        <button type="button" onClick={() => handleUnpublish(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280", border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, cursor: actionLoading ? "not-allowed" : "pointer" }}>
-                          {actionLoading === q._id ? "…" : "Unpublish"}
-                        </button>
-                      )}
-                      <button type="button" onClick={() => handleDelete(q._id)} disabled={!!actionLoading} style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626", border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, cursor: actionLoading ? "not-allowed" : "pointer" }}>
-                        Delete
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                    {q.status === "draft" ? (
+                      <button
+                        type="button"
+                        onClick={() => handlePublish(q._id)}
+                        disabled={!!actionLoading}
+                        style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}
+                      >
+                        {actionLoading === q._id ? "…" : "Publish"}
                       </button>
-                    </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleUnpublish(q._id)}
+                        disabled={!!actionLoading}
+                        style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280" }}
+                      >
+                        {actionLoading === q._id ? "…" : "Unpublish"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(q._id)}
+                      disabled={!!actionLoading}
+                      style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </li>
                 );
