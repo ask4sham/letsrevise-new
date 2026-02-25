@@ -77,6 +77,7 @@ app.use("/api/topic-quiz-questions", createBulkLimiter(), require("./routes/topi
 
 // PR-PRACTICE-LOOP-1: student practice set + attempt tracking + teacher topic stats
 app.use("/api/practice", require("./routes/practice"));
+app.use("/api/practice-attempts", require("./routes/practiceAttempts"));
 
 // PR-PP1: topic past paper bank (teacher/admin only) + PR-HARD-2 rate limit
 app.use("/api/topic-past-papers", createUploadLimiter(), require("./routes/topicPastPapers"));
@@ -91,6 +92,7 @@ app.use("/api/past-paper-questions", require("./routes/pastPaperQuestions"));
 app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardBank"));
 
 // PR-EDGE-3: Teacher overview dashboard (topic-coverage must be before /api/teacher so GET /api/teacher/topic-coverage hits it)
+app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));
 app.use("/api/teacher/topic-coverage", require("./routes/topicCoverage"));
 app.use("/api/teacher", require("./routes/teacher"));
 

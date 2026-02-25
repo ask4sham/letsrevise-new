@@ -2,8 +2,11 @@
  * PR-PRACTICE-LOOP-1: Student practice attempt — self-mark outcome + optional confidence.
  * topicKey stored namespaced (specKey:topicKey).
  * Legacy: lesson-scoped attempts (POST /api/attempts) use lessonId, userId, source, isCorrect.
+ * Slice 1: contentType + contentId + isCorrect (quiz_mcq, quiz_short, exam_question, past_paper_question).
  */
 const mongoose = require("mongoose");
+
+const CONTENT_TYPES = ["quiz_mcq", "quiz_short", "exam_question", "past_paper_question"];
 
 const PracticeAttemptSchema = new mongoose.Schema(
   {
@@ -39,6 +42,20 @@ const PracticeAttemptSchema = new mongoose.Schema(
       enum: ["correct", "partial", "wrong"],
       index: true,
     },
+    // PR-PRACTICE-LOOP-1 Slice 1: unified content reference + boolean correctness
+    contentType: {
+      type: String,
+      required: false,
+      enum: CONTENT_TYPES,
+      index: true,
+    },
+    contentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false,
+      index: true,
+    },
+    isCorrect: { type: Boolean, required: false },
+    timeSpentSec: { type: Number, required: false, min: 0 },
     // Legacy schema (lesson-scoped, POST /api/attempts)
     lessonId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -78,12 +95,24 @@ PracticeAttemptSchema.pre("validate", function (next) {
     this.sourceType &&
     this.sourceId != null &&
     this.outcome;
-  if (hasLegacy || hasNew) {
+  const hasSlice1 =
+    this.studentId != null &&
+    this.teacherId != null &&
+    this.specKey &&
+    this.topicKey &&
+    this.contentType &&
+    this.contentId != null &&
+    typeof this.isCorrect === "boolean";
+  if (hasLegacy || hasNew || hasSlice1) {
     if (typeof next === "function") return next();
     return;
   }
-  this.invalidate("schema", "PracticeAttempt: provide either legacy (lessonId, userId, source, isCorrect) or new (studentId, teacherId, specKey, topicKey, sourceType, sourceId, outcome)");
+  this.invalidate(
+    "schema",
+    "PracticeAttempt: provide legacy (lessonId, userId, source, isCorrect), new (studentId, teacherId, specKey, topicKey, sourceType, sourceId, outcome), or slice1 (studentId, teacherId, specKey, topicKey, contentType, contentId, isCorrect)"
+  );
   if (typeof next === "function") return next();
 });
 
 module.exports = mongoose.model("PracticeAttempt", PracticeAttemptSchema);
+module.exports.CONTENT_TYPES = CONTENT_TYPES;
