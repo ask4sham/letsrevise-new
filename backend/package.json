@@ -93,10 +93,12 @@
       "/coverage/"
     ],
     "collectCoverageFrom": [
-      "backend/**/*.js",
-      "!backend/tests/**",
-      "!backend/**/*.test.js",
-      "!backend/**/*.spec.js"
+      "**/*.js",
+      "!node_modules/**",
+      "!tests/**",
+      "!coverage/**",
+      "!**/*.test.js",
+      "!**/*.spec.js"
     ],
     "testMatch": [
       "**/tests/**/*.test.js",

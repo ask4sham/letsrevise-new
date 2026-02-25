@@ -398,6 +398,15 @@ function App() {
           />
 
           <Route
+            path="/student/practice"
+            element={
+              <ProtectedRoute requireStudent>
+                <StudentPracticePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/student/worksheet-attempts/:attemptId"
             element={
               <ProtectedRoute requireStudent>

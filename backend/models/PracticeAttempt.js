@@ -56,6 +56,8 @@ const PracticeAttemptSchema = new mongoose.Schema(
     },
     isCorrect: { type: Boolean, required: false },
     timeSpentSec: { type: Number, required: false, min: 0 },
+    /** Slice 3: MCQ selected choice (0-based); stored for audit; server computes isCorrect from TopicQuizQuestion.correctIndex */
+    selectedChoiceIndex: { type: Number, required: false },
     // Legacy schema (lesson-scoped, POST /api/attempts)
     lessonId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -6,6 +6,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
+const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { generateAndPersistPracticeSet, CONTENT_TYPES } = require("../services/generatePracticeSet");
 
 function getUserId(req) {
@@ -50,7 +51,12 @@ router.post("/generate", auth, async (req, res) => {
     }
   }
   if (!teacherIdObj) {
-    return res.status(400).json({ error: "teacherId is required (content owner). TODO: derive from student relationship when available." });
+    return res.status(400).json({ error: "teacherId is required (content owner)." });
+  }
+
+  const link = await StudentTeacherLink.findOne({ studentId, teacherId: teacherIdObj }).lean();
+  if (!link) {
+    return res.status(403).json({ error: "No student-teacher link for this teacher. Ask your teacher to add you." });
   }
 
   const includeTypes = include != null ? (Array.isArray(include) ? include : [include]) : CONTENT_TYPES;

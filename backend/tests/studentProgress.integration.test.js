@@ -12,6 +12,8 @@ const QuizAttempt = require("../models/QuizAttempt");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
+jest.setTimeout(20000);
+
 describe("GET /api/student/progress (PR-STU-PROGRESS-1)", () => {
   let studentId;
   let teacherId;

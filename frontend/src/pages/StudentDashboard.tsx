@@ -925,6 +925,24 @@ const StudentDashboard: React.FC = () => {
             >
               📊 View Progress
             </button>
+            <Link
+              to="/student/practice"
+              style={{
+                padding: "10px 18px",
+                background: "#7c3aed",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                textDecoration: "none",
+              }}
+            >
+              ✏️ Practice
+            </Link>
           </div>
         </div>
 

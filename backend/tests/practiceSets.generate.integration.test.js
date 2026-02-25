@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const app = require("../app");
 const User = require("../models/User");
 const PracticeSet = require("../models/PracticeSet");
+const StudentTeacherLink = require("../models/StudentTeacherLink");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
 const PastPaperQuestion = require("../models/PastPaperQuestion");
@@ -42,6 +43,8 @@ describe("POST /api/practice-sets/generate", () => {
     teacherId = teacher._id;
     studentId = student._id;
 
+    await StudentTeacherLink.create({ studentId, teacherId });
+
     const login = await request(app).post("/api/auth/login").send({
       email: "practice-set-student@test.com",
       password: "Pass123!",
@@ -52,6 +55,7 @@ describe("POST /api/practice-sets/generate", () => {
 
   afterAll(async () => {
     await PracticeSet.deleteMany({ studentId });
+    await StudentTeacherLink.deleteMany({ studentId });
     await TopicQuizQuestion.deleteMany({ ownerId: teacherId });
     await ExamQuestion.deleteMany({ teacherId });
     await PastPaperQuestion.deleteMany({ ownerId: teacherId });
@@ -221,6 +225,28 @@ describe("POST /api/practice-sets/generate", () => {
       });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/include|Invalid/i);
+  });
+
+  test("without student-teacher link → 403", async () => {
+    const otherTeacher = await User.create({
+      email: "practice-set-other-teacher@test.com",
+      password: await bcrypt.hash("Pass123!", 10),
+      firstName: "O",
+      lastName: "Teacher",
+      userType: "teacher",
+    });
+    const res = await request(app)
+      .post("/api/practice-sets/generate")
+      .set("Authorization", `Bearer ${studentToken}`)
+      .send({
+        specKey: SPEC,
+        topicKeys: [TOPIC],
+        limit: 5,
+        teacherId: otherTeacher._id.toString(),
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/link|teacher|add you/i);
+    await User.deleteOne({ _id: otherTeacher._id });
   });
 
   test("non-student → 403", async () => {
