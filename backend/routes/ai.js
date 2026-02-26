@@ -25,6 +25,7 @@ const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFr
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
+const { generateContextAwareDiagram } = require("../services/diagramGeneration");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 
@@ -1889,6 +1890,131 @@ router.post("/validate-mark-scheme-alignment", auth, async (req, res) => {
     console.error("POST /api/ai/validate-mark-scheme-alignment error:", err?.message || err);
     return res.status(500).json({
       error: "Mark scheme alignment check failed",
+      details: process.env.NODE_ENV === "development" ? String(err?.message || err) : undefined,
+    });
+  }
+});
+
+/**
+ * Get text context from a lesson for diagram generation (optionally for one page or page+block).
+ */
+function getLessonContextForDiagram(lesson, pageIndex, blockIndex) {
+  const parts = [];
+  parts.push(safeStr(lesson.description, ""));
+  parts.push(`Topic: ${safeStr(lesson.topic, "")}`);
+  const pages = Array.isArray(lesson.pages) ? lesson.pages : [];
+  const page = pageIndex != null && pages[pageIndex] ? pages[pageIndex] : pages[0];
+  if (page) {
+    parts.push(`Section: ${safeStr(page.title, "")}`);
+    const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+    if (blockIndex != null && blocks[blockIndex] && blocks[blockIndex].content) {
+      parts.push(blocks[blockIndex].content);
+    } else {
+      blocks.forEach((b) => {
+        if (b && b.content) parts.push(b.content);
+      });
+    }
+  }
+  return parts.filter(Boolean).join("\n\n");
+}
+
+// @route   POST /api/ai/generate-diagram
+// @desc    Context-aware diagram generation (Algorithm 4). Teacher/admin or lesson owner. Optionally apply to block.
+// @body    { lessonId?, pageIndex?, blockIndex?, content?, subject, level, topic?, purpose?, runAlignmentCheck?, applyToBlock? }
+router.post("/generate-diagram", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      return res.status(503).json({
+        error: "Diagram generation is disabled",
+        _disabled: true,
+      });
+    }
+
+    const lessonId = req.body?.lessonId != null ? String(req.body.lessonId).trim() : null;
+    const pageIndex = req.body?.pageIndex != null ? Number(req.body.pageIndex) : null;
+    const blockIndex = req.body?.blockIndex != null ? Number(req.body.blockIndex) : null;
+    const content = req.body?.content;
+    const subject = safeStr(req.body?.subject, "");
+    const level = safeStr(req.body?.level, "GCSE");
+    const topic = safeStr(req.body?.topic, "");
+    const purpose = safeStr(req.body?.purpose, "");
+    const runAlignmentCheck = Boolean(req.body?.runAlignmentCheck);
+    const applyToBlock = Boolean(req.body?.applyToBlock);
+
+    let contextContent = content != null ? String(content) : "";
+    let resolvedSubject = subject;
+    let resolvedLevel = level;
+    let resolvedTopic = topic;
+
+    if (lessonId) {
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      const { getLessonOwnerId } = require("../utils/lessonPayload");
+      const ownerId = getLessonOwnerId(lesson);
+      const isOwner = ownerId != null && ownerId === String(req.user._id || req.user.id);
+      const isAdmin = (req.user?.userType || req.user?.role || "").toString().toLowerCase() === "admin";
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only the lesson owner or an admin can generate diagrams for this lesson" });
+      }
+      contextContent = contextContent || getLessonContextForDiagram(lesson, pageIndex, blockIndex);
+      resolvedSubject = resolvedSubject || safeStr(lesson.subject, "Science");
+      resolvedLevel = resolvedLevel || normalizeLevel(safeStr(lesson.level, "GCSE"));
+      resolvedTopic = resolvedTopic || safeStr(lesson.topic, "");
+    } else {
+      if (!requireTeacherOrAdmin(req, res)) return;
+      if (!contextContent && !resolvedTopic) {
+        return res.status(400).json({ error: "Provide lessonId or (content and/or topic with subject, level)" });
+      }
+    }
+
+    const userId = String(req.user._id || req.user.id);
+    const baseUrl = process.env.BASE_URL || (req.protocol && req.get("host") ? `${req.protocol}://${req.get("host")}` : "");
+
+    const result = await generateContextAwareDiagram({
+      content: contextContent,
+      subject: resolvedSubject,
+      level: resolvedLevel,
+      topic: resolvedTopic,
+      purpose: purpose || undefined,
+      userId,
+      runAlignmentCheck,
+      baseUrl,
+    });
+
+    if (applyToBlock && lessonId != null && pageIndex != null && blockIndex != null) {
+      const lesson = await Lesson.findById(lessonId);
+      if (lesson && Array.isArray(lesson.pages) && lesson.pages[pageIndex]) {
+        const blocks = lesson.pages[pageIndex].blocks || [];
+        if (blocks[blockIndex]) {
+          blocks[blockIndex].imageUrl = result.imageUrl;
+          blocks[blockIndex].imageSource = result.imageSource;
+          blocks[blockIndex].alt = result.altText;
+          lesson.markModified("pages");
+          await lesson.save();
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      imageUrl: result.imageUrl,
+      altText: result.altText,
+      imageSource: result.imageSource,
+      ...(result.alignmentScore != null && { alignmentScore: result.alignmentScore }),
+      ...(result.retried && { retried: true }),
+    });
+  } catch (err) {
+    console.error("POST /api/ai/generate-diagram error:", err?.message || err);
+    if (err?.response?.status === 429) {
+      return res.status(429).json({ error: "Rate limit exceeded", details: "Image generation limit reached." });
+    }
+    return res.status(500).json({
+      error: "Diagram generation failed",
       details: process.env.NODE_ENV === "development" ? String(err?.message || err) : undefined,
     });
   }

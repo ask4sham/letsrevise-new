@@ -460,6 +460,9 @@ const EditLessonPage: React.FC = () => {
   const [diagramSuggestionsError, setDiagramSuggestionsError] = useState<string | null>(null);
   const [diagramSuggestions, setDiagramSuggestions] = useState<Array<{ id: string; conceptKey: string; title: string; subject?: string; level?: string; examBoard?: string; imageUrl?: string; isPublished?: boolean }>>([]);
   const [diagramAddedHint, setDiagramAddedHint] = useState(false);
+  /** AI diagram generation: block key (pageId-blockIndex) when loading */
+  const [generateDiagramLoading, setGenerateDiagramLoading] = useState<string | null>(null);
+  const [generateDiagramError, setGenerateDiagramError] = useState<string | null>(null);
 
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
@@ -4650,6 +4653,49 @@ const EditLessonPage: React.FC = () => {
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                                 <button
                                   type="button"
+                                  disabled={!!generateDiagramLoading || !id}
+                                  onClick={async () => {
+                                    if (!id || !currentPage) return;
+                                    const blockKey = `${currentPage.pageId}-${idx}`;
+                                    setGenerateDiagramLoading(blockKey);
+                                    setGenerateDiagramError(null);
+                                    try {
+                                      const res = await api.post("/ai/generate-diagram", {
+                                        lessonId: id,
+                                        pageIndex: currentPageIndex,
+                                        blockIndex: idx,
+                                        runAlignmentCheck: false,
+                                      });
+                                      if (res.data?.success && res.data?.imageUrl) {
+                                        updateBlock(currentPage.pageId, idx, {
+                                          visualId: undefined,
+                                          imageUrl: res.data.imageUrl,
+                                          imageSource: res.data.imageSource ?? "ai",
+                                          alt: res.data.altText ?? undefined,
+                                        });
+                                      }
+                                    } catch (e: unknown) {
+                                      const msg = (e as { response?: { data?: { error?: string }; status?: number } })?.response?.data?.error ?? (e as Error)?.message ?? "Generation failed";
+                                      setGenerateDiagramError(msg);
+                                    } finally {
+                                      setGenerateDiagramLoading(null);
+                                    }
+                                  }}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(59,130,246,0.5)",
+                                    background: "rgba(59,130,246,0.1)",
+                                    color: "#1d4ed8",
+                                    cursor: generateDiagramLoading || !id ? "not-allowed" : "pointer",
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {generateDiagramLoading === `${currentPage!.pageId}-${idx}` ? "Generating…" : "Generate with AI"}
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => setDiagramPickerTarget({ pageId: currentPage!.pageId, blockIndex: idx })}
                                   style={{
                                     padding: "8px 14px",
@@ -4706,6 +4752,9 @@ const EditLessonPage: React.FC = () => {
                                   Done
                                 </button>
                               </div>
+                              {generateDiagramError && (
+                                <div style={{ marginTop: 8, fontSize: 13, color: "#b91c1c" }}>{generateDiagramError}</div>
+                              )}
                             </div>
                           ) : (
                             <>
