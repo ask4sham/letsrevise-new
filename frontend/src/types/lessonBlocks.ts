@@ -188,6 +188,7 @@ export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "misconceptions",
   "deeperKnowledge",
   "checkpoint",
+  "diagram",
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */

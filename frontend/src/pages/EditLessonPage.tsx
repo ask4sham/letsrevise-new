@@ -4395,13 +4395,14 @@ const EditLessonPage: React.FC = () => {
                             })()}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption (optional)</div>
+                                <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>e.g. &quot;Simple cell with nucleus, cytoplasm, mitochondria and cell membrane&quot; — then add labels with Edit diagram → Place labels.</p>
                                 <input
                                   type="text"
                                   value={d.caption ?? ""}
                                   onChange={(e) =>
                                     updateBlock(currentPage!.pageId, idx, { caption: e.target.value })
                                   }
-                                  placeholder="Diagram caption..."
+                                  placeholder="e.g. A single simple animal cell"
                                   style={{
                                     width: "100%",
                                     padding: "10px 12px",
@@ -4650,7 +4651,24 @@ const EditLessonPage: React.FC = () => {
                                   ))}
                                 </>
                               )}
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
+                                <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "#374151" }}>Add diagram</p>
+                                <p style={{ margin: "0 0 8px", fontSize: 11, color: "#6b7280" }}>Recommended: upload your own image (you must have rights to use it). AI is instructed to create original work only; do not use AI output if it resembles existing diagrams.</p>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setDiagramPickerTarget({ pageId: currentPage!.pageId, blockIndex: idx })}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(34,197,94,0.35)",
+                                    background: "rgba(34,197,94,0.08)",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Replace diagram
+                                </button>
                                 <button
                                   type="button"
                                   disabled={!!generateDiagramLoading || !id}
@@ -4664,14 +4682,17 @@ const EditLessonPage: React.FC = () => {
                                         lessonId: id,
                                         pageIndex: currentPageIndex,
                                         blockIndex: idx,
+                                        purpose: (d.caption?.trim()) || undefined,
                                         runAlignmentCheck: false,
                                       });
                                       if (res.data?.success && res.data?.imageUrl) {
+                                        const userCaption = d.caption?.trim();
                                         updateBlock(currentPage.pageId, idx, {
                                           visualId: undefined,
                                           imageUrl: res.data.imageUrl,
                                           imageSource: res.data.imageSource ?? "ai",
-                                          alt: res.data.altText ?? undefined,
+                                          alt: res.data.altText ?? userCaption ?? undefined,
+                                          caption: userCaption ? userCaption : (res.data.altText ?? ""),
                                         });
                                       }
                                     } catch (e: unknown) {
@@ -4688,25 +4709,12 @@ const EditLessonPage: React.FC = () => {
                                     background: "rgba(59,130,246,0.1)",
                                     color: "#1d4ed8",
                                     cursor: generateDiagramLoading || !id ? "not-allowed" : "pointer",
-                                    fontWeight: 700,
+                                    fontWeight: 600,
                                     fontSize: 13,
                                   }}
+                                  title="AI often adds incorrect labels; use Replace diagram for accurate diagrams."
                                 >
-                                  {generateDiagramLoading === `${currentPage!.pageId}-${idx}` ? "Generating…" : "Generate with AI"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDiagramPickerTarget({ pageId: currentPage!.pageId, blockIndex: idx })}
-                                  style={{
-                                    padding: "8px 14px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(34,197,94,0.35)",
-                                    background: "rgba(34,197,94,0.08)",
-                                    cursor: "pointer",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  Replace diagram
+                                  {generateDiagramLoading === `${currentPage!.pageId}-${idx}` ? "Generating…" : "Try AI"}
                                 </button>
                                 <button
                                   type="button"
@@ -4751,6 +4759,7 @@ const EditLessonPage: React.FC = () => {
                                 >
                                   Done
                                 </button>
+                                </div>
                               </div>
                               {generateDiagramError && (
                                 <div style={{ marginTop: 8, fontSize: 13, color: "#b91c1c" }}>{generateDiagramError}</div>

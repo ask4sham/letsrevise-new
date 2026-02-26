@@ -1939,7 +1939,7 @@ router.post("/generate-diagram", auth, async (req, res) => {
     const subject = safeStr(req.body?.subject, "");
     const level = safeStr(req.body?.level, "GCSE");
     const topic = safeStr(req.body?.topic, "");
-    const purpose = safeStr(req.body?.purpose, "");
+    let purpose = safeStr(req.body?.purpose, "");
     const runAlignmentCheck = Boolean(req.body?.runAlignmentCheck);
     const applyToBlock = Boolean(req.body?.applyToBlock);
 
@@ -1965,6 +1965,15 @@ router.post("/generate-diagram", auth, async (req, res) => {
       resolvedSubject = resolvedSubject || safeStr(lesson.subject, "Science");
       resolvedLevel = resolvedLevel || normalizeLevel(safeStr(lesson.level, "GCSE"));
       resolvedTopic = resolvedTopic || safeStr(lesson.topic, "");
+      // Use diagram block caption as purpose when available so the image follows teacher's instruction
+      if ((purpose === undefined || purpose === "") && pageIndex != null && blockIndex != null) {
+        const page = lesson.pages?.[pageIndex];
+        const block = page?.blocks?.[blockIndex];
+        if (block && block.type === "diagram" && block.caption && String(block.caption).trim()) {
+          req.body.purpose = String(block.caption).trim();
+          purpose = req.body.purpose;
+        }
+      }
     } else {
       if (!requireTeacherOrAdmin(req, res)) return;
       if (!contextContent && !resolvedTopic) {

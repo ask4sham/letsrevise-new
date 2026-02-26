@@ -1,6 +1,7 @@
 /**
  * Context-aware diagram generation (Algorithm 4 lightweight + Phase 2 alignment).
- * - Builds prompt from lesson context; calls DALL·E 3; saves image to uploads; optional alignment check + retry.
+ * Uses DALL·E 3; results can be inconsistent (wrong labels, style). See docs/ai/DIAGRAM_GENERATION_RESEARCH.md
+ * for alternatives (Flux, template diagrams, dedicated science APIs). "Replace diagram" is the recommended path.
  */
 const axios = require("axios");
 const fs = require("fs");
@@ -19,7 +20,8 @@ function safeStr(v, fallback = "") {
 }
 
 /**
- * Build an educational image prompt from lesson context.
+ * Build an educational image prompt. Short, clear prompts work best with DALL·E 3.
+ * When purpose is set we use only that (no lesson context) to avoid clutter and confusion.
  * @param {{ content: string, subject?: string, level?: string, topic?: string, purpose?: string }} ctx
  */
 function buildDiagramPrompt(ctx) {
@@ -29,13 +31,16 @@ function buildDiagramPrompt(ctx) {
   const topic = safeStr(ctx.topic, "");
   const purpose = safeStr(ctx.purpose, "");
 
-  let prompt = `Create a single educational diagram or illustration for UK ${level} ${subject} students.`;
-  if (topic) prompt += ` Topic: ${topic}.`;
-  if (purpose) prompt += ` Purpose: ${purpose}.`;
-  prompt += ` Style: clear, labelled diagram suitable for revision notes. Age-appropriate for 14-16 year olds. Avoid clutter; focus on one main concept. No text blocks in the image except minimal labels. Clean background.`;
-  if (content) {
-    prompt += ` The diagram must accurately represent the following content: ${content.slice(0, 800)}`;
+  if (purpose) {
+    // Original-only: do not copy existing diagrams. No text (labels added in-app).
+    return `Create an original illustration from scratch for ${level} ${subject}: ${purpose}. Do not copy, replicate, or imitate any existing diagram, textbook figure, or copyrighted image. Design a new, unique diagram. One diagram only, one cell or one main shape. Clear, simple style with distinct colors for each part. Do not add any text, words, or labels in the image. Plain white or light background.`;
   }
+
+  // No specific purpose: use lesson context
+  let prompt = `Create an original diagram from scratch for UK ${level} ${subject} students. Do not copy any existing diagram or copyrighted material.`;
+  if (topic) prompt += ` Topic: ${topic}.`;
+  prompt += ` Simple schematic, no text in the image. Plain light background.`;
+  if (content) prompt += ` Content to show: ${content.slice(0, 600)}`;
   return prompt;
 }
 
@@ -56,7 +61,8 @@ async function callOpenAIImages(prompt) {
       n: 1,
       size: IMAGE_SIZE,
       response_format: "url",
-      quality: "standard",
+      quality: "hd",
+      style: "natural",
     },
     {
       headers: {
@@ -161,16 +167,19 @@ async function verifyImageContentAlignment(imageUrl, lessonSnippet) {
 }
 
 /**
- * Generate alt text for the diagram using lesson context (accessibility).
- * @param {string} imagePublicPath - for context only (we don't send image again)
+ * Generate alt text for the diagram. When the user provided a caption (purpose), use it so we don't replace their instruction with AI-generated text.
  * @param {string} lessonSnippet
+ * @param {string} [purpose] - user's caption; when set and short, return as-is so caption stays the user's instruction
  * @returns {Promise<string>}
  */
-async function generateAltText(lessonSnippet) {
-  if (process.env.DISABLE_OPENAI === "1") return "Educational diagram for this lesson.";
+async function generateAltText(lessonSnippet, purpose) {
+  if (process.env.DISABLE_OPENAI === "1") return (purpose && String(purpose).trim()) ? String(purpose).trim().slice(0, 125) : "Educational diagram for this lesson.";
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return "Educational diagram.";
+  if (!apiKey) return (purpose && String(purpose).trim()) ? String(purpose).trim().slice(0, 125) : "Educational diagram.";
+
+  const purposeStr = purpose && String(purpose).trim() ? String(purpose).trim() : "";
+  if (purposeStr.length > 0) return purposeStr.slice(0, 125);
 
   const snippet = safeStr(lessonSnippet, "").slice(0, 500);
   try {
@@ -181,7 +190,9 @@ async function generateAltText(lessonSnippet) {
         messages: [
           {
             role: "user",
-            content: `Write one short sentence (under 125 chars) describing an educational diagram that would illustrate this content. No preamble. Content: ${snippet}`,
+            content: purposeStr
+              ? `One short caption (under 125 chars) for a diagram that shows: "${purposeStr}". No preamble.`
+              : `Write one short sentence (under 125 chars) describing an educational diagram that would illustrate this content. No preamble. Content: ${snippet}`,
           },
         ],
         max_tokens: 60,
@@ -191,11 +202,11 @@ async function generateAltText(lessonSnippet) {
         timeout: 10000,
       }
     );
-    const text = resp.data?.choices?.[0]?.message?.content?.trim() || "Educational diagram for this lesson.";
+    const text = resp.data?.choices?.[0]?.message?.content?.trim() || (purposeStr || "Educational diagram for this lesson.");
     return text.slice(0, 125);
   } catch (err) {
     console.warn("generateAltText error:", err?.message);
-    return "Educational diagram for this lesson.";
+    return purposeStr || "Educational diagram for this lesson.";
   }
 }
 
@@ -256,7 +267,7 @@ async function generateContextAwareDiagram(opts) {
     }
   }
 
-  const altText = await generateAltText(snippet);
+  const altText = await generateAltText(snippet, purpose);
 
   return {
     imageUrl: publicPath,

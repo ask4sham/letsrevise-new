@@ -68,6 +68,32 @@ function topicToKey(topic: string | undefined): string {
     .replace(/^-|-$/g, "");
 }
 
+/** Exam boards for AI modal dropdown (from bank). */
+const EXAM_BOARDS = ["", "AQA", "OCR", "Edexcel", "WJEC"] as const;
+
+/** Map AI form (subject, level, board, tier) to taxonomy specKey for topic dropdown. Only AQA specs have taxonomy endpoints. */
+function getSpecKeyForAiForm(
+  subject: string,
+  level: string,
+  board: string,
+  tier: string
+): SpecKey | null {
+  if (board !== "AQA") return null;
+  if (level !== "GCSE") return null;
+  const sub = (subject || "").trim().toLowerCase();
+  if (sub === "biology") return "aqa-gcse-biology";
+  if (sub === "chemistry") return "aqa-gcse-chemistry";
+  if (sub === "physics") return "aqa-gcse-physics";
+  if (sub === "mathematics" || sub === "maths") {
+    const t = (tier || "").trim().toLowerCase();
+    if (t === "foundation") return "aqa-gcse-maths-foundation";
+    if (t === "higher") return "aqa-gcse-maths-higher";
+    return "aqa-gcse-maths-higher";
+  }
+  if (sub === "english") return "aqa-gcse-english-language";
+  return null;
+}
+
 const TeacherDashboard: React.FC = () => {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [stats, setStats] = useState({
@@ -125,6 +151,20 @@ const TeacherDashboard: React.FC = () => {
   // PR-CHEM-2: Subject/spec selector (Biology vs Chemistry)
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomyData } = useTaxonomy(specKey);
+
+  // AI modal: derive spec from form so we can show topic dropdown from bank
+  const aiModalSpecKey = useMemo(
+    () => getSpecKeyForAiForm(aiForm.subject, aiForm.level, aiForm.board, aiForm.tier),
+    [aiForm.subject, aiForm.level, aiForm.board, aiForm.tier]
+  );
+  const { data: aiTaxonomyData } = useTaxonomy(aiModalSpecKey ?? "aqa-gcse-biology");
+  const aiTopicOptions = useMemo(() => {
+    if (!aiModalSpecKey || !aiTaxonomyData?.units) return [];
+    return aiTaxonomyData.units.flatMap((u) =>
+      (u.topics || []).map((t) => ({ label: `${u.unit} › ${t.topic}`, value: t.topic, key: t.key }))
+    );
+  }, [aiModalSpecKey, aiTaxonomyData]);
+
   // PR4/PR5: taxonomy map and units derived from selected spec
   const { taxonomyMap, taxonomyUnits } = useMemo(() => {
     const units = Array.isArray(taxonomyData?.units) ? taxonomyData.units : [];
@@ -2193,6 +2233,31 @@ const TeacherDashboard: React.FC = () => {
                 </div>
               ) : null}
 
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  fontSize: "0.875rem",
+                  color: "#334155",
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>How to create a lesson using AI</div>
+                <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
+                  <li>Enter <b>Subject</b>, <b>Level</b>, and <b>Topic</b> below (exam board and tier optional).</li>
+                  <li>Click <b>Generate</b> — the AI builds a syllabus-aligned draft and saves it; you are taken to the lesson editor.</li>
+                  <li>Edit pages, add checkpoints and exam tips, then save as Draft and submit for review when ready.</li>
+                </ul>
+                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6, color: "#0f172a" }}>How to add diagrams using AI</div>
+                <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
+                  <li>In the lesson editor, add a <b>Diagram</b> block where you want an image (or use an existing one).</li>
+                  <li>In that block, click <b>Generate with AI</b> — the AI creates an image from the lesson content and inserts it. Repeat for other blocks as needed.</li>
+                  <li>For some Biology topics, a diagram block may be added automatically when you generate the lesson; you can keep it or replace it with <b>Generate with AI</b>.</li>
+                </ul>
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "16px" }}>
                 <div>
                   <label style={{ fontSize: "0.85rem", color: "#374151" }}>Subject</label>
@@ -2234,29 +2299,53 @@ const TeacherDashboard: React.FC = () => {
                 </div>
 
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={{ fontSize: "0.85rem", color: "#374151" }}>Topic</label>
-                  <input
-                    value={aiForm.topic}
-                    onChange={(e) => {
-                      setAiError("");
-                      setAiForm((p) => ({ ...p, topic: e.target.value }));
-                    }}
-                    placeholder="e.g. Photosynthesis"
-                    style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-                  />
+                  <label style={{ fontSize: "0.85rem", color: "#374151" }}>Topic (from bank when Subject + Board match)</label>
+                  {aiTopicOptions.length > 0 ? (
+                    <select
+                      value={aiForm.topic}
+                      onChange={(e) => {
+                        setAiError("");
+                        setAiForm((p) => ({ ...p, topic: e.target.value }));
+                      }}
+                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                    >
+                      <option value="">Choose a topic…</option>
+                      {aiTopicOptions.map((opt) => (
+                        <option key={opt.key} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={aiForm.topic}
+                      onChange={(e) => {
+                        setAiError("");
+                        setAiForm((p) => ({ ...p, topic: e.target.value }));
+                      }}
+                      placeholder="e.g. Photosynthesis (or select Subject + Exam board AQA for dropdown)"
+                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                    />
+                  )}
                 </div>
 
                 <div>
-                  <label style={{ fontSize: "0.85rem", color: "#374151" }}>Exam board (optional)</label>
-                  <input
+                  <label style={{ fontSize: "0.85rem", color: "#374151" }}>Exam board</label>
+                  <select
                     value={aiForm.board}
                     onChange={(e) => {
                       setAiError("");
                       setAiForm((p) => ({ ...p, board: e.target.value }));
                     }}
-                    placeholder="e.g. AQA (or leave blank)"
                     style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-                  />
+                  >
+                    <option value="">Any (optional)</option>
+                    {EXAM_BOARDS.filter((b) => b !== "").map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
