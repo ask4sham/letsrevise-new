@@ -827,15 +827,13 @@ function SectionFlashcards({
   );
 }
 
-function SectionExam({
-  items,
-  onEdit,
-  onUpdated,
-}: {
+type SectionExamProps = {
   items: ExamQuestion[];
   onEdit: (item: EditItem, kind: EditKind) => void;
   onUpdated: (v: ExamQuestion[]) => void;
-}) {
+};
+
+function SectionExam({ items, onEdit, onUpdated }: SectionExamProps) {
   return (
     <SectionShell title="Exam Questions" count={items.length}>
       {items.length === 0 ? (
