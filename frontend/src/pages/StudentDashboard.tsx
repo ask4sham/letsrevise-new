@@ -1012,7 +1012,7 @@ const StudentDashboard: React.FC = () => {
                 textDecoration: "none",
               }}
             >
-              ✏️ Practice
+              ✏️ Practice recommendations
             </Link>
             <Link
               to="/student/quick-quiz"
