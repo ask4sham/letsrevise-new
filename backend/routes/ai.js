@@ -1282,6 +1282,115 @@ Explain the likely misconception and clarify the correct concept.`;
   }
 });
 
+// --- Step 3: Quiz me (LLM) -------------------------------------------------
+
+const GENERATE_QUIZ_TOPIC_MAX_LENGTH = 200;
+const GENERATE_QUIZ_MIN_QUESTIONS = 1;
+const GENERATE_QUIZ_MAX_QUESTIONS = 10;
+
+/**
+ * Parse JSON array from OpenAI response (may be wrapped in markdown code block).
+ * @returns {Array<object>|null}
+ */
+function parseQuizJson(raw) {
+  const s = (raw || "").trim();
+  let jsonStr = s;
+  const codeBlock = /^```(?:json)?\s*([\s\S]*?)```$/m.exec(s);
+  if (codeBlock) jsonStr = codeBlock[1].trim();
+  try {
+    const out = JSON.parse(jsonStr);
+    return Array.isArray(out) ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Normalize and validate a single quiz question from LLM; add id.
+ * @returns {{ id: string, type: 'mcq'|'short', question: string, options?: string[], correctAnswer: string, marks: number }|null}
+ */
+function normalizeQuizQuestion(raw, index) {
+  if (!raw || typeof raw !== "object") return null;
+  const type = safeStr(raw.type, "mcq").toLowerCase();
+  const t = type === "short" ? "short" : "mcq";
+  const question = (raw.question != null ? String(raw.question) : "").trim();
+  if (!question) return null;
+  const correctAnswer = (raw.correctAnswer != null ? String(raw.correctAnswer) : "").trim();
+  if (!correctAnswer) return null;
+  const id = raw.id && String(raw.id).trim() ? String(raw.id).trim() : `q-${index}`;
+  const marks = Math.max(1, Math.min(5, parseInt(raw.marks, 10) || 1));
+
+  if (t === "mcq") {
+    let options = Array.isArray(raw.options) ? raw.options.map((o) => String(o).trim()).filter(Boolean) : [];
+    const correctInOptions = options.some((o) => o === correctAnswer);
+    if (!correctInOptions) options.push(correctAnswer);
+    if (options.length < 2) return null;
+    if (options.length > 4) options = options.slice(0, 4);
+    return { id, type: "mcq", question, options, correctAnswer, marks };
+  }
+  return { id, type: "short", question, correctAnswer, marks };
+}
+
+// @route   POST /api/ai/generate-practice-quiz
+// @desc    Generate a short practice quiz on a topic (any authenticated user)
+// @body    { topic: string (required), subject?, level?, numQuestions? (1-10) }
+router.post("/generate-practice-quiz", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const topic = (req.body?.topic != null ? String(req.body.topic) : "").trim();
+    if (!topic) return res.status(400).json({ error: "topic is required" });
+    if (topic.length > GENERATE_QUIZ_TOPIC_MAX_LENGTH) {
+      return res.status(400).json({ error: `topic must be at most ${GENERATE_QUIZ_TOPIC_MAX_LENGTH} characters` });
+    }
+    const subject = safeStr(req.body?.subject, "Biology");
+    const level = safeStr(req.body?.level, "GCSE");
+    let numQuestions = parseInt(req.body?.numQuestions, 10);
+    if (Number.isNaN(numQuestions) || numQuestions < GENERATE_QUIZ_MIN_QUESTIONS) numQuestions = 5;
+    if (numQuestions > GENERATE_QUIZ_MAX_QUESTIONS) numQuestions = GENERATE_QUIZ_MAX_QUESTIONS;
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      const stub = [];
+      for (let i = 0; i < numQuestions; i++) {
+        stub.push({
+          id: `stub-${i + 1}`,
+          type: i % 2 === 0 ? "mcq" : "short",
+          question: `Stub question ${i + 1} about ${topic}?`,
+          options: i % 2 === 0 ? ["Option A", "Option B", "Option C", "Option D"] : undefined,
+          correctAnswer: i % 2 === 0 ? "Option B" : "Stub correct answer.",
+          marks: 1,
+        });
+      }
+      return res.json({ questions: stub, _disabled: true });
+    }
+
+    const systemPrompt = `You are an expert UK curriculum educator. Generate practice quiz questions as a JSON array only. No other text.
+Each item must be: { "type": "mcq" | "short", "question": "...", "correctAnswer": "...", "marks": 1 }
+For "mcq" also include "options": ["A", "B", "C", "D"] (exactly 4 options; correctAnswer must equal one of them). Use British English.`;
+
+    const userPrompt = `Subject: ${subject}, Level: ${level}. Topic: ${topic}.
+Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return only a JSON array.`;
+
+    const rawContent = await callOpenAIChat(systemPrompt, userPrompt, 2000);
+    const parsed = parseQuizJson(rawContent);
+    if (!parsed || parsed.length === 0) {
+      return res.status(502).json({ error: "Failed to parse quiz from AI response" });
+    }
+    const questions = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const q = normalizeQuizQuestion(parsed[i], i);
+      if (q) questions.push(q);
+    }
+    if (questions.length === 0) {
+      return res.status(502).json({ error: "No valid questions in AI response" });
+    }
+    return res.json({ questions });
+  } catch (err) {
+    if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    console.error("POST /api/ai/generate-practice-quiz error:", err.message);
+    return res.status(500).json({ error: err.message || "Failed to generate quiz" });
+  }
+});
+
 // @route   GET /api/ai/health
 router.get("/health", (req, res) => {
   const hasKey = !!process.env.OPENAI_API_KEY;

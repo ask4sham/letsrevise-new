@@ -39,7 +39,7 @@ Saved plan for completing the strategic LLM features. Each step is implemented w
 
 - [x] Step 1: Explain this — `POST /api/ai/explain-chunk`, `tests/aiExplainChunk.integration.test.js`, `frontend/src/api/ai.ts`, `ExplainThisButton.tsx`
 - [x] Step 2: Explain my mistake — `POST /api/ai/explain-mistake`, `tests/aiExplainMistake.integration.test.js`, `frontend/src/api/ai.ts` `explainMistake()`, `ExplainMyMistakeButton.tsx`; wired into `AssessmentPaperResultsPage` and `QuizView` for wrong-answer review
-- [ ] Step 3: Quiz me (LLM)
+- [x] Step 3: Quiz me (LLM) — `POST /api/ai/generate-practice-quiz`, `tests/aiGeneratePracticeQuiz.integration.test.js`, `frontend/src/api/ai.ts` `generatePracticeQuiz()`, `QuickQuizPage.tsx` at `/student/quick-quiz`; link from StudentDashboard
 - [ ] Step 4: RAG
 - [ ] Step 5: Summarise
 - [ ] Step 6: Knowledge gap

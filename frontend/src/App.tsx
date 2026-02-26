@@ -86,6 +86,7 @@ import StudentMyWorkPage from "./pages/StudentMyWorkPage";
 import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
+import QuickQuizPage from "./pages/QuickQuizPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 
@@ -413,6 +414,15 @@ function App() {
             element={
               <ProtectedRoute requireStudent>
                 <StudentPracticePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/quick-quiz"
+            element={
+              <ProtectedRoute requireStudent>
+                <QuickQuizPage />
               </ProtectedRoute>
             }
           />

@@ -943,6 +943,24 @@ const StudentDashboard: React.FC = () => {
             >
               ✏️ Practice
             </Link>
+            <Link
+              to="/student/quick-quiz"
+              style={{
+                padding: "10px 18px",
+                background: "#0d9488",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                textDecoration: "none",
+              }}
+            >
+              🧠 Quick quiz
+            </Link>
           </div>
         </div>
 
