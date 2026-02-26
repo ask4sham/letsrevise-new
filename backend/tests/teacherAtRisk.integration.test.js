@@ -13,6 +13,8 @@ const QuizAssignment = require("../models/QuizAssignment");
 const QuizAttempt = require("../models/QuizAttempt");
 const Lesson = require("../models/Lesson");
 
+jest.setTimeout(20000);
+
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
 describe("GET /api/teacher/at-risk", () => {

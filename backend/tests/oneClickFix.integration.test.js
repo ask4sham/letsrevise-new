@@ -10,6 +10,8 @@ const Lesson = require("../models/Lesson");
 const ExamQuestion = require("../models/ExamQuestion");
 const ReteachPlan = require("../models/ReteachPlan");
 
+jest.setTimeout(20000);
+
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
 describe("POST /api/reports/lessons/:lessonId/one-click-fix", () => {

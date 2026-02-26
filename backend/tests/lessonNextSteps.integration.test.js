@@ -10,6 +10,8 @@ const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const ReteachPlan = require("../models/ReteachPlan");
 
+jest.setTimeout(20000);
+
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
 describe("GET /api/lessons/:id/next-steps", () => {

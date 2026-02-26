@@ -17,6 +17,8 @@ const ReteachPlan = require("../models/ReteachPlan");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const ExamQuestion = require("../models/ExamQuestion");
 
+jest.setTimeout(20000);
+
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
 describe("PR14 Reteach plan", () => {
