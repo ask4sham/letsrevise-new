@@ -18,6 +18,8 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { AskAboutLesson } from "../components/ai/AskAboutLesson";
+import { SummariseLesson } from "../components/ai/SummariseLesson";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -3035,6 +3037,16 @@ const LessonViewPage: React.FC = () => {
                     Next →
                   </button>
                 </div>
+
+                {/* Step 4 RAG + Step 5 Summarise (when user has access) */}
+                {id && accessDecision?.allowed && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <SummariseLesson lessonId={id} lessonTitle={lesson?.title} />
+                    </div>
+                    <AskAboutLesson lessonId={id} lessonTitle={lesson?.title} />
+                  </div>
+                )}
 
                 {/* Phase C3: Preview mode CTA block */}
                 {previewMode && (

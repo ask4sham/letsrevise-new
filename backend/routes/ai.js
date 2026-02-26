@@ -8,8 +8,10 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 
 const Lesson = require("../models/Lesson");
+const LessonRAGChunk = require("../models/LessonRAGChunk");
 const VisualModel = require("../models/VisualModel");
 const FlashcardBank = require("../models/FlashcardBank");
+const requireLessonAccess = require("../middleware/requireLessonAccess");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -1388,6 +1390,246 @@ Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return 
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/generate-practice-quiz error:", err.message);
     return res.status(500).json({ error: err.message || "Failed to generate quiz" });
+  }
+});
+
+// --- Step 4: RAG (Q&A on lesson content) ----------------------------------------
+
+const RAG_EMBEDDING_MODEL = "text-embedding-3-small";
+const RAG_TOP_K = 5;
+const RAG_ASK_MAX_QUESTION_LENGTH = 500;
+
+/**
+ * Extract text chunks from a lesson for RAG (pages/blocks + legacy content).
+ * @param {Object} lesson - Lean lesson doc
+ * @returns {{ text: string }[]}
+ */
+function extractLessonChunks(lesson) {
+  const chunks = [];
+  const push = (text) => {
+    const t = (text || "").trim();
+    if (t.length > 0) chunks.push({ text: t });
+  };
+
+  const pages = lesson?.pages || [];
+  for (const page of pages) {
+    const title = (page?.title || "").trim();
+    if (title) push(`Section: ${title}`);
+    const blocks = page?.blocks || [];
+    for (const block of blocks) {
+      if (block?.content) push(block.content);
+      if (block?.prompt) push(`Question: ${block.prompt}`);
+      if (block?.caption) push(block.caption);
+      if (block?.explanation) push(block.explanation);
+    }
+    if (page?.checkpoint?.question) push(`Checkpoint: ${page.checkpoint.question}`);
+  }
+
+  const legacy = (lesson?.content || "").trim();
+  if (legacy) {
+    const paras = legacy.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+    for (const p of paras) push(p);
+  }
+
+  return chunks;
+}
+
+/**
+ * Get embedding for one or more texts via OpenAI.
+ * @param {string|string[]} input - Single text or array of texts
+ * @returns {Promise<number[][]>} Array of embedding vectors
+ */
+async function callOpenAIEmbedding(input) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+  const arr = Array.isArray(input) ? input : [input];
+  const resp = await axios.post(
+    "https://api.openai.com/v1/embeddings",
+    { model: RAG_EMBEDDING_MODEL, input: arr },
+    {
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      timeout: 15000,
+    }
+  );
+  const data = resp.data?.data;
+  if (!Array.isArray(data) || data.length !== arr.length) throw new Error("Unexpected embeddings response");
+  return data.map((d) => d.embedding).filter(Boolean);
+}
+
+function cosineSimilarity(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+/**
+ * Ensure lesson has RAG chunks in DB; if not, extract, embed, and save.
+ * @param {string} lessonId - ObjectId string
+ */
+async function ensureRAGIndex(lessonId) {
+  const existing = await LessonRAGChunk.countDocuments({ lessonId });
+  if (existing > 0) return;
+
+  const lesson = await Lesson.findById(lessonId).lean();
+  if (!lesson) throw new Error("Lesson not found");
+  const chunks = extractLessonChunks(lesson);
+  if (chunks.length === 0) return;
+
+  if (process.env.DISABLE_OPENAI === "1") {
+    const stubEmbedding = Array(1536).fill(0);
+    for (let i = 0; i < chunks.length; i++) {
+      await LessonRAGChunk.create({
+        lessonId,
+        chunkIndex: i,
+        text: chunks[i].text,
+        embedding: stubEmbedding,
+      });
+    }
+    return;
+  }
+
+  const texts = chunks.map((c) => c.text);
+  const embeddings = await callOpenAIEmbedding(texts);
+  for (let i = 0; i < chunks.length; i++) {
+    await LessonRAGChunk.create({
+      lessonId,
+      chunkIndex: i,
+      text: chunks[i].text,
+      embedding: embeddings[i] || Array(1536).fill(0),
+    });
+  }
+}
+
+/**
+ * Get top-k chunk texts by similarity to query embedding.
+ * @param {string} lessonId
+ * @param {number[]} queryEmbedding
+ * @param {number} k
+ * @returns {Promise<string[]>}
+ */
+async function getTopChunks(lessonId, queryEmbedding, k = RAG_TOP_K) {
+  const docs = await LessonRAGChunk.find({ lessonId }).sort({ chunkIndex: 1 }).lean();
+  if (docs.length === 0) return [];
+  const scored = docs.map((d) => ({ text: d.text, sim: cosineSimilarity(d.embedding || [], queryEmbedding) }));
+  scored.sort((a, b) => b.sim - a.sim);
+  return scored.slice(0, k).map((x) => x.text);
+}
+
+// @route   POST /api/ai/ask
+// @desc    RAG: answer question grounded in lesson content (user must have lesson access)
+// @body    { question: string (required), lessonId: string (required) }
+router.post("/ask", auth, requireLessonAccess({ allowBody: true }), async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const question = (req.body?.question != null ? String(req.body.question) : "").trim();
+    if (!question) return res.status(400).json({ error: "question is required" });
+    if (question.length > RAG_ASK_MAX_QUESTION_LENGTH) {
+      return res.status(400).json({ error: `question must be at most ${RAG_ASK_MAX_QUESTION_LENGTH} characters` });
+    }
+    const lesson = req.lesson;
+    const lessonId = lesson._id.toString();
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      await ensureRAGIndex(lessonId);
+      const stubAnswer = "[RAG is disabled in this environment.] Answer would be grounded in the lesson content.";
+      return res.json({ answer: stubAnswer, _disabled: true });
+    }
+
+    await ensureRAGIndex(lessonId);
+    const [queryEmbedding] = await callOpenAIEmbedding(question);
+    const contextTexts = await getTopChunks(lessonId, queryEmbedding, RAG_TOP_K);
+    const context = contextTexts.length > 0
+      ? contextTexts.join("\n\n---\n\n")
+      : "No specific content from this lesson was found. You may answer generally from your knowledge.";
+
+    const systemPrompt = "You are a helpful tutor. Answer the student's question using ONLY the provided lesson context. Use British English. If the context does not contain enough information, say so briefly. Do not mention you are an AI.";
+    const userPrompt = `Lesson context:\n\n${context}\n\nStudent question: ${question}`;
+    const answer = await callOpenAIChat(systemPrompt, userPrompt, 600);
+    return res.json({ answer: answer || "I couldn't generate an answer." });
+  } catch (err) {
+    if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    console.error("POST /api/ai/ask error:", err.message);
+    return res.status(500).json({ error: err.message || "Failed to answer question" });
+  }
+});
+
+// --- Step 5: Summarise / key points -------------------------------------------
+
+/**
+ * Build a single text body from lesson for summarisation (same source as RAG chunks).
+ */
+function getLessonBodyForSummarise(lesson) {
+  const chunks = extractLessonChunks(lesson);
+  return chunks.map((c) => c.text).join("\n\n");
+}
+
+/**
+ * Parse summary JSON from LLM (may be markdown-wrapped).
+ */
+function parseSummariseJson(raw) {
+  const s = (raw || "").trim();
+  let jsonStr = s;
+  const codeBlock = /^```(?:json)?\s*([\s\S]*?)```$/m.exec(s);
+  if (codeBlock) jsonStr = codeBlock[1].trim();
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+// @route   POST /api/ai/summarise
+// @desc    Summarise a lesson and return key points (user must have lesson access)
+// @body    { lessonId: string (required) }
+router.post("/summarise", auth, requireLessonAccess({ allowBody: true }), async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const lesson = req.lesson;
+    const lessonId = lesson._id.toString();
+    const bodyText = getLessonBodyForSummarise(lesson);
+    const title = (lesson.title || "This lesson").trim();
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      return res.json({
+        summary: `[Summarise is disabled.] Summary of "${title}" would appear here.`,
+        keyPoints: ["Key point 1", "Key point 2", "Key point 3"],
+        _disabled: true,
+      });
+    }
+
+    if (!bodyText || bodyText.length < 50) {
+      return res.json({
+        summary: "This lesson has very little text to summarise.",
+        keyPoints: [],
+      });
+    }
+
+    const systemPrompt = "You are an expert UK curriculum educator. Summarise the lesson content in 2–4 sentences. Then list 3–6 key points as a JSON array. Use British English. Respond with JSON only: {\"summary\": \"...\", \"keyPoints\": [\"...\", \"...\"]}. Do not include any text outside the JSON.";
+    const userPrompt = `Lesson title: ${title}\n\nContent:\n\n${bodyText.slice(0, 12000)}`;
+    const raw = await callOpenAIChat(systemPrompt, userPrompt, 800);
+    const parsed = parseSummariseJson(raw);
+    if (parsed && typeof parsed.summary === "string") {
+      const keyPoints = Array.isArray(parsed.keyPoints)
+        ? parsed.keyPoints.map((k) => String(k).trim()).filter(Boolean)
+        : [];
+      return res.json({ summary: parsed.summary.trim(), keyPoints });
+    }
+    return res.json({
+      summary: raw || "Could not generate summary.",
+      keyPoints: [],
+    });
+  } catch (err) {
+    if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    console.error("POST /api/ai/summarise error:", err.message);
+    return res.status(500).json({ error: err.message || "Failed to summarise" });
   }
 });
 
