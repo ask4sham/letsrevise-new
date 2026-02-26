@@ -1162,6 +1162,126 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
   }
 });
 
+// =========================================================
+// Step 1 (LLM Roadmap): Explain this — plain-text explanation of a content chunk
+// =========================================================
+
+const EXPLAIN_CHUNK_MAX_TEXT_LENGTH = 4000;
+
+/**
+ * Call OpenAI chat/completions for plain text (no JSON schema).
+ * @returns {Promise<string>} Assistant content
+ */
+async function callOpenAIChat(systemPrompt, userPrompt, maxTokens = 800) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing OPENAI_API_KEY in environment");
+  const model = safeStr(process.env.OPENAI_MODEL, "gpt-4o-mini");
+  const resp = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.4,
+    },
+    {
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      timeout: 25000,
+    }
+  );
+  const content = (resp.data?.choices?.[0]?.message?.content || "").trim();
+  return content;
+}
+
+// @route   POST /api/ai/explain-chunk
+// @desc    Explain a paragraph/chunk in simpler terms (any authenticated user)
+// @body    { text: string (required), level?: string, subject?: string }
+router.post("/explain-chunk", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const rawText = req.body?.text != null ? String(req.body.text) : "";
+    const text = rawText.trim();
+    if (!text) return res.status(400).json({ error: "text is required" });
+    if (text.length > EXPLAIN_CHUNK_MAX_TEXT_LENGTH) {
+      return res.status(400).json({ error: `text must be at most ${EXPLAIN_CHUNK_MAX_TEXT_LENGTH} characters` });
+    }
+    const level = safeStr(req.body?.level, "GCSE");
+    const subject = safeStr(req.body?.subject, "Biology");
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      return res.json({
+        explanation: "[Explain this is disabled for this environment.]",
+        _disabled: true,
+      });
+    }
+
+    const systemPrompt = "You are an expert UK curriculum educator. Explain concepts in simple, clear terms. Use British English. Do not mention you are an AI. Keep the explanation concise (2–4 sentences).";
+    const userPrompt = `Explain the following in simpler terms for a ${level} ${subject} student. Provide a brief analogy if helpful.\n\n---\n${text}`;
+    const explanation = await callOpenAIChat(systemPrompt, userPrompt, 500);
+    return res.json({ explanation: explanation || "No explanation generated." });
+  } catch (err) {
+    if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    console.error("POST /api/ai/explain-chunk error:", err.message);
+    return res.status(500).json({ error: err.message || "Failed to get explanation" });
+  }
+});
+
+// =========================================================
+// Step 2 (LLM Roadmap): Explain my mistake — misconception from wrong answer
+// =========================================================
+
+const EXPLAIN_MISTAKE_MAX_LENGTH = 2000;
+
+// @route   POST /api/ai/explain-mistake
+// @desc    Explain likely misconception given question, wrong answer, correct answer (any authenticated user)
+// @body    { questionText, userAnswer, correctAnswer, topic?, markScheme?, level? }
+router.post("/explain-mistake", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const questionText = (req.body?.questionText != null ? String(req.body.questionText) : "").trim();
+    const userAnswer = (req.body?.userAnswer != null ? String(req.body.userAnswer) : "").trim();
+    const correctAnswer = (req.body?.correctAnswer != null ? String(req.body.correctAnswer) : "").trim();
+    if (!questionText) return res.status(400).json({ error: "questionText is required" });
+    if (!correctAnswer) return res.status(400).json({ error: "correctAnswer is required" });
+    if (questionText.length > EXPLAIN_MISTAKE_MAX_LENGTH) {
+      return res.status(400).json({ error: `questionText must be at most ${EXPLAIN_MISTAKE_MAX_LENGTH} characters` });
+    }
+    const topic = safeStr(req.body?.topic, "");
+    const level = safeStr(req.body?.level, "GCSE");
+    const subject = safeStr(req.body?.subject, "Biology");
+    let markScheme = req.body?.markScheme;
+    if (Array.isArray(markScheme)) markScheme = markScheme.map((m) => String(m).trim()).filter(Boolean).join("\n");
+    else if (markScheme != null) markScheme = String(markScheme).trim();
+    else markScheme = "";
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      return res.json({
+        explanation: "[Explain my mistake is disabled for this environment.]",
+        _disabled: true,
+      });
+    }
+
+    const systemPrompt = "You are an expert UK curriculum educator. Explain the student's likely misconception in 2–4 sentences. Be kind and clear. Use British English. Do not mention you are an AI.";
+    const userPrompt = `The user is studying ${subject} at ${level}${topic ? ` (topic: ${topic})` : ""}.
+
+Question: ${questionText}
+Student's answer: ${userAnswer || "(no answer given)"}
+Correct answer: ${correctAnswer}
+${markScheme ? `Mark scheme (for context):\n${markScheme}` : ""}
+
+Explain the likely misconception and clarify the correct concept.`;
+    const explanation = await callOpenAIChat(systemPrompt, userPrompt, 400);
+    return res.json({ explanation: explanation || "No explanation generated." });
+  } catch (err) {
+    if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    console.error("POST /api/ai/explain-mistake error:", err.message);
+    return res.status(500).json({ error: err.message || "Failed to get explanation" });
+  }
+});
+
 // @route   GET /api/ai/health
 router.get("/health", (req, res) => {
   const hasKey = !!process.env.OPENAI_API_KEY;

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { ExplainMyMistakeButton } from "../ai/ExplainMyMistakeButton";
 
 function gradeShortAnswer({
   userAnswer,
@@ -677,6 +678,26 @@ export function QuizView({
           )}
 
           {q.explanation ? <div className="mt-3 text-sm opacity-80">{q.explanation}</div> : null}
+
+          {/* Step 2 LLM: Explain my mistake — only when answer was wrong */}
+          {(() => {
+            const userAns = (answers[q.id] ?? "").trim();
+            const correctAns = (q.type === "exam" ? (q.markScheme ?? []).join("\n") || (q.correctAnswer ?? "") : (q.correctAnswer ?? "")).trim();
+            const isWrongMcq = q.type === "mcq" && userAns !== (q.correctAnswer ?? "").trim();
+            const isWrongShortExam = (q.type === "short" || q.type === "exam") && lastGrade != null && lastGrade.score < lastGrade.maxMarks;
+            const isWrong = isWrongMcq || isWrongShortExam;
+            if (!isWrong || !(q.question || "").trim() || !correctAns) return null;
+            return (
+              <div className="mt-3">
+                <ExplainMyMistakeButton
+                  questionText={(q.question || "").slice(0, 2000)}
+                  userAnswer={userAns || "No answer given."}
+                  correctAnswer={correctAns}
+                  markScheme={q.type === "exam" ? q.markScheme : undefined}
+                />
+              </div>
+            );
+          })()}
         </div>
       ) : null}
     </div>

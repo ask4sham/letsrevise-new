@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import SubscriptionRequired from "../components/SubscriptionRequired";
+import { ExplainMyMistakeButton } from "../components/ai/ExplainMyMistakeButton";
 
 type QuestionResult = {
   _id: string;
@@ -506,6 +507,20 @@ const AssessmentPaperResultsPage: React.FC = () => {
                     >
                       {question.explanation}
                     </div>
+                  </div>
+                )}
+
+                {/* Explain my mistake (Step 2 LLM): only for incorrect questions with question + correct answer */}
+                {!question.isCorrect && (question.question || question.title) && correctAnswerText && correctAnswerText !== "—" && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <ExplainMyMistakeButton
+                      questionText={(question.question || question.title || "").slice(0, 2000)}
+                      userAnswer={isShort ? userTextAnswer : yourAnswerTextMcq}
+                      correctAnswer={correctAnswerText}
+                      topic={paper?.subject}
+                      level={paper?.level}
+                      subject={paper?.subject}
+                    />
                   </div>
                 )}
               </div>
