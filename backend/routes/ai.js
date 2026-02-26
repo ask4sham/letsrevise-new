@@ -11,7 +11,14 @@ const Lesson = require("../models/Lesson");
 const LessonRAGChunk = require("../models/LessonRAGChunk");
 const VisualModel = require("../models/VisualModel");
 const FlashcardBank = require("../models/FlashcardBank");
+const PastPaperQuestion = require("../models/PastPaperQuestion");
 const requireLessonAccess = require("../middleware/requireLessonAccess");
+const {
+  getSpecPointsForTopic,
+  getPastPaperSnippetsForTopic,
+  resolveSpecAndTopicKey,
+  COVERAGE_THRESHOLD,
+} = require("../services/syllabusAlignment");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
@@ -325,17 +332,44 @@ function buildSystemPrompt(subject, level) {
   ].join(" ");
 }
 
-function buildUserPromptFromMd({ topic, subject, level, board, tier }) {
+function buildUserPromptFromMd({
+  topic,
+  subject,
+  level,
+  board,
+  tier,
+  specPoints,
+  pastPaperSnippets,
+  extraCoveragePoints = [],
+}) {
   const lvl = normalizeLevel(level);
   const tierFinal = lvl === "GCSE" ? normalizeTier(tier) : ""; // non-GCSE => empty string
 
-  return injectPromptVars(AI_LESSON_PROMPT_TEMPLATE, {
+  let out = injectPromptVars(AI_LESSON_PROMPT_TEMPLATE, {
     topic,
     subject,
     level: lvl,
     board: board === undefined || board === null ? "" : String(board),
     tier: tierFinal,
   });
+
+  if (Array.isArray(specPoints) && specPoints.length > 0) {
+    out += "\n\n## Specification points to cover (you must address these)\n";
+    specPoints.forEach((p) => { out += `- ${p}\n`; });
+  }
+  if (Array.isArray(extraCoveragePoints) && extraCoveragePoints.length > 0) {
+    out += "\n\n## You must also explicitly cover these (currently missing or weak)\n";
+    extraCoveragePoints.forEach((p) => { out += `- ${p}\n`; });
+  }
+  if (Array.isArray(pastPaperSnippets) && pastPaperSnippets.length > 0) {
+    out += "\n\n## Typical exam question context (based on past papers)\n";
+    pastPaperSnippets.slice(0, 5).forEach((s, i) => {
+      out += `\nQuestion ${i + 1}: ${(s.question || "").slice(0, 300)}`;
+      if (Array.isArray(s.markScheme) && s.markScheme.length > 0)
+        out += `\nMark scheme: ${s.markScheme.slice(0, 3).join("; ")}`;
+    });
+  }
+  return out;
 }
 
 /**
@@ -569,7 +603,16 @@ function ensurePageIds(pages) {
 /* =========================================================
    INTERNAL: generate sanitized AI draft (shared)
    ========================================================= */
-async function generateSanitizedDraft({ topic, subject, level, board, tier }) {
+async function generateSanitizedDraft({
+  topic,
+  subject,
+  level,
+  board,
+  tier,
+  specPoints = [],
+  pastPaperSnippets = [],
+  extraCoveragePoints = [],
+}) {
   const systemPrompt = buildSystemPrompt(subject, level);
   const userPrompt = buildUserPromptFromMd({
     topic,
@@ -577,6 +620,9 @@ async function generateSanitizedDraft({ topic, subject, level, board, tier }) {
     level,
     board,
     tier,
+    specPoints,
+    pastPaperSnippets,
+    extraCoveragePoints,
   });
 
   const ai = await callOpenAI({ systemPrompt, userPrompt });
@@ -621,15 +667,61 @@ router.post("/generate-lesson", auth, async (req, res) => {
       `🤖 AI generate-lesson: user=${getAuthUserId(req)} type=${req.user.userType} | ${subject} | ${level} | ${topic}`
     );
 
-    const { sanitized, ai } = await generateSanitizedDraft({
+    // Algorithm 1: resolve spec/topic and load syllabus + past paper context (no breaking change if missing)
+    let specPoints = [];
+    let pastPaperSnippets = [];
+    const resolved = resolveSpecAndTopicKey(board, subject, topic);
+    if (resolved) {
+      specPoints = getSpecPointsForTopic(resolved.specKey, resolved.topicKey) || [];
+      pastPaperSnippets = await getPastPaperSnippetsForTopic(
+        resolved.specKey,
+        resolved.topicKey,
+        5,
+        PastPaperQuestion
+      );
+    }
+
+    let { sanitized, ai } = await generateSanitizedDraft({
       topic,
       subject,
       level,
       board,
       tier,
+      specPoints,
+      pastPaperSnippets,
     });
 
-    return res.json({
+    let coverageScore = null;
+    let missingPoints = [];
+    if (specPoints.length > 0) {
+      const coverage = await verifySyllabusCoverage(sanitized, specPoints);
+      coverageScore = coverage.coverageRatio;
+      missingPoints = coverage.missingPoints || [];
+      if (
+        coverageScore < COVERAGE_THRESHOLD &&
+        missingPoints.length > 0
+      ) {
+        const { sanitized: retrySanitized, ai: retryAi } = await generateSanitizedDraft({
+          topic,
+          subject,
+          level,
+          board,
+          tier,
+          specPoints,
+          pastPaperSnippets,
+          extraCoveragePoints: missingPoints,
+        });
+        const retryCoverage = await verifySyllabusCoverage(retrySanitized, specPoints);
+        if (retryCoverage.coverageRatio >= coverageScore) {
+          sanitized = retrySanitized;
+          ai = retryAi;
+          coverageScore = retryCoverage.coverageRatio;
+          missingPoints = retryCoverage.missingPoints || [];
+        }
+      }
+    }
+
+    const payload = {
       success: true,
       message: "Lesson draft generated successfully.",
       draft: sanitized,
@@ -651,7 +743,12 @@ router.post("/generate-lesson", auth, async (req, res) => {
       model: ai.model,
       usage: ai.usage,
       generatedBy: getAuthUserId(req),
-    });
+    };
+    if (specPoints.length > 0) {
+      payload.coverageScore = coverageScore;
+      payload.missingPoints = missingPoints;
+    }
+    return res.json(payload);
   } catch (error) {
     console.error("❌ AI Route Error:", error?.message || error);
 
@@ -717,6 +814,20 @@ router.post("/generate-and-save", auth, async (req, res) => {
       });
     }
 
+    // Algorithm 1: resolve spec/topic and load syllabus + past paper context (no breaking change if missing)
+    let specPoints = [];
+    let pastPaperSnippets = [];
+    const resolved = resolveSpecAndTopicKey(board, subject, topic);
+    if (resolved) {
+      specPoints = getSpecPointsForTopic(resolved.specKey, resolved.topicKey) || [];
+      pastPaperSnippets = await getPastPaperSnippetsForTopic(
+        resolved.specKey,
+        resolved.topicKey,
+        5,
+        PastPaperQuestion
+      );
+    }
+
     // ✅ 2) Generate AI draft (sanitized)
     const { sanitized } = await generateSanitizedDraft({
       topic,
@@ -724,6 +835,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
       level,
       board,
       tier,
+      specPoints,
+      pastPaperSnippets,
     });
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
@@ -1523,6 +1636,162 @@ async function getTopChunks(lessonId, queryEmbedding, k = RAG_TOP_K) {
   return scored.slice(0, k).map((x) => x.text);
 }
 
+/**
+ * Algorithm 1: Verify draft content coverage against specification points (embedding similarity).
+ * @param {Object} draftSanitized - Sanitized draft with .pages (blocks with .content)
+ * @param {string[]} specPoints - Specification point strings
+ * @returns {Promise<{ coverageRatio: number, missingPoints: string[] }>}
+ */
+async function verifySyllabusCoverage(draftSanitized, specPoints) {
+  if (!Array.isArray(specPoints) || specPoints.length === 0) {
+    return { coverageRatio: 1, missingPoints: [] };
+  }
+  const lessonLike = { pages: draftSanitized?.pages || [], content: "" };
+  const chunks = extractLessonChunks(lessonLike);
+  const chunkTexts = chunks.map((c) => c.text).filter(Boolean);
+  if (chunkTexts.length === 0) return { coverageRatio: 0, missingPoints: [...specPoints] };
+
+  if (process.env.DISABLE_OPENAI === "1") {
+    return { coverageRatio: 1, missingPoints: [] };
+  }
+
+  try {
+    const [specEmbs, chunkEmbs] = await Promise.all([
+      callOpenAIEmbedding(specPoints),
+      callOpenAIEmbedding(chunkTexts),
+    ]);
+    const SIM_THRESHOLD = 0.7;
+    const missingPoints = [];
+    for (let i = 0; i < specPoints.length; i++) {
+      let maxSim = 0;
+      for (let j = 0; j < chunkEmbs.length; j++) {
+        const sim = cosineSimilarity(specEmbs[i] || [], chunkEmbs[j] || []);
+        if (sim > maxSim) maxSim = sim;
+      }
+      if (maxSim < SIM_THRESHOLD) missingPoints.push(specPoints[i]);
+    }
+    const coverageRatio = (specPoints.length - missingPoints.length) / specPoints.length;
+    return { coverageRatio, missingPoints };
+  } catch (err) {
+    console.warn("verifySyllabusCoverage error:", err.message);
+    return { coverageRatio: 0, missingPoints: [...specPoints] };
+  }
+}
+
+const MARK_SCHEME_ALIGNMENT_THRESHOLD = 0.8;
+
+/**
+ * Algorithm 2: Mark scheme alignment validator.
+ * Compares lesson content to past paper mark scheme points (embedding similarity).
+ * @param {Object} opts - Either { lessonId } or { contentChunks: string[], specKey, topicKey }
+ * @returns {Promise<{ alignmentScore: number, missingPoints: string[], suggestions: string[] }>}
+ */
+async function validateMarkSchemeAlignment(opts) {
+  const { lessonId, contentChunks: rawChunks, specKey, topicKey } = opts;
+  let chunkTexts = [];
+  let resolvedSpecKey = specKey;
+  let resolvedTopicKey = topicKey;
+
+  if (lessonId) {
+    const lesson = await Lesson.findById(lessonId).lean();
+    if (!lesson) throw new Error("Lesson not found");
+    const chunks = extractLessonChunks(lesson);
+    chunkTexts = chunks.map((c) => c.text).filter(Boolean);
+    if (!resolvedSpecKey || !resolvedTopicKey) {
+      const resolved = resolveSpecAndTopicKey(
+        lesson.board || "",
+        lesson.subject || "",
+        lesson.topic || ""
+      );
+      if (resolved) {
+        resolvedSpecKey = resolved.specKey;
+        resolvedTopicKey = resolved.topicKey;
+      }
+    }
+  } else if (Array.isArray(rawChunks) && rawChunks.length > 0) {
+    chunkTexts = rawChunks.map((t) => String(t).trim()).filter(Boolean);
+  } else if (opts.content != null && opts.content !== "") {
+    const text = String(opts.content).trim();
+    chunkTexts = text ? text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean) : [];
+  }
+
+  if (!resolvedSpecKey || !resolvedTopicKey) {
+    return {
+      alignmentScore: 0,
+      missingPoints: [],
+      suggestions: ["Missing specKey/topicKey or lesson has no board/subject/topic."],
+    };
+  }
+
+  const snippets = await getPastPaperSnippetsForTopic(
+    resolvedSpecKey,
+    resolvedTopicKey,
+    20,
+    PastPaperQuestion
+  );
+  const markPoints = [];
+  const seen = new Set();
+  for (const s of snippets) {
+    const list = Array.isArray(s.markScheme) ? s.markScheme : [];
+    for (const p of list) {
+      const t = String(p).trim();
+      if (t && !seen.has(t)) {
+        seen.add(t);
+        markPoints.push(t);
+      }
+    }
+  }
+
+  if (markPoints.length === 0) {
+    return {
+      alignmentScore: 100,
+      missingPoints: [],
+      suggestions: ["No past paper mark scheme data for this topic."],
+    };
+  }
+  if (chunkTexts.length === 0) {
+    return {
+      alignmentScore: 0,
+      missingPoints: markPoints,
+      suggestions: markPoints.slice(0, 5).map((p) => `Add content addressing: ${p.slice(0, 80)}${p.length > 80 ? "…" : ""}`),
+    };
+  }
+
+  if (process.env.DISABLE_OPENAI === "1") {
+    return { alignmentScore: 100, missingPoints: [], suggestions: [] };
+  }
+
+  try {
+    const [pointEmbs, chunkEmbs] = await Promise.all([
+      callOpenAIEmbedding(markPoints),
+      callOpenAIEmbedding(chunkTexts),
+    ]);
+    const missingPoints = [];
+    for (let i = 0; i < markPoints.length; i++) {
+      let maxSim = 0;
+      for (let j = 0; j < chunkEmbs.length; j++) {
+        const sim = cosineSimilarity(pointEmbs[i] || [], chunkEmbs[j] || []);
+        if (sim > maxSim) maxSim = sim;
+      }
+      if (maxSim < MARK_SCHEME_ALIGNMENT_THRESHOLD) missingPoints.push(markPoints[i]);
+    }
+    const alignmentScore = Math.round(
+      ((markPoints.length - missingPoints.length) / markPoints.length) * 100
+    );
+    const suggestions = missingPoints
+      .slice(0, 10)
+      .map((p) => `Add content addressing: ${p.slice(0, 80)}${p.length > 80 ? "…" : ""}`);
+    return { alignmentScore, missingPoints, suggestions };
+  } catch (err) {
+    console.warn("validateMarkSchemeAlignment error:", err.message);
+    return {
+      alignmentScore: 0,
+      missingPoints: markPoints,
+      suggestions: ["Validation failed: " + (err.message || "unknown error")],
+    };
+  }
+}
+
 // @route   POST /api/ai/ask
 // @desc    RAG: answer question grounded in lesson content (user must have lesson access)
 // @body    { question: string (required), lessonId: string (required) }
@@ -1558,6 +1827,70 @@ router.post("/ask", auth, requireLessonAccess({ allowBody: true }), async (req, 
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/ask error:", err.message);
     return res.status(500).json({ error: err.message || "Failed to answer question" });
+  }
+});
+
+// @route   POST /api/ai/validate-mark-scheme-alignment
+// @desc    Algorithm 2: Compare lesson content to past paper mark scheme points (Teachers/Admin or lesson owner)
+// @body    { lessonId: string } OR { content: string, specKey: string, topicKey: string }
+router.post("/validate-mark-scheme-alignment", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+
+    const lessonId = req.body?.lessonId != null ? String(req.body.lessonId).trim() : null;
+    const content = req.body?.content;
+    const specKey = req.body?.specKey != null ? String(req.body.specKey).trim() : null;
+    const topicKey = req.body?.topicKey != null ? String(req.body.topicKey).trim() : null;
+
+    if (lessonId) {
+      if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: "Invalid lessonId" });
+      }
+      const lesson = await Lesson.findById(lessonId).lean();
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      const { getLessonOwnerId } = require("../utils/lessonPayload");
+      const ownerId = getLessonOwnerId(lesson);
+      const isOwner = ownerId != null && ownerId === String(req.user._id || req.user.id);
+      const isAdmin = (req.user?.userType || req.user?.role || "").toString().toLowerCase() === "admin";
+      if (!isOwner && !isAdmin) {
+        const { canAccessContent } = require("../utils/canAccessContent");
+        const status = lesson.status || (lesson.isPublished ? "published" : "draft");
+        const isPublished = String(status).toLowerCase() === "published";
+        const decision = await canAccessContent(req.user ?? null, {
+          id: lesson._id?.toString(),
+          _id: lesson._id,
+          status,
+          isFreePreview: !!lesson.isFreePreview,
+          isPublished,
+        });
+        if (!decision.allowed) {
+          const code = decision.reason === "NOT_ENTITLED" ? 402 : 403;
+          return res.status(code).json({ error: decision.reason === "NOT_ENTITLED" ? "Subscription required" : "Forbidden" });
+        }
+      }
+      const result = await validateMarkSchemeAlignment({ lessonId });
+      return res.json({ success: true, ...result });
+    }
+
+    if (content != null && specKey && topicKey) {
+      if (!requireTeacherOrAdmin(req, res)) return;
+      const result = await validateMarkSchemeAlignment({
+        content: String(content),
+        specKey,
+        topicKey,
+      });
+      return res.json({ success: true, ...result });
+    }
+
+    return res.status(400).json({
+      error: "Provide either lessonId or (content, specKey, topicKey)",
+    });
+  } catch (err) {
+    console.error("POST /api/ai/validate-mark-scheme-alignment error:", err?.message || err);
+    return res.status(500).json({
+      error: "Mark scheme alignment check failed",
+      details: process.env.NODE_ENV === "development" ? String(err?.message || err) : undefined,
+    });
   }
 });
 

@@ -1,0 +1,32 @@
+{
+  "specKey": "aqa-gcse-biology",
+  "subject": "Biology",
+  "examBoard": "AQA",
+  "level": "GCSE",
+  "topics": {
+    "cell-structure": [
+      "Describe the structure of eukaryotic cells (animal and plant) and prokaryotic cells",
+      "Explain how the main sub-cellular structures of eukaryotic cells are related to their functions, including the nucleus, cytoplasm, cell membrane, mitochondria, chloroplasts, ribosomes and cell wall",
+      "Explain how the main sub-cellular structures of prokaryotic cells are related to their functions",
+      "Understand the difference between animal and plant cells (cell wall, chloroplasts, vacuole)"
+    ],
+    "photosynthesis": [
+      "Describe the process of photosynthesis and the word equation",
+      "Explain the importance of photosynthesis in the conversion of light energy to chemical energy",
+      "Describe the structure of the leaf and explain how it is adapted for photosynthesis",
+      "Understand that the rate of photosynthesis may be limited by light intensity, temperature and concentration of carbon dioxide",
+      "Describe experiments to investigate the effect of light or temperature on the rate of photosynthesis"
+    ],
+    "eukaryotes-prokaryotes": [
+      "Describe the structural differences between eukaryotic and prokaryotic cells",
+      "Compare the structure of animal, plant and bacterial cells",
+      "Explain the role of the nucleus and plasmids in prokaryotic cells"
+    ],
+    "respiration": [
+      "Describe cellular respiration as an exothermic reaction",
+      "Describe the process of aerobic respiration and the word equation",
+      "Describe the process of anaerobic respiration in animals and in yeast",
+      "Explain the importance of respiration in living organisms"
+    ]
+  }
+}
