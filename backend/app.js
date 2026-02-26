@@ -2,7 +2,27 @@
 require("dotenv").config();
 
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
+
+// Fail fast when AI is enabled but OPENAI_API_KEY is missing (avoids confusing 500s later)
+// Skip in test so Jest can load the app without a key; individual tests set DISABLE_OPENAI=1 or OPENAI_API_KEY
+if (
+  process.env.NODE_ENV !== "test" &&
+  process.env.DISABLE_OPENAI !== "1" &&
+  !process.env.OPENAI_API_KEY
+) {
+  console.error("Missing required environment variable: OPENAI_API_KEY");
+  console.error("Set OPENAI_API_KEY in backend/.env or set DISABLE_OPENAI=1 to disable AI features.");
+  process.exit(1);
+}
+
+// Ensure uploads directory exists (diagram and other uploads)
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("Created uploads directory:", uploadsDir);
+}
 const cors = require("cors");
 const bodyLimit = require("./middleware/bodyLimit");
 const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");

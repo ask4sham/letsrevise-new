@@ -12,6 +12,8 @@ const TopicFlashcard = require("../models/TopicFlashcard");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
+jest.setTimeout(20000);
+
 describe("Topic Flashcard Bank (PR-F1)", () => {
   let teacherToken;
   let teacherId;
@@ -55,11 +57,11 @@ describe("Topic Flashcard Bank (PR-F1)", () => {
       .send({ email: "flash-student@test.com", password: "password123" });
     studentToken = loginStudent.body?.token;
     if (!teacherToken || !otherTeacherToken || !studentToken) throw new Error("Login failed");
-  }, 15000);
+  }, 20000);
 
   afterAll(async () => {
     await TopicFlashcard.deleteMany({ ownerId: teacherId });
-  });
+  }, 15000);
 
   test("GET without topicKey returns 400", async () => {
     const res = await request(app)

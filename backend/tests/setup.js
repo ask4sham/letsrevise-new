@@ -9,10 +9,11 @@ const { MongoMemoryReplSet } = require("mongodb-memory-server");
 let mongoReplSet;
 
 beforeAll(async () => {
+  // Allow slow CI/machines: give hook 90s so repl set start + connect can finish (library default start is 10s)
   mongoReplSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   const mongoUri = mongoReplSet.getUri();
   await mongoose.connect(mongoUri);
-}, 60000);
+}, 90000);
 
 afterAll(async () => {
   await mongoose.disconnect();

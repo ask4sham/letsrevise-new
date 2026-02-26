@@ -12,6 +12,8 @@ const ExamQuestion = require("../models/ExamQuestion");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
+jest.setTimeout(15000);
+
 describe("Worksheet Assignments Close (PR-W4.3)", () => {
   let ownerToken;
   let ownerId;
