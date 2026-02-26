@@ -365,10 +365,10 @@ const TeacherQuestionBrowserPage: React.FC = () => {
 
       {topicKey && (
         <div style={{ display: "grid", gap: 16 }}>
-          <SectionQuiz items={quizItems} onEdit={openEdit} />
-          <SectionFlashcards items={flashItems} onEdit={openEdit} />
-          <SectionExam items={examItems} onEdit={openEdit} />
-          <SectionPastPaper items={ppItems} onEdit={openEdit} />
+          <SectionQuiz items={quizItems} onEdit={openEdit} onUpdated={setQuizItems} />
+          <SectionFlashcards items={flashItems} onEdit={openEdit} onUpdated={setFlashItems} />
+          <SectionExam items={examItems} onEdit={openEdit} onUpdated={setExamItems} />
+          <SectionPastPaper items={ppItems} onEdit={openEdit} onUpdated={setPpItems} />
         </div>
       )}
 
@@ -734,9 +734,11 @@ function SectionShell({
 function SectionQuiz({
   items,
   onEdit,
+  onUpdated,
 }: {
   items: QuizQ[];
   onEdit: (item: EditItem, kind: EditKind) => void;
+  onUpdated: (v: QuizQ[]) => void;
 }) {
   return (
     <SectionShell title="Quiz questions (MCQ + Short)" count={items.length}>
@@ -783,9 +785,11 @@ function SectionQuiz({
 function SectionFlashcards({
   items,
   onEdit,
+  onUpdated,
 }: {
   items: TopicFlashcard[];
   onEdit: (item: EditItem, kind: EditKind) => void;
+  onUpdated: (v: TopicFlashcard[]) => void;
 }) {
   return (
     <SectionShell title="Flashcards" count={items.length}>
@@ -826,9 +830,11 @@ function SectionFlashcards({
 function SectionExam({
   items,
   onEdit,
+  onUpdated,
 }: {
   items: ExamQuestion[];
   onEdit: (item: EditItem, kind: EditKind) => void;
+  onUpdated: (v: ExamQuestion[]) => void;
 }) {
   return (
     <SectionShell title="Exam Questions" count={items.length}>
@@ -867,9 +873,11 @@ function SectionExam({
 function SectionPastPaper({
   items,
   onEdit,
+  onUpdated,
 }: {
   items: PastPaperQuestion[];
   onEdit: (item: EditItem, kind: EditKind) => void;
+  onUpdated: (v: PastPaperQuestion[]) => void;
 }) {
   return (
     <SectionShell title="Past Paper Questions" count={items.length}>
