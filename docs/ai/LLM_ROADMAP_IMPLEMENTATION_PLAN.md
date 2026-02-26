@@ -42,7 +42,7 @@ Saved plan for completing the strategic LLM features. Each step is implemented w
 - [x] Step 3: Quiz me (LLM) — `POST /api/ai/generate-practice-quiz`, `tests/aiGeneratePracticeQuiz.integration.test.js`, `frontend/src/api/ai.ts` `generatePracticeQuiz()`, `QuickQuizPage.tsx` at `/student/quick-quiz`; link from StudentDashboard
 - [x] Step 4: RAG — Index pipeline (extract chunks from lesson pages + legacy content); `LessonRAGChunk` model with embeddings (OpenAI text-embedding-3-small); `POST /api/ai/ask` (auth + requireLessonAccess); `tests/aiAskRAG.integration.test.js`; `frontend/src/api/ai.ts` `askRAG()`, `AskAboutLesson.tsx` in LessonViewPage ("Ask about this lesson")
 - [x] Step 5: Summarise — `POST /api/ai/summarise` (auth + requireLessonAccess), `tests/aiSummarise.integration.test.js`, `frontend/src/api/ai.ts` `summariseLesson()`, `SummariseLesson.tsx` ("Summarise this lesson" button) on LessonViewPage
-- [ ] Step 6: Knowledge gap
+- [x] Step 6: Knowledge gap — `GET /api/student/knowledge-gap` (student only), aggregate PracticeAttempt + QuizAttempt by topic, weak areas (below 70%), LLM revision focus summary; `tests/studentKnowledgeGap.integration.test.js`; `frontend/src/api/studentKnowledgeGap.ts`, "Your revision focus" block on StudentDashboard
 - [ ] Step 7: Structure my notes
 
 ---

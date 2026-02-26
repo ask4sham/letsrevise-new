@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
+import { getKnowledgeGap, type KnowledgeGapResponse } from "../api/studentKnowledgeGap";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -251,6 +252,76 @@ const BASE_SUBJECTS = [
   "Music",
   "PE",
 ] as const;
+
+/** Step 6: Your revision focus — fetches knowledge-gap summary and weak areas. */
+function RevisionFocusBlock() {
+  const [data, setData] = useState<KnowledgeGapResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getKnowledgeGap()
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.message || "Failed to load revision focus");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+          padding: "14px 20px",
+          borderRadius: "12px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+          marginBottom: "16px",
+          border: "1px solid #fcd34d",
+        }}
+      >
+        <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 4 }}>Your revision focus</div>
+        <p style={{ margin: 0, color: "#b45309", fontSize: "0.9rem" }}>Loading…</p>
+      </div>
+    );
+  }
+  if (error) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+        padding: "14px 20px",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        marginBottom: "16px",
+        border: "1px solid #fcd34d",
+      }}
+    >
+      <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8 }}>Your revision focus</div>
+      <p style={{ margin: "0 0 10px 0", color: "#78350f", fontSize: "0.95rem", lineHeight: 1.5 }}>
+        {data?.summary || "Keep practising to see personalised revision focus."}
+      </p>
+      {data?.weakAreas && data.weakAreas.length > 0 && (
+        <ul style={{ margin: 0, paddingLeft: 20, color: "#92400e", fontSize: "0.9rem", lineHeight: 1.6 }}>
+          {data.weakAreas.map((w) => (
+            <li key={w.topicKey}>
+              {w.topicName || w.topicKey}: {w.percentage}% ({w.correct}/{w.total})
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -963,6 +1034,9 @@ const StudentDashboard: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Step 6: Your revision focus (knowledge gap) */}
+        <RevisionFocusBlock />
 
         {/* Filters - PR-UX-STU-DASH-2.1: collapsible, collapsed by default */}
         <div
