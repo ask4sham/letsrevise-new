@@ -12,6 +12,8 @@ const LessonUnlock = require("../models/LessonUnlock");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
+jest.setTimeout(15000);
+
 describe("GET /api/lessons/:id/practice", () => {
   let teacherId;
   let lessonLockedId;

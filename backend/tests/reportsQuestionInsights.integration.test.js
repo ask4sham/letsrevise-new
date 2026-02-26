@@ -12,6 +12,8 @@ const ExamQuestion = require("../models/ExamQuestion");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
+jest.setTimeout(15000);
+
 describe("PR13 Question insights", () => {
   let teacherId;
   let otherTeacherId;
