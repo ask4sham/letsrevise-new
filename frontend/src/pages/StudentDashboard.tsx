@@ -1032,6 +1032,24 @@ const StudentDashboard: React.FC = () => {
             >
               🧠 Quick quiz
             </Link>
+            <Link
+              to="/student/structure-notes"
+              style={{
+                padding: "10px 18px",
+                background: "#c026d3",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                textDecoration: "none",
+              }}
+            >
+              📝 Create your own notes
+            </Link>
           </div>
         </div>
 

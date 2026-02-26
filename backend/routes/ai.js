@@ -1633,6 +1633,76 @@ router.post("/summarise", auth, requireLessonAccess({ allowBody: true }), async 
   }
 });
 
+// --- Step 7: Structure my notes (user input → summary + flashcards) -------------
+
+const STRUCTURE_NOTES_MAX_LENGTH = 8000;
+
+/**
+ * Parse JSON from LLM response (may be markdown-wrapped).
+ */
+function parseStructureNotesJson(raw) {
+  const s = (raw || "").trim();
+  let jsonStr = s;
+  const codeBlock = /^```(?:json)?\s*([\s\S]*?)```$/m.exec(s);
+  if (codeBlock) jsonStr = codeBlock[1].trim();
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeFlashcards(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter((item) => item && (item.front != null || item.back != null))
+    .map((item) => ({
+      front: (item.front != null ? String(item.front) : "").trim(),
+      back: (item.back != null ? String(item.back) : "").trim(),
+    }))
+    .filter((f) => f.front.length > 0 || f.back.length > 0)
+    .slice(0, 30);
+}
+
+// @route   POST /api/ai/structure-notes
+// @desc    Turn user notes into a short summary and flashcards (any authenticated user)
+// @body    { notes: string (required) }
+router.post("/structure-notes", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    const notes = (req.body?.notes != null ? String(req.body.notes) : "").trim();
+    if (!notes) return res.status(400).json({ error: "notes is required" });
+    if (notes.length > STRUCTURE_NOTES_MAX_LENGTH) {
+      return res.status(400).json({ error: `notes must be at most ${STRUCTURE_NOTES_MAX_LENGTH} characters` });
+    }
+
+    if (process.env.DISABLE_OPENAI === "1") {
+      return res.json({
+        summary: "[Structure notes is disabled.] Your notes would be turned into a summary and flashcards here.",
+        flashcards: [
+          { front: "Example question?", back: "Example answer." },
+          { front: "Another term?", back: "Definition." },
+        ],
+        _disabled: true,
+      });
+    }
+
+    const systemPrompt =
+      "You are an expert UK curriculum educator. The user will paste their revision notes. Respond with JSON only: {\"summary\": \"2-4 sentence summary of the notes\", \"flashcards\": [{\"front\": \"question or term\", \"back\": \"answer or definition\"}, ...]}. Create 5-15 flashcards. Use British English. No other text outside the JSON.";
+    const userPrompt = `Notes:\n\n${notes}`;
+    const raw = await callOpenAIChat(systemPrompt, userPrompt, 1500);
+    const parsed = parseStructureNotesJson(raw);
+    const summary =
+      parsed && typeof parsed.summary === "string" ? parsed.summary.trim() : "Could not generate summary.";
+    const flashcards = normalizeFlashcards(parsed?.flashcards);
+    return res.json({ summary, flashcards });
+  } catch (err) {
+    if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
+    console.error("POST /api/ai/structure-notes error:", err.message);
+    return res.status(500).json({ error: err.message || "Failed to structure notes" });
+  }
+});
+
 // @route   GET /api/ai/health
 router.get("/health", (req, res) => {
   const hasKey = !!process.env.OPENAI_API_KEY;

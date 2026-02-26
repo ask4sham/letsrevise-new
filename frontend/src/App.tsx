@@ -87,6 +87,7 @@ import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
 import QuickQuizPage from "./pages/QuickQuizPage";
+import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 
@@ -423,6 +424,15 @@ function App() {
             element={
               <ProtectedRoute requireStudent>
                 <QuickQuizPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/structure-notes"
+            element={
+              <ProtectedRoute requireStudent>
+                <StructureNotesPage />
               </ProtectedRoute>
             }
           />
