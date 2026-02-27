@@ -1232,7 +1232,7 @@ const LessonViewPage: React.FC = () => {
   // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering)
   const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
 
-  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug); no slugify — URL or lesson.topicKey/topicSlug only
+  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug). Priority: URL topicKey first (from browse), then lesson.topicKey, then lesson.topicSlug.
   const topicKeyForBank = useMemo(() => {
     if (!lesson || !specKey) return null;
     const topicKeyFromUrl = searchParams.get("topicKey")?.trim() || null;
@@ -3273,7 +3273,7 @@ const LessonViewPage: React.FC = () => {
                       <button
                         onClick={handleAIGenerate}
                         disabled={isGenerating || !topicKeyForBank}
-                        title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+                        title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
                         style={{
                           padding: "8px 16px",
                           borderRadius: "10px",
@@ -3831,7 +3831,7 @@ const LessonViewPage: React.FC = () => {
             <button
               onClick={handleAIGenerate}
               disabled={isGenerating || !topicKeyForBank}
-              title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+              title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
               style={{
                 padding: "8px 16px",
                 borderRadius: "10px",

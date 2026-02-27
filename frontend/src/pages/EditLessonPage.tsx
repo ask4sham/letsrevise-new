@@ -5059,7 +5059,7 @@ const EditLessonPage: React.FC = () => {
                 <button
                   type="button"
                   disabled={generateAllLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
                   onClick={async () => {
                     if (!id) return;
                     setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
@@ -5087,7 +5087,7 @@ const EditLessonPage: React.FC = () => {
                 <button
                   type="button"
                   disabled={seedFlashcardsLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
                   onClick={async () => {
                     if (!id) return;
                     setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
@@ -5110,7 +5110,7 @@ const EditLessonPage: React.FC = () => {
                 <button
                   type="button"
                   disabled={seedQuizLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
                   onClick={async () => {
                     if (!id) return;
                     setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
@@ -5314,7 +5314,7 @@ const EditLessonPage: React.FC = () => {
                             cursor: seedFlashcardsLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer",
                           }}
                           disabled={seedFlashcardsLoading || !id || !topicKeyForBank}
-                          title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+                          title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
                         >
                           {seedFlashcardsLoading ? "Loading…" : "Generate Flashcards from Topic Bank"}
                         </button>
@@ -5788,7 +5788,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                         <button
                           type="button"
                           disabled={seedQuizLoading || !id || !topicKeyForBank}
-                          title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
+                          title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
                           onClick={async () => {
                             if (!id) return;
                             setSeedQuizError(null);
@@ -5823,7 +5823,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                           Manage quiz bank →
                         </Link>
                         {!topicKeyForBank && (
-                          <span style={{ fontSize: 13, color: "#6b7280" }}>Lesson not mapped to a syllabus topic.</span>
+                          <span style={{ fontSize: 13, color: "#6b7280" }}>This lesson isn't mapped to a syllabus subtopic yet.</span>
                         )}
                         {seedQuizError && (
                           <span style={{ color: "#dc2626", fontSize: 14 }}>{seedQuizError}</span>
