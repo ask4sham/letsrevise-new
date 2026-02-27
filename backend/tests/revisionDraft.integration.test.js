@@ -264,3 +264,50 @@ describe("Phase 9E kill-switch", () => {
     expect(res.body.code).toBe("REVISION_GENERATION_DISABLED");
   });
 });
+
+describe("PR-CONTENT-TARGETING-1: generate-revision requires valid topicKey", () => {
+  let teacherId;
+  let lessonNoTopicId;
+  let tokenTeacher;
+
+  beforeAll(async () => {
+    const teacher = await User.create({
+      firstName: "ContentTarget",
+      lastName: "Teacher",
+      email: "content-target-teacher@test.com",
+      password: bcrypt.hashSync("password123", 10),
+      userType: "teacher",
+    });
+    teacherId = teacher._id;
+    const lesson = await Lesson.create({
+      title: "Lesson without topic",
+      description: "D",
+      content: "C",
+      teacherId,
+      teacherName: "Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: null,
+      topicKey: null,
+      status: "draft",
+      isPublished: false,
+      pages: [{ pageId: "p1", order: 0, blocks: [{ type: "text", content: "x" }] }],
+      quiz: { questions: [] },
+      flashcards: [],
+    });
+    lessonNoTopicId = lesson._id;
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "content-target-teacher@test.com", password: "password123" });
+    tokenTeacher = login.body.token;
+  });
+
+  test("generate-revision returns 400 when lesson has no topicKey", async () => {
+    const res = await request(app)
+      .post(`/api/lessons/${lessonNoTopicId}/generate-revision`)
+      .set("Authorization", `Bearer ${tokenTeacher}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+    expect(String(res.body.error)).toMatch(/topicKey|syllabus topic/i);
+  });
+});

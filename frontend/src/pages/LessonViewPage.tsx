@@ -21,6 +21,7 @@ import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
+import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getUserDisplayName } from "../utils/userDisplayName";
@@ -1228,20 +1229,23 @@ const LessonViewPage: React.FC = () => {
     return [];
   }, [lesson]);
 
-  // PR-F1: topicKey for "Load flashcards from bank" (lesson.topicKey or slug from lesson.topic)
-  const topicKeyForBank = useMemo(() => {
-    if (!lesson) return "";
-    const key = (lesson as { topicKey?: string }).topicKey;
-    if (typeof key === "string" && key.trim()) return key.trim().toLowerCase();
-    const t = (lesson as { topic?: string }).topic;
-    if (typeof t === "string" && t.trim()) {
-      return t.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    }
-    return "";
-  }, [lesson]);
-
   // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering)
   const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
+
+  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug) for practice targeting
+  const topicKeyForBank = useMemo(() => {
+    if (!lesson || !specKey) return null;
+    const urlTopicKey = searchParams.get("topicKey")?.trim();
+    const lessonKey = (lesson as { topicKey?: string }).topicKey;
+    const rawCandidate =
+      urlTopicKey ||
+      (typeof lessonKey === "string" && lessonKey.trim() ? lessonKey.trim() : null) ||
+      (typeof (lesson as { topic?: string }).topic === "string" &&
+      (lesson as { topic?: string }).topic?.trim()
+        ? (lesson as { topic?: string }).topic!.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "")
+        : null);
+    return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: rawCandidate || undefined });
+  }, [lesson, specKey, searchParams]);
 
   useEffect(() => {
     fetchLessonSmart();
@@ -1300,7 +1304,13 @@ const LessonViewPage: React.FC = () => {
     setPracticeLoading(true);
     setPracticeError(null);
     api
-      .get(`/lessons/${id}/practice`, { params: { limit: 10, seed: practiceSeed } })
+      .get(`/lessons/${id}/practice`, {
+        params: {
+          limit: 10,
+          seed: practiceSeed,
+          ...(topicKeyForBank ? { topicKey: topicKeyForBank } : {}),
+        },
+      })
       .then((res) => {
         const data = res?.data;
         setPracticeAllowed(!!data?.allowed);
@@ -1319,7 +1329,7 @@ const LessonViewPage: React.FC = () => {
         }
       })
       .finally(() => setPracticeLoading(false));
-  }, [id, accessDecision?.allowed, accessDecision?.reason, practiceSeed]);
+  }, [id, accessDecision?.allowed, accessDecision?.reason, practiceSeed, topicKeyForBank]);
 
   const loadBankOnly = useCallback(async () => {
     if (!id || accessDecision?.allowed !== true) return;
@@ -1343,7 +1353,7 @@ const LessonViewPage: React.FC = () => {
     } finally {
       setPracticeLoading(false);
     }
-  }, [id, accessDecision?.allowed, practiceSeed]);
+  }, [id, accessDecision?.allowed, practiceSeed, topicKeyForBank]);
 
   // PR13.2: Fetch targeted practice (misconception-driven) when entitled
   useEffect(() => {
@@ -3235,20 +3245,37 @@ const LessonViewPage: React.FC = () => {
                   onLoadBankOnly={loadBankOnly}
                 />
 
+                {/* PR-CONTENT-TARGETING-1: warn when lesson has no valid topic mapping */}
+                {lesson && !topicKeyForBank && (
+                  <div
+                    style={{
+                      marginBottom: 12,
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      background: "#fef3c7",
+                      border: "1px solid #f59e0b",
+                      color: "#92400e",
+                      fontSize: 13,
+                    }}
+                  >
+                    This lesson isn&apos;t mapped to a syllabus topic yet, so practice can&apos;t be generated.
+                  </div>
+                )}
                 {/* Flashcards section — Section provides standard header and spacing */}
                 <Section
                   title="Flashcards"
                   right={isTeacherOrAdmin ? (
                       <button
                         onClick={handleAIGenerate}
-                        disabled={isGenerating}
+                        disabled={isGenerating || !topicKeyForBank}
+                        title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
                         style={{
                           padding: "8px 16px",
                           borderRadius: "10px",
                           border: "2px solid #10b981",
-                          background: isGenerating ? "#e5e7eb" : "#10b981",
+                          background: isGenerating || !topicKeyForBank ? "#e5e7eb" : "#10b981",
                           color: "white",
-                          cursor: isGenerating ? "not-allowed" : "pointer",
+                          cursor: isGenerating || !topicKeyForBank ? "not-allowed" : "pointer",
                           fontWeight: "bold",
                           fontSize: "14px"
                         }}
@@ -3777,20 +3804,36 @@ const LessonViewPage: React.FC = () => {
           onLoadBankOnly={loadBankOnly}
         />
 
+        {lesson && !topicKeyForBank && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "#fef3c7",
+              border: "1px solid #f59e0b",
+              color: "#92400e",
+              fontSize: 13,
+            }}
+          >
+            This lesson isn&apos;t mapped to a syllabus topic yet, so practice can&apos;t be generated.
+          </div>
+        )}
         {/* Flashcards section — Section for consistent spacing */}
         <Section
           title="Flashcards"
           right={isTeacherOrAdmin ? (
             <button
               onClick={handleAIGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || !topicKeyForBank}
+              title={!topicKeyForBank ? "Lesson not mapped to a syllabus topic" : undefined}
               style={{
                 padding: "8px 16px",
                 borderRadius: "10px",
                 border: "2px solid #10b981",
-                background: isGenerating ? "#e5e7eb" : "#10b981",
+                background: isGenerating || !topicKeyForBank ? "#e5e7eb" : "#10b981",
                 color: "white",
-                cursor: isGenerating ? "not-allowed" : "pointer",
+                cursor: isGenerating || !topicKeyForBank ? "not-allowed" : "pointer",
                 fontWeight: "bold",
                 fontSize: "14px"
               }}

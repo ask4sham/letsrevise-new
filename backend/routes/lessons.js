@@ -15,7 +15,8 @@ const ExamQuestion = require("../models/ExamQuestion");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("../utils/topicTaxonomy");
-const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
+const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
@@ -1067,6 +1068,18 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
       });
     }
 
+    // PR-CONTENT-TARGETING-1: block AI generation unless lesson has valid namespaced topicKey
+    try {
+      getValidNamespacedTopicKeyFromLesson(lesson);
+    } catch (err) {
+      if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({
+          error: err.message || "Lesson must be mapped to a valid syllabus topicKey (specKey:topicSlug) to generate practice.",
+        });
+      }
+      throw err;
+    }
+
     if (process.env.DISABLE_AI_REVISION_GENERATION === "1") {
       return res.status(503).json({
         success: false,
@@ -1726,10 +1739,25 @@ router.get(
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
-      const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
-      const parsed = parseTopicKey(topicKey);
-      const specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
-      const topicOnly = parsed.topicKey || topicKey.trim().toLowerCase();
+      // PR-CONTENT-TARGETING-1: prefer query topicKey (namespaced) when valid so practice is strictly scoped
+      const queryTopicKey = typeof req.query.topicKey === "string" ? req.query.topicKey.trim() : null;
+      let topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
+      let parsed = parseTopicKey(topicKey);
+      let specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
+      let topicOnly = parsed.topicKey || topicKey.trim().toLowerCase();
+      if (queryTopicKey && queryTopicKey.includes(":")) {
+        try {
+          const qParsed = parseTopicKey(queryTopicKey);
+          const qSpec = qParsed.specKey || DEFAULT_SPEC_LEGACY;
+          const qSlug = qParsed.topicKey || queryTopicKey.slice(queryTopicKey.indexOf(":") + 1).trim();
+          if (findTopicBySpecAndKey(qSpec, qSlug) || findTopicByKey(queryTopicKey)) {
+            topicKey = queryTopicKey;
+            parsed = qParsed;
+            specKey = qSpec;
+            topicOnly = qSlug;
+          }
+        } catch (_) { /* keep lesson-derived topicKey */ }
+      }
       const validatedKey =
         topicKey && (findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(topicKey)) ? topicKey : null;
       const topicQueryCandidates = validatedKey ? queryCandidates(specKey, topicOnly) : [];
@@ -2414,22 +2442,50 @@ router.post("/:id/auto-generate", auth, requireLessonOwnerOrAdmin, async (req, r
   }
 });
 
+// PR-CONTENT-TARGETING-1: Resolve and validate namespaced topicKey from lesson; throw if invalid.
+function getValidNamespacedTopicKeyFromLesson(lesson) {
+  const raw =
+    (lesson.topicKey && String(lesson.topicKey).trim()) ||
+    (lesson.topic && topicToKey(lesson.topic)) ||
+    "";
+  if (!raw) {
+    const err = new Error("Lesson must be mapped to a valid syllabus topicKey (specKey:topicSlug) to generate practice.");
+    err.code = "INVALID_TOPIC_KEY";
+    throw err;
+  }
+  const specKey =
+    (lesson.specKey && String(lesson.specKey).trim()) ||
+    parseTopicKey(raw).specKey ||
+    DEFAULT_SPEC_LEGACY;
+  const topicOnly = parseTopicKey(raw).topicKey || raw.trim();
+  const namespacedTopicKey = raw.includes(":") ? raw.trim() : buildTopicKey(specKey, topicOnly);
+  assertValidSpecKey(specKey);
+  assertValidNamespacedTopicKey(specKey, namespacedTopicKey);
+  return { specKey, namespacedTopicKey };
+}
+
 // PR-FLOW-2: Generate lesson flashcards from topic bank (published only, replace semantics)
 async function handleGenerateFlashcardsFromTopic(req, res) {
   try {
     const lessonId = req.params.id;
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
-    const topicKey =
-      (lesson.topicKey && String(lesson.topicKey).trim()) ||
-      (lesson.topic && topicToKey(lesson.topic)) ||
-      "";
-    if (!topicKey) {
-      return res.status(400).json({ msg: "Lesson has no topicKey; cannot generate flashcards." });
+    let specKey, namespacedTopicKey;
+    try {
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      specKey = resolved.specKey;
+      namespacedTopicKey = resolved.namespacedTopicKey;
+    } catch (err) {
+      if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({
+          msg: err.message || "Lesson must be mapped to a valid syllabus topicKey (specKey:topicSlug) to generate practice.",
+        });
+      }
+      throw err;
     }
     const ownerId = lesson.teacherId || lesson.createdBy;
     if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
-    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, topicKey, 20, { publishedOnly: true });
+    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 20, { publishedOnly: true });
     lesson.flashcards = bankCards;
     await lesson.save();
     const addedCount = bankCards.length;
@@ -2489,6 +2545,18 @@ router.post("/:id/generate/past-papers-from-topic", auth, requireLessonOwnerOrAd
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ msg: "Invalid lesson id" });
     }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    try {
+      getValidNamespacedTopicKeyFromLesson(lesson);
+    } catch (err) {
+      if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({
+          msg: err.message || "Lesson must be mapped to a valid syllabus topicKey (specKey:topicSlug) to generate practice.",
+        });
+      }
+      throw err;
+    }
     const result = await generateLessonPastPapersFromTopic({
       lessonId,
       userId: req.user._id || req.user.userId,
@@ -2517,6 +2585,18 @@ router.post("/:id/generate/assessment-from-topic", auth, requireLessonOwnerOrAdm
     const lessonId = req.params.id;
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    try {
+      getValidNamespacedTopicKeyFromLesson(lesson);
+    } catch (err) {
+      if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({
+          msg: err.message || "Lesson must be mapped to a valid syllabus topicKey (specKey:topicSlug) to generate practice.",
+        });
+      }
+      throw err;
     }
     const result = await generateLessonAssessmentFromTopic({
       lessonId,
