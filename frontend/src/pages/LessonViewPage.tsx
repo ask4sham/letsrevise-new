@@ -1141,12 +1141,29 @@ const LessonViewPage: React.FC = () => {
     }
   }, [showFlashcards]);
 
+  // PR-FE-REVIEWS-COLLAPSE-1: Student Reviews collapsed by default, expand on pill click
+  const [showReviews, setShowReviews] = useState(false);
+  const reviewsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showReviews && reviewsRef.current) {
+      reviewsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showReviews]);
+
   // Unlock (1 ShamCoin) flow: error message when 400 "Not enough ShamCoins"
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
 
   // ✅ Only enable legacy reviews when lessonId is a Mongo ObjectId.
   const reviewsEnabled = isMongoObjectId(id);
+  // Single source of truth for green CTA: "Rajiv – review the lesson" (never #NAME or placeholders)
+  const rawFirstName =
+    user?.firstName?.trim() ||
+    (user as any)?.name?.split?.(" ")?.[0]?.trim() ||
+    getUserDisplayName(user ?? undefined) ||
+    "";
+  const firstName = rawFirstName && !/^#NAME$/i.test(rawFirstName) ? rawFirstName : "";
+  const reviewCtaLabel = firstName ? `${firstName} – review the lesson` : "Review the lesson";
 
   // ============================
   // Visuals (concept diagrams / animations)
@@ -3026,48 +3043,7 @@ const LessonViewPage: React.FC = () => {
                   />
                 )}
 
-                {/* Prev / Next */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: 22,
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button
-                    disabled={!prevPage}
-                    onClick={() => prevPage && goToPage(prevPage)}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 10,
-                      border: "2px solid rgba(0,0,0,0.20)",
-                      background: prevPage ? "white" : "#f3f4f6",
-                      cursor: prevPage ? "pointer" : "not-allowed",
-                      color: "#111827",
-                      fontWeight: 800,
-                    }}
-                  >
-                    ← Previous
-                  </button>
-
-                  <button
-                    disabled={!nextPage}
-                    onClick={() => nextPage && goToPage(nextPage)}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 10,
-                      border: "none",
-                      background: nextPage ? "#48bb78" : "#9ca3af",
-                      cursor: nextPage ? "pointer" : "not-allowed",
-                      color: "white",
-                      fontWeight: 900,
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
+                {/* SS2: Inline Prev/Next removed; use bottom nav (LessonPrevNextBar) only */}
 
                 {/* Step 4 RAG + Step 5 Summarise (when user has access) */}
                 {id && accessDecision?.allowed && (
@@ -3300,7 +3276,9 @@ const LessonViewPage: React.FC = () => {
                   variant="plain"
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* PR-FE-REVIEWS-COLLAPSE-1: SS2-style inline row: Test learning with + Flashcards pill + Finished? + Student reviews pill */}
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 14, color: "#374151" }}>Test learning with:</span>
                       <button
                         type="button"
                         onClick={() => setShowFlashcards((v) => !v)}
@@ -3319,10 +3297,33 @@ const LessonViewPage: React.FC = () => {
                         {showFlashcards ? "Hide flashcards" : "Flashcards"}
                       </button>
                       {flashcards.length > 0 && !showFlashcards && (
-                        <span style={{ fontSize: 13, color: "#6b7280" }}>{flashcards.length} cards available</span>
+                        <span style={{ fontSize: 13, color: "#6b7280", opacity: 0.8 }}>{flashcards.length} cards available</span>
                       )}
                       {flashcards.length === 0 && (
                         <span style={{ fontSize: 13, color: "#9ca3af" }}>No flashcards available</span>
+                      )}
+                      {isLastPage && (
+                        <span style={{ marginLeft: "auto", opacity: 0.9, fontSize: 14, color: "#64748b" }}>
+                          Finished the lesson? See what other students thought.
+                        </span>
+                      )}
+                      {isLastPage && (
+                        <button
+                          type="button"
+                          onClick={() => setShowReviews((v) => !v)}
+                          style={{
+                            padding: "10px 18px",
+                            borderRadius: 999,
+                            border: "1px solid #48bb78",
+                            background: showReviews ? "#c6f6d5" : "#48bb78",
+                            color: showReviews ? "#22543d" : "white",
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            fontSize: 14,
+                          }}
+                        >
+                          {showReviews ? "Hide reviews" : "Student reviews"}
+                        </button>
                       )}
                     </div>
                     {showFlashcards && (
@@ -3394,103 +3395,91 @@ const LessonViewPage: React.FC = () => {
                         />
                       </div>
                     )}
+                    {/* PR-FE-REVIEWS-COLLAPSE-1: Student Reviews expanded only when showReviews; CTA inside expanded block */}
+                    {showReviews && (
+                      <div ref={reviewsRef}>
+                        <Section
+                          title="Student Reviews"
+                          id="student-reviews"
+                          right={
+                            reviewsEnabled ? (
+                              <button
+                                onClick={() => setShowReviewForm(true)}
+                                style={{
+                                  padding: "10px 20px",
+                                  background: "#48bb78",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                ✏️ {reviewCtaLabel}
+                              </button>
+                            ) : undefined
+                          }
+                          variant="plain"
+                        >
+                          {!reviewsEnabled && (
+                            <div
+                              style={{
+                                padding: "14px",
+                                borderRadius: "10px",
+                                background: "#f7f7ff",
+                                color: "rgba(0,0,0,0.75)",
+                                border: "1px solid rgba(0,0,0,0.08)",
+                              }}
+                            >
+                              Reviews are coming soon for these lessons.
+                            </div>
+                          )}
+
+                          {reviewsEnabled && showReviewForm && (
+                            <div style={{ marginBottom: "30px" }}>
+                              <ReviewForm
+                                lessonId={lesson.id}
+                                onReviewSubmitted={handleReviewSubmitted}
+                              />
+                              <div style={{ textAlign: "right", marginTop: "10px" }}>
+                                <button
+                                  onClick={() => setShowReviewForm(false)}
+                                  style={{
+                                    padding: "8px 16px",
+                                    background: "#e2e8f0",
+                                    color: "#4a5568",
+                                    border: "none",
+                                    borderRadius: "6px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {reviewsEnabled && reviewSubmitted && (
+                            <div
+                              style={{
+                                backgroundColor: "#d4edda",
+                                color: "#155724",
+                                padding: "1rem",
+                                borderRadius: "0.375rem",
+                                marginBottom: "1.5rem",
+                                border: "1px solid #c3e6cb",
+                              }}
+                            >
+                              ✅ Thank you for your review!
+                            </div>
+                          )}
+
+                          {reviewsEnabled ? <ReviewList lessonId={lesson.id} hideTitle /> : null}
+                        </Section>
+                      </div>
+                    )}
                   </div>
                 </Section>
-
-                {/* PR-UX-REVIEWS-1: Student Reviews only on last page */}
-                {/* PR-REVIEWS-2: Personalize CTA with student name */}
-                {isLastPage && (() => {
-                  const displayName = getUserDisplayName(user ?? undefined);
-                  const reviewCtaLabel =
-                    user?.userType === "student" && displayName
-                      ? `Review this lesson, ${displayName}`
-                      : "Write a Review";
-                  return (
-                  <>
-                    <p style={{ marginTop: 24, marginBottom: 8, color: "#64748b", fontSize: 14 }}>
-                      Finished the lesson? See what other students thought.
-                    </p>
-                  <Section
-                    title="Student Reviews"
-                    id="student-reviews"
-                    right={
-                      reviewsEnabled ? (
-                        <button
-                          onClick={() => setShowReviewForm(true)}
-                          style={{
-                            padding: "10px 20px",
-                            background: "#48bb78",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          ✏️ {reviewCtaLabel}
-                        </button>
-                      ) : undefined
-                    }
-                    variant="plain"
-                  >
-                    {!reviewsEnabled && (
-                      <div
-                        style={{
-                          padding: "14px",
-                          borderRadius: "10px",
-                          background: "#f7f7ff",
-                          color: "rgba(0,0,0,0.75)",
-                          border: "1px solid rgba(0,0,0,0.08)",
-                        }}
-                      >
-                        Reviews are coming soon for these lessons.
-                      </div>
-                    )}
-
-                    {reviewsEnabled && showReviewForm && (
-                      <div style={{ marginBottom: "30px" }}>
-                        <ReviewForm
-                          lessonId={lesson.id}
-                          onReviewSubmitted={handleReviewSubmitted}
-                        />
-                        <div style={{ textAlign: "right", marginTop: "10px" }}>
-                          <button
-                            onClick={() => setShowReviewForm(false)}
-                            style={{
-                              padding: "8px 16px",
-                              background: "#e2e8f0",
-                              color: "#4a5568",
-                              border: "none",
-                              borderRadius: "6px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {reviewsEnabled && reviewSubmitted && (
-                      <div
-                        style={{
-                          backgroundColor: "#d4edda",
-                          color: "#155724",
-                          padding: "1rem",
-                          borderRadius: "0.375rem",
-                          marginBottom: "1.5rem",
-                          border: "1px solid #c3e6cb",
-                        }}
-                      >
-                        ✅ Thank you for your review!
-                      </div>
-                    )}
-
-                    {reviewsEnabled ? <ReviewList lessonId={lesson.id} hideTitle /> : null}
-                  </Section>
-                  </>
-                  );
-                })()}
               </div>
             </main>
 
@@ -3885,7 +3874,9 @@ const LessonViewPage: React.FC = () => {
           variant="plain"
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* PR-FE-REVIEWS-COLLAPSE-1: SS2-style inline row (legacy: single page, always show Finished? + Student reviews pill) */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 14, color: "#374151" }}>Test learning with:</span>
               <button
                 type="button"
                 onClick={() => setShowFlashcards((v) => !v)}
@@ -3904,11 +3895,30 @@ const LessonViewPage: React.FC = () => {
                 {showFlashcards ? "Hide flashcards" : "Flashcards"}
               </button>
               {flashcards.length > 0 && !showFlashcards && (
-                <span style={{ fontSize: 13, color: "#6b7280" }}>{flashcards.length} cards available</span>
+                <span style={{ fontSize: 13, color: "#6b7280", opacity: 0.8 }}>{flashcards.length} cards available</span>
               )}
               {flashcards.length === 0 && (
                 <span style={{ fontSize: 13, color: "#9ca3af" }}>No flashcards available</span>
               )}
+              <span style={{ marginLeft: "auto", opacity: 0.9, fontSize: 14, color: "#64748b" }}>
+                Finished the lesson? See what other students thought.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowReviews((v) => !v)}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 999,
+                  border: "1px solid #48bb78",
+                  background: showReviews ? "#c6f6d5" : "#48bb78",
+                  color: showReviews ? "#22543d" : "white",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                {showReviews ? "Hide reviews" : "Student reviews"}
+              </button>
             </div>
             {showFlashcards && (
               <div ref={flashcardsViewerRef} style={{ display: "grid", gap: "16px" }}>
@@ -3977,6 +3987,89 @@ const LessonViewPage: React.FC = () => {
                     tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
                   }))}
                 />
+              </div>
+            )}
+            {/* PR-FE-REVIEWS-COLLAPSE-1: Student Reviews expanded only when showReviews (legacy) */}
+            {showReviews && (
+              <div ref={reviewsRef}>
+                <Section
+                  title="Student Reviews"
+                  id="student-reviews"
+                  right={
+                    reviewsEnabled ? (
+                      <button
+                        onClick={() => setShowReviewForm(true)}
+                        style={{
+                          padding: "10px 20px",
+                          background: "#48bb78",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        ✏️ {reviewCtaLabel}
+                      </button>
+                    ) : undefined
+                  }
+                  variant="plain"
+                >
+                  {!reviewsEnabled && (
+                    <div
+                      style={{
+                        padding: "14px",
+                        borderRadius: "10px",
+                        background: "#f7f7ff",
+                        color: "rgba(0,0,0,0.75)",
+                        border: "1px solid rgba(0,0,0,0.08)",
+                      }}
+                    >
+                      Reviews are coming soon for these lessons.
+                    </div>
+                  )}
+
+                  {reviewsEnabled && showReviewForm && (
+                    <div style={{ marginBottom: "30px" }}>
+                      <ReviewForm
+                        lessonId={lesson.id}
+                        onReviewSubmitted={handleReviewSubmitted}
+                      />
+                      <div style={{ textAlign: "right", marginTop: "10px" }}>
+                        <button
+                          onClick={() => setShowReviewForm(false)}
+                          style={{
+                            padding: "8px 16px",
+                            background: "#e2e8f0",
+                            color: "#4a5568",
+                            border: "none",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {reviewsEnabled && reviewSubmitted && (
+                    <div
+                      style={{
+                        backgroundColor: "#d4edda",
+                        color: "#155724",
+                        padding: "1rem",
+                        borderRadius: "0.375rem",
+                        marginBottom: "1.5rem",
+                        border: "1px solid #c3e6cb",
+                      }}
+                    >
+                      ✅ Thank you for your review!
+                    </div>
+                  )}
+
+                  {reviewsEnabled ? <ReviewList lessonId={lesson.id} hideTitle /> : null}
+                </Section>
               </div>
             )}
           </div>
