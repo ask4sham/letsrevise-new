@@ -1132,6 +1132,15 @@ const LessonViewPage: React.FC = () => {
   const [loadFromBankLoading, setLoadFromBankLoading] = useState(false);
   const [loadFromBankError, setLoadFromBankError] = useState<string | null>(null);
 
+  // PR-FE-FLASHCARDS-COLLAPSE-1: flashcards section collapsed by default, expand on click
+  const [showFlashcards, setShowFlashcards] = useState(false);
+  const flashcardsViewerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showFlashcards && flashcardsViewerRef.current) {
+      flashcardsViewerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showFlashcards]);
+
   // Unlock (1 ShamCoin) flow: error message when 400 "Not enough ShamCoins"
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
@@ -3266,7 +3275,7 @@ const LessonViewPage: React.FC = () => {
                     This lesson isn&apos;t mapped to a syllabus subtopic yet, so flashcards and practice can&apos;t be generated.
                   </div>
                 )}
-                {/* Flashcards section — Section provides standard header and spacing */}
+                {/* PR-FE-FLASHCARDS-COLLAPSE-1: Flashcards collapsed by default; button expands viewer */}
                 <Section
                   title="Flashcards"
                   right={isTeacherOrAdmin ? (
@@ -3290,74 +3299,101 @@ const LessonViewPage: React.FC = () => {
                     ) : undefined}
                   variant="plain"
                 >
-                  <div style={{ display: "grid", gap: "16px" }}>
-                    {/* Debug only: requires REACT_APP_DEV_TOOLS=1 (hidden from teachers to avoid confusion) */}
-                    {process.env.REACT_APP_DEV_TOOLS === "1" && (
-                      <div
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowFlashcards((v) => !v)}
+                        disabled={flashcards.length === 0}
                         style={{
-                          padding: "10px 12px",
-                          borderRadius: 8,
-                          background: "#f0f9ff",
-                          border: "1px solid #bae6fd",
-                          fontSize: 12,
-                          fontFamily: "monospace",
-                          color: "#0c4a6e",
+                          padding: "10px 18px",
+                          borderRadius: 999,
+                          border: "1px solid #8b5cf6",
+                          background: flashcards.length === 0 ? "#f3f4f6" : showFlashcards ? "#ede9fe" : "#8b5cf6",
+                          color: flashcards.length === 0 ? "#9ca3af" : showFlashcards ? "#5b21b6" : "white",
+                          cursor: flashcards.length === 0 ? "not-allowed" : "pointer",
+                          fontWeight: 600,
+                          fontSize: 14,
                         }}
-                        data-dev="flashcard-debug"
                       >
-                        <div><strong>Flashcard debug</strong></div>
-                        <div>Count from API: {flashcards.length}</div>
-                        <div>Lesson ID: {id ?? "—"}</div>
-                        <div>Access: {accessDecision?.reason ?? "—"}</div>
-                        {flashcards.length > 0 && (
-                          <div style={{ marginTop: 6 }}>
-                            First 5: {flashcards.slice(0, 5).map((c: any, i: number) => (
-                              <div key={c.id ?? i}>
-                                [{String(c.id ?? c._id ?? i).slice(0, 12)}] {(c.front || "").slice(0, 40)}{(c.front && c.front.length > 40) ? "…" : ""}
+                        {showFlashcards ? "Hide flashcards" : "Flashcards"}
+                      </button>
+                      {flashcards.length > 0 && !showFlashcards && (
+                        <span style={{ fontSize: 13, color: "#6b7280" }}>{flashcards.length} cards available</span>
+                      )}
+                      {flashcards.length === 0 && (
+                        <span style={{ fontSize: 13, color: "#9ca3af" }}>No flashcards available</span>
+                      )}
+                    </div>
+                    {showFlashcards && (
+                      <div ref={flashcardsViewerRef} style={{ display: "grid", gap: "16px" }}>
+                        {process.env.REACT_APP_DEV_TOOLS === "1" && (
+                          <div
+                            style={{
+                              padding: "10px 12px",
+                              borderRadius: 8,
+                              background: "#f0f9ff",
+                              border: "1px solid #bae6fd",
+                              fontSize: 12,
+                              fontFamily: "monospace",
+                              color: "#0c4a6e",
+                            }}
+                            data-dev="flashcard-debug"
+                          >
+                            <div><strong>Flashcard debug</strong></div>
+                            <div>Count from API: {flashcards.length}</div>
+                            <div>Lesson ID: {id ?? "—"}</div>
+                            <div>Access: {accessDecision?.reason ?? "—"}</div>
+                            {flashcards.length > 0 && (
+                              <div style={{ marginTop: 6 }}>
+                                First 5: {flashcards.slice(0, 5).map((c: any, i: number) => (
+                                  <div key={c.id ?? i}>
+                                    [{String(c.id ?? c._id ?? i).slice(0, 12)}] {(c.front || "").slice(0, 40)}{(c.front && c.front.length > 40) ? "…" : ""}
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
+                        {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
+                          <div style={{ marginBottom: 8 }}>
+                            <button
+                              type="button"
+                              onClick={handleLoadFromBank}
+                              disabled={loadFromBankLoading}
+                              style={{
+                                padding: "8px 16px",
+                                borderRadius: "8px",
+                                border: "1px solid #2563eb",
+                                background: loadFromBankLoading ? "#e5e7eb" : "#eff6ff",
+                                color: "#2563eb",
+                                cursor: loadFromBankLoading ? "not-allowed" : "pointer",
+                                fontWeight: 600,
+                                fontSize: "14px",
+                              }}
+                            >
+                              {loadFromBankLoading ? "Loading…" : "Load flashcards from bank"}
+                            </button>
+                            {loadFromBankError ? (
+                              <span style={{ marginLeft: 8, fontSize: 13, color: "#dc2626" }}>{loadFromBankError}</span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <FlashcardsView
+                          title="Flashcards"
+                          hideTitle
+                          cards={flashcards.map((flashcard: any, i: number) => ({
+                            id: flashcard.id ?? flashcard._id ?? String(i),
+                            front: flashcard.front ?? flashcard.question ?? "",
+                            back: flashcard.back ?? flashcard.answer ?? "",
+                            difficulty: (flashcard.difficulty && [1, 2, 3].includes(flashcard.difficulty))
+                              ? (flashcard.difficulty as 1 | 2 | 3)
+                              : 1,
+                            tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
+                          }))}
+                        />
                       </div>
                     )}
-                    {/* PR-F1: Load from bank — teacher only, when no flashcards */}
-                    {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
-                      <div style={{ marginBottom: 8 }}>
-                        <button
-                          type="button"
-                          onClick={handleLoadFromBank}
-                          disabled={loadFromBankLoading}
-                          style={{
-                            padding: "8px 16px",
-                            borderRadius: "8px",
-                            border: "1px solid #2563eb",
-                            background: loadFromBankLoading ? "#e5e7eb" : "#eff6ff",
-                            color: "#2563eb",
-                            cursor: loadFromBankLoading ? "not-allowed" : "pointer",
-                            fontWeight: 600,
-                            fontSize: "14px",
-                          }}
-                        >
-                          {loadFromBankLoading ? "Loading…" : "Load flashcards from bank"}
-                        </button>
-                        {loadFromBankError ? (
-                          <span style={{ marginLeft: 8, fontSize: 13, color: "#dc2626" }}>{loadFromBankError}</span>
-                        ) : null}
-                      </div>
-                    ) : null}
-            <FlashcardsView
-              title="Flashcards"
-              hideTitle
-                      cards={flashcards.map((flashcard: any, i: number) => ({
-                        id: flashcard.id ?? flashcard._id ?? String(i),
-                        front: flashcard.front ?? flashcard.question ?? "",
-                        back: flashcard.back ?? flashcard.answer ?? "",
-                        difficulty: (flashcard.difficulty && [1, 2, 3].includes(flashcard.difficulty))
-                          ? (flashcard.difficulty as 1 | 2 | 3)
-                          : 1,
-                        tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
-                      }))}
-                    />
                   </div>
                 </Section>
 
@@ -3824,7 +3860,7 @@ const LessonViewPage: React.FC = () => {
             This lesson isn&apos;t mapped to a syllabus subtopic yet, so flashcards and practice can&apos;t be generated.
           </div>
         )}
-        {/* Flashcards section — Section for consistent spacing */}
+        {/* PR-FE-FLASHCARDS-COLLAPSE-1: Flashcards collapsed by default; button expands viewer */}
         <Section
           title="Flashcards"
           right={isTeacherOrAdmin ? (
@@ -3848,72 +3884,101 @@ const LessonViewPage: React.FC = () => {
           ) : undefined}
           variant="plain"
         >
-          <div style={{ display: "grid", gap: "16px" }}>
-            {process.env.REACT_APP_DEV_TOOLS === "1" && (
-              <div
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setShowFlashcards((v) => !v)}
+                disabled={flashcards.length === 0}
                 style={{
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  background: "#f0f9ff",
-                  border: "1px solid #bae6fd",
-                  fontSize: 12,
-                  fontFamily: "monospace",
-                  color: "#0c4a6e",
+                  padding: "10px 18px",
+                  borderRadius: 999,
+                  border: "1px solid #8b5cf6",
+                  background: flashcards.length === 0 ? "#f3f4f6" : showFlashcards ? "#ede9fe" : "#8b5cf6",
+                  color: flashcards.length === 0 ? "#9ca3af" : showFlashcards ? "#5b21b6" : "white",
+                  cursor: flashcards.length === 0 ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  fontSize: 14,
                 }}
-                data-dev="flashcard-debug"
               >
-                <div><strong>Flashcard debug</strong></div>
-                <div>Count from API: {flashcards.length}</div>
-                <div>Lesson ID: {id ?? "—"}</div>
-                <div>Access: {accessDecision?.reason ?? "—"}</div>
-                {flashcards.length > 0 && (
-                  <div style={{ marginTop: 6 }}>
-                    First 5: {flashcards.slice(0, 5).map((c: any, i: number) => (
-                      <div key={c.id ?? i}>
-                        [{String(c.id ?? c._id ?? i).slice(0, 12)}] {(c.front || "").slice(0, 40)}{(c.front && c.front.length > 40) ? "…" : ""}
+                {showFlashcards ? "Hide flashcards" : "Flashcards"}
+              </button>
+              {flashcards.length > 0 && !showFlashcards && (
+                <span style={{ fontSize: 13, color: "#6b7280" }}>{flashcards.length} cards available</span>
+              )}
+              {flashcards.length === 0 && (
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>No flashcards available</span>
+              )}
+            </div>
+            {showFlashcards && (
+              <div ref={flashcardsViewerRef} style={{ display: "grid", gap: "16px" }}>
+                {process.env.REACT_APP_DEV_TOOLS === "1" && (
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      fontSize: 12,
+                      fontFamily: "monospace",
+                      color: "#0c4a6e",
+                    }}
+                    data-dev="flashcard-debug"
+                  >
+                    <div><strong>Flashcard debug</strong></div>
+                    <div>Count from API: {flashcards.length}</div>
+                    <div>Lesson ID: {id ?? "—"}</div>
+                    <div>Access: {accessDecision?.reason ?? "—"}</div>
+                    {flashcards.length > 0 && (
+                      <div style={{ marginTop: 6 }}>
+                        First 5: {flashcards.slice(0, 5).map((c: any, i: number) => (
+                          <div key={c.id ?? i}>
+                            [{String(c.id ?? c._id ?? i).slice(0, 12)}] {(c.front || "").slice(0, 40)}{(c.front && c.front.length > 40) ? "…" : ""}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
+                {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <button
+                      type="button"
+                      onClick={handleLoadFromBank}
+                      disabled={loadFromBankLoading}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "8px",
+                        border: "1px solid #2563eb",
+                        background: loadFromBankLoading ? "#e5e7eb" : "#eff6ff",
+                        color: "#2563eb",
+                        cursor: loadFromBankLoading ? "not-allowed" : "pointer",
+                        fontWeight: 600,
+                        fontSize: "14px",
+                      }}
+                    >
+                      {loadFromBankLoading ? "Loading…" : "Load flashcards from bank"}
+                    </button>
+                    {loadFromBankError ? (
+                      <span style={{ marginLeft: 8, fontSize: 13, color: "#dc2626" }}>{loadFromBankError}</span>
+                    ) : null}
+                  </div>
+                ) : null}
+                <FlashcardsView
+                  title="Flashcards"
+                  hideTitle
+                  cards={flashcards.map((flashcard: any, i: number) => ({
+                    id: flashcard.id ?? flashcard._id ?? String(i),
+                    front: flashcard.front ?? flashcard.question ?? "",
+                    back: flashcard.back ?? flashcard.answer ?? "",
+                    difficulty: (flashcard.difficulty && [1, 2, 3].includes(flashcard.difficulty))
+                      ? (flashcard.difficulty as 1 | 2 | 3)
+                      : 1,
+                    tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
+                  }))}
+                />
               </div>
             )}
-            {isTeacherOrAdmin && flashcards.length === 0 && topicKeyForBank ? (
-              <div style={{ marginBottom: 8 }}>
-                <button
-                  type="button"
-                  onClick={handleLoadFromBank}
-                  disabled={loadFromBankLoading}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    border: "1px solid #2563eb",
-                    background: loadFromBankLoading ? "#e5e7eb" : "#eff6ff",
-                    color: "#2563eb",
-                    cursor: loadFromBankLoading ? "not-allowed" : "pointer",
-                    fontWeight: 600,
-                    fontSize: "14px",
-                  }}
-                >
-                  {loadFromBankLoading ? "Loading…" : "Load flashcards from bank"}
-                </button>
-                {loadFromBankError ? (
-                  <span style={{ marginLeft: 8, fontSize: 13, color: "#dc2626" }}>{loadFromBankError}</span>
-                ) : null}
-              </div>
-            ) : null}
-            <FlashcardsView
-              title="Flashcards"
-              hideTitle
-              cards={flashcards.map((flashcard: any, i: number) => ({
-                id: flashcard.id ?? flashcard._id ?? String(i),
-                front: flashcard.front ?? flashcard.question ?? "",
-                back: flashcard.back ?? flashcard.answer ?? "",
-                difficulty: (flashcard.difficulty && [1, 2, 3].includes(flashcard.difficulty))
-                  ? (flashcard.difficulty as 1 | 2 | 3)
-                  : 1,
-                tags: Array.isArray(flashcard.tags) ? flashcard.tags : [],
-              }))}
-            />
           </div>
         </Section>
 
