@@ -20,6 +20,8 @@ import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
+import { NextTopicCTA } from "../components/lesson/NextTopicCTA";
+import type { SpecKey } from "../api/taxonomy";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -142,6 +144,21 @@ interface Lesson {
   assessment?: { questions?: Array<unknown> };
   /** Past papers (from topic bank snapshot) */
   pastPapers?: Array<unknown>;
+}
+
+/** PR-STUDENT-LESSON-NAV-1: Map lesson metadata to taxonomy specKey (same order as topic picker). */
+function getSpecKeyFromLesson(lesson: Lesson | null): SpecKey | null {
+  if (!lesson) return null;
+  const board = (lesson.examBoardName || "").trim();
+  if (board !== "AQA") return null;
+  if ((lesson.level || "").trim() !== "GCSE") return null;
+  const sub = (lesson.subject || "").trim().toLowerCase();
+  if (sub === "biology") return "aqa-gcse-biology";
+  if (sub === "chemistry") return "aqa-gcse-chemistry";
+  if (sub === "physics") return "aqa-gcse-physics";
+  if (sub === "mathematics" || sub === "maths") return "aqa-gcse-maths-higher";
+  if (sub === "english") return "aqa-gcse-english-language";
+  return null;
 }
 
 // ✅ Define a type for the flashcards with proper difficulty
@@ -1216,6 +1233,9 @@ const LessonViewPage: React.FC = () => {
     }
     return "";
   }, [lesson]);
+
+  // PR-STUDENT-LESSON-NAV-1: specKey for NextTopicCTA (taxonomy ordering)
+  const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
 
   useEffect(() => {
     fetchUserData();
@@ -3854,6 +3874,14 @@ const LessonViewPage: React.FC = () => {
               {nextSteps.studentSummary}
             </div>
           </div>
+        )}
+        {specKey && topicKeyForBank && (
+          <NextTopicCTA
+            specKey={specKey}
+            currentTopicKey={topicKeyForBank}
+            onNavigate={(nextKey) => navigate(nextKey ? `/browse-lessons?topicKey=${encodeURIComponent(nextKey)}` : "/browse-lessons")}
+            onBackToTopics={() => navigate("/browse-lessons")}
+          />
         )}
       </div>
     </div>
