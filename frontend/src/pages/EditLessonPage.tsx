@@ -13,6 +13,7 @@ import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
 import {
   type LessonBlockType,
@@ -354,6 +355,7 @@ const EditLessonPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { token, user } = useCurrentUser({ watchLocation: true });
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -503,14 +505,7 @@ const EditLessonPage: React.FC = () => {
   const csvFileInputRef = useRef<HTMLInputElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
 
-  const userType = useMemo(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return String(u?.userType || u?.type || "").toLowerCase();
-    } catch {
-      return "";
-    }
-  }, []);
+  const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isAdmin = userType === "admin";
   const backHref = isAdmin ? "/admin" : "/teacher-dashboard";
 
@@ -1939,7 +1934,6 @@ const EditLessonPage: React.FC = () => {
       return;
     }
 
-    const token = localStorage.getItem("token");
     if (!token) {
       alert("You must be signed in to upload media.");
       return;

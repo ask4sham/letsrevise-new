@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPricing } from '../api/pricing';
 import { formatMoney } from '../utils/money';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 
 interface SubscriptionPlan {
   id: string;
@@ -29,6 +30,7 @@ type SubscriptionPricing = {
 
 const SubscriptionPage: React.FC = () => {
   const navigate = useNavigate();
+  const { token } = useCurrentUser({ watchLocation: true });
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [pricing, setPricing] = useState<SubscriptionPricing | null>(null);
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
@@ -66,8 +68,7 @@ const SubscriptionPage: React.FC = () => {
         setPlans(Object.values(plansData.plans));
       }
 
-      // Fetch user subscription
-      const token = localStorage.getItem('token');
+      // Fetch user subscription (token from useCurrentUser)
       if (token) {
         const subResponse = await fetch('/api/subscriptions/my-subscription', {
           headers: {
@@ -94,7 +95,6 @@ const SubscriptionPage: React.FC = () => {
     setMessage(null);
     
     try {
-      const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
@@ -135,7 +135,6 @@ const SubscriptionPage: React.FC = () => {
     setMessage(null);
     
     try {
-      const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
@@ -173,7 +172,6 @@ const SubscriptionPage: React.FC = () => {
     setMessage(null);
     
     try {
-      const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
@@ -212,7 +210,6 @@ const SubscriptionPage: React.FC = () => {
     setMessage(null);
     
     try {
-      const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;

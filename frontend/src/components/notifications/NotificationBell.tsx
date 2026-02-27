@@ -1,6 +1,7 @@
 // src/components/notifications/NotificationBell.tsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 import './NotificationBell.css';
 
 interface Notification {
@@ -19,6 +20,7 @@ interface Notification {
 }
 
 const NotificationBell: React.FC = () => {
+  const { token } = useCurrentUser({ watchLocation: true });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +28,6 @@ const NotificationBell: React.FC = () => {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token');
       if (!token) return;
 
       const response = await axios.get('http://localhost:5000/api/notifications', {
@@ -43,7 +44,6 @@ const NotificationBell: React.FC = () => {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('token');
       if (!token) return;
 
       const response = await axios.get('http://localhost:5000/api/notifications/unread-count', {
@@ -63,7 +63,7 @@ const NotificationBell: React.FC = () => {
     const interval = setInterval(fetchUnreadCount, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,7 +73,7 @@ const NotificationBell: React.FC = () => {
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      const token = localStorage.getItem('token');
+      if (!token) return;
       await axios.put(`http://localhost:5000/api/notifications/${notificationId}/read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -90,7 +90,7 @@ const NotificationBell: React.FC = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const token = localStorage.getItem('token');
+      if (!token) return;
       await axios.put('http://localhost:5000/api/notifications/mark-all-read', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });

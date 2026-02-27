@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 
 interface PayoutBalance {
   totalEarnings: number;
@@ -40,6 +41,7 @@ interface PayoutStats {
 
 const TeacherPayoutPage: React.FC = () => {
   const navigate = useNavigate();
+  const { token } = useCurrentUser({ watchLocation: true });
   const [balance, setBalance] = useState<PayoutBalance | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [payoutHistory, setPayoutHistory] = useState<PayoutHistoryItem[]>([]);
@@ -53,11 +55,10 @@ const TeacherPayoutPage: React.FC = () => {
 
   useEffect(() => {
     fetchPayoutData();
-  }, []);
+  }, [token]);
 
   const fetchPayoutData = async () => {
     try {
-      const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
@@ -125,7 +126,10 @@ const TeacherPayoutPage: React.FC = () => {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
       const response = await fetch('http://localhost:5000/api/payouts/request', {
         method: 'POST',
         headers: {
@@ -159,9 +163,9 @@ const TeacherPayoutPage: React.FC = () => {
 
   const handleCancelPayout = async (payoutId: string) => {
     if (!window.confirm('Are you sure you want to cancel this payout request?')) return;
+    if (!token) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/payouts/cancel/${payoutId}`, {
         method: 'POST',
         headers: {

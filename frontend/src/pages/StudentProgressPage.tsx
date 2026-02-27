@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Toast from '../components/Toast';
 import { useGet } from '../hooks/useApi';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import { StudentStats, RecentActivity } from '../types/progress';
 
 const StudentProgressPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useCurrentUser({ watchLocation: true });
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -40,14 +42,13 @@ const StudentProgressPage: React.FC = () => {
       : (error as any).message || 'An unexpected error occurred while loading progress.';
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.userType !== 'student') {
+    if (!user || user.userType !== 'student') {
       navigate('/dashboard');
-    } else {
-      fetch();
+      return;
     }
+    fetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   const stats = data?.success ? (data.stats as StudentStats) : null;
   const recentActivity = data?.success

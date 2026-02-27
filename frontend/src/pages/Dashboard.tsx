@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { token, refresh } = useCurrentUser({ watchLocation: true });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
       return;
     }
-
     fetchUserProfile();
-  }, [navigate]);
+  }, [navigate, token]);
 
   const fetchUserProfile = async () => {
+    if (!token) return;
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get('http://localhost:5000/api/users/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -36,9 +36,11 @@ const Dashboard: React.FC = () => {
 
       setUser(profile);
       localStorage.setItem('user', JSON.stringify(profile));
+      refresh();
     } catch (error) {
       console.error('Error fetching user profile:', error);
       localStorage.removeItem('token');
+      refresh();
       navigate('/login');
     } finally {
       setLoading(false);

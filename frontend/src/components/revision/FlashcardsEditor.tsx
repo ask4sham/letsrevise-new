@@ -4,6 +4,7 @@ import { importFlashcards } from "../../api/flashcardBank";
 import { SpecSelector } from "../SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../../utils/specKey";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 import type { SpecKey } from "../../api/taxonomy";
 
 export type Flashcard = {
@@ -23,39 +24,6 @@ type Props = {
   onSaved?: () => void;
   isAdmin?: boolean; // Added: admin-only delete control
 };
-
-function getTokenFromStorage(): string | null {
-  const token = localStorage.getItem("token");
-  if (token && token.length > 10) return token;
-
-  // fallback for alternate storage shapes
-  const keys = ["jwt", "authToken", "accessToken"];
-  for (const k of keys) {
-    const v = localStorage.getItem(k);
-    if (v && v.length > 10) return v;
-  }
-
-  const blobKeys = ["auth", "user", "session"];
-  for (const k of blobKeys) {
-    const raw = localStorage.getItem(k);
-    if (!raw) continue;
-    try {
-      const obj = JSON.parse(raw);
-      const maybe =
-        obj?.token ||
-        obj?.jwt ||
-        obj?.authToken ||
-        obj?.accessToken ||
-        obj?.data?.token ||
-        obj?.user?.token;
-      if (typeof maybe === "string" && maybe.length > 10) return maybe;
-    } catch {
-      // ignore
-    }
-  }
-
-  return null;
-}
 
 function newId(prefix = "fc") {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
@@ -316,6 +284,7 @@ export default function FlashcardsEditor({
   onSaved,
   isAdmin = false, // Added: default to false for non-admin
 }: Props) {
+  const { token } = useCurrentUser({ watchLocation: true });
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
@@ -590,7 +559,6 @@ export default function FlashcardsEditor({
   const saveAll = async () => {
     resetMessages();
 
-    const token = getTokenFromStorage();
     if (!token) {
       setError("You must be logged in to save flashcards.");
       return;
@@ -705,7 +673,6 @@ export default function FlashcardsEditor({
   const generateWithAI = async () => {
     resetMessages();
 
-    const token = getTokenFromStorage();
     if (!token) {
       setError("You must be logged in to generate revision with AI.");
       return;

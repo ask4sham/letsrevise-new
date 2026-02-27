@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import FlashcardsEditor, { Flashcard } from "../components/revision/FlashcardsEditor";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type LessonResponse = {
   success?: boolean;
@@ -9,35 +10,6 @@ type LessonResponse = {
   _id?: string;
   flashcards?: Flashcard[];
 };
-
-function getTokenFromStorage(): string | null {
-  const keys = ["token", "jwt", "authToken", "accessToken"];
-  for (const k of keys) {
-    const v = localStorage.getItem(k);
-    if (v && v.length > 10) return v;
-  }
-
-  const blobKeys = ["auth", "user", "session"];
-  for (const k of blobKeys) {
-    const raw = localStorage.getItem(k);
-    if (!raw) continue;
-    try {
-      const obj = JSON.parse(raw);
-      const maybe =
-        obj?.token ||
-        obj?.jwt ||
-        obj?.authToken ||
-        obj?.accessToken ||
-        obj?.data?.token ||
-        obj?.user?.token;
-      if (typeof maybe === "string" && maybe.length > 10) return maybe;
-    } catch {
-      // ignore
-    }
-  }
-
-  return null;
-}
 
 /**
  * Teacher-only page that loads a lesson and allows editing/saving flashcards.
@@ -74,7 +46,6 @@ export default function FlashcardsEditorPage() {
         return;
       }
 
-      const token = getTokenFromStorage();
       if (!token) {
         setError("You must be logged in as a teacher to edit flashcards.");
         setLoading(false);
@@ -134,7 +105,7 @@ export default function FlashcardsEditorPage() {
     return () => {
       alive = false;
     };
-  }, [lessonId]);
+  }, [lessonId, token]);
 
   const pageStyle: React.CSSProperties = {
     maxWidth: 1100,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 interface Lesson {
   _id: string;
@@ -35,20 +36,19 @@ interface User {
 const EnhancedLessonView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { token, user, refresh } = useCurrentUser({ watchLocation: true });
   const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('content');
 
   useEffect(() => {
-    fetchLesson();
-    fetchUserData();
-  }, [id]);
+    if (token) fetchLesson();
+  }, [id, token]);
 
   const fetchLesson = async () => {
+    if (!token) return;
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get(`http://localhost:5000/api/lessons/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -61,18 +61,10 @@ const EnhancedLessonView: React.FC = () => {
     }
   };
 
-  const fetchUserData = () => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  };
-
   const handlePurchase = async () => {
-    if (!lesson) return;
+    if (!lesson || !token) return;
     
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.post(
         `http://localhost:5000/api/lessons/${lesson._id}/purchase`,
         {},
@@ -83,7 +75,10 @@ const EnhancedLessonView: React.FC = () => {
       
       if (response.data.success) {
         alert('Lesson purchased successfully!');
-        fetchUserData();
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          refresh();
+        }
       }
     } catch (err: any) {
       console.error('Purchase error:', err);
@@ -93,8 +88,8 @@ const EnhancedLessonView: React.FC = () => {
 
   const hasPurchased = () => {
     if (!user || !lesson) return false;
-    return user.purchasedLessons?.some(
-      purchase => purchase.lessonId === lesson._id
+    return (user as User).purchasedLessons?.some(
+      (purchase: { lessonId: string }) => purchase.lessonId === lesson._id
     );
   };
 

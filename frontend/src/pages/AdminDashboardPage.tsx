@@ -1,7 +1,8 @@
-// frontend/src/pages/AdminDashboardPage.tsx
+// frontend/src/pages/AdminDashboardPage.tsx — PR-AUTH-UI-3: use useCurrentUser for auth.
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface PlatformStats {
   users: {
@@ -104,6 +105,7 @@ type Msg = { type: "success" | "error"; text: string };
 
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useCurrentUser({ watchLocation: true });
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "users" | "lessons" | "transactions" | "templates"
@@ -153,16 +155,13 @@ const AdminDashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
-    // Check if user is admin
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user.userType !== "admin") {
+    if (user?.userType !== "admin") {
       navigate("/dashboard");
       return;
     }
-
     fetchDashboardStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.userType, navigate]);
 
   useEffect(() => {
     if (activeTab === "users") fetchUsers();
