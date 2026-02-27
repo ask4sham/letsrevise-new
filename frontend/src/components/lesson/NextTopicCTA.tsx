@@ -1,16 +1,17 @@
 /**
  * PR-STUDENT-LESSON-NAV-1: Next topic CTA at bottom of student lesson.
  * Uses taxonomy ordering (same as topic picker) to show next topic or "Back to topics".
+ * CTO: Only strip optional specKey: prefix; do not slugify (avoids breaking keys with underscores etc).
  */
 import React, { useMemo } from "react";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
 import type { SpecKey, TaxonomyTopic } from "../../api/taxonomy";
 
-function normalizeKey(key: string): string {
+/** Strip optional specKey: prefix only; no lowercasing or slugify to avoid breaking taxonomy key matching. */
+function topicKeyWithoutSpecPrefix(key: string): string {
   const s = (key || "").trim();
   if (!s) return "";
-  const withoutNamespace = s.includes(":") ? s.split(":").pop() || s : s;
-  return withoutNamespace.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  return s.includes(":") ? s.split(":").slice(1).join(":").trim() : s;
 }
 
 export interface NextTopicCTAProps {
@@ -34,12 +35,12 @@ export function NextTopicCTA({
     const ordered: { key: string; title: string }[] = [];
     for (const u of taxonomy.units) {
       for (const t of (u.topics || []) as TaxonomyTopic[]) {
-        ordered.push({ key: t.key ?? "", title: t.topic ?? "" });
+        ordered.push({ key: (t.key ?? "").trim(), title: t.topic ?? "" });
       }
     }
-    const normalized = normalizeKey(currentTopicKey);
-    if (!normalized) return { nextTopic: null, isLast: false };
-    const index = ordered.findIndex((t) => normalizeKey(t.key) === normalized);
+    const currentRaw = topicKeyWithoutSpecPrefix(currentTopicKey);
+    if (!currentRaw) return { nextTopic: null, isLast: false };
+    const index = ordered.findIndex((t) => t.key === currentRaw || topicKeyWithoutSpecPrefix(t.key) === currentRaw);
     if (index < 0) {
       if (process.env.NODE_ENV === "development") {
         console.warn("[NextTopicCTA] currentTopicKey not found in taxonomy:", currentTopicKey, "ordered keys:", ordered.map((o) => o.key));

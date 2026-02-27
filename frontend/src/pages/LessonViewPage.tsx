@@ -3462,6 +3462,15 @@ const LessonViewPage: React.FC = () => {
               </div>
             </aside>
           </div>
+          {/* PR-STUDENT-LESSON-NAV-1: CTA only on last page (student has actually finished) */}
+          {isLastPage && specKey && topicKeyForBank && (
+            <NextTopicCTA
+              specKey={specKey}
+              currentTopicKey={topicKeyForBank}
+              onNavigate={(nextKey) => navigate(nextKey ? `/browse-lessons?topicKey=${encodeURIComponent(nextKey)}` : "/browse-lessons")}
+              onBackToTopics={() => navigate("/browse-lessons")}
+            />
+          )}
         </div>
 
       </div>
