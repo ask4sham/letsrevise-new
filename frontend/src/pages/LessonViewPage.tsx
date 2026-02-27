@@ -2657,6 +2657,13 @@ const LessonViewPage: React.FC = () => {
     user?.userType === "teacher" ||
     (user as any)?.isAdmin === true;
 
+  // Canonical full-access gate: entitlement from backend OR role (admin/teacher). Used for quiz + unlock banner.
+  const hasFullLessonAccess =
+    accessDecision?.allowed === true ||
+    isTeacherOrAdmin ||
+    Boolean((user as any)?.adminPassActive) ||
+    Boolean((user as any)?.subscriptionActive);
+
   // ============================
   // ✅ New Student View (Pages)
   // ============================
@@ -2732,6 +2739,32 @@ const LessonViewPage: React.FC = () => {
             </Link>
           </div>
 
+          {/* [Dev] Access panel — REACT_APP_DEV_TOOLS=1 */}
+          {process.env.REACT_APP_DEV_TOOLS === "1" && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: 10,
+                borderRadius: 8,
+                background: "#f1f5f9",
+                border: "1px solid #cbd5e1",
+                fontSize: 11,
+                fontFamily: "monospace",
+                color: "#334155",
+              }}
+              data-dev="access-panel"
+            >
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>[Dev] Access</div>
+              <div>previewMode: {String(previewMode)}</div>
+              <div>accessDecision: {JSON.stringify(accessDecision ?? null)}</div>
+              <div>hasFullLessonAccess: {String(hasFullLessonAccess)}</div>
+              <div>userType: {String(user?.userType ?? "—")}</div>
+              <div>isAdmin: {String((user as any)?.isAdmin ?? "—")}</div>
+              <div>adminPassActive: {String((user as any)?.adminPassActive ?? "—")}</div>
+              <div>subscriptionActive: {String((user as any)?.subscriptionActive ?? "—")}</div>
+            </div>
+          )}
+
           {/* Lesson Integrity debug panel — teacher/admin only */}
           {isTeacherOrAdmin && lesson && (
             <div
@@ -2756,7 +2789,7 @@ const LessonViewPage: React.FC = () => {
             </div>
           )}
 
-          {accessDecision?.reason === "FREE_PREVIEW" && (
+          {!hasFullLessonAccess && accessDecision?.reason === "FREE_PREVIEW" && (
             <div
               style={{
                 padding: 8,
@@ -2770,7 +2803,7 @@ const LessonViewPage: React.FC = () => {
               You're viewing a free preview (first page only).
             </div>
           )}
-          {previewMode && (
+          {!hasFullLessonAccess && (
             <div
               style={{
                 marginBottom: 14,
@@ -2787,7 +2820,7 @@ const LessonViewPage: React.FC = () => {
               }}
             >
               <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>
-                Preview mode: subscribe to unlock the full lesson
+                Subscribe or unlock to access the full lesson
               </div>
               <button
                 onClick={() => navigate("/subscription")}
@@ -3056,8 +3089,8 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Phase C3: Preview mode CTA block */}
-                {previewMode && (
+                {/* Phase C3: Unlock CTA — only when user does not have full access */}
+                {!hasFullLessonAccess && (
                   <div
                     style={{
                       marginTop: "32px",
@@ -3194,7 +3227,7 @@ const LessonViewPage: React.FC = () => {
                       </pre>
                     </div>
                   )}
-                  {previewMode || accessDecision?.reason === "FREE_PREVIEW" ? (
+                  {!hasFullLessonAccess ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       Quiz available after unlocking the full lesson.
                     </div>
@@ -3543,6 +3576,33 @@ const LessonViewPage: React.FC = () => {
         ← Back to Dashboard
       </Link>
 
+      {/* [Dev] Access panel — REACT_APP_DEV_TOOLS=1 (legacy view) */}
+      {process.env.REACT_APP_DEV_TOOLS === "1" && (
+        <div
+          style={{
+            marginTop: 12,
+            marginBottom: 12,
+            padding: 10,
+            borderRadius: 8,
+            background: "#f1f5f9",
+            border: "1px solid #cbd5e1",
+            fontSize: 11,
+            fontFamily: "monospace",
+            color: "#334155",
+          }}
+          data-dev="access-panel"
+        >
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>[Dev] Access</div>
+          <div>previewMode: {String(previewMode)}</div>
+          <div>accessDecision: {JSON.stringify(accessDecision ?? null)}</div>
+          <div>hasFullLessonAccess: {String(hasFullLessonAccess)}</div>
+          <div>userType: {String(user?.userType ?? "—")}</div>
+          <div>isAdmin: {String((user as any)?.isAdmin ?? "—")}</div>
+          <div>adminPassActive: {String((user as any)?.adminPassActive ?? "—")}</div>
+          <div>subscriptionActive: {String((user as any)?.subscriptionActive ?? "—")}</div>
+        </div>
+      )}
+
       {/* Lesson Integrity debug panel — teacher/admin only, dev tools or non-prod (legacy view) */}
       {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && lesson && (
         <div
@@ -3644,8 +3704,8 @@ const LessonViewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Phase C3: Preview mode CTA block for legacy view */}
-        {previewMode && (
+        {/* Phase C3: Unlock CTA for legacy view — only when user does not have full access */}
+        {!hasFullLessonAccess && (
           <div
             style={{
               marginTop: "32px",
@@ -3770,14 +3830,14 @@ const LessonViewPage: React.FC = () => {
           </div>
         )}
 
-        {/* Subscribe CTA under FREE_PREVIEW (dynamic price from /api/pricing) */}
-        {(previewMode || accessDecision?.reason === "FREE_PREVIEW") && (
+        {/* Subscribe CTA when user does not have full access */}
+        {!hasFullLessonAccess && (
           <div style={{ marginTop: 16 }}>
             <SubscribeCTA lessonId={id || undefined} />
           </div>
         )}
 
-        {/* Check your understanding — Preview strips quiz; show locked message or full quiz */}
+        {/* Check your understanding — gate on hasFullLessonAccess */}
         <Section title="Check your understanding" variant="card">
           {process.env.REACT_APP_DEV_TOOLS === "1" && quizQuestions.length > 0 && (
             <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
@@ -3789,7 +3849,7 @@ const LessonViewPage: React.FC = () => {
               </pre>
             </div>
           )}
-          {previewMode || accessDecision?.reason === "FREE_PREVIEW" ? (
+          {!hasFullLessonAccess ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               Quiz available after unlocking the full lesson.
             </div>
