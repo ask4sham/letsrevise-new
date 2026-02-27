@@ -352,6 +352,53 @@ const parseMarkScheme = (markSchemeStr: string): string[] => {
   return trimmed.split(';').map(item => item.trim()).filter(item => item);
 };
 
+const HELP_DOC_URL = "/docs/TEACHER_TESTING_AND_PRACTICE_FLOW.md";
+
+function HelpCallout() {
+  const [hover, setHover] = useState(false);
+  const baseBg = "#E6F4FF";
+  const baseBorder = "#3B82F6";
+  return (
+    <a
+      href={HELP_DOC_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "block",
+        marginBottom: 12,
+        padding: 14,
+        borderRadius: 10,
+        background: hover ? "#D6EBFF" : baseBg,
+        border: `2px solid ${baseBorder}`,
+        textDecoration: "none",
+        color: "inherit",
+        cursor: "pointer",
+        transition: "background 0.15s ease",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <span style={{ flexShrink: 0, color: baseBorder }} aria-hidden>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+          </svg>
+        </span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#1e3a5f", marginBottom: 4 }}>
+            How to create a lesson (step by step)
+          </div>
+          <div style={{ fontSize: "0.8125rem", color: "#475569", lineHeight: 1.4 }}>
+            Start here if you&apos;re new. Explains quizzes, practice questions, and what students see.
+          </div>
+        </div>
+      </div>
+    </a>
+  );
+}
+
 const EditLessonPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -2442,6 +2489,8 @@ const EditLessonPage: React.FC = () => {
               <div style={{ fontWeight: 900, color: "#111827", marginBottom: 6 }}>
                 {isAdmin ? "Admin editor" : "Teacher editor"}
               </div>
+
+              <HelpCallout />
 
               <div style={{ color: "#6b7280", fontSize: "0.92rem", marginBottom: 12 }}>
                 Edit pages/blocks. Use "Upload image / video" inside blocks to insert media exactly where your cursor is.
