@@ -1,6 +1,6 @@
 /**
- * PR: Import → browse → edit smoke.
- * Proves full pipeline: CSV preview → bulk import (drafts) → list → PATCH edit → verify saved.
+ * PR-ROBUSTNESS-E2E-1: Import → browse → edit smoke.
+ * Proves full pipeline: CSV preview → bulk import (drafts) → list → PATCH edit (question + answer) → verify saved.
  */
 const request = require("supertest");
 const bcrypt = require("bcryptjs");
@@ -112,5 +112,89 @@ describe("Topic Quiz Questions — import then browse/edit smoke", () => {
     const afterEdit = getAgain.body.items.find((i) => String(i._id) === String(createdId));
     expect(afterEdit).toBeDefined();
     expect(afterEdit.questionText).toBe("Edited after import");
+
+    // 6) Edit answer (MCQ: correctChoice + choices)
+    const answerRes = await request(app)
+      .patch(`/api/topic-quiz-questions/${createdId}`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        choices: ["Yes", "No", "Maybe", "N/A"],
+        correctChoice: "B",
+      });
+    expect(answerRes.status).toBe(200);
+    expect(answerRes.body.item).toBeDefined();
+    expect(answerRes.body.item.correctIndex).toBe(1);
+    expect(answerRes.body.item.choices).toEqual(["Yes", "No", "Maybe", "N/A"]);
+
+    // 7) Verify answer persisted
+    const getAfterAnswer = await request(app)
+      .get("/api/topic-quiz-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ topicKey, status: "draft" });
+    expect(getAfterAnswer.status).toBe(200);
+    const afterAnswer = getAfterAnswer.body.items.find((i) => String(i._id) === String(createdId));
+    expect(afterAnswer).toBeDefined();
+    expect(afterAnswer.correctIndex).toBe(1);
+    expect(afterAnswer.choices).toEqual(["Yes", "No", "Maybe", "N/A"]);
+  });
+
+  test("short-answer: import → edit acceptableAnswers → verify saved", async () => {
+    const csvShort = [
+      "question,acceptable",
+      "Name the organelle that contains DNA.,nucleus|the nucleus",
+    ].join("\n");
+
+    const previewRes = await request(app)
+      .post("/api/topic-quiz-questions/bulk/preview")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey, specKey, format: "csv", type: "short-answer", text: csvShort });
+
+    expect(previewRes.status).toBe(200);
+    expect(previewRes.body.ok).toBe(true);
+    expect(previewRes.body.summary.validCount).toBeGreaterThanOrEqual(1);
+    expect(previewRes.body.previewItems.length).toBeGreaterThanOrEqual(1);
+    const first = previewRes.body.previewItems[0];
+    expect(first.type).toBe("short-answer");
+    expect(Array.isArray(first.acceptableAnswers)).toBe(true);
+    expect(first.acceptableAnswers.length).toBeGreaterThanOrEqual(1);
+
+    const itemsToImport = previewRes.body.previewItems.map((p) => ({
+      type: "short-answer",
+      questionText: p.questionText,
+      acceptableAnswers: p.acceptableAnswers || [],
+      matchMode: p.matchMode || "contains",
+      explanation: p.explanation || "",
+      tags: p.tags || [],
+    }));
+
+    const bulkRes = await request(app)
+      .post("/api/topic-quiz-questions/bulk")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ topicKey, specKey, items: itemsToImport, dedupeMode: "skip" });
+
+    expect(bulkRes.status).toBe(200);
+    expect(bulkRes.body.createdIds.length).toBeGreaterThanOrEqual(1);
+    const createdId = bulkRes.body.createdIds[0];
+
+    const editRes = await request(app)
+      .patch(`/api/topic-quiz-questions/${createdId}`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        acceptableAnswers: ["nucleus", "nuclei", "the nucleus"],
+        matchMode: "contains",
+      });
+
+    expect(editRes.status).toBe(200);
+    expect(editRes.body.item.type).toBe("short-answer");
+    expect(editRes.body.item.acceptableAnswers).toEqual(["nucleus", "nuclei", "the nucleus"]);
+    expect(editRes.body.item.matchMode).toBe("contains");
+
+    const getAgain = await request(app)
+      .get("/api/topic-quiz-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ topicKey, status: "draft" });
+    const afterEdit = getAgain.body.items.find((i) => String(i._id) === String(createdId));
+    expect(afterEdit).toBeDefined();
+    expect(afterEdit.acceptableAnswers).toEqual(["nucleus", "nuclei", "the nucleus"]);
   });
 });
