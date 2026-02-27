@@ -20,7 +20,7 @@ import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
-import { NextTopicCTA } from "../components/lesson/NextTopicCTA";
+import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getUserDisplayName } from "../utils/userDisplayName";
@@ -1240,7 +1240,7 @@ const LessonViewPage: React.FC = () => {
     return "";
   }, [lesson]);
 
-  // PR-STUDENT-LESSON-NAV-1: specKey for NextTopicCTA (taxonomy ordering)
+  // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering)
   const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
 
   useEffect(() => {
@@ -3456,12 +3456,12 @@ const LessonViewPage: React.FC = () => {
               </div>
             </aside>
           </div>
-          {/* PR-STUDENT-LESSON-NAV-1: CTA only on last page (student has actually finished) */}
-          {isLastPage && specKey && topicKeyForBank && (
-            <NextTopicCTA
+          {/* PR-STUDENT-LESSON-NAV-3: SS2-style prev/next bar at bottom */}
+          {specKey && topicKeyForBank && (
+            <LessonPrevNextBar
               specKey={specKey}
               currentTopicKey={topicKeyForBank}
-              onNavigate={(nextKey) => navigate(nextKey ? `/browse-lessons?topicKey=${encodeURIComponent(nextKey)}` : "/browse-lessons")}
+              onNavigateTopic={(key) => navigate(`/browse-lessons?topicKey=${encodeURIComponent(key)}`)}
               onBackToTopics={() => navigate("/browse-lessons")}
             />
           )}
@@ -3879,10 +3879,10 @@ const LessonViewPage: React.FC = () => {
           </div>
         )}
         {specKey && topicKeyForBank && (
-          <NextTopicCTA
+          <LessonPrevNextBar
             specKey={specKey}
             currentTopicKey={topicKeyForBank}
-            onNavigate={(nextKey) => navigate(nextKey ? `/browse-lessons?topicKey=${encodeURIComponent(nextKey)}` : "/browse-lessons")}
+            onNavigateTopic={(key) => navigate(`/browse-lessons?topicKey=${encodeURIComponent(key)}`)}
             onBackToTopics={() => navigate("/browse-lessons")}
           />
         )}
