@@ -92,6 +92,7 @@ import QuickQuizPage from "./pages/QuickQuizPage";
 import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
+import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
 
 import "./App.css";
 
@@ -529,6 +530,14 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherTopicPerformancePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/ops/link-students"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherLinkStudentsPage />
               </ProtectedRoute>
             }
           />

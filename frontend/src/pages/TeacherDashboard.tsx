@@ -1377,6 +1377,21 @@ const TeacherDashboard: React.FC = () => {
                 >
                   Topic performance
                 </Link>
+                <Link
+                  to="/teacher/ops/link-students"
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #8000ff",
+                    background: "rgba(128,0,255,0.12)",
+                    color: "#5b21b6",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  Link students (beta)
+                </Link>
                 {hasNeedsAttention ? (
                   <Link
                     to="/teacher/reports/needs-attention"
