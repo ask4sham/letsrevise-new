@@ -21,6 +21,7 @@ type Props = {
   initialCards: Flashcard[];
   apiBaseUrl?: string; // default http://localhost:5000
   title?: string;
+  topicKeyForBank?: string | null; // PR-CONTENT-TARGETING-1: namespaced key for AI generation
   onSaved?: () => void;
   isAdmin?: boolean; // Added: admin-only delete control
 };
@@ -678,6 +679,10 @@ export default function FlashcardsEditor({
       return;
     }
 
+    if (!topicKeyForBank) {
+      setError("Lesson not mapped to a syllabus subtopic.");
+      return;
+    }
     setAiLoading(true);
     try {
       const res = await fetch(`${apiBaseUrl}/api/lessons/${lessonId}/generate-revision`, {
@@ -686,7 +691,7 @@ export default function FlashcardsEditor({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ topicKey: topicKeyForBank }),
       });
 
       const ct = res.headers.get("content-type") || "";
@@ -745,7 +750,13 @@ export default function FlashcardsEditor({
             }}
           />
 
-          <button type="button" style={styles.btn} onClick={generateWithAI} disabled={aiLoading}>
+          <button
+            type="button"
+            style={styles.btn}
+            onClick={generateWithAI}
+            disabled={aiLoading || !topicKeyForBank}
+            title={!topicKeyForBank ? "Lesson not mapped to a syllabus subtopic." : undefined}
+          >
             {aiDoneLabel(aiLoading)}
           </button>
         </div>

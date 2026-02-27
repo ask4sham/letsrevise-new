@@ -1312,7 +1312,9 @@ const EditLessonPage: React.FC = () => {
     
     setIsGenerating(true);
     try {
-      const response = await api.post(`/lessons/${id}/generate-revision`);
+      const response = await api.post(`/lessons/${id}/generate-revision`, {
+        topicKey: topicKeyForBank ?? undefined,
+      });
       const data = response.data;
       
       if (data.success) {
@@ -5066,7 +5068,7 @@ const EditLessonPage: React.FC = () => {
                     setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
                     setGenerateAllLoading(true);
                     try {
-                      const r = await autoGenerateFromBanks(id);
+                      const r = await autoGenerateFromBanks(id, topicKeyForBank);
                       await fetchLessonSmart();
                       const parts: string[] = [];
                       if (r.results.flashcardsAdded) parts.push(`${r.results.flashcardsAdded} flashcards`);
@@ -5093,7 +5095,7 @@ const EditLessonPage: React.FC = () => {
                     setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
                     setSeedFlashcardsLoading(true);
                     try {
-                      const r = await generateFlashcardsFromTopic(id);
+                      const r = await generateFlashcardsFromTopic(id, topicKeyForBank ?? undefined);
                       await fetchLessonSmart();
                       const c = r.addedCount ?? r.added ?? r.flashcardsCount ?? 0;
                       setSeedFlashcardsSuccess(c > 0 ? `Added ${c} flashcards` : "No published flashcards for topic");
@@ -5117,7 +5119,7 @@ const EditLessonPage: React.FC = () => {
                     setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
                     setSeedQuizLoading(true);
                     try {
-                      const r = await generateQuizFromTopic(id);
+                      const r = await generateQuizFromTopic(id, topicKeyForBank);
                       await fetchLessonSmart();
                       const c = r.addedCount ?? r.questionsCount ?? 0;
                       setSeedQuizSuccess(c > 0 ? `Added ${c} quiz questions` : "No published quiz questions for topic");
@@ -5140,7 +5142,7 @@ const EditLessonPage: React.FC = () => {
                     setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
                     setSeedAssessmentLoading(true);
                     try {
-                      const r = await generateAssessmentFromTopic(id);
+                      const r = await generateAssessmentFromTopic(id, topicKeyForBank);
                       await fetchLessonSmart();
                       const c = r.addedCount ?? r.questionsCount ?? 0;
                       setSeedAssessmentSuccess(c > 0 ? `Added ${c} assessment questions` : "No published assessment questions for topic");
@@ -5163,7 +5165,7 @@ const EditLessonPage: React.FC = () => {
                     setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
                     setSeedPastPapersLoading(true);
                     try {
-                      const r = await generatePastPapersFromTopic(id);
+                      const r = await generatePastPapersFromTopic(id, topicKeyForBank);
                       await fetchLessonSmart();
                       const c = r.addedCount ?? r.pastPapersCount ?? 0;
                       setSeedPastPapersSuccess(c > 0 ? `Added ${c} past papers` : "No published past papers for topic");
@@ -5290,7 +5292,7 @@ const EditLessonPage: React.FC = () => {
                             setSeedFlashcardsSuccess(null);
                             setSeedFlashcardsLoading(true);
                             try {
-                              const result = await generateFlashcardsFromTopic(id);
+                              const result = await generateFlashcardsFromTopic(id, topicKeyForBank);
                               await fetchLessonSmart();
                               const count = result.addedCount ?? result.added ?? result.flashcardsCount ?? 0;
                               setSeedFlashcardsSuccess(
@@ -5793,7 +5795,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                             setSeedQuizSuccess(null);
                             setSeedQuizLoading(true);
                             try {
-                              const result = await generateQuizFromTopic(id);
+                              const result = await generateQuizFromTopic(id, topicKeyForBank ?? undefined);
                               await fetchLessonSmart();
                               const count = result.addedCount ?? result.questionsCount ?? 0;
                               setSeedQuizSuccess(
@@ -6128,7 +6130,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                             setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
                             setSeedAssessmentLoading(true);
                             try {
-                              const result = await generateAssessmentFromTopic(id);
+                              const result = await generateAssessmentFromTopic(id, topicKeyForBank);
                               await fetchLessonSmart();
                               const count = result.addedCount ?? result.questionsCount ?? 0;
                               setSeedAssessmentSuccess(
@@ -6216,7 +6218,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                             setSeedPastPapersSuccess(null);
                             setSeedPastPapersLoading(true);
                             try {
-                              const result = await generatePastPapersFromTopic(id);
+                              const result = await generatePastPapersFromTopic(id, topicKeyForBank);
                               await fetchLessonSmart();
                               const count = result.addedCount ?? result.pastPapersCount ?? 0;
                               setSeedPastPapersSuccess(

@@ -1068,9 +1068,15 @@ router.post("/:id/generate-revision", auth, async (req, res) => {
       });
     }
 
-    // PR-CONTENT-TARGETING-1: block AI generation unless lesson has valid namespaced topicKey
+    // PR-CONTENT-TARGETING-1: require valid topicKey (body or from lesson); validate body when provided
+    let specKey, namespacedTopicKey;
     try {
-      getValidNamespacedTopicKeyFromLesson(lesson);
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      specKey = resolved.specKey;
+      namespacedTopicKey = (req.body && req.body.topicKey) ? String(req.body.topicKey).trim() : resolved.namespacedTopicKey;
+      if (req.body && req.body.topicKey) {
+        assertValidNamespacedTopicKey(specKey, namespacedTopicKey);
+      }
     } catch (err) {
       if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
         return res.status(400).json({
@@ -2474,7 +2480,8 @@ async function handleGenerateFlashcardsFromTopic(req, res) {
     try {
       const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
       specKey = resolved.specKey;
-      namespacedTopicKey = resolved.namespacedTopicKey;
+      namespacedTopicKey = (req.body && req.body.topicKey) ? String(req.body.topicKey).trim() : resolved.namespacedTopicKey;
+      if (req.body && req.body.topicKey) assertValidNamespacedTopicKey(specKey, namespacedTopicKey);
     } catch (err) {
       if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
         return res.status(400).json({
@@ -2508,12 +2515,27 @@ router.post("/:id/generate/flashcards-from-topic", auth, requireLessonOwnerOrAdm
 // PR-F1: Alias (calls same handler)
 router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, handleGenerateFlashcardsFromTopic);
 
-// PR-Q2: Generate quiz from topic bank (published-only, replace)
+// PR-Q2: Generate quiz from topic bank (published-only, replace). PR-CONTENT-TARGETING-1: validate body topicKey when provided.
 router.post("/:id/generate/quiz-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    try {
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      if (req.body && req.body.topicKey) {
+        assertValidNamespacedTopicKey(resolved.specKey, String(req.body.topicKey).trim());
+      }
+    } catch (err) {
+      if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({
+          msg: err.message || "Lesson must be mapped to a valid syllabus topicKey (specKey:topicSlug) to generate practice.",
+        });
+      }
+      throw err;
     }
     const result = await generateLessonQuizFromTopic({
       lessonId,
@@ -2538,7 +2560,7 @@ router.post("/:id/generate/quiz-from-topic", auth, requireLessonOwnerOrAdmin, as
   }
 });
 
-// PR-PP2: Generate past papers from topic bank (published-only, replace)
+// PR-PP2: Generate past papers from topic bank (published-only, replace). PR-CONTENT-TARGETING-1: validate body topicKey when provided.
 router.post("/:id/generate/past-papers-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -2548,7 +2570,10 @@ router.post("/:id/generate/past-papers-from-topic", auth, requireLessonOwnerOrAd
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     try {
-      getValidNamespacedTopicKeyFromLesson(lesson);
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      if (req.body && req.body.topicKey) {
+        assertValidNamespacedTopicKey(resolved.specKey, String(req.body.topicKey).trim());
+      }
     } catch (err) {
       if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
         return res.status(400).json({
@@ -2579,7 +2604,7 @@ router.post("/:id/generate/past-papers-from-topic", auth, requireLessonOwnerOrAd
   }
 });
 
-// PR-A1: Generate assessment from topic bank (kind=assessment, published-only, replace)
+// PR-A1: Generate assessment from topic bank (kind=assessment, published-only, replace). PR-CONTENT-TARGETING-1: validate body topicKey when provided.
 router.post("/:id/generate/assessment-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -2589,7 +2614,10 @@ router.post("/:id/generate/assessment-from-topic", auth, requireLessonOwnerOrAdm
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     try {
-      getValidNamespacedTopicKeyFromLesson(lesson);
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      if (req.body && req.body.topicKey) {
+        assertValidNamespacedTopicKey(resolved.specKey, String(req.body.topicKey).trim());
+      }
     } catch (err) {
       if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
         return res.status(400).json({

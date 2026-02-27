@@ -1232,18 +1232,17 @@ const LessonViewPage: React.FC = () => {
   // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering)
   const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
 
-  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug) for practice targeting
+  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug); no slugify — URL or lesson.topicKey/topicSlug only
   const topicKeyForBank = useMemo(() => {
     if (!lesson || !specKey) return null;
-    const urlTopicKey = searchParams.get("topicKey")?.trim();
+    const topicKeyFromUrl = searchParams.get("topicKey")?.trim() || null;
     const lessonKey = (lesson as { topicKey?: string }).topicKey;
+    const lessonSlug = (lesson as { topicSlug?: string }).topicSlug;
     const rawCandidate =
-      urlTopicKey ||
+      topicKeyFromUrl ||
       (typeof lessonKey === "string" && lessonKey.trim() ? lessonKey.trim() : null) ||
-      (typeof (lesson as { topic?: string }).topic === "string" &&
-      (lesson as { topic?: string }).topic?.trim()
-        ? (lesson as { topic?: string }).topic!.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "")
-        : null);
+      (typeof lessonSlug === "string" && lessonSlug.trim() ? lessonSlug.trim() : null) ||
+      null;
     return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: rawCandidate || undefined });
   }, [lesson, specKey, searchParams]);
 
@@ -1337,7 +1336,14 @@ const LessonViewPage: React.FC = () => {
     setPracticeError(null);
     try {
       const bankSeed = `${practiceSeed}:bank`;
-      const res = await api.get(`/lessons/${id}/practice`, { params: { limit: 10, seed: bankSeed, mode: "bank-only" } });
+      const res = await api.get(`/lessons/${id}/practice`, {
+        params: {
+          limit: 10,
+          seed: bankSeed,
+          mode: "bank-only",
+          ...(topicKeyForBank ? { topicKey: topicKeyForBank } : {}),
+        },
+      });
       const data = res?.data;
       setPracticeAllowed(!!data?.allowed);
       setPracticeQuestions(Array.isArray(data?.questions) ? data.questions : []);
@@ -1747,17 +1753,16 @@ const LessonViewPage: React.FC = () => {
     fetchLessonSmart();
   };
 
-  // ✅ ADDED: AI generation handler for LessonViewPage
+  // PR-CONTENT-TARGETING-1: AI generation only when topicKeyForBank is valid; pass it in body
   const handleAIGenerate = async () => {
-    if (!lesson || !lesson.id) return;
-    
+    if (!lesson || !lesson.id || !topicKeyForBank) return;
     setIsGenerating(true);
     try {
-      await api.post(`/lessons/${lesson.id}/generate-revision`, {});
+      await api.post(`/lessons/${lesson.id}/generate-revision`, { topicKey: topicKeyForBank });
       await fetchLessonSmart(); // Refresh the lesson data
     } catch (error) {
-      console.error('AI generation error:', error);
-      alert('Error generating revision content');
+      console.error("AI generation error:", error);
+      alert("Error generating revision content");
     } finally {
       setIsGenerating(false);
     }
@@ -3258,7 +3263,7 @@ const LessonViewPage: React.FC = () => {
                       fontSize: 13,
                     }}
                   >
-                    This lesson isn&apos;t mapped to a syllabus topic yet, so practice can&apos;t be generated.
+                    This lesson isn&apos;t mapped to a syllabus subtopic yet, so flashcards and practice can&apos;t be generated.
                   </div>
                 )}
                 {/* Flashcards section — Section provides standard header and spacing */}
@@ -3816,7 +3821,7 @@ const LessonViewPage: React.FC = () => {
               fontSize: 13,
             }}
           >
-            This lesson isn&apos;t mapped to a syllabus topic yet, so practice can&apos;t be generated.
+            This lesson isn&apos;t mapped to a syllabus subtopic yet, so flashcards and practice can&apos;t be generated.
           </div>
         )}
         {/* Flashcards section — Section for consistent spacing */}

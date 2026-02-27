@@ -170,7 +170,10 @@ export async function deleteTopicQuizQuestion(id: string): Promise<void> {
 }
 
 /** PR-A1: Generate assessment from topic bank (kind=assessment, published-only, replace). */
-export async function generateAssessmentFromTopic(lessonId: string): Promise<{
+export async function generateAssessmentFromTopic(
+  lessonId: string,
+  topicKey?: string | null
+): Promise<{
   ok: boolean;
   addedCount: number;
   questionsCount: number;
@@ -181,12 +184,15 @@ export async function generateAssessmentFromTopic(lessonId: string): Promise<{
     addedCount: number;
     questionsCount: number;
     lesson: any;
-  }>(`/lessons/${lessonId}/generate/assessment-from-topic`);
+  }>(`/lessons/${lessonId}/generate/assessment-from-topic`, { topicKey: topicKey ?? undefined });
   return res.data!;
 }
 
 /** PR-Q2: Generate quiz from topic bank into lesson (published-only, replace). */
-export async function generateQuizFromTopic(lessonId: string): Promise<{
+export async function generateQuizFromTopic(
+  lessonId: string,
+  topicKey?: string | null
+): Promise<{
   ok: boolean;
   addedCount: number;
   questionsCount: number;
@@ -197,6 +203,6 @@ export async function generateQuizFromTopic(lessonId: string): Promise<{
     addedCount: number;
     questionsCount: number;
     lesson: any;
-  }>(`/lessons/${lessonId}/generate/quiz-from-topic`);
+  }>(`/lessons/${lessonId}/generate/quiz-from-topic`, { topicKey: topicKey ?? undefined });
   return res.data!;
 }

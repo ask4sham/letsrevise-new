@@ -311,3 +311,48 @@ describe("PR-CONTENT-TARGETING-1: generate-revision requires valid topicKey", ()
     expect(String(res.body.error)).toMatch(/topicKey|syllabus topic/i);
   });
 });
+
+describe("PR-CONTENT-TARGETING-1: generate-revision rejects wrong topicKey prefix", () => {
+  let lessonId;
+  let tokenTeacher;
+
+  beforeAll(async () => {
+    const teacher = await User.create({
+      firstName: "Bio",
+      lastName: "Teacher",
+      email: "content-target-bio@test.com",
+      password: bcrypt.hashSync("password123", 10),
+      userType: "teacher",
+    });
+    const lesson = await Lesson.create({
+      title: "Biology lesson",
+      description: "D",
+      content: "C",
+      teacherId: teacher._id,
+      teacherName: "T",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Cell structure",
+      topicKey: "aqa-gcse-biology:cell-structure",
+      status: "draft",
+      isPublished: false,
+      pages: [{ pageId: "p1", order: 0, blocks: [{ type: "text", content: "x" }] }],
+      quiz: { questions: [] },
+      flashcards: [],
+    });
+    lessonId = lesson._id;
+    const login = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "content-target-bio@test.com", password: "password123" });
+    tokenTeacher = login.body.token;
+  });
+
+  test("generate-revision returns 400 when body topicKey has wrong spec prefix", async () => {
+    const res = await request(app)
+      .post(`/api/lessons/${lessonId}/generate-revision`)
+      .set("Authorization", `Bearer ${tokenTeacher}`)
+      .send({ topicKey: "other-spec:cell-structure" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+});

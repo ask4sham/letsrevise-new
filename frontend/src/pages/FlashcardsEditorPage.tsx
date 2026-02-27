@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import FlashcardsEditor, { Flashcard } from "../components/revision/FlashcardsEditor";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTopicKey";
 
 type LessonResponse = {
   success?: boolean;
@@ -30,6 +31,7 @@ export default function FlashcardsEditorPage() {
   const [lessonTitle, setLessonTitle] = useState<string>("Lesson");
   const [initialCards, setInitialCards] = useState<Flashcard[]>([]);
   const [error, setError] = useState<string>("");
+  const [topicKeyForBank, setTopicKeyForBank] = useState<string | null>(null);
 
   const lessonId = useMemo(() => (id ? String(id) : ""), [id]);
 
@@ -91,6 +93,7 @@ export default function FlashcardsEditorPage() {
 
         setLessonTitle(String(title));
         setInitialCards(cards);
+        setTopicKeyForBank(resolveLessonTopicKeyForBankFromLesson(lesson) ?? null);
       } catch (e: any) {
         if (!alive) return;
         setError(e?.message || "Failed to load lesson.");
@@ -192,6 +195,7 @@ export default function FlashcardsEditorPage() {
           initialCards={initialCards}
           apiBaseUrl={apiBaseUrl}
           title="Flashcards (Teacher)"
+          topicKeyForBank={topicKeyForBank}
           onSaved={() => {
             // After saving, re-fetch to keep editor in sync
             // (optional; safe if the backend normalizes data)

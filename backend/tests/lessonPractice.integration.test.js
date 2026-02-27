@@ -204,4 +204,18 @@ describe("GET /api/lessons/:id/practice", () => {
     expect(res.body.questions.length).toBeGreaterThanOrEqual(1);
     expect(res.body.questions[0].question).toContain("photosynthesis");
   });
+
+  test("PR-CONTENT-TARGETING-1: GET practice with topicKey query returns 200 and scopes by that topic", async () => {
+    const res = await request(app)
+      .get(`/api/lessons/${lessonDraftId}/practice`)
+      .set("Authorization", `Bearer ${tokenTeacher}`)
+      .query({ topicKey: "aqa-gcse-biology:photosynthesis", limit: 10 });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.allowed).toBe(true);
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    if (res.body.topicKey) {
+      expect(String(res.body.topicKey)).toMatch(/photosynthesis|aqa-gcse-biology/);
+    }
+  });
 });
