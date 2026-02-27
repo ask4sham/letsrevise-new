@@ -3212,18 +3212,8 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Check your understanding — Preview strips quiz; show locked message or full quiz */}
+                {/* Check your understanding — gate on hasFullLessonAccess */}
                 <Section title="Check your understanding" variant="card">
-                  {process.env.REACT_APP_DEV_TOOLS === "1" && quizQuestions.length > 0 && (
-                    <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12, color: "#475569" }}>
-                        [Dev] First raw quiz question (lesson.quiz.questions[0])
-                      </div>
-                      <pre style={{ margin: 0, fontSize: 11, overflow: "auto", maxHeight: 280 }}>
-                        {JSON.stringify(lesson?.quiz?.questions?.[0] ?? quizQuestions[0] ?? null, null, 2)}
-                      </pre>
-                    </div>
-                  )}
                   {!hasFullLessonAccess ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       Quiz available after unlocking the full lesson.
@@ -3811,16 +3801,6 @@ const LessonViewPage: React.FC = () => {
 
         {/* Check your understanding — gate on hasFullLessonAccess */}
         <Section title="Check your understanding" variant="card">
-          {process.env.REACT_APP_DEV_TOOLS === "1" && quizQuestions.length > 0 && (
-            <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12, color: "#475569" }}>
-                [Dev] First raw quiz question (lesson.quiz.questions[0])
-              </div>
-              <pre style={{ margin: 0, fontSize: 11, overflow: "auto", maxHeight: 280 }}>
-                {JSON.stringify(lesson?.quiz?.questions?.[0] ?? quizQuestions[0] ?? null, null, 2)}
-              </pre>
-            </div>
-          )}
           {!hasFullLessonAccess ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               Quiz available after unlocking the full lesson.
