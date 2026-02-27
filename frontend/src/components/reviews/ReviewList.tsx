@@ -1,13 +1,7 @@
+// PR-REVIEWS-1: Use shared API client (no hardcoded localhost) so list works in prod.
 import React, { useEffect, useState } from "react";
 import { Card, Button } from "../ui";
-
-type ReviewRow = {
-  id: string;
-  rating: number;
-  comment: string | null;
-  user_id: string | null;
-  created_at: string;
-};
+import { getLessonReviews, type ReviewRow } from "../../api/reviews";
 
 interface ReviewListProps {
   lessonId: string;
@@ -16,7 +10,6 @@ interface ReviewListProps {
 }
 
 const PAGE_SIZE = 5;
-const API_HOST = "http://localhost:5000";
 
 const ReviewList: React.FC<ReviewListProps> = ({ lessonId, hideTitle = false }) => {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -40,23 +33,13 @@ const ReviewList: React.FC<ReviewListProps> = ({ lessonId, hideTitle = false }) 
           return;
         }
 
-        const url = `${API_HOST}/api/reviews/lesson/${lessonId}?page=${page}&limit=${PAGE_SIZE}&sort=${encodeURIComponent(
-          sortBy
-        )}`;
+        const data = await getLessonReviews(lessonId, {
+          page,
+          limit: PAGE_SIZE,
+          sort: sortBy,
+        });
 
-        const resp = await fetch(url);
-        if (!resp.ok) {
-          console.error("Backend reviews fetch failed:", resp.status);
-          setReviews([]);
-          setTotalPages(1);
-          return;
-        }
-
-        const json = await resp.json();
-
-        const rowsRaw = Array.isArray(json?.reviews) ? json.reviews : [];
-
-        const rows: ReviewRow[] = rowsRaw.map((r: any) => ({
+        const rows: ReviewRow[] = (data.reviews || []).map((r: any) => ({
           id: String(r.id || r._id || ""),
           rating: Number(r.rating || 0),
           comment: (r.comment ?? r.review ?? null) as string | null,
@@ -65,7 +48,7 @@ const ReviewList: React.FC<ReviewListProps> = ({ lessonId, hideTitle = false }) 
         }));
 
         setReviews(rows);
-        setTotalPages(Number(json?.totalPages || 1));
+        setTotalPages(Math.max(1, Number(data.totalPages ?? 1)));
       } catch (err) {
         console.error("Error fetching reviews:", err);
         setReviews([]);

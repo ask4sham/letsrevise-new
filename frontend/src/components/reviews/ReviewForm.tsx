@@ -1,7 +1,8 @@
 // src/components/reviews/ReviewForm.tsx
+// PR-REVIEWS-1: Use shared API client (no Supabase) so submission works in prod without Failed to fetch.
 import React, { useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { Card } from "../ui";
+import { createReview } from "../../api/reviews";
 
 interface ReviewFormProps {
   lessonId: string;
@@ -15,18 +16,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ lessonId, onReviewSubmitted }) 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const getLocalUserId = (): string | null => {
-    try {
-      const userStr = localStorage.getItem("user");
-      if (!userStr) return null;
-      const u = JSON.parse(userStr);
-      // prefer email if present; fallback to _id
-      return u?.email || u?._id || null;
-    } catch {
-      return null;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -39,22 +28,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ lessonId, onReviewSubmitted }) 
       setSubmitting(true);
       setError("");
 
-      const user_id = getLocalUserId();
-
-      const { error: sbError } = await supabase.from("lesson_reviews").insert([
-        {
-          lesson_id: lessonId,
-          rating,
-          comment: review.trim() || null,
-          user_id,
-        },
-      ]);
-
-      if (sbError) {
-        console.error("Supabase insert error:", sbError);
-        setError(sbError.message || "Failed to submit review");
-        return;
-      }
+      await createReview(lessonId, { rating, review: review.trim() || undefined });
 
       setRating(0);
       setReview("");
@@ -64,7 +38,17 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ lessonId, onReviewSubmitted }) 
       alert("Thank you for your review!");
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Failed to submit review");
+      const status = err?.response?.status;
+      if (status === 402) {
+        setError("You need access to this lesson to leave a review.");
+        return;
+      }
+      const msg =
+        err?.response?.data?.msg ??
+        err?.response?.data?.error ??
+        err?.message ??
+        "Could not submit review. Please try again.";
+      setError(msg);
     } finally {
       setSubmitting(false);
     }

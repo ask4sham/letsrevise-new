@@ -183,6 +183,10 @@ interface User {
   stage?: string;
   educationLevel?: string;
   academicLevel?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
 }
 
 type ExamBoardRow = { name: string };
@@ -3343,8 +3347,18 @@ const LessonViewPage: React.FC = () => {
                 </Section>
 
                 {/* PR-UX-REVIEWS-1: Student Reviews only on last page */}
-                {/* TODO: Consider prompting for a review after final checkpoint completion */}
-                {isLastPage && (
+                {/* PR-REVIEWS-2: Personalize CTA with student name */}
+                {isLastPage && (() => {
+                  const displayName =
+                    user?.firstName?.trim() ||
+                    user?.name?.split?.(" ")?.[0]?.trim() ||
+                    user?.email?.split?.("@")?.[0] ||
+                    undefined;
+                  const reviewCtaLabel =
+                    user?.userType === "student" && displayName
+                      ? `Review this lesson, ${displayName}`
+                      : "Write a Review";
+                  return (
                   <>
                     <p style={{ marginTop: 24, marginBottom: 8, color: "#64748b", fontSize: 14 }}>
                       Finished the lesson? See what other students thought.
@@ -3366,7 +3380,7 @@ const LessonViewPage: React.FC = () => {
                             fontWeight: "bold",
                           }}
                         >
-                          ✏️ TEST: Write a Review
+                          ✏️ {reviewCtaLabel}
                         </button>
                       ) : undefined
                     }
@@ -3428,7 +3442,8 @@ const LessonViewPage: React.FC = () => {
                     {reviewsEnabled ? <ReviewList lessonId={lesson.id} hideTitle /> : null}
                   </Section>
                   </>
-                )}
+                  );
+                })()}
               </div>
             </main>
 
