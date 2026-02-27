@@ -26,6 +26,7 @@ import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
+import { hasFullLessonAccess as computeFullLessonAccess } from "../utils/lessonAccess";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -2657,12 +2658,8 @@ const LessonViewPage: React.FC = () => {
     user?.userType === "teacher" ||
     (user as any)?.isAdmin === true;
 
-  // Canonical full-access gate: entitlement from backend OR role (admin/teacher). Used for quiz + unlock banner.
-  const hasFullLessonAccess =
-    accessDecision?.allowed === true ||
-    isTeacherOrAdmin ||
-    Boolean((user as any)?.adminPassActive) ||
-    Boolean((user as any)?.subscriptionActive);
+  // Single source of truth: backend accessDecision.allowed; fallbacks only if backend missing (see lessonAccess.ts).
+  const hasFullLessonAccess = computeFullLessonAccess(accessDecision, user);
 
   // ============================
   // ✅ New Student View (Pages)
@@ -3576,32 +3573,7 @@ const LessonViewPage: React.FC = () => {
         ← Back to Dashboard
       </Link>
 
-      {/* [Dev] Access panel — REACT_APP_DEV_TOOLS=1 (legacy view) */}
-      {process.env.REACT_APP_DEV_TOOLS === "1" && (
-        <div
-          style={{
-            marginTop: 12,
-            marginBottom: 12,
-            padding: 10,
-            borderRadius: 8,
-            background: "#f1f5f9",
-            border: "1px solid #cbd5e1",
-            fontSize: 11,
-            fontFamily: "monospace",
-            color: "#334155",
-          }}
-          data-dev="access-panel"
-        >
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>[Dev] Access</div>
-          <div>previewMode: {String(previewMode)}</div>
-          <div>accessDecision: {JSON.stringify(accessDecision ?? null)}</div>
-          <div>hasFullLessonAccess: {String(hasFullLessonAccess)}</div>
-          <div>userType: {String(user?.userType ?? "—")}</div>
-          <div>isAdmin: {String((user as any)?.isAdmin ?? "—")}</div>
-          <div>adminPassActive: {String((user as any)?.adminPassActive ?? "—")}</div>
-          <div>subscriptionActive: {String((user as any)?.subscriptionActive ?? "—")}</div>
-        </div>
-      )}
+      {/* [Dev] Access panel renders once in structured view only (REACT_APP_DEV_TOOLS=1) */}
 
       {/* Lesson Integrity debug panel — teacher/admin only, dev tools or non-prod (legacy view) */}
       {isTeacherOrAdmin && (process.env.NODE_ENV !== "production" || process.env.REACT_APP_DEV_TOOLS === "1") && lesson && (

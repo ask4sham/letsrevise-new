@@ -701,10 +701,12 @@ export function QuizView({
               </div>
             </div>
           ) : q.type === "short" ? (
-            <div className="mt-2 text-sm">
-              <div className="opacity-70">Suggested answer:</div>
-              <div className="mt-1 font-medium">{q.correctAnswer}</div>
-            </div>
+            (q.correctAnswer ?? "").trim() ? (
+              <div className="mt-2 text-sm">
+                <div className="opacity-70">Suggested answer:</div>
+                <div className="mt-1 font-medium">{q.correctAnswer}</div>
+              </div>
+            ) : null
           ) : (
             <div className="mt-2 text-sm">
               <div className="opacity-70">Mark scheme points:</div>

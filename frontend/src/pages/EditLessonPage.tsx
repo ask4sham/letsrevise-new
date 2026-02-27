@@ -5702,7 +5702,19 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                                   <span style={{ fontWeight: 800, color: "#475569" }}>Correct Answer: </span>
                                   <span>{q.correctAnswer || "(No answer provided)"}</span>
                                 </div>
-                                
+                                {(q.type === "short" || q.type === "exam") && !(String(q.correctAnswer ?? "").trim()) && (
+                                  <div style={{
+                                    marginBottom: 8,
+                                    padding: 6,
+                                    background: "#fef3c7",
+                                    border: "1px solid #f59e0b",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                    color: "#92400e",
+                                  }}>
+                                    No model answer set — feedback will be limited.
+                                  </div>
+                                )}
                                 <div style={{ marginBottom: 8 }}>
                                   <span style={{ fontWeight: 800, color: "#475569" }}>Mark Scheme: </span>
                                   {q.markScheme && q.markScheme.length > 0 ? (
