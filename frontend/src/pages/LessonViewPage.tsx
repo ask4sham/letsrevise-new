@@ -25,6 +25,7 @@ import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getUserDisplayName } from "../utils/userDisplayName";
+import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -3181,34 +3182,30 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Check your understanding — Section for consistent spacing */}
+                {/* Check your understanding — Preview strips quiz; show locked message or full quiz */}
                 <Section title="Check your understanding" variant="card">
-                  {quizQuestions.length === 0 ? (
+                  {process.env.REACT_APP_DEV_TOOLS === "1" && quizQuestions.length > 0 && (
+                    <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12, color: "#475569" }}>
+                        [Dev] First raw quiz question (lesson.quiz.questions[0])
+                      </div>
+                      <pre style={{ margin: 0, fontSize: 11, overflow: "auto", maxHeight: 280 }}>
+                        {JSON.stringify(lesson?.quiz?.questions?.[0] ?? quizQuestions[0] ?? null, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {previewMode || accessDecision?.reason === "FREE_PREVIEW" ? (
+                    <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
+                      Quiz available after unlocking the full lesson.
+                    </div>
+                  ) : quizQuestions.length === 0 ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       No quiz questions generated for this topic yet.
                     </div>
                   ) : (
                     <QuizView
                       title=""
-                      questions={
-                        quizQuestions.map((q: any, i: number) => {
-                          const base = {
-                            id: q.id ?? `q_${String(i + 1).padStart(3, "0")}`,
-                            question: q.question ?? "",
-                            explanation: q.explanation,
-                            tags: q.tags,
-                            difficulty: q.difficulty,
-                            marks: q.marks
-                          };
-                          if (q.type === "mcq") {
-                            return { ...base, type: "mcq" as const, options: Array.isArray(q.options) ? q.options : [], correctAnswer: q.correctAnswer ?? "" };
-                          }
-                          if (q.type === "exam") {
-                            return { ...base, type: "exam" as const, markScheme: Array.isArray(q.markScheme) ? q.markScheme : [], correctAnswer: q.correctAnswer ?? "See mark scheme." };
-                          }
-                          return { ...base, type: "short" as const, correctAnswer: q.correctAnswer ?? "" };
-                        })
-                      }
+                      questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
                     />
                   )}
                 </Section>
@@ -3780,34 +3777,30 @@ const LessonViewPage: React.FC = () => {
           </div>
         )}
 
-        {/* Check your understanding — Section for consistent spacing */}
+        {/* Check your understanding — Preview strips quiz; show locked message or full quiz */}
         <Section title="Check your understanding" variant="card">
-          {quizQuestions.length === 0 ? (
+          {process.env.REACT_APP_DEV_TOOLS === "1" && quizQuestions.length > 0 && (
+            <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 12, color: "#475569" }}>
+                [Dev] First raw quiz question (lesson.quiz.questions[0])
+              </div>
+              <pre style={{ margin: 0, fontSize: 11, overflow: "auto", maxHeight: 280 }}>
+                {JSON.stringify(lesson?.quiz?.questions?.[0] ?? quizQuestions[0] ?? null, null, 2)}
+              </pre>
+            </div>
+          )}
+          {previewMode || accessDecision?.reason === "FREE_PREVIEW" ? (
+            <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
+              Quiz available after unlocking the full lesson.
+            </div>
+          ) : quizQuestions.length === 0 ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               No quiz questions generated for this topic yet.
             </div>
           ) : (
             <QuizView
               title=""
-              questions={
-                quizQuestions.map((q: any, i: number) => {
-                  const base = {
-                    id: q.id ?? `q_${String(i + 1).padStart(3, "0")}`,
-                    question: q.question ?? "",
-                    explanation: q.explanation,
-                    tags: q.tags,
-                    difficulty: q.difficulty,
-                    marks: q.marks
-                  };
-                  if (q.type === "mcq") {
-                    return { ...base, type: "mcq" as const, options: Array.isArray(q.options) ? q.options : [], correctAnswer: q.correctAnswer ?? "" };
-                  }
-                  if (q.type === "exam") {
-                    return { ...base, type: "exam" as const, markScheme: Array.isArray(q.markScheme) ? q.markScheme : [], correctAnswer: q.correctAnswer ?? "See mark scheme." };
-                  }
-                  return { ...base, type: "short" as const, correctAnswer: q.correctAnswer ?? "" };
-                })
-              }
+              questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
             />
           )}
         </Section>

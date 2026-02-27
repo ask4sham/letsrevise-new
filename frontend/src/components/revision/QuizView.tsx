@@ -490,22 +490,49 @@ export function QuizView({
         <div className="mt-2 text-base font-medium">{q.question}</div>
 
         {q.type === "mcq" ? (
-          <div className="mt-4 grid gap-2">
-            {q.options.map((opt) => {
-              const chosen = answers[q.id] === opt;
-              return (
-                <button
-                  key={opt}
-                  className={`rounded-xl border p-3 text-left text-sm ${
-                    chosen ? "ring-2 ring-offset-2" : ""
-                  }`}
-                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
+          !q.options || q.options.length === 0 ? (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                border: "1px solid #f59e0b",
+                borderRadius: 8,
+                background: "#fffbeb",
+                color: "#92400e",
+                fontSize: 14,
+              }}
+            >
+              This multiple-choice question is missing options. Please ask your teacher to edit it.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-2" style={{ display: "grid", gap: 12 }}>
+              {(q.options || []).map((opt: string, idx: number) => (
+                <label
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    cursor: "pointer",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: answers[q.id] === opt ? "2px solid #2563eb" : "2px solid #e2e8f0",
+                    background: answers[q.id] === opt ? "#eff6ff" : "#fff",
+                  }}
                 >
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
+                  <input
+                    type="radio"
+                    name={`q-${q.id}`}
+                    value={opt}
+                    checked={answers[q.id] === opt}
+                    onChange={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
+                    style={{ width: 18, height: 18, accentColor: "#2563eb" }}
+                  />
+                  <span style={{ fontSize: 15, fontWeight: 500 }}>{opt}</span>
+                </label>
+              ))}
+            </div>
+          )
         ) : (
           // ✅ SS2: More prominent answer input box
           <textarea
@@ -549,76 +576,88 @@ export function QuizView({
         )}
       </div>
 
-      {/* Primary action buttons */}
-      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-        <button
-          type="button"
-          onClick={handleCheck}
-          style={{
-            padding: "10px 18px",
-            fontSize: 16,
-            fontWeight: 800,
-            background: "#2563eb",
-            color: "#ffffff",
-            borderRadius: 10,
-            border: "none",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-1px)";
-            e.currentTarget.style.backgroundColor = "#1d4ed8";
-            e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.3)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.backgroundColor = "#2563eb";
-            e.currentTarget.style.boxShadow = "0 6px 18px rgba(37, 99, 235, 0.12)";
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.style.transform = "scale(0.98)";
-          }}
-          onMouseUp={(e) => {
-            e.currentTarget.style.transform = "translateY(-1px)";
-          }}
-        >
-          Check answer
-        </button>
+      {/* Primary action buttons — disable Check until MCQ has selection or short/exam has non-empty input */}
+      {(() => {
+        const currentAnswer = answers[q.id];
+        const disableCheck =
+          (q.type === "mcq" && !currentAnswer) ||
+          (q.type === "short" && !String(currentAnswer ?? "").trim());
+        return (
+          <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={handleCheck}
+              disabled={disableCheck}
+              style={{
+                padding: "10px 18px",
+                fontSize: 16,
+                fontWeight: 800,
+                background: disableCheck ? "#94a3b8" : "#2563eb",
+                color: "#ffffff",
+                borderRadius: 10,
+                border: "none",
+                cursor: disableCheck ? "not-allowed" : "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (disableCheck) return;
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.backgroundColor = "#1d4ed8";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(37, 99, 235, 0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.backgroundColor = disableCheck ? "#94a3b8" : "#2563eb";
+                e.currentTarget.style.boxShadow = "0 6px 18px rgba(37, 99, 235, 0.12)";
+              }}
+              onMouseDown={(e) => {
+                if (disableCheck) return;
+                e.currentTarget.style.transform = "scale(0.98)";
+              }}
+              onMouseUp={(e) => {
+                if (disableCheck) return;
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+            >
+              Check answer
+            </button>
 
-        <button
-          type="button"
-          onClick={handleReset}
-          style={{
-            padding: "10px 18px",
-            fontSize: 14,
-            fontWeight: 700,
-            background: "#f1f5f9",
-            color: "#0f172a",
-            borderRadius: 10,
-            border: "1px solid #cbd5e1",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-1px)";
-            e.currentTarget.style.backgroundColor = "#e2e8f0";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.backgroundColor = "#f1f5f9";
-            e.currentTarget.style.boxShadow = "none";
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.style.transform = "scale(0.98)";
-          }}
-          onMouseUp={(e) => {
-            e.currentTarget.style.transform = "translateY(-1px)";
-          }}
-        >
-          Reset
-        </button>
-      </div>
+            <button
+              type="button"
+              onClick={handleReset}
+              style={{
+                padding: "10px 18px",
+                fontSize: 14,
+                fontWeight: 700,
+                background: "#f1f5f9",
+                color: "#0f172a",
+                borderRadius: 10,
+                border: "1px solid #cbd5e1",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.backgroundColor = "#e2e8f0";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.backgroundColor = "#f1f5f9";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = "scale(0.98)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Marking feedback display */}
       {showFeedback && lastGrade && (q.type === "short" || q.type === "exam") ? (
