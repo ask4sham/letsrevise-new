@@ -12,6 +12,7 @@
 
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 /**
  * ParentDashboard
@@ -126,13 +127,7 @@ function statusPillStyle(
   };
 }
 
-function getAuthToken(): string | null {
-  try {
-    return localStorage.getItem("token");
-  } catch {
-    return null;
-  }
-}
+// PR-AUTH-UI-2: token from useCurrentUser (no direct localStorage auth read).
 
 /**
  * Backend shapes (Phase 1 parent-safe signals)
@@ -236,7 +231,7 @@ function buildInsightsFromSignals(
 }
 
 const ParentDashboard: React.FC = () => {
-  const token = getAuthToken();
+  const { token } = useCurrentUser({ watchLocation: true });
 
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string>("");

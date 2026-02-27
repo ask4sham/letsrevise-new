@@ -7,6 +7,7 @@ import { getQuestionAnalytics, type QuestionAnalyticsItem } from "../api/teacher
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
 
 /** PR7: readiness from backend (computed) */
@@ -106,7 +107,7 @@ const TeacherDashboard: React.FC = () => {
     monthlyEarnings: [] as any[],
   });
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user, refresh } = useCurrentUser({ watchLocation: true });
 
   // ✅ AI modal state
   const [aiOpen, setAiOpen] = useState(false);
@@ -305,19 +306,7 @@ const TeacherDashboard: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        // 1) Load user from localStorage
-        const userData = localStorage.getItem("user");
-        let parsedUser: any = null;
-
-        if (userData) {
-          try {
-            parsedUser = JSON.parse(userData);
-            setUser(parsedUser);
-          } catch (err) {
-            console.error("Error parsing user data:", err);
-          }
-        }
-
+        // 1) User from useCurrentUser hook (no localStorage read here)
         // 2) Load lessons from BACKEND (Mongo) — includes drafts
         await fetchLessonsFromBackend();
 
@@ -523,15 +512,7 @@ const TeacherDashboard: React.FC = () => {
         `Success! ${response.data.message}\nNew Balance: ${response.data.newBalance} coins\nRemaining Earnings: ${response.data.remainingEarnings} coins`
       );
 
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        try {
-          const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
-        } catch (err) {
-          console.error("Error parsing user data:", err);
-        }
-      }
+      refresh();
 
       await fetchTeacherStatsFromBackend();
     } catch (err: any) {
@@ -555,15 +536,7 @@ const TeacherDashboard: React.FC = () => {
         `Fixed! ${response.data.message}\nNew Earnings: ${response.data.newEarnings} coins\nRemaining ShamCoins: ${response.data.newShamCoins} coins`
       );
 
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        try {
-          const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
-        } catch (err) {
-          console.error("Error parsing user data:", err);
-        }
-      }
+      refresh();
 
       await fetchTeacherStatsFromBackend();
     } catch (err: any) {
@@ -649,7 +622,6 @@ const TeacherDashboard: React.FC = () => {
     // ✅ Safe placeholder: tries an endpoint if you add it later; otherwise shows a clear message.
     // Recommended backend later: POST /lessons/clone-gold  -> { lessonId }
     try {
-      const token = localStorage.getItem("token");
       const res = await api.post("/lessons/clone-gold", {});
       const lessonId = res?.data?.lessonId;
 

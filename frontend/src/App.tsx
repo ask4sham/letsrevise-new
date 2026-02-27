@@ -1,6 +1,8 @@
 // /frontend/src/App.tsx
+// PR-AUTH-UI-2: ProtectedRoute/RoleBasedRedirect use useCurrentUser (no direct localStorage auth reads).
 import React, { ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import HomePage from "./pages/HomePage";
@@ -99,25 +101,6 @@ import "./App.css";
 
 type UserType = "student" | "teacher" | "parent" | "admin";
 
-function readAuthFromStorage(): { token: string; user: any } | null {
-  try {
-    if (typeof window === "undefined") return null;
-
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
-
-    if (!token || !userStr) return null;
-
-    const user = JSON.parse(userStr);
-    if (!user || typeof user !== "object") return null;
-
-    return { token, user };
-  } catch (e) {
-    console.error("Failed to read auth from localStorage:", e);
-    return null;
-  }
-}
-
 function clearAuthStorage() {
   try {
     localStorage.removeItem("token");
@@ -151,14 +134,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireParent = false,
   requireTeacherOrAdmin = false,
 }) => {
-  const auth = readAuthFromStorage();
+  const { token, user, refresh } = useCurrentUser({ watchLocation: true });
+  const auth = token && user ? { token, user } : null;
 
   if (!auth) {
     clearAuthStorage();
+    refresh();
     return <Navigate to="/login" replace />;
   }
 
-  const userType: UserType | undefined = auth.user?.userType;
+  const userType = user?.userType as UserType | undefined;
 
   // If userType is missing/invalid, treat as logged out
   if (!userType || !["student", "teacher", "parent", "admin"].includes(userType)) {
@@ -185,15 +170,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 ========================= */
 
 const RoleBasedRedirect: React.FC = () => {
-  const auth = readAuthFromStorage();
+  const { token, user, refresh } = useCurrentUser({ watchLocation: true });
+  const auth = token && user ? { token, user } : null;
 
-  // This route is already protected, but keep it safe
   if (!auth) {
     clearAuthStorage();
+    refresh();
     return <Navigate to="/login" replace />;
   }
 
-  const userType: UserType | undefined = auth.user?.userType;
+  const userType = user?.userType as UserType | undefined;
 
   if (userType === "teacher") return <Navigate to="/teacher-dashboard" replace />;
   if (userType === "student") return <Navigate to="/student-dashboard" replace />;

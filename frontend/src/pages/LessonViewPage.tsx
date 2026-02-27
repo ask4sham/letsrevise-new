@@ -1109,7 +1109,7 @@ const LessonViewPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
-  const { user, refresh } = useCurrentUser({ watchLocation: true });
+  const { user, refresh, token } = useCurrentUser({ watchLocation: true });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1804,14 +1804,12 @@ const LessonViewPage: React.FC = () => {
       return;
 
     try {
-      const token = localStorage.getItem("token");
-
       const response = await axios.post(
         `http://localhost:5000/api/lessons/${lesson.id}/purchase`,
         {},
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token ?? ""}`,
             "Content-Type": "application/json",
           },
         }

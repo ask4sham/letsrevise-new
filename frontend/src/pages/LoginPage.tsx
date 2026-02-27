@@ -1,7 +1,9 @@
 // /frontend/src/pages/LoginPage.tsx
+// PR-AUTH-UI-2: use useCurrentUser for existing-login state; call refresh() after setItem/removeItem.
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 /**
  * ✅ Dev-only helpers (hide in production)
@@ -52,6 +54,11 @@ const LoginPage: React.FC = () => {
 
   // Show a clear "you're already logged in" state (prevents confusion)
   const [existingUserEmail, setExistingUserEmail] = useState<string | null>(null);
+  const { user: currentUser, refresh } = useCurrentUser({ watchLocation: true });
+
+  useEffect(() => {
+    setExistingUserEmail(currentUser?.email ?? null);
+  }, [currentUser?.email]);
 
   // ✅ HASH-SAFE redirect (works with HashRouter + Netlify)
   const redirectAfterLogin = (userType?: string) => {
@@ -77,21 +84,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const syncExistingLoginState = () => {
-    try {
-      const token = localStorage.getItem("token");
-      const userStr = localStorage.getItem("user");
-      if (token && userStr) {
-        const u = JSON.parse(userStr);
-        setExistingUserEmail(u?.email || "someone");
-      } else {
-        setExistingUserEmail(null);
-      }
-    } catch {
-      setExistingUserEmail(null);
-    }
-  };
-
   const hardLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -106,9 +98,7 @@ const LoginPage: React.FC = () => {
     // Helpful debug: shows the axios baseURL from the shared api instance
     // eslint-disable-next-line no-console
     console.log("LoginPage api.baseURL =", (api as any)?.defaults?.baseURL);
-
     if (SHOW_TEST_HELPERS) checkBackend();
-    syncExistingLoginState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -141,9 +131,7 @@ const LoginPage: React.FC = () => {
       if ((response as any)?.data?.user) {
         localStorage.setItem("user", JSON.stringify((response as any).data.user));
       }
-
-      // Refresh "already logged in" banner state
-      syncExistingLoginState();
+      refresh();
 
       // Prefer backend userType; fallback to selected tab
       redirectAfterLogin((response as any)?.data?.user?.userType || activeRole);
@@ -282,11 +270,7 @@ const LoginPage: React.FC = () => {
               <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
                 <button
                   type="button"
-                  onClick={() =>
-                    redirectAfterLogin(
-                      JSON.parse(localStorage.getItem("user") || "{}")?.userType
-                    )
-                  }
+                  onClick={() => redirectAfterLogin(currentUser?.userType)}
                   style={{
                     flex: 1,
                     padding: "10px",

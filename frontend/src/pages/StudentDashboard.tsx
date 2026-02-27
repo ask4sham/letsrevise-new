@@ -361,30 +361,16 @@ const StudentDashboard: React.FC = () => {
   // PR-UX-STU-DASH-2: Filters collapsed by default on desktop
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Determine user type best-effort
-  const userType = useMemo(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return String(u?.userType || u?.type || "").toLowerCase();
-    } catch {
-      return "";
-    }
-  }, []);
-
+  // PR-AUTH-UI-2: derive from useCurrentUser (no localStorage auth reads)
+  const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isStudent = userType === "student" || userType === "";
 
   const studentStageKey = useMemo(() => {
     const lsStage = safeStr(localStorage.getItem("selectedStage"), "");
     if (lsStage) return normalizeStageKey(lsStage);
-
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const stageFromUser = safeStr(u?.stage || u?.level || u?.selectedStage, "");
-      return normalizeStageKey(stageFromUser);
-    } catch {
-      return "";
-    }
-  }, []);
+    const stageFromUser = safeStr(user?.stage || user?.level || (user as any)?.selectedStage, "");
+    return normalizeStageKey(stageFromUser);
+  }, [user?.stage, user?.level, (user as any)?.selectedStage]);
 
   const lockedLevelLabel = useMemo(() => {
     return isStudent && studentStageKey ? stageLabel(studentStageKey) : "";
