@@ -1,46 +1,25 @@
 // /frontend/src/components/layout/Header.tsx
+// PR-AUTH-UI-1: use shared useCurrentUser hook (single source of truth for auth).
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getTrialDaysRemaining } from "../../utils/trial";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 const Header: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const { user, isLoggedIn, refresh } = useCurrentUser({ watchLocation: true });
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Always re-check auth on route change (HashRouter navigation changes location)
-  // This prevents "Dashboard" click from behaving like you're logged out.
+  // Close dropdown when navigating
   useEffect(() => {
-    const syncAuthFromStorage = () => {
-      const token = localStorage.getItem("token");
-      const userStr = localStorage.getItem("user");
-
-      if (token && userStr) {
-        setIsLoggedIn(true);
-        try {
-          setUser(JSON.parse(userStr));
-        } catch (err) {
-          console.error("Error parsing user data:", err);
-          setUser(null);
-          setIsLoggedIn(false);
-        }
-      } else {
-        setIsLoggedIn(false);
-        setUser(null);
-      }
-    };
-
-    syncAuthFromStorage();
-    setShowDropdown(false); // close dropdown when navigating
+    setShowDropdown(false);
   }, [location.pathname, location.search, location.hash]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    setIsLoggedIn(false);
-    setUser(null);
+    refresh();
     setShowDropdown(false);
     navigate("/");
   };

@@ -22,6 +22,8 @@ import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { NextTopicCTA } from "../components/lesson/NextTopicCTA";
 import type { SpecKey } from "../api/taxonomy";
+import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
+import { getUserDisplayName } from "../utils/userDisplayName";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -277,13 +279,13 @@ function normalizeLevelForCompare(levelRaw: string) {
   return s.replace(/\s+/g, " ").trim();
 }
 
-function getUserLevel(u: User | null): string {
+function getUserLevel(u: CurrentUser | null): string {
   if (!u) return "";
   const candidate =
-    safeStr((u as any).level, "") ||
-    safeStr((u as any).stage, "") ||
-    safeStr((u as any).educationLevel, "") ||
-    safeStr((u as any).academicLevel, "");
+    safeStr(u.level, "") ||
+    safeStr(u.stage, "") ||
+    safeStr(u.educationLevel, "") ||
+    safeStr(u.academicLevel, "");
   return normalizeLevelForCompare(candidate);
 }
 
@@ -1107,7 +1109,7 @@ const LessonViewPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const { user, refresh } = useCurrentUser({ watchLocation: true });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1240,11 +1242,6 @@ const LessonViewPage: React.FC = () => {
 
   // PR-STUDENT-LESSON-NAV-1: specKey for NextTopicCTA (taxonomy ordering)
   const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
-
-  useEffect(() => {
-    fetchUserData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     fetchLessonSmart();
@@ -1725,18 +1722,6 @@ const LessonViewPage: React.FC = () => {
     }
   };
 
-  const fetchUserData = () => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-      } catch (err) {
-        console.error("Error parsing user data:", err);
-      }
-    }
-  };
-
   const hasPurchasedLesson = () => {
     if (!user || !lesson) return false;
     if (user.userType !== "student") return false;
@@ -1843,7 +1828,7 @@ const LessonViewPage: React.FC = () => {
       };
 
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      setUser(updatedUser);
+      refresh();
 
       alert(
         `✅ Purchase successful! You now have ${updatedUser.shamCoins} ShamCoins remaining.`
@@ -1868,10 +1853,10 @@ const LessonViewPage: React.FC = () => {
       const data = (res as any)?.data;
       if (data?.shamCoins !== undefined && data?.purchasedLessons) {
         const updatedUser = { ...user, shamCoins: data.shamCoins, purchasedLessons: data.purchasedLessons };
-        setUser(updatedUser);
         try {
           localStorage.setItem("user", JSON.stringify(updatedUser));
         } catch (_) {}
+        refresh();
       }
       setUnlockError(null);
       await fetchLessonSmart();
@@ -3349,11 +3334,7 @@ const LessonViewPage: React.FC = () => {
                 {/* PR-UX-REVIEWS-1: Student Reviews only on last page */}
                 {/* PR-REVIEWS-2: Personalize CTA with student name */}
                 {isLastPage && (() => {
-                  const displayName =
-                    user?.firstName?.trim() ||
-                    user?.name?.split?.(" ")?.[0]?.trim() ||
-                    user?.email?.split?.("@")?.[0] ||
-                    undefined;
+                  const displayName = getUserDisplayName(user ?? undefined);
                   const reviewCtaLabel =
                     user?.userType === "student" && displayName
                       ? `Review this lesson, ${displayName}`

@@ -1,19 +1,19 @@
 // frontend/src/pages/StudentDashboard.tsx
-
+// PR-AUTH-UI-1: use shared useCurrentUser hook (single source of truth for auth).
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 import { getKnowledgeGap, type KnowledgeGapResponse } from "../api/studentKnowledgeGap";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   process.env.REACT_APP_API_URL ||
   "";
 
-async function fetchLessonsByIds(ids: string[]) {
-  const token = localStorage.getItem("token");
+async function fetchLessonsByIds(ids: string[], token: string | null) {
   const res = await fetch(`${API_BASE}/api/lessons/by-ids`, {
     method: "POST",
     headers: {
@@ -334,7 +334,7 @@ const StudentDashboard: React.FC = () => {
 
   const [lessons, setLessons] = useState<StudentLessonCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user, token } = useCurrentUser({ watchLocation: true });
 
   // PR13.3: Recommended next (from misconception topics)
   const [recLoading, setRecLoading] = useState(false);
@@ -391,14 +391,12 @@ const StudentDashboard: React.FC = () => {
   }, [isStudent, studentStageKey]);
 
   useEffect(() => {
-    fetchUserData();
     loadPublishedLessons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // PR13.3: Fetch recommended next (student-facing)
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (!token) {
       setRecLessons([]);
       setRecTopics([]);
@@ -449,7 +447,7 @@ const StudentDashboard: React.FC = () => {
         setRecTopics([]);
       })
       .finally(() => setRecLoading(false));
-  }, [user]);
+  }, [user, token]);
 
   // Batch-fetch lesson metadata for purchased lessons (no N+1)
   useEffect(() => {
@@ -465,7 +463,7 @@ const StudentDashboard: React.FC = () => {
     }
     (async () => {
       try {
-        const data = await fetchLessonsByIds(ids);
+        const data = await fetchLessonsByIds(ids, token);
         setPurchasedLessonMap(
           (data.lessons || []).reduce((acc: Record<string, any>, l: any) => {
             const id = String(l._id ?? l.id ?? "");
@@ -477,29 +475,16 @@ const StudentDashboard: React.FC = () => {
         setPurchasedLessonMap({});
       }
     })();
-  }, [user?.purchasedLessons]);
-
-  const fetchUserData = () => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-      } catch (err) {
-        console.error("Error parsing user data:", err);
-      }
-    }
-  };
+  }, [user?.purchasedLessons, token]);
 
   const fetchPublishedLessonsFromMongo = async (): Promise<StudentLessonCard[]> => {
     try {
-      const token = localStorage.getItem("token");
 
       // Option A: if student stage known, we can pass level, but server also enforces level for students.
       const levelParam = isStudent && studentStageKey ? stageKeyToLessonLevel(studentStageKey) : "";
 
       const res = await axios.get(`${API_BASE}/api/lessons`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         params: levelParam ? { level: levelParam } : undefined,
       });
 
