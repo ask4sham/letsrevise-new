@@ -6,7 +6,8 @@
     "validate:bundle": "node scripts/validate-lesson-bundle.js",
     "generate:bundle": "node scripts/generate-lesson-bundle.js",
     "slotgen:stub": "node scripts/run-slot-generation.js",
-    "slotgen:openai": "node scripts/run-slot-generation-openai.js"
+    "slotgen:openai": "node scripts/run-slot-generation-openai.js",
+    "generate:teacher-guide-pdf": "node scripts/generate-teacher-guide-pdf.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
@@ -20,6 +21,8 @@
     "mongodb-memory-server": "^11.0.1",
     "supertest": "^7.2.2",
     "ts-jest": "^29.2.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "md-to-pdf": "^5.2.5",
+    "pdfkit": "^0.15.0"
   }
 }
