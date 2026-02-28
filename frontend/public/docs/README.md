@@ -10,4 +10,4 @@ If the filename differs by case or underscore, rename it to match exactly. Other
 
 Validate: `curl -I http://localhost:3000/docs/Edit_Lesson_Activities_and_Action_Points_Explained.pdf` → expect `HTTP 200` and `Content-Type: application/pdf`.
 
-**Note:** The file must be the real PDF binary (not the 303-byte stub). Generate it from the Markdown source with: `npm run generate:teacher-guide-pdf` (from repo root). `frontend/public/docs/*.pdf` is tracked with Git LFS (see `.gitattributes`).
+**Note:** The canonical PDF is a hand-authored binary (grid-table version). Do not overwrite it from Markdown. `EDIT_LESSON_ACTIVITIES_GUIDE.md` remains an editable source for reference only. `frontend/public/docs/*.pdf` is tracked with Git LFS (see `.gitattributes`).

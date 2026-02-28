@@ -1,8 +1,9 @@
-// frontend/src/pages/CreateLesson.tsx
+// frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
 import React, { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   type LessonBlockType,
   BLOCK_META,
@@ -11,6 +12,7 @@ import {
   toLegacyBlockType,
   BLOCK_TYPES_FOR_BUTTONS,
 } from "../types/lessonBlocks";
+import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 
 type HeroType = "none" | "image" | "video" | "animation";
 
@@ -225,25 +227,9 @@ function buildMarkdownForFile(url: string, file: File) {
   return `\n\n[${file.name}](${url})\n\n`;
 }
 
-/**
- * IMPORTANT FIX:
- * Your app login uses backend JWT (localStorage token), not Supabase auth.
- * So we must NOT block uploads by requiring supabase.auth.getUser().
- *
- * We still upload to Supabase Storage using the anon client.
- * Bucket policies must allow the client to upload (or it will error with 401/403).
- */
-function getTeacherIdBestEffort() {
-  try {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    return safeStr(u?.id || u?._id || u?.userId || u?.mongoId, "");
-  } catch {
-    return "";
-  }
-}
-
 const CreateLessonPage: React.FC = () => {
   const navigate = useNavigate();
+  const { token, user } = useCurrentUser({ watchLocation: true });
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -501,15 +487,12 @@ const CreateLessonPage: React.FC = () => {
       return;
     }
 
-    // ✅ Use backend JWT presence as the "signed-in" check (not Supabase auth)
-    const token = safeStr(localStorage.getItem("token"), "");
     if (!token) {
       alert("You must be signed in to upload media.");
       return;
     }
 
-    // Best-effort teacher id for nicer storage paths (not security-critical)
-    const teacherId = getTeacherIdBestEffort() || "teacher_unknown";
+    const teacherId = user?._id ? String(user._id) : "teacher_unknown";
 
     const safeName = slugifyFilename(file.name || "upload");
     const path = `teacher_${teacherId}/lesson_new/page_${pageId}/block_${blockIndex}/${Date.now()}_${safeName}`;
@@ -788,6 +771,7 @@ const CreateLessonPage: React.FC = () => {
                 ...ui.sidebar,
               }}
             >
+              <HowToCreateLessonCallout bodyCopy="Start here before filling in exam board, subject, topic, quizzes and practice." />
               <div style={{ ...ui.sectionTitle, marginBottom: 2 }}>Pages</div>
               <div style={{ color: "#64748b", fontSize: "0.75rem", marginBottom: 8 }}>
                 Add pages → edit in main area.
