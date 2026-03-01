@@ -258,6 +258,7 @@ app.use("/api/ai-generation-jobs", aiGenerationJobsRoutes);
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/content-tree", contentTreeRoutes);
 app.use("/api/visuals", require("./routes/visuals"));
+app.use("/api/taxonomy", require("./routes/taxonomy"));
 app.use("/api/quizzes", quizzesRoutes);
 app.use("/api/assessment-papers", assessmentPapersRoutes);
 
@@ -371,6 +372,12 @@ app.use("/api", (req, res) => {
 ============================================================ */
 
 const staticSitePath = path.join(__dirname, "../static-site/website");
+
+// Serve /docs (e.g. teacher guide PDF) before general static so SPA fallback never swallows them
+const docsPath = path.join(staticSitePath, "docs");
+if (fs.existsSync(docsPath)) {
+  app.use("/docs", express.static(docsPath));
+}
 
 if (fs.existsSync(staticSitePath)) {
   app.use(express.static(staticSitePath));

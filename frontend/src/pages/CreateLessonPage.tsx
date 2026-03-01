@@ -295,8 +295,14 @@ const CreateLessonPage: React.FC = () => {
       .then((data) => {
         if (!cancelled) setTaxonomyOptions(data);
       })
-      .catch((err) => {
-        if (!cancelled) setTaxonomyError(err?.message || "Failed to load topic options");
+      .catch((err: any) => {
+        if (cancelled) return;
+        const status = err?.response?.status ?? err?.status;
+        const message =
+          status === 404
+            ? "API route not found — check backend is running and /api/taxonomy/create-lesson-options is mounted."
+            : err?.message || "Failed to load topic options. You can still enter Topic below.";
+        setTaxonomyError(message);
       })
       .finally(() => {
         if (!cancelled) setTaxonomyLoading(false);
