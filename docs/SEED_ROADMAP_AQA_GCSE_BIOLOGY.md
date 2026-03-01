@@ -2,40 +2,44 @@
 
 ## Seed strategy
 
-- **1 topicKey = 15 questions** (10 MCQ + 5 short answer) as baseline.
+- **1 topicKey = 25 items** (10 MCQ + 5 short answer + 10 flashcards) as baseline.
 - **Tagging:** `subject="Biology"`, `examBoard="AQA"`, `level="GCSE"`, `topicKey`, `topic` (display).
 - **Global policy — draft-only:** All bulk-seeded questions use **`status: "draft"`** only. Auto-generate then review; publish per unit after review. Existing published seeds (e.g. from earlier standalone scripts) are left untouched; we’ll publish per unit after review.
 - **Idempotent:** Skip insertion if questions already exist for that `topicKey`.
 
-## Unit 1 — Cell Biology (priority order)
+## Unit 1 — Cell Biology (taxonomy order from `docs/TAXONOMY_TOPIC_LIST.csv`)
 
-| # | Topic | topicKey | Status |
-|---|--------|----------|--------|
-| 1 | Cell structure | `cell-structure` | ✅ PR-SEED-1 |
-| 2 | Eukaryotes & Prokaryotes | `eukaryotes-prokaryotes` | ✅ PR-SEED-2 |
-| 3 | Animal and plant cells | `animal-plant-cells` | |
-| 4 | Cell specialisation | `cell-specialisation` | |
-| 5 | Cell differentiation | `cell-differentiation` | |
-| 6 | Microscopy | `microscopy` | |
-| 7 | Required Practical: Microscopy | `rp-microscopy` | |
-| 8 | Culturing microorganisms | `culturing-microorganisms` | |
-| 9 | Required Practical: Growth | `rp-growth` | |
-| 10 | Chromosomes | `chromosomes` | |
-| 11 | Mitosis and the cell cycle | `mitosis-cell-cycle` | |
-| 12 | Stem cells | `stem-cells` | |
-| 13 | Diffusion | `diffusion` | |
-| 14 | Factors that affect diffusion | `factors-affect-diffusion` | |
-| 15 | Diffusion in multicellular organisms | `diffusion-multicellular` | |
-| 16 | Osmosis | `osmosis` | |
-| 17 | Required Practical: Osmosis | `rp-osmosis` | |
-| 18 | Active transport | `active-transport` | |
-| 19 | Transport summary and applications | `transport-summary` | |
+Source: filter `specKey == "aqa-gcse-biology"`, `mainTopicTitle == "Cell Biology"`. **Do not seed using un-namespaced slugs; always use topicKey `specKey:topicSlug`.**
+
+| # | Topic (leaf) | topicSlug | topicKey | Status |
+|---|--------------|-----------|----------|--------|
+| 1 | Cell structure | cell-structure | `aqa-gcse-biology:cell-structure` | ✅ PR-SEED-1 |
+| 2 | Animal and plant cells | animal-plant-cells | `aqa-gcse-biology:animal-plant-cells` | TODO |
+| 3 | Eukaryotes and prokaryotes | eukaryotes-prokaryotes | `aqa-gcse-biology:eukaryotes-prokaryotes` | ✅ PR-SEED-2 |
+| 4 | Cell specialisation | cell-specialisation | `aqa-gcse-biology:cell-specialisation` | TODO |
+| 5 | Cell differentiation | cell-differentiation | `aqa-gcse-biology:cell-differentiation` | TODO |
+| 6 | Microscopy | microscopy | `aqa-gcse-biology:microscopy` | TODO |
+| 7 | Required Practical: Microscopy | rp-microscopy | `aqa-gcse-biology:rp-microscopy` | TODO |
+| 8 | Cell Division | cell-division | `aqa-gcse-biology:cell-division` | TODO |
+| 9 | Chromosomes | chromosomes | `aqa-gcse-biology:chromosomes` | TODO |
+| 10 | Mitosis and the cell cycle | mitosis-cell-cycle | `aqa-gcse-biology:mitosis-cell-cycle` | TODO |
+| 11 | Stem cells | stem-cells | `aqa-gcse-biology:stem-cells` | TODO |
+| 12 | Transport in Cells | transport-in-cells | `aqa-gcse-biology:transport-in-cells` | TODO |
+| 13 | Diffusion | diffusion | `aqa-gcse-biology:diffusion` | TODO |
+| 14 | Factors that affect diffusion | factors-affect-diffusion | `aqa-gcse-biology:factors-affect-diffusion` | TODO |
+| 15 | Osmosis | osmosis | `aqa-gcse-biology:osmosis` | TODO |
+| 16 | Required Practical: Osmosis | rp-osmosis | `aqa-gcse-biology:rp-osmosis` | TODO |
+| 17 | Active transport | active-transport | `aqa-gcse-biology:active-transport` | TODO |
+| 18 | Diffusion in multicellular organisms | diffusion-multicellular | `aqa-gcse-biology:diffusion-multicellular` | TODO |
+| 19 | Transport summary and applications | transport-summary | `aqa-gcse-biology:transport-summary` | TODO |
+| 20 | Culturing microorganisms | culturing-microorganisms | `aqa-gcse-biology:culturing-microorganisms` | TODO |
+| 21 | Required Practical: Growth | rp-growth | `aqa-gcse-biology:rp-growth` | TODO |
 
 **Batches (recommended):**
 
 - **Batch A (core):** 1–6  
 - **Batch B (practicals + division):** 7–12  
-- **Batch C (transport):** 13–19  
+- **Batch C (transport):** 13–21  
 
 ## Unit 2 — Organisation
 
