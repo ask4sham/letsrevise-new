@@ -1,7 +1,40 @@
 /**
- * Taxonomy API — fetch AQA GCSE Biology or Chemistry taxonomy by spec.
+ * Taxonomy API — fetch AQA GCSE Biology or Chemistry taxonomy by spec;
+ * create-lesson-options for Subject → Spec → Main Topic → Sub-topic dropdowns.
  */
 import api from "../services/api";
+
+export type CreateLessonSubTopic = {
+  title: string;
+  topicSlug: string;
+  topicKey: string;
+  path: string;
+};
+
+export type CreateLessonMainTopic = {
+  title: string;
+  subTopics: CreateLessonSubTopic[];
+};
+
+export type CreateLessonSpec = {
+  specKey: string;
+  specLabel: string;
+  mainTopics: CreateLessonMainTopic[];
+};
+
+export type CreateLessonSubject = {
+  subject: string;
+  specs: CreateLessonSpec[];
+};
+
+export type CreateLessonOptionsResponse = {
+  subjects: CreateLessonSubject[];
+};
+
+export async function fetchCreateLessonOptions(): Promise<CreateLessonOptionsResponse> {
+  const res = await api.get<CreateLessonOptionsResponse>("/taxonomy/create-lesson-options");
+  return res.data;
+}
 
 export type TaxonomyTopic = {
   topic: string;

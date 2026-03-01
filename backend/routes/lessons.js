@@ -485,6 +485,7 @@ async function createLessonHandler(req, res) {
       subject,
       level,
       topic,
+      topicKey,
       tags,
       estimatedDuration,
       shamCoinPrice,
@@ -561,6 +562,9 @@ async function createLessonHandler(req, res) {
     };
     if (autoGenerateFromBanks === true || autoGenerateFromBanks === "true") {
       lessonData.autoGenerateFromBanks = true;
+    }
+    if (typeof topicKey === "string" && topicKey.trim()) {
+      lessonData.topicKey = topicKey.trim();
     }
 
     // PR0: accept examBoard or board, store as board

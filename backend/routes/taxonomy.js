@@ -1,16 +1,33 @@
 /**
  * Taxonomy API — canonical topic lists for teacher UI, prompts, diagram mapping.
  * GET /api/taxonomy/aqa-gcse-biology → returns AQA GCSE Biology units and topics.
+ * GET /api/taxonomy/create-lesson-options → nested Subject → Spec → Main Topic → Sub-topic for Create Lesson.
  */
 const express = require("express");
 const router = express.Router();
 const { getBiologyTopics, getChemistryTopics, getPhysicsTopics, getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
+const { getCreateLessonOptions } = require("../services/taxonomyService");
 
 /**
  * GET /api/taxonomy/aqa-gcse-biology
  * Returns the full AQA GCSE Biology taxonomy (subject, examBoard, level, units with topics).
  * No auth required so teacher UI can load the topic picker without logging in first.
  */
+/**
+ * GET /api/taxonomy/create-lesson-options
+ * Returns nested options for Create Lesson dropdowns: Subject → Spec → Main Topic → Sub-topic.
+ * Values come from backend/config/*_topics.json. topicKey is namespaced (specKey:topicSlug).
+ */
+router.get("/create-lesson-options", (req, res) => {
+  try {
+    const options = getCreateLessonOptions();
+    return res.json(options);
+  } catch (err) {
+    console.error("create-lesson-options error:", err);
+    return res.status(500).json({ error: "Failed to load create-lesson options" });
+  }
+});
+
 router.get("/aqa-gcse-biology", (req, res) => {
   try {
     const taxonomy = getBiologyTopics();

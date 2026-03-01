@@ -1,9 +1,10 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { fetchCreateLessonOptions, type CreateLessonOptionsResponse } from "../api/taxonomy";
 import {
   type LessonBlockType,
   BLOCK_META,
@@ -246,15 +247,24 @@ const CreateLessonPage: React.FC = () => {
   );
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
 
+  // Taxonomy options for Subject → Spec → Main Topic → Sub-topic (from backend/config/*_topics.json)
+  const [taxonomyOptions, setTaxonomyOptions] = useState<CreateLessonOptionsResponse | null>(null);
+  const [taxonomyLoading, setTaxonomyLoading] = useState(true);
+  const [taxonomyError, setTaxonomyError] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedSpecKey, setSelectedSpecKey] = useState("");
+  const [selectedMainTopicTitle, setSelectedMainTopicTitle] = useState("");
+
   // Lesson details
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    subject: "Mathematics",
+    subject: "",
     level: "GCSE",
     board: "" as "" | (typeof EXAM_BOARDS)[number],
     tier: "" as GcseTier,
     topic: "",
+    topicKey: "",
     tags: "",
     externalResources: "",
     estimatedDuration: 60,
@@ -276,6 +286,30 @@ const CreateLessonPage: React.FC = () => {
   ]);
 
   const orderedPages = useMemo(() => sortPages(pages), [pages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTaxonomyLoading(true);
+    setTaxonomyError(null);
+    fetchCreateLessonOptions()
+      .then((data) => {
+        if (!cancelled) setTaxonomyOptions(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setTaxonomyError(err?.message || "Failed to load topic options");
+      })
+      .finally(() => {
+        if (!cancelled) setTaxonomyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const currentSubject = taxonomyOptions?.subjects?.find((s) => s.subject === selectedSubject);
+  const currentSpec = currentSubject?.specs?.find((s) => s.specKey === selectedSpecKey);
+  const currentMainTopic = currentSpec?.mainTopics?.find((m) => m.title === selectedMainTopicTitle);
+  const subTopicOptions = currentMainTopic?.subTopics ?? [];
 
   const normalizeOrders = (arr: LessonPage[]) =>
     arr
@@ -595,7 +629,7 @@ const CreateLessonPage: React.FC = () => {
     if (!formData.level.trim()) return "Level is required.";
     if (!formData.board.trim())
       return "Board is required (AQA/OCR/Edexcel/WJEC).";
-    if (!formData.topic.trim()) return "Topic / Unit is required.";
+    if (!formData.topic.trim() && !formData.topicKey.trim()) return "Select a sub-topic (or enter Topic) is required.";
 
     if (formData.level === "GCSE" && !formData.tier.trim()) {
       return "Tier is required for GCSE lessons (Foundation or Higher).";
@@ -669,14 +703,15 @@ const CreateLessonPage: React.FC = () => {
         subject: formData.subject,
         level: formData.level,
         board: formData.board,
-        topic: formData.topic,
+        topic: formData.topic || selectedMainTopicTitle || "",
         tags: formData.tags,
         content: "Structured lesson (see pages)",
         externalResources: formData.externalResources,
         estimatedDuration: formData.estimatedDuration,
         shamCoinPrice: formData.shamCoinPrice,
-        pages: sanitizedPages, // Use sanitized pages instead of raw pages
+        pages: sanitizedPages,
       };
+      if (formData.topicKey.trim()) payload.topicKey = formData.topicKey.trim();
 
       if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
       payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;
@@ -863,14 +898,36 @@ const CreateLessonPage: React.FC = () => {
                   <label style={{ display: "block" }}>
                     <div style={ui.label}>Subject *</div>
                     <select
-                      name="subject"
-                      value={formData.subject}
-                      onChange={onChange}
+                      value={taxonomyLoading ? "" : (taxonomyOptions?.subjects?.length ? selectedSubject : formData.subject)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedSubject(v);
+                        setSelectedSpecKey("");
+                        setSelectedMainTopicTitle("");
+                        setFormData((prev) => ({
+                          ...prev,
+                          subject: v,
+                          topic: "",
+                          topicKey: "",
+                        }));
+                      }}
                       style={ui.input}
+                      disabled={taxonomyLoading}
                     >
-                      {SUBJECTS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
+                      <option value="">{taxonomyLoading ? "Loading…" : "Select subject"}</option>
+                      {(taxonomyOptions?.subjects?.length
+                        ? taxonomyOptions.subjects
+                        : [
+                            "Biology",
+                            "Chemistry",
+                            "Physics",
+                            "Mathematics",
+                            "English Language",
+                            "English Literature",
+                          ].map((s) => ({ subject: s }))
+                      ).map((s) => (
+                        <option key={s.subject} value={s.subject}>
+                          {s.subject}
                         </option>
                       ))}
                     </select>
@@ -915,13 +972,87 @@ const CreateLessonPage: React.FC = () => {
                     <div />
                   )}
 
+                  {currentSubject && (
+                    <label style={{ display: "block" }}>
+                      <div style={ui.label}>Spec</div>
+                      <select
+                        value={selectedSpecKey}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedSpecKey(v);
+                          setSelectedMainTopicTitle("");
+                          setFormData((prev) => ({ ...prev, topic: "", topicKey: "" }));
+                        }}
+                        style={ui.input}
+                      >
+                        <option value="">Select spec</option>
+                        {currentSubject.specs.map((spec) => (
+                          <option key={spec.specKey} value={spec.specKey}>
+                            {spec.specLabel}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {currentSpec && (
+                    <label style={{ display: "block" }}>
+                      <div style={ui.label}>Main topic</div>
+                      <select
+                        value={selectedMainTopicTitle}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedMainTopicTitle(v);
+                          setFormData((prev) => ({ ...prev, topic: "", topicKey: "" }));
+                        }}
+                        style={ui.input}
+                      >
+                        <option value="">Select main topic</option>
+                        {currentSpec.mainTopics.map((m) => (
+                          <option key={m.title} value={m.title}>
+                            {m.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {currentMainTopic && (
+                    <label style={{ display: "block" }}>
+                      <div style={ui.label}>Sub-topic *</div>
+                      <select
+                        value={formData.topicKey}
+                        onChange={(e) => {
+                          const topicKey = e.target.value;
+                          const sub = currentMainTopic.subTopics.find((s) => s.topicKey === topicKey);
+                          setFormData((prev) => ({
+                            ...prev,
+                            topicKey: topicKey || "",
+                            topic: sub?.title ?? "",
+                          }));
+                        }}
+                        style={ui.input}
+                      >
+                        <option value="">Select sub-topic</option>
+                        {subTopicOptions.map((s) => (
+                          <option key={s.topicKey} value={s.topicKey}>
+                            {s.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {taxonomyError && (
+                    <div style={{ gridColumn: "1 / -1", fontSize: "0.8125rem", color: "#b91c1c" }}>
+                      {taxonomyError} — you can still enter Topic below.
+                    </div>
+                  )}
                   <label style={{ display: "block" }}>
-                    <div style={ui.label}>Topic *</div>
+                    <div style={ui.label}>Topic (display) {formData.topicKey ? "— from selection" : ""}</div>
                     <input
                       name="topic"
                       value={formData.topic}
                       onChange={onChange}
                       style={ui.input}
+                      placeholder="Set by sub-topic selection or type here"
                     />
                   </label>
 

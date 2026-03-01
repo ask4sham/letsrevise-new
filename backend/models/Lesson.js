@@ -202,6 +202,8 @@ const LessonSchema = new mongoose.Schema(
     subject: { type: String, required: true, trim: true },
     level: { type: String, required: true, trim: true },
     topic: { type: String, required: true, trim: true },
+    /** Namespaced topic key from taxonomy (specKey:topicSlug) for practice/banks. Set by Create Lesson when user picks from taxonomy. */
+    topicKey: { type: String, trim: true, default: null },
 
     // optional metadata
     tags: { type: [String], default: [] },
