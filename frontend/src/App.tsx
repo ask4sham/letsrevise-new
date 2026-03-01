@@ -50,6 +50,8 @@ import LessonAttemptReportPage from "./pages/LessonAttemptReportPage";
 import TeacherAttemptsSummaryPage from "./pages/TeacherAttemptsSummaryPage";
 import TeacherAtRiskPage from "./pages/TeacherAtRiskPage";
 import TeacherNeedsAttentionPage from "./pages/TeacherNeedsAttentionPage";
+import TeacherMisconceptionsPage from "./pages/TeacherMisconceptionsPage";
+import TeacherReteachPlansPage from "./pages/TeacherReteachPlansPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
 
@@ -521,6 +523,23 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherNeedsAttentionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/misconceptions"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherMisconceptionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/reteach-plans"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <TeacherReteachPlansPage />
               </ProtectedRoute>
             }
           />

@@ -2498,9 +2498,6 @@ const EditLessonPage: React.FC = () => {
                       <li>Practice: {c.practiceAttached}</li>
                       <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
                     </ul>
-                    <div style={{ marginTop: 8, fontSize: 12 }}>
-                      <Link to="/teacher/reports/needs-attention" style={{ color: "#2563eb", textDecoration: "none" }}>View misconceptions & re-teach suggestions</Link>
-                    </div>
                     <div style={{ marginTop: 12 }}>
                       <button
                         type="button"
@@ -2731,21 +2728,23 @@ const EditLessonPage: React.FC = () => {
                     />
                   </label>
 
-                  <label style={{ display: "block", marginTop: 10 }}>
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
-                    <textarea
-                      value={lesson.description}
-                      onChange={(e) => updateLessonField("description", e.target.value)}
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "2px solid rgba(0,0,0,0.14)",
-                        resize: "vertical",
-                      }}
-                    />
-                  </label>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ display: "block", marginTop: 10 }}>
+                      <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
+                      <textarea
+                        value={lesson.description}
+                        onChange={(e) => updateLessonField("description", e.target.value)}
+                        rows={4}
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "2px solid rgba(0,0,0,0.14)",
+                          resize: "vertical",
+                        }}
+                      />
+                    </label>
+                  </div>
 
                 </div>
               </div>
