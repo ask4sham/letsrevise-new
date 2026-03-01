@@ -29,6 +29,7 @@
     "verify:indexes": "node scripts/verify-indexes.js",
     "sync:indexes": "node scripts/sync-indexes.js",
     "validate:taxonomies": "node scripts/validateTaxonomies.js",
+    "export:taxonomy-topics": "node scripts/exportTaxonomyTopicList.js",
     "convert:exam-csv": "node scripts/convertExamQuestionsCsvToJson.js",
     "convert:past-papers-csv": "node scripts/convertPastPapersCsvToJson.js",
     "convert:past-paper-questions-csv": "node scripts/convertPastPaperQuestionsCsvToJson.js",
