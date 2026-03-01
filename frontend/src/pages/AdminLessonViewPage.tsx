@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+// PR-AUTH-UI-3: use useCurrentUser for token/user (no direct localStorage auth read).
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type TeacherObj = {
   _id?: string;
@@ -93,12 +95,10 @@ const AdminLessonViewPage: React.FC = () => {
   const [lesson, setLesson] = useState<Lesson | null>(stateLesson ?? null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-
-  const token = useMemo(() => localStorage.getItem("token") || "", []);
+  const { token, user } = useCurrentUser({ watchLocation: true });
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user.userType !== "admin") {
+    if (user?.userType !== "admin") {
       navigate("/dashboard");
       return;
     }
@@ -110,6 +110,10 @@ const AdminLessonViewPage: React.FC = () => {
     }
 
     const fetchFullLesson = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError("");
 
@@ -150,7 +154,7 @@ const AdminLessonViewPage: React.FC = () => {
       // state already has content/pages, treat as full
       setLoading(false);
     }
-  }, [id, navigate, stateLesson, token]);
+  }, [id, navigate, stateLesson, token, user?.userType]);
 
   const handleEdit = () => {
     if (!id && !(lesson?._id || lesson?.id)) return;
@@ -369,6 +373,7 @@ const AdminLessonViewPage: React.FC = () => {
           <div>
             <b>Status:</b> {status}
           </div>
+          {/* TODO(admin): Add controls here to edit lesson shamCoinPrice and isFreePreview; these are admin-only, not in Teacher Edit Lesson. */}
           <div>
             <b>Price:</b> {typeof lesson.shamCoinPrice === "number" ? `${lesson.shamCoinPrice} SC` : "0 SC"}
           </div>
