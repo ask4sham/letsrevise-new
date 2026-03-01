@@ -98,6 +98,19 @@ function getSpecKeyForAiForm(
   return null;
 }
 
+const ToolHint: React.FC<{ text: string }> = ({ text }) => (
+  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginBottom: 10, lineHeight: 1.3 }}>{text}</div>
+);
+
+const CountBadge: React.FC<{ n: number }> = ({ n }) => {
+  if (!n || n <= 0) return null;
+  return (
+    <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, fontSize: "0.75rem", fontWeight: 700, background: "#111827", color: "white" }}>
+      {n}
+    </span>
+  );
+};
+
 const TeacherDashboard: React.FC = () => {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [stats, setStats] = useState({
@@ -2042,32 +2055,38 @@ const TeacherDashboard: React.FC = () => {
         <aside className="teacher-dashboard-right" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
             <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Teacher tools</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📋 Needs marking</Link>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Student answers waiting for your review or marks.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div>
+                <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📝 Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
+                <ToolHint text="Student work waiting for your review and marks." />
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>Needs attention →</Link>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Lessons or activities with low engagement or incomplete setup.</div>
+              <div>
+                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention → <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
+                <ToolHint text="Lessons or questions that need fixing before publishing." />
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>Misconceptions (7d)</Link>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Common mistakes students made in the last 7 days.</div>
+              <div>
+                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>🧠 Misconceptions (7d) <CountBadge n={0} /></Link>
+                <ToolHint text="Common mistakes students made in the last 7 days." />
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>Reteach plans</Link>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Topics students struggled with that may need revisiting.</div>
+              <div>
+                <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>🔁 Reteach plans</Link>
+                <ToolHint text="Topics students struggled with that may need reteaching." />
               </div>
-              <div style={{ marginBottom: 8 }}>
+              <div>
                 <button type="button" onClick={handleViewAnalytics} style={{ width: "100%", padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>📊 View analytics</button>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Performance and usage insights across your lessons.</div>
+                <ToolHint text="See engagement, performance, and lesson impact." />
               </div>
-              <div style={{ marginBottom: 8 }}>
+              <div>
                 <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>💰 Cash out earnings</button>
+                <ToolHint text="Withdraw your earned ShamCoins." />
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🔧 Fix earnings</button>
+              <div>
+                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🛠 Fix earnings</button>
+                <ToolHint text="Resolve issues affecting your payouts." />
+              </div>
+              <div>
+                <a href="/docs/SPRINT_CELL_BIOLOGY_WEEK_1.md" target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</a>
+                <ToolHint text="Content sprint playbook and week 1 checklist." />
               </div>
               <div>
                 <Link to="/dashboard" style={{ display: "block", padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Main Dashboard</Link>
@@ -2205,7 +2224,7 @@ const TeacherDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* ✅ AI Modal — scrollable body, fixed header/footer, max-height 90vh */}
+        {/* ✅ AI Modal — scrollable body, fixed header/footer, fits viewport */}
         {aiOpen && (
           <div
             style={{
@@ -2215,9 +2234,9 @@ const TeacherDashboard: React.FC = () => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "20px",
+              padding: 16,
               zIndex: 9999,
-              overflow: "auto",
+              overflow: "hidden",
             }}
             onClick={() => (aiLoading ? null : setAiOpen(false))}
           >
@@ -2275,13 +2294,15 @@ const TeacherDashboard: React.FC = () => {
                 ) : null}
               </div>
 
-              {/* Scrollable body */}
+              {/* Scrollable body — fits viewport, scrolls on small screens */}
               <div
                 style={{
                   flex: "1 1 auto",
+                  minHeight: 0,
+                  maxHeight: "85vh",
                   overflowY: "auto",
                   padding: "16px 20px",
-                  minHeight: 0,
+                  paddingRight: 6,
                 }}
               >
                 <div
