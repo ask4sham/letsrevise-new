@@ -2042,15 +2042,36 @@ const TeacherDashboard: React.FC = () => {
         <aside className="teacher-dashboard-right" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
             <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Teacher tools</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <Link to="/teacher/worksheets/needs-marking" style={{ padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📋 Needs marking</Link>
-              <Link to="/teacher/reports/needs-attention" style={{ padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>Needs attention →</Link>
-              <Link to="/teacher/misconceptions" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>Misconceptions (7d)</Link>
-              <Link to="/teacher/reteach-plans" style={{ padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>Reteach plans</Link>
-              <button type="button" onClick={handleViewAnalytics} style={{ padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>📊 View analytics</button>
-              <button type="button" onClick={handleCashOut} style={{ padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>💰 Cash out earnings</button>
-              <button type="button" onClick={fixEarnings} style={{ padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>🔧 Fix earnings</button>
-              <Link to="/dashboard" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Main Dashboard</Link>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📋 Needs marking</Link>
+                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Student answers waiting for your review or marks.</div>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>Needs attention →</Link>
+                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Lessons or activities with low engagement or incomplete setup.</div>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>Misconceptions (7d)</Link>
+                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Common mistakes students made in the last 7 days.</div>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>Reteach plans</Link>
+                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Topics students struggled with that may need revisiting.</div>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <button type="button" onClick={handleViewAnalytics} style={{ width: "100%", padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>📊 View analytics</button>
+                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginLeft: 6, lineHeight: 1.3 }}>Performance and usage insights across your lessons.</div>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>💰 Cash out earnings</button>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🔧 Fix earnings</button>
+              </div>
+              <div>
+                <Link to="/dashboard" style={{ display: "block", padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Main Dashboard</Link>
+              </div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
