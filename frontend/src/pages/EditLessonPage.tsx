@@ -417,42 +417,6 @@ const EditLessonPage: React.FC = () => {
   const [autoAttachLimit, setAutoAttachLimit] = useState(10);
   const [autoAttachMessage, setAutoAttachMessage] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
-  /** PR13.1: Misconceptions panel (question insights in editor) */
-  const [insightsLoading, setInsightsLoading] = useState(false);
-  const [insightsError, setInsightsError] = useState<string | null>(null);
-  const [misconceptionItems, setMisconceptionItems] = useState<Array<{
-    questionId: string;
-    question?: string;
-    marks?: number;
-    topicKey?: string;
-    topic?: string;
-    type?: string;
-    attempts: number;
-    correct: number;
-    wrong: number;
-    accuracy: number | null;
-    highConfidenceWrong: number;
-    avgConfidence?: number;
-  }>>([]);
-  const [hotspotTopics, setHotspotTopics] = useState<Array<{
-    topicKey: string;
-    topic?: string;
-    attempts: number;
-    wrong: number;
-    correct: number;
-    highConfidenceWrong: number;
-  }>>([]);
-  const [insightsDays, setInsightsDays] = useState(7);
-  const [attachToast, setAttachToast] = useState<string | null>(null);
-  const [attachByTopicToast, setAttachByTopicToast] = useState<string | null>(null);
-  const [attachingQuestionId, setAttachingQuestionId] = useState<string | null>(null);
-  const [attachingTopicKey, setAttachingTopicKey] = useState<string | null>(null);
-  /** PR16: One-click fix (attach + regenerate plan) loading and per-topic error */
-  const [fixingTopicKey, setFixingTopicKey] = useState<string | null>(null);
-  const [fixErrorByTopic, setFixErrorByTopic] = useState<Record<string, string>>({});
-  /** PR17: Bulk fix top hotspots loading + error */
-  const [bulkFixLoading, setBulkFixLoading] = useState(false);
-  const [bulkFixError, setBulkFixError] = useState<string | null>(null);
   /** PR20: Publish gate modal + Make classroom-ready + Post-publish CTA */
   const [publishGateOpen, setPublishGateOpen] = useState(false);
   const [publishGateIssues, setPublishGateIssues] = useState<string[]>([]);
@@ -461,10 +425,6 @@ const EditLessonPage: React.FC = () => {
   const [makeClassroomReadyError, setMakeClassroomReadyError] = useState<string | null>(null);
   /** PR20.1: Copy student link feedback */
   const [copyLinkFeedback, setCopyLinkFeedback] = useState(false);
-  /** PR14/PR15: Reteach plan in sidebar (latest plan for lesson) */
-  const [reteachPlan, setReteachPlan] = useState<{ content: string; pinned: boolean; generatedAt?: string; days?: number; studentSummary?: string } | null>(null);
-  const [reteachPlanLoading, setReteachPlanLoading] = useState(false);
-  const [reteachPlanGenerateLoading, setReteachPlanGenerateLoading] = useState(false);
   /** AI diagram generation: block key (pageId-blockIndex) when loading */
   const [generateDiagramLoading, setGenerateDiagramLoading] = useState<string | null>(null);
   const [generateDiagramError, setGenerateDiagramError] = useState<string | null>(null);
@@ -561,6 +521,20 @@ const EditLessonPage: React.FC = () => {
     [lesson]
   );
 
+  /** SS1 responsive layout: wide (3 col) / medium (2 col, preview below) / narrow (1 col stack) */
+  const [layoutBreakpoint, setLayoutBreakpoint] = useState<"wide" | "medium" | "narrow">("wide");
+  useEffect(() => {
+    const update = () => {
+      const w = typeof window !== "undefined" ? window.innerWidth : 1200;
+      if (w >= 1200) setLayoutBreakpoint("wide");
+      else if (w >= 900) setLayoutBreakpoint("medium");
+      else setLayoutBreakpoint("narrow");
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   useEffect(() => {
     fetchLessonSmart();
   }, [id]);
@@ -590,71 +564,6 @@ const EditLessonPage: React.FC = () => {
       setAttachedExamQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
     }).catch(() => setAttachedExamQuestions([]));
   }, [id, lesson?.id]);
-
-  /** PR13.1: Fetch question insights when lesson id present and user is teacher/admin */
-  useEffect(() => {
-    const canSeeInsights = userType === "teacher" || userType === "admin";
-    if (!id || !canSeeInsights) {
-      setMisconceptionItems([]);
-      setHotspotTopics([]);
-      setInsightsError(null);
-      return;
-    }
-    let cancelled = false;
-    setInsightsLoading(true);
-    setInsightsError(null);
-    api
-      .get<{ ok: boolean; items?: typeof misconceptionItems; topics?: typeof hotspotTopics }>(
-        `/reports/lessons/${id}/question-insights`,
-        { params: { days: insightsDays, limit: 10 } }
-      )
-      .then((res) => {
-        if (cancelled) return;
-        if (res?.data?.ok) {
-          setMisconceptionItems(Array.isArray(res.data.items) ? res.data.items : []);
-          setHotspotTopics(Array.isArray(res.data.topics) ? res.data.topics : []);
-        }
-      })
-      .catch((e: any) => {
-        if (cancelled) return;
-        const status = e?.response?.status;
-        const msg = e?.response?.data?.error ?? e?.message ?? "Failed to load insights";
-        setInsightsError(status === 403 ? "Insights are only available to the lesson owner." : msg);
-        setMisconceptionItems([]);
-        setHotspotTopics([]);
-      })
-      .finally(() => {
-        if (!cancelled) setInsightsLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [id, userType, insightsDays]);
-
-  /** PR14: Fetch latest reteach plan for sidebar (teacher/admin only) */
-  useEffect(() => {
-    const canSee = userType === "teacher" || userType === "admin";
-    if (!id || !canSee) {
-      setReteachPlan(null);
-      return;
-    }
-    let cancelled = false;
-    setReteachPlanLoading(true);
-    api
-      .get<{ ok: boolean; plan?: { content: string; pinned: boolean; generatedAt?: string; days?: number } }>(
-        `/reports/lessons/${id}/reteach-plan`
-      )
-      .then((res) => {
-        if (cancelled) return;
-        if (res?.data?.ok && res.data.plan) setReteachPlan(res.data.plan);
-        else setReteachPlan(null);
-      })
-      .catch(() => {
-        if (!cancelled) setReteachPlan(null);
-      })
-      .finally(() => {
-        if (!cancelled) setReteachPlanLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [id, userType]);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -2362,6 +2271,7 @@ const EditLessonPage: React.FC = () => {
   const pagesReady = hasStructuredPages && currentPage;
 
   return (
+    <div style={{ padding: 16 }}>
     <div
       style={{
         minHeight: "100vh",
@@ -2451,136 +2361,270 @@ const EditLessonPage: React.FC = () => {
           }}
         >
           <div
+            data-col="wrapper"
             style={{
               display: "grid",
-              gridTemplateColumns: "280px minmax(0, 1fr) 320px",
-              gap: 18,
+              gridTemplateColumns:
+                layoutBreakpoint === "wide"
+                  ? "280px minmax(0, 1fr) 360px"
+                  : layoutBreakpoint === "medium"
+                    ? "280px minmax(0, 1fr)"
+                    : "1fr",
+              gridTemplateRows: layoutBreakpoint === "medium" ? "auto auto" : undefined,
+              gap: 16,
               alignItems: "start",
             }}
           >
-            <aside
+            {/* LEFT RAIL: Teacher guide + Pages + Readiness + Past paper questions */}
+            <div
+              data-col="left"
               style={{
-                position: "sticky",
-                top: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                position: layoutBreakpoint !== "narrow" ? "sticky" : undefined,
+                top: layoutBreakpoint !== "narrow" ? 16 : undefined,
                 alignSelf: "start",
-                background: "white",
-                borderRadius: 14,
-                padding: 14,
-                boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
-                border: "2px solid rgba(0,0,0,0.16)",
               }}
             >
-              <div style={{ fontWeight: 900, color: "#111827", marginBottom: 6 }}>
-                {isAdmin ? "Admin editor" : "Teacher editor"}
-              </div>
-
-              <HowToCreateLessonCallout />
-
-              <div style={{ color: "#6b7280", fontSize: "0.92rem", marginBottom: 12 }}>
-                Edit pages/blocks. Use "Upload image / video" inside blocks to insert media exactly where your cursor is.
-              </div>
-
-              <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Pages</div>
-
-              <button
-                onClick={addPage}
+              {/* Card 1: Teacher editor guide */}
+              <div
                 style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "2px solid rgba(0,0,0,0.16)",
                   background: "white",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                  marginBottom: 10,
+                  borderRadius: 14,
+                  padding: 14,
+                  boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
+                  border: "2px solid rgba(0,0,0,0.16)",
                 }}
               >
-                + Add page
-              </button>
+                <div style={{ fontWeight: 900, color: "#111827", marginBottom: 6 }}>
+                  {isAdmin ? "Admin editor" : "Teacher editor"}
+                </div>
+                <HowToCreateLessonCallout />
+                <div style={{ color: "#6b7280", fontSize: "0.92rem", marginTop: 10 }}>
+                  Edit pages/blocks. Use "Upload image / video" inside blocks to insert media exactly where your cursor is.
+                </div>
+              </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(orderedPages || []).map((p, idx) => {
-                  const isCurrent = pagesReady ? idx === currentPageIndex : false;
-
-                  return (
-                    <div
-                      key={p.pageId || idx}
-                      style={{
-                        border: "2px solid rgba(0,0,0,0.14)",
-                        borderRadius: 12,
-                        padding: 10,
-                        background: isCurrent ? "#eef2ff" : "white",
-                      }}
-                    >
-                      <button
-                        onClick={() => goToPage(p)}
+              {/* Card 2: Pages */}
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 14,
+                  padding: 14,
+                  boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
+                  border: "2px solid rgba(0,0,0,0.16)",
+                }}
+              >
+                <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Pages</div>
+                <button
+                  onClick={addPage}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "2px solid rgba(0,0,0,0.16)",
+                    background: "white",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                    marginBottom: 10,
+                  }}
+                >
+                  + Add page
+                </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {(orderedPages || []).map((p, idx) => {
+                    const isCurrent = pagesReady ? idx === currentPageIndex : false;
+                    return (
+                      <div
+                        key={p.pageId || idx}
                         style={{
-                          width: "100%",
-                          textAlign: "left",
-                          border: "none",
-                          background: "transparent",
-                          cursor: "pointer",
-                          fontWeight: 900,
-                          color: "#111827",
-                          padding: 0,
-                          marginBottom: 6,
+                          border: "2px solid rgba(0,0,0,0.14)",
+                          borderRadius: 12,
+                          padding: 10,
+                          background: isCurrent ? "#eef2ff" : "white",
                         }}
                       >
-                        {p.title || `Page ${p.order}`}
-                      </button>
-
-                      <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
                         <button
-                          onClick={() => movePage(p.pageId, -1)}
+                          onClick={() => goToPage(p)}
                           style={{
-                            flex: 1,
-                            padding: "6px 8px",
-                            borderRadius: 8,
-                            border: "2px solid rgba(0,0,0,0.12)",
-                            background: "white",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                          }}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          onClick={() => movePage(p.pageId, 1)}
-                          style={{
-                            flex: 1,
-                            padding: "6px 8px",
-                            borderRadius: 8,
-                            border: "2px solid rgba(0,0,0,0.12)",
-                            background: "white",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                          }}
-                        >
-                          ↓
-                        </button>
-                        <button
-                          onClick={() => removePage(p.pageId)}
-                          style={{
-                            flex: 1,
-                            padding: "6px 8px",
-                            borderRadius: 8,
-                            border: "2px solid rgba(239,68,68,0.35)",
-                            background: "rgba(239,68,68,0.06)",
+                            width: "100%",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
                             cursor: "pointer",
                             fontWeight: 900,
-                            color: "#b91c1c",
+                            color: "#111827",
+                            padding: 0,
+                            marginBottom: 6,
                           }}
                         >
-                          🗑
+                          {p.title || `Page ${p.order}`}
                         </button>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
+                          <button onClick={() => movePage(p.pageId, -1)} style={{ flex: 1, padding: "6px 8px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.12)", background: "white", cursor: "pointer", fontWeight: 800 }}>↑</button>
+                          <button onClick={() => movePage(p.pageId, 1)} style={{ flex: 1, padding: "6px 8px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.12)", background: "white", cursor: "pointer", fontWeight: 800 }}>↓</button>
+                          <button onClick={() => removePage(p.pageId)} style={{ flex: 1, padding: "6px 8px", borderRadius: 8, border: "2px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)", cursor: "pointer", fontWeight: 900, color: "#b91c1c" }}>🗑</button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </aside>
 
-            <main>
+              {/* Card 3: Readiness — moved from center */}
+              {(() => {
+                const evalReadiness = lesson ? evaluateLessonReadiness(lesson) : null;
+                const statusLabel = evalReadiness?.classroomReady ? "Classroom-ready" : evalReadiness?.minimumPublishable ? "Ready to publish" : "Needs review";
+                const statusBg = evalReadiness?.classroomReady ? "#c6f6d5" : evalReadiness?.minimumPublishable ? "#fef3c7" : "#e5e7eb";
+                const statusColor = evalReadiness?.classroomReady ? "#22543d" : evalReadiness?.minimumPublishable ? "#92400e" : "#4b5563";
+                const c = evalReadiness?.counts ?? { pages: 0, diagrams: 0, checkpoints: 0, quizQuestions: 0, flashcards: 0, practiceAttached: 0, misconceptions: 0 };
+                const isReviewed = !!lesson?.reviewedAt || (lesson?.readiness as any)?.signals?.isReviewed;
+                return (
+                  <div style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontWeight: 900 }}>Readiness</span>
+                      <a href="/docs/TEACHER_LESSON_GUIDES_INDEX.md" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#64748b" }}>What is this?</a>
+                    </div>
+                    <div style={{ marginBottom: 10 }}>
+                      <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold", background: statusBg, color: statusColor }}>{statusLabel}</span>
+                    </div>
+                    <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 13, color: "#374151" }}>
+                      <li>Pages: {c.pages}</li>
+                      <li>Checkpoints: {c.checkpoints}</li>
+                      <li>Diagrams: {c.diagrams}</li>
+                      <li>Quiz: {c.quizQuestions}</li>
+                      <li>Flashcards: {c.flashcards}</li>
+                      <li>Practice: {c.practiceAttached}</li>
+                      <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
+                    </ul>
+                    <div style={{ marginTop: 8, fontSize: 12 }}>
+                      <Link to="/teacher/reports/needs-attention" style={{ color: "#2563eb", textDecoration: "none" }}>View misconceptions & re-teach suggestions</Link>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <button
+                        type="button"
+                        disabled={reviewLoading}
+                        onClick={async () => {
+                          if (!id) return;
+                          setReviewLoading(true);
+                          try {
+                            const res = await api.post(`/lessons/${id}/review`, { reviewed: !isReviewed });
+                            const data = res?.data;
+                            setLesson((prev) => (prev ? { ...prev, readiness: data?.readiness ?? prev.readiness, reviewedAt: data?.reviewedAt !== undefined ? data.reviewedAt : prev.reviewedAt, reviewedBy: data?.reviewedBy !== undefined ? data.reviewedBy : prev.reviewedBy } : prev));
+                          } finally {
+                            setReviewLoading(false);
+                          }
+                        }}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: isReviewed ? "2px solid #94a3b8" : "2px solid #22c55e", background: isReviewed ? "#f1f5f9" : "rgba(34,197,94,0.12)", cursor: reviewLoading ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13 }}
+                      >
+                        {reviewLoading ? "Updating…" : isReviewed ? "Unmark review" : "Mark as reviewed"}
+                      </button>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <button
+                        type="button"
+                        disabled={makeClassroomReadyLoading}
+                        onClick={async () => {
+                          if (!id) return;
+                          setMakeClassroomReadyError(null);
+                          setMakeClassroomReadyLoading(true);
+                          try {
+                            const res = await api.post<{ ok: boolean; attach?: { added: number; addedIds?: string[] }; diagram?: { status: string }; plan?: { status: string }; review?: { status: string }; readiness?: { status: string; signals?: Record<string, unknown> } }>(`/reports/lessons/${id}/make-classroom-ready`, { days: 7, attachPractice: true, attachLimit: 10, ensureDiagram: true, regeneratePlan: true, planLimit: 10, markReviewed: true });
+                            const d = res?.data;
+                            if (!d?.ok) { setMakeClassroomReadyError("Request failed"); return; }
+                            if (d?.attach?.addedIds?.length) {
+                              setAttachedExamQuestions((prev) => {
+                                const ids = new Set(d.attach!.addedIds!);
+                                const existing = new Set(prev.map((q) => q._id));
+                                return [...prev, ...d.attach!.addedIds!.filter((id) => !existing.has(id)).map((id) => ({ _id: id, question: "", type: "mcq" as const }))];
+                              });
+                            }
+                            const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                            setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                            setLesson((prev) => (prev && d?.readiness ? { ...prev, readiness: d.readiness as Lesson["readiness"], reviewedAt: d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED" ? new Date().toISOString() : prev.reviewedAt } as Lesson : prev));
+                            await fetchLessonSmart();
+                            const baseMsg = `Done: +${d?.attach?.added ?? 0} practice · diagram · plan · reviewed`;
+                            setSaveMsg(d?.readiness?.status === "READY" ? `${baseMsg}. Ready. Open Classroom mode.` : baseMsg);
+                            setTimeout(() => setSaveMsg(""), 4000);
+                          } catch (e: any) {
+                            setMakeClassroomReadyError(e?.response?.data?.error ?? e?.response?.data?.message ?? e?.message ?? "Make classroom-ready failed");
+                          } finally {
+                            setMakeClassroomReadyLoading(false);
+                          }
+                        }}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #059669", background: makeClassroomReadyLoading ? "#e5e7eb" : "rgba(5,150,105,0.12)", cursor: makeClassroomReadyLoading ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13, color: "#047857" }}
+                      >
+                        {makeClassroomReadyLoading ? "Preparing…" : "Make classroom-ready"}
+                      </button>
+                    </div>
+                    {makeClassroomReadyError && <div style={{ marginTop: 6, fontSize: 13, color: "#b91c1c" }}>{makeClassroomReadyError}</div>}
+                  </div>
+                );
+              })()}
+
+              {/* Card 4: Past paper questions — moved from center */}
+              <div style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
+                <div style={{ fontWeight: 900, marginBottom: 8 }}>Past paper questions</div>
+                <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>Attach questions from your Question Bank. Students use them for practice.</p>
+                <button
+                  type="button"
+                  onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
+                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(59,130,246,0.4)", background: "rgba(59,130,246,0.08)", cursor: "pointer", fontWeight: 700 }}
+                >
+                  Add from Question Bank
+                </button>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    disabled={autoAttachLoading}
+                    onClick={async () => {
+                      if (!id) return;
+                      setAutoAttachMessage(null);
+                      setAutoAttachLoading(true);
+                      try {
+                        const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, { limit: autoAttachLimit });
+                        const data = res?.data;
+                        const added = data?.added ?? 0;
+                        const topicName = data?.topic ?? lesson?.topic ?? "topic";
+                        if (added > 0) {
+                          const listRes = await api.get(`/lessons/${id}/exam-questions`);
+                          setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
+                        }
+                        setAutoAttachMessage(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add.");
+                      } catch (err: any) {
+                        setAutoAttachMessage(err?.response?.data?.msg ?? err?.response?.data?.error ?? "Failed to attach.");
+                      } finally {
+                        setAutoAttachLoading(false);
+                        setTimeout(() => setAutoAttachMessage(null), 5000);
+                      }
+                    }}
+                    style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.08)", cursor: autoAttachLoading ? "not-allowed" : "pointer", fontWeight: 700, opacity: autoAttachLoading ? 0.7 : 1 }}
+                  >
+                    {autoAttachLoading ? "Attaching…" : `Auto-attach (Top ${autoAttachLimit})`}
+                  </button>
+                  <select value={autoAttachLimit} onChange={(e) => setAutoAttachLimit(Number(e.target.value))} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, fontWeight: 600 }}>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                  </select>
+                </span>
+                {autoAttachMessage && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, fontSize: 13, background: autoAttachMessage.startsWith("Added") ? "#dcfce7" : "#fee2e2", color: "#166534" }}>{autoAttachMessage}</div>}
+                {attachedExamQuestions.length > 0 && (
+                  <ul style={{ marginTop: 12, paddingLeft: 20, listStyle: "disc" }}>
+                    {attachedExamQuestions.map((q) => (
+                      <li key={q._id} style={{ marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <span style={{ fontSize: 13, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis" }} title={q.question}>{q.question?.slice(0, 60)}{(q.question?.length ?? 0) > 60 ? "…" : ""} {q.marks != null ? `(${q.marks} marks)` : ""}</span>
+                        <button type="button" onClick={() => api.delete(`/lessons/${id}/exam-questions/${q._id}`).then(() => setAttachedExamQuestions((prev) => prev.filter((x) => x._id !== q._id))).catch(() => {})} style={{ padding: "4px 8px", fontSize: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", borderRadius: 6, cursor: "pointer", flexShrink: 0 }}>Remove</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* CENTER: Lesson details + Description + Editing blocks */}
+            <div data-col="center" style={{ minWidth: 0 }} role="main">
               <div
                 style={{
                   background: "white",
@@ -2687,858 +2731,23 @@ const EditLessonPage: React.FC = () => {
                     />
                   </label>
 
-                  {/* PR7: Readiness panel — canonical evaluator (lessonReadiness.ts) */}
-                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontWeight: 900 }}>Readiness</span>
-                      <a href="/docs/TEACHER_LESSON_GUIDES_INDEX.md" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#64748b" }}>What is this?</a>
-                    </div>
-                    {(() => {
-                      const evalReadiness = lesson ? evaluateLessonReadiness(lesson) : null;
-                      const statusLabel = evalReadiness?.classroomReady ? "Classroom-ready" : evalReadiness?.minimumPublishable ? "Ready to publish" : "Needs review";
-                      const statusBg = evalReadiness?.classroomReady ? "#c6f6d5" : evalReadiness?.minimumPublishable ? "#fef3c7" : "#e5e7eb";
-                      const statusColor = evalReadiness?.classroomReady ? "#22543d" : evalReadiness?.minimumPublishable ? "#92400e" : "#4b5563";
-                      const c = evalReadiness?.counts ?? { pages: 0, diagrams: 0, checkpoints: 0, quizQuestions: 0, flashcards: 0, practiceAttached: 0, misconceptions: 0 };
-                      const isReviewed = !!lesson?.reviewedAt || (lesson?.readiness as any)?.signals?.isReviewed;
-                      return (
-                        <>
-                          <div style={{ marginBottom: 10 }}>
-                            <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold", background: statusBg, color: statusColor }}>
-                              {statusLabel}
-                            </span>
-                          </div>
-                          <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 13, color: "#374151" }}>
-                            <li>Pages: {c.pages}</li>
-                            <li>Checkpoints: {c.checkpoints}</li>
-                            <li>Diagrams: {c.diagrams}</li>
-                            <li>Quiz questions: {c.quizQuestions}</li>
-                            <li>Flashcards: {c.flashcards}</li>
-                            <li>Practice attached: {c.practiceAttached}</li>
-                            <li>Misconceptions: {c.misconceptions}</li>
-                            <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
-                          </ul>
-                          {/* Definition of Done helper */}
-                          <div style={{ marginTop: 12, fontSize: 12, color: "#475569" }}>
-                            <div style={{ fontWeight: 700, marginBottom: 4 }}>Minimum publishable</div>
-                            <ul style={{ margin: "0 0 8px", paddingLeft: 18 }}>
-                              <li>≥1 page, ≥1 content block, ≥3 quiz, ≥10 flashcards, topic set, reviewed</li>
-                            </ul>
-                            <div style={{ fontWeight: 700, marginBottom: 4 }}>Classroom-ready</div>
-                            <ul style={{ margin: 0, paddingLeft: 18 }}>
-                              <li>All above + ≥1 checkpoint, ≥1 misconception, ≥1 diagram, ≥10 practice (or bank)</li>
-                            </ul>
-                          </div>
-                          <div style={{ marginTop: 10, fontSize: 12, color: "#475569" }}>
-                            <strong>Before publishing, check:</strong>{" "}
-                            {evalReadiness?.checks && (
-                              <>
-                                Topic {evalReadiness.checks.find((c) => c.key === "topic")?.pass ? "✅" : "⚠️"}
-                                {" · "}Quiz {evalReadiness.checks.find((c) => c.key === "quiz")?.pass ? "✅" : "⚠️"}
-                                {" · "}Flashcards {evalReadiness.checks.find((c) => c.key === "flashcards")?.pass ? "✅" : "⚠️"}
-                                {" · "}Reviewed {evalReadiness.checks.find((c) => c.key === "reviewed")?.pass ? "✅" : "⚠️"}
-                              </>
-                            )}
-                          </div>
-                          {/* PR20.1: When classroom-ready, show Open Classroom mode + Copy student link */}
-                          {evalReadiness?.classroomReady && (
-                            <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                              <button
-                                type="button"
-                                disabled={!id}
-                                onClick={() => id && navigate(`/teacher/classroom/${id}`)}
-                                style={{
-                                  padding: "8px 14px",
-                                  borderRadius: 8,
-                                  border: "2px solid #2563eb",
-                                  background: "rgba(37,99,235,0.12)",
-                                  color: "#2563eb",
-                                  fontWeight: 700,
-                                  fontSize: 13,
-                                  cursor: id ? "pointer" : "not-allowed",
-                                }}
-                              >
-                                Open Classroom mode
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!id}
-                                onClick={async () => {
-                                  if (!id) return;
-                                  const url = `${window.location.origin}/lesson/${id}`;
-                                  try {
-                                    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-                                      await navigator.clipboard.writeText(url);
-                                    } else {
-                                      const ta = document.createElement("textarea");
-                                      ta.value = url;
-                                      ta.style.position = "fixed";
-                                      ta.style.opacity = "0";
-                                      document.body.appendChild(ta);
-                                      ta.select();
-                                      document.execCommand("copy");
-                                      document.body.removeChild(ta);
-                                    }
-                                    setCopyLinkFeedback(true);
-                                    setTimeout(() => setCopyLinkFeedback(false), 2000);
-                                  } catch (_) {
-                                    setCopyLinkFeedback(false);
-                                  }
-                                }}
-                                style={{
-                                  padding: "8px 14px",
-                                  borderRadius: 8,
-                                  border: "2px solid #64748b",
-                                  background: "#f1f5f9",
-                                  color: "#475569",
-                                  fontWeight: 700,
-                                  fontSize: 13,
-                                  cursor: id ? "pointer" : "not-allowed",
-                                }}
-                              >
-                                Copy student link
-                              </button>
-                              {copyLinkFeedback && <span style={{ fontSize: 12, color: "#15803d", fontWeight: 600 }}>Copied</span>}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            disabled={reviewLoading}
-                            onClick={async () => {
-                              if (!id) return;
-                              setReviewLoading(true);
-                              try {
-                                const res = await api.post(`/lessons/${id}/review`, {
-                                  reviewed: !isReviewed,
-                                });
-                                const data = res?.data;
-                                setLesson((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        readiness: data?.readiness ?? prev.readiness,
-                                        reviewedAt: data?.reviewedAt !== undefined ? data.reviewedAt : prev.reviewedAt,
-                                        reviewedBy: data?.reviewedBy !== undefined ? data.reviewedBy : prev.reviewedBy,
-                                      }
-                                    : prev
-                                );
-                              } finally {
-                                setReviewLoading(false);
-                              }
-                            }}
-                            style={{
-                              padding: "8px 14px",
-                              borderRadius: 8,
-                              border: isReviewed ? "2px solid #94a3b8" : "2px solid #22c55e",
-                              background: isReviewed ? "#f1f5f9" : "rgba(34,197,94,0.12)",
-                              cursor: reviewLoading ? "not-allowed" : "pointer",
-                              fontWeight: 700,
-                              fontSize: 13,
-                            }}
-                          >
-                            {reviewLoading ? "Updating…" : isReviewed ? "Unmark review" : "Mark as reviewed"}
-                          </button>
-                          {/* PR20: One-click Make classroom-ready */}
-                          <div style={{ marginTop: 12 }}>
-                            <button
-                              type="button"
-                              disabled={makeClassroomReadyLoading || !id}
-                              onClick={async () => {
-                                if (!id) return;
-                                setMakeClassroomReadyError(null);
-                                setMakeClassroomReadyLoading(true);
-                                try {
-                                  const res = await api.post<{
-                                    ok: boolean;
-                                    attach?: { added: number; addedIds?: string[] };
-                                    diagram?: { status: string };
-                                    plan?: { status: string };
-                                    review?: { status: string };
-                                    readiness?: { status: string; signals?: Record<string, unknown> };
-                                  }>(`/reports/lessons/${id}/make-classroom-ready`, {
-                                    days: insightsDays ?? 7,
-                                    attachPractice: true,
-                                    attachLimit: 10,
-                                    ensureDiagram: true,
-                                    regeneratePlan: true,
-                                    planLimit: 10,
-                                    markReviewed: true,
-                                  });
-                                  const d = res?.data;
-                                  if (!d?.ok) {
-                                    setMakeClassroomReadyError("Request failed");
-                                    return;
-                                  }
-                                  const added = d?.attach?.added ?? 0;
-                                  const diagramStatus = d?.diagram?.status ?? "";
-                                  const planStatus = d?.plan?.status ?? "";
-                                  const reviewStatus = d?.review?.status ?? "";
-                                  if (d?.attach?.addedIds?.length) {
-                                    setAttachedExamQuestions((prev) => {
-                                      const ids = new Set(d.attach!.addedIds!);
-                                      const existing = new Set(prev.map((q) => q._id));
-                                      const newOnes = d.attach!.addedIds!.filter((id) => !existing.has(id)).map((id) => ({ _id: id, question: "", type: "mcq" as const }));
-                                      return [...prev, ...newOnes];
-                                    });
-                                  }
-                                  const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                  setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                                  const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
-                                  if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
-                                  setLesson((prev) =>
-                                    prev && d?.readiness
-                                      ? ({
-                                          ...prev,
-                                          readiness: d.readiness as Lesson["readiness"],
-                                          reviewedAt: d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED" ? new Date().toISOString() : prev.reviewedAt,
-                                        } as Lesson)
-                                      : prev
-                                  );
-                                  await fetchLessonSmart();
-                                  const diagramMsg = diagramStatus === "ATTACHED" ? "diagram attached" : diagramStatus === "ALREADY_PRESENT" ? "diagram already" : "no diagram";
-                                  const planMsg =
-                                    planStatus === "UPDATED" ? "plan updated" : planStatus === "CACHED" ? "plan reused" : planStatus === "NOT_CONFIGURED" ? "plan not generated" : planStatus === "RATE_LIMIT" ? "plan rate limited" : "plan skipped";
-                                  const baseMsg = `Done: +${added} practice · ${diagramMsg} · ${planMsg} · ${reviewStatus === "MARKED" ? "reviewed" : reviewStatus === "ALREADY_REVIEWED" ? "already reviewed" : "review skipped"}`;
-                                  setSaveMsg(d?.readiness?.status === "READY" ? `${baseMsg}. Ready. Open Classroom mode to start collecting attempts.` : baseMsg);
-                                  setTimeout(() => setSaveMsg(""), 4000);
-                                } catch (e: any) {
-                                  const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? e?.message ?? "Make classroom-ready failed";
-                                  setMakeClassroomReadyError(msg === "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey." ? "Set a valid topic (topicKey) for this lesson." : msg);
-                                } finally {
-                                  setMakeClassroomReadyLoading(false);
-                                }
-                              }}
-                              style={{
-                                padding: "8px 14px",
-                                borderRadius: 8,
-                                border: "2px solid #059669",
-                                background: makeClassroomReadyLoading ? "#e5e7eb" : "rgba(5,150,105,0.12)",
-                                cursor: makeClassroomReadyLoading ? "not-allowed" : "pointer",
-                                fontWeight: 700,
-                                fontSize: 13,
-                                color: "#047857",
-                              }}
-                            >
-                              {makeClassroomReadyLoading ? "Preparing…" : "Make classroom-ready"}
-                            </button>
-                            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
-                              Attaches practice, adds a diagram if missing, refreshes reteach plan, marks reviewed.
-                            </p>
-                            {makeClassroomReadyError && (
-                              <div style={{ marginTop: 6, fontSize: 13, color: "#b91c1c" }}>{makeClassroomReadyError}</div>
-                            )}
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
+                  <label style={{ display: "block", marginTop: 10 }}>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
+                    <textarea
+                      value={lesson.description}
+                      onChange={(e) => updateLessonField("description", e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "2px solid rgba(0,0,0,0.14)",
+                        resize: "vertical",
+                      }}
+                    />
+                  </label>
 
-                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
-                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Past paper questions</div>
-                    <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>
-                      Attach questions from your Question Bank to this lesson. Students can use them for practice.
-                    </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                      <button
-                        type="button"
-                        onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 8,
-                          border: "2px solid rgba(59,130,246,0.4)",
-                          background: "rgba(59,130,246,0.08)",
-                          cursor: "pointer",
-                          fontWeight: 700,
-                        }}
-                      >
-                        Add from Question Bank
-                      </button>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <button
-                          type="button"
-                          disabled={autoAttachLoading}
-                          onClick={async () => {
-                            if (!id) return;
-                            setAutoAttachMessage(null);
-                            setAutoAttachLoading(true);
-                            try {
-                              const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
-                                limit: autoAttachLimit,
-                              });
-                              const data = res?.data;
-                              const added = data?.added ?? 0;
-                              const topicName = data?.topic ?? lesson?.topic ?? "topic";
-                              if (added > 0) {
-                                const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                              }
-                              setAutoAttachMessage(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add (all already attached).");
-                            } catch (err: any) {
-                              const msg = err?.response?.data?.msg ?? err?.response?.data?.error;
-                              const is400 = err?.response?.status === 400;
-                              setAutoAttachMessage(
-                                is400 && msg
-                                  ? (typeof msg === "string" ? msg : "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.")
-                                  : "Failed to attach questions."
-                              );
-                            } finally {
-                              setAutoAttachLoading(false);
-                              setTimeout(() => setAutoAttachMessage(null), 5000);
-                            }
-                          }}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            border: "2px solid rgba(34,197,94,0.4)",
-                            background: "rgba(34,197,94,0.08)",
-                            cursor: autoAttachLoading ? "not-allowed" : "pointer",
-                            fontWeight: 700,
-                            opacity: autoAttachLoading ? 0.7 : 1,
-                          }}
-                        >
-                          {autoAttachLoading ? "Attaching…" : `Auto-attach (Top ${autoAttachLimit})`}
-                        </button>
-                        <select
-                          value={autoAttachLimit}
-                          onChange={(e) => setAutoAttachLimit(Number(e.target.value))}
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: 6,
-                            border: "1px solid #e2e8f0",
-                            fontSize: 13,
-                            fontWeight: 600,
-                          }}
-                        >
-                          <option value={5}>5</option>
-                          <option value={10}>10</option>
-                          <option value={15}>15</option>
-                        </select>
-                      </span>
-                    </div>
-                    {autoAttachMessage && (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          padding: "8px 12px",
-                          borderRadius: 8,
-                          fontSize: 13,
-                          background: autoAttachMessage.startsWith("Added") ? "#dcfce7" : autoAttachMessage.includes("isn't mapped") ? "#fef3c7" : "#fee2e2",
-                          color: "#166534",
-                        }}
-                      >
-                        {autoAttachMessage}
-                      </div>
-                    )}
-                    {attachedExamQuestions.length > 0 && (
-                      <ul style={{ marginTop: 12, paddingLeft: 20, listStyle: "disc" }}>
-                        {attachedExamQuestions.map((q) => (
-                          <li key={q._id} style={{ marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                            <span style={{ fontSize: 13, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis" }} title={q.question}>
-                              {q.question?.slice(0, 60)}{(q.question?.length ?? 0) > 60 ? "…" : ""} {q.marks != null ? `(${q.marks} marks)` : ""}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                api.delete(`/lessons/${id}/exam-questions/${q._id}`).then(() => {
-                                  setAttachedExamQuestions((prev) => prev.filter((x) => x._id !== q._id));
-                                }).catch(() => {});
-                              }}
-                              style={{
-                                padding: "4px 8px",
-                                fontSize: 12,
-                                border: "1px solid #fecaca",
-                                background: "#fef2f2",
-                                color: "#b91c1c",
-                                borderRadius: 6,
-                                cursor: "pointer",
-                                flexShrink: 0,
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* PR13.1: Misconceptions panel — top wrong questions + topic hot-spots, one-click attach */}
-                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
-                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Misconceptions (last {insightsDays} days)</div>
-                    {(() => {
-                      const isPublished = lesson?.isPublished === true || String(lesson?.status || "").toLowerCase() === "published";
-                      if (!isPublished) {
-                        return (
-                          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-                            Publish to start collecting attempts.
-                          </p>
-                        );
-                      }
-                      if (insightsLoading) {
-                        return <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Loading insights…</p>;
-                      }
-                      if (insightsError) {
-                        return (
-                          <p style={{ margin: 0, fontSize: 13, color: "#b91c1c" }}>{insightsError}</p>
-                        );
-                      }
-                      if (misconceptionItems.length === 0 && hotspotTopics.length === 0) {
-                        return (
-                          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-                            No practice attempts recorded yet.
-                          </p>
-                        );
-                      }
-                      const attachedIds = new Set(attachedExamQuestions.map((q) => String(q._id)));
-                      return (
-                        <>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 12, color: "#64748b" }}>Period:</span>
-                            {([7, 14, 30] as const).map((d) => (
-                              <button
-                                key={d}
-                                type="button"
-                                onClick={() => setInsightsDays(d)}
-                                style={{
-                                  padding: "4px 10px",
-                                  borderRadius: 6,
-                                  border: insightsDays === d ? "2px solid #2563eb" : "1px solid #e2e8f0",
-                                  background: insightsDays === d ? "rgba(37,99,235,0.1)" : "#fff",
-                                  cursor: "pointer",
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {d} days
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              disabled={fixingTopicKey !== null || bulkFixLoading}
-                              onClick={async () => {
-                                if (!id) return;
-                                setBulkFixLoading(true);
-                                setBulkFixError(null);
-                                try {
-                                  const res = await api.post<{
-                                    ok: boolean;
-                                    lessonId: string;
-                                    days: number;
-                                    topics: Array<{ topicKey: string; topic?: string; requested: number; added: number; addedIds: string[] }>;
-                                    attach: { requested: number; added: number; addedIds: string[] };
-                                    plan: { status: string; id?: string | null; pinned?: boolean; updatedAt?: string | null; cached?: boolean };
-                                  }>(`/reports/lessons/${id}/one-click-fix-bulk`, {
-                                    days: insightsDays,
-                                    attachByTopic: true,
-                                    attachLimitPerTopic: 10,
-                                    regeneratePlan: true,
-                                    planLimit: 10,
-                                  });
-                                  const data = res?.data;
-                                  if (!data?.ok) {
-                                    setBulkFixError("Bulk fix failed");
-                                    return;
-                                  }
-                                  const addedIds = Array.isArray(data?.attach?.addedIds) ? data.attach.addedIds : [];
-                                  if (addedIds.length > 0) {
-                                    setAttachedExamQuestions((prev) => {
-                                      const existingIds = new Set(prev.map((q: any) => String(q?._id ?? q?.id ?? "")));
-                                      const next = [...prev];
-                                      for (const qid of addedIds) {
-                                        if (!existingIds.has(String(qid))) {
-                                          next.push({ _id: qid, question: "(attached)", marks: undefined });
-                                        }
-                                      }
-                                      return next;
-                                    });
-                                  }
-                                  const planStatus = data?.plan?.status || "SKIPPED";
-                                  let planMsg = "plan updated";
-                                  if (planStatus === "CACHED") planMsg = "plan reused";
-                                  if (planStatus === "NOT_CONFIGURED") planMsg = "plan not generated (AI not configured)";
-                                  if (planStatus === "RATE_LIMIT") planMsg = "plan not generated (rate limited)";
-                                  if (planStatus === "ERROR") planMsg = "plan not generated";
-                                  if (planStatus === "SKIPPED") planMsg = "plan skipped";
-                                  const added = data?.attach?.added ?? 0;
-                                  setAttachByTopicToast(`Done: +${added} question${added !== 1 ? "s" : ""} · ${planMsg}`);
-                                  setTimeout(() => setAttachByTopicToast(null), 4000);
-                                  try {
-                                    const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                    setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                                  } catch {}
-                                  try {
-                                    const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
-                                    if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
-                                  } catch {}
-                                } catch (e: any) {
-                                  setBulkFixError(e?.response?.data?.error || e?.response?.data?.message || "Failed to run bulk fix.");
-                                } finally {
-                                  setBulkFixLoading(false);
-                                }
-                              }}
-                              style={{
-                                padding: "6px 12px",
-                                borderRadius: 6,
-                                border: "2px solid #059669",
-                                background: bulkFixLoading || fixingTopicKey ? "#e5e7eb" : "rgba(5,150,105,0.12)",
-                                cursor: bulkFixLoading || fixingTopicKey ? "not-allowed" : "pointer",
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "#047857",
-                              }}
-                            >
-                              {bulkFixLoading ? "Fixing…" : "Fix top hotspots (3)"}
-                            </button>
-                          </div>
-                          {bulkFixError && (
-                            <div style={{ marginBottom: 8, fontSize: 12, color: "#dc2626" }}>{bulkFixError}</div>
-                          )}
-                          {misconceptionItems.length > 0 && (
-                            <div style={{ marginBottom: 12 }}>
-                              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 6, color: "#374151" }}>Top misconceptions</div>
-                              <ul style={{ margin: 0, paddingLeft: 16, listStyle: "none" }}>
-                                {misconceptionItems.map((item) => {
-                                  const snippet = (item.question ?? "").slice(0, 120);
-                                  const isAttached = attachedIds.has(item.questionId);
-                                  const isAttaching = attachingQuestionId === item.questionId;
-                                  return (
-                                    <li key={item.questionId} style={{ marginBottom: 10, padding: 8, borderRadius: 6, background: "#fff", border: "1px solid #e2e8f0" }}>
-                                      <div style={{ fontSize: 12, color: "#374151", marginBottom: 4 }}>
-                                        {snippet}{snippet.length >= 120 ? "…" : ""}
-                                      </div>
-                                      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
-                                        High-conf wrong: {item.highConfidenceWrong} · Accuracy: {item.accuracy != null ? Math.round(item.accuracy * 100) : "—"}% · {item.topic ?? item.topicKey ?? "—"}
-                                      </div>
-                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                        <button
-                                          type="button"
-                                          disabled={isAttached || isAttaching}
-                                          onClick={async () => {
-                                            if (!id) return;
-                                            setAttachingQuestionId(item.questionId);
-                                            try {
-                                              await api.post(`/lessons/${id}/exam-questions`, { questionIds: [item.questionId] });
-                                              const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                              setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                                              setAttachToast("Attached");
-                                              setTimeout(() => setAttachToast(null), 2500);
-                                            } finally {
-                                              setAttachingQuestionId(null);
-                                            }
-                                          }}
-                                          style={{
-                                            padding: "4px 10px",
-                                            borderRadius: 6,
-                                            border: "1px solid #22c55e",
-                                            background: isAttached ? "#e2e8f0" : "rgba(34,197,94,0.12)",
-                                            cursor: isAttached || isAttaching ? "not-allowed" : "pointer",
-                                            fontSize: 11,
-                                            fontWeight: 600,
-                                            color: isAttached ? "#64748b" : "#166534",
-                                          }}
-                                        >
-                                          {isAttaching ? "Attaching…" : isAttached ? "Attached" : "Attach to lesson"}
-                                        </button>
-                                        <Link
-                                          to={item.topicKey ? `/teacher/exam-question-bank?topicKey=${encodeURIComponent(item.topicKey)}` : "/teacher/exam-question-bank"}
-                                          style={{ fontSize: 11, color: "#2563eb", fontWeight: 600 }}
-                                        >
-                                          Open in Question Bank
-                                        </Link>
-                                      </div>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                              {attachToast && (
-                                <div style={{ marginTop: 6, fontSize: 12, color: "#166534", fontWeight: 600 }}>{attachToast}</div>
-                              )}
-                            </div>
-                          )}
-                          {hotspotTopics.length > 0 && (
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 6, color: "#374151" }}>Topic hot-spots</div>
-                              <ul style={{ margin: 0, paddingLeft: 16, listStyle: "none" }}>
-                                {hotspotTopics.map((t) => {
-                                  const isAttaching = attachingTopicKey === t.topicKey;
-                                  return (
-                                    <li key={t.topicKey} style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                                      <span style={{ fontSize: 12, color: "#374151" }}>
-                                        {t.topic ?? t.topicKey} · Wrong {t.wrong}/{t.attempts}
-                                        {t.highConfidenceWrong > 0 && (
-                                          <span style={{ color: "#b91c1c", marginLeft: 4 }}>· High-conf wrong: {t.highConfidenceWrong}</span>
-                                        )}
-                                      </span>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                        <button
-                                          type="button"
-                                          disabled={isAttaching}
-                                          onClick={async () => {
-                                            if (!id) return;
-                                            setAttachingTopicKey(t.topicKey);
-                                            try {
-                                              const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
-                                                topicKey: t.topicKey,
-                                                limit: 10,
-                                              });
-                                              const data = res?.data;
-                                              const added = data?.added ?? 0;
-                                              if (added > 0) {
-                                                const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                                setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                                              }
-                                              setAttachByTopicToast(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""}` : "No new questions to add");
-                                              setTimeout(() => setAttachByTopicToast(null), 3000);
-                                            } finally {
-                                              setAttachingTopicKey(null);
-                                            }
-                                          }}
-                                          style={{
-                                            padding: "4px 10px",
-                                            borderRadius: 6,
-                                            border: "1px solid #94a3b8",
-                                            background: "#f1f5f9",
-                                            cursor: isAttaching ? "not-allowed" : "pointer",
-                                            fontSize: 11,
-                                            fontWeight: 600,
-                                            color: "#475569",
-                                          }}
-                                        >
-                                          {isAttaching ? "Attaching…" : "Attach top 10"}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={fixingTopicKey === t.topicKey}
-                                          onClick={async () => {
-                                            if (!id) return;
-                                            const topicKey = String(t.topicKey || "");
-
-                                            setFixingTopicKey(topicKey);
-                                            setFixErrorByTopic((prev) => ({ ...prev, [topicKey]: "" }));
-
-                                            try {
-                                              const res = await api.post<{
-                                                ok: boolean;
-                                                lessonId: string;
-                                                topicKey?: string;
-                                                topic?: string;
-                                                attach?: { requested: number; added: number; addedIds: string[] };
-                                                plan?: {
-                                                  status: "UPDATED" | "CACHED" | "NOT_CONFIGURED" | "RATE_LIMIT" | "ERROR" | "SKIPPED";
-                                                  id?: string | null;
-                                                  pinned?: boolean;
-                                                  updatedAt?: string | null;
-                                                  cached?: boolean;
-                                                };
-                                              }>(`/reports/lessons/${id}/one-click-fix`, {
-                                                days: insightsDays,
-                                                topicKey,
-                                                attachByTopic: true,
-                                                attachLimit: 10,
-                                                regeneratePlan: true,
-                                                planLimit: 10,
-                                              });
-
-                                              const data = res?.data;
-                                              if (!data?.ok) {
-                                                setFixErrorByTopic((prev) => ({ ...prev, [topicKey]: "One-click fix failed" }));
-                                                return;
-                                              }
-
-                                              const added = data?.attach?.added ?? 0;
-                                              const addedIds = Array.isArray(data?.attach?.addedIds) ? data.attach.addedIds : [];
-
-                                              if (addedIds.length > 0) {
-                                                setAttachedExamQuestions((prev) => {
-                                                  const existingIds = new Set(prev.map((q: any) => String(q?._id ?? q?.id ?? "")));
-                                                  const next = [...prev];
-                                                  for (const qid of addedIds) {
-                                                    if (!existingIds.has(String(qid))) {
-                                                      next.push({ _id: qid, question: "(attached)", marks: undefined });
-                                                    }
-                                                  }
-                                                  return next;
-                                                });
-                                              }
-
-                                              const planStatus = data?.plan?.status || "SKIPPED";
-                                              let planMsg = "plan updated";
-                                              if (planStatus === "CACHED") planMsg = "plan reused";
-                                              if (planStatus === "NOT_CONFIGURED") planMsg = "plan not generated (AI not configured)";
-                                              if (planStatus === "RATE_LIMIT") planMsg = "plan not generated (rate limited)";
-                                              if (planStatus === "ERROR") planMsg = "plan not generated";
-                                              if (planStatus === "SKIPPED") planMsg = "plan skipped";
-
-                                              setAttachByTopicToast(`Done: added ${added} question${added !== 1 ? "s" : ""} · ${planMsg}`);
-                                              setTimeout(() => setAttachByTopicToast(null), 4000);
-
-                                              try {
-                                                const listRes = await api.get(`/lessons/${id}/exam-questions`);
-                                                setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                                              } catch {}
-
-                                              try {
-                                                const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
-                                                if (planRes?.data?.ok && planRes.data.plan) {
-                                                  setReteachPlan(planRes.data.plan);
-                                                }
-                                              } catch {}
-                                            } catch (e: any) {
-                                              const msg =
-                                                e?.response?.data?.error ||
-                                                e?.response?.data?.message ||
-                                                "Failed to run one-click fix.";
-                                              setFixErrorByTopic((prev) => ({ ...prev, [topicKey]: msg }));
-                                            } finally {
-                                              setFixingTopicKey(null);
-                                            }
-                                          }}
-                                          style={{
-                                            padding: "4px 10px",
-                                            borderRadius: 6,
-                                            border: "2px solid #059669",
-                                            background: "rgba(5,150,105,0.12)",
-                                            cursor: fixingTopicKey === t.topicKey ? "not-allowed" : "pointer",
-                                            fontSize: 11,
-                                            fontWeight: 600,
-                                            color: "#047857",
-                                          }}
-                                        >
-                                          {fixingTopicKey === t.topicKey ? "Fixing…" : "One-click fix"}
-                                        </button>
-                                      </div>
-                                      {fixErrorByTopic[t.topicKey] && (
-                                        <div style={{ width: "100%", fontSize: 11, color: "#dc2626", marginTop: 4 }}>{fixErrorByTopic[t.topicKey]}</div>
-                                      )}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                              {attachByTopicToast && (
-                                <div style={{ marginTop: 6, fontSize: 12, color: "#166534", fontWeight: 600 }}>{attachByTopicToast}</div>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  {/* PR14: Reteach plan compact panel — pinned snippet + Open full report + optional Generate */}
-                  <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
-                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Reteach plan</div>
-                    {reteachPlanLoading ? (
-                      <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Loading…</p>
-                    ) : reteachPlan ? (
-                      <>
-                        {reteachPlan.pinned && reteachPlan.content && (
-                          <div style={{ fontSize: 12, color: "#374151", marginBottom: 10, whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {reteachPlan.content.replace(/#+\s/g, "").slice(0, 220)}
-                            {reteachPlan.content.length > 220 ? "…" : ""}
-                          </div>
-                        )}
-                        {!reteachPlan.pinned && (
-                          <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b" }}>Plan available — open report to view or pin.</p>
-                        )}
-                        <p style={{ margin: "0 0 8px 0", fontSize: 12, color: "#374151" }}>
-                          Student next steps: {reteachPlan.studentSummary?.trim() ? "✓" : "—"}
-                        </p>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          <Link
-                            to={`/teacher/reports/lesson/${id}`}
-                            style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
-                          >
-                            Edit in report
-                          </Link>
-                          <button
-                            type="button"
-                            disabled={reteachPlanGenerateLoading}
-                            onClick={async () => {
-                              if (!id) return;
-                              setReteachPlanGenerateLoading(true);
-                              try {
-                                const res = await api.post<{ ok: boolean; plan?: { content: string; pinned: boolean; generatedAt?: string; days?: number } }>(
-                                  `/reports/lessons/${id}/reteach-plan`,
-                                  { days: insightsDays, limit: 10 }
-                                );
-                                if (res?.data?.ok && res.data.plan) setReteachPlan(res.data.plan);
-                              } finally {
-                                setReteachPlanGenerateLoading(false);
-                              }
-                            }}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: "1px solid #2563eb",
-                              background: "rgba(37,99,235,0.1)",
-                              cursor: reteachPlanGenerateLoading ? "not-allowed" : "pointer",
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: "#2563eb",
-                              alignSelf: "flex-start",
-                            }}
-                          >
-                            {reteachPlanGenerateLoading ? "Generating…" : "Generate"}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b" }}>No plan yet. Generate from report or here.</p>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          <Link to={`/teacher/reports/lesson/${id}`} style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
-                            Edit in report
-                          </Link>
-                          <button
-                            type="button"
-                            disabled={reteachPlanGenerateLoading}
-                            onClick={async () => {
-                              if (!id) return;
-                              setReteachPlanGenerateLoading(true);
-                              try {
-                                const res = await api.post<{ ok: boolean; plan?: { content: string; pinned: boolean; generatedAt?: string; days?: number } }>(
-                                  `/reports/lessons/${id}/reteach-plan`,
-                                  { days: insightsDays, limit: 10 }
-                                );
-                                if (res?.data?.ok && res.data.plan) setReteachPlan(res.data.plan);
-                              } finally {
-                                setReteachPlanGenerateLoading(false);
-                              }
-                            }}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 6,
-                              border: "1px solid #2563eb",
-                              background: "rgba(37,99,235,0.1)",
-                              cursor: reteachPlanGenerateLoading ? "not-allowed" : "pointer",
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: "#2563eb",
-                              alignSelf: "flex-start",
-                            }}
-                          >
-                            {reteachPlanGenerateLoading ? "Generating…" : "Generate"}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
                 </div>
-
-                <label style={{ display: "block", marginTop: 10 }}>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
-                  <textarea
-                    value={lesson.description}
-                    onChange={(e) => updateLessonField("description", e.target.value)}
-                    rows={3}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "2px solid rgba(0,0,0,0.14)",
-                      resize: "vertical",
-                    }}
-                  />
-                </label>
               </div>
 
               {!pagesReady ? (
@@ -4848,13 +4057,15 @@ const EditLessonPage: React.FC = () => {
                   </div>
                 </div>
               )}
-            </main>
+            </div>
 
             <aside
+              data-col="right"
               style={{
-                position: "sticky",
-                top: 16,
+                position: layoutBreakpoint === "medium" ? undefined : "sticky",
+                top: layoutBreakpoint === "medium" ? undefined : 16,
                 alignSelf: "start",
+                ...(layoutBreakpoint === "medium" ? { gridRow: 2, gridColumn: "1 / -1" } : {}),
               }}
             >
               <div
@@ -6559,7 +5770,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                       review?: { status: string };
                       readiness?: { status: string; signals?: Record<string, unknown> };
                     }>(`/reports/lessons/${id}/make-classroom-ready`, {
-                      days: insightsDays ?? 7,
+                      days: 7,
                       attachPractice: true,
                       attachLimit: 10,
                       ensureDiagram: true,
@@ -6571,8 +5782,6 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                     if (d?.ok) {
                       const listRes = await api.get(`/lessons/${id}/exam-questions`);
                       setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
-                      const planRes = await api.get(`/reports/lessons/${id}/reteach-plan`);
-                      if (planRes?.data?.ok && planRes.data.plan) setReteachPlan(planRes.data.plan);
                       setLesson((prev) =>
                         prev && d?.readiness
                           ? ({ ...prev, readiness: d.readiness as Lesson["readiness"], reviewedAt: d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED" ? new Date().toISOString() : prev.reviewedAt } as Lesson)
@@ -6714,6 +5923,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
         </div>
       )}
 
+    </div>
     </div>
   );
 };
