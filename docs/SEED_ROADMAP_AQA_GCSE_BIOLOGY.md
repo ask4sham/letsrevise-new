@@ -9,31 +9,31 @@
 
 ## Unit 1 — Cell Biology (taxonomy order from `docs/TAXONOMY_TOPIC_LIST.csv`)
 
-Source: filter `specKey == "aqa-gcse-biology"`, `mainTopicTitle == "Cell Biology"`. **Do not seed using un-namespaced slugs; always use topicKey `specKey:topicSlug`.**
+Source: filter `specKey == "aqa_gcse_biology"`, `mainTopicTitle == "Cell Biology"`. **Do not seed using un-namespaced slugs; always use topicKey `specKey:topicSlug`** (platform uses underscore specKeys, e.g. `aqa_gcse_biology:cell-structure`).
 
 | # | Topic (leaf) | topicSlug | topicKey | Status |
 |---|--------------|-----------|----------|--------|
-| 1 | Cell structure | cell-structure | `aqa-gcse-biology:cell-structure` | ✅ PR-SEED-1 |
-| 2 | Animal and plant cells | animal-plant-cells | `aqa-gcse-biology:animal-plant-cells` | TODO |
-| 3 | Eukaryotes and prokaryotes | eukaryotes-prokaryotes | `aqa-gcse-biology:eukaryotes-prokaryotes` | ✅ PR-SEED-2 |
-| 4 | Cell specialisation | cell-specialisation | `aqa-gcse-biology:cell-specialisation` | TODO |
-| 5 | Cell differentiation | cell-differentiation | `aqa-gcse-biology:cell-differentiation` | TODO |
-| 6 | Microscopy | microscopy | `aqa-gcse-biology:microscopy` | TODO |
-| 7 | Required Practical: Microscopy | rp-microscopy | `aqa-gcse-biology:rp-microscopy` | TODO |
-| 8 | Cell Division | cell-division | `aqa-gcse-biology:cell-division` | TODO |
-| 9 | Chromosomes | chromosomes | `aqa-gcse-biology:chromosomes` | TODO |
-| 10 | Mitosis and the cell cycle | mitosis-cell-cycle | `aqa-gcse-biology:mitosis-cell-cycle` | TODO |
-| 11 | Stem cells | stem-cells | `aqa-gcse-biology:stem-cells` | TODO |
-| 12 | Transport in Cells | transport-in-cells | `aqa-gcse-biology:transport-in-cells` | TODO |
-| 13 | Diffusion | diffusion | `aqa-gcse-biology:diffusion` | TODO |
-| 14 | Factors that affect diffusion | factors-affect-diffusion | `aqa-gcse-biology:factors-affect-diffusion` | TODO |
-| 15 | Osmosis | osmosis | `aqa-gcse-biology:osmosis` | TODO |
-| 16 | Required Practical: Osmosis | rp-osmosis | `aqa-gcse-biology:rp-osmosis` | TODO |
-| 17 | Active transport | active-transport | `aqa-gcse-biology:active-transport` | TODO |
-| 18 | Diffusion in multicellular organisms | diffusion-multicellular | `aqa-gcse-biology:diffusion-multicellular` | TODO |
-| 19 | Transport summary and applications | transport-summary | `aqa-gcse-biology:transport-summary` | TODO |
-| 20 | Culturing microorganisms | culturing-microorganisms | `aqa-gcse-biology:culturing-microorganisms` | TODO |
-| 21 | Required Practical: Growth | rp-growth | `aqa-gcse-biology:rp-growth` | TODO |
+| 1 | Cell structure | cell-structure | `aqa_gcse_biology:cell-structure` | ✅ PR-SEED-1 |
+| 2 | Animal and plant cells | animal-plant-cells | `aqa_gcse_biology:animal-plant-cells` | TODO |
+| 3 | Eukaryotes and prokaryotes | eukaryotes-prokaryotes | `aqa_gcse_biology:eukaryotes-prokaryotes` | ✅ PR-SEED-2 |
+| 4 | Cell specialisation | cell-specialisation | `aqa_gcse_biology:cell-specialisation` | TODO |
+| 5 | Cell differentiation | cell-differentiation | `aqa_gcse_biology:cell-differentiation` | TODO |
+| 6 | Microscopy | microscopy | `aqa_gcse_biology:microscopy` | TODO |
+| 7 | Required Practical: Microscopy | rp-microscopy | `aqa_gcse_biology:rp-microscopy` | TODO |
+| 8 | Cell Division | cell-division | `aqa_gcse_biology:cell-division` | TODO |
+| 9 | Chromosomes | chromosomes | `aqa_gcse_biology:chromosomes` | TODO |
+| 10 | Mitosis and the cell cycle | mitosis-cell-cycle | `aqa_gcse_biology:mitosis-cell-cycle` | TODO |
+| 11 | Stem cells | stem-cells | `aqa_gcse_biology:stem-cells` | TODO |
+| 12 | Transport in Cells | transport-in-cells | `aqa_gcse_biology:transport-in-cells` | TODO |
+| 13 | Diffusion | diffusion | `aqa_gcse_biology:diffusion` | TODO |
+| 14 | Factors that affect diffusion | factors-affect-diffusion | `aqa_gcse_biology:factors-affect-diffusion` | TODO |
+| 15 | Osmosis | osmosis | `aqa_gcse_biology:osmosis` | TODO |
+| 16 | Required Practical: Osmosis | rp-osmosis | `aqa_gcse_biology:rp-osmosis` | TODO |
+| 17 | Active transport | active-transport | `aqa_gcse_biology:active-transport` | TODO |
+| 18 | Diffusion in multicellular organisms | diffusion-multicellular | `aqa_gcse_biology:diffusion-multicellular` | TODO |
+| 19 | Transport summary and applications | transport-summary | `aqa_gcse_biology:transport-summary` | TODO |
+| 20 | Culturing microorganisms | culturing-microorganisms | `aqa_gcse_biology:culturing-microorganisms` | TODO |
+| 21 | Required Practical: Growth | rp-growth | `aqa_gcse_biology:rp-growth` | TODO |
 
 **Batches (recommended):**
 

@@ -15,11 +15,16 @@ const DOCS_DIR = path.join(__dirname, "..", "..", "docs");
 const MD_PATH = path.join(DOCS_DIR, "TAXONOMY_TOPIC_LIST.md");
 const CSV_PATH = path.join(DOCS_DIR, "TAXONOMY_TOPIC_LIST.csv");
 
-/** Derive specKey from filename e.g. aqa_gcse_biology_topics.json → aqa-gcse-biology */
+/** Normalize specKey to platform format: underscores only (e.g. aqa_gcse_biology). */
+function normalizeSpecKey(s) {
+  return String(s).trim().replace(/-/g, "_").toLowerCase();
+}
+
+/** Derive specKey from filename e.g. aqa_gcse_biology_topics.json → aqa_gcse_biology */
 function specKeyFromFilename(filePath) {
   const base = path.basename(filePath, path.extname(filePath));
   const withoutSuffix = base.replace(/_topics$/, "");
-  return withoutSuffix.replace(/_/g, "-").toLowerCase();
+  return normalizeSpecKey(withoutSuffix);
 }
 
 function getTopicFiles() {
@@ -41,10 +46,11 @@ function readJson(filePath) {
  * Structure: { subject, examBoard, level, specKey?, units: [ { unit, key?, topics: [ { topic, key } ] } ] }
  */
 function collectLeafRows(filePath, data, fileLabel) {
-  const specKey =
+  const rawSpecKey =
     typeof data.specKey === "string" && data.specKey.trim()
       ? data.specKey.trim()
       : specKeyFromFilename(filePath);
+  const specKey = normalizeSpecKey(rawSpecKey);
   const subject =
     typeof data.subject === "string" && data.subject.trim() ? data.subject.trim() : "Unknown";
   const units = Array.isArray(data.units) ? data.units : [];
