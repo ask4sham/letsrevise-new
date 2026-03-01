@@ -1,3 +1,4 @@
+/** @module EditLessonPage */
 import React, { useMemo, useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -6874,3 +6875,4 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
 };
 
 export default EditLessonPage;
+export {};
