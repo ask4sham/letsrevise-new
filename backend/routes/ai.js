@@ -794,6 +794,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
         ? ""
         : String(req.body.board);
     const tier = safeStr(req.body?.tier, "");
+    const topicKey =
+      typeof req.body?.topicKey === "string" && req.body.topicKey.trim()
+        ? req.body.topicKey.trim()
+        : null;
 
     if (!topic || !subject || !level) {
       return res.status(400).json({
@@ -957,6 +961,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
       tier: normalizeLevel(level) === "GCSE" ? normalizeTier(sanitized.tier) : "",
       estimatedDuration: sanitized.estimatedDuration,
       tags: Array.isArray(sanitized.tags) ? sanitized.tags : [],
+
+      // Namespaced topicKey for practice/banks (same as manual Create Lesson)
+      ...(topicKey && { topicKey }),
 
       // Gold structure
       pages: pagesMerged,

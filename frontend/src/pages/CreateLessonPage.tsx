@@ -1,10 +1,11 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { fetchCreateLessonOptions, type CreateLessonOptionsResponse } from "../api/taxonomy";
+import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
+import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
 import {
   type LessonBlockType,
   BLOCK_META,
@@ -247,13 +248,14 @@ const CreateLessonPage: React.FC = () => {
   );
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Taxonomy options for Subject → Spec → Main Topic → Sub-topic (from backend/config/*_topics.json)
-  const [taxonomyOptions, setTaxonomyOptions] = useState<CreateLessonOptionsResponse | null>(null);
-  const [taxonomyLoading, setTaxonomyLoading] = useState(true);
-  const [taxonomyError, setTaxonomyError] = useState<string | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState("");
-  const [selectedSpecKey, setSelectedSpecKey] = useState("");
-  const [selectedMainTopicTitle, setSelectedMainTopicTitle] = useState("");
+  const { options: taxonomyOptions, loading: taxonomyLoading, error: taxonomyError } = useCreateLessonTaxonomyOptions();
+  const [topicSelection, setTopicSelection] = useState<TopicSelectionValue>({
+    subject: "",
+    specKey: "",
+    mainTopicTitle: "",
+    topicKey: "",
+    topic: "",
+  });
 
   // Lesson details
   const [formData, setFormData] = useState({
@@ -287,35 +289,15 @@ const CreateLessonPage: React.FC = () => {
 
   const orderedPages = useMemo(() => sortPages(pages), [pages]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setTaxonomyLoading(true);
-    setTaxonomyError(null);
-    fetchCreateLessonOptions()
-      .then((data) => {
-        if (!cancelled) setTaxonomyOptions(data);
-      })
-      .catch((err: any) => {
-        if (cancelled) return;
-        const status = err?.response?.status ?? err?.status;
-        const message =
-          status === 404
-            ? "API route not found — check backend is running and /api/taxonomy/create-lesson-options is mounted."
-            : err?.message || "Failed to load topic options. You can still enter Topic below.";
-        setTaxonomyError(message);
-      })
-      .finally(() => {
-        if (!cancelled) setTaxonomyLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const currentSubject = taxonomyOptions?.subjects?.find((s) => s.subject === selectedSubject);
-  const currentSpec = currentSubject?.specs?.find((s) => s.specKey === selectedSpecKey);
-  const currentMainTopic = currentSpec?.mainTopics?.find((m) => m.title === selectedMainTopicTitle);
-  const subTopicOptions = currentMainTopic?.subTopics ?? [];
+  const handleTopicSelectionChange = (value: TopicSelectionValue) => {
+    setTopicSelection(value);
+    setFormData((prev) => ({
+      ...prev,
+      subject: value.subject,
+      topic: value.topic,
+      topicKey: value.topicKey,
+    }));
+  };
 
   const normalizeOrders = (arr: LessonPage[]) =>
     arr
@@ -709,7 +691,7 @@ const CreateLessonPage: React.FC = () => {
         subject: formData.subject,
         level: formData.level,
         board: formData.board,
-        topic: formData.topic || selectedMainTopicTitle || "",
+        topic: formData.topic || topicSelection.mainTopicTitle || "",
         tags: formData.tags,
         content: "Structured lesson (see pages)",
         externalResources: formData.externalResources,
@@ -901,43 +883,16 @@ const CreateLessonPage: React.FC = () => {
                     </select>
                   </label>
 
-                  <label style={{ display: "block" }}>
-                    <div style={ui.label}>Subject *</div>
-                    <select
-                      value={taxonomyLoading ? "" : (taxonomyOptions?.subjects?.length ? selectedSubject : formData.subject)}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setSelectedSubject(v);
-                        setSelectedSpecKey("");
-                        setSelectedMainTopicTitle("");
-                        setFormData((prev) => ({
-                          ...prev,
-                          subject: v,
-                          topic: "",
-                          topicKey: "",
-                        }));
-                      }}
-                      style={ui.input}
-                      disabled={taxonomyLoading}
-                    >
-                      <option value="">{taxonomyLoading ? "Loading…" : "Select subject"}</option>
-                      {(taxonomyOptions?.subjects?.length
-                        ? taxonomyOptions.subjects
-                        : [
-                            "Biology",
-                            "Chemistry",
-                            "Physics",
-                            "Mathematics",
-                            "English Language",
-                            "English Literature",
-                          ].map((s) => ({ subject: s }))
-                      ).map((s) => (
-                        <option key={s.subject} value={s.subject}>
-                          {s.subject}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <CreateLessonTopicSelectors
+                    options={taxonomyOptions}
+                    loading={taxonomyLoading}
+                    error={taxonomyError}
+                    value={topicSelection}
+                    onChange={handleTopicSelectionChange}
+                    showTopicDisplay={true}
+                    selectStyle={ui.input}
+                    labelStyle={ui.label}
+                  />
 
                   <label style={{ display: "block" }}>
                     <div style={ui.label}>Level *</div>
@@ -977,90 +932,6 @@ const CreateLessonPage: React.FC = () => {
                   ) : (
                     <div />
                   )}
-
-                  {currentSubject && (
-                    <label style={{ display: "block" }}>
-                      <div style={ui.label}>Spec</div>
-                      <select
-                        value={selectedSpecKey}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSelectedSpecKey(v);
-                          setSelectedMainTopicTitle("");
-                          setFormData((prev) => ({ ...prev, topic: "", topicKey: "" }));
-                        }}
-                        style={ui.input}
-                      >
-                        <option value="">Select spec</option>
-                        {currentSubject.specs.map((spec) => (
-                          <option key={spec.specKey} value={spec.specKey}>
-                            {spec.specLabel}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {currentSpec && (
-                    <label style={{ display: "block" }}>
-                      <div style={ui.label}>Main topic</div>
-                      <select
-                        value={selectedMainTopicTitle}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSelectedMainTopicTitle(v);
-                          setFormData((prev) => ({ ...prev, topic: "", topicKey: "" }));
-                        }}
-                        style={ui.input}
-                      >
-                        <option value="">Select main topic</option>
-                        {currentSpec.mainTopics.map((m) => (
-                          <option key={m.title} value={m.title}>
-                            {m.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {currentMainTopic && (
-                    <label style={{ display: "block" }}>
-                      <div style={ui.label}>Sub-topic *</div>
-                      <select
-                        value={formData.topicKey}
-                        onChange={(e) => {
-                          const topicKey = e.target.value;
-                          const sub = currentMainTopic.subTopics.find((s) => s.topicKey === topicKey);
-                          setFormData((prev) => ({
-                            ...prev,
-                            topicKey: topicKey || "",
-                            topic: sub?.title ?? "",
-                          }));
-                        }}
-                        style={ui.input}
-                      >
-                        <option value="">Select sub-topic</option>
-                        {subTopicOptions.map((s) => (
-                          <option key={s.topicKey} value={s.topicKey}>
-                            {s.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {taxonomyError && (
-                    <div style={{ gridColumn: "1 / -1", fontSize: "0.8125rem", color: "#b91c1c" }}>
-                      {taxonomyError} — you can still enter Topic below.
-                    </div>
-                  )}
-                  <label style={{ display: "block" }}>
-                    <div style={ui.label}>Topic (display) {formData.topicKey ? "— from selection" : ""}</div>
-                    <input
-                      name="topic"
-                      value={formData.topic}
-                      onChange={onChange}
-                      style={ui.input}
-                      placeholder="Set by sub-topic selection or type here"
-                    />
-                  </label>
 
                   <label style={{ display: "block" }}>
                     <div style={ui.label}>Estimated duration (mins)</div>

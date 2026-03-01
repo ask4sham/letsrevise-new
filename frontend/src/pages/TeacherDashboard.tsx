@@ -8,6 +8,8 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
+import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
 import type { SpecKey } from "../api/taxonomy";
 
 /** PR7: readiness from backend (computed) */
@@ -117,9 +119,18 @@ const TeacherDashboard: React.FC = () => {
     subject: "Biology",
     level: "GCSE",
     topic: "",
+    topicKey: "",
     board: "", // ✅ optional by default
     tier: "higher",
   });
+  const [aiTopicSelection, setAiTopicSelection] = useState<TopicSelectionValue>({
+    subject: "Biology",
+    specKey: "",
+    mainTopicTitle: "",
+    topicKey: "",
+    topic: "",
+  });
+  const { options: aiTaxonomyOptions, loading: aiTaxonomyLoading, error: aiTaxonomyError } = useCreateLessonTaxonomyOptions();
 
   // ✅ Teacher checklist modal
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -152,19 +163,6 @@ const TeacherDashboard: React.FC = () => {
   // PR-CHEM-2: Subject/spec selector (Biology vs Chemistry)
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomyData } = useTaxonomy(specKey);
-
-  // AI modal: derive spec from form so we can show topic dropdown from bank
-  const aiModalSpecKey = useMemo(
-    () => getSpecKeyForAiForm(aiForm.subject, aiForm.level, aiForm.board, aiForm.tier),
-    [aiForm.subject, aiForm.level, aiForm.board, aiForm.tier]
-  );
-  const { data: aiTaxonomyData } = useTaxonomy(aiModalSpecKey ?? "aqa-gcse-biology");
-  const aiTopicOptions = useMemo(() => {
-    if (!aiModalSpecKey || !aiTaxonomyData?.units) return [];
-    return aiTaxonomyData.units.flatMap((u) =>
-      (u.topics || []).map((t) => ({ label: `${u.unit} › ${t.topic}`, value: t.topic, key: t.key }))
-    );
-  }, [aiModalSpecKey, aiTaxonomyData]);
 
   // PR4/PR5: taxonomy map and units derived from selected spec
   const { taxonomyMap, taxonomyUnits } = useMemo(() => {
@@ -565,11 +563,23 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
+  const handleAiTopicSelectionChange = (value: TopicSelectionValue) => {
+    setAiTopicSelection(value);
+    setAiError("");
+    setAiForm((p) => ({
+      ...p,
+      subject: value.subject,
+      topic: value.topic,
+      topicKey: value.topicKey,
+    }));
+  };
+
   // ✅ AI Generate handler (calls backend and opens edit page)
   const handleAIGenerate = async () => {
     const topic = (aiForm.topic || "").trim();
-    if (!topic) {
-      setAiError("Please enter a Topic.");
+    const topicKey = (aiForm.topicKey || "").trim();
+    if (!topic && !topicKey) {
+      setAiError("Please select a sub-topic or enter Topic (display).");
       return;
     }
 
@@ -579,10 +589,11 @@ const TeacherDashboard: React.FC = () => {
       const payload: any = {
         subject: (aiForm.subject || "").trim(),
         level: (aiForm.level || "").trim(),
-        topic,
+        topic: topic || aiTopicSelection.mainTopicTitle || "",
         board: (aiForm.board || "").trim(), // optional
         tier: aiForm.level === "GCSE" ? (aiForm.tier || "").trim() : "",
       };
+      if (topicKey) payload.topicKey = topicKey;
 
       const res = await api.post("/ai/generate-and-save", payload);
       const lessonId = res?.data?.lessonId;
@@ -653,7 +664,7 @@ const TeacherDashboard: React.FC = () => {
     );
   }
 
-  const aiTopicOk = Boolean((aiForm.topic || "").trim());
+  const aiTopicOk = Boolean((aiForm.topic || "").trim() || (aiForm.topicKey || "").trim());
 
   return (
     <div
@@ -2233,7 +2244,7 @@ const TeacherDashboard: React.FC = () => {
               >
                 <div style={{ fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>How to create a lesson using AI</div>
                 <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
-                  <li>Enter <b>Subject</b>, <b>Level</b>, and <b>Topic</b> below (exam board and tier optional).</li>
+                  <li>Select <b>Subject → Spec → Main topic → Sub-topic</b> (same as manual Create Lesson); optionally set Level, Exam board, and Tier. Then click <b>Generate</b>.</li>
                   <li>Click <b>Generate</b> — the AI builds a syllabus-aligned draft and saves it; you are taken to the lesson editor.</li>
                   <li>Edit pages, add checkpoints and exam tips, then save as Draft and submit for review when ready.</li>
                 </ul>
@@ -2245,25 +2256,21 @@ const TeacherDashboard: React.FC = () => {
                 </ul>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "16px" }}>
-                <div>
-                  <label style={{ fontSize: "0.85rem", color: "#374151" }}>Subject</label>
-                  <select
-                    value={aiForm.subject}
-                    onChange={(e) => {
-                      setAiError("");
-                      setAiForm((p) => ({ ...p, subject: e.target.value }));
-                    }}
-                    style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-                  >
-                    <option>Biology</option>
-                    <option>Chemistry</option>
-                    <option>Physics</option>
-                    <option>Mathematics</option>
-                    <option>English</option>
-                  </select>
-                </div>
+              <div style={{ marginTop: "16px" }}>
+                <CreateLessonTopicSelectors
+                  options={aiTaxonomyOptions}
+                  loading={aiTaxonomyLoading}
+                  error={aiTaxonomyError}
+                  value={aiTopicSelection}
+                  onChange={handleAiTopicSelectionChange}
+                  showTopicDisplay={true}
+                  layout="stack"
+                  selectStyle={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                  labelStyle={{ fontSize: "0.85rem", color: "#374151", marginBottom: 4 }}
+                />
+              </div>
 
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "16px" }}>
                 <div>
                   <label style={{ fontSize: "0.85rem", color: "#374151" }}>Level</label>
                   <select
@@ -2283,37 +2290,6 @@ const TeacherDashboard: React.FC = () => {
                     <option>GCSE</option>
                     <option>A-Level</option>
                   </select>
-                </div>
-
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={{ fontSize: "0.85rem", color: "#374151" }}>Topic (from bank when Subject + Board match)</label>
-                  {aiTopicOptions.length > 0 ? (
-                    <select
-                      value={aiForm.topic}
-                      onChange={(e) => {
-                        setAiError("");
-                        setAiForm((p) => ({ ...p, topic: e.target.value }));
-                      }}
-                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-                    >
-                      <option value="">Choose a topic…</option>
-                      {aiTopicOptions.map((opt) => (
-                        <option key={opt.key} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={aiForm.topic}
-                      onChange={(e) => {
-                        setAiError("");
-                        setAiForm((p) => ({ ...p, topic: e.target.value }));
-                      }}
-                      placeholder="e.g. Photosynthesis (or select Subject + Exam board AQA for dropdown)"
-                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-                    />
-                  )}
                 </div>
 
                 <div>
