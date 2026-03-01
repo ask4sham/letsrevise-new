@@ -23,6 +23,7 @@ const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizF
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
+const { autoAttachLessonContent } = require("../services/autoAttachLessonContent");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -649,20 +650,27 @@ async function createLessonHandler(req, res) {
     await lesson.save();
     console.log("✅ [Lessons] Lesson saved:", lesson._id);
 
-    // PR-EDGE-1: Auto-generate from topic banks via orchestrator
+    // PR-EDGE-1: Auto-attach content from topic banks (fill-only, deterministic) when checkbox is set
     let autoGenResult = { flashcardsAdded: 0, quizAdded: 0, assessmentAdded: 0, pastPapersAdded: 0 };
     const shouldAutoGen = autoGenerateFromBanks === true || autoGenerateFromBanks === "true";
     if (shouldAutoGen) {
       try {
-        const orch = await autoGenerateLessonFromBanks({
+        const attach = await autoAttachLessonContent({
           lessonId: lesson._id,
           userId: req.user._id || req.user.userId,
         });
-        autoGenResult = orch.results;
-        Object.assign(lesson, orch.lesson);
-        console.log("✅ [Lessons] Auto-gen result:", autoGenResult);
+        autoGenResult = {
+          flashcardsAdded: attach.results.flashcardsAttached || 0,
+          quizAdded: attach.results.quizAttached || 0,
+          assessmentAdded: 0,
+          pastPapersAdded: 0,
+        };
+        if (attach.lesson) {
+          Object.assign(lesson, attach.lesson);
+        }
+        console.log("✅ [Lessons] Auto-attach result:", autoGenResult);
       } catch (e) {
-        console.warn("⚠️ [Lessons] Auto-gen failed:", e?.message || e);
+        console.warn("⚠️ [Lessons] Auto-attach failed:", e?.message || e);
       }
     }
 
@@ -1431,6 +1439,107 @@ router.get("/teacher/stats", auth, async (req, res) => {
   } catch (err) {
     console.error("Error fetching teacher stats:", err);
     return res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   GET lessons by topicKey (reuse suggestions; do not block creation)
+   GET /api/lessons/by-topicKey?topicKey=specKey:topicSlug&includeDrafts=true
+   ========================================= */
+router.get("/by-topicKey", auth, async (req, res) => {
+  try {
+    const topicKey = typeof req.query.topicKey === "string" ? req.query.topicKey.trim() : "";
+    if (!topicKey) {
+      return res.status(400).json({ error: "topicKey query is required" });
+    }
+    const includeDrafts = req.query.includeDrafts !== "false";
+    const isTeacherOrAdmin = req.user?.userType === "teacher" || req.user?.userType === "admin" || req.user?.role === "admin";
+    const query = { topicKey };
+    if (!includeDrafts) query.status = "published";
+    const lessons = await Lesson.find(query)
+      .select("_id title subject level board topicKey status isPublished updatedAt teacherId teacherName")
+      .sort({ isPublished: -1, updatedAt: -1 })
+      .limit(10)
+      .lean();
+    const teacherIds = [...new Set(lessons.map((l) => l.teacherId).filter(Boolean))];
+    const users = teacherIds.length
+      ? await User.find({ _id: { $in: teacherIds } }).select("_id firstName lastName email").lean()
+      : [];
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+    const list = lessons.map((l) => {
+      const u = userMap.get(String(l.teacherId));
+      const ownerName = u
+        ? [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email
+        : l.teacherName || "";
+      return {
+        _id: l._id,
+        title: l.title,
+        subject: l.subject,
+        level: l.level,
+        examBoard: l.board || "",
+        topicKey: l.topicKey || "",
+        updatedAt: l.updatedAt,
+        ownerName: ownerName || undefined,
+        teacherId: l.teacherId ? String(l.teacherId) : undefined,
+        isPublished: !!l.isPublished,
+        status: l.status || "draft",
+      };
+    });
+    return res.json({ lessons: list });
+  } catch (err) {
+    console.error("Error fetching lessons by topicKey:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+/* =========================================
+   POST /:id/duplicate — clone lesson as new draft owned by current teacher
+   ========================================= */
+router.post("/:id/duplicate", auth, async (req, res) => {
+  try {
+    if (req.user?.userType !== "teacher") {
+      return res.status(403).json({ msg: "Only teachers can duplicate lessons" });
+    }
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const source = await Lesson.findById(lessonId).lean();
+    if (!source) return res.status(404).json({ msg: "Lesson not found" });
+    const teacherName = `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email;
+    const copy = {
+      title: (source.title || "Untitled").trim() + " (Copy)",
+      description: source.description || "",
+      content: source.content || "",
+      teacherId: req.user._id,
+      teacherName,
+      subject: source.subject || "",
+      level: source.level || "",
+      topic: source.topic || "",
+      topicKey: source.topicKey || undefined,
+      tags: Array.isArray(source.tags) ? source.tags : [],
+      estimatedDuration: source.estimatedDuration ?? 0,
+      shamCoinPrice: source.shamCoinPrice ?? 0,
+      resources: Array.isArray(source.resources) ? source.resources : [],
+      board: source.board || "",
+      tier: source.tier || undefined,
+      pages: Array.isArray(source.pages) ? JSON.parse(JSON.stringify(source.pages)) : [],
+      quiz: source.quiz && typeof source.quiz === "object" ? JSON.parse(JSON.stringify(source.quiz)) : undefined,
+      assessment: source.assessment && typeof source.assessment === "object" ? JSON.parse(JSON.stringify(source.assessment)) : undefined,
+      flashcards: Array.isArray(source.flashcards) ? JSON.parse(JSON.stringify(source.flashcards)) : [],
+      status: "draft",
+      isPublished: false,
+      examQuestions: [],
+      pastPapers: [],
+      createdFromTemplate: true,
+      templateSource: source._id,
+    };
+    const lesson = new Lesson(copy);
+    await lesson.save();
+    return res.json({ lessonId: lesson._id });
+  } catch (err) {
+    console.error("Duplicate lesson error:", err);
+    return res.status(500).json({ msg: "Server error", details: err.message });
   }
 });
 
@@ -2448,6 +2557,33 @@ router.post("/:id/auto-generate", auth, requireLessonOwnerOrAdmin, async (req, r
       return res.status(404).json({ msg: err.message || "Lesson not found" });
     }
     console.error("auto-generate error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// Auto-attach content (fill-only when empty): flashcards + quiz from topic banks; deterministic; no overwrite
+router.post("/:id/auto-attach-content", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const result = await autoAttachLessonContent({
+      lessonId,
+      userId: req.user._id || req.user.userId,
+    });
+    return res.json({
+      ok: true,
+      lessonId: result.lessonId,
+      topicKey: result.topicKey,
+      results: result.results,
+      lesson: result.lesson,
+    });
+  } catch (err) {
+    if (err.statusCode === 404) {
+      return res.status(404).json({ msg: err.message || "Lesson not found" });
+    }
+    console.error("auto-attach-content error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

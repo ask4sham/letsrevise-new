@@ -7,7 +7,7 @@ import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
 import { generatePastPapersFromTopic, viewTopicPastPaperFile as openPastPaperPdfInNewTab } from "../api/topicPastPapers";
 import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
-import { autoGenerateFromBanks } from "../api/lessons";
+import { autoGenerateFromBanks, autoAttachLessonContent } from "../api/lessons";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -397,6 +397,7 @@ const EditLessonPage: React.FC = () => {
   const [seedAssessmentError, setSeedAssessmentError] = useState<string | null>(null);
   const [seedAssessmentSuccess, setSeedAssessmentSuccess] = useState<string | null>(null);
   const [generateAllLoading, setGenerateAllLoading] = useState(false);
+  const [autoAttachContentLoading, setAutoAttachContentLoading] = useState(false);
   const [isAssessmentsCollapsed, setIsAssessmentsCollapsed] = useState(false);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
@@ -5139,6 +5140,32 @@ const EditLessonPage: React.FC = () => {
                   style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #059669", background: "#ecfdf5", color: "#059669", fontWeight: 700, cursor: generateAllLoading || !id ? "not-allowed" : "pointer" }}
                 >
                   {generateAllLoading ? "…" : "Generate All"}
+                </button>
+                <button
+                  type="button"
+                  disabled={autoAttachContentLoading || !id || !topicKeyForBank}
+                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : "Fills only empty quiz and flashcards (does not overwrite)."}
+                  onClick={async () => {
+                    if (!id) return;
+                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
+                    setSeedQuizError(null); setSeedQuizSuccess(null);
+                    setAutoAttachContentLoading(true);
+                    try {
+                      const r = await autoAttachLessonContent(id);
+                      await fetchLessonSmart();
+                      const a = r.results?.flashcardsAttached ?? 0;
+                      const q = r.results?.quizAttached ?? 0;
+                      const parts: string[] = [];
+                      if (a) parts.push(`${a} flashcards`);
+                      if (q) parts.push(`${q} quiz questions`);
+                      setSeedFlashcardsSuccess(parts.length > 0 ? `Attached ${parts.join(", ")}.` : "Nothing to attach (quiz and/or flashcards already have content).");
+                    } catch (e: any) {
+                      setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Auto-attach failed");
+                    } finally { setAutoAttachContentLoading(false); }
+                  }}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #6366f1", background: "#eef2ff", color: "#6366f1", fontWeight: 600, cursor: autoAttachContentLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer" }}
+                >
+                  {autoAttachContentLoading ? "…" : "Auto-attach content"}
                 </button>
                 <button
                   type="button"

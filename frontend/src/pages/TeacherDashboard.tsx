@@ -10,6 +10,7 @@ import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
+import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
 import type { SpecKey } from "../api/taxonomy";
 
 /** PR7: readiness from backend (computed) */
@@ -131,6 +132,17 @@ const TeacherDashboard: React.FC = () => {
     topic: "",
   });
   const { options: aiTaxonomyOptions, loading: aiTaxonomyLoading, error: aiTaxonomyError } = useCreateLessonTaxonomyOptions();
+
+  // Lock body scroll when AI modal is open
+  useEffect(() => {
+    if (aiOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [aiOpen]);
 
   // ✅ Teacher checklist modal
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -2168,7 +2180,7 @@ const TeacherDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* ✅ AI Modal */}
+        {/* ✅ AI Modal — scrollable body, fixed header/footer, max-height 90vh */}
         {aiOpen && (
           <div
             style={{
@@ -2180,6 +2192,7 @@ const TeacherDashboard: React.FC = () => {
               justifyContent: "center",
               padding: "20px",
               zIndex: 9999,
+              overflow: "auto",
             }}
             onClick={() => (aiLoading ? null : setAiOpen(false))}
           >
@@ -2187,90 +2200,112 @@ const TeacherDashboard: React.FC = () => {
               style={{
                 width: "100%",
                 maxWidth: "620px",
+                maxHeight: "90vh",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
                 background: "white",
                 borderRadius: "12px",
-                padding: "20px",
                 boxShadow: "0 12px 30px rgba(0,0,0,0.2)",
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
-                <div>
-                  <h3 style={{ margin: 0, color: "#111827" }}>✨ Generate lesson with AI</h3>
-                  <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: "0.9rem" }}>
-                    Generate a first draft from a topic (template + AI content). You edit, then publish. Optional; may be limited during rollout.
-                  </p>
+              {/* Fixed header */}
+              <div style={{ flex: "0 0 auto", padding: "20px 20px 0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
+                  <div>
+                    <h3 style={{ margin: 0, color: "#111827" }}>✨ Generate lesson with AI</h3>
+                    <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: "0.9rem" }}>
+                      Generate a first draft from a topic (template + AI content). You edit, then publish. Optional; may be limited during rollout.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => (aiLoading ? null : setAiOpen(false))}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      fontSize: "1.2rem",
+                      cursor: aiLoading ? "not-allowed" : "pointer",
+                    }}
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={() => (aiLoading ? null : setAiOpen(false))}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    fontSize: "1.2rem",
-                    cursor: aiLoading ? "not-allowed" : "pointer",
-                  }}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
+
+                {aiError ? (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.25)",
+                      color: "rgba(127,29,29,0.95)",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {aiError}
+                  </div>
+                ) : null}
               </div>
 
-              {aiError ? (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    background: "rgba(239,68,68,0.08)",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    color: "rgba(127,29,29,0.95)",
-                    fontWeight: 700,
-                  }}
-                >
-                  {aiError}
-                </div>
-              ) : null}
-
+              {/* Scrollable body */}
               <div
                 style={{
-                  marginTop: 14,
-                  padding: "12px 14px",
-                  borderRadius: 8,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  fontSize: "0.875rem",
-                  color: "#334155",
+                  flex: "1 1 auto",
+                  overflowY: "auto",
+                  padding: "16px 20px",
+                  minHeight: 0,
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>How to create a lesson using AI</div>
-                <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
-                  <li>Select <b>Subject → Spec → Main topic → Sub-topic</b> (same as manual Create Lesson); optionally set Level, Exam board, and Tier. Then click <b>Generate</b>.</li>
-                  <li>Click <b>Generate</b> — the AI builds a syllabus-aligned draft and saves it; you are taken to the lesson editor.</li>
-                  <li>Edit pages, add checkpoints and exam tips, then save as Draft and submit for review when ready.</li>
-                </ul>
-                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6, color: "#0f172a" }}>How to add diagrams using AI</div>
-                <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
-                  <li>In the lesson editor, add a <b>Diagram</b> block where you want an image (or use an existing one).</li>
-                  <li>In that block, click <b>Generate with AI</b> — the AI creates an image from the lesson content and inserts it. Repeat for other blocks as needed.</li>
-                  <li>For some Biology topics, a diagram block may be added automatically when you generate the lesson; you can keep it or replace it with <b>Generate with AI</b>.</li>
-                </ul>
-              </div>
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    fontSize: "0.875rem",
+                    color: "#334155",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>How to create a lesson using AI</div>
+                  <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
+                    <li>Select <b>Subject → Spec → Main topic → Sub-topic</b> (same as manual Create Lesson); optionally set Level, Exam board, and Tier. Then click <b>Generate</b>.</li>
+                    <li>Click <b>Generate</b> — the AI builds a syllabus-aligned draft and saves it; you are taken to the lesson editor.</li>
+                    <li>Edit pages, add checkpoints and exam tips, then save as Draft and submit for review when ready.</li>
+                  </ul>
+                  <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6, color: "#0f172a" }}>How to add diagrams using AI</div>
+                  <ul style={{ margin: 0, paddingLeft: "18px", lineHeight: 1.6 }}>
+                    <li>In the lesson editor, add a <b>Diagram</b> block where you want an image (or use an existing one).</li>
+                    <li>In that block, click <b>Generate with AI</b> — the AI creates an image from the lesson content and inserts it. Repeat for other blocks as needed.</li>
+                    <li>For some Biology topics, a diagram block may be added automatically when you generate the lesson; you can keep it or replace it with <b>Generate with AI</b>.</li>
+                  </ul>
+                </div>
 
-              <div style={{ marginTop: "16px" }}>
-                <CreateLessonTopicSelectors
-                  options={aiTaxonomyOptions}
-                  loading={aiTaxonomyLoading}
-                  error={aiTaxonomyError}
-                  value={aiTopicSelection}
-                  onChange={handleAiTopicSelectionChange}
-                  showTopicDisplay={true}
-                  layout="stack"
-                  selectStyle={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
-                  labelStyle={{ fontSize: "0.85rem", color: "#374151", marginBottom: 4 }}
-                />
-              </div>
+                <div style={{ marginTop: "16px" }}>
+                  <CreateLessonTopicSelectors
+                    options={aiTaxonomyOptions}
+                    loading={aiTaxonomyLoading}
+                    error={aiTaxonomyError}
+                    value={aiTopicSelection}
+                    onChange={handleAiTopicSelectionChange}
+                    showTopicDisplay={true}
+                    layout="stack"
+                    selectStyle={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                    labelStyle={{ fontSize: "0.85rem", color: "#374151", marginBottom: 4 }}
+                  />
+                </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "16px" }}>
+                {aiForm.topicKey.trim() ? (
+                  <ExistingLessonsPanel
+                    topicKey={aiForm.topicKey}
+                    currentUserId={user?._id ? String(user._id) : undefined}
+                    layout="compact"
+                  />
+                ) : null}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "16px" }}>
                 <div>
                   <label style={{ fontSize: "0.85rem", color: "#374151" }}>Level</label>
                   <select
@@ -2335,9 +2370,21 @@ const TeacherDashboard: React.FC = () => {
                     <option value="higher">higher</option>
                   </select>
                 </div>
+                </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+              {/* Fixed footer */}
+              <div
+                style={{
+                  flex: "0 0 auto",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                  padding: "16px 20px 20px",
+                  borderTop: "1px solid #e5e7eb",
+                  background: "white",
+                }}
+              >
                 <button
                   onClick={() => (aiLoading ? null : setAiOpen(false))}
                   style={{

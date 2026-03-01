@@ -88,7 +88,7 @@ describe("Lesson create with autoGenerateFromBanks (PR-EDGE-1)", () => {
     await Lesson.deleteMany({ teacherId });
   });
 
-  test("autoGenerateFromBanks ON → content exists", async () => {
+  test("autoGenerateFromBanks ON → auto-attach flashcards + quiz from topic bank", async () => {
     const res = await request(app)
       .post("/api/lessons")
       .set("Authorization", `Bearer ${teacherToken}`)
@@ -98,18 +98,14 @@ describe("Lesson create with autoGenerateFromBanks (PR-EDGE-1)", () => {
     expect(res.body.success).toBe(true);
     expect(res.body.lesson).toBeDefined();
     expect(res.body.autoGenerateResult).toBeDefined();
+    // Create flow uses auto-attach (fill-only: flashcards + quiz from topic bank)
     expect(res.body.autoGenerateResult.flashcardsAdded).toBeGreaterThanOrEqual(1);
     expect(res.body.autoGenerateResult.quizAdded).toBeGreaterThanOrEqual(1);
-    expect(res.body.autoGenerateResult.assessmentAdded).toBeGreaterThanOrEqual(1);
-    expect(res.body.autoGenerateResult.pastPapersAdded).toBeGreaterThanOrEqual(1);
 
     const lesson = await Lesson.findById(res.body.lesson._id).lean();
     expect(Array.isArray(lesson.flashcards)).toBe(true);
     expect(lesson.flashcards.length).toBeGreaterThanOrEqual(1);
     expect(lesson.quiz?.questions?.length).toBeGreaterThanOrEqual(1);
-    expect(lesson.assessment?.questions?.length).toBeGreaterThanOrEqual(1);
-    expect(Array.isArray(lesson.pastPapers)).toBe(true);
-    expect(lesson.pastPapers.length).toBeGreaterThanOrEqual(1);
   });
 
   test("autoGenerateFromBanks OFF → lesson empty of bank content", async () => {

@@ -6,6 +6,7 @@ import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
+import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
 import {
   type LessonBlockType,
   BLOCK_META,
@@ -236,6 +237,7 @@ const CreateLessonPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
 
   // Upload UI
   const [uploadingKey, setUploadingKey] = useState<string>(""); // pageId:blockIndex
@@ -708,16 +710,19 @@ const CreateLessonPage: React.FC = () => {
       const data = res?.data;
 
       const gen = data?.autoGenerateResult;
+      const lessonId = data?.lesson?._id || data?.lesson?.id;
       if (gen) {
         const parts: string[] = [];
         if (gen.flashcardsAdded) parts.push(`${gen.flashcardsAdded} flashcards`);
         if (gen.quizAdded) parts.push(`${gen.quizAdded} quiz questions`);
         if (gen.assessmentAdded) parts.push(`${gen.assessmentAdded} assessment questions`);
         if (gen.pastPapersAdded) parts.push(`${gen.pastPapersAdded} past papers`);
-        const genMsg = parts.length > 0 ? ` Generated ${parts.join(", ")}.` : "";
+        const genMsg = parts.length > 0 ? ` Attached ${parts.join(", ")}.` : "";
         setSuccess(`✅ Lesson created successfully!${genMsg}`);
+        if (lessonId) setCreatedLessonId(String(lessonId));
       } else {
         setSuccess("✅ Lesson created successfully!");
+        if (lessonId) setCreatedLessonId(String(lessonId));
       }
       setTimeout(() => navigate("/teacher-dashboard"), 700);
     } catch (err: any) {
@@ -771,6 +776,13 @@ const CreateLessonPage: React.FC = () => {
         {(error || success || uploadMsg) ? (
           <div style={{ marginBottom: 8, fontSize: "0.8125rem", color: error ? "#b91c1c" : "#15803d" }}>
             {error || success || uploadMsg}
+            {success && createdLessonId ? (
+              <span style={{ marginLeft: 6 }}>
+                <Link to={`/edit-lesson/${createdLessonId}`} style={{ color: "#2563eb", fontWeight: 600 }}>
+                  Edit Lesson → Revision Materials / Quiz
+                </Link>
+              </span>
+            ) : null}
           </div>
         ) : null}
 
@@ -893,6 +905,14 @@ const CreateLessonPage: React.FC = () => {
                     selectStyle={ui.input}
                     labelStyle={ui.label}
                   />
+
+                  {formData.topicKey.trim() ? (
+                    <ExistingLessonsPanel
+                      topicKey={formData.topicKey}
+                      currentUserId={user?._id ? String(user._id) : undefined}
+                      layout="inline"
+                    />
+                  ) : null}
 
                   <label style={{ display: "block" }}>
                     <div style={ui.label}>Level *</div>
