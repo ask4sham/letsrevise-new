@@ -27,7 +27,7 @@ To work on a single subject/spec/main topic:
 
 2. **Spec**  
    - Filter column **specKey**  
-   - Use underscore format, e.g. *Text contains* → `aqa_gcse_biology` (not `aqa-gcse-biology`). Use the exact value shown in the CSV.
+   - Use the exact value from the CSV (e.g. Biology AQA GCSE: `aqa-gcse-biology`).
 
 3. **Main topic**  
    - Filter column **mainTopicTitle**  
