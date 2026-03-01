@@ -2642,6 +2642,59 @@ router.post("/:id/auto-attach-content", auth, requireLessonOwnerOrAdmin, async (
   }
 });
 
+// Detach auto-attached content only (items with tag "auto-attached"); manual content untouched
+router.post("/:id/detach-auto-attached-content", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+    let detachedFlashcards = 0;
+    let detachedQuiz = 0;
+
+    // Flashcards: remove only object items with tags including "auto-attached"; keep strings/untagged
+    if (Array.isArray(lesson.flashcards)) {
+      const before = lesson.flashcards.length;
+      lesson.flashcards = lesson.flashcards.filter((fc) => {
+        if (!fc || typeof fc !== "object") return true;
+        const tags = Array.isArray(fc.tags) ? fc.tags : [];
+        return !tags.includes("auto-attached");
+      });
+      detachedFlashcards = before - lesson.flashcards.length;
+      if (detachedFlashcards > 0) lesson.markModified("flashcards");
+    }
+
+    // Quiz: remove only questions tagged "auto-attached"
+    if (lesson.quiz && Array.isArray(lesson.quiz.questions)) {
+      const before = lesson.quiz.questions.length;
+      lesson.quiz.questions = lesson.quiz.questions.filter((q) => {
+        const tags = Array.isArray(q.tags) ? q.tags : [];
+        return !tags.includes("auto-attached");
+      });
+      detachedQuiz = before - lesson.quiz.questions.length;
+      if (detachedQuiz > 0) lesson.markModified("quiz");
+    }
+
+    await lesson.save();
+    const updated = await Lesson.findById(lessonId).lean();
+
+    return res.json({
+      ok: true,
+      detached: { flashcards: detachedFlashcards, quiz: detachedQuiz },
+      lesson: updated,
+    });
+  } catch (err) {
+    if (err.statusCode === 404) {
+      return res.status(404).json({ msg: err.message || "Lesson not found" });
+    }
+    console.error("detach-auto-attached-content error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
 // PR-CONTENT-TARGETING-1: Resolve and validate namespaced topicKey from lesson; throw if invalid.
 function getValidNamespacedTopicKeyFromLesson(lesson) {
   const raw =
