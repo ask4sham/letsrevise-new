@@ -11,6 +11,7 @@ import { autoGenerateFromBanks } from "../api/lessons";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
+import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
@@ -95,6 +96,8 @@ interface QuizQuestion {
   difficulty?: number;
   marks?: number;
   markScheme?: string[];
+  /** Page-aware: which page shows this question. Empty or "END" = end of lesson. */
+  pageId?: string;
 }
 
 /** PR7: readiness from backend (computed) */
@@ -375,7 +378,8 @@ const EditLessonPage: React.FC = () => {
     question: "",
     options: ["", "", "", ""],
     correctAnswer: "",
-    explanation: ""
+    explanation: "",
+    pageId: "" as string,
   });
   const [isQuizCollapsed, setIsQuizCollapsed] = useState(false);
   const [isPastPapersCollapsed, setIsPastPapersCollapsed] = useState(false);
@@ -1367,10 +1371,12 @@ const EditLessonPage: React.FC = () => {
       return;
     }
     
+    const defaultPageId = currentPage?.pageId ?? orderedPages[0]?.pageId ?? "";
     const newQuestionWithId = {
       ...newQuizQuestion,
       id: generateRevisionId(),
-      difficulty: 1
+      difficulty: 1,
+      pageId: newQuizQuestion.pageId !== undefined && newQuizQuestion.pageId !== "" ? newQuizQuestion.pageId : defaultPageId || undefined,
     };
     
     const updatedQuizQuestions = [...quizQuestions, newQuestionWithId];
@@ -1381,7 +1387,8 @@ const EditLessonPage: React.FC = () => {
         question: "",
         options: ["", "", "", ""],
         correctAnswer: "",
-        explanation: ""
+        explanation: "",
+        pageId: defaultPageId || "",
       });
       setLesson(prev => prev ? {
         ...prev,
@@ -1419,6 +1426,32 @@ const EditLessonPage: React.FC = () => {
           questions: updatedQuizQuestions
         }
       } : null);
+    }
+  };
+
+  const revisionValidationCounts = useMemo(() => {
+    let quizIssues = 0;
+    for (const q of lesson?.quiz?.questions ?? []) {
+      if (q.type === "mcq" && (!q.options || q.options.filter((o: string) => String(o ?? "").trim()).length < 2)) quizIssues++;
+      else if (!String(q.correctAnswer ?? "").trim()) quizIssues++;
+    }
+    let flashcardIssues = 0;
+    for (const f of flashcards) {
+      if (!String(f.front ?? "").trim() || !String(f.back ?? "").trim()) flashcardIssues++;
+    }
+    return { quizIssues, flashcardIssues };
+  }, [lesson?.quiz?.questions, flashcards]);
+
+  const handleUpdateQuizQuestionPageId = async (questionId: string, pageId: string) => {
+    const updatedQuizQuestions = quizQuestions.map((q) =>
+      q.id === questionId ? { ...q, pageId: pageId || undefined } : q
+    );
+    if (await saveRevision(flashcards, updatedQuizQuestions)) {
+      setLesson((prev) =>
+        prev
+          ? { ...prev, quiz: { ...prev.quiz, questions: updatedQuizQuestions } }
+          : null
+      );
     }
   };
 
@@ -2707,48 +2740,60 @@ const EditLessonPage: React.FC = () => {
                     </label>
                   </div>
 
-                  {/* PR7: Readiness panel */}
+                  {/* PR7: Readiness panel — canonical evaluator (lessonReadiness.ts) */}
                   <div style={{ marginTop: 16, padding: 14, borderRadius: 10, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
-                    <div style={{ fontWeight: 900, marginBottom: 8 }}>Readiness</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontWeight: 900 }}>Readiness</span>
+                      <a href="/docs/TEACHER_LESSON_GUIDES_INDEX.md" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#64748b" }}>What is this?</a>
+                    </div>
                     {(() => {
-                      const r = lesson?.readiness;
-                      const status = r?.status ?? "DRAFT";
-                      const sig = r?.signals ?? {};
-                      const isReviewed = !!lesson?.reviewedAt || sig.isReviewed;
+                      const evalReadiness = lesson ? evaluateLessonReadiness(lesson) : null;
+                      const statusLabel = evalReadiness?.classroomReady ? "Classroom-ready" : evalReadiness?.minimumPublishable ? "Ready to publish" : "Needs review";
+                      const statusBg = evalReadiness?.classroomReady ? "#c6f6d5" : evalReadiness?.minimumPublishable ? "#fef3c7" : "#e5e7eb";
+                      const statusColor = evalReadiness?.classroomReady ? "#22543d" : evalReadiness?.minimumPublishable ? "#92400e" : "#4b5563";
+                      const c = evalReadiness?.counts ?? { pages: 0, diagrams: 0, checkpoints: 0, quizQuestions: 0, flashcards: 0, practiceAttached: 0, misconceptions: 0 };
+                      const isReviewed = !!lesson?.reviewedAt || (lesson?.readiness as any)?.signals?.isReviewed;
                       return (
                         <>
                           <div style={{ marginBottom: 10 }}>
-                            <span
-                              style={{
-                                padding: "4px 10px",
-                                borderRadius: "20px",
-                                fontSize: "0.8rem",
-                                fontWeight: "bold",
-                                background:
-                                  status === "READY"
-                                    ? "#c6f6d5"
-                                    : status === "NEEDS_REVIEW"
-                                      ? "#fef3c7"
-                                      : "#e5e7eb",
-                                color:
-                                  status === "READY"
-                                    ? "#22543d"
-                                    : status === "NEEDS_REVIEW"
-                                      ? "#92400e"
-                                      : "#4b5563",
-                              }}
-                            >
-                              {status === "READY" ? "Classroom-ready" : status === "NEEDS_REVIEW" ? "Needs review" : "Draft"}
+                            <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "bold", background: statusBg, color: statusColor }}>
+                              {statusLabel}
                             </span>
                           </div>
                           <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 13, color: "#374151" }}>
-                            <li>Checkpoints: {sig.checkpointCount ?? 0}</li>
-                            <li>Diagrams: {(lesson?.pages ?? []).flatMap((p) => p.blocks ?? []).filter((b) => b.type === "diagram").length}</li>
-                            <li>Practice questions attached: {sig.practiceCount ?? 0}</li>
+                            <li>Pages: {c.pages}</li>
+                            <li>Checkpoints: {c.checkpoints}</li>
+                            <li>Diagrams: {c.diagrams}</li>
+                            <li>Quiz questions: {c.quizQuestions}</li>
+                            <li>Flashcards: {c.flashcards}</li>
+                            <li>Practice attached: {c.practiceAttached}</li>
+                            <li>Misconceptions: {c.misconceptions}</li>
                             <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
                           </ul>
-                          {/* PR20.1: When READY, show Open Classroom mode + Copy student link */}
-                          {status === "READY" && (
+                          {/* Definition of Done helper */}
+                          <div style={{ marginTop: 12, fontSize: 12, color: "#475569" }}>
+                            <div style={{ fontWeight: 700, marginBottom: 4 }}>Minimum publishable</div>
+                            <ul style={{ margin: "0 0 8px", paddingLeft: 18 }}>
+                              <li>≥1 page, ≥1 content block, ≥3 quiz, ≥10 flashcards, topic set, reviewed</li>
+                            </ul>
+                            <div style={{ fontWeight: 700, marginBottom: 4 }}>Classroom-ready</div>
+                            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                              <li>All above + ≥1 checkpoint, ≥1 misconception, ≥1 diagram, ≥10 practice (or bank)</li>
+                            </ul>
+                          </div>
+                          <div style={{ marginTop: 10, fontSize: 12, color: "#475569" }}>
+                            <strong>Before publishing, check:</strong>{" "}
+                            {evalReadiness?.checks && (
+                              <>
+                                Topic {evalReadiness.checks.find((c) => c.key === "topic")?.pass ? "✅" : "⚠️"}
+                                {" · "}Quiz {evalReadiness.checks.find((c) => c.key === "quiz")?.pass ? "✅" : "⚠️"}
+                                {" · "}Flashcards {evalReadiness.checks.find((c) => c.key === "flashcards")?.pass ? "✅" : "⚠️"}
+                                {" · "}Reviewed {evalReadiness.checks.find((c) => c.key === "reviewed")?.pass ? "✅" : "⚠️"}
+                              </>
+                            )}
+                          </div>
+                          {/* PR20.1: When classroom-ready, show Open Classroom mode + Copy student link */}
+                          {evalReadiness?.classroomReady && (
                             <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                               <button
                                 type="button"
@@ -5050,6 +5095,14 @@ const EditLessonPage: React.FC = () => {
               </button>
             </div>
 
+            {(revisionValidationCounts.quizIssues > 0 || revisionValidationCounts.flashcardIssues > 0) && (
+              <div style={{ marginBottom: 12, padding: "10px 14px", background: "#fef3c7", borderRadius: 8, border: "1px solid #f59e0b", fontSize: 13, color: "#92400e" }}>
+                <strong>Fix issues:</strong> {revisionValidationCounts.quizIssues > 0 && `${revisionValidationCounts.quizIssues} quiz`}
+                {revisionValidationCounts.quizIssues > 0 && revisionValidationCounts.flashcardIssues > 0 && ", "}
+                {revisionValidationCounts.flashcardIssues > 0 && `${revisionValidationCounts.flashcardIssues} flashcards`}
+                {" "}(MCQ needs ≥2 options & correct answer; short/exam needs model answer; flashcard needs front & back)
+              </div>
+            )}
             <div style={{
               marginBottom: "20px",
               padding: "14px 16px",
@@ -5334,6 +5387,8 @@ const EditLessonPage: React.FC = () => {
                       <FlashcardsEditor
                         lessonId={id || ""}
                         initialCards={lesson?.flashcards || []}
+                        topicKeyForBank={topicKeyForBank}
+                        lessonTopicKey={lesson?.topicKey ?? lesson?.topic ?? null}
                         onSaved={() => fetchLessonSmart()}
                         isAdmin={isAdmin}
                       />
@@ -5666,6 +5721,19 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                             {(q.tags || []).length ? <span>Tags: {(q.tags || []).join(", ")}</span> : null}
                             {(q.markScheme || []).length ? <span>Mark Scheme: {q.markScheme.length} points</span> : null}
                           </div>
+                          <div style={{ marginTop: 6 }}>
+                            <label style={{ fontSize: 12, fontWeight: 600, marginRight: 6 }}>Shown on page:</label>
+                            <select
+                              value={q.pageId ?? ""}
+                              onChange={(e) => handleUpdateQuizQuestionPageId(q.id, e.target.value)}
+                              style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                            >
+                              <option value="">End of lesson</option>
+                              {(orderedPages ?? []).map((p) => (
+                                <option key={p.pageId} value={p.pageId}>{p.title || `Page ${p.order}`}</option>
+                              ))}
+                            </select>
+                          </div>
                           
                           {/* ✅ MARK PREVIEW SECTION */}
                           <div style={{ marginTop: 12 }}>
@@ -5751,6 +5819,11 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                                     color: "#92400e"
                                   }}>
                                     📝 <strong>Note:</strong> Marks will be split into 1-mark points from the answer at marking time.
+                                  </div>
+                                )}
+                                {((q.type === "mcq" && (!q.options || q.options.filter((o: string) => String(o ?? "").trim()).length < 2)) || !String(q.correctAnswer ?? "").trim()) && (
+                                  <div style={{ marginTop: 8, fontSize: 12, color: "#b45309" }}>
+                                    ⚠️ {q.type === "mcq" ? "MCQ needs ≥2 options and a correct answer." : "Add a model answer for marking."}
                                   </div>
                                 )}
                               </div>
@@ -6048,6 +6121,12 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                               }}
                               placeholder="Enter the correct answer..."
                             />
+                            {newQuizQuestion.type === "mcq" && newQuizQuestion.options.filter((o) => String(o ?? "").trim()).length < 2 && (
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#b45309" }}>⚠️ MCQ needs at least 2 options.</div>
+                            )}
+                            {!String(newQuizQuestion.correctAnswer ?? "").trim() && (
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#b45309" }}>⚠️ Add correct/model answer for marking.</div>
+                            )}
                           </div>
                           
                           <div>
@@ -6067,7 +6146,23 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                               placeholder="Explain why this answer is correct..."
                             />
                           </div>
-                          
+                          <div>
+                            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
+                              Shown on page
+                            </label>
+                            <select
+                              value={newQuizQuestion.pageId ?? (currentPage?.pageId ?? orderedPages[0]?.pageId ?? "") ?? ""}
+                              onChange={(e) => setNewQuizQuestion({ ...newQuizQuestion, pageId: e.target.value })}
+                              style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                            >
+                              <option value="">End of lesson</option>
+                              {(orderedPages ?? []).map((p) => (
+                                <option key={p.pageId} value={p.pageId}>
+                                  {p.title || `Page ${p.order}`}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                           <button
                             onClick={handleAddQuizQuestion}
                             style={{
@@ -6270,6 +6365,9 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                           <span style={{ color: "#059669", fontSize: 14 }}>{seedPastPapersSuccess}</span>
                         )}
                       </div>
+                      <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b" }}>
+                        Upload PDF → stored and served from <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>/docs/…</code>. Link directly to <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>/docs/&lt;filename&gt;.pdf</code> so the file opens correctly.
+                      </p>
                       <div style={{ fontSize: 14, color: "#4b5563" }}>
                         {((lesson?.pastPapers) || []).length === 0 ? (
                           <p style={{ margin: 0, color: "#6b7280" }}>No past papers yet. Click &quot;Generate Past Papers from Topic Bank&quot; to copy published items from the bank.</p>

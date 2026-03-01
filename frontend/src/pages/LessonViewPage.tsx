@@ -1246,6 +1246,18 @@ const LessonViewPage: React.FC = () => {
     return [];
   }, [lesson]);
 
+  // Page-aware quiz: questions for current page only (structured view)
+  const pageQuizQuestions = useMemo(() => {
+    if (!hasStructuredPages || !currentPage) return [];
+    const pageId = currentPage.pageId;
+    return quizQuestions.filter((q: any) => q.pageId === pageId);
+  }, [hasStructuredPages, currentPage, quizQuestions]);
+
+  // End of lesson: questions with no pageId or pageId === "END"
+  const endOfLessonQuizQuestions = useMemo(() => {
+    return quizQuestions.filter((q: any) => !q.pageId || String(q.pageId) === "END");
+  }, [quizQuestions]);
+
   // ✅ SINGLE SOURCE OF TRUTH: Flashcards
   const flashcards = useMemo(() => {
     if (!lesson) return [];
@@ -3212,21 +3224,38 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Check your understanding — gate on hasFullLessonAccess */}
+                {/* Check your understanding — page-aware in structured view */}
                 <Section title="Check your understanding" variant="card">
                   {!hasFullLessonAccess ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       Quiz available after unlocking the full lesson.
                     </div>
-                  ) : quizQuestions.length === 0 ? (
+                  ) : pageQuizQuestions.length === 0 && endOfLessonQuizQuestions.length === 0 ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       No quiz questions generated for this topic yet.
                     </div>
                   ) : (
-                    <QuizView
-                      title=""
-                      questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
-                    />
+                    <>
+                      {pageQuizQuestions.length === 0 ? (
+                        <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
+                          No quiz questions for this page yet.
+                        </div>
+                      ) : (
+                        <QuizView
+                          title=""
+                          questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                        />
+                      )}
+                      {endOfLessonQuizQuestions.length > 0 && (
+                        <div style={{ marginTop: 24 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 15 }}>End of lesson test</div>
+                          <QuizView
+                            title=""
+                            questions={endOfLessonQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </Section>
 

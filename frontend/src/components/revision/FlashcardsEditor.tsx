@@ -22,6 +22,8 @@ type Props = {
   apiBaseUrl?: string; // default http://localhost:5000
   title?: string;
   topicKeyForBank?: string | null; // PR-CONTENT-TARGETING-1: namespaced key for AI generation
+  /** Lesson's topic/topicKey; required to allow "Save to bank" (block if missing). */
+  lessonTopicKey?: string | null;
   onSaved?: () => void;
   isAdmin?: boolean; // Added: admin-only delete control
 };
@@ -282,6 +284,8 @@ export default function FlashcardsEditor({
   initialCards,
   apiBaseUrl = "http://localhost:5000",
   title = "Flashcards",
+  topicKeyForBank: topicKeyForBankProp,
+  lessonTopicKey,
   onSaved,
   isAdmin = false, // Added: default to false for non-admin
 }: Props) {
@@ -318,6 +322,7 @@ export default function FlashcardsEditor({
   const [topicKeyForImport, setTopicKeyForImport] = useState<string>("");
   const [topicNameForImport, setTopicNameForImport] = useState<string>("");
   const [importToBankLoading, setImportToBankLoading] = useState(false);
+  const [showSaveToBankConfirm, setShowSaveToBankConfirm] = useState(false);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -399,6 +404,8 @@ export default function FlashcardsEditor({
     }
   }, [topicKeyForBank, examQuestionToFlashcard]);
 
+  const hasLessonTopic = Boolean(lessonTopicKey && String(lessonTopicKey).trim());
+
   const importCurrentCardsToBank = useCallback(async () => {
     resetMessages();
     const key = (topicKeyForImport || "").trim().toLowerCase();
@@ -419,12 +426,24 @@ export default function FlashcardsEditor({
       }));
       await importFlashcards(key, (topicNameForImport || "").trim() || key.replace(/-/g, " "), bankCards);
       setStatus(`Saved ${cards.length} cards to topic bank (${key}). You can "Load flashcards from bank" on any lesson with this topic.`);
+      setShowSaveToBankConfirm(false);
     } catch (e: any) {
       setError(e?.response?.data?.error || e?.message || "Failed to save to bank.");
     } finally {
       setImportToBankLoading(false);
     }
   }, [topicKeyForImport, topicNameForImport, cards]);
+
+  const duplicateFlashcardCount = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    for (const c of cards) {
+      const key = `${String(c.front ?? "").trim().toLowerCase()}|${String(c.back ?? "").trim().toLowerCase()}`;
+      if (key && seen.has(key)) count++;
+      else if (key) seen.add(key);
+    }
+    return count;
+  }, [cards]);
 
   const styles: Record<string, React.CSSProperties> = {
     wrap: {
@@ -883,9 +902,17 @@ export default function FlashcardsEditor({
       {cards.length > 0 ? (
         <div style={styles.section}>
           <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Save to topic bank</div>
+          {!hasLessonTopic && (
+            <div style={{ marginBottom: 10, padding: 8, background: "#fef3c7", borderRadius: 8, fontSize: 13, color: "#92400e" }}>
+              Set Topic first (lesson details) before saving to bank.
+            </div>
+          )}
           <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
             Save the current {cards.length} card(s) to the flashcard bank for a topic. Use &quot;Load flashcards from bank&quot; on a lesson with no flashcards to copy them in.
           </div>
+          {duplicateFlashcardCount > 0 && (
+            <div style={{ marginBottom: 8, fontSize: 12, color: "#b45309" }}>⚠️ {duplicateFlashcardCount} duplicate card(s) detected (same front+back). You can still save.</div>
+          )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <select
               value={topicKeyForImport}
@@ -911,12 +938,44 @@ export default function FlashcardsEditor({
             <button
               type="button"
               style={{ ...styles.btn, opacity: importToBankLoading ? 0.7 : 1 }}
-              onClick={importCurrentCardsToBank}
-              disabled={importToBankLoading}
+              onClick={() => {
+                if (!hasLessonTopic) {
+                  setError("Set Topic first.");
+                  return;
+                }
+                const key = (topicKeyForImport || "").trim().toLowerCase();
+                if (!key) {
+                  setError("Enter or select a topic key to save to the bank.");
+                  return;
+                }
+                if (cards.length === 0) {
+                  setError("No cards to save.");
+                  return;
+                }
+                setShowSaveToBankConfirm(true);
+              }}
+              disabled={importToBankLoading || !hasLessonTopic}
             >
               {importToBankLoading ? "Saving…" : "Import to bank"}
             </button>
           </div>
+          {showSaveToBankConfirm && (
+            <div style={{ marginTop: 14, padding: 14, background: "#f0f9ff", border: "1px solid #0ea5e9", borderRadius: 10 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Confirm save to bank</div>
+              <div style={{ fontSize: 13, marginBottom: 8 }}>Topic: <strong>{topicKeyForImport}</strong> · {topicNameForImport || topicKeyForImport?.replace(/-/g, " ") || "—"}</div>
+              <div style={{ fontSize: 13, marginBottom: 8 }}>Count: {cards.length} card(s)</div>
+              <div style={{ fontSize: 12, marginBottom: 10, color: "#475569" }}>Preview (first 3):</div>
+              <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 12 }}>
+                {cards.slice(0, 3).map((c, i) => (
+                  <li key={i}>{(c.front || "").slice(0, 50)}{(c.front && c.front.length > 50) ? "…" : ""} → {(c.back || "").slice(0, 30)}{(c.back && c.back.length > 30) ? "…" : ""}</li>
+                ))}
+              </ul>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" style={{ ...styles.btn }} onClick={() => importCurrentCardsToBank()} disabled={importToBankLoading}>Confirm save</button>
+                <button type="button" style={{ ...styles.btn, background: "#64748b", border: "1px solid #64748b" }} onClick={() => setShowSaveToBankConfirm(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 

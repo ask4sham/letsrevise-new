@@ -37,6 +37,9 @@ const mockGetReportSummary = worksheetAssignmentsApi.getReportSummary as jest.Mo
 const mockGetAssignmentAttempts = worksheetAssignmentsApi.getAssignmentAttempts as jest.MockedFunction<
   typeof worksheetAssignmentsApi.getAssignmentAttempts
 >;
+const mockGetAssignment = worksheetAssignmentsApi.getAssignment as jest.MockedFunction<
+  typeof worksheetAssignmentsApi.getAssignment
+>;
 
 function renderReport(assignmentId = "a1") {
   return render(
@@ -50,6 +53,7 @@ function renderReport(assignmentId = "a1") {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetAssignment.mockResolvedValue({ isActive: true } as any);
   mockGetReportSummary.mockResolvedValue({
     attemptsCount: 2,
     submittedCount: 1,
