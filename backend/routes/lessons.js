@@ -23,7 +23,7 @@ const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizF
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
-const { autoAttachLessonContent } = require("../services/autoAttachLessonContent");
+const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
@@ -657,18 +657,21 @@ async function createLessonHandler(req, res) {
       try {
         const attach = await autoAttachLessonContent({
           lessonId: lesson._id,
-          userId: req.user._id || req.user.userId,
+          actorUserId: req.user._id || req.user.userId,
         });
-        autoGenResult = {
-          flashcardsAdded: attach.results.flashcardsAttached || 0,
-          quizAdded: attach.results.quizAttached || 0,
-          assessmentAdded: 0,
-          pastPapersAdded: 0,
-        };
-        if (attach.lesson) {
-          Object.assign(lesson, attach.lesson);
+        if (attach.ok && attach.attached) {
+          const a = attach.attached;
+          autoGenResult = {
+            flashcardsAdded: (a.flashcards && a.flashcards.count) || 0,
+            quizAdded: ((a.quiz && (a.quiz.mcqCount + a.quiz.shortCount)) || 0),
+            assessmentAdded: (a.assessments && a.assessments.count) || 0,
+            pastPapersAdded: 0,
+          };
+          if (attach.lesson) {
+            Object.assign(lesson, attach.lesson);
+          }
+          console.log("✅ [Lessons] Auto-attach result:", autoGenResult);
         }
-        console.log("✅ [Lessons] Auto-attach result:", autoGenResult);
       } catch (e) {
         console.warn("⚠️ [Lessons] Auto-attach failed:", e?.message || e);
       }
@@ -1488,6 +1491,52 @@ router.get("/by-topicKey", auth, async (req, res) => {
     return res.json({ lessons: list });
   } catch (err) {
     console.error("Error fetching lessons by topicKey:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+// Alias for reuse suggestions (same as by-topicKey; UI: "Similar lessons exist — view or copy")
+router.get("/reuse-suggestions", auth, async (req, res) => {
+  try {
+    const topicKey = typeof req.query.topicKey === "string" ? req.query.topicKey.trim() : "";
+    if (!topicKey) {
+      return res.status(400).json({ error: "topicKey query is required" });
+    }
+    const includeDrafts = req.query.includeDrafts !== "false";
+    const query = { topicKey };
+    if (!includeDrafts) query.status = "published";
+    const lessons = await Lesson.find(query)
+      .select("_id title subject level board topicKey status isPublished updatedAt teacherId teacherName")
+      .sort({ isPublished: -1, updatedAt: -1 })
+      .limit(10)
+      .lean();
+    const teacherIds = [...new Set(lessons.map((l) => l.teacherId).filter(Boolean))];
+    const users = teacherIds.length
+      ? await User.find({ _id: { $in: teacherIds } }).select("_id firstName lastName email").lean()
+      : [];
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+    const list = lessons.map((l) => {
+      const u = userMap.get(String(l.teacherId));
+      const ownerName = u
+        ? [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email
+        : l.teacherName || "";
+      return {
+        _id: l._id,
+        title: l.title,
+        subject: l.subject,
+        level: l.level,
+        examBoard: l.board || "",
+        topicKey: l.topicKey || "",
+        updatedAt: l.updatedAt,
+        ownerName: ownerName || undefined,
+        teacherId: l.teacherId ? String(l.teacherId) : undefined,
+        isPublished: !!l.isPublished,
+        status: l.status || "draft",
+      };
+    });
+    return res.json({ lessons: list });
+  } catch (err) {
+    console.error("Error fetching reuse-suggestions:", err);
     return res.status(500).json({ error: "Server error", details: err.message });
   }
 });
@@ -2561,22 +2610,27 @@ router.post("/:id/auto-generate", auth, requireLessonOwnerOrAdmin, async (req, r
   }
 });
 
-// Auto-attach content (fill-only when empty): flashcards + quiz from topic banks; deterministic; no overwrite
+// Auto-attach content (fill-only when empty): flashcards + quiz (+ optional assessments) from topic banks
 router.post("/:id/auto-attach-content", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ msg: "Invalid lesson id" });
     }
+    const includeAssessments = req.body && req.body.includeAssessments === true;
     const result = await autoAttachLessonContent({
       lessonId,
-      userId: req.user._id || req.user.userId,
+      actorUserId: req.user._id || req.user.userId,
+      includeAssessments,
     });
+    if (result.ok === false && result.reason === "NO_TOPIC_KEY") {
+      return res.status(400).json({ ok: false, reason: "NO_TOPIC_KEY", msg: "Lesson has no topicKey set." });
+    }
     return res.json({
       ok: true,
       lessonId: result.lessonId,
       topicKey: result.topicKey,
-      results: result.results,
+      attached: result.attached,
       lesson: result.lesson,
     });
   } catch (err) {

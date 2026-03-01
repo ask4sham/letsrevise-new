@@ -123,6 +123,7 @@ const TeacherDashboard: React.FC = () => {
     topicKey: "",
     board: "", // ✅ optional by default
     tier: "higher",
+    autoGenerateFromBanks: true,
   });
   const [aiTopicSelection, setAiTopicSelection] = useState<TopicSelectionValue>({
     subject: "Biology",
@@ -606,6 +607,7 @@ const TeacherDashboard: React.FC = () => {
         tier: aiForm.level === "GCSE" ? (aiForm.tier || "").trim() : "",
       };
       if (topicKey) payload.topicKey = topicKey;
+      payload.autoGenerateFromBanks = aiForm.autoGenerateFromBanks === true;
 
       const res = await api.post("/ai/generate-and-save", payload);
       const lessonId = res?.data?.lessonId;
@@ -2369,6 +2371,17 @@ const TeacherDashboard: React.FC = () => {
                     <option value="foundation">foundation</option>
                     <option value="higher">higher</option>
                   </select>
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem", color: "#374151" }}>
+                    <input
+                      type="checkbox"
+                      checked={aiForm.autoGenerateFromBanks === true}
+                      onChange={(e) => setAiForm((p) => ({ ...p, autoGenerateFromBanks: e.target.checked }))}
+                    />
+                    Auto-generate from topic banks (attach flashcards + quiz when draft is created)
+                  </label>
                 </div>
                 </div>
               </div>

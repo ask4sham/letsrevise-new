@@ -5153,11 +5153,12 @@ const EditLessonPage: React.FC = () => {
                     try {
                       const r = await autoAttachLessonContent(id);
                       await fetchLessonSmart();
-                      const a = r.results?.flashcardsAttached ?? 0;
-                      const q = r.results?.quizAttached ?? 0;
+                      const a = r.attached?.flashcards?.count ?? 0;
+                      const q = (r.attached?.quiz?.mcqCount ?? 0) + (r.attached?.quiz?.shortCount ?? 0);
                       const parts: string[] = [];
                       if (a) parts.push(`${a} flashcards`);
                       if (q) parts.push(`${q} quiz questions`);
+                      if (r.attached?.assessments?.count) parts.push(`${r.attached.assessments.count} assessment questions`);
                       setSeedFlashcardsSuccess(parts.length > 0 ? `Attached ${parts.join(", ")}.` : "Nothing to attach (quiz and/or flashcards already have content).");
                     } catch (e: any) {
                       setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Auto-attach failed");

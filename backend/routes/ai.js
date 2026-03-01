@@ -28,6 +28,7 @@ const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { generateContextAwareDiagram } = require("../services/diagramGeneration");
 const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
+const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -984,6 +985,27 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
     await lessonDoc.save();
 
+    let autoAttachResult = null;
+    if (topicKey && autoGenerateFromBanks) {
+      try {
+        const attach = await autoAttachLessonContent({
+          lessonId: lessonDoc._id,
+          actorUserId: req.user?._id || req.user?.userId || req.user?.id,
+        });
+        if (attach.ok && attach.attached) {
+          autoAttachResult = attach.attached;
+          const updated = await Lesson.findById(lessonDoc._id).lean();
+          if (updated) {
+            lessonDoc.flashcards = updated.flashcards;
+            lessonDoc.quiz = updated.quiz;
+            if (updated.examQuestions) lessonDoc.examQuestions = updated.examQuestions;
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ [AI generate-and-save] Auto-attach failed:", e?.message || e);
+      }
+    }
+
     return res.json({
       success: true,
       message: "AI draft saved from Gold Template clone.",
@@ -991,6 +1013,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       title: lessonDoc.title,
       pagesCount: Array.isArray(lessonDoc.pages) ? lessonDoc.pages.length : 0,
       templateSource: String(gold._id),
+      ...(autoAttachResult && { attached: autoAttachResult }),
     });
   } catch (error) {
     console.error("❌ AI generate-and-save error:", error?.message || error);
