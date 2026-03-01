@@ -11,8 +11,6 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
 import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
-import { MisconceptionsCard } from "../components/teacher/MisconceptionsCard";
-import { ReteachPlanCard } from "../components/teacher/ReteachPlanCard";
 import type { SpecKey } from "../api/taxonomy";
 
 /** PR7: readiness from backend (computed) */
@@ -134,8 +132,6 @@ const TeacherDashboard: React.FC = () => {
     topicKey: "",
     topic: "",
   });
-  /** Lesson insights (misconceptions + reteach) — selected lesson for dashboard cards */
-  const [selectedInsightLessonId, setSelectedInsightLessonId] = useState<string | null>(null);
   const { options: aiTaxonomyOptions, loading: aiTaxonomyLoading, error: aiTaxonomyError } = useCreateLessonTaxonomyOptions();
 
   // Lock body scroll when AI modal is open
@@ -1726,41 +1722,6 @@ const TeacherDashboard: React.FC = () => {
                 >
                   Action needed
                 </button>
-              )}
-            </div>
-          )}
-
-          {/* Lesson insights: Misconceptions + Reteach plan (moved from Edit Lesson) */}
-          {lessons.length > 0 && (
-            <div style={{ marginBottom: 24, padding: 16, borderRadius: 12, border: "2px solid rgba(0,0,0,0.08)", background: "#f8fafc" }}>
-              <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>Lesson insights</div>
-              <p style={{ margin: "0 0 12px", fontSize: 13, color: "#64748b" }}>
-                View misconceptions and reteach plans for a lesson. Select a lesson below.
-              </p>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginRight: 8 }}>Lesson:</label>
-                <select
-                  value={selectedInsightLessonId ?? ""}
-                  onChange={(e) => setSelectedInsightLessonId(e.target.value || null)}
-                  style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, minWidth: 200 }}
-                >
-                  <option value="">— Select lesson —</option>
-                  {lessons.filter((l) => l.isPublished).map((l) => (
-                    <option key={l._id} value={l._id}>
-                      {l.title || "Untitled"} {l.topic ? `(${l.topic})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {selectedInsightLessonId && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <MisconceptionsCard
-                    lessonId={selectedInsightLessonId}
-                    isPublished={lessons.find((l) => l._id === selectedInsightLessonId)?.isPublished ?? false}
-                    defaultDays={7}
-                  />
-                  <ReteachPlanCard lessonId={selectedInsightLessonId} days={7} />
-                </div>
               )}
             </div>
           )}

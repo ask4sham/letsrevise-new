@@ -2498,6 +2498,12 @@ const EditLessonPage: React.FC = () => {
                       <li>Practice: {c.practiceAttached}</li>
                       <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
                     </ul>
+                    {id && (
+                      <div style={{ marginTop: 8, fontSize: 12 }}>
+                        <Link to={`/teacher/misconceptions?lessonId=${id}`} style={{ color: "#2563eb", textDecoration: "none", marginRight: 12 }}>View misconceptions →</Link>
+                        <Link to={`/teacher/reteach-plans?lessonId=${id}`} style={{ color: "#2563eb", textDecoration: "none" }}>View reteach plan →</Link>
+                      </div>
+                    )}
                     <div style={{ marginTop: 12 }}>
                       <button
                         type="button"

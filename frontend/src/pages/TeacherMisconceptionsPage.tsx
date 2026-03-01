@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { MisconceptionsCard } from "../components/teacher/MisconceptionsCard";
 
 type LessonRow = { _id: string; title: string; topic?: string; isPublished: boolean };
 
 const TeacherMisconceptionsPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const lessonIdFromQuery = searchParams.get("lessonId") || undefined;
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(lessonIdFromQuery || null);
+
+  useEffect(() => {
+    if (lessonIdFromQuery) setSelectedLessonId(lessonIdFromQuery);
+  }, [lessonIdFromQuery]);
 
   useEffect(() => {
     api.get("/lessons/teacher").then((res) => {
