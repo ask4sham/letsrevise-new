@@ -1099,11 +1099,11 @@ const CreateLessonPage: React.FC = () => {
                     value={formData.description}
                     onChange={onChange}
                     rows={3}
-                    placeholder="Students will learn about the structure of animal and plant cells, identify key organelles, and understand how each organelle contributes to cell function. By the end of the lesson, students will be able to describe and compare cell structures and apply their knowledge to GCSE-style exam questions."
+                    placeholder="Students will learn about the structure of animal and plant cells, identify key organelles, and explain how their structure relates to function. They will apply this knowledge to GCSE-style questions."
                     style={{ ...ui.input, resize: "vertical", width: "100%" }}
                   />
                   <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
-                    Summarise what students will learn in this lesson. This appears in the lesson overview and helps students understand the learning goals before starting.
+                    Write a short lesson plan describing what students will learn in this specific lesson. This should change for every lesson.
                   </div>
                 </label>
 
