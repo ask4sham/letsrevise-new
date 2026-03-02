@@ -180,31 +180,22 @@ export function getBlockStyle(
 }
 
 /**
- * Page-type options for labelling each page (match block chips; kept small).
+ * Page-type options: lightweight semantic label for what role the page plays in the lesson.
+ * Chips = what block you add; Page type = what this page is for. Optional, non-blocking.
  */
 export const PAGE_TYPE_OPTIONS: string[] = [
   "Explanation",
-  "Key ideas",
+  "Key Ideas",
   "Keywords",
-  "Exam tips",
+  "Exam Tips",
   "Misconceptions",
-  "Extension",
+  "Deeper Knowledge",
   "Checkpoint",
   "Diagram",
-  "Practice questions",
+  "Worked Example",
+  "Practice Questions",
+  "Summary",
 ];
-
-/** Map block chip label → page type for auto-fill when adding first block on a page. */
-export const CHIP_TO_PAGE_TYPE: Record<string, string> = {
-  Text: "Explanation",
-  "Key Ideas": "Key ideas",
-  "Key words": "Keywords",
-  "Exam Tips": "Exam tips",
-  Misconceptions: "Misconceptions",
-  "Deeper knowledge": "Extension",
-  Checkpoint: "Checkpoint",
-  Diagram: "Diagram",
-};
 
 /** Ordered list of block types for add-block buttons. */
 export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [

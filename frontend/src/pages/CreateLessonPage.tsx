@@ -14,7 +14,6 @@ import {
   getBlockButtonStyle,
   toLegacyBlockType,
   BLOCK_TYPES_FOR_BUTTONS,
-  CHIP_TO_PAGE_TYPE,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -490,15 +489,12 @@ const CreateLessonPage: React.FC = () => {
   };
 
   const addBlock = (pageId: string, type: LessonBlockType, initialContent?: string) => {
-    const chipLabel = BLOCK_META[type].label;
-    const suggestedPageType = CHIP_TO_PAGE_TYPE[chipLabel];
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
         const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
         blocks.push({ type, content: initialContent ?? "" });
-        const pageType = (p.pageType?.trim() ? p.pageType : suggestedPageType) ?? p.pageType;
-        return { ...p, blocks, pageType: pageType ?? "" };
+        return { ...p, blocks };
       })
     );
   };
