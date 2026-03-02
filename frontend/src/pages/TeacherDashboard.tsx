@@ -2002,9 +2002,6 @@ const TeacherDashboard: React.FC = () => {
                 <a href="/docs/SPRINT_CELL_BIOLOGY_WEEK_1.md" target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</a>
                 <ToolHint text="Content sprint playbook and week 1 checklist." />
               </div>
-              <div>
-                <Link to="/dashboard" style={{ display: "block", padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Main Dashboard</Link>
-              </div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
