@@ -866,36 +866,51 @@ const CreateLessonPage: React.FC = () => {
             <main style={{ minWidth: 0 }}>
               {/* Lesson details (lighter weight so Page editor is main canvas) */}
               <div style={ui.lessonDetailsSection}>
+                <div>
                 <div style={ui.sectionTitle}>Lesson details</div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                  <label style={{ display: "block" }}>
-                    <div style={ui.labelPrimary}>Title *</div>
-                    <input
-                      name="title"
-                      value={formData.title}
-                      onChange={onChange}
-                      style={ui.input}
-                    />
-                  </label>
+                {/* SS2 layout: 3-column grid, no external CSS */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 16,
+                    alignItems: "end",
+                    marginBottom: 16,
+                  }}
+                >
+                  {/* Row 1: Title (2 cols) + Exam board (1 col) */}
+                  <div style={{ gridColumn: "1 / span 2" }}>
+                    <label style={{ display: "block" }}>
+                      <div style={ui.labelPrimary}>Title *</div>
+                      <input
+                        name="title"
+                        value={formData.title}
+                        onChange={onChange}
+                        style={ui.input}
+                      />
+                    </label>
+                  </div>
+                  <div style={{ gridColumn: "3 / span 1" }}>
+                    <label style={{ display: "block" }}>
+                      <div style={ui.labelPrimary}>Exam board *</div>
+                      <select
+                        name="board"
+                        value={formData.board}
+                        onChange={onChange}
+                        style={ui.input}
+                      >
+                        <option value="">Select board…</option>
+                        {EXAM_BOARDS.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
 
-                  <label style={{ display: "block" }}>
-                    <div style={ui.labelPrimary}>Exam board *</div>
-                    <select
-                      name="board"
-                      value={formData.board}
-                      onChange={onChange}
-                      style={ui.input}
-                    >
-                      <option value="">Select board…</option>
-                      {EXAM_BOARDS.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
+                  {/* Row 2: Subject + Spec + Level */}
                   <CreateLessonTopicSelectors
                     options={taxonomyOptions}
                     loading={taxonomyLoading}
@@ -905,67 +920,89 @@ const CreateLessonPage: React.FC = () => {
                     showTopicDisplay={true}
                     selectStyle={ui.input}
                     labelStyle={ui.label}
+                    renderGridCells={({ subject, spec, mainTopic, subTopic, topicDisplay, errorNode }) => (
+                      <>
+                        {/* Row 2: Subject | Topic (display) | Level */}
+                        <div style={{ gridColumn: "1 / span 1" }}>{subject}</div>
+                        <div style={{ gridColumn: "2 / span 1" }}>{topicDisplay}</div>
+                        <div style={{ gridColumn: "3 / span 1" }}>
+                          <label style={{ display: "block" }}>
+                            <div style={ui.label}>Level *</div>
+                            <select
+                              name="level"
+                              value={formData.level}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  level: value,
+                                  tier: value === "GCSE" ? prev.tier : "",
+                                }));
+                              }}
+                              style={ui.input}
+                            >
+                              <option value="KS3">KS3</option>
+                              <option value="GCSE">GCSE</option>
+                              <option value="A-Level">A-Level</option>
+                            </select>
+                          </label>
+                        </div>
+                        {/* Row 3: Spec | Main topic | Sub-topic */}
+                        <div style={{ gridColumn: "1 / span 1" }}>{spec}</div>
+                        <div style={{ gridColumn: "2 / span 1" }}>{mainTopic}</div>
+                        <div style={{ gridColumn: "3 / span 1" }}>{subTopic}</div>
+                        {errorNode ? (
+                          <div style={{ gridColumn: "1 / -1" }}>{errorNode}</div>
+                        ) : null}
+                      </>
+                    )}
                   />
 
-                  {formData.topicKey.trim() ? (
-                    <ExistingLessonsPanel
-                      topicKey={formData.topicKey}
-                      currentUserId={user?._id ? String(user._id) : undefined}
-                      layout="inline"
-                    />
-                  ) : null}
-
-                  <label style={{ display: "block" }}>
-                    <div style={ui.label}>Level *</div>
-                    <select
-                      name="level"
-                      value={formData.level}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFormData((prev) => ({
-                          ...prev,
-                          level: value,
-                          tier: value === "GCSE" ? prev.tier : "",
-                        }));
-                      }}
-                      style={ui.input}
-                    >
-                      <option value="KS3">KS3</option>
-                      <option value="GCSE">GCSE</option>
-                      <option value="A-Level">A-Level</option>
-                    </select>
-                  </label>
-
-                  {formData.level === "GCSE" ? (
+                  {/* Row 4: GCSE Tier (2 cols) + Estimated duration (1 col) */}
+                  <div style={{ gridColumn: "1 / span 2" }}>
+                    {formData.level === "GCSE" ? (
+                      <label style={{ display: "block" }}>
+                        <div style={ui.label}>GCSE Tier *</div>
+                        <select
+                          name="tier"
+                          value={formData.tier}
+                          onChange={onChange}
+                          style={ui.input}
+                        >
+                          <option value="">Select tier…</option>
+                          <option value="foundation">Foundation</option>
+                          <option value="higher">Higher</option>
+                        </select>
+                      </label>
+                    ) : (
+                      <div />
+                    )}
+                  </div>
+                  <div style={{ gridColumn: "3 / span 1" }}>
                     <label style={{ display: "block" }}>
-                      <div style={ui.label}>GCSE Tier *</div>
-                      <select
-                        name="tier"
-                        value={formData.tier}
+                      <div style={ui.label}>Estimated duration (mins)</div>
+                      <input
+                        name="estimatedDuration"
+                        type="number"
+                        value={formData.estimatedDuration}
                         onChange={onChange}
                         style={ui.input}
-                      >
-                        <option value="">Select tier…</option>
-                        <option value="foundation">Foundation</option>
-                        <option value="higher">Higher</option>
-                      </select>
+                      />
                     </label>
-                  ) : (
-                    <div />
-                  )}
+                  </div>
+                </div>
 
-                  <label style={{ display: "block" }}>
-                    <div style={ui.label}>Estimated duration (mins)</div>
-                    <input
-                      name="estimatedDuration"
-                      type="number"
-                      value={formData.estimatedDuration}
-                      onChange={onChange}
-                      style={ui.input}
-                    />
-                  </label>
+                {formData.topicKey.trim() ? (
+                  <ExistingLessonsPanel
+                    topicKey={formData.topicKey}
+                    currentUserId={user?._id ? String(user._id) : undefined}
+                    layout="inline"
+                    style={{ marginBottom: 16 }}
+                  />
+                ) : null}
 
-                  {isAdmin && (
+                {isAdmin && (
+                  <div style={{ marginBottom: 16 }}>
                     <label style={{ display: "block" }}>
                       <div style={ui.label}>ShamCoin price</div>
                       <input
@@ -976,9 +1013,10 @@ const CreateLessonPage: React.FC = () => {
                         style={ui.input}
                       />
                     </label>
-                  )}
+                  </div>
+                )}
 
-                  <div
+                <div
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1010,7 +1048,6 @@ const CreateLessonPage: React.FC = () => {
                       }
                     />
                   </div>
-                </div>
 
                 <label style={{ display: "block", width: "100%" }}>
                   <div style={ui.label}>Description *</div>
@@ -1043,6 +1080,7 @@ const CreateLessonPage: React.FC = () => {
                       style={ui.input}
                     />
                   </label>
+                </div>
                 </div>
               </div>
 
