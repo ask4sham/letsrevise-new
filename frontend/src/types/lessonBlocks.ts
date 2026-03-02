@@ -180,21 +180,31 @@ export function getBlockStyle(
 }
 
 /**
- * Page-type options for labelling each page (teaching vs practice vs checkpoint, etc.).
- * Used in CreateLessonPage and EditLessonPage dropdowns; supports filtering, analytics, and templates.
+ * Page-type options for labelling each page (match block chips; kept small).
  */
 export const PAGE_TYPE_OPTIONS: string[] = [
   "Explanation",
-  "Worked example",
-  "Practice questions",
-  "Checkpoint",
-  "Misconceptions",
-  "Exam tips",
+  "Key ideas",
   "Keywords",
+  "Exam tips",
+  "Misconceptions",
+  "Extension",
+  "Checkpoint",
   "Diagram",
-  "Reteach / support",
-  "Extension / deeper knowledge",
+  "Practice questions",
 ];
+
+/** Map block chip label → page type for auto-fill when adding first block on a page. */
+export const CHIP_TO_PAGE_TYPE: Record<string, string> = {
+  Text: "Explanation",
+  "Key Ideas": "Key ideas",
+  "Key words": "Keywords",
+  "Exam Tips": "Exam tips",
+  Misconceptions: "Misconceptions",
+  "Deeper knowledge": "Extension",
+  Checkpoint: "Checkpoint",
+  Diagram: "Diagram",
+};
 
 /** Ordered list of block types for add-block buttons. */
 export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [

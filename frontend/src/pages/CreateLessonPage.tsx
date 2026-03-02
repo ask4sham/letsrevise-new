@@ -14,6 +14,7 @@ import {
   getBlockButtonStyle,
   toLegacyBlockType,
   BLOCK_TYPES_FOR_BUTTONS,
+  CHIP_TO_PAGE_TYPE,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -489,12 +490,15 @@ const CreateLessonPage: React.FC = () => {
   };
 
   const addBlock = (pageId: string, type: LessonBlockType, initialContent?: string) => {
+    const chipLabel = BLOCK_META[type].label;
+    const suggestedPageType = CHIP_TO_PAGE_TYPE[chipLabel];
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
         const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
         blocks.push({ type, content: initialContent ?? "" });
-        return { ...p, blocks };
+        const pageType = (p.pageType?.trim() ? p.pageType : suggestedPageType) ?? p.pageType;
+        return { ...p, blocks, pageType: pageType ?? "" };
       })
     );
   };
@@ -1328,7 +1332,7 @@ const CreateLessonPage: React.FC = () => {
                             )}
                         </select>
                         <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
-                          Select what this page is for (e.g. Explanation, Worked example, Practice questions, Checkpoint, Misconceptions). This helps keep lessons organised and supports future templates and analytics.
+                          Optional: helps organise pages (e.g. Explanation, Checkpoint, Misconceptions).
                         </div>
                       </label>
                     </div>

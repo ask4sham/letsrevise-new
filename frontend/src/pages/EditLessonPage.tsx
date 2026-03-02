@@ -27,6 +27,7 @@ import {
   normalizeBlockType,
   toLegacyBlockType,
   BLOCK_TYPES_FOR_BUTTONS,
+  CHIP_TO_PAGE_TYPE,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 
@@ -1004,6 +1005,8 @@ const EditLessonPage: React.FC = () => {
   }, [lesson?.pages, lesson?.level]);
 
   const addBlock = (pageId: string, type: LessonBlockType) => {
+    const chipLabel = BLOCK_META[type].label;
+    const suggestedPageType = CHIP_TO_PAGE_TYPE[chipLabel];
     setLesson((prev) => {
       if (!prev) return prev;
       const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
@@ -1043,7 +1046,9 @@ const EditLessonPage: React.FC = () => {
       } else {
         blocks.push({ type, content: "" });
       }
-      pages[pIdx] = { ...pages[pIdx], blocks };
+      const currentPageType = (pages[pIdx] as any).pageType;
+      const pageType = (currentPageType?.trim() ? currentPageType : suggestedPageType) ?? currentPageType;
+      pages[pIdx] = { ...pages[pIdx], blocks, pageType: pageType ?? "" };
       return { ...prev, pages };
     });
   };
@@ -2862,7 +2867,7 @@ const EditLessonPage: React.FC = () => {
                             )}
                         </select>
                         <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
-                          Select what this page is for (e.g. Explanation, Worked example, Practice questions, Checkpoint, Misconceptions). This helps keep lessons organised and supports future templates and analytics.
+                          Optional: helps organise pages (e.g. Explanation, Checkpoint, Misconceptions).
                         </div>
                       </label>
                     </div>
