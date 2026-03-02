@@ -104,6 +104,96 @@ It is a guide for what "good progress this week" looks like.
 
 ---
 
+## Question Bank sprint order (build in this order)
+
+Before creating or improving lessons, complete question banks in the following order.
+This ensures lessons can be assembled quickly with auto-attach and minimal rework.
+
+### 1. Core recall (must-have)
+Build first.
+
+- Simple definitions
+- Structure → function questions
+- One-mark GCSE-style recall
+- Clear, unambiguous answers
+
+Target: every sub-topic has enough questions for quick checks and flashcards.
+
+---
+
+### 2. Understanding & application
+Build second.
+
+- "Why" and "how" questions
+- Compare / contrast (e.g. plant vs animal cells)
+- Cause–effect reasoning
+- Short-answer explanations
+
+Target: students can explain ideas, not just name them.
+
+---
+
+### 3. Exam-style & misconceptions
+Build third.
+
+- Common GCSE misconceptions
+- Distractor-heavy MCQs
+- Questions that expose misunderstanding
+- Past-paper style wording (without overdoing marks)
+
+Target: diagnose weaknesses before exams.
+
+---
+
+> Do not start lessons until **Stage 1 is complete** for the topic.
+
+---
+
+## Question Bank — Definition of Done (DoD)
+
+A question bank for a sub-topic is **DONE** when all conditions below are met.
+
+### Coverage
+- Covers **all spec-required points** for the sub-topic
+- No major idea left untested
+
+### Quality
+- Questions are:
+  - Clear
+  - Unambiguous
+  - Age-appropriate
+- Correct answers are indisputable
+- Explanations (if present) are concise and correct
+
+### Balance
+- Mix of:
+  - MCQs
+  - Short-answer questions
+- Includes at least:
+  - Recall
+  - Understanding
+  - One misconception-check question
+
+### Reuse-ready
+- Questions can be safely:
+  - Auto-attached to lessons
+  - Used in quick practice
+  - Reused across classes
+- No references to a specific lesson's wording or diagrams
+
+### Final check
+Ask:
+> "Would I trust this question in an exam revision session without explaining it first?"
+
+If yes → **Done**  
+If no → **Fix before moving on**
+
+---
+
+> When question banks meet this DoD, lesson creation becomes fast, consistent, and low-risk.
+
+---
+
 ## What next?
 
 When ready:
