@@ -61,6 +61,8 @@ const SUBJECTS = [
   "Economics",
 ] as const;
 
+const DESCRIPTION_LIMIT = 280;
+
 function buildDefaultTitle({
   subTopic,
   mainTopic,
@@ -77,6 +79,33 @@ function buildDefaultTitle({
   if (mainTopic) parts.push(`– ${mainTopic}`);
   const suffix = [examBoard, level].filter(Boolean).join(" ");
   if (suffix) parts.push(`(${suffix})`);
+  return parts.join(" ");
+}
+
+function buildStarterDescription({
+  subTopic,
+  mainTopic,
+  level,
+  examBoard,
+}: {
+  subTopic?: string;
+  mainTopic?: string;
+  level?: string;
+  examBoard?: string;
+}) {
+  if (!subTopic) return "";
+
+  const parts = [];
+  parts.push(
+    `Students will learn the key ideas in ${subTopic}${mainTopic ? ` within ${mainTopic}` : ""}.`
+  );
+  parts.push(
+    `They will be able to explain key terms and apply their understanding to exam-style questions.`
+  );
+
+  const ctx = [examBoard, level].filter(Boolean).join(" ");
+  if (ctx) parts.push(`(${ctx})`);
+
   return parts.join(" ");
 }
 
@@ -272,6 +301,7 @@ const CreateLessonPage: React.FC = () => {
 
   const { options: taxonomyOptions, loading: taxonomyLoading, error: taxonomyError } = useCreateLessonTaxonomyOptions();
   const [titleTouched, setTitleTouched] = useState(false);
+  const [descriptionTouched, setDescriptionTouched] = useState(false);
   const [topicSelection, setTopicSelection] = useState<TopicSelectionValue>({
     subject: "",
     specKey: "",
@@ -329,6 +359,30 @@ const CreateLessonPage: React.FC = () => {
     formData.board,
     formData.level,
     titleTouched,
+  ]);
+
+  useEffect(() => {
+    if (descriptionTouched) return;
+
+    const starter = buildStarterDescription({
+      subTopic: topicSelection.topic || undefined,
+      mainTopic: topicSelection.mainTopicTitle || undefined,
+      level: formData.level || undefined,
+      examBoard: formData.board || undefined,
+    });
+
+    if (!starter) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      description: starter.slice(0, DESCRIPTION_LIMIT),
+    }));
+  }, [
+    topicSelection.topic,
+    topicSelection.mainTopicTitle,
+    formData.level,
+    formData.board,
+    descriptionTouched,
   ]);
 
   const handleTopicSelectionChange = (value: TopicSelectionValue) => {
@@ -1097,13 +1151,39 @@ const CreateLessonPage: React.FC = () => {
                   <textarea
                     name="description"
                     value={formData.description}
-                    onChange={onChange}
+                    maxLength={DESCRIPTION_LIMIT}
+                    onChange={(e) => {
+                      setDescriptionTouched(true);
+                      setFormData((prev) => ({ ...prev, description: e.target.value }));
+                    }}
                     rows={3}
-                    placeholder="Students will learn about the structure of animal and plant cells, identify key organelles, and explain how their structure relates to function. They will apply this knowledge to GCSE-style questions."
+                    placeholder="Students will learn…"
                     style={{ ...ui.input, resize: "vertical", width: "100%" }}
                   />
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
-                    Write a short lesson plan describing what students will learn in this specific lesson. This should change for every lesson.
+                  <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                    <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                      Write a short lesson plan describing what students will learn in this specific lesson.
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                      {formData.description.length}/{DESCRIPTION_LIMIT}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setDescriptionTouched(false)}
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#2563eb",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Reset to suggested description
+                    </button>
                   </div>
                 </label>
 
