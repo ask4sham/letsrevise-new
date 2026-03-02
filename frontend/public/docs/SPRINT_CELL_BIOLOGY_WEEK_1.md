@@ -1,5 +1,7 @@
 # Cell Biology — Sprint Week 1
 
+**Audience:** Teachers & content creators (not shown to students)
+
 ## What is this?
 
 This sprint plan is a **teacher-facing playbook** for building and reviewing Cell Biology content consistently and quickly.
