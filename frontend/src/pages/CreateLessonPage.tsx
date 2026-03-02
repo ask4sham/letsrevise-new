@@ -14,6 +14,7 @@ import {
   getBlockButtonStyle,
   toLegacyBlockType,
   BLOCK_TYPES_FOR_BUTTONS,
+  PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 
@@ -1310,11 +1311,25 @@ const CreateLessonPage: React.FC = () => {
                       </label>
                       <label style={{ display: "block" }}>
                         <div style={ui.label}>Page type</div>
-                        <input
+                        <select
                           value={safeStr(pg.pageType, "")}
                           onChange={(e) => updatePage(pg.pageId, { pageType: e.target.value })}
                           style={ui.input}
-                        />
+                        >
+                          <option value="">Select…</option>
+                          {PAGE_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                          {safeStr(pg.pageType, "").trim() &&
+                            !PAGE_TYPE_OPTIONS.includes(safeStr(pg.pageType, "")) && (
+                              <option value={safeStr(pg.pageType, "")}>{safeStr(pg.pageType, "")}</option>
+                            )}
+                        </select>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
+                          Select what this page is for (e.g. Explanation, Worked example, Practice questions, Checkpoint, Misconceptions). This helps keep lessons organised and supports future templates and analytics.
+                        </div>
                       </label>
                     </div>
 

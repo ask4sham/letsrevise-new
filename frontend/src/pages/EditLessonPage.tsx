@@ -27,6 +27,7 @@ import {
   normalizeBlockType,
   toLegacyBlockType,
   BLOCK_TYPES_FOR_BUTTONS,
+  PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 
 interface LessonPageBlock {
@@ -2834,7 +2835,7 @@ const EditLessonPage: React.FC = () => {
 
                       <label style={{ display: "block" }}>
                         <div style={{ fontWeight: 800, marginBottom: 6 }}>Page type</div>
-                        <input
+                        <select
                           value={safeStr(currentPage?.pageType, "")}
                           onChange={(e) =>
                             updatePage(currentPage!.pageId, { pageType: e.target.value })
@@ -2845,7 +2846,24 @@ const EditLessonPage: React.FC = () => {
                             borderRadius: 10,
                             border: "2px solid rgba(0,0,0,0.14)",
                           }}
-                        />
+                        >
+                          <option value="">Select…</option>
+                          {PAGE_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                          {currentPage &&
+                            safeStr(currentPage.pageType, "").trim() &&
+                            !PAGE_TYPE_OPTIONS.includes(safeStr(currentPage.pageType, "")) && (
+                              <option value={safeStr(currentPage.pageType, "")}>
+                                {safeStr(currentPage.pageType, "")}
+                              </option>
+                            )}
+                        </select>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
+                          Select what this page is for (e.g. Explanation, Worked example, Practice questions, Checkpoint, Misconceptions). This helps keep lessons organised and supports future templates and analytics.
+                        </div>
                       </label>
                     </div>
                   </div>

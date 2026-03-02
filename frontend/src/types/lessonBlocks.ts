@@ -179,6 +179,23 @@ export function getBlockStyle(
   };
 }
 
+/**
+ * Page-type options for labelling each page (teaching vs practice vs checkpoint, etc.).
+ * Used in CreateLessonPage and EditLessonPage dropdowns; supports filtering, analytics, and templates.
+ */
+export const PAGE_TYPE_OPTIONS: string[] = [
+  "Explanation",
+  "Worked example",
+  "Practice questions",
+  "Checkpoint",
+  "Misconceptions",
+  "Exam tips",
+  "Keywords",
+  "Diagram",
+  "Reteach / support",
+  "Extension / deeper knowledge",
+];
+
 /** Ordered list of block types for add-block buttons. */
 export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "text",
