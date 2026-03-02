@@ -95,6 +95,7 @@ import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
+import DocsViewerPage from "./pages/DocsViewerPage";
 
 import "./App.css";
 
@@ -560,6 +561,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route path="/docs/view" element={<DocsViewerPage />} />
 
           <Route
             path="/teacher/exam-question-bank"
