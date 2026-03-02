@@ -259,11 +259,6 @@ const TeacherDashboard: React.FC = () => {
     });
   }, [lessons, taxonomyMap, filterUnit, filterTopicKey, filterTier, filterReadiness]);
 
-  /** At least one lesson is not classroom-ready → show Needs Attention as active (red) */
-  const hasNeedsAttention = lessons.some(
-    (lesson) => (lesson.readiness?.status ?? "DRAFT") !== "READY"
-  );
-
   // PR5: Coverage (published lessons only)
   const coverage = useMemo(() => {
     const coveredTopicKeys = new Set(
@@ -1430,39 +1425,6 @@ const TeacherDashboard: React.FC = () => {
                 >
                   Link students (beta)
                 </Link>
-                {hasNeedsAttention ? (
-                  <Link
-                    to="/teacher/reports/needs-attention"
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 8,
-                      border: "2px solid #dc2626",
-                      background: "#fee2e2",
-                      color: "#b91c1c",
-                      textDecoration: "none",
-                      fontWeight: 600,
-                      fontSize: 13,
-                    }}
-                  >
-                    Needs Attention →
-                  </Link>
-                ) : (
-                  <span
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 8,
-                      border: "1px solid #d1d5db",
-                      background: "#f3f4f6",
-                      color: "#9ca3af",
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: "default",
-                    }}
-                    title="No issues right now"
-                  >
-                    Needs Attention
-                  </span>
-                )}
               </div>
               {/* PR5: Topics not yet covered (toggled by "View uncovered topics" CTA above) */}
               {coverage.uncoveredTopics.length > 0 && showUncoveredTopics && (
@@ -1688,54 +1650,6 @@ const TeacherDashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
-              {hasNeedsAttention ? (
-                <Link to="/teacher/reports/needs-attention" style={{ marginLeft: 8, textDecoration: "none" }}>
-                  <button
-                    type="button"
-                    style={{
-                      marginLeft: 0,
-                      padding: "4px 12px",
-                      borderRadius: 6,
-                      border: "1px solid #dc2626",
-                      background: "#fef2f2",
-                      color: "#15803d",
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: "pointer",
-                      transition: "background 0.15s, border-color 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#fee2e2";
-                      e.currentTarget.style.borderColor = "#b91c1c";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "#fef2f2";
-                      e.currentTarget.style.borderColor = "#dc2626";
-                    }}
-                  >
-                    Action needed
-                  </button>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  title="No issues right now"
-                  style={{
-                    marginLeft: 8,
-                    padding: "4px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    background: "#f3f4f6",
-                    color: "#9ca3af",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: "not-allowed",
-                  }}
-                >
-                  Action needed
-                </button>
-              )}
             </div>
           )}
 
@@ -2061,7 +1975,7 @@ const TeacherDashboard: React.FC = () => {
                 <ToolHint text="Student work waiting for your review and marks." />
               </div>
               <div>
-                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention → <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
+                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention (action required) <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
                 <ToolHint text="Lessons or questions that need fixing before publishing." />
               </div>
               <div>
