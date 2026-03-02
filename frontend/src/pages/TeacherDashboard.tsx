@@ -2000,7 +2000,7 @@ const TeacherDashboard: React.FC = () => {
               </div>
               <div>
                 <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</Link>
-                <ToolHint text="Content sprint playbook and week 1 checklist." />
+                <ToolHint text="Content sprint playbook. What to build this week and how to review it quickly." />
               </div>
             </div>
           </div>
