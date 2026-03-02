@@ -61,6 +61,25 @@ const SUBJECTS = [
   "Economics",
 ] as const;
 
+function buildDefaultTitle({
+  subTopic,
+  mainTopic,
+  examBoard,
+  level,
+}: {
+  subTopic?: string;
+  mainTopic?: string;
+  examBoard?: string;
+  level?: string;
+}) {
+  if (!subTopic) return "";
+  const parts = [subTopic];
+  if (mainTopic) parts.push(`– ${mainTopic}`);
+  const suffix = [examBoard, level].filter(Boolean).join(" ");
+  if (suffix) parts.push(`(${suffix})`);
+  return parts.join(" ");
+}
+
 // Shared UI: Phase 2 – youthful modern polish (one radius + spacing scale)
 const radius = 10;
 const space = 12;
@@ -252,6 +271,7 @@ const CreateLessonPage: React.FC = () => {
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { options: taxonomyOptions, loading: taxonomyLoading, error: taxonomyError } = useCreateLessonTaxonomyOptions();
+  const [titleTouched, setTitleTouched] = useState(false);
   const [topicSelection, setTopicSelection] = useState<TopicSelectionValue>({
     subject: "",
     specKey: "",
@@ -291,6 +311,25 @@ const CreateLessonPage: React.FC = () => {
   ]);
 
   const orderedPages = useMemo(() => sortPages(pages), [pages]);
+
+  useEffect(() => {
+    if (titleTouched) return;
+    const autoTitle = buildDefaultTitle({
+      subTopic: topicSelection.topic || undefined,
+      mainTopic: topicSelection.mainTopicTitle || undefined,
+      examBoard: formData.board || undefined,
+      level: formData.level || undefined,
+    });
+    if (autoTitle) {
+      setFormData((prev) => ({ ...prev, title: autoTitle }));
+    }
+  }, [
+    topicSelection.topic,
+    topicSelection.mainTopicTitle,
+    formData.board,
+    formData.level,
+    titleTouched,
+  ]);
 
   const handleTopicSelectionChange = (value: TopicSelectionValue) => {
     setTopicSelection(value);
@@ -886,7 +925,11 @@ const CreateLessonPage: React.FC = () => {
                       <input
                         name="title"
                         value={formData.title}
-                        onChange={onChange}
+                        onChange={(e) => {
+                          onChange(e);
+                          setTitleTouched(true);
+                        }}
+                        placeholder="Lesson title"
                         style={ui.input}
                       />
                     </label>
