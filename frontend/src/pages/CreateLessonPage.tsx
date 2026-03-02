@@ -1,5 +1,5 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
@@ -233,6 +233,7 @@ function buildMarkdownForFile(url: string, file: File) {
 const CreateLessonPage: React.FC = () => {
   const navigate = useNavigate();
   const { token, user } = useCurrentUser({ watchLocation: true });
+  const isAdmin = Boolean(user?.isAdmin || user?.role === "admin" || user?.userType === "admin");
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -964,20 +965,42 @@ const CreateLessonPage: React.FC = () => {
                     />
                   </label>
 
-                  <label style={{ display: "block" }}>
-                    <div style={ui.label}>ShamCoin price</div>
-                    <input
-                      name="shamCoinPrice"
-                      type="number"
-                      value={formData.shamCoinPrice}
-                      onChange={onChange}
-                      style={ui.input}
-                    />
-                  </label>
+                  {isAdmin && (
+                    <label style={{ display: "block" }}>
+                      <div style={ui.label}>ShamCoin price</div>
+                      <input
+                        name="shamCoinPrice"
+                        type="number"
+                        value={formData.shamCoinPrice}
+                        onChange={onChange}
+                        style={ui.input}
+                      />
+                    </label>
+                  )}
 
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
+                      background: "#f9fafb",
+                      padding: "10px 12px",
+                      marginTop: 8,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111827" }}>
+                        Auto-generate from topic banks
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "#4b5563", marginTop: 2 }}>
+                        Attaches starter quizzes and flashcards from published banks (editable).
+                      </div>
+                    </div>
                     <input
                       type="checkbox"
+                      style={{ width: 16, height: 16, flexShrink: 0 }}
                       checked={formData.autoGenerateFromBanks}
                       onChange={(e) =>
                         setFormData((prev) => ({
@@ -986,10 +1009,6 @@ const CreateLessonPage: React.FC = () => {
                         }))
                       }
                     />
-                    <span style={{ ...ui.label, marginBottom: 0 }}>Auto-generate from topic banks</span>
-                  </label>
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: -4, marginLeft: 24 }}>
-                    Flashcards, quiz, assessment &amp; past papers from published banks
                   </div>
                 </div>
 

@@ -479,7 +479,8 @@ async function createLessonHandler(req, res) {
       return res.status(403).json({ msg: "Only teachers can create lessons" });
     }
 
-    const {
+    const isAdminUser = isAdmin(req.user);
+    let {
       title,
       description,
       content,
@@ -500,6 +501,10 @@ async function createLessonHandler(req, res) {
       quiz,
       autoGenerateFromBanks,
     } = req.body || {};
+    if (!isAdminUser) {
+      shamCoinPrice = 0;
+      delete req.body.shamCoinPrice;
+    }
 
     const missing = {};
     if (!title) missing.title = true;
@@ -2417,6 +2422,9 @@ router.put("/:id", auth, async (req, res) => {
     }
 
     const updates = req.body || {};
+    if (!isAdminUser) {
+      delete updates.shamCoinPrice;
+    }
 
     // ✅ FIXED: Handle pages update with hero preservation
     if (updates.pages && Array.isArray(updates.pages)) {
