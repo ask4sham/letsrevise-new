@@ -7,10 +7,24 @@ const path = require("path");
 const fs = require("fs");
 const { runQuestionBankAudit } = require("../../services/questionBankAuditService");
 const { getTaxonomyBySpecKey } = require("../../utils/topicTaxonomy");
+const normalizeSpecKey = require("../../utils/normalizeSpecKey");
+const { specKeyForFilename } = require("../../utils/normalizeSpecKey");
 
+/** Internal specKey may be hyphen or underscore; for filenames use hyphen so docs viewer finds them. */
 function safeSpecKeyForFilename(specKey) {
   if (!specKey || typeof specKey !== "string") return "unknown";
-  return String(specKey).replace(/[/:]/g, "_").trim() || "unknown";
+  const normalized = normalizeSpecKey(specKey);
+  const hyphen = specKeyForFilename(normalized);
+  return hyphen || String(specKey).replace(/[/:]/g, "-").trim() || "unknown";
+}
+
+function getDocsOutDir() {
+  const repoRoot = path.resolve(__dirname, "..", "..", "..");
+  return path.join(repoRoot, "frontend", "public", "docs");
+}
+
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
 /** Row accessors for both service shape (counts.*, mainTopicTitle) and legacy (mcq, mainTopic) */
@@ -44,10 +58,12 @@ function rowMisconceptionTag(r) {
 
 /**
  * Run audit via service and write QUESTION_BANK_AUDIT_<specKey>.md + SPRINT_ORDER_<specKey>.md.
- * @param {{ specKey: string, outDir?: string }} options
+ * @param {{ specKey: string, outDir?: string, publicDocsDir?: string }} options
+ *   - outDir: repo root docs/ (or custom)
+ *   - publicDocsDir: if set, also write to this path (frontend/public/docs for docs viewer)
  * @returns {Promise<{ rows: Array, sprintOrder: Array }>}
  */
-async function runQuestionBankAuditAndWrite({ specKey, outDir = "docs" }) {
+async function runQuestionBankAuditAndWrite({ specKey, outDir = "docs", publicDocsDir: explicitPublicDocsDir } = {}) {
   const { rows, summary } = await runQuestionBankAudit({ specKey });
   const taxonomy = getTaxonomyBySpecKey(specKey);
   const scopeLine = [
@@ -68,23 +84,28 @@ async function runQuestionBankAuditAndWrite({ specKey, outDir = "docs" }) {
 
   const repoRoot = path.resolve(__dirname, "..", "..", "..");
   const resolvedOutDir = path.isAbsolute(outDir) ? outDir : path.join(repoRoot, outDir);
-  if (!fs.existsSync(resolvedOutDir)) fs.mkdirSync(resolvedOutDir, { recursive: true });
+  ensureDir(resolvedOutDir);
 
-  const safeKey = safeSpecKeyForFilename(specKey);
+  const fileKey = safeSpecKeyForFilename(specKey);
   const opts = { encoding: "utf8" };
 
   const auditContent = buildAuditMdContent(specKey, scopeLine, rows);
   const sprintContent = buildSprintOrderMdContent(specKey, sprintOrder, rows);
 
-  const auditPath = path.join(resolvedOutDir, `QUESTION_BANK_AUDIT_${safeKey}.md`);
-  const sprintPath = path.join(resolvedOutDir, `SPRINT_ORDER_${safeKey}.md`);
+  const auditPath = path.join(resolvedOutDir, `QUESTION_BANK_AUDIT_${fileKey}.md`);
+  const sprintPath = path.join(resolvedOutDir, `SPRINT_ORDER_${fileKey}.md`);
   fs.writeFileSync(auditPath, auditContent, opts);
   fs.writeFileSync(sprintPath, sprintContent, opts);
 
-  const publicDocsDir = path.join(repoRoot, "frontend", "public", "docs");
-  if (!fs.existsSync(publicDocsDir)) fs.mkdirSync(publicDocsDir, { recursive: true });
-  fs.writeFileSync(path.join(publicDocsDir, `QUESTION_BANK_AUDIT_${safeKey}.md`), auditContent, opts);
-  fs.writeFileSync(path.join(publicDocsDir, `SPRINT_ORDER_${safeKey}.md`), sprintContent, opts);
+  const publicDocsDir = explicitPublicDocsDir || getDocsOutDir();
+  ensureDir(publicDocsDir);
+  const auditPublicPath = path.join(publicDocsDir, `QUESTION_BANK_AUDIT_${fileKey}.md`);
+  const sprintPublicPath = path.join(publicDocsDir, `SPRINT_ORDER_${fileKey}.md`);
+  fs.writeFileSync(auditPublicPath, auditContent, opts);
+  fs.writeFileSync(sprintPublicPath, sprintContent, opts);
+  if (process.env.NODE_ENV !== "test") {
+    console.log("[audit] Wrote to frontend/public/docs:", auditPublicPath, sprintPublicPath);
+  }
 
   return { rows, sprintOrder };
 }
@@ -128,10 +149,14 @@ function buildAuditMdContent(specKey, scopeLine, rows) {
   lines.push("## Summary");
   lines.push(`- **EMPTY:** ${emptyCount}  \n- **GAP:** ${gapCount}  \n- **OK:** ${okCount}  \n- **DoD DONE:** ${doneCount}  \n- **Total sub-topics:** ${rows.length}`);
   lines.push("");
-  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  return lines.join("\n");
 }
 
-function writeSprintOrderMd(filePath, specKey, sprintOrder, rows) {
+function buildSprintOrderMdContent(specKey, sprintOrder, rows) {
+  return writeSprintOrderMd(undefined, specKey, sprintOrder, rows);
+}
+
+function writeSprintOrderMd(_filePath, specKey, sprintOrder, rows) {
   const lines = [
     `# Sprint Order — ${specKey}`,
     "",

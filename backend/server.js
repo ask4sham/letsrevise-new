@@ -63,6 +63,7 @@ const templateRoutes = require("./routes/templates.routes");
 const curriculumConfidenceRouter = require("./routes/curriculumConfidence");
 const pricingRoutes = require("./routes/pricing");
 const eventRoutes = require("./routes/events");
+const auditRoutes = require("./routes/audit");
 // AI Generation Jobs routes are part of the overall API surface and are
 // intentionally mounted early as placeholders; they currently have no
 // handlers or behavior and serve only to stabilise route namespaces.
@@ -250,6 +251,7 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/payouts", payoutRoutes);
 app.use("/api/pricing", pricingRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/audit", auditRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ops", opsRoutes);
 app.use("/api/ai", aiRoutes);
@@ -365,6 +367,14 @@ app.get("/lesson_reviews", (req, res) => res.json([]));
 
 app.use("/api", (req, res) => {
   res.status(404).json({ msg: "API route not found" });
+});
+
+/* ============================================================
+   GLOBAL ERROR GUARD (unhandled errors → 500)
+============================================================ */
+app.use((err, req, res, next) => {
+  console.error("[unhandled]", err);
+  res.status(500).json({ error: "Unhandled server error", message: err?.message });
 });
 
 /* ============================================================

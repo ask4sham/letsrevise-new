@@ -3,16 +3,12 @@
  * Route: /teacher/content-coverage
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { fetchQuestionBankAudit, type QuestionBankAuditRow, type QuestionBankAuditResponse } from "../api/questionBankAudit";
 import type { SpecKey } from "../api/taxonomy";
-
-/** Match backend safeSpecKeyForFilename: safe for doc filenames (SPRINT_ORDER_<key>.md) */
-function safeSpecKeyForFilename(specKey: string): string {
-  return specKey.replace(/[/:]/g, "_").trim() || "unknown";
-}
+import { sprintOrderFilename, questionBankAuditFilename } from "../utils/docFilenames";
 
 type FilterMode = "all" | "missing" | "partial";
 type SortMode = "taxonomy" | "sprint";
@@ -74,6 +70,7 @@ const TeacherCoveragePage: React.FC = () => {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("taxonomy");
   const [docOpenError, setDocOpenError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -94,11 +91,12 @@ const TeacherCoveragePage: React.FC = () => {
       })
       .catch((err) => {
         if (!cancelled) {
+          console.error("[Content Coverage] fetch failed", err);
           const msg =
             (err?.response?.data && typeof err.response.data === "object" && err.response.data.error) ||
             err?.message ||
-            "Failed to load coverage";
-          setError(msg);
+            "Request failed";
+          setError(typeof msg === "string" ? msg : "Request failed");
           setLoading(false);
         }
       });
@@ -161,19 +159,26 @@ const TeacherCoveragePage: React.FC = () => {
     return { topics, topicsWithAny, topicsFullyCovered };
   }, [data?.rows]);
 
-  const openDoc = (filename: string) => {
-    setDocOpenError(null);
+  const sprintOrderFile = specKey ? sprintOrderFilename(specKey) : "";
+  const auditFile = specKey ? questionBankAuditFilename(specKey) : "";
+
+  const openSprintOrder = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!specKey) return;
-    const url = `/docs/view?file=${encodeURIComponent(filename)}`;
-    const win = window.open(url, "_blank");
-    if (!win) {
-      setDocOpenError("Popup blocked. Allow popups for this site to open the doc.");
-    }
+    const file = sprintOrderFilename(specKey);
+    setDocOpenError(null);
+    window.location.hash = `#/docs/view?file=${encodeURIComponent(file)}`;
   };
 
-  const safeKey = specKey ? safeSpecKeyForFilename(specKey) : "";
-  const sprintOrderFile = safeKey ? `SPRINT_ORDER_${safeKey}.md` : "";
-  const auditFile = safeKey ? `QUESTION_BANK_AUDIT_${safeKey}.md` : "";
+  const openAudit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!specKey) return;
+    const file = questionBankAuditFilename(specKey);
+    setDocOpenError(null);
+    window.location.hash = `#/docs/view?file=${encodeURIComponent(file)}`;
+  };
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24, width: "100%", boxSizing: "border-box" }}>
@@ -226,7 +231,7 @@ const TeacherCoveragePage: React.FC = () => {
         />
         <button
           type="button"
-          onClick={() => openDoc(sprintOrderFile)}
+          onClick={openSprintOrder}
           disabled={!sprintOrderFile}
           style={{
             padding: "6px 12px",
@@ -241,7 +246,7 @@ const TeacherCoveragePage: React.FC = () => {
         </button>
         <button
           type="button"
-          onClick={() => openDoc(auditFile)}
+          onClick={openAudit}
           disabled={!auditFile}
           style={{
             padding: "6px 12px",
