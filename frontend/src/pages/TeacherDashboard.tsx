@@ -98,10 +98,6 @@ function getSpecKeyForAiForm(
   return null;
 }
 
-const ToolHint: React.FC<{ text: string }> = ({ text }) => (
-  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, marginBottom: 10, lineHeight: 1.3 }}>{text}</div>
-);
-
 const CountBadge: React.FC<{ n: number }> = ({ n }) => {
   if (!n || n <= 0) return null;
   return (
@@ -1970,37 +1966,29 @@ const TeacherDashboard: React.FC = () => {
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
             <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Teacher tools</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📝 Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
-                <ToolHint text="Student work waiting for your review and marks." />
               </div>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention (action required) <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
-                <ToolHint text="Lessons or questions that need fixing before publishing." />
               </div>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>🧠 Misconceptions (7d) <CountBadge n={0} /></Link>
-                <ToolHint text="Common mistakes students made in the last 7 days." />
               </div>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>🔁 Reteach plans</Link>
-                <ToolHint text="Topics students struggled with that may need reteaching." />
               </div>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={handleViewAnalytics} style={{ width: "100%", padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>📊 View analytics</button>
-                <ToolHint text="See engagement, performance, and lesson impact." />
               </div>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>💰 Cash out earnings</button>
-                <ToolHint text="Withdraw your earned ShamCoins." />
               </div>
-              <div>
+              <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🛠 Fix earnings</button>
-                <ToolHint text="Resolve issues affecting your payouts." />
               </div>
               <div>
                 <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</Link>
-                <ToolHint text="Content sprint playbook. What to build this week and how to review it quickly." />
               </div>
             </div>
           </div>

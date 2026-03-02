@@ -34,6 +34,61 @@ Use this page:
 
 ---
 
+## Teacher tools — what they're for
+
+These tools appear on your Teacher Dashboard.
+Use them during or after a sprint to monitor lesson quality and student understanding.
+
+### Needs attention
+Shows lessons that are **blocked from being classroom-ready or published**.
+Common reasons:
+- Missing quiz or flashcards
+- Lesson not marked as reviewed
+- Required content incomplete
+
+Use this to quickly spot what must be fixed before publishing.
+
+---
+
+### Misconceptions (7d)
+Shows **recent student misunderstandings** based on answers given in the last 7 days.
+
+Use this to:
+- Identify weak concepts across classes
+- Decide where explanations or examples need improving
+- Inform reteach planning
+
+This is insight, not a judgement.
+
+---
+
+### Reteach plans
+Helps you plan **follow-up teaching** for topics students struggled with.
+
+Use this when:
+- Misconceptions are recurring
+- Assessment performance drops
+- A topic needs reinforcement before exams
+
+Reteach plans guide *what to revisit*, not how to rewrite the lesson.
+
+---
+
+### View analytics
+High-level view of:
+- Engagement
+- Performance
+- Lesson impact
+
+Use this for trends, not daily decisions.
+
+---
+
+> These tools support teaching quality.
+> They **do not** affect published lessons unless you choose to act on them.
+
+---
+
 ## Week 1 checklist (use as guidance)
 
 Before the end of the week, aim to:
