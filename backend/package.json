@@ -31,6 +31,7 @@
     "validate:taxonomies": "node scripts/validateTaxonomies.js",
     "export:taxonomy-topics": "node scripts/exportTaxonomyTopicList.js",
     "create:content-sprint-tracker": "node scripts/createContentSprintTracker.js",
+    "audit:question-banks-biology": "node scripts/questionBankAuditBiologyGcse.js",
     "convert:exam-csv": "node scripts/convertExamQuestionsCsvToJson.js",
     "convert:past-papers-csv": "node scripts/convertPastPapersCsvToJson.js",
     "convert:past-paper-questions-csv": "node scripts/convertPastPaperQuestionsCsvToJson.js",
