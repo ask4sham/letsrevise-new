@@ -10,7 +10,7 @@ import { fetchQuestionBankAudit, type QuestionBankAuditRow, type QuestionBankAud
 import type { SpecKey } from "../api/taxonomy";
 import { sprintOrderFilename, questionBankAuditFilename } from "../utils/docFilenames";
 
-type FilterMode = "all" | "missing" | "partial";
+type FilterMode = "all" | "missing" | "partial" | "notFullyCovered";
 type SortMode = "taxonomy" | "sprint";
 
 /** Build units from audit rows and derive coverage for UI. Unit order = taxonomy (by min topicIndex). */
@@ -66,7 +66,7 @@ const TeacherCoveragePage: React.FC = () => {
   const [data, setData] = useState<QuestionBankAuditResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [filterMode, setFilterMode] = useState<FilterMode>("notFullyCovered");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("taxonomy");
   const [docOpenError, setDocOpenError] = useState<string | null>(null);
@@ -87,6 +87,16 @@ const TeacherCoveragePage: React.FC = () => {
         if (!cancelled) {
           setData(res);
           setLoading(false);
+          const fullyCovered = res.rows?.filter(
+            (r) =>
+              r.counts.flashcards > 0 &&
+              (r.counts.mcq > 0 || r.counts.short > 0) &&
+              r.counts.examQuestions > 0 &&
+              r.counts.pastPaperQuestions > 0
+          ).length ?? 0;
+          if (fullyCovered === 0 && res.rows?.length) {
+            setFilterMode("notFullyCovered");
+          }
         }
       })
       .catch((err) => {
@@ -130,6 +140,8 @@ const TeacherCoveragePage: React.FC = () => {
           topics = topics.filter((t) => !t.coverage.any);
         } else if (filterMode === "partial") {
           topics = topics.filter((t) => t.coverage.any && t.coverage.score < t.coverage.outOf);
+        } else if (filterMode === "notFullyCovered") {
+          topics = topics.filter((t) => t.status !== "OK");
         }
         if (search.trim()) {
           const q = search.trim().toLowerCase();
@@ -146,8 +158,9 @@ const TeacherCoveragePage: React.FC = () => {
   }, [units, filterMode, search]);
 
   const totals = useMemo(() => {
-    if (!data?.rows) return { topics: 0, topicsWithAny: 0, topicsFullyCovered: 0 };
+    if (!data?.rows) return { topics: 0, topicsWithNone: 0, topicsWithAny: 0, topicsFullyCovered: 0 };
     const topics = data.rows.length;
+    const topicsWithNone = data.rows.filter((r) => r.status === "EMPTY").length;
     const topicsWithAny = data.rows.filter((r) => r.status !== "EMPTY").length;
     const topicsFullyCovered = data.rows.filter(
       (r) =>
@@ -156,7 +169,7 @@ const TeacherCoveragePage: React.FC = () => {
         r.counts.examQuestions > 0 &&
         r.counts.pastPaperQuestions > 0
     ).length;
-    return { topics, topicsWithAny, topicsFullyCovered };
+    return { topics, topicsWithNone, topicsWithAny, topicsFullyCovered };
   }, [data?.rows]);
 
   const sprintOrderFile = specKey ? sprintOrderFilename(specKey) : "";
@@ -213,6 +226,7 @@ const TeacherCoveragePage: React.FC = () => {
             style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
           >
             <option value="all">All topics</option>
+            <option value="notFullyCovered">Not fully covered</option>
             <option value="missing">Missing only (no content)</option>
             <option value="partial">Partially filled</option>
           </select>
@@ -278,11 +292,15 @@ const TeacherCoveragePage: React.FC = () => {
       {!loading && data && (
         <>
           <div style={{ marginBottom: 16, fontSize: 14, color: "#6b7280" }}>
-            <strong>Totals:</strong> {totals.topics} topics · {totals.topicsWithAny} with any content · {totals.topicsFullyCovered} fully covered (all 4 banks)
+            <strong>Totals:</strong> {totals.topics} topics · {totals.topicsWithNone} with no content · {totals.topicsWithAny} with any content · {totals.topicsFullyCovered} fully covered (all 4 banks)
           </div>
 
           {filteredUnits.length === 0 ? (
-            <p style={{ color: "#6b7280" }}>No topics match the current filters.</p>
+            <p style={{ color: "#6b7280" }}>
+              {filterMode === "missing"
+                ? `There are ${totals.topicsWithNone} topics with zero content in this subject. All topics have at least some content (Quiz, Flashcards, Exam Questions, or Past Papers). Use “Not fully covered” to see topics that have some content but need more.`
+                : "No topics match the current filters."}
+            </p>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>

@@ -18,9 +18,9 @@ function safeSpecKeyForFilename(specKey) {
   return hyphen || String(specKey).replace(/[/:]/g, "-").trim() || "unknown";
 }
 
+/** Frontend serves /docs from frontend/public/docs. Resolve from this script so it works no matter where you run from. */
 function getDocsOutDir() {
-  const repoRoot = path.resolve(__dirname, "..", "..", "..");
-  return path.join(repoRoot, "frontend", "public", "docs");
+  return path.resolve(__dirname, "..", "..", "..", "frontend", "public", "docs");
 }
 
 function ensureDir(dir) {
@@ -92,19 +92,15 @@ async function runQuestionBankAuditAndWrite({ specKey, outDir = "docs", publicDo
   const auditContent = buildAuditMdContent(specKey, scopeLine, rows);
   const sprintContent = buildSprintOrderMdContent(specKey, sprintOrder, rows);
 
-  const auditPath = path.join(resolvedOutDir, `QUESTION_BANK_AUDIT_${fileKey}.md`);
-  const sprintPath = path.join(resolvedOutDir, `SPRINT_ORDER_${fileKey}.md`);
-  fs.writeFileSync(auditPath, auditContent, opts);
-  fs.writeFileSync(sprintPath, sprintContent, opts);
+  fs.writeFileSync(path.join(resolvedOutDir, `QUESTION_BANK_AUDIT_${fileKey}.md`), auditContent, opts);
+  fs.writeFileSync(path.join(resolvedOutDir, `SPRINT_ORDER_${fileKey}.md`), sprintContent, opts);
 
   const publicDocsDir = explicitPublicDocsDir || getDocsOutDir();
   ensureDir(publicDocsDir);
-  const auditPublicPath = path.join(publicDocsDir, `QUESTION_BANK_AUDIT_${fileKey}.md`);
-  const sprintPublicPath = path.join(publicDocsDir, `SPRINT_ORDER_${fileKey}.md`);
-  fs.writeFileSync(auditPublicPath, auditContent, opts);
-  fs.writeFileSync(sprintPublicPath, sprintContent, opts);
+  fs.writeFileSync(path.join(publicDocsDir, `QUESTION_BANK_AUDIT_${fileKey}.md`), auditContent, opts);
+  fs.writeFileSync(path.join(publicDocsDir, `SPRINT_ORDER_${fileKey}.md`), sprintContent, opts);
   if (process.env.NODE_ENV !== "test") {
-    console.log("[audit] Wrote to frontend/public/docs:", auditPublicPath, sprintPublicPath);
+    console.log("[audit] Wrote to frontend/public/docs:", path.join(publicDocsDir, `QUESTION_BANK_AUDIT_${fileKey}.md`), path.join(publicDocsDir, `SPRINT_ORDER_${fileKey}.md`));
   }
 
   return { rows, sprintOrder };
