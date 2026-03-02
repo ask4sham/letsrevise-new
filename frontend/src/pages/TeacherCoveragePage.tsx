@@ -7,8 +7,12 @@ import { Link } from "react-router-dom";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { fetchQuestionBankAudit, type QuestionBankAuditRow, type QuestionBankAuditResponse } from "../api/questionBankAudit";
-import api from "../services/api";
 import type { SpecKey } from "../api/taxonomy";
+
+/** Match backend safeSpecKeyForFilename: safe for doc filenames (SPRINT_ORDER_<key>.md) */
+function safeSpecKeyForFilename(specKey: string): string {
+  return specKey.replace(/[/:]/g, "_").trim() || "unknown";
+}
 
 type FilterMode = "all" | "missing" | "partial";
 type SortMode = "taxonomy" | "sprint";
@@ -69,6 +73,7 @@ const TeacherCoveragePage: React.FC = () => {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("taxonomy");
+  const [docOpenError, setDocOpenError] = useState<string | null>(null);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -156,24 +161,19 @@ const TeacherCoveragePage: React.FC = () => {
     return { topics, topicsWithAny, topicsFullyCovered };
   }, [data?.rows]);
 
-  const openSprintOrderDoc = async () => {
-    try {
-      const res = await api.get(`/audit/sprint-order-doc`, {
-        params: { specKey },
-        responseType: "text",
-      });
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(
-          `<pre style="white-space: pre-wrap; font-family: inherit; padding: 20px;">${escapeHtml(String(res.data))}</pre>`
-        );
-        win.document.title = `Sprint order — ${specKey}`;
-      }
-    } catch (e) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? (e as Error).message;
-      alert(msg || "Could not open sprint order doc. Run the audit script to generate it.");
+  const openDoc = (filename: string) => {
+    setDocOpenError(null);
+    if (!specKey) return;
+    const url = `/docs/view?file=${encodeURIComponent(filename)}`;
+    const win = window.open(url, "_blank");
+    if (!win) {
+      setDocOpenError("Popup blocked. Allow popups for this site to open the doc.");
     }
   };
+
+  const safeKey = specKey ? safeSpecKeyForFilename(specKey) : "";
+  const sprintOrderFile = safeKey ? `SPRINT_ORDER_${safeKey}.md` : "";
+  const auditFile = safeKey ? `QUESTION_BANK_AUDIT_${safeKey}.md` : "";
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24, width: "100%", boxSizing: "border-box" }}>
@@ -226,19 +226,41 @@ const TeacherCoveragePage: React.FC = () => {
         />
         <button
           type="button"
-          onClick={openSprintOrderDoc}
+          onClick={() => openDoc(sprintOrderFile)}
+          disabled={!sprintOrderFile}
           style={{
             padding: "6px 12px",
             borderRadius: 6,
             border: "1px solid #d1d5db",
-            background: "#f9fafb",
+            background: sprintOrderFile ? "#f9fafb" : "#f3f4f6",
             fontWeight: 600,
-            cursor: "pointer",
+            cursor: sprintOrderFile ? "pointer" : "not-allowed",
           }}
         >
           Open Sprint order
         </button>
+        <button
+          type="button"
+          onClick={() => openDoc(auditFile)}
+          disabled={!auditFile}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            background: auditFile ? "#f9fafb" : "#f3f4f6",
+            fontWeight: 600,
+            cursor: auditFile ? "pointer" : "not-allowed",
+          }}
+        >
+          Open Audit
+        </button>
       </div>
+
+      {docOpenError && (
+        <div style={{ padding: 10, marginBottom: 16, borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", fontSize: 14 }}>
+          {docOpenError}
+        </div>
+      )}
 
       {error && (
         <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
@@ -323,11 +345,5 @@ const TeacherCoveragePage: React.FC = () => {
     </div>
   );
 };
-
-function escapeHtml(s: string): string {
-  const div = document.createElement("div");
-  div.textContent = s;
-  return div.innerHTML;
-}
 
 export default TeacherCoveragePage;
