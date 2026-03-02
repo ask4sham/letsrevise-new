@@ -1099,8 +1099,12 @@ const CreateLessonPage: React.FC = () => {
                     value={formData.description}
                     onChange={onChange}
                     rows={3}
+                    placeholder="Students will learn about the structure of animal and plant cells, identify key organelles, and understand how each organelle contributes to cell function. By the end of the lesson, students will be able to describe and compare cell structures and apply their knowledge to GCSE-style exam questions."
                     style={{ ...ui.input, resize: "vertical", width: "100%" }}
                   />
+                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
+                    Summarise what students will learn in this lesson. This appears in the lesson overview and helps students understand the learning goals before starting.
+                  </div>
                 </label>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
@@ -1112,6 +1116,9 @@ const CreateLessonPage: React.FC = () => {
                       onChange={onChange}
                       style={ui.input}
                     />
+                    <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
+                      Use tags to help organise and find lessons later (e.g. microscopy, exam-practice, higher-tier).
+                    </div>
                   </label>
 
                   <label style={{ display: "block" }}>
@@ -1122,6 +1129,9 @@ const CreateLessonPage: React.FC = () => {
                       onChange={onChange}
                       style={ui.input}
                     />
+                    <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 4 }}>
+                      Optional links to useful external resources (e.g. BBC Bitesize, videos, simulations). These support the lesson but are not required.
+                    </div>
                   </label>
                 </div>
                 </div>
