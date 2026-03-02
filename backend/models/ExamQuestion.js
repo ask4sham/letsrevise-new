@@ -122,6 +122,8 @@ const ExamQuestionSchema = new mongoose.Schema(
 );
 
 ExamQuestionSchema.index({ teacherId: 1, status: 1 });
+ExamQuestionSchema.index({ teacherId: 1, topicKey: 1 });
+ExamQuestionSchema.index({ topicKey: 1, status: 1, type: 1 });
 ExamQuestionSchema.index({ fingerprint: 1 }, { sparse: true });
 
 module.exports = mongoose.model("ExamQuestion", ExamQuestionSchema);

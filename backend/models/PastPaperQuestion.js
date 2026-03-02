@@ -32,5 +32,6 @@ const PastPaperQuestionSchema = new mongoose.Schema(
 );
 
 PastPaperQuestionSchema.index({ ownerId: 1, fingerprint: 1 }, { unique: true });
+PastPaperQuestionSchema.index({ ownerId: 1, topicKey: 1 });
 
 module.exports = mongoose.model("PastPaperQuestion", PastPaperQuestionSchema);

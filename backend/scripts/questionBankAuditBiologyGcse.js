@@ -8,7 +8,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
 const mongoose = require("mongoose");
-const { runQuestionBankAudit, safeSpecKeyForFilename } = require("./_audit/questionBankAudit");
+const { runQuestionBankAuditAndWrite, safeSpecKeyForFilename } = require("./_audit/questionBankAudit");
 
 const SPEC_KEY = "aqa-gcse-biology";
 
@@ -19,7 +19,7 @@ async function run() {
   await mongoose.connect(MONGO_URI);
   try {
     const outDir = path.resolve(__dirname, "..", "..", "docs");
-    const result = await runQuestionBankAudit({ specKey: SPEC_KEY, outDir });
+    const result = await runQuestionBankAuditAndWrite({ specKey: SPEC_KEY, outDir });
     const safe = safeSpecKeyForFilename(SPEC_KEY);
     console.log("Wrote", path.join(outDir, `QUESTION_BANK_AUDIT_${safe}.md`));
     console.log("Wrote", path.join(outDir, `SPRINT_ORDER_${safe}.md`));

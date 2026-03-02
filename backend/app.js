@@ -114,6 +114,9 @@ app.use("/api/past-paper-questions", require("./routes/pastPaperQuestions"));
 // PR-F1: flashcard bank (one doc per topicKey, import + copy-to-lesson) + PR-HARD-2 rate limit
 app.use("/api/flashcard-bank", createBulkLimiter(), require("./routes/flashcardBank"));
 
+// Audit: question bank (Content Coverage) + sprint order doc — single source of truth
+app.use("/api/audit", require("./routes/audit"));
+
 // PR-EDGE-3: Teacher overview dashboard (topic-coverage must be before /api/teacher so GET /api/teacher/topic-coverage hits it)
 app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));
 app.use("/api/teacher/topic-coverage", require("./routes/topicCoverage"));
