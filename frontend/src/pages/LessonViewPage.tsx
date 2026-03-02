@@ -3010,6 +3010,27 @@ const LessonViewPage: React.FC = () => {
                     {lesson.examBoardName ? ` · ${lesson.examBoardName}` : ""}
                   </div>
 
+                  {lesson?.description && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        borderRadius: 6,
+                        border: "1px solid #e5e7eb",
+                        background: "#f9fafb",
+                        padding: 12,
+                        fontSize: "0.875rem",
+                        color: "#1f2937",
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>What you&apos;ll learn</div>
+                      <div style={{ whiteSpace: "pre-wrap" }}>
+                        {lesson.description.length > 400
+                          ? `${lesson.description.slice(0, 400)}…`
+                          : lesson.description}
+                      </div>
+                    </div>
+                  )}
+
                   <h2
                     style={{
                       margin: "16px 0 0",

@@ -302,6 +302,7 @@ const CreateLessonPage: React.FC = () => {
   const { options: taxonomyOptions, loading: taxonomyLoading, error: taxonomyError } = useCreateLessonTaxonomyOptions();
   const [titleTouched, setTitleTouched] = useState(false);
   const [descriptionTouched, setDescriptionTouched] = useState(false);
+  const [descriptionTooltipVisible, setDescriptionTooltipVisible] = useState(false);
   const [topicSelection, setTopicSelection] = useState<TopicSelectionValue>({
     subject: "",
     specKey: "",
@@ -1147,7 +1148,65 @@ const CreateLessonPage: React.FC = () => {
                   </div>
 
                 <label style={{ display: "block", width: "100%" }}>
-                  <div style={ui.label}>Description *</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={ui.label}>Description *</span>
+                    <span
+                      style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
+                      onMouseEnter={() => setDescriptionTooltipVisible(true)}
+                      onMouseLeave={() => setDescriptionTooltipVisible(false)}
+                    >
+                      <button
+                        type="button"
+                        aria-label="Good example"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          border: "1px solid #d1d5db",
+                          fontSize: "0.75rem",
+                          color: "#4b5563",
+                          background: descriptionTooltipVisible ? "#f3f4f6" : "transparent",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
+                          lineHeight: 1,
+                        }}
+                      >
+                        i
+                      </button>
+                      {descriptionTooltipVisible && (
+                        <div
+                          style={{
+                            pointerEvents: "none",
+                            position: "absolute",
+                            left: "50%",
+                            top: "100%",
+                            zIndex: 50,
+                            marginTop: 8,
+                            width: "min(384px, 90vw)",
+                            transform: "translateX(-50%)",
+                            borderRadius: 6,
+                            border: "1px solid #e5e7eb",
+                            background: "white",
+                            padding: 12,
+                            fontSize: "0.75rem",
+                            color: "#374151",
+                            boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)",
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, marginBottom: 4 }}>Good example</div>
+                          <div>
+                            Students will learn about the structure of animal and plant cells, identify key organelles, and explain how each organelle supports cell function. They will apply this knowledge to GCSE-style questions.
+                          </div>
+                          <div style={{ marginTop: 8, color: "#6b7280" }}>
+                            Keep it to 2–3 sentences. Focus on what students will learn.
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                  </div>
                   <textarea
                     name="description"
                     value={formData.description}

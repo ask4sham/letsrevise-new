@@ -22,7 +22,7 @@ function getLessonOwnerId(lesson) {
 
 /** Allowed top-level keys for free-preview response (no quiz, no full pages/flashcards). */
 const PREVIEW_SAFE_KEYS = [
-  "_id", "id", "title", "summary", "subject", "level", "board", "examBoard", "topic", "tier",
+  "_id", "id", "title", "description", "summary", "subject", "level", "board", "examBoard", "topic", "tier",
   "teacherId", "teacher", "teacherName", "createdAt", "updatedAt", "views",
   "averageRating", "shamCoinPrice", "preview", "status", "isPublished", "isFreePreview",
   "pages", "content", "flashcards",
