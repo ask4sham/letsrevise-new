@@ -4129,12 +4129,8 @@ const EditLessonPage: React.FC = () => {
 
                   {(currentPage?.blocks || []).filter((b): b is NonNullable<typeof b> => Boolean(b)).map((b, idx) => {
                     const blockType = normalizeBlockType(b?.type);
-                    const meta = BLOCK_META[blockType];
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
-                        <div style={{ fontWeight: 900, marginBottom: 6, color: "#111827" }}>
-                          {meta.icon} {meta.label}
-                        </div>
                         <div style={getBlockStyle(blockType)}>
                           <ReactMarkdown components={markdownComponents as any}>
                             {safeStr(b.content, "")}
