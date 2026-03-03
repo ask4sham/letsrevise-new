@@ -106,6 +106,15 @@ api.interceptors.request.use(
       config.url = `/api${path}`;
     }
 
+    // FormData: do not set Content-Type so axios/browser sets multipart/form-data with boundary
+    if (config.data && typeof FormData !== "undefined" && config.data instanceof FormData) {
+      if (config.headers) {
+        const h = config.headers as AxiosHeaders & Record<string, unknown>;
+        if (typeof h.delete === "function") h.delete("Content-Type");
+        else delete h["Content-Type"];
+      }
+    }
+
     const token = localStorage.getItem("token");
 
     if (token) {

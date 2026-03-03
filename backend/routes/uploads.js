@@ -3,6 +3,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -61,21 +62,41 @@ const storage = multer.diskStorage({
   },
 });
 
+const imageMimeTypes = [
+  "image/png",
+  "image/x-png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+];
 const upload = multer({
   storage,
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
   fileFilter: (req, file, cb) => {
-    const ok = [
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-      "image/webp",
-      "image/gif",
-    ].includes(file.mimetype);
+    const ok =
+      imageMimeTypes.includes(file.mimetype) ||
+      (file.mimetype && file.mimetype.startsWith("image/"));
     if (!ok)
       return cb(
         new Error("Only image files are allowed (png/jpg/webp/gif).")
       );
+    cb(null, true);
+  },
+});
+
+// Lesson-media: image + video, auth required (for CreateLessonPage; avoids browser→Supabase DNS)
+const uploadLessonMedia = multer({
+  storage,
+  limits: { fileSize: 32 * 1024 * 1024 }, // 32MB for video
+  fileFilter: (req, file, cb) => {
+    const mt = (file.mimetype || "").toLowerCase();
+    const ok =
+      mt.startsWith("image/") ||
+      mt === "video/mp4" ||
+      mt === "video/webm";
+    if (!ok)
+      return cb(new Error("Only image (png/jpg/webp/gif) or video (mp4/webm) are allowed."));
     cb(null, true);
   },
 });
@@ -118,6 +139,37 @@ router.post("/image", upload.single("file"), (req, res) => {
       .json({ error: "Upload failed", details: e?.message || String(e) });
   }
 });
+
+/**
+ * POST /api/uploads/lesson-media — CreateLessonPage (and draft) image/video upload.
+ * Auth required. Stores under uploads/lesson-media/... (folder from query).
+ * Use when Supabase is unreachable (e.g. ERR_NAME_NOT_RESOLVED); same-origin request to backend.
+ */
+router.post(
+  "/lesson-media",
+  auth,
+  (req, res, next) => {
+    const folder = (req.query?.folder || req.body?.folder || "lesson-media").toString().trim();
+    if (!folder || folder === "lesson-media") {
+      req.query.folder = "lesson-media";
+    }
+    next();
+  },
+  uploadLessonMedia.single("file"),
+  (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded. Use form field name: file" });
+      }
+      const safeFolder = req._uploadSafeFolder || "lesson-media";
+      const publicUrl = `/uploads/${safeFolder}/${req.file.filename}`.replace(/\\/g, "/");
+      return res.json({ ok: true, url: publicUrl, filename: req.file.filename, folder: safeFolder });
+    } catch (e) {
+      console.error("Lesson-media upload error:", e);
+      return res.status(500).json({ error: "Upload failed", details: e?.message || String(e) });
+    }
+  }
+);
 
 /**
  * ✅ NEW: Lesson image upload endpoint for CreateLessonPage

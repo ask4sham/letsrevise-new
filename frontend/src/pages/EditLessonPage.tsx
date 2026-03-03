@@ -390,6 +390,7 @@ const EditLessonPage: React.FC = () => {
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
   const [syncFlashcardsLoading, setSyncFlashcardsLoading] = useState(false);
+  const [flashcardsSyncKey, setFlashcardsSyncKey] = useState(0);
   const [syncFlashcardsError, setSyncFlashcardsError] = useState<string | null>(null);
   const [syncFlashcardsSuccess, setSyncFlashcardsSuccess] = useState<string | null>(null);
   const [seedQuizLoading, setSeedQuizLoading] = useState(false);
@@ -1905,9 +1906,7 @@ const EditLessonPage: React.FC = () => {
         "unknown_lesson"
       )}/page_${pageId}/block_${blockIndex}`;
 
-      const res = await api.post(`/uploads/image?folder=${encodeURIComponent(folder)}`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post(`/uploads/image?folder=${encodeURIComponent(folder)}`, form);
 
       const url = res.data?.url as string | undefined;
       if (!url) {
@@ -1941,12 +1940,22 @@ const EditLessonPage: React.FC = () => {
       setTimeout(() => setUploadMsg(""), 2000);
     } catch (e: any) {
       console.error(e);
-      alert(
-        e?.response?.data?.error ||
-          e?.data?.error ||
-          e?.message ||
-          "Upload failed"
-      );
+      const reqUrl =
+        e?.config?.url != null
+          ? (e?.config?.baseURL || "") + e.config.url
+          : "/api/uploads/image";
+      const status = e?.response?.status;
+      const body =
+        e?.response?.data != null
+          ? (typeof e.response.data === "object"
+              ? (e.response.data?.error || e.response.data?.message || JSON.stringify(e.response.data))
+              : String(e.response.data))
+          : e?.message || "No response";
+      const msg =
+        status != null
+          ? `Upload failed. Request: POST ${reqUrl}. Response: ${status} — ${body}`
+          : `Upload failed. Request: POST ${reqUrl}. ${body}`;
+      alert(msg);
     } finally {
       setUploadingKey("");
     }
@@ -2872,11 +2881,12 @@ const EditLessonPage: React.FC = () => {
                   </div>
 
                   <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {(currentPage?.blocks || []).map((b, idx) => {
+                    {(currentPage?.blocks || []).filter((b): b is NonNullable<typeof b> => Boolean(b)).map((b, idx) => {
+                      const blockType = normalizeBlockType(b?.type);
                       const key = `${currentPage!.pageId}:${idx}`;
                       const isUploading = uploadingKey === key;
-                      const isCheckpoint = b.type === "checkpoint";
-                      const isDiagram = b.type === "diagram";
+                      const isCheckpoint = blockType === "checkpoint";
+                      const isDiagram = blockType === "diagram";
                       const cp = isCheckpoint ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
@@ -2899,10 +2909,10 @@ const EditLessonPage: React.FC = () => {
                       }
 
                       return (
-                        <div key={key} style={getBlockStyle(b.type)}>
+                        <div key={key} style={getBlockStyle(blockType)}>
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                             <div style={{ fontWeight: 900 }}>
-                              {isCheckpoint ? "Checkpoint" : BLOCK_META[b.type].label}
+                              {isCheckpoint ? "Checkpoint" : BLOCK_META[blockType].label}
                             </div>
 
                             <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -4117,14 +4127,15 @@ const EditLessonPage: React.FC = () => {
                     {currentPage?.title || `Page ${currentPage?.order}`}
                   </div>
 
-                  {(currentPage?.blocks || []).map((b, idx) => {
-                    const meta = BLOCK_META[b.type];
+                  {(currentPage?.blocks || []).filter((b): b is NonNullable<typeof b> => Boolean(b)).map((b, idx) => {
+                    const blockType = normalizeBlockType(b?.type);
+                    const meta = BLOCK_META[blockType];
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
                         <div style={{ fontWeight: 900, marginBottom: 6, color: "#111827" }}>
                           {meta.icon} {meta.label}
                         </div>
-                        <div style={getBlockStyle(b.type)}>
+                        <div style={getBlockStyle(blockType)}>
                           <ReactMarkdown components={markdownComponents as any}>
                             {safeStr(b.content, "")}
                           </ReactMarkdown>
@@ -4497,11 +4508,34 @@ const EditLessonPage: React.FC = () => {
                             setSyncFlashcardsLoading(true);
                             try {
                               const result = await syncFlashcardsFromTopicBank(id, topicKeyForBank);
+                              const nextFlashcards = result.flashcards ?? (result.lesson as any)?.flashcards;
+                              const safeFlashcards = Array.isArray(nextFlashcards) ? nextFlashcards : undefined;
+                              // CRITICAL: Only patch lesson.flashcards. Never setLesson(res.lesson) — that would replace
+                              // the whole lesson and can omit pages/blocks, breaking LessonBlocks and causing .style crash.
+                              setLesson((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  flashcards: safeFlashcards ?? prev.flashcards,
+                                };
+                              });
+                              if (safeFlashcards != null) setFlashcardsSyncKey((k) => k + 1);
                               await fetchLessonSmart();
-                              const count = result.syncedCount ?? 0;
-                              setSyncFlashcardsSuccess(
-                                count > 0 ? `Synced ${count} flashcards from topic bank.` : "No topic-bank flashcards to sync (add some with Generate first)."
-                              );
+                              const added = result.added ?? 0;
+                              const updated = result.updated ?? 0;
+                              const count = result.syncedCount ?? (added + updated);
+                              const topicBankCount = result.topicBankCount ?? 0;
+                              if (process.env.NODE_ENV !== "production") {
+                                const sampleIds = (result.flashcards ?? [])
+                                  .slice(0, 5)
+                                  .map((c: any) => c.topicBankId ?? c.id);
+                                console.log("[Sync from Topic Bank] updated:", updated, "added:", added, "syncedCount:", count, "topicBankCount:", topicBankCount, "sampleIds:", sampleIds);
+                              }
+                              let msg: string;
+                              if (count > 0) msg = `Updated ${updated}, added ${added} from topic bank.`;
+                              else if (topicBankCount === 0) msg = "No published topic-bank flashcards found for this topic.";
+                              else msg = "Already up to date.";
+                              setSyncFlashcardsSuccess(msg);
                             } catch (e: any) {
                               setSyncFlashcardsError(e?.response?.data?.msg || e?.message || "Failed to sync from topic bank");
                             } finally {
@@ -4539,6 +4573,7 @@ const EditLessonPage: React.FC = () => {
                         )}
                       </div>
                       <FlashcardsEditor
+                        key={`flashcards-${id}-${flashcardsSyncKey}`}
                         lessonId={id || ""}
                         initialCards={lesson?.flashcards || []}
                         topicKeyForBank={topicKeyForBank}

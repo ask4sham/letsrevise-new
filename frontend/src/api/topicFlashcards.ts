@@ -202,13 +202,16 @@ export async function generateFlashcardsFromTopic(
   return res.data!;
 }
 
-/** Sync lesson flashcards from topic bank: replaces only cards with source === "topic-bank"; leaves teacher-made cards untouched. */
+/** Sync lesson flashcards from topic bank: refresh existing topic-bank cards + add missing; teacher-made cards untouched. */
 export async function syncFlashcardsFromTopicBank(
   lessonId: string,
   topicKey?: string | null
 ): Promise<{
   ok: boolean;
   syncedCount: number;
+  added?: number;
+  updated?: number;
+  topicBankCount?: number;
   flashcardsCount: number;
   flashcards: Array<{ id: string; front: string; back: string; tags?: string[]; difficulty?: number; source?: string; topicBankId?: string }>;
   lesson?: unknown;
@@ -216,6 +219,9 @@ export async function syncFlashcardsFromTopicBank(
   const res = await api.post<{
     ok: boolean;
     syncedCount: number;
+    added?: number;
+    updated?: number;
+    topicBankCount?: number;
     flashcardsCount: number;
     flashcards: Array<{ id: string; front: string; back: string; tags?: string[]; difficulty?: number; source?: string; topicBankId?: string }>;
     lesson?: unknown;

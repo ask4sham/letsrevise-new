@@ -46,6 +46,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // PR-BULK-INGEST-3: Admin media upload (store + reference + dedupe)
 app.use("/api/admin/media", require("./routes/adminMedia"));
 
+// Uploads: image + lesson-media (CreateLessonPage) — must be registered so proxy gets 200
+app.use("/api/uploads", require("./routes/uploads"));
+
 // ✅ Register routes that are needed for tests (add any others as needed)
 app.use("/api/assessment-papers", require("./routes/assessmentPapers"));
 app.use("/api/assessment-attempts", createAttemptLimiter(), require("./routes/assessmentAttempts"));

@@ -235,6 +235,9 @@ app.get("/api/_debug/info", (req, res) => {
    API ROUTES
 ============================================================ */
 
+// Mount uploads first so POST /api/uploads/lesson-media (CreateLessonPage) is always reachable
+app.use("/api/uploads", uploadsRoutes);
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
@@ -257,7 +260,6 @@ app.use("/api/ops", opsRoutes);
 app.use("/api/ai", aiRoutes);
 // AI generation jobs API namespace (placeholder router with no handlers yet; behavior will be added incrementally)
 app.use("/api/ai-generation-jobs", aiGenerationJobsRoutes);
-app.use("/api/uploads", uploadsRoutes);
 app.use("/api/content-tree", contentTreeRoutes);
 app.use("/api/visuals", require("./routes/visuals"));
 app.use("/api/taxonomy", require("./routes/taxonomy"));

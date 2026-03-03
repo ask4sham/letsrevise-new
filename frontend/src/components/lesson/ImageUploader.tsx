@@ -1,6 +1,6 @@
 // /frontend/src/components/lesson/ImageUploader.tsx
 import React from "react";
-import axios from "axios";
+import api from "../../services/api";
 
 type Props = {
   folder?: string; // e.g. "images/gcse"
@@ -48,17 +48,7 @@ const ImageUploader: React.FC<Props> = ({
       form.append("file", file);
       form.append("folder", folder);
 
-      // ✅ Use same API base as the app (env-safe)
-      // If you must hardcode locally, keep localhost, but env is safer for Netlify/Render.
-      const RAW_API_BASE =
-        process.env.REACT_APP_API_URL ||
-        process.env.REACT_APP_API_BASE ||
-        "http://localhost:5000";
-      const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
-
-      const res = await axios.post(`${API_BASE}/api/uploads/image`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post(`/uploads/image?folder=${encodeURIComponent(folder)}`, form);
 
       const url = res.data?.url as string | undefined;
       if (!url) {
@@ -83,7 +73,22 @@ const ImageUploader: React.FC<Props> = ({
       setFile(null);
     } catch (e: any) {
       setStatus("");
-      setError(e?.response?.data?.error || e?.message || "Upload failed.");
+      const reqUrl =
+        e?.config?.url != null
+          ? (e?.config?.baseURL || "") + e.config.url
+          : "/api/uploads/image";
+      const status = e?.response?.status;
+      const body =
+        e?.response?.data != null
+          ? (typeof e.response.data === "object"
+              ? (e.response.data?.error || e.response.data?.message || JSON.stringify(e.response.data))
+              : String(e.response.data))
+          : e?.message || "No response";
+      setError(
+        status != null
+          ? `Upload failed. Request: POST ${reqUrl}. Response: ${status} — ${body}`
+          : `Upload failed. Request: POST ${reqUrl}. ${body}`
+      );
     }
   };
 

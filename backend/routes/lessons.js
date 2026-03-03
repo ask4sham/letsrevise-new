@@ -18,7 +18,7 @@ const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("../utils/
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
-const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
+const { fetchTopicFlashcardsForSeed, fetchTopicFlashcardsForTopicOnly } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
@@ -1041,7 +1041,17 @@ router.post("/:id/revision", auth, async (req, res) => {
 
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save();
-    
+
+    if (process.env.NODE_ENV !== "production" && updatedLesson.flashcards && updatedLesson.flashcards.length > 0) {
+      const sample = updatedLesson.flashcards.slice(0, 3).map((c) => ({
+        id: c.id,
+        topicBankId: c.topicBankId || null,
+        source: c.source || null,
+        front: (c.front || "").slice(0, 30),
+      }));
+      console.log("[revision] Saved flashcards; first 3 (id, topicBankId, source, front):", JSON.stringify(sample));
+    }
+
     res.json({
       success: true,
       lessonId: updatedLesson._id,
@@ -2770,7 +2780,7 @@ router.post("/:id/generate/flashcards-from-topic", auth, requireLessonOwnerOrAdm
 // PR-F1: Alias (calls same handler)
 router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, handleGenerateFlashcardsFromTopic);
 
-// Sync from topic bank: add missing only (no overwriting teacher edits). Dedupe by topicBankId or front+back.
+// Sync from topic bank: refresh existing topic-bank cards (overwrite from bank) + add missing. Teacher-authored cards untouched.
 async function handleSyncTopicBankFlashcards(req, res) {
   try {
     const lessonId = req.params.id || req.params.lessonId;
@@ -2791,42 +2801,113 @@ async function handleSyncTopicBankFlashcards(req, res) {
     }
     const ownerId = lesson.teacherId || lesson.createdBy;
     if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
-    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 50, { publishedOnly: true });
+
+    let bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 50, { publishedOnly: true });
+    const usedFallback = bankCards.length === 0;
+    if (bankCards.length === 0) {
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      bankCards = await fetchTopicFlashcardsForTopicOnly(namespacedTopicKey, 50, {
+        publishedOnly: true,
+        specKey: resolved.specKey,
+      });
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      console.log("[sync-topic-bank] lessonId:", lessonId, "namespacedTopicKey:", namespacedTopicKey, "specKey:", resolved.specKey, "req.body.topicKey:", req.body?.topicKey, "ownerId:", ownerId, "usedFallback:", usedFallback, "bankCards.length:", bankCards.length);
+      if (bankCards.length > 0) {
+        console.log("[sync-topic-bank] first 3 bank cards:", bankCards.slice(0, 3).map((tc) => ({ id: tc.id, topicBankId: tc.topicBankId })));
+      }
+    }
+
     lesson.flashcards = Array.isArray(lesson.flashcards) ? lesson.flashcards : [];
-    const existingBySource = new Set(
-      lesson.flashcards.map((c) => (c.topicBankId || c.id)).filter(Boolean).map(String)
-    );
-    const existingByText = new Set(
-      lesson.flashcards.map((c) => `${(c.front || "").trim()}||${(c.back || "").trim()}`)
+
+    // Canonical id for matching: same shape on bank and lesson so updates reliably run
+    const toBankId = (tc) => String(tc.topicBankId || tc._id || tc.id || "");
+    const toLessonId = (c) => String(c.topicBankId || c._id || c.id || "");
+
+    const bankById = new Map();
+    for (const tc of bankCards) {
+      const bankId = toBankId(tc);
+      bankById.set(bankId, tc);
+    }
+
+    // Pass A: Update lesson cards whose canonical id matches a bank card (even if they lack topicBankId/source)
+    let updated = 0;
+    const matchedSamples = [];
+    lesson.flashcards = lesson.flashcards.map((c) => {
+      const candidateId = toLessonId(c);
+      const tc = candidateId ? bankById.get(candidateId) : null;
+      if (!tc) return c;
+
+      const prev = c.toObject ? c.toObject() : { ...c };
+      const bankId = toBankId(tc);
+      const wasUnlinked = !prev.topicBankId && prev.source !== "topic-bank";
+      const next = {
+        ...prev,
+        id: prev.id || bankId,
+        front: tc.front || "",
+        back: tc.back || "",
+        difficulty: tc.difficulty ?? (prev.difficulty ?? 1),
+        tags: Array.isArray(tc.tags) ? tc.tags : [],
+        source: "topic-bank",
+        topicBankId: bankId,
+      };
+      const contentChanged =
+        (prev.front || "") !== next.front ||
+        (prev.back || "") !== next.back ||
+        (prev.difficulty ?? 1) !== (next.difficulty ?? 1) ||
+        JSON.stringify(prev.tags || []) !== JSON.stringify(next.tags || []);
+      if (contentChanged || wasUnlinked) updated++;
+      if (process.env.NODE_ENV !== "production" && matchedSamples.length < 3) {
+        matchedSamples.push({ id: candidateId, promoted: wasUnlinked });
+      }
+      return next;
+    });
+
+    const matchesById = lesson.flashcards.filter((c) => {
+      const candidateId = toLessonId(c);
+      return candidateId && bankById.has(candidateId);
+    }).length;
+
+    // Pass B: Add missing bank cards (dedupe by canonical id)
+    const existingIds = new Set(
+      lesson.flashcards.map((c) => toLessonId(c)).filter(Boolean)
     );
     let added = 0;
     for (const tc of bankCards) {
-      const sourceId = tc.topicBankId || tc.id;
-      const textKey = `${(tc.front || "").trim()}||${(tc.back || "").trim()}`;
-      if (existingBySource.has(sourceId) || existingByText.has(textKey)) continue;
+      const bankId = toBankId(tc);
+      if (!bankId || existingIds.has(bankId)) continue;
       lesson.flashcards.push({
-        id: tc.id,
+        id: bankId,
         front: tc.front || "",
         back: tc.back || "",
         difficulty: tc.difficulty ?? 1,
         tags: Array.isArray(tc.tags) ? tc.tags : [],
         source: "topic-bank",
-        topicBankId: String(sourceId),
+        topicBankId: bankId,
       });
-      existingBySource.add(sourceId);
-      existingByText.add(textKey);
+      existingIds.add(bankId);
       added++;
     }
+
     await lesson.save();
-    return res.json({
+    const syncedCount = added + updated;
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[sync-topic-bank] topicBankCount:", bankCards.length, "matchesById:", matchesById, "updated:", updated, "added:", added);
+      console.log("[sync-topic-bank] first 3 matched (id, promoted):", JSON.stringify(matchedSamples));
+    }
+    const payload = {
       ok: true,
-      syncedCount: added,
       added,
+      updated,
+      syncedCount,
       topicBankCount: bankCards.length,
       flashcardsCount: lesson.flashcards.length,
       flashcards: lesson.flashcards,
       lesson: lesson.toObject ? lesson.toObject() : lesson,
-    });
+    };
+    return res.json(payload);
   } catch (err) {
     console.error("sync-topic-bank-flashcards error:", err);
     return res.status(500).json({ msg: "Server error" });

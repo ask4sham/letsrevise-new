@@ -37,12 +37,19 @@ function validateFlashcards(rawFlashcards) {
       difficulty = 1;
     }
 
+    // Preserve topic-bank linkage so Sync from Topic Bank can match and update
+    const topicBankId = fc.topicBankId && typeof fc.topicBankId === "string" ? fc.topicBankId.trim() : undefined;
+    let source = fc.source && typeof fc.source === "string" ? fc.source.trim() : undefined;
+    if (topicBankId) source = "topic-bank";
+
     return {
       id: id.trim(),
       front: fc.front.trim(),
       back: fc.back.trim(),
       tags,
-      difficulty
+      difficulty,
+      ...(topicBankId ? { topicBankId } : {}),
+      ...(source ? { source } : {}),
     };
   });
 }

@@ -130,6 +130,8 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "misconceptions":
     case "deeperKnowledge":
     case "text":
+    case "checkpoint":
+    case "diagram":
       return t as LessonBlockType;
     default:
       return "text";
@@ -165,16 +167,21 @@ export function toLegacyBlockType(t: LessonBlockType): string {
 /**
  * Return full CSS style object for a block (for editor and preview).
  * Use this instead of duplicating inline style logic.
+ * Defensive: never read .style off undefined; unknown/legacy/undefined type falls back to "text".
  */
 export function getBlockStyle(
-  type: LessonBlockType,
+  type: LessonBlockType | LegacyBlockType | string | undefined,
   overrides?: Partial<CSSProperties>
 ): CSSProperties {
-  const meta = BLOCK_META[type];
+  const safeType: LessonBlockType =
+    type && type in BLOCK_META ? (type as LessonBlockType) : normalizeBlockType(type as string | undefined);
+  const meta = BLOCK_META[safeType] ?? BLOCK_META.text;
+  const style = meta?.style;
+  if (!style) return { ...baseBox, ...overrides } as CSSProperties;
   return {
     ...baseBox,
-    border: meta.style.border,
-    background: meta.style.background,
+    border: style.border,
+    background: style.background,
     ...overrides,
   };
 }

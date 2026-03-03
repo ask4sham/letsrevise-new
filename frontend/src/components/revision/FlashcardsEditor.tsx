@@ -332,14 +332,24 @@ export default function FlashcardsEditor({
   };
 
   useEffect(() => {
-    const normalized = (initialCards || []).map((c: any) => ({
-      id: c.id || newId(),
-      front: String(c.front ?? ""),
-      back: String(c.back ?? ""),
-      difficulty: c.difficulty ? normalizeDifficulty(c.difficulty) : 1,
-      tags: Array.isArray(c.tags) ? c.tags.map(String) : [],
-      lastReviewed: c.lastReviewed,
-    }));
+    const raw = Array.isArray(initialCards) ? initialCards : [];
+    const seenIds = new Map<string, number>();
+    const normalized = raw.map((c: any, idx) => {
+      const id = c.id || newId();
+      const count = seenIds.get(id) ?? 0;
+      seenIds.set(id, count + 1);
+      const localId = c.localId || (count === 0 ? id : `${id}-${idx}`);
+      return {
+        id,
+        localId,
+        front: String(c.front ?? ""),
+        back: String(c.back ?? ""),
+        difficulty: c.difficulty ? normalizeDifficulty(c.difficulty) : 1,
+        tags: Array.isArray(c.tags) ? c.tags.map(String) : [],
+        lastReviewed: c.lastReviewed,
+        ...(c.topicBankId != null ? { topicBankId: c.topicBankId } : {}),
+      };
+    });
     setCards(normalized);
   }, [initialCards]);
 
@@ -595,6 +605,8 @@ export default function FlashcardsEditor({
         body: JSON.stringify({
           flashcards: cards.map((c) => ({
             id: c.id,
+            topicBankId: (c as any).topicBankId ?? undefined,
+            source: (c as any).source ?? undefined,
             front: c.front,
             back: c.back,
             difficulty: normalizeDifficulty(c.difficulty ?? 1),
@@ -611,6 +623,15 @@ export default function FlashcardsEditor({
         throw new Error(msg);
       }
 
+      if (process.env.NODE_ENV !== "production") {
+        const sample = cards.slice(0, 3).map((c) => ({
+          id: c.id,
+          topicBankId: (c as any).topicBankId,
+          source: (c as any).source,
+          front: (c.front || "").slice(0, 30),
+        }));
+        console.log("[FlashcardsEditor] Saved successfully.", cards.length, "cards. Sample (id, topicBankId, source, front):", sample);
+      }
       setStatus(`Saved successfully. Total flashcards: ${cards.length}`);
       onSaved?.();
     } catch (e: any) {
@@ -911,7 +932,7 @@ export default function FlashcardsEditor({
             Save the current {cards.length} card(s) to the flashcard bank for a topic. Use &quot;Load flashcards from bank&quot; on a lesson with no flashcards to copy them in.
           </div>
           {duplicateFlashcardCount > 0 && (
-            <div style={{ marginBottom: 8, fontSize: 12, color: "#b45309" }}>⚠️ {duplicateFlashcardCount} duplicate card(s) detected (same front+back). You can still save.</div>
+            <div style={{ marginBottom: 8, fontSize: 12, color: "#b45309" }}>⚠️ {duplicateFlashcardCount} duplicate card(s) detected (same front+back). Display only — save and sync are not blocked.</div>
           )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
             <select
@@ -1010,15 +1031,22 @@ export default function FlashcardsEditor({
 
         {showExisting && (
           <div style={styles.list}>
-            {cards.map((c) => (
-              <div key={c.id} style={styles.card}>
+            {cards.map((c, idx) => {
+              const key =
+                (c as any).topicBankId ??
+                (c as any)._id ??
+                c.id ??
+                (c as any).localId ??
+                `card-${idx}`;
+              return (
+              <div key={key} style={styles.card}>
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div style={styles.q}>{c.front}</div>
                   <div style={styles.a}>{c.back}</div>
                   <div style={styles.meta}>
                     <span style={styles.diff}>Difficulty: {normalizeDifficulty(c.difficulty ?? 1)}/3</span>
-                    {(c.tags || []).slice(0, 6).map((t) => (
-                      <span key={`${c.id}_${t}`} style={styles.tag}>
+                    {(c.tags || []).slice(0, 6).map((t, tagIdx) => (
+                      <span key={`${key}-tag-${tagIdx}-${String(t)}`} style={styles.tag}>
                         {t}
                       </span>
                     ))}
@@ -1040,7 +1068,8 @@ export default function FlashcardsEditor({
                   🗑️
                 </button>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

@@ -1,7 +1,6 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
@@ -258,9 +257,6 @@ function sanitizeTeacherMarkdown(input: string) {
 // ============================
 // Upload helpers (per-block)
 // ============================
-
-const MEDIA_BUCKET =
-  (process.env.REACT_APP_SUPABASE_MEDIA_BUCKET as string) || "lesson-media";
 
 function slugifyFilename(name: string) {
   return name
@@ -613,55 +609,23 @@ const CreateLessonPage: React.FC = () => {
     }
 
     const teacherId = user?._id ? String(user._id) : "teacher_unknown";
-
-    const safeName = slugifyFilename(file.name || "upload");
-    const path = `teacher_${teacherId}/lesson_new/page_${pageId}/block_${blockIndex}/${Date.now()}_${safeName}`;
-
+    const folder = `lesson-media/teacher_${teacherId}/lesson_new/page_${pageId}/block_${blockIndex}`;
     const key = `${pageId}:${blockIndex}`;
 
     try {
       setUploadingKey(key);
       setUploadMsg("");
 
-      const { error } = await supabase.storage
-        .from(MEDIA_BUCKET)
-        .upload(path, file, {
-          upsert: true,
-          contentType: file.type,
-        });
-
-      if (error) {
-        const msg = error.message || "Upload failed";
-        // Helpful diagnostics for storage policy issues
-        const lower = msg.toLowerCase();
-        if (
-          lower.includes("bucket not found") ||
-          lower.includes("not found")
-        ) {
-          alert(
-            `Bucket not found.\n\nFix:\n1) In Supabase Dashboard → Storage, create a bucket named "${MEDIA_BUCKET}"\n   (or set REACT_APP_SUPABASE_MEDIA_BUCKET to your real bucket name)\n2) Make the bucket Public OR add policies for read/upload.\n\nThen try upload again.`
-          );
-        } else if (
-          lower.includes("unauthorized") ||
-          lower.includes("permission") ||
-          lower.includes("row-level") ||
-          lower.includes("not allowed") ||
-          lower.includes("forbidden")
-        ) {
-          alert(
-            `Upload blocked by Supabase Storage policy.\n\nYour app is authenticated via backend JWT (not Supabase auth), so direct client uploads need a permissive Storage policy.\n\nFast fix options:\n- Make the bucket public and allow inserts (least strict), OR\n- Implement a backend upload endpoint that uses the Supabase SERVICE ROLE to upload.\n\nExact error:\n${msg}`
-          );
-        } else {
-          alert(msg);
-        }
-        console.error(error);
-        return;
-      }
-
-      const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
-      const publicUrl = data?.publicUrl;
+      const form = new FormData();
+      form.append("file", file);
+      // Use same endpoint as Edit Lesson (POST /api/uploads/image) so upload works without /lesson-media route
+      const res = await api.post(
+        `/uploads/image?folder=${encodeURIComponent(folder)}`,
+        form
+      );
+      const publicUrl = res.data?.url;
       if (!publicUrl) {
-        alert("Upload succeeded but URL could not be created.");
+        alert("Upload succeeded but no URL returned.");
         return;
       }
 
@@ -691,7 +655,14 @@ const CreateLessonPage: React.FC = () => {
       setTimeout(() => setUploadMsg(""), 2000);
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Upload failed");
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.details ?? data.msg ?? data.message)
+          : undefined;
+      const msg =
+        typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
     } finally {
       setUploadingKey("");
     }
