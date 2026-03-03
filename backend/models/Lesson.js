@@ -236,7 +236,9 @@ const LessonSchema = new mongoose.Schema(
         front: { type: String, required: true },
         back: { type: String, required: true },
         tags: { type: [String], default: [] },
-        difficulty: { type: Number, min: 1, max: 3, default: 1 }
+        difficulty: { type: Number, min: 1, max: 3, default: 1 },
+        source: { type: String, default: null },
+        topicBankId: { type: String, default: null }
       }
     ],
 

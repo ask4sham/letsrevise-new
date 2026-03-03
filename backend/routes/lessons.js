@@ -2770,6 +2770,74 @@ router.post("/:id/generate/flashcards-from-topic", auth, requireLessonOwnerOrAdm
 // PR-F1: Alias (calls same handler)
 router.post("/:id/seed-flashcards-from-topic", auth, requireLessonOwnerOrAdmin, handleGenerateFlashcardsFromTopic);
 
+// Sync from topic bank: add missing only (no overwriting teacher edits). Dedupe by topicBankId or front+back.
+async function handleSyncTopicBankFlashcards(req, res) {
+  try {
+    const lessonId = req.params.id || req.params.lessonId;
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    let namespacedTopicKey;
+    try {
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      namespacedTopicKey = (req.body && req.body.topicKey) ? String(req.body.topicKey).trim() : resolved.namespacedTopicKey;
+      if (req.body && req.body.topicKey) assertValidNamespacedTopicKey(resolved.specKey, namespacedTopicKey);
+    } catch (err) {
+      if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({
+          msg: err.message || "Lesson must be mapped to a valid syllabus topicKey to sync flashcards.",
+        });
+      }
+      throw err;
+    }
+    const ownerId = lesson.teacherId || lesson.createdBy;
+    if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
+    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 50, { publishedOnly: true });
+    lesson.flashcards = Array.isArray(lesson.flashcards) ? lesson.flashcards : [];
+    const existingBySource = new Set(
+      lesson.flashcards.map((c) => (c.topicBankId || c.id)).filter(Boolean).map(String)
+    );
+    const existingByText = new Set(
+      lesson.flashcards.map((c) => `${(c.front || "").trim()}||${(c.back || "").trim()}`)
+    );
+    let added = 0;
+    for (const tc of bankCards) {
+      const sourceId = tc.topicBankId || tc.id;
+      const textKey = `${(tc.front || "").trim()}||${(tc.back || "").trim()}`;
+      if (existingBySource.has(sourceId) || existingByText.has(textKey)) continue;
+      lesson.flashcards.push({
+        id: tc.id,
+        front: tc.front || "",
+        back: tc.back || "",
+        difficulty: tc.difficulty ?? 1,
+        tags: Array.isArray(tc.tags) ? tc.tags : [],
+        source: "topic-bank",
+        topicBankId: String(sourceId),
+      });
+      existingBySource.add(sourceId);
+      existingByText.add(textKey);
+      added++;
+    }
+    await lesson.save();
+    return res.json({
+      ok: true,
+      syncedCount: added,
+      added,
+      topicBankCount: bankCards.length,
+      flashcardsCount: lesson.flashcards.length,
+      flashcards: lesson.flashcards,
+      lesson: lesson.toObject ? lesson.toObject() : lesson,
+    });
+  } catch (err) {
+    console.error("sync-topic-bank-flashcards error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+}
+
+// Primary path (matches frontend api.post `/lessons/${lessonId}/sync-topic-bank/flashcards`)
+router.post("/:id/sync-topic-bank/flashcards", auth, requireLessonOwnerOrAdmin, handleSyncTopicBankFlashcards);
+// Alias so /api/lessons/:id/flashcards/sync-from-topic-bank also works (avoids "route not found")
+router.post("/:id/flashcards/sync-from-topic-bank", auth, requireLessonOwnerOrAdmin, handleSyncTopicBankFlashcards);
+
 // PR-Q2: Generate quiz from topic bank (published-only, replace). PR-CONTENT-TARGETING-1: validate body topicKey when provided.
 router.post("/:id/generate/quiz-from-topic", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {

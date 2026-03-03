@@ -4,7 +4,7 @@ import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom"
 import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
-import { generateFlashcardsFromTopic } from "../api/topicFlashcards";
+import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api/topicFlashcards";
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
 import { generatePastPapersFromTopic, viewTopicPastPaperFile as openPastPaperPdfInNewTab } from "../api/topicPastPapers";
 import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
@@ -389,6 +389,9 @@ const EditLessonPage: React.FC = () => {
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
+  const [syncFlashcardsLoading, setSyncFlashcardsLoading] = useState(false);
+  const [syncFlashcardsError, setSyncFlashcardsError] = useState<string | null>(null);
+  const [syncFlashcardsSuccess, setSyncFlashcardsSuccess] = useState<string | null>(null);
   const [seedQuizLoading, setSeedQuizLoading] = useState(false);
   const [seedQuizError, setSeedQuizError] = useState<string | null>(null);
   const [seedQuizSuccess, setSeedQuizSuccess] = useState<string | null>(null);
@@ -4453,6 +4456,8 @@ const EditLessonPage: React.FC = () => {
                             if (!id) return;
                             setSeedFlashcardsError(null);
                             setSeedFlashcardsSuccess(null);
+                            setSyncFlashcardsSuccess(null);
+                            setSyncFlashcardsError(null);
                             setSeedFlashcardsLoading(true);
                             try {
                               const result = await generateFlashcardsFromTopic(id, topicKeyForBank);
@@ -4481,6 +4486,42 @@ const EditLessonPage: React.FC = () => {
                         >
                           {seedFlashcardsLoading ? "Loading…" : "Generate Flashcards from Topic Bank"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!id) return;
+                            setSyncFlashcardsError(null);
+                            setSyncFlashcardsSuccess(null);
+                            setSeedFlashcardsSuccess(null);
+                            setSeedFlashcardsError(null);
+                            setSyncFlashcardsLoading(true);
+                            try {
+                              const result = await syncFlashcardsFromTopicBank(id, topicKeyForBank);
+                              await fetchLessonSmart();
+                              const count = result.syncedCount ?? 0;
+                              setSyncFlashcardsSuccess(
+                                count > 0 ? `Synced ${count} flashcards from topic bank.` : "No topic-bank flashcards to sync (add some with Generate first)."
+                              );
+                            } catch (e: any) {
+                              setSyncFlashcardsError(e?.response?.data?.msg || e?.message || "Failed to sync from topic bank");
+                            } finally {
+                              setSyncFlashcardsLoading(false);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "1px solid #059669",
+                            background: "#ecfdf5",
+                            color: "#059669",
+                            fontWeight: 600,
+                            cursor: syncFlashcardsLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer",
+                          }}
+                          disabled={syncFlashcardsLoading || !id || !topicKeyForBank}
+                          title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : "Updates this lesson with the latest published topic-bank flashcards."}
+                        >
+                          {syncFlashcardsLoading ? "Syncing…" : "Sync from Topic Bank"}
+                        </button>
                         <Link to="/teacher/topic-banks/flashcards" style={{ fontSize: 14, color: "#2563eb" }}>
                           Manage topic bank →
                         </Link>
@@ -4489,6 +4530,12 @@ const EditLessonPage: React.FC = () => {
                         )}
                         {seedFlashcardsSuccess && (
                           <span style={{ color: "#059669", fontSize: 14 }}>{seedFlashcardsSuccess}</span>
+                        )}
+                        {syncFlashcardsError && (
+                          <span style={{ color: "#dc2626", fontSize: 14 }}>{syncFlashcardsError}</span>
+                        )}
+                        {syncFlashcardsSuccess && (
+                          <span style={{ color: "#059669", fontSize: 14 }}>{syncFlashcardsSuccess}</span>
                         )}
                       </div>
                       <FlashcardsEditor

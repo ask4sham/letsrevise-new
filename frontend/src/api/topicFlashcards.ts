@@ -202,6 +202,27 @@ export async function generateFlashcardsFromTopic(
   return res.data!;
 }
 
+/** Sync lesson flashcards from topic bank: replaces only cards with source === "topic-bank"; leaves teacher-made cards untouched. */
+export async function syncFlashcardsFromTopicBank(
+  lessonId: string,
+  topicKey?: string | null
+): Promise<{
+  ok: boolean;
+  syncedCount: number;
+  flashcardsCount: number;
+  flashcards: Array<{ id: string; front: string; back: string; tags?: string[]; difficulty?: number; source?: string; topicBankId?: string }>;
+  lesson?: unknown;
+}> {
+  const res = await api.post<{
+    ok: boolean;
+    syncedCount: number;
+    flashcardsCount: number;
+    flashcards: Array<{ id: string; front: string; back: string; tags?: string[]; difficulty?: number; source?: string; topicBankId?: string }>;
+    lesson?: unknown;
+  }>(`/lessons/${lessonId}/sync-topic-bank/flashcards`, { topicKey: topicKey ?? undefined });
+  return res.data!;
+}
+
 /** @deprecated Use generateFlashcardsFromTopic; alias calls same handler. */
 export async function seedLessonFlashcardsFromTopic(
   lessonId: string,
