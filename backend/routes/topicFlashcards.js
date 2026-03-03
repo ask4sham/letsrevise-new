@@ -145,6 +145,9 @@ router.post("/bulk/preview", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
   }
+  if (!req.body.topicKey || typeof req.body.topicKey !== "string" || !req.body.topicKey.trim()) {
+    return res.status(400).json({ error: "topicKey is required. Select a Topic before importing." });
+  }
   try {
     const ownerId = getOwnerId(req);
     const { topicKey, specKey: specKeyBody, format, text, csvBase64, filename, csvOptions, dedupeMode } = req.body;
@@ -245,9 +248,12 @@ router.post("/bulk", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
   }
+  const raw = req.body;
+  if (!raw.topicKey || typeof raw.topicKey !== "string" || !raw.topicKey.trim()) {
+    return res.status(400).json({ error: "topicKey is required. Select a Topic before importing." });
+  }
   try {
     const ownerId = getOwnerId(req);
-    const raw = req.body;
     const items = Array.isArray(raw.items) ? raw.items : null;
     const hasCards = raw && Array.isArray(raw.cards);
     if (hasCards && !items) {
