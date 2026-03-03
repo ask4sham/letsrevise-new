@@ -22,6 +22,7 @@ import {
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
 
 /** Minimal auto-detect for backend format: "csv" | "newline". */
@@ -36,6 +37,9 @@ function detectFlashcardFormat(text: string): "csv" | "newline" {
 }
 
 const TeacherFlashcardBankPage: React.FC = () => {
+  const { user } = useCurrentUser({ watchLocation: true });
+  const isAdmin = !!(user?.userType === "admin" || (user as any)?.role === "admin" || (user as any)?.isAdmin);
+
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
   const [selectedUnit, setSelectedUnit] = useState<string>("");
@@ -574,14 +578,16 @@ const TeacherFlashcardBankPage: React.FC = () => {
                 >
                   {bulkLoading ? "…" : "Publish"}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleBulkUnpublish}
-                  disabled={selectedIds.size === 0 || bulkLoading}
-                  style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: selectedIds.size > 0 && !bulkLoading ? "pointer" : "not-allowed" }}
-                >
-                  Unpublish
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleBulkUnpublish}
+                    disabled={selectedIds.size === 0 || bulkLoading}
+                    style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: selectedIds.size > 0 && !bulkLoading ? "pointer" : "not-allowed" }}
+                  >
+                    Unpublish
+                  </button>
+                )}
                 {selectedIds.size > 0 && <span style={{ fontSize: 12, color: "#6b7280" }}>{selectedIds.size} selected</span>}
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -657,7 +663,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
                         >
                           Edit
                         </button>
-                        {f.status === "draft" ? (
+                        {f.status !== "published" && (
                           <button
                             type="button"
                             onClick={() => handlePublish(f._id)}
@@ -666,7 +672,8 @@ const TeacherFlashcardBankPage: React.FC = () => {
                           >
                             {actionLoading === f._id ? "…" : "Publish"}
                           </button>
-                        ) : (
+                        )}
+                        {isAdmin && f.status === "published" && (
                           <button
                             type="button"
                             onClick={() => handleUnpublish(f._id)}
@@ -676,14 +683,16 @@ const TeacherFlashcardBankPage: React.FC = () => {
                             {actionLoading === f._id ? "…" : "Unpublish"}
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(f._id)}
-                          disabled={!!actionLoading}
-                          style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(f._id)}
+                            disabled={!!actionLoading}
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </>
                   )}

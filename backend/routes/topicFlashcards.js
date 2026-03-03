@@ -7,6 +7,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const auth = require("../middleware/auth");
+const requireAdmin = require("../middleware/requireAdmin");
 const { isValidTopicForSpec } = require("../utils/topicTaxonomy");
 const { buildTopicKey, parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 const { fingerprint, dedupeIncoming } = require("../utils/flashcardDedupe");
@@ -401,9 +402,8 @@ router.post("/bulk/publish", auth, async (req, res) => {
   }
 });
 
-// PR-EDGE-2: POST /api/topic-flashcards/bulk/unpublish
-router.post("/bulk/unpublish", auth, async (req, res) => {
-  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+// PR-EDGE-2: POST /api/topic-flashcards/bulk/unpublish — admin only
+router.post("/bulk/unpublish", auth, requireAdmin, async (req, res) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
     if (!ids.length) return res.status(400).json({ error: "ids array is required and must not be empty" });
@@ -449,11 +449,8 @@ router.post("/:id/publish", auth, async (req, res) => {
   }
 });
 
-// POST /api/topic-flashcards/:id/unpublish — owner/admin only
-router.post("/:id/unpublish", auth, async (req, res) => {
-  if (!isTeacherOrAdmin(req)) {
-    return res.status(403).json({ error: "Teachers and admins only" });
-  }
+// POST /api/topic-flashcards/:id/unpublish — admin only (teachers cannot unpublish)
+router.post("/:id/unpublish", auth, requireAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     const ownerId = getOwnerId(req);
@@ -521,7 +518,14 @@ router.put("/:id", auth, async (req, res) => {
       card.back = v || card.back;
     }
     if (req.body.status !== undefined && ["draft", "published"].includes(String(req.body.status).toLowerCase())) {
-      card.status = String(req.body.status).toLowerCase();
+      const newStatus = String(req.body.status).toLowerCase();
+      if (newStatus === "draft") {
+        const isAdminUser = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+        if (!isAdminUser) {
+          return res.status(403).json({ error: "Only admins can unpublish or revert status." });
+        }
+      }
+      card.status = newStatus;
     }
     card.fingerprint = fingerprint(card.front, card.back);
     await card.save();
@@ -533,11 +537,8 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/topic-flashcards/:id
-router.delete("/:id", auth, async (req, res) => {
-  if (!isTeacherOrAdmin(req)) {
-    return res.status(403).json({ error: "Teachers and admins only" });
-  }
+// DELETE /api/topic-flashcards/:id — admin only (teachers cannot delete)
+router.delete("/:id", auth, requireAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     const ownerId = getOwnerId(req);
