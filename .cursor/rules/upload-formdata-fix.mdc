@@ -1,0 +1,30 @@
+---
+description: How image/file upload was fixed when backend returned 400 or "No file uploaded"
+globs: frontend/src/services/api.ts,frontend/src/pages/CreateLessonPage.tsx,frontend/src/pages/EditLessonPage.tsx
+alwaysApply: false
+---
+
+# Upload / FormData fix (remember for future)
+
+## Problem
+- Frontend uploads (e.g. Create Lesson "Upload image / video", Edit Lesson block image upload) got **400 Bad Request** or "No file uploaded" even with a valid file.
+- Backend uses **multer** and expects **multipart/form-data** with field name `file`.
+
+## Root cause
+The shared API client (`frontend/src/services/api.ts`) sets default **`Content-Type: application/json`**. When the request body is **FormData**, sending that header makes the server treat the body as JSON, so it never parses the multipart file → **req.file** is undefined → 400.
+
+## Fix (already applied)
+
+1. **API client – strip Content-Type for FormData**  
+   In the **request interceptor**, when `config.data instanceof FormData`, **remove** the `Content-Type` header so the browser/axios can set `multipart/form-data; boundary=...`. Do not set Content-Type manually for FormData.
+
+2. **Create Lesson upload**  
+   - Use **POST /api/uploads/image?folder=...** (same as Edit Lesson), not a separate lesson-media route.
+   - Form: `FormData` with `form.append("file", file)`.
+
+3. **Error message**  
+   When showing upload errors, use only **string** values from `response.data` (e.g. `data.error`, `data.details`, `data.msg`); avoid showing falsy/non-string values like `false`.
+
+## If upload breaks again
+- Check that any new upload call uses the same `api` client and does **not** set `Content-Type` when sending FormData.
+- Ensure backend route expects field name **`file`** and that the uploads router is mounted (e.g. in both `app.js` and `server.js` if the app is loaded from both).
