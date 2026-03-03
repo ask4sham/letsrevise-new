@@ -178,3 +178,64 @@ test("when access denied with FREE_PREVIEW, shows locked message and does not re
   expect(screen.queryByText("Multiple choice")).not.toBeInTheDocument();
   expect(screen.queryByText("Short answer")).not.toBeInTheDocument();
 });
+
+test("student view does not render page kicker/subtitle block (e.g. Animal and plant cell structure (GCSE))", async () => {
+  mockFetchLessonById.mockResolvedValue({
+    ok: true,
+    data: {
+      ...baseLessonData,
+      pages: [
+        {
+          pageId: "p1",
+          title: "Simple Living Cell",
+          order: 0,
+          blocks: [
+            { type: "text", content: "Animal and plant cell structure (GCSE)" },
+            { type: "text", content: "Cells are the basic unit of life." },
+          ],
+        },
+      ],
+      quiz: { timeSeconds: 600, questions: [] },
+    },
+    accessDecision: { allowed: true },
+  });
+
+  renderLesson();
+
+  await waitFor(() => {
+    expect(screen.getByText("Simple Living Cell")).toBeInTheDocument();
+  });
+
+  expect(screen.getByText("Cells are the basic unit of life.")).toBeInTheDocument();
+  expect(screen.queryByText(/Animal and plant cell structure\s*\(GCSE\)/i)).not.toBeInTheDocument();
+});
+
+test("student view does not render page kicker (hero caption) when SHOW_PAGE_KICKER is false", async () => {
+  mockFetchLessonById.mockResolvedValue({
+    ok: true,
+    data: {
+      ...baseLessonData,
+      pages: [
+        {
+          pageId: "p1",
+          title: "Simple Living Cell",
+          order: 0,
+          hero: { type: "image", src: "/visuals/cell.png", caption: "Animal and plant cell structure (GCSE)" },
+          blocks: [{ type: "text", content: "Main content here." }],
+        },
+      ],
+      quiz: { timeSeconds: 600, questions: [] },
+    },
+    accessDecision: { allowed: true },
+  });
+
+  renderLesson();
+
+  await waitFor(() => {
+    expect(screen.getByText("Simple Living Cell")).toBeInTheDocument();
+  });
+
+  expect(screen.getByText("Main content here.")).toBeInTheDocument();
+  expect(screen.queryByTestId("page-kicker")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Animal and plant cell structure\s*\(GCSE\)/i)).not.toBeInTheDocument();
+});

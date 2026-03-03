@@ -1313,7 +1313,9 @@ const CreateLessonPage: React.FC = () => {
                         return (
                           <div key={key} style={getBlockStyle(b.type)}>
                             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                              <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{BLOCK_META[b.type].label}</div>
+                              {b.type !== "text" && (
+                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{BLOCK_META[b.type].label}</div>
+                              )}
                               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <button
                                   onClick={() => moveBlock(pg.pageId, idx, -1)}
@@ -1551,9 +1553,11 @@ const CreateLessonPage: React.FC = () => {
                       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                         {(orderedPages[0].blocks || []).map((b, idx) => (
                           <div key={`prev-${idx}`} style={getBlockStyle(b.type)}>
-                            <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#334155", marginBottom: 4 }}>
-                              {BLOCK_META[b.type].icon} {BLOCK_META[b.type].label}
-                            </div>
+                            {b.type !== "text" && (
+                              <div style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#334155", marginBottom: 4 }}>
+                                {BLOCK_META[b.type].icon} {BLOCK_META[b.type].label}
+                              </div>
+                            )}
                             <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
                               {safeStr(b.content, "").slice(0, 80)}{safeStr(b.content, "").length > 80 ? "…" : ""}
                             </div>

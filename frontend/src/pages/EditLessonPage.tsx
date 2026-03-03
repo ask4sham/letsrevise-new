@@ -2911,9 +2911,11 @@ const EditLessonPage: React.FC = () => {
                       return (
                         <div key={key} style={getBlockStyle(blockType)}>
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                            <div style={{ fontWeight: 900 }}>
-                              {isCheckpoint ? "Checkpoint" : BLOCK_META[blockType].label}
-                            </div>
+                            {blockType !== "text" && (
+                              <div style={{ fontWeight: 900 }}>
+                                {isCheckpoint ? "Checkpoint" : BLOCK_META[blockType].label}
+                              </div>
+                            )}
 
                             <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                               <button
@@ -4127,7 +4129,15 @@ const EditLessonPage: React.FC = () => {
                     {currentPage?.title || `Page ${currentPage?.order}`}
                   </div>
 
-                  {(currentPage?.blocks || []).filter((b): b is NonNullable<typeof b> => Boolean(b)).map((b, idx) => {
+                  {(currentPage?.blocks || [])
+                    .filter((b): b is NonNullable<typeof b> => Boolean(b))
+                    .filter((b) => {
+                      const raw = safeStr(b.content, "").trim();
+                      if (!raw) return true;
+                      const content = raw.replace(/\*+/g, "").trim();
+                      return !/^Animal and plant cell structure\s*\(GCSE\)\s*$/i.test(content);
+                    })
+                    .map((b, idx) => {
                     const blockType = normalizeBlockType(b?.type);
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>

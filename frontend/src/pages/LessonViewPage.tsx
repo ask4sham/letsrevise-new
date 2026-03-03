@@ -1105,6 +1105,18 @@ function PracticeSection({
   );
 }
 
+/** Student view: do not show page kicker/subtitle box. When false, kicker-like blocks are filtered from render. */
+const SHOW_PAGE_KICKER = false;
+
+/** True if block looks like a page kicker/topic line (e.g. "Topic name (GCSE)") — single line, ends with (GCSE)/(A-Level), short. */
+function isKickerLikeBlock(b: { type: string; content?: string }): boolean {
+  if (b.type !== "text" && b.type !== "keyIdea") return false;
+  const raw = (b.content != null ? String(b.content) : "").trim();
+  const content = raw.replace(/\*+/g, "").replace(/\s+/g, " ").trim();
+  if (content.length > 100) return false;
+  return /^.+\s*\((GCSE|A-Level)\)\s*$/i.test(content) || /^.+\s*\((?:Foundation|Higher)\)\s*$/i.test(content);
+}
+
 const LessonViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -2332,6 +2344,12 @@ const LessonViewPage: React.FC = () => {
     // ✅ If there is no valid src, do NOT render the hero at all (prevents broken image icon)
     if (!h || h.type === "none" || !src) return null;
 
+    // Page kicker/subtitle: hero caption (e.g. "Animal and plant cell structure (GCSE)") — only render when SHOW_PAGE_KICKER is true
+    if (process.env.NODE_ENV !== "production" && h.caption) {
+      console.log("[page-kicker]", { value: h.caption, source: "currentPage.hero.caption", currentPage: hero ? { caption: (hero as any).caption } : null });
+    }
+    const renderCaption = SHOW_PAGE_KICKER && h.caption;
+
     const boxStyle: React.CSSProperties = {
       background: "#f8f9fa",
       borderRadius: 14,
@@ -2357,7 +2375,7 @@ const LessonViewPage: React.FC = () => {
             style={{ width: "100%", borderRadius: 12, background: "#000" }}
             src={src}
           />
-          {h.caption ? <div style={captionStyle}>{h.caption}</div> : null}
+          {renderCaption ? <div style={captionStyle} data-testid="page-kicker">{h.caption}</div> : null}
         </div>
       );
     }
@@ -2379,7 +2397,7 @@ const LessonViewPage: React.FC = () => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
           />
-          {h.caption ? <div style={captionStyle}>{h.caption}</div> : null}
+          {renderCaption ? <div style={captionStyle} data-testid="page-kicker">{h.caption}</div> : null}
         </div>
       );
     }
@@ -2697,8 +2715,31 @@ const LessonViewPage: React.FC = () => {
     const blocksToRender = blocks.filter((b) => {
       if (b.type === "stretch" && !showDeeperKnowledge) return false;
       if (b.type === "checkpoint") return false; // PR-UX-LESSON-3: always render checkpoint via LessonCheckpoint
+      // Regression guard: do not render page kicker/subtitle block unless SHOW_PAGE_KICKER is true
+      if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
       return true;
     });
+
+    // Regression guard: when SHOW_PAGE_KICKER is false, no kicker-like block must be rendered
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && !SHOW_PAGE_KICKER) {
+      const leaked = blocksToRender.find((b) => isKickerLikeBlock(b));
+      if (leaked) {
+        console.warn("[LessonViewPage] Regression: kicker-like block would be rendered; filter should have removed it.", { type: leaked.type, contentPreview: safeStr(leaked.content, "").slice(0, 60) });
+      }
+    }
+    // Dev-only: log when kicker/subtitle source is present (remove after confirming fix)
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+      const firstBlock = blocks[0];
+      const kickerLike = firstBlock ? isKickerLikeBlock(firstBlock) : false;
+      const pageHasSubtitle = !!(currentPage as any).subtitle || !!(currentPage as any).kicker || !!(currentPage as any).summary;
+      if (kickerLike || pageHasSubtitle) {
+        console.log("[LessonViewPage] page header fields", {
+          currentPage: { pageId: currentPage.pageId, title: currentPage.title, subtitle: (currentPage as any).subtitle, kicker: (currentPage as any).kicker, summary: (currentPage as any).summary },
+          firstBlock: firstBlock ? { type: firstBlock.type, contentPreview: safeStr(firstBlock.content, "").trim().slice(0, 80), isKickerLike: kickerLike } : null,
+          blocksToRenderCount: blocksToRender.length,
+        });
+      }
+    }
     const firstCheckpointBlock = blocks.find((b) => {
       if (b.type !== "checkpoint") return false;
       const qType = b.questionType === "short" ? "short" : "mcq";
@@ -3043,6 +3084,7 @@ const LessonViewPage: React.FC = () => {
                   >
                     {currentPage.title || `Page ${currentPageIndex + 1}`}
                   </h2>
+                  {/* Page kicker: hero caption not rendered (SHOW_PAGE_KICKER is false). Same caption in renderHero. */}
                 </div>
 
                 {curriculumConfidence && (
