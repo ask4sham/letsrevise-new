@@ -9,6 +9,7 @@ import {
   createTopicFlashcard,
   bulkCreateTopicFlashcardsFromText,
   previewBulkImportTopicFlashcards,
+  updateTopicFlashcard,
   deleteTopicFlashcard,
   publishTopicFlashcard,
   unpublishTopicFlashcard,
@@ -58,6 +59,10 @@ const TeacherFlashcardBankPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFront, setEditFront] = useState("");
+  const [editBack, setEditBack] = useState("");
+  const [savingEditId, setSavingEditId] = useState<string | null>(null);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -272,9 +277,44 @@ const TeacherFlashcardBankPage: React.FC = () => {
       await deleteTopicFlashcard(id);
       setFlashcards((prev) => prev.filter((f) => f._id !== id));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Delete failed");
+      setMessage(err?.response?.data?.error || err?.response?.data?.message || err?.message || "Delete failed");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const startEditing = (card: TopicFlashcard) => {
+    setEditingId(card._id);
+    setEditFront(card.front);
+    setEditBack(card.back);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditFront("");
+    setEditBack("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    const front = editFront.trim();
+    const back = editBack.trim();
+    if (!front || !back) {
+      setMessage("Front and back cannot be empty.");
+      return;
+    }
+    setSavingEditId(editingId);
+    setMessage(null);
+    try {
+      const updated = await updateTopicFlashcard(editingId, { front, back });
+      setFlashcards((prev) => prev.map((f) => (f._id === editingId ? updated : f)));
+      setEditingId(null);
+      setEditFront("");
+      setEditBack("");
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.response?.data?.message || err?.message || "Update failed");
+    } finally {
+      setSavingEditId(null);
     }
   };
 
@@ -551,7 +591,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
                   style={{
                     padding: "10px 12px",
                     marginBottom: 8,
-                    background: "#f9fafb",
+                    background: editingId === f._id ? "#fffbeb" : "#f9fafb",
                     borderRadius: 8,
                     border: "1px solid #e5e7eb",
                     display: "flex",
@@ -559,43 +599,94 @@ const TeacherFlashcardBankPage: React.FC = () => {
                     gap: 12,
                   }}
                 >
-                  <label style={{ flexShrink: 0, marginTop: 2 }}>
-                    <input type="checkbox" checked={selectedIds.has(f._id)} onChange={() => toggleSelect(f._id)} />
-                  </label>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{f.front}</div>
-                    <div style={{ fontSize: 14, color: "#4b5563" }}>{f.back}</div>
-                    <span style={{ fontSize: 12, color: "#9ca3af" }}>{f.status}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {f.status === "draft" ? (
-                      <button
-                        type="button"
-                        onClick={() => handlePublish(f._id)}
-                        disabled={!!actionLoading}
-                        style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}
-                      >
-                        {actionLoading === f._id ? "…" : "Publish"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleUnpublish(f._id)}
-                        disabled={!!actionLoading}
-                        style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280" }}
-                      >
-                        {actionLoading === f._id ? "…" : "Unpublish"}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(f._id)}
-                      disabled={!!actionLoading}
-                      style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {editingId === f._id ? (
+                    <>
+                      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <textarea
+                          value={editFront}
+                          onChange={(e) => setEditFront(e.target.value)}
+                          maxLength={500}
+                          rows={2}
+                          style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 }}
+                          placeholder="Front"
+                        />
+                        <textarea
+                          value={editBack}
+                          onChange={(e) => setEditBack(e.target.value)}
+                          maxLength={2000}
+                          rows={3}
+                          style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 }}
+                          placeholder="Back"
+                        />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={handleSaveEdit}
+                            disabled={!!savingEditId}
+                            style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, background: "#059669", color: "#fff", border: "none", fontWeight: 600 }}
+                          >
+                            {savingEditId === f._id ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            disabled={!!savingEditId}
+                            style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <label style={{ flexShrink: 0, marginTop: 2 }}>
+                        <input type="checkbox" checked={selectedIds.has(f._id)} onChange={() => toggleSelect(f._id)} />
+                      </label>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{f.front}</div>
+                        <div style={{ fontSize: 14, color: "#4b5563" }}>{f.back}</div>
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>{f.status}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => startEditing(f)}
+                          disabled={!!actionLoading}
+                          style={{ padding: "4px 8px", fontSize: 12, color: "#2563eb" }}
+                        >
+                          Edit
+                        </button>
+                        {f.status === "draft" ? (
+                          <button
+                            type="button"
+                            onClick={() => handlePublish(f._id)}
+                            disabled={!!actionLoading}
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}
+                          >
+                            {actionLoading === f._id ? "…" : "Publish"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleUnpublish(f._id)}
+                            disabled={!!actionLoading}
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280" }}
+                          >
+                            {actionLoading === f._id ? "…" : "Unpublish"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(f._id)}
+                          disabled={!!actionLoading}
+                          style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
