@@ -1105,7 +1105,7 @@ function PracticeSection({
   );
 }
 
-/** Student view: do not show page kicker/subtitle box. When false, kicker-like blocks are filtered from render. */
+/** Single switch: when false, hero caption (page kicker) never renders in student view. Also gates kicker-like blocks. */
 const SHOW_PAGE_KICKER = false;
 
 /** True if block looks like a page kicker/topic line (e.g. "Topic name (GCSE)") — single line, ends with (GCSE)/(A-Level), short. */
@@ -2344,11 +2344,11 @@ const LessonViewPage: React.FC = () => {
     // ✅ If there is no valid src, do NOT render the hero at all (prevents broken image icon)
     if (!h || h.type === "none" || !src) return null;
 
-    // Page kicker/subtitle: hero caption (e.g. "Animal and plant cell structure (GCSE)") — only render when SHOW_PAGE_KICKER is true
-    if (process.env.NODE_ENV !== "production" && h.caption) {
+    // Page kicker/subtitle: hero caption — only render when SHOW_PAGE_KICKER is true (caption never renders otherwise)
+    if (process.env.NODE_ENV !== "production" && h?.caption?.trim()) {
       console.log("[page-kicker]", { value: h.caption, source: "currentPage.hero.caption", currentPage: hero ? { caption: (hero as any).caption } : null });
     }
-    const renderCaption = SHOW_PAGE_KICKER && h.caption;
+    const renderCaption = SHOW_PAGE_KICKER && Boolean(h?.caption?.trim());
 
     const boxStyle: React.CSSProperties = {
       background: "#f8f9fa",

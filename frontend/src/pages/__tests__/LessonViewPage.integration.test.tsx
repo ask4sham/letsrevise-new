@@ -210,6 +210,7 @@ test("student view does not render page kicker/subtitle block (e.g. Animal and p
   expect(screen.queryByText(/Animal and plant cell structure\s*\(GCSE\)/i)).not.toBeInTheDocument();
 });
 
+/** Regression: hero caption must not render when SHOW_PAGE_KICKER is false (caption = page kicker). */
 test("student view does not render page kicker (hero caption) when SHOW_PAGE_KICKER is false", async () => {
   mockFetchLessonById.mockResolvedValue({
     ok: true,
