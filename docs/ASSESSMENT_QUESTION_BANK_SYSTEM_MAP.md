@@ -245,4 +245,42 @@ So the paper holds only IDs; the “items” view is built by the GET handler fr
 
 ---
 
+## Lesson editor: Assessments accordion (data + UI)
+
+**Where it is rendered:** `frontend/src/pages/EditLessonPage.tsx` (collapsible “Assessments” section, ~lines 5404–5479).
+
+**Data source:** `lesson.assessment.questions` (derived in component as `assessmentQuestions = lesson?.assessment?.questions || []` at line 521). So the accordion reads/writes **Lesson.assessment** (embedded object with `timeSeconds` and `questions[]`), not AssessmentPaper.
+
+**Schema (Lesson):** `backend/models/Lesson.js`  
+- `assessment: { timeSeconds, questions: [{ id, type, question, options, correctAnswer, markScheme, explanation, tags, difficulty, marks }] }` (embedded).  
+- `examQuestions: [{ questionId (ref ExamQuestion), addedAt }]` (attached exam question refs).  
+- **No** `assessmentPaperIds` or link to AssessmentPaper; lesson is not wired to “papers”.
+
+**UI actions in Assessments accordion:**  
+- “Generate Assessment from Topic Bank” → `generateAssessmentFromTopic(id, topicKeyForBank)` (topic bank flow).  
+- “Manage assessment bank →” link to `/teacher/topic-banks/quizzes?kind=assessment`.  
+- **No “Add from Paper” or attach Assessment Paper**; the accordion is topic-bank–only (generate into `lesson.assessment.questions`).
+
+So: **Lesson editor Assessments** = topic-bank assessment questions (embedded). **Assessment Papers** = separate feature (paper has `questionBankIds`); no UI in lesson editor to attach a paper to a lesson.
+
+---
+
+## Smallest change to fix “random list” + add pagination
+
+**Goal:** Modal request includes subject/examBoard/level/topicKey from paper (or lesson) context, and backend supports pagination.
+
+1. **Frontend (`AssessmentPaperEditPage.tsx`):**  
+   In `loadBankQuestions()`, call `api.get("/exam-questions", { params: { subject: paper?.subject, examBoard: paper?.examBoard, level: paper?.level, topicKey: paper?.topicKey, page: 1, limit: 50 } })`.  
+   Use `paper` from existing state (GET `/assessment-papers/:id` already returns these fields). If `topicKey` is missing on paper, optional: show a Topic dropdown in the modal (same taxonomy source as Topic Bank) and send selected topicKey.
+
+2. **Backend (`backend/routes/examQuestions.js`):**  
+   Add `page` and `limit` to GET `/` handler; default e.g. `limit=50`, `skip = (page-1)*limit`; return `{ questions, pagination: { page, limit, total } }`.
+
+3. **Modal UI:**  
+   Either “Load more” or next/prev page buttons using the same endpoint with `page`/`limit`.
+
+**Result:** Modal shows questions filtered by paper’s curriculum; no schema migration. Phase 2 can add `topicKey` to AssessmentPaper and require it on create/edit; Phase 3 can add `lesson.assessmentPaperIds` and attach/detach UI.
+
+---
+
 *Document generated to describe current setup only. No behaviour or feature changes.*

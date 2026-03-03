@@ -13,6 +13,8 @@ beforeAll(async () => {
   mongoReplSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   const mongoUri = mongoReplSet.getUri();
   await mongoose.connect(mongoUri);
+  // Ensure connection is ready before any test runs (avoids "buffering timed out" in first test)
+  await mongoose.connection.db.admin().command({ ping: 1 });
 }, 90000);
 
 afterAll(async () => {

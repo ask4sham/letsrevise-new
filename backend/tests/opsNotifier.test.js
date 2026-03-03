@@ -4,6 +4,8 @@ const OpsNotificationLog = require("../models/OpsNotificationLog");
 const opsNotifier = require("../services/opsNotifier");
 const { EVENT_TYPES } = require("../contracts/opsNotifications.v1");
 
+jest.setTimeout(15000);
+
 describe("opsNotifier", () => {
   const baseEvent = {
     type: EVENT_TYPES.INCIDENT_OPENED,
@@ -18,8 +20,15 @@ describe("opsNotifier", () => {
   });
 
   afterEach(async () => {
-    await OpsNotificationLog.deleteMany({});
-  });
+    try {
+      await Promise.race([
+        OpsNotificationLog.deleteMany({}),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("cleanup timeout")), 8000)),
+      ]);
+    } catch (err) {
+      // Avoid hanging the suite if DB is slow or broken (e.g. Mongod fassert in parallel runs)
+    }
+  }, 10000);
 
   test("enabled flag off → SKIPPED", async () => {
     process.env.OPS_NOTIFY_SLACK = "0";

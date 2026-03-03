@@ -198,6 +198,84 @@ describe("GET exam-questions draft and published (PR-W2.2)", () => {
   });
 });
 
+describe("GET exam-questions filtering and pagination", () => {
+  let teacherToken;
+  let teacherId;
+
+  beforeAll(async () => {
+    const teacher = await User.create({
+      firstName: "Paginate",
+      lastName: "Teacher",
+      email: "paginate-teacher@test.com",
+      password: hashedPassword,
+      userType: "teacher",
+    });
+    teacherId = teacher._id;
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "paginate-teacher@test.com", password: "password123" });
+    teacherToken = loginRes.body?.token;
+    if (!teacherToken) throw new Error("Failed to get teacher token");
+
+    const paginationTopicKey = "pagination-test-topic";
+    await ExamQuestion.create([
+      { teacherId, subject: "Biology", examBoard: "AQA", level: "GCSE", topicKey: paginationTopicKey, type: "mcq", marks: 1, question: "P1?", status: "published" },
+      { teacherId, subject: "Biology", examBoard: "AQA", level: "GCSE", topicKey: paginationTopicKey, type: "short", marks: 2, question: "P2?", status: "published" },
+      { teacherId, subject: "Biology", examBoard: "AQA", level: "GCSE", topicKey: paginationTopicKey, type: "mcq", marks: 1, question: "P3?", status: "published" },
+      { teacherId, subject: "Biology", examBoard: "AQA", level: "GCSE", topicKey: paginationTopicKey, type: "short", marks: 2, question: "P4?", status: "published" },
+      { teacherId, subject: "Biology", examBoard: "AQA", level: "GCSE", topicKey: paginationTopicKey, type: "mcq", marks: 1, question: "P5?", status: "published" },
+    ]);
+  });
+
+  const PAGINATION_TOPIC = "pagination-test-topic";
+
+  test("GET with subject, level, topicKey returns only matching questions", async () => {
+    const res = await request(app)
+      .get("/api/exam-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ subject: "Biology", level: "GCSE", topicKey: PAGINATION_TOPIC });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    expect(res.body.questions.length).toBeGreaterThanOrEqual(5);
+    res.body.questions.forEach((q) => {
+      expect(q.subject).toBe("Biology");
+      expect(q.level).toBe("GCSE");
+      expect(q.topicKey).toBe(PAGINATION_TOPIC);
+    });
+  });
+
+  test("GET with page and limit returns { questions, pagination }", async () => {
+    const res = await request(app)
+      .get("/api/exam-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ subject: "Biology", level: "GCSE", topicKey: PAGINATION_TOPIC, page: 1, limit: 2 });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    expect(res.body.questions.length).toBe(2);
+    expect(res.body.pagination).toEqual({ page: 1, limit: 2, total: 5 });
+  });
+
+  test("GET with page=2, limit=2 returns second page", async () => {
+    const res = await request(app)
+      .get("/api/exam-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ subject: "Biology", level: "GCSE", topicKey: PAGINATION_TOPIC, page: 2, limit: 2 });
+    expect(res.status).toBe(200);
+    expect(res.body.questions.length).toBe(2);
+    expect(res.body.pagination).toEqual({ page: 2, limit: 2, total: 5 });
+  });
+
+  test("GET without page/limit returns questions array only (backward compatible)", async () => {
+    const res = await request(app)
+      .get("/api/exam-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .query({ topicKey: PAGINATION_TOPIC });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.questions)).toBe(true);
+    expect(res.body.pagination).toBeUndefined();
+  });
+});
+
 describe("Lesson exam-questions attach/remove", () => {
   let teacherToken;
   let teacherId;

@@ -480,7 +480,7 @@ router.patch("/:id", auth, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
     const item = await TopicFlashcard.findById(id);
     if (!item) return res.status(404).json({ error: "Not found" });
-    if (!isAdmin && String(item.ownerId) !== String(ownerId)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin && String(item.ownerId) !== String(ownerId)) return res.status(404).json({ error: "Not found" });
     const patch = req.body || {};
     if (patch.front != null) item.front = String(patch.front).trim().slice(0, 500) || item.front;
     if (patch.back != null) item.back = String(patch.back).trim().slice(0, 2000) || item.back;
@@ -537,8 +537,8 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/topic-flashcards/:id — admin only (teachers cannot delete)
-router.delete("/:id", auth, requireAdmin, async (req, res) => {
+// DELETE /api/topic-flashcards/:id — admin only (teachers cannot delete). Return 404 for non-admins (no existence leak).
+router.delete("/:id", auth, async (req, res) => {
   try {
     const id = req.params.id;
     const ownerId = getOwnerId(req);
@@ -548,7 +548,7 @@ router.delete("/:id", auth, requireAdmin, async (req, res) => {
     }
     const card = await TopicFlashcard.findOne({ _id: id });
     if (!card) return res.status(404).json({ error: "Flashcard not found" });
-    if (!isAdmin && String(card.ownerId) !== String(ownerId)) return res.status(404).json({ error: "Flashcard not found" });
+    if (!isAdmin) return res.status(404).json({ error: "Flashcard not found" });
     await TopicFlashcard.deleteOne({ _id: id });
     return res.json({ ok: true });
   } catch (err) {

@@ -92,6 +92,7 @@
   "private": true,
   "jest": {
     "testEnvironment": "node",
+    "maxWorkers": 1,
     "coveragePathIgnorePatterns": [
       "/node_modules/",
       "/tests/",

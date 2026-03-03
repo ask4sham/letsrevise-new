@@ -140,11 +140,11 @@ describe("Topic Flashcard Bank (PR-F1)", () => {
       .query({ topicKey, status: "published" });
     expect(listPub.body.items.some((f) => f._id.toString() === id)).toBe(true);
 
+    // Unpublish is admin-only (PR-EDGE-2): teacher gets 403
     const unpubRes = await request(app)
       .post(`/api/topic-flashcards/${id}/unpublish`)
       .set("Authorization", `Bearer ${teacherToken}`);
-    expect(unpubRes.status).toBe(200);
-    expect(unpubRes.body.flashcard.status).toBe("draft");
+    expect(unpubRes.status).toBe(403);
   });
 
   test("owner-only: teacher B gets 404 on PUT/DELETE/publish (no existence leak)", async () => {
@@ -172,6 +172,10 @@ describe("Topic Flashcard Bank (PR-F1)", () => {
   });
 
   test("POST /api/lessons/:id/seed-flashcards-from-topic copies published bank into lesson (replace semantics)", async () => {
+    const { queryCandidates } = require("../utils/topicKey");
+    const candidates = queryCandidates("aqa-gcse-biology", topicKey);
+    await TopicFlashcard.deleteMany({ ownerId: teacherId, status: "published", topicKey: { $in: candidates } });
+
     const bulkRes = await request(app)
       .post("/api/topic-flashcards/bulk")
       .set("Authorization", `Bearer ${teacherToken}`)

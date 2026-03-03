@@ -1,6 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../services/api";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import { getSpecKeyFromLesson } from "../utils/resolveLessonTopicKey";
+import type { SpecKey } from "../api/taxonomy";
 
 type PaperItem = {
   _id: string;
@@ -18,6 +23,9 @@ type Paper = {
   _id: string;
   title: string;
   subject?: string;
+  examBoard?: string;
+  level?: string;
+  topicKey?: string;
   items?: PaperItem[];
   questionBankIds?: string[];
 };
@@ -40,9 +48,16 @@ const AssessmentPaperEditPage: React.FC = () => {
   const [bankOpen, setBankOpen] = useState(false);
   const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>([]);
   const [bankLoading, setBankLoading] = useState(false);
+  const [bankPage, setBankPage] = useState(1);
+  const [bankTotal, setBankTotal] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [patching, setPatching] = useState(false);
+  const [modalTopicKey, setModalTopicKey] = useState("");
+  const [bankSpecKey, setBankSpecKey] = useState<SpecKey>(() => getStoredSpecKey());
+  const { data: taxonomy } = useTaxonomy(bankSpecKey);
+
+  const paperSpecKey = getSpecKeyFromLesson(paper ? { subject: paper.subject, level: paper.level, examBoardName: paper.examBoard } : null) as SpecKey | null;
 
   useEffect(() => {
     if (!paperId) return;
@@ -62,25 +77,79 @@ const AssessmentPaperEditPage: React.FC = () => {
     load();
   }, [paperId]);
 
-  const loadBankQuestions = async () => {
-    try {
-      setBankLoading(true);
-      const res = await api.get("/exam-questions");
-      const raw = res.data?.questions ?? res.data?.data ?? res.data;
-      const list = Array.isArray(raw) ? raw : [];
-      setBankQuestions(list);
-      setSelectedIds(new Set());
-    } catch (err) {
-      setBankQuestions([]);
-    } finally {
-      setBankLoading(false);
-    }
-  };
+  const DEFAULT_PAGE = 1;
+  const DEFAULT_LIMIT = 50;
+
+  const loadBankQuestions = useCallback(
+    async (page: number = DEFAULT_PAGE, overrideTopicKey?: string) => {
+      try {
+        setBankLoading(true);
+        const params: Record<string, string | number> = {
+          page: String(page),
+          limit: String(DEFAULT_LIMIT),
+        };
+        if (paper?.subject) params.subject = paper.subject;
+        if (paper?.examBoard) params.examBoard = paper.examBoard;
+        if (paper?.level) params.level = paper.level;
+        const topicKeyToSend =
+          overrideTopicKey !== undefined
+            ? (overrideTopicKey && overrideTopicKey.trim()) || undefined
+            : paper?.topicKey || (modalTopicKey && modalTopicKey.trim()) || undefined;
+        if (topicKeyToSend) {
+          params.topicKey = topicKeyToSend;
+          params.specKey = bankSpecKey;
+        }
+        const res = await api.get("/exam-questions", { params });
+        const list = Array.isArray(res.data?.questions) ? res.data.questions : [];
+        const pagination = res.data?.pagination;
+        if (pagination) {
+          setBankTotal(pagination.total ?? null);
+          setBankPage(page);
+          if (page === 1) {
+            setBankQuestions(list);
+            setSelectedIds(new Set());
+          } else {
+            setBankQuestions((prev) => [...prev, ...list]);
+          }
+        } else {
+          setBankTotal(null);
+          setBankPage(1);
+          setBankQuestions(list);
+          if (page === 1) setSelectedIds(new Set());
+        }
+      } catch (err) {
+        setBankQuestions((prev) => (page === 1 ? [] : prev));
+        if (page === 1) setBankTotal(null);
+      } finally {
+        setBankLoading(false);
+      }
+    },
+    [paper?.subject, paper?.examBoard, paper?.level, paper?.topicKey, modalTopicKey, bankSpecKey]
+  );
 
   const openBankModal = () => {
     setBankOpen(true);
     setQuery("");
-    loadBankQuestions();
+    const initialTopic = paper?.topicKey ?? "";
+    setModalTopicKey(initialTopic);
+    setBankPage(1);
+    setBankTotal(null);
+    if (paperSpecKey) setBankSpecKey(paperSpecKey);
+    loadBankQuestions(1, initialTopic);
+  };
+
+  const handleBankSpecChange = (v: SpecKey) => {
+    setBankSpecKey(v);
+    setStoredSpecKey(v);
+    setModalTopicKey("");
+    setBankPage(1);
+    loadBankQuestions(1, "");
+  };
+
+  const handleBankTopicChange = (topicKey: string) => {
+    setModalTopicKey(topicKey);
+    setBankPage(1);
+    loadBankQuestions(1, topicKey);
   };
 
   const toggleBankSelection = (id: string) => {
@@ -296,6 +365,28 @@ const AssessmentPaperEditPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ margin: "0 0 1rem" }}>Add from Question Bank</h2>
+            {!paper?.topicKey && (
+              <div style={{ marginBottom: "1rem", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px" }}>
+                <SpecSelector value={bankSpecKey} onChange={handleBankSpecChange} />
+                <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Topic:</label>
+                <select
+                  value={modalTopicKey}
+                  onChange={(e) => handleBankTopicChange(e.target.value)}
+                  style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d1d5db", minWidth: "220px" }}
+                >
+                  <option value="">All topics</option>
+                  {taxonomy?.units?.map((u) => (
+                    <optgroup key={u.unit} label={u.unit}>
+                      {(u.topics || []).map((t) => (
+                        <option key={t.key} value={t.key}>
+                          {t.topic}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            )}
             {bankLoading ? (
               <p>Loading…</p>
             ) : (
@@ -471,6 +562,31 @@ const AssessmentPaperEditPage: React.FC = () => {
                     );
                   })()}
                 </div>
+                {bankTotal != null && (
+                  <p style={{ fontSize: "0.9rem", color: "#6b7280", margin: "0 0 0.5rem 0" }}>
+                    Showing {bankQuestions.length} of {bankTotal} questions
+                    {bankPage * DEFAULT_LIMIT < bankTotal && (
+                      <button
+                        type="button"
+                        onClick={() => loadBankQuestions(bankPage + 1)}
+                        disabled={bankLoading}
+                        style={{
+                          marginLeft: "12px",
+                          padding: "4px 12px",
+                          fontSize: "0.875rem",
+                          background: "#eef2ff",
+                          color: "#4f46e5",
+                          border: "1px solid #c7d2fe",
+                          borderRadius: "6px",
+                          cursor: bankLoading ? "not-allowed" : "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Load more
+                      </button>
+                    )}
+                  </p>
+                )}
                 <div
                   style={{
                     display: "flex",

@@ -133,6 +133,7 @@ router.get("/mine", auth, async (req, res) => {
 // GET /api/exam-questions — list (teacher/admin only; filters: subject, examBoard, level, topic, topicKey, type, status)
 // PR-W2.2: Teacher/admin see draft + published by default so Worksheet Builder Question Bank shows seeded drafts.
 // PR-W2.2.2: Response must include topicKey (and topic) on every item — do not use .select() that omits them.
+// Optional: page & limit → return { questions, pagination: { page, limit, total } }; otherwise returns { questions } (backward compatible).
 // Students are not allowed (403); if ever opened to students, enforce status: "published" only.
 router.get("/", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
@@ -140,7 +141,7 @@ router.get("/", auth, async (req, res) => {
   }
   try {
     const teacherId = req.user.userId || req.user._id;
-    const { subject, examBoard, level, topic, topicKey, specKey: specKeyQ, type, status, mineOnly } = req.query;
+    const { subject, examBoard, level, topic, topicKey, specKey: specKeyQ, type, status, mineOnly, page: pageQ, limit: limitQ } = req.query;
     const query = {};
     // Teacher/admin: default = both draft and published (Worksheet Builder shows all bank questions)
     if (status !== undefined && status !== "") {
@@ -163,6 +164,23 @@ router.get("/", auth, async (req, res) => {
       query.topicKey = candidates.length ? { $in: candidates } : String(topicKey).trim().toLowerCase();
     }
     if (type) query.type = type;
+
+    const usePagination = pageQ != null && limitQ != null && String(pageQ).trim() !== "" && String(limitQ).trim() !== "";
+    const page = usePagination ? clampInt(pageQ, { min: 1, max: 1000, fallback: 1 }) : 1;
+    const limit = usePagination ? clampInt(limitQ, { min: 1, max: 100, fallback: 50 }) : 50;
+
+    if (usePagination) {
+      const [questions, total] = await Promise.all([
+        ExamQuestion.find(query).sort({ updatedAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        ExamQuestion.countDocuments(query),
+      ]);
+      return res.json({
+        success: true,
+        questions: questions.map(toResponseQuestion),
+        pagination: { page, limit, total },
+      });
+    }
+
     const questions = await ExamQuestion.find(query).sort({ updatedAt: -1 }).lean();
     return res.json({ success: true, questions: questions.map(toResponseQuestion) });
   } catch (err) {
