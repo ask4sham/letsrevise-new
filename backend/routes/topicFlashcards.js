@@ -240,7 +240,7 @@ router.post("/bulk/preview", auth, async (req, res) => {
   }
 });
 
-// POST /api/topic-flashcards/bulk — accepts { topicKey, items: [...], dedupeMode? }
+// POST /api/topic-flashcards/bulk — accepts { topicKey, items: [...] } OR { topicKey, format, text, ... }
 router.post("/bulk", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
@@ -255,22 +255,59 @@ router.post("/bulk", auth, async (req, res) => {
         error: "Use 'items' not 'cards'. Bulk payload must be { topicKey, items: [{ front, back }, ...] }",
       });
     }
-    if (!items || items.length === 0 || !raw.topicKey) {
-      return res.status(400).json({ error: "topicKey and items array are required" });
-    }
-    if (items.length > MAX_ITEMS) {
-      return res.status(400).json({ error: `Too many items (max ${MAX_ITEMS})` });
-    }
-    let { topicKey, specKey: specKeyBody, topic, dedupeMode } = raw;
-    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
-    if (resolved.error) return res.status(400).json({ error: resolved.error });
-    const storedTopicKey = resolved.storedKey;
-    const topicStr = topic != null ? String(topic).trim() : "";
-    const mode = ["skip", "error", "allow"].includes(String(dedupeMode || "").toLowerCase()) ? String(dedupeMode).toLowerCase() : "skip";
 
-    const rawItems = items.map((c, i) => ({ ...c, _index: i, _raw: JSON.stringify(c) }));
-    const { valid, invalid } = validateBulkItems(rawItems);
-    const { uniqueItems, duplicatesInPayload } = dedupeIncoming(valid);
+    let uniqueItems, duplicatesInPayload, invalid;
+    let topicKey, specKeyBody, topicStr, mode, storedTopicKey;
+
+    // Path 1: format + text (parse server-side, same as preview then insert)
+    if (raw.format && raw.text && typeof raw.text === "string" && !items) {
+      const resolved = resolveStoredTopicKey(raw.specKey, raw.topicKey);
+      if (resolved.error) return res.status(400).json({ error: resolved.error });
+      storedTopicKey = resolved.storedKey;
+      topicKey = raw.topicKey;
+      specKeyBody = raw.specKey;
+      topicStr = raw.topic != null ? String(raw.topic).trim() : "";
+      mode = ["skip", "error", "allow"].includes(String((raw.dedupeMode || "skip")).toLowerCase()) ? String(raw.dedupeMode).toLowerCase() : "skip";
+
+      const { BULK_MAX_TEXT_LENGTH } = require("../config/limits");
+      if (raw.text.length > BULK_MAX_TEXT_LENGTH) {
+        return res.status(413).json({ error: "Text too long", maxLength: BULK_MAX_TEXT_LENGTH });
+      }
+      const fmt = ["json", "newline", "csv"].includes(String(raw.format).toLowerCase()) ? String(raw.format).toLowerCase() : "newline";
+      const opts = (raw.csvOptions && typeof raw.csvOptions === "object") ? raw.csvOptions : {};
+      let parseResult;
+      try {
+        parseResult = parseValidateDedupe(fmt, raw.text.trim(), opts);
+      } catch (e) {
+        return res.status(400).json({ error: e.message || "Parse failed" });
+      }
+      invalid = parseResult.invalid || [];
+      uniqueItems = parseResult.validItems;
+      duplicatesInPayload = parseResult.duplicatesInPayload || [];
+    } else {
+      // Path 2: items array
+      if (!items || items.length === 0 || !raw.topicKey) {
+        return res.status(400).json({ error: "topicKey and items array are required (or topicKey + format + text)" });
+      }
+      if (items.length > MAX_ITEMS) {
+        return res.status(400).json({ error: `Too many items (max ${MAX_ITEMS})` });
+      }
+      const { topicKey: tk, specKey: specKeyBodyFromRaw, topic, dedupeMode } = raw;
+      topicKey = tk;
+      specKeyBody = specKeyBodyFromRaw;
+      const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+      if (resolved.error) return res.status(400).json({ error: resolved.error });
+      storedTopicKey = resolved.storedKey;
+      topicStr = topic != null ? String(topic).trim() : "";
+      mode = ["skip", "error", "allow"].includes(String(dedupeMode || "").toLowerCase()) ? String(dedupeMode).toLowerCase() : "skip";
+
+      const rawItems = items.map((c, i) => ({ ...c, _index: i, _raw: JSON.stringify(c) }));
+      const validateResult = validateBulkItems(rawItems);
+      invalid = validateResult.invalid;
+      const deduped = dedupeIncoming(validateResult.valid);
+      uniqueItems = deduped.uniqueItems;
+      duplicatesInPayload = deduped.duplicatesInPayload;
+    }
 
     const fps = uniqueItems.map((x) => x.fingerprint);
     const spec = (specKeyBody && String(specKeyBody).trim()) || DEFAULT_SPEC_LEGACY;
@@ -297,10 +334,11 @@ router.post("/bulk", auth, async (req, res) => {
     let createdCount = 0;
     for (const x of toInsert) {
       try {
+        const displayTopic = (x.topic != null && String(x.topic).trim()) ? String(x.topic).trim() : topicStr;
         const doc = await TopicFlashcard.create({
           ownerId,
           topicKey: storedTopicKey,
-          topic: topicStr,
+          topic: displayTopic,
           front: x.front,
           back: x.back,
           status: "draft",

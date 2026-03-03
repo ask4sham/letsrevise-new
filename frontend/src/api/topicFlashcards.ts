@@ -76,7 +76,7 @@ export async function previewBulkImportTopicFlashcards(params: {
   format: "json" | "newline" | "csv";
   text: string;
   dedupeMode?: "skip" | "error" | "allow";
-  csvOptions?: { delimiter?: "," | "\t" | ";" };
+  csvOptions?: { delimiter?: "," | "\t" | ";"; skipEmptyLines?: boolean };
 }): Promise<BulkPreviewResponse> {
   const res = await api.post<BulkPreviewResponse>("/topic-flashcards/bulk/preview", {
     topicKey: params.topicKey,
@@ -93,7 +93,7 @@ export async function bulkCreateTopicFlashcards(body: {
   topicKey: string;
   specKey?: string;
   topic?: string;
-  items: Array<{ front: string; back: string; tags?: string[] }>;
+  items: Array<{ front: string; back: string; tags?: string[]; topic?: string }>;
   dedupeMode?: "skip" | "error" | "allow";
 }): Promise<{
   ok: boolean;
@@ -112,6 +112,38 @@ export async function bulkCreateTopicFlashcards(body: {
     topic: body.topic,
     items: body.items,
     dedupeMode: body.dedupeMode ?? "skip",
+  });
+  return res.data!;
+}
+
+/** Bulk import from raw text (format + text). Server parses and inserts. */
+export async function bulkCreateTopicFlashcardsFromText(body: {
+  topicKey: string;
+  specKey?: string;
+  topic?: string;
+  format: "csv" | "newline" | "json";
+  text: string;
+  dedupeMode?: "skip" | "error" | "allow";
+  csvOptions?: { skipEmptyLines?: boolean; delimiter?: string };
+}): Promise<{
+  ok: boolean;
+  createdCount: number;
+  skipped: { duplicatesInPayload: number; duplicatesInDb: number; invalid: number };
+  createdIds: string[];
+}> {
+  const res = await api.post<{
+    ok: boolean;
+    createdCount: number;
+    skipped: { duplicatesInPayload: number; duplicatesInDb: number; invalid: number };
+    createdIds: string[];
+  }>("/topic-flashcards/bulk", {
+    topicKey: body.topicKey,
+    specKey: body.specKey,
+    topic: body.topic,
+    format: body.format,
+    text: body.text,
+    dedupeMode: body.dedupeMode ?? "skip",
+    csvOptions: body.csvOptions ?? { skipEmptyLines: true },
   });
   return res.data!;
 }
@@ -150,7 +182,10 @@ export async function bulkUnpublishTopicFlashcards(ids: string[]): Promise<BulkP
   return res.data!;
 }
 
-export async function generateFlashcardsFromTopic(lessonId: string): Promise<{
+export async function generateFlashcardsFromTopic(
+  lessonId: string,
+  topicKey?: string | null
+): Promise<{
   ok: boolean;
   addedCount: number;
   added: number;
@@ -163,17 +198,20 @@ export async function generateFlashcardsFromTopic(lessonId: string): Promise<{
     added: number;
     flashcardsCount: number;
     message?: string;
-  }>(`/lessons/${lessonId}/generate/flashcards-from-topic`);
+  }>(`/lessons/${lessonId}/generate/flashcards-from-topic`, { topicKey: topicKey ?? undefined });
   return res.data!;
 }
 
 /** @deprecated Use generateFlashcardsFromTopic; alias calls same handler. */
-export async function seedLessonFlashcardsFromTopic(lessonId: string): Promise<{
+export async function seedLessonFlashcardsFromTopic(
+  lessonId: string,
+  topicKey?: string | null
+): Promise<{
   ok: boolean;
   addedCount: number;
   added: number;
   flashcardsCount: number;
   message?: string;
 }> {
-  return generateFlashcardsFromTopic(lessonId);
+  return generateFlashcardsFromTopic(lessonId, topicKey);
 }
