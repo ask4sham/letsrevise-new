@@ -7,4 +7,5 @@ require("./Curriculum");
 require("./AiGenerationJob");
 require("./SpecStatement");
 require("./KnowledgeDocument");
+require("./EnquiryLog");
 

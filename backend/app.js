@@ -128,6 +128,9 @@ app.use("/api/knowledge-documents", require("./routes/knowledgeDocuments"));
 // PR-003: Semantic search (teacher + admin) at /api/knowledge/search
 app.use("/api/knowledge", require("./routes/knowledgeDocuments"));
 
+// PR-004: Enquiry (RAG) — teacher + admin
+app.use("/api/enquiry", require("./routes/enquiry.routes"));
+
 // PR-EDGE-3: Teacher overview dashboard (topic-coverage must be before /api/teacher so GET /api/teacher/topic-coverage hits it)
 app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));
 app.use("/api/teacher/topic-coverage", require("./routes/topicCoverage"));

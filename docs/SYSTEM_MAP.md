@@ -40,6 +40,7 @@ Teacher tool for creating and editing flashcards.
 - TopicQuizQuestion
 - SpecStatement (PR-001: exam specification knowledge layer)
 - KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks)
+- EnquiryLog (PR-004: RAG enquiry observability)
 
 ## SpecStatement API (admin only)
 
@@ -67,3 +68,4 @@ Teacher tool for creating and editing flashcards.
 - backend/scripts/buildKnowledgeIndex.js (--apply, --specKey, --source)
 - backend/scripts/runVectorMigrations.js
 - backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
+- backend/scripts/runEnquirySmokeTest.js

@@ -136,3 +136,35 @@ Usage:
 
 Follow-ups:
 PR-004 — Enquiry API (RAG answer + citations + practice)
+
+---
+
+**PR-004 — Enquiry API (RAG answer + citations + practice)**
+
+Date: 2025-03-04
+
+Summary:
+Added /api/enquiry endpoint that retrieves KnowledgeDocuments, generates structured answers with verified citations, logs enquiries. Teacher + admin only.
+
+Files changed:
+
+- backend/models/EnquiryLog.js
+- backend/models/index.js
+- backend/services/knowledge/knowledgeSearchService.js (extracted from routes)
+- backend/services/llm/provider.js
+- backend/controllers/enquiry.controller.js
+- backend/routes/enquiry.routes.js
+- backend/routes/knowledgeDocuments.js (use service)
+- backend/scripts/runEnquirySmokeTest.js
+- backend/app.js
+- backend/.env.example
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Citation verification drops hallucinated citations.
+- Weak evidence (no results or top score < 0.35) triggers warning.
+- Knowledge search gracefully degrades when VECTOR_DB_URL missing.
+
+Follow-ups:
+PR-005 — Evaluation harness OR "Ask AI" UI (teacher-only)

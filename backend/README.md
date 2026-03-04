@@ -107,6 +107,17 @@ node backend/scripts/embedKnowledgeDocuments.js --apply --specKey AQA_GCSE_BIOLO
 
 **Dimension:** 1536 (config constant in `backend/config/vectorDb.js`).
 
+## Enquiry API (PR-004)
+
+**POST /api/enquiry** — RAG answer with citations (teacher + admin).
+
+```bash
+# Smoke test (mock mode)
+node backend/scripts/runEnquirySmokeTest.js
+```
+
+Body: `{ question, specKey, topicKey?, mode?, limit?, includePractice? }`
+
 ---
 
 ## AI Generation Jobs – Phase Boundary
