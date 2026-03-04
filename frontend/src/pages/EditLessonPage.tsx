@@ -8,7 +8,6 @@ import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api
 import { generateQuizFromTopic } from "../api/topicQuizQuestions";
 import { generatePastPapersFromTopic, viewTopicPastPaperFile as openPastPaperPdfInNewTab } from "../api/topicPastPapers";
 import { generateAssessmentFromTopic } from "../api/topicQuizQuestions";
-import { autoGenerateFromBanks, autoAttachLessonContent } from "../api/lessons";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -406,8 +405,6 @@ const EditLessonPage: React.FC = () => {
   const [seedAssessmentLoading, setSeedAssessmentLoading] = useState(false);
   const [seedAssessmentError, setSeedAssessmentError] = useState<string | null>(null);
   const [seedAssessmentSuccess, setSeedAssessmentSuccess] = useState<string | null>(null);
-  const [generateAllLoading, setGenerateAllLoading] = useState(false);
-  const [autoAttachContentLoading, setAutoAttachContentLoading] = useState(false);
   const [isAssessmentsCollapsed, setIsAssessmentsCollapsed] = useState(false);
   const [examBulkText, setExamBulkText] = useState("");
   const [showQuizList, setShowQuizList] = useState(true);
@@ -4247,174 +4244,6 @@ const EditLessonPage: React.FC = () => {
                 {" "}(MCQ needs ≥2 options & correct answer; short/exam needs model answer; flashcard needs front & back)
               </div>
             )}
-            <div style={{
-              marginBottom: "20px",
-              padding: "14px 16px",
-              background: "#f0f9ff",
-              borderRadius: "10px",
-              border: "1px solid #bae6fd"
-            }}>
-              <div style={{ fontWeight: 700, marginBottom: 10, color: "#0c4a6e" }}>Generate from Topic Bank</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                <button
-                  type="button"
-                  disabled={generateAllLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
-                  onClick={async () => {
-                    if (!id) return;
-                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
-                    setSeedQuizError(null); setSeedQuizSuccess(null);
-                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
-                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
-                    setGenerateAllLoading(true);
-                    try {
-                      const r = await autoGenerateFromBanks(id, topicKeyForBank);
-                      await fetchLessonSmart();
-                      const parts: string[] = [];
-                      if (r.results.flashcardsAdded) parts.push(`${r.results.flashcardsAdded} flashcards`);
-                      if (r.results.quizAdded) parts.push(`${r.results.quizAdded} quiz`);
-                      if (r.results.assessmentAdded) parts.push(`${r.results.assessmentAdded} assessment`);
-                      if (r.results.pastPapersAdded) parts.push(`${r.results.pastPapersAdded} past papers`);
-                      setSeedFlashcardsSuccess(parts.length > 0 ? `Generated ${parts.join(", ")}.` : "No published items for topic.");
-                    } catch (e: any) {
-                      setSeedFlashcardsError(e?.message || "Generate All failed");
-                    } finally { setGenerateAllLoading(false); }
-                  }}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #059669", background: "#ecfdf5", color: "#059669", fontWeight: 700, cursor: generateAllLoading || !id ? "not-allowed" : "pointer" }}
-                >
-                  {generateAllLoading ? "…" : "Generate All"}
-                </button>
-                <button
-                  type="button"
-                  disabled={autoAttachContentLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : "Fills only empty quiz and flashcards (does not overwrite)."}
-                  onClick={async () => {
-                    if (!id) return;
-                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
-                    setSeedQuizError(null); setSeedQuizSuccess(null);
-                    setAutoAttachContentLoading(true);
-                    try {
-                      const r = await autoAttachLessonContent(id);
-                      await fetchLessonSmart();
-                      const a = r.attached?.flashcards?.count ?? 0;
-                      const q = (r.attached?.quiz?.mcqCount ?? 0) + (r.attached?.quiz?.shortCount ?? 0);
-                      const parts: string[] = [];
-                      if (a) parts.push(`${a} flashcards`);
-                      if (q) parts.push(`${q} quiz questions`);
-                      if (r.attached?.assessments?.count) parts.push(`${r.attached.assessments.count} assessment questions`);
-                      setSeedFlashcardsSuccess(parts.length > 0 ? `Attached ${parts.join(", ")}.` : "Nothing to attach (quiz and/or flashcards already have content).");
-                    } catch (e: any) {
-                      setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Auto-attach failed");
-                    } finally { setAutoAttachContentLoading(false); }
-                  }}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #6366f1", background: "#eef2ff", color: "#6366f1", fontWeight: 600, cursor: autoAttachContentLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer" }}
-                >
-                  {autoAttachContentLoading ? "…" : "Auto-attach content"}
-                </button>
-                <button
-                  type="button"
-                  disabled={seedFlashcardsLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
-                  onClick={async () => {
-                    if (!id) return;
-                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
-                    setSeedQuizError(null); setSeedQuizSuccess(null);
-                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
-                    setSeedFlashcardsLoading(true);
-                    try {
-                      const r = await generateFlashcardsFromTopic(id, topicKeyForBank ?? undefined);
-                      await fetchLessonSmart();
-                      const c = r.addedCount ?? r.added ?? r.flashcardsCount ?? 0;
-                      setSeedFlashcardsSuccess(c > 0 ? `Added ${c} flashcards` : "No published flashcards for topic");
-                    } catch (e: any) {
-                      setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Failed");
-                    } finally { setSeedFlashcardsLoading(false); }
-                  }}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedFlashcardsLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer" }}
-                >
-                  {seedFlashcardsLoading ? "…" : "Flashcards"} ({flashcards.length})
-                </button>
-                <button
-                  type="button"
-                  disabled={seedQuizLoading || !id || !topicKeyForBank}
-                  title={!topicKeyForBank ? "This lesson isn't mapped to a syllabus subtopic yet." : undefined}
-                  onClick={async () => {
-                    if (!id) return;
-                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
-                    setSeedQuizError(null); setSeedQuizSuccess(null);
-                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
-                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
-                    setSeedQuizLoading(true);
-                    try {
-                      const r = await generateQuizFromTopic(id, topicKeyForBank);
-                      await fetchLessonSmart();
-                      const c = r.addedCount ?? r.questionsCount ?? 0;
-                      setSeedQuizSuccess(c > 0 ? `Added ${c} quiz questions` : "No published quiz questions for topic");
-                    } catch (e: any) {
-                      setSeedQuizError(e?.response?.data?.msg || e?.message || "Failed");
-                    } finally { setSeedQuizLoading(false); }
-                  }}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedQuizLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer" }}
-                >
-                  {seedQuizLoading ? "…" : "Quiz"} ({quizQuestions.length})
-                </button>
-                <button
-                  type="button"
-                  disabled={seedAssessmentLoading || !id || !(lesson?.topicKey || lesson?.topic)}
-                  onClick={async () => {
-                    if (!id) return;
-                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
-                    setSeedQuizError(null); setSeedQuizSuccess(null);
-                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
-                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
-                    setSeedAssessmentLoading(true);
-                    try {
-                      const r = await generateAssessmentFromTopic(id, topicKeyForBank);
-                      await fetchLessonSmart();
-                      const c = r.addedCount ?? r.questionsCount ?? 0;
-                      setSeedAssessmentSuccess(c > 0 ? `Added ${c} assessment questions` : "No published assessment questions for topic");
-                    } catch (e: any) {
-                      setSeedAssessmentError(e?.response?.data?.msg || e?.message || "Failed");
-                    } finally { setSeedAssessmentLoading(false); }
-                  }}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedAssessmentLoading || !id ? "not-allowed" : "pointer" }}
-                >
-                  {seedAssessmentLoading ? "…" : "Assessment"} ({assessmentQuestions.length})
-                </button>
-                <button
-                  type="button"
-                  disabled={seedPastPapersLoading || !id || !(lesson?.topicKey || lesson?.topic)}
-                  onClick={async () => {
-                    if (!id) return;
-                    setSeedFlashcardsError(null); setSeedFlashcardsSuccess(null);
-                    setSeedQuizError(null); setSeedQuizSuccess(null);
-                    setSeedAssessmentError(null); setSeedAssessmentSuccess(null);
-                    setSeedPastPapersError(null); setSeedPastPapersSuccess(null);
-                    setSeedPastPapersLoading(true);
-                    try {
-                      const r = await generatePastPapersFromTopic(id, topicKeyForBank);
-                      await fetchLessonSmart();
-                      const c = r.addedCount ?? r.pastPapersCount ?? 0;
-                      setSeedPastPapersSuccess(c > 0 ? `Added ${c} past papers` : "No published past papers for topic");
-                    } catch (e: any) {
-                      setSeedPastPapersError(e?.response?.data?.msg || e?.message || "Failed");
-                    } finally { setSeedPastPapersLoading(false); }
-                  }}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: seedPastPapersLoading || !id ? "not-allowed" : "pointer" }}
-                >
-                  {seedPastPapersLoading ? "…" : "Past Papers"} ({(lesson?.pastPapers || []).length})
-                </button>
-                <Link to="/teacher/topic-banks/flashcards" style={{ fontSize: 13, color: "#2563eb" }}>Flashcards</Link>
-                <Link to="/teacher/topic-banks/quizzes" style={{ fontSize: 13, color: "#2563eb" }}>Quizzes</Link>
-                <Link to="/teacher/topic-banks/past-papers" style={{ fontSize: 13, color: "#2563eb" }}>Past Papers</Link>
-                {(seedFlashcardsSuccess || seedFlashcardsError || seedQuizSuccess || seedQuizError || seedAssessmentSuccess || seedAssessmentError || seedPastPapersSuccess || seedPastPapersError) && (
-                  <span style={{ fontSize: 13, color: (seedFlashcardsError || seedQuizError || seedAssessmentError || seedPastPapersError) ? "#dc2626" : "#059669" }}>
-                    {seedFlashcardsError || seedFlashcardsSuccess || seedQuizError || seedQuizSuccess || seedAssessmentError || seedAssessmentSuccess || seedPastPapersError || seedPastPapersSuccess}
-                  </span>
-                )}
-              </div>
-            </div>
-            
             <div style={{ 
               display: "flex", 
               gap: "10px", 
@@ -4462,7 +4291,7 @@ const EditLessonPage: React.FC = () => {
                   fontWeight: revisionTab === "assessments" ? "bold" : "normal"
                 }}
               >
-                Assessments ({assessmentQuestions.length})
+                Quick Check ({assessmentQuestions.length})
               </button>
               <button
                 onClick={() => { setRevisionTab("pastPapers"); setIsPastPapersCollapsed(false); }}
@@ -5456,7 +5285,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                 }}
               >
                 <h3 style={{ margin: 0, color: "#1e293b" }}>
-                  Assessments
+                  Quick Check (optional)
                 </h3>
                 <span style={{ fontSize: "20px" }}>
                   {isAssessmentsCollapsed ? "▶" : "▼"}
