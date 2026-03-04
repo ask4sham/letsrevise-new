@@ -3,7 +3,7 @@
 ## Frontend
 
 **LessonViewPage.tsx**
-Student lesson interface showing lesson content and practice.
+Student lesson interface showing lesson content and practice. Teacher/admin: "Ask AI about this topic" panel (PR-005).
 
 **EditLessonPage.tsx**
 Teacher lesson editor including pages, blocks, flashcards, quizzes, and assessments.
@@ -16,6 +16,9 @@ Displays attached practice papers.
 
 **FlashcardsEditor**
 Teacher tool for creating and editing flashcards.
+
+**AskAiPanel** (PR-005)
+Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + citations + practice rendering.
 
 ## Backend
 

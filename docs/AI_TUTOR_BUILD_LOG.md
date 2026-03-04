@@ -168,3 +168,29 @@ Notes:
 
 Follow-ups:
 PR-005 — Evaluation harness OR "Ask AI" UI (teacher-only)
+
+---
+
+**PR-005 — Teacher-only Ask AI panel (LessonViewPage)**
+
+Date: 2025-03-04
+
+Summary:
+Added teacher-only UI to query /api/enquiry and render answers with citations + practice. Panel appears above "Check your understanding" in lesson view.
+
+Files changed:
+
+- frontend/src/api/enquiry.ts
+- frontend/src/components/ai/AskAiPanel.tsx
+- frontend/src/pages/LessonViewPage.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Teachers and admins only; students do not see the panel.
+- Citations show "Open source" link for lessonBlock (opens lesson in new tab).
+- SpecStatement citations show "Spec" badge without link (no admin page yet).
+
+Follow-ups:
+- PR-006: Citation deep linking (scroll to block) + caching/rate limits
+- PR-007: Student rollout (feature flag) once quality proven

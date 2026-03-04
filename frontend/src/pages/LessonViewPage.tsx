@@ -20,6 +20,7 @@ import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
+import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import type { SpecKey } from "../api/taxonomy";
@@ -3258,6 +3259,15 @@ const LessonViewPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* PR-005: Ask AI about this topic — teacher/admin only */}
+                {isTeacherOrAdmin && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+                  <AskAiPanel
+                    specKey={specKey}
+                    topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+                    lessonId={id || undefined}
+                  />
+                )}
+
                 {/* Check your understanding — page-aware in structured view */}
                 <Section title="Check your understanding" variant="card">
                   {!hasFullLessonAccess ? (
@@ -3885,6 +3895,15 @@ const LessonViewPage: React.FC = () => {
           <div style={{ marginTop: 16 }}>
             <SubscribeCTA lessonId={id || undefined} />
           </div>
+        )}
+
+        {/* PR-005: Ask AI about this topic — teacher/admin only */}
+        {isTeacherOrAdmin && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+          <AskAiPanel
+            specKey={specKey}
+            topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+            lessonId={id || undefined}
+          />
         )}
 
         {/* Check your understanding — gate on hasFullLessonAccess */}
