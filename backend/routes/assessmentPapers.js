@@ -104,9 +104,13 @@ function sanitizeItemsForStudent(items) {
 
 /* =========================================
    GET /api/assessment-papers
-   List papers with filters and pagination - RETURN SAFE METADATA ONLY
+   List papers with filters, search, pagination. Supports fields=summary for lightweight modal payload.
    Students/parents must have an active subscription (API-level protection).
    ========================================= */
+
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 router.get("/", auth, requireActiveSubscription, async (req, res) => {
   try {
@@ -117,79 +121,143 @@ router.get("/", auth, requireActiveSubscription, async (req, res) => {
       kind,
       topicKey,
       published,
-      q, // search query
-      page = 1,
-      limit = 20,
+      q,
+      fields,
+      page,
+      limit,
+      mineOnly,
     } = req.query;
 
-    const user = req.user; // from auth middleware if present (optional for GET)
-    const userType = user?.userType;
+    const user = req.user;
 
-    // Build query
+    const hasPagination = page != null || limit != null;
+    const pageNum = Math.max(1, parseInt(page ?? "1", 10));
+    const limitNum = Math.min(Math.max(parseInt(limit ?? "50", 10), 1), 200);
+    const skip = (pageNum - 1) * limitNum;
+
     const query = {};
 
-    // Visibility: students (or unauthenticated) see only published; teachers/admin see all
     if (!user || isStudent(user)) {
       query.isPublished = true;
     } else if (published !== undefined) {
       query.isPublished = published === "true" || published === true;
     }
 
-    // Filters
-    if (subject) {
-      query.subject = String(subject).trim();
-    }
-    if (examBoard) {
-      query.examBoard = String(examBoard).trim();
-    }
-    if (level) {
-      query.level = String(level).trim();
-    }
-    if (kind) {
-      query.kind = String(kind).trim();
-    }
-    if (topicKey && String(topicKey).trim()) {
-      query.topicKey = String(topicKey).trim();
+    if (subject) query.subject = String(subject).trim();
+    if (examBoard) query.examBoard = String(examBoard).trim();
+    if (level) query.level = String(level).trim();
+    if (kind) query.kind = String(kind).trim();
+    if (topicKey && String(topicKey).trim()) query.topicKey = String(topicKey).trim();
+
+    if (String(mineOnly).toLowerCase() === "true" && user) {
+      const creatorId = user._id || user.userId || user.id;
+      if (creatorId) query.createdBy = creatorId;
     }
 
-    // Search in title
-    if (q) {
-      query.title = { $regex: String(q).trim(), $options: "i" };
+    if (q && String(q).trim()) {
+      const term = escapeRegex(String(q).trim());
+      query.title = { $regex: term, $options: "i" };
     }
 
-    // Pagination
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10)));
-    const skip = (pageNum - 1) * limitNum;
+    const sort = { updatedAt: -1 };
+    const selectSummary =
+      "_id title subject examBoard level tier kind topicKey timeSeconds updatedAt questionBankIds items";
+    const selectFull =
+      "_id title subject examBoard level tier kind topicKey timeSeconds totalMarks isPublished createdAt updatedAt items questionBankIds";
 
-    // Execute query - select only safe fields
-    const total = await AssessmentPaper.countDocuments(query);
-    const papers = await AssessmentPaper.find(query)
-      .select("_id title subject examBoard level tier kind timeSeconds totalMarks isPublished createdAt items questionBankIds")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean();
+    const runQuery = () =>
+      AssessmentPaper.find(query)
+        .select(fields === "summary" ? selectSummary : selectFull)
+        .sort(sort)
+        .lean();
 
-    // Return safe metadata only (NO items array content, correctIndex, explanation)
-    const safePapers = papers.map((paper) => ({
-      _id: paper._id,
-      title: paper.title,
-      subject: paper.subject,
-      examBoard: paper.examBoard,
-      level: paper.level,
-      tier: paper.tier,
-      kind: paper.kind,
-      timeSeconds: paper.timeSeconds,
-      totalMarks: paper.totalMarks,
-      isPublished: paper.isPublished,
-      createdAt: paper.createdAt,
-      questionCount: (paper.items?.length || 0) + (paper.questionBankIds?.length || 0),
-    }));
+    if (!hasPagination) {
+      const papers = await runQuery().exec();
+      const safePapers = papers.map((paper) => {
+        const questionCount = (paper.items?.length || 0) + (paper.questionBankIds?.length || 0);
+        if (fields === "summary") {
+          return {
+            _id: paper._id,
+            title: paper.title,
+            kind: paper.kind,
+            subject: paper.subject,
+            examBoard: paper.examBoard,
+            level: paper.level,
+            tier: paper.tier,
+            topicKey: paper.topicKey,
+            timeSeconds: paper.timeSeconds,
+            questionCount,
+            updatedAt: paper.updatedAt,
+          };
+        }
+        return {
+          _id: paper._id,
+          title: paper.title,
+          subject: paper.subject,
+          examBoard: paper.examBoard,
+          level: paper.level,
+          tier: paper.tier,
+          kind: paper.kind,
+          topicKey: paper.topicKey,
+          timeSeconds: paper.timeSeconds,
+          totalMarks: paper.totalMarks,
+          isPublished: paper.isPublished,
+          createdAt: paper.createdAt,
+          updatedAt: paper.updatedAt,
+          questionCount,
+        };
+      });
+      return res.json({
+        success: true,
+        papers: safePapers,
+        items: safePapers,
+      });
+    }
+
+    const [total, papers] = await Promise.all([
+      AssessmentPaper.countDocuments(query),
+      runQuery().skip(skip).limit(limitNum).exec(),
+    ]);
+
+    const safePapers = papers.map((paper) => {
+      const questionCount = (paper.items?.length || 0) + (paper.questionBankIds?.length || 0);
+      if (fields === "summary") {
+        return {
+          _id: paper._id,
+          title: paper.title,
+          kind: paper.kind,
+          subject: paper.subject,
+          examBoard: paper.examBoard,
+          level: paper.level,
+          tier: paper.tier,
+          topicKey: paper.topicKey,
+          timeSeconds: paper.timeSeconds,
+          questionCount,
+          updatedAt: paper.updatedAt,
+        };
+      }
+      return {
+        _id: paper._id,
+        title: paper.title,
+        subject: paper.subject,
+        examBoard: paper.examBoard,
+        level: paper.level,
+        tier: paper.tier,
+        kind: paper.kind,
+        topicKey: paper.topicKey,
+        timeSeconds: paper.timeSeconds,
+        totalMarks: paper.totalMarks,
+        isPublished: paper.isPublished,
+        createdAt: paper.createdAt,
+        updatedAt: paper.updatedAt,
+        questionCount,
+      };
+    });
 
     return res.json({
       success: true,
       papers: safePapers,
+      items: safePapers,
       pagination: {
         page: pageNum,
         limit: limitNum,

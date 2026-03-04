@@ -872,80 +872,6 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
 }
 
 const PRACTICE_DISPLAY_LIMIT = 10;
-const TARGETED_PRACTICE_LIMIT = 6;
-
-function TargetedPracticeSection({
-  loading,
-  error,
-  questions,
-  allowed,
-  lessonId,
-}: {
-  loading: boolean;
-  error: string | null;
-  questions: PracticeQuestionLite[];
-  allowed: boolean | undefined;
-  lessonId: string | undefined;
-}) {
-  const displayQuestions = questions.slice(0, TARGETED_PRACTICE_LIMIT);
-
-  return (
-    <Section title="Targeted practice for you" variant="plain">
-      {loading && (
-        <p style={{ color: "#6b7280", margin: 0 }}>Loading targeted practice…</p>
-      )}
-      {!loading && !error && allowed !== true && (
-        <>
-          <p style={{ color: "#4b5563", margin: 0, marginBottom: 12 }}>
-            Targeted practice is available with subscription or lesson unlock.
-          </p>
-          <SubscribeCTA lessonId={lessonId} />
-        </>
-      )}
-      {!loading && !error && allowed === true && (
-        <>
-          {displayQuestions.length === 0 ? (
-            <p style={{ color: "#6b7280", margin: 0 }}>
-              No targeted questions yet — try the practice questions below.
-            </p>
-          ) : (
-            <>
-              <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: "0.95rem" }}>
-                Based on your recent attempts.
-              </p>
-              {displayQuestions.map((q, idx) => (
-                <div
-                  key={q.id}
-                  style={{
-                    padding: 16,
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    background: "#fafafa",
-                    marginBottom: 16,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontWeight: 700, color: "#374151" }}>Q{idx + 1}</span>
-                    {q.marks != null && (
-                      <span style={{ fontSize: 13, color: "#6b7280" }}>({q.marks} {q.marks === 1 ? "mark" : "marks"})</span>
-                    )}
-                  </div>
-                  <div style={{ color: "#1f2937", marginBottom: 12 }}>{q.question}</div>
-                  {(q.type === "mcq" || (Array.isArray(q.options) && q.options.length > 0)) ? (
-                    <PracticeMCQQuestion q={q} lessonId={lessonId} />
-                  ) : (
-                    <PracticeShortQuestion q={q} lessonId={lessonId} />
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </>
-      )}
-      {error && <p style={{ color: "#dc2626", margin: 0 }}>{error}</p>}
-    </Section>
-  );
-}
 
 function PracticeSection({
   practiceLoading,
@@ -963,7 +889,7 @@ function PracticeSection({
   practiceQuestions: PracticeQuestionLite[];
   practiceAllowed: boolean | undefined;
   lessonId: string | undefined;
-  practiceSource?: "attached" | "bank" | null;
+  practiceSource?: "attached" | "bank" | "embeddedAssessment" | null;
   topicKey?: string;
   onTryAnotherSet?: () => void;
   onLoadBankOnly?: () => void;
@@ -973,9 +899,17 @@ function PracticeSection({
   const canTryAnother = practiceSource === "bank" && practiceQuestions.length > 0 && typeof onTryAnotherSet === "function";
   const isEmptyAttached = practiceSource === "attached" && practiceQuestions.length === 0;
   const isEmptyBank = practiceSource === "bank" && practiceQuestions.length === 0;
+  const isEmptyEmbedded = practiceSource === "embeddedAssessment" && practiceQuestions.length === 0;
   const browseUrl = topicKey ? `/browse-lessons?topicKey=${encodeURIComponent(topicKey)}` : "/browse-lessons";
 
-  const rightLabel = practiceSource === "attached" ? "From lesson" : practiceSource === "bank" ? "From question bank" : null;
+  const rightLabel =
+    practiceSource === "attached"
+      ? "From lesson"
+      : practiceSource === "bank"
+        ? "From question bank"
+        : practiceSource === "embeddedAssessment"
+          ? "Quick check"
+          : null;
 
   return (
     <Section
@@ -1024,6 +958,13 @@ function PracticeSection({
                   Try question bank set
                 </button>
               )}
+            </div>
+          ) : isEmptyEmbedded ? (
+            <div style={{ padding: 16, textAlign: "center" }}>
+              <p style={{ fontWeight: 600, color: "#374151", margin: "0 0 8px 0" }}>No quick check questions</p>
+              <p style={{ color: "#6b7280", margin: "0 0 16px 0", fontSize: 14 }}>
+                This lesson doesn&apos;t have a quick check set.
+              </p>
             </div>
           ) : isEmptyBank ? (
             <div style={{ padding: 16, textAlign: "center" }}>
@@ -1202,11 +1143,7 @@ const LessonViewPage: React.FC = () => {
   const [practiceSource, setPracticeSource] = useState<"attached" | "bank" | null>(null);
   const [practiceSeedCounter, setPracticeSeedCounter] = useState(0);
 
-  // PR13.2: Targeted practice (misconception-driven) — entitled only
-  const [targetedPracticeLoading, setTargetedPracticeLoading] = useState(false);
-  const [targetedPracticeError, setTargetedPracticeError] = useState<string | null>(null);
-  const [targetedPracticeQuestions, setTargetedPracticeQuestions] = useState<PracticeQuestionLite[]>([]);
-  const [targetedPracticeAllowed, setTargetedPracticeAllowed] = useState<boolean | undefined>(undefined);
+  // PR-DECLUTTER: Single practice source (examQuestions preferred; embedded assessment fallback). Targeted practice section removed.
 
   // PR15: Student next steps (entitled only, from reteach plan)
   const [nextStepsLoading, setNextStepsLoading] = useState(false);
@@ -1447,32 +1384,29 @@ const LessonViewPage: React.FC = () => {
     }
   }, [id, accessDecision?.allowed, practiceSeed, topicKeyForBank]);
 
-  // PR13.2: Fetch targeted practice (misconception-driven) when entitled
-  useEffect(() => {
-    if (!id || !accessDecision || accessDecision.allowed !== true) {
-      setTargetedPracticeAllowed(false);
-      setTargetedPracticeQuestions([]);
-      setTargetedPracticeError(null);
-      return;
+  // PR-DECLUTTER: Single practice section — prefer practice API (examQuestions/bank), else embedded assessment. Never show both.
+  const effectivePractice = useMemo(() => {
+    if (Array.isArray(practiceQuestions) && practiceQuestions.length > 0) {
+      return { questions: practiceQuestions, source: practiceSource ?? "attached" };
     }
-    setTargetedPracticeLoading(true);
-    setTargetedPracticeError(null);
-    api
-      .get<{ ok: boolean; allowed: boolean; questions: PracticeQuestionLite[] }>(`/lessons/${id}/targeted-practice`, {
-        params: { days: 14, limit: 6 },
-      })
-      .then((res) => {
-        const data = res?.data;
-        setTargetedPracticeAllowed(!!data?.allowed);
-        setTargetedPracticeQuestions(Array.isArray(data?.questions) ? data.questions : []);
-      })
-      .catch(() => {
-        setTargetedPracticeAllowed(false);
-        setTargetedPracticeQuestions([]);
-        setTargetedPracticeError("Failed to load targeted practice.");
-      })
-      .finally(() => setTargetedPracticeLoading(false));
-  }, [id, accessDecision?.allowed]);
+    const embedded = (lesson as { assessment?: { questions?: any[] } })?.assessment?.questions;
+    if (Array.isArray(embedded) && embedded.length > 0) {
+      const mapped: PracticeQuestionLite[] = embedded.map((q: any, idx: number) => ({
+        id: q.id || `emb-${idx}`,
+        question: q.question != null ? String(q.question) : "",
+        type: q.type || "short",
+        marks: typeof q.marks === "number" ? q.marks : 1,
+        options: Array.isArray(q.options) ? q.options : undefined,
+        correctAnswer: q.correctAnswer != null ? String(q.correctAnswer) : undefined,
+        explanation: q.explanation != null ? String(q.explanation) : undefined,
+        markScheme: Array.isArray(q.markScheme) ? q.markScheme : undefined,
+        topicKey: q.topicKey,
+        topic: q.topic,
+      }));
+      return { questions: mapped, source: "embeddedAssessment" as const };
+    }
+    return { questions: [] as PracticeQuestionLite[], source: null as "attached" | "bank" | "embeddedAssessment" | null };
+  }, [practiceQuestions, practiceSource, lesson]);
 
   // PR15: Fetch next steps when entitled (student-safe summary only)
   useEffect(() => {
@@ -3359,20 +3293,11 @@ const LessonViewPage: React.FC = () => {
                   )}
                 </Section>
 
-                {/* PR13.2: Targeted practice (entitled only) — above practice */}
-                <TargetedPracticeSection
-                  loading={targetedPracticeLoading}
-                  error={targetedPracticeError}
-                  questions={targetedPracticeQuestions}
-                  allowed={targetedPracticeAllowed}
-                  lessonId={id || undefined}
-                />
-
-                {/* Lesson↔AssessmentPaper: attached assessment papers (student can start attempt) */}
+                {/* Lane B: Practice papers (full papers attached to lesson) */}
                 {attachedPapersSummaries.length > 0 && (
-                  <Section title="Assessment" variant="plain">
+                  <Section title="Practice papers" variant="plain">
                     <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151" }}>
-                      Try these assessment papers linked to this lesson.
+                      Full papers linked to this lesson. Start when you&apos;re ready.
                     </p>
                     <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                       {attachedPapersSummaries.map((p) => (
@@ -3402,14 +3327,14 @@ const LessonViewPage: React.FC = () => {
                   </Section>
                 )}
 
-                {/* PR3b: Practice questions (entitled only) */}
+                {/* PR3b: Practice questions (single source — examQuestions or embedded assessment) */}
                 <PracticeSection
                   practiceLoading={practiceLoading}
                   practiceError={practiceError}
-                  practiceQuestions={practiceQuestions}
+                  practiceQuestions={effectivePractice.questions}
                   practiceAllowed={practiceAllowed}
                   lessonId={id || undefined}
-                  practiceSource={practiceSource}
+                  practiceSource={effectivePractice.source}
                   topicKey={topicKeyForBank || undefined}
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                   onLoadBankOnly={loadBankOnly}
@@ -3980,20 +3905,11 @@ const LessonViewPage: React.FC = () => {
           )}
         </Section>
 
-        {/* PR13.2: Targeted practice (entitled only) */}
-        <TargetedPracticeSection
-          loading={targetedPracticeLoading}
-          error={targetedPracticeError}
-          questions={targetedPracticeQuestions}
-          allowed={targetedPracticeAllowed}
-          lessonId={id || undefined}
-        />
-
-        {/* Lesson↔AssessmentPaper: attached assessment papers */}
+        {/* Lane B: Practice papers (full papers attached to lesson) */}
         {attachedPapersSummaries.length > 0 && (
-          <Section title="Assessment" variant="plain">
+          <Section title="Practice papers" variant="plain">
             <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151" }}>
-              Try these assessment papers linked to this lesson.
+              Full papers linked to this lesson. Start when you&apos;re ready.
             </p>
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               {attachedPapersSummaries.map((p) => (

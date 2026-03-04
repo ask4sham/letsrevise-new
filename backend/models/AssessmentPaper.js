@@ -120,6 +120,7 @@ const AssessmentPaperSchema = new mongoose.Schema(
 // Indexes
 AssessmentPaperSchema.index({ subject: 1, examBoard: 1, level: 1, kind: 1, isPublished: 1 });
 AssessmentPaperSchema.index({ createdBy: 1, createdAt: -1 });
+AssessmentPaperSchema.index({ kind: 1, subject: 1, examBoard: 1, level: 1, topicKey: 1, updatedAt: -1 });
 
 // When items is empty, allow it (paper can have 0 questions or only questionBankIds).
 // When items has entries, each must have a valid itemId.

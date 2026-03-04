@@ -2432,7 +2432,7 @@ const EditLessonPage: React.FC = () => {
               alignItems: "start",
             }}
           >
-            {/* LEFT RAIL: Teacher guide + Pages + Readiness + Past paper questions */}
+            {/* LEFT RAIL: Teacher guide + Pages + Readiness + Practice questions (in lesson) */}
             <div
               data-col="left"
               style={{
@@ -2623,10 +2623,10 @@ const EditLessonPage: React.FC = () => {
                 );
               })()}
 
-              {/* Card 4: Past paper questions — moved from center */}
+              {/* Card 4: Practice questions (in this lesson) — Lane A */}
               <div style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
-                <div style={{ fontWeight: 900, marginBottom: 8 }}>Past paper questions</div>
-                <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>Attach questions from your Question Bank. Students use them for practice.</p>
+                <div style={{ fontWeight: 900, marginBottom: 8 }}>Practice questions (in this lesson)</div>
+                <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>These appear as the practice questions for students. Attach from your Question Bank.</p>
                 <button
                   type="button"
                   onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
@@ -5488,6 +5488,8 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                           } catch {}
                         }}
                       />
+                      <div style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: "#374151" }}>Quick check (optional)</div>
+                      <p style={{ margin: "0 0 8px", fontSize: 13, color: "#6b7280" }}>Quick check is separate from practice questions. Students only see it when there are no practice questions.</p>
                       <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <button
                           type="button"
@@ -5539,8 +5541,8 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                       </div>
                       <p style={{ color: "#6b7280", margin: 0 }}>
                         {assessmentQuestions.length === 0
-                          ? "No assessment questions yet. Generate from the topic bank to add assessment MCQs."
-                          : `${assessmentQuestions.length} assessment question(s) from topic bank.`}
+                          ? "No quick check questions. Generate to add a short optional set (max 5 recommended)."
+                          : `${assessmentQuestions.length} quick check question(s).`}
                       </p>
                     </>
                   )}
