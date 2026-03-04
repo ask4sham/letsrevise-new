@@ -21,6 +21,8 @@ export type TopicQuizQuestion = {
   difficulty?: number;
   skill?: string;
   status: "draft" | "published";
+  publishedBy?: string;
+  publishedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 };
