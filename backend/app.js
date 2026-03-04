@@ -125,6 +125,8 @@ app.use("/api/spec-statements", require("./routes/specStatements.routes"));
 
 // PR-002: KnowledgeDocument debug API (admin only)
 app.use("/api/knowledge-documents", require("./routes/knowledgeDocuments"));
+// PR-003: Semantic search (teacher + admin) at /api/knowledge/search
+app.use("/api/knowledge", require("./routes/knowledgeDocuments"));
 
 // PR-EDGE-3: Teacher overview dashboard (topic-coverage must be before /api/teacher so GET /api/teacher/topic-coverage hits it)
 app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));

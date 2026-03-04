@@ -71,6 +71,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.12",
+    "pg": "^8.19.0",
     "rate-limiter-flexible": "^3.0.0",
     "resend": "^6.6.0",
     "swagger-ui-express": "^5.0.0",

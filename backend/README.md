@@ -78,6 +78,37 @@ Teachers need exam questions in the Question Bank to build worksheets. You can a
 - There is no job execution, background worker infrastructure, or provider calls.
 - Future phases will add behavior incrementally on top of this foundation.
 
+## AI Tutor — Vector Store & Embeddings (PR-003)
+
+**Environment variables** (see `.env.example`):
+
+| Variable | Description |
+|----------|-------------|
+| `VECTOR_DB_URL` | Postgres connection string for pgvector |
+| `EMBEDDINGS_PROVIDER` | `mock` (dev) or `openai` |
+| `EMBEDDINGS_API_KEY` | Required when provider=openai |
+| `EMBEDDINGS_MODEL` | Optional; default `text-embedding-3-small` |
+
+**Commands:**
+
+```bash
+# Run pgvector migrations
+node backend/scripts/runVectorMigrations.js
+
+# Embed KnowledgeDocuments (dry run)
+node backend/scripts/embedKnowledgeDocuments.js --specKey AQA_GCSE_BIOLOGY
+
+# Embed KnowledgeDocuments (apply)
+node backend/scripts/embedKnowledgeDocuments.js --apply --specKey AQA_GCSE_BIOLOGY
+
+# Semantic search API (teacher + admin)
+# GET /api/knowledge/search?q=...&specKey=...
+```
+
+**Dimension:** 1536 (config constant in `backend/config/vectorDb.js`).
+
+---
+
 ## AI Generation Jobs – Phase Boundary
 
 - All structural groundwork for AI generation jobs is complete and safe to load in all environments.

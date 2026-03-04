@@ -96,3 +96,43 @@ Indexing without embeddings first. Corpus and citations can be verified before P
 
 Follow-ups:
 PR-003 — Embeddings + vector search
+
+---
+
+**PR-003 — Embeddings + Vector Search (pgvector)**
+
+Date: 2025-03-04
+
+Summary:
+Added pgvector (Postgres) as vector store for KnowledgeDocument embeddings.
+Embeddings provider abstraction (mock/openai), embedding build script, and semantic search endpoint.
+
+Files changed:
+
+- backend/config/vectorDb.js
+- backend/migrations/vector/001_pgvector.sql
+- backend/scripts/runVectorMigrations.js
+- backend/services/vector/pgvectorClient.js
+- backend/services/embeddings/provider.js
+- backend/scripts/embedKnowledgeDocuments.js
+- backend/routes/knowledgeDocuments.js (added /search)
+- backend/app.js
+- backend/package.json (pg)
+- backend/.env.example
+- backend/README.md
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Dimension: 1536. HNSW index for cosine similarity.
+- Mock provider for dev; OpenAI for production.
+- Search: teacher + admin only.
+
+Usage:
+- node backend/scripts/runVectorMigrations.js
+- node backend/scripts/embedKnowledgeDocuments.js --specKey AQA_GCSE_BIOLOGY (dry run)
+- node backend/scripts/embedKnowledgeDocuments.js --apply --specKey AQA_GCSE_BIOLOGY
+- GET /api/knowledge/search?q=...&specKey=...
+
+Follow-ups:
+PR-004 — Enquiry API (RAG answer + citations + practice)

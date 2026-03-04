@@ -48,9 +48,22 @@ Teacher tool for creating and editing flashcards.
 - PUT /api/spec-statements/:id
 - DELETE /api/spec-statements/:id
 
+## KnowledgeDocument API
+
+- GET /api/knowledge-documents — admin only (debug)
+- GET /api/knowledge/search — teacher + admin (semantic search, q + specKey required)
+
+## Vector Store (Postgres/pgvector)
+
+- knowledge_embeddings table (knowledge_document_id, content_hash, embedding vector(1536))
+- backend/services/vector/pgvectorClient.js
+- backend/services/embeddings/provider.js (mock | openai)
+
 ## Scripts
 
 - backend/scripts/dedupLessonPracticeSources.js
 - backend/scripts/runDedupLessonPracticeSources.js
 - backend/scripts/seedSpecStatements.js (--specKey, --file)
 - backend/scripts/buildKnowledgeIndex.js (--apply, --specKey, --source)
+- backend/scripts/runVectorMigrations.js
+- backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
