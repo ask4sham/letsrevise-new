@@ -14,6 +14,8 @@ import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTo
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
+import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
+import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -425,10 +427,8 @@ const EditLessonPage: React.FC = () => {
   const [autoAttachMessage, setAutoAttachMessage] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   /** Attached assessment papers (summaries for display) */
-  const [attachedPapersSummaries, setAttachedPapersSummaries] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number }>>([]);
+  const [attachedPapersSummaries, setAttachedPapersSummaries] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number; subject?: string; level?: string; examBoard?: string }>>([]);
   const [attachPaperModalOpen, setAttachPaperModalOpen] = useState(false);
-  const [attachPaperList, setAttachPaperList] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number }>>([]);
-  const [attachPaperListLoading, setAttachPaperListLoading] = useState(false);
   /** PR20: Publish gate modal + Make classroom-ready + Post-publish CTA */
   const [publishGateOpen, setPublishGateOpen] = useState(false);
   const [publishGateIssues, setPublishGateIssues] = useState<string[]>([]);
@@ -571,6 +571,9 @@ const EditLessonPage: React.FC = () => {
               kind: p.kind || "practice_set",
               questionCount: (p.items?.length ?? 0) + (p.questionBankIds?.length ?? 0),
               timeSeconds: p.timeSeconds,
+              subject: p.subject,
+              level: p.level,
+              examBoard: p.examBoard ?? p.board,
             }))
         );
       })
@@ -5464,67 +5467,27 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
                 <div style={{ padding: "20px" }}>
                   {revisionTab === "assessments" && (
                     <>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-                          <strong style={{ color: "#1e293b" }}>Attached assessment papers</strong>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAttachPaperModalOpen(true);
-                              setAttachPaperList([]);
-                              if (!id || !lesson) return;
-                              setAttachPaperListLoading(true);
-                              const params: Record<string, string> = {};
-                              if (lesson.subject) params.subject = lesson.subject;
-                              if (lesson.examBoardName) params.examBoard = lesson.examBoardName;
-                              if (lesson.level) params.level = lesson.level;
-                              if (lesson.topicKey) params.topicKey = lesson.topicKey;
-                              api.get("/assessment-papers", { params })
-                                .then((r: any) => {
-                                  const list = r.data?.papers ?? [];
-                                  setAttachPaperList(list.map((p: any) => ({
-                                    _id: String(p._id),
-                                    title: p.title || "Untitled",
-                                    kind: p.kind || "practice_set",
-                                    questionCount: p.questionCount ?? 0,
-                                    timeSeconds: p.timeSeconds,
-                                  })));
-                                })
-                                .catch(() => setAttachPaperList([]))
-                                .finally(() => setAttachPaperListLoading(false));
-                            }}
-                            style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-                          >
-                            Attach paper
-                          </button>
-                        </div>
-                        {attachedPapersSummaries.length === 0 ? (
-                          <p style={{ color: "#6b7280", margin: 0, fontSize: 14 }}>No assessment papers attached. Use &quot;Attach paper&quot; to link a paper from the bank.</p>
-                        ) : (
-                          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                            {attachedPapersSummaries.map((p) => (
-                              <li key={p._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #e5e7eb" }}>
-                                <span style={{ fontSize: 14 }}>
-                                  {p.title} · {p.kind.replace(/_/g, " ")} · {p.questionCount} q · {p.timeSeconds ? `${Math.round(p.timeSeconds / 60)} min` : "—"}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (!id) return;
-                                    try {
-                                      await api.delete(`/lessons/${id}/assessment-papers/${p._id}`);
-                                      await fetchLessonSmart();
-                                    } catch {}
-                                  }}
-                                  style={{ padding: "4px 8px", fontSize: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", borderRadius: 6, cursor: "pointer" }}
-                                >
-                                  Remove
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                      <AttachedAssessmentPapersPanel
+                        papers={attachedPapersSummaries.map((p) => ({
+                          _id: p._id,
+                          title: p.title,
+                          kind: p.kind,
+                          questionCount: p.questionCount,
+                          timeSeconds: p.timeSeconds,
+                          subject: p.subject,
+                          level: p.level,
+                          examBoard: p.examBoard,
+                        }))}
+                        paperIds={lesson?.assessmentPaperIds}
+                        onAttach={() => setAttachPaperModalOpen(true)}
+                        onRemove={async (paperId) => {
+                          if (!id) return;
+                          try {
+                            await api.delete(`/lessons/${id}/assessment-papers/${paperId}`);
+                            await fetchLessonSmart();
+                          } catch {}
+                        }}
+                      />
                       <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <button
                           type="button"
@@ -5856,85 +5819,22 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
         </div>
       )}
 
-      {attachPaperModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10001,
-            padding: 20,
-          }}
-          onClick={() => setAttachPaperModalOpen(false)}
-        >
-          <div
-            style={{
-              background: "white",
-              borderRadius: 14,
-              padding: 20,
-              maxWidth: 520,
-              maxHeight: "85vh",
-              overflow: "auto",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ margin: "0 0 12px", fontSize: 18 }}>Attach assessment paper</h3>
-            <p style={{ margin: "0 0 12px", fontSize: 14, color: "#64748b" }}>
-              Papers are filtered by this lesson&apos;s subject, exam board, level and topic.
-            </p>
-            {attachPaperListLoading ? (
-              <p style={{ color: "#64748b" }}>Loading papers…</p>
-            ) : attachPaperList.length === 0 ? (
-              <p style={{ color: "#64748b" }}>No papers match the lesson filters, or create papers in Assessment Papers first.</p>
-            ) : (
-              <ul style={{ listStyle: "none", margin: "0 0 14px", padding: 8, maxHeight: 320, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
-                {attachPaperList
-                  .filter((p) => !lesson?.assessmentPaperIds?.includes(p._id))
-                  .map((p) => (
-                  <li key={p._id}>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!id) return;
-                        try {
-                          await api.post(`/lessons/${id}/assessment-papers`, { paperId: p._id });
-                          await fetchLessonSmart();
-                          setAttachPaperModalOpen(false);
-                        } catch {}
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 12px",
-                        marginBottom: 4,
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 8,
-                        background: "#f8fafc",
-                        cursor: "pointer",
-                        fontSize: 14,
-                      }}
-                    >
-                      {p.title} · {p.kind.replace(/_/g, " ")} · {p.questionCount} q · {p.timeSeconds ? `${Math.round(p.timeSeconds / 60)} min` : "—"}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button
-              type="button"
-              onClick={() => setAttachPaperModalOpen(false)}
-              style={{ padding: "8px 16px", borderRadius: 8, border: "2px solid #e2e8f0", background: "white", fontWeight: 600, cursor: "pointer" }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <AttachPaperModal
+        open={attachPaperModalOpen}
+        onClose={() => setAttachPaperModalOpen(false)}
+        lessonId={id ?? ""}
+        lessonContext={{
+          subject: lesson?.subject,
+          examBoard: lesson?.examBoardName ?? (lesson as any)?.examBoard ?? undefined,
+          level: lesson?.level,
+          topicKey: lesson?.topicKey ?? undefined,
+        }}
+        attachedIds={lesson?.assessmentPaperIds ?? []}
+        api={api}
+        onAttachSuccess={async () => {
+          await fetchLessonSmart();
+        }}
+      />
 
       {diagramPickerTarget && (
         <div
