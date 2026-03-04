@@ -33,6 +33,7 @@ const TeacherQuizBankPage: React.FC = () => {
   const { user } = useCurrentUser({ watchLocation: true });
   const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isAdmin = userType === "admin" || (user as { isAdmin?: boolean })?.isAdmin === true;
+  const canManageQuizBank = isAdmin || userType === "teacher";
 
   const [searchParams] = useSearchParams();
   const kindFromUrl = (searchParams.get("kind") || "quiz").toLowerCase() as QuizKind;
@@ -229,6 +230,11 @@ const TeacherQuizBankPage: React.FC = () => {
   };
   const handleBulkPublish = async () => {
     if (selectedIds.size === 0) return;
+    const invalid = questions.filter((q) => selectedIds.has(q._id)).map((q) => ({ q, ...questionPublishable(q) })).filter((x) => !x.valid);
+    if (invalid.length > 0) {
+      setMessage(`Cannot publish: ${invalid.map((x) => `"${(x.q.questionText ?? "").slice(0, 40)}…": ${x.reason}`).join("; ")}`);
+      return;
+    }
     setBulkLoading(true);
     try {
       const res = await bulkPublishTopicQuizQuestions(Array.from(selectedIds));
@@ -236,7 +242,15 @@ const TeacherQuizBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk publish failed"));
+      const data = err?.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        const lines = data.errors.map((e: { id?: string; questionText?: string; errors?: string[] }) =>
+          `${(e.questionText ?? "").slice(0, 40)}…: ${(e.errors ?? []).join(", ")}`
+        );
+        setMessage(`Cannot publish: ${lines.join("; ")}`);
+      } else {
+        setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (data?.message || data?.error || err?.message || "Bulk publish failed"));
+      }
     } finally {
       setBulkLoading(false);
     }
@@ -436,6 +450,22 @@ const TeacherQuizBankPage: React.FC = () => {
     return q.correctIndex >= 0 && q.correctIndex < q.choices.length ? labels[q.correctIndex] : "?";
   }
 
+  function questionPublishable(q: TopicQuizQuestion): { valid: boolean; reason: string } {
+    const text = String(q.questionText ?? (q as { question?: string }).question ?? "").trim();
+    if (!text) return { valid: false, reason: "Question text is required" };
+    const isShortAnswer = q.type === "short-answer" || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0 && (!Array.isArray(q.choices) || q.choices.length < 2));
+    if (isShortAnswer) {
+      const answers = (q.acceptableAnswers ?? []).map((a) => String(a ?? "").trim()).filter(Boolean);
+      if (answers.length === 0) return { valid: false, reason: "Short answer needs at least one model answer" };
+    } else {
+      const choices = (q.choices ?? []).map((c) => String(c ?? "").trim()).filter(Boolean);
+      if (choices.length < 2) return { valid: false, reason: "MCQ needs ≥2 options" };
+      const idx = q.correctIndex ?? 0;
+      if (idx < 0 || idx >= choices.length) return { valid: false, reason: "MCQ needs a valid correct answer selected" };
+    }
+    return { valid: true, reason: "" };
+  }
+
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24, width: "100%", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
@@ -448,7 +478,7 @@ const TeacherQuizBankPage: React.FC = () => {
       </div>
       {!isAdmin && (
         <p style={{ margin: "0 0 16px", fontSize: 14, color: "#4b5563" }}>
-          You can edit and save questions here. Admins control publishing and deletion.
+          You can edit, save, and publish questions here. Admins control deletion.
         </p>
       )}
       <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -728,31 +758,27 @@ const TeacherQuizBankPage: React.FC = () => {
                 >
                   Add question
                 </button>
-                {!loading && questions.length > 0 && (
+                {!loading && questions.length > 0 && canManageQuizBank && (
                   <>
-                    {isAdmin && (
-                      <>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
-                          <input type="checkbox" checked={selectedIds.size === questions.length && questions.length > 0} onChange={toggleSelectAll} />
-                          Select all
-                        </label>
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === "publish") handleBulkPublish();
-                            else if (v === "unpublish") handleBulkUnpublish();
-                            e.target.value = "";
-                          }}
-                          disabled={selectedIds.size === 0 || bulkLoading}
-                          style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
-                        >
-                          <option value="">Bulk actions</option>
-                          <option value="publish">Publish selected ({selectedIds.size})</option>
-                          <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
-                        </select>
-                      </>
-                    )}
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
+                      <input type="checkbox" checked={selectedIds.size === questions.length && questions.length > 0} onChange={toggleSelectAll} />
+                      Select all
+                    </label>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "publish") handleBulkPublish();
+                        else if (v === "unpublish") handleBulkUnpublish();
+                        e.target.value = "";
+                      }}
+                      disabled={selectedIds.size === 0 || bulkLoading}
+                      style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                    >
+                      <option value="">Bulk actions</option>
+                      <option value="publish">Publish selected ({selectedIds.size})</option>
+                      <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
+                    </select>
                   </>
                 )}
               </div>
@@ -765,6 +791,7 @@ const TeacherQuizBankPage: React.FC = () => {
             <ul className="teacher-quiz-bank-questions-list" style={{ listStyle: "none", padding: 0, margin: 0, width: "100%", minWidth: 0 }}>
               {questions.map((q) => {
                 const isShortAnswer = q.type === "short-answer" || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0 && !(Array.isArray(q.choices) && q.choices.length >= 2));
+                const publishCheck = questionPublishable(q);
                 return (
                 <li
                   key={q._id}
@@ -819,14 +846,21 @@ const TeacherQuizBankPage: React.FC = () => {
                     >
                       Edit
                     </button>
-                    {isAdmin && (
+                    {canManageQuizBank && (
                       <>
                         {q.status === "draft" ? (
                           <button
                             type="button"
                             onClick={() => handlePublish(q._id)}
-                            disabled={!!actionLoading}
-                            style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}
+                            disabled={!!actionLoading || !publishCheck.valid}
+                            title={!publishCheck.valid ? publishCheck.reason : undefined}
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: 12,
+                              color: publishCheck.valid ? "#059669" : "#9ca3af",
+                              opacity: publishCheck.valid ? 1 : 0.7,
+                              cursor: publishCheck.valid && !actionLoading ? "pointer" : "not-allowed",
+                            }}
                           >
                             {actionLoading === q._id ? "…" : "Publish"}
                           </button>
@@ -840,14 +874,16 @@ const TeacherQuizBankPage: React.FC = () => {
                             {actionLoading === q._id ? "…" : "Unpublish"}
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(q._id)}
-                          disabled={!!actionLoading}
-                          style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(q._id)}
+                            disabled={!!actionLoading}
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
