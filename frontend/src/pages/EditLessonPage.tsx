@@ -5891,7 +5891,7 @@ MARKSCHEME: Recall organelle function, Identify energy production site`}
             ) : attachPaperList.length === 0 ? (
               <p style={{ color: "#64748b" }}>No papers match the lesson filters, or create papers in Assessment Papers first.</p>
             ) : (
-              <ul style={{ listStyle: "none", padding: 8, margin: "0 0 14px", maxHeight: 320, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+              <ul style={{ listStyle: "none", margin: "0 0 14px", padding: 8, maxHeight: 320, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
                 {attachPaperList
                   .filter((p) => !lesson?.assessmentPaperIds?.includes(p._id))
                   .map((p) => (
