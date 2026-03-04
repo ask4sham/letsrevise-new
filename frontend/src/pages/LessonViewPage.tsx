@@ -1172,6 +1172,10 @@ const LessonViewPage: React.FC = () => {
     if (!hasStructuredPages) return 0;
     if (!pageParam) return 0;
 
+    // PR-006: Support numeric page index for citation deep links (?page=0)
+    const numIdx = parseInt(pageParam, 10);
+    if (!isNaN(numIdx) && numIdx >= 0 && numIdx < orderedPages.length) return numIdx;
+
     const idxById = orderedPages.findIndex(
       (p) => String(p.pageId) === String(pageParam)
     );
@@ -1488,6 +1492,21 @@ const LessonViewPage: React.FC = () => {
       setVisualStepIndex(currentPageIndex);
     }
   }, [currentPageIndex, visualData]);
+
+  // PR-006: Scroll to block when citation deep link has #block-N
+  useEffect(() => {
+    const hash = location.hash || (typeof window !== "undefined" ? window.location.hash : "");
+    const m = hash && /^#block-(\d+)$/.exec(hash);
+    if (!m || !hasStructuredPages) return;
+    const blockId = `block-${m[1]}`;
+    const el = document.getElementById(blockId);
+    if (el) {
+      const t = setTimeout(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [currentPageIndex, hasStructuredPages, location.hash]);
 
   // ✅ Gate: students can only view lessons that match their level (if user level is known)
   useEffect(() => {
@@ -3098,13 +3117,15 @@ const LessonViewPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Blocks — checkpoint blocks rendered via LessonCheckpoint below */}
+                {/* Blocks — checkpoint blocks rendered via LessonCheckpoint below. PR-006: block-{idx} for citation deep links. */}
                 <div>
-                  {blocksToRender.map((b, idx) =>
-                    b.type === "diagram"
-                      ? renderDiagramBlock(b, idx)
-                      : renderCallout(b.type, safeStr(b.content, ""), idx)
-                  )}
+                  {blocksToRender.map((b, idx) => (
+                    <div key={idx} id={`block-${idx}`}>
+                      {b.type === "diagram"
+                        ? renderDiagramBlock(b, idx)
+                        : renderCallout(b.type, safeStr(b.content, ""), idx)}
+                    </div>
+                  ))}
                 </div>
 
                 {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}

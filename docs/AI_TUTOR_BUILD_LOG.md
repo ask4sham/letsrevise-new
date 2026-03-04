@@ -194,3 +194,37 @@ Notes:
 Follow-ups:
 - PR-006: Citation deep linking (scroll to block) + caching/rate limits
 - PR-007: Student rollout (feature flag) once quality proven
+
+---
+
+**PR-006 — Trust & Operability: citation deep-links, caching, rate limits, feedback**
+
+Date: 2025-03-04
+
+Summary:
+Improved AI tutor trust and production safety with: (A) citation deep-linking to exact lesson page/block, (B) enquiry caching to avoid repeated LLM calls, (C) rate limiting on /api/enquiry, (D) feedback capture (thumbs up/down + optional comment).
+
+Files changed:
+
+- backend/services/knowledge/indexers/lessonBlockIndexer.js (blockIndex in metadata)
+- backend/controllers/enquiry.controller.js (deepLink in citations, cache check/store, enquiryLogId, handleEnquiryFeedback)
+- backend/models/EnquiryLog.js (cached, feedback fields)
+- backend/models/EnquiryCache.js (new)
+- backend/models/index.js (EnquiryCache)
+- backend/services/enquiry/enquiryCache.js (new)
+- backend/middleware/enquiryRateLimit.js (new)
+- backend/routes/enquiry.routes.js (rate limit, POST /:id/feedback)
+- frontend/src/api/enquiry.ts (deepLink type, enquiryLogId, cached, postEnquiryFeedback)
+- frontend/src/components/ai/AskAiPanel.tsx (deep link URLs, feedback UI, cached indicator)
+- frontend/src/pages/LessonViewPage.tsx (block ids, ?page= numeric, scroll to #block-N)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Citation deep links: /lesson/:id?page=N#block-M (from KnowledgeDocument metadata).
+- Cache key: sha256(specKey|topicKey|mode|normalizedQuestion). TTL 24h.
+- Rate limit: 10/min teacher, 30/min admin. In-memory (resets on restart).
+- Feedback stored in EnquiryLog.feedback; POST /api/enquiry/:id/feedback.
+
+Follow-ups:
+PR-007 — Student rollout behind feature flag

@@ -43,7 +43,8 @@ Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + 
 - TopicQuizQuestion
 - SpecStatement (PR-001: exam specification knowledge layer)
 - KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks)
-- EnquiryLog (PR-004: RAG enquiry observability)
+- EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
+- EnquiryCache (PR-006: enquiry response cache, 24h TTL)
 
 ## SpecStatement API (admin only)
 
@@ -72,3 +73,8 @@ Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + 
 - backend/scripts/runVectorMigrations.js
 - backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
 - backend/scripts/runEnquirySmokeTest.js
+
+## Enquiry API (PR-004, PR-006)
+
+- POST /api/enquiry — teacher + admin (rate limited: 10/min teacher, 30/min admin)
+- POST /api/enquiry/:id/feedback — thumbs up/down + optional comment (teacher + admin)

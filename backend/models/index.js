@@ -8,4 +8,5 @@ require("./AiGenerationJob");
 require("./SpecStatement");
 require("./KnowledgeDocument");
 require("./EnquiryLog");
+require("./EnquiryCache");
 
