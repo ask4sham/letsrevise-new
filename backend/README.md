@@ -1,3 +1,46 @@
+## Maintenance scripts
+
+One-off and recurring maintenance tasks run from the backend directory.
+
+### Practice Source Deduplication
+
+This script removes duplicated embedded lesson assessments when they substantially overlap with lesson practice questions.
+
+**Default mode: DRY RUN.** Apply commands prompt for confirmation unless `--force` is used (e.g. via the `:apply:force` npm scripts).
+
+**Commands (from `backend/`):**
+
+| Action | Command |
+|--------|--------|
+| Dry run all lessons | `npm run maintenance:dedup-practice` |
+| Dry run for one spec | `npm run maintenance:dedup-practice:spec --specKey=AQA_GCSE_BIOLOGY` |
+| Apply changes (prompts) | `npm run maintenance:dedup-practice:apply` |
+| Apply changes (no prompt) | `npm run maintenance:dedup-practice:apply:force` |
+| Apply for one spec (prompts) | `npm run maintenance:dedup-practice:spec:apply --specKey=AQA_GCSE_BIOLOGY` |
+| Apply for one spec (no prompt) | `npm run maintenance:dedup-practice:spec:apply:force --specKey=AQA_GCSE_BIOLOGY` |
+
+**Examples:**
+
+```bash
+npm run maintenance:dedup-practice:apply
+# will prompt: Type APPLY to continue
+
+npm run maintenance:dedup-practice:apply:force
+# no prompt
+
+npm run maintenance:dedup-practice:spec:apply --specKey=AQA_GCSE_BIOLOGY
+# will prompt
+
+npm run maintenance:dedup-practice:spec:apply:force --specKey=AQA_GCSE_BIOLOGY
+# no prompt
+```
+
+Reports are written to:
+
+`reports/DEDUP_LESSON_PRACTICE_<date>.md`
+
+---
+
 ## Question bank (Worksheet Builder)
 
 Teachers need exam questions in the Question Bank to build worksheets. You can automate this in two ways:

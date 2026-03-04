@@ -37,6 +37,12 @@
     "convert:exam-csv": "node scripts/convertExamQuestionsCsvToJson.js",
     "convert:past-papers-csv": "node scripts/convertPastPapersCsvToJson.js",
     "convert:past-paper-questions-csv": "node scripts/convertPastPaperQuestionsCsvToJson.js",
+    "maintenance:dedup-practice": "node scripts/runDedupLessonPracticeSources.js",
+    "maintenance:dedup-practice:apply": "node scripts/runDedupLessonPracticeSources.js --apply",
+    "maintenance:dedup-practice:apply:force": "node scripts/runDedupLessonPracticeSources.js --apply --force",
+    "maintenance:dedup-practice:spec": "node scripts/runDedupLessonPracticeSources.js --spec",
+    "maintenance:dedup-practice:spec:apply": "node scripts/runDedupLessonPracticeSources.js --apply --spec",
+    "maintenance:dedup-practice:spec:apply:force": "node scripts/runDedupLessonPracticeSources.js --apply --force --spec",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
