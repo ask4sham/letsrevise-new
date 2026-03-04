@@ -383,6 +383,7 @@ const EditLessonPage: React.FC = () => {
     pageId: "" as string,
   });
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
+  const [issuesCalloutDismissed, setIssuesCalloutDismissed] = useState(false);
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
@@ -459,6 +460,7 @@ const EditLessonPage: React.FC = () => {
   const fileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
   const csvFileInputRef = useRef<HTMLInputElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
+  const flashcardsSectionRef = useRef<HTMLDivElement | null>(null);
 
   const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isAdmin = userType === "admin";
@@ -4192,15 +4194,64 @@ const EditLessonPage: React.FC = () => {
               </button>
             </div>
 
-            {(revisionValidationCounts.quizIssues > 0 || revisionValidationCounts.flashcardIssues > 0) && (
-              <div style={{ marginBottom: 12, padding: "10px 14px", background: "#fef3c7", borderRadius: 8, border: "1px solid #f59e0b", fontSize: 13, color: "#92400e" }}>
-                <strong>Fix issues:</strong> {revisionValidationCounts.quizIssues > 0 && `${revisionValidationCounts.quizIssues} quiz`}
-                {revisionValidationCounts.quizIssues > 0 && revisionValidationCounts.flashcardIssues > 0 && ", "}
-                {revisionValidationCounts.flashcardIssues > 0 && `${revisionValidationCounts.flashcardIssues} flashcards`}
-                {" "}(MCQ needs ≥2 options & correct answer; short/exam needs model answer; flashcard needs front & back)
+            {(revisionValidationCounts.quizIssues > 0 || revisionValidationCounts.flashcardIssues > 0) && !issuesCalloutDismissed && (
+              <div style={{ marginBottom: 12, padding: "14px 18px", background: "#fef3c7", borderRadius: 8, border: "1px solid #f59e0b", fontSize: 13, color: "#92400e" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 8 }}>
+                  <strong style={{ fontSize: 14 }}>Issues to fix</strong>
+                  <button
+                    type="button"
+                    onClick={() => setIssuesCalloutDismissed(true)}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: "0 4px", color: "#92400e", fontSize: 18, lineHeight: 1 }}
+                    aria-label="Hide issues"
+                  >
+                    ×
+                  </button>
+                </div>
+                <ul style={{ margin: "0 0 12px 0", paddingLeft: 20 }}>
+                  {revisionValidationCounts.quizIssues > 0 && (
+                    <li style={{ marginBottom: 6 }}>
+                      <strong>Quiz questions ({revisionValidationCounts.quizIssues}):</strong>
+                      <ul style={{ margin: "4px 0 0 0", paddingLeft: 18 }}>
+                        <li>MCQ: add ≥2 options and choose a correct answer</li>
+                        <li>Short/Exam: add a model answer</li>
+                      </ul>
+                    </li>
+                  )}
+                  {revisionValidationCounts.flashcardIssues > 0 && (
+                    <li style={{ marginBottom: 6 }}>
+                      <strong>Flashcards ({revisionValidationCounts.flashcardIssues}):</strong> add front and back text to each card
+                    </li>
+                  )}
+                </ul>
+                {revisionValidationCounts.flashcardIssues > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFlashcardsCollapsed(false);
+                      setTimeout(() => {
+                        flashcardsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 100);
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      background: "#f59e0b",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 500
+                    }}
+                  >
+                    Jump to Flashcards
+                  </button>
+                )}
               </div>
             )}
-            <div style={{
+            <div
+              ref={flashcardsSectionRef}
+              id="revision-materials-flashcards"
+              style={{
               marginBottom: "30px",
               background: "#f8fafc",
               borderRadius: "10px",
