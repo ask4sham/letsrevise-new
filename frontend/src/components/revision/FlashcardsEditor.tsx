@@ -26,6 +26,9 @@ type Props = {
   lessonTopicKey?: string | null;
   onSaved?: () => void;
   isAdmin?: boolean; // Added: admin-only delete control
+  /** When true, only show cards missing front or back (from "Jump to Flashcards" issues callout). */
+  filterBrokenOnly?: boolean;
+  onFilterBrokenChange?: (enabled: boolean) => void;
 };
 
 function newId(prefix = "fc") {
@@ -279,6 +282,10 @@ function parseCSV(csvText: string): Flashcard[] {
   return out;
 }
 
+function isCardBroken(c: Flashcard): boolean {
+  return !String(c.front ?? "").trim() || !String(c.back ?? "").trim();
+}
+
 export default function FlashcardsEditor({
   lessonId,
   initialCards,
@@ -288,6 +295,8 @@ export default function FlashcardsEditor({
   lessonTopicKey,
   onSaved,
   isAdmin = false, // Added: default to false for non-admin
+  filterBrokenOnly = false,
+  onFilterBrokenChange,
 }: Props) {
   const { token } = useCurrentUser({ watchLocation: true });
   const [cards, setCards] = useState<Flashcard[]>([]);
@@ -360,6 +369,15 @@ export default function FlashcardsEditor({
 
 
   const countLabel = useMemo(() => `${cards.length}`, [cards.length]);
+
+  const brokenCards = useMemo(
+    () => cards.filter((c) => !String(c.front ?? "").trim() || !String(c.back ?? "").trim()),
+    [cards]
+  );
+  const displayCards = useMemo(
+    () => (filterBrokenOnly ? brokenCards : cards),
+    [filterBrokenOnly, brokenCards, cards]
+  );
 
   type ExamQuestionItem = {
     question: string;
@@ -1006,32 +1024,54 @@ export default function FlashcardsEditor({
           display: "flex", 
           justifyContent: "space-between", 
           alignItems: "center", 
-          marginBottom: 8 
+          marginBottom: 8,
+          flexWrap: "wrap",
+          gap: 8
         }}>
           <div style={{ fontWeight: 900, color: "#111827" }}>
-            Existing Flashcards ({cards.length})
+            Existing Flashcards ({filterBrokenOnly ? `${displayCards.length} of ${cards.length} with issues` : cards.length})
           </div>
-          <button
-            type="button"
-            onClick={() => setShowExisting(!showExisting)}
-            style={{
-              background: "none",
-              border: "1px solid #d1d5db",
-              borderRadius: 8,
-              padding: "4px 12px",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-              color: "#374151",
-            }}
-          >
-            {showExisting ? "Hide" : "Show"}
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {brokenCards.length > 0 && onFilterBrokenChange && (
+              <button
+                type="button"
+                onClick={() => onFilterBrokenChange(!filterBrokenOnly)}
+                style={{
+                  background: filterBrokenOnly ? "#f59e0b" : "transparent",
+                  border: "1px solid #f59e0b",
+                  borderRadius: 8,
+                  padding: "4px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: filterBrokenOnly ? "#fff" : "#92400e",
+                }}
+              >
+                {filterBrokenOnly ? `Show all (${cards.length})` : `Show only issues (${brokenCards.length})`}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowExisting(!showExisting)}
+              style={{
+                background: "none",
+                border: "1px solid #d1d5db",
+                borderRadius: 8,
+                padding: "4px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                color: "#374151",
+              }}
+            >
+              {showExisting ? "Hide" : "Show"}
+            </button>
+          </div>
         </div>
 
         {showExisting && (
           <div style={styles.list}>
-            {cards.map((c, idx) => {
+            {displayCards.map((c, idx) => {
               const key =
                 (c as any).topicBankId ??
                 (c as any)._id ??

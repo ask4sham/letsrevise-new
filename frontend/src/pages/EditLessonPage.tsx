@@ -384,6 +384,7 @@ const EditLessonPage: React.FC = () => {
   });
   const [isFlashcardsCollapsed, setIsFlashcardsCollapsed] = useState(false);
   const [issuesCalloutDismissed, setIssuesCalloutDismissed] = useState(false);
+  const [filterFlashcardsBrokenOnly, setFilterFlashcardsBrokenOnly] = useState(false);
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
@@ -4207,44 +4208,89 @@ const EditLessonPage: React.FC = () => {
                     ×
                   </button>
                 </div>
-                <ul style={{ margin: "0 0 12px 0", paddingLeft: 20 }}>
-                  {revisionValidationCounts.quizIssues > 0 && (
-                    <li style={{ marginBottom: 6 }}>
-                      <strong>Quiz questions ({revisionValidationCounts.quizIssues}):</strong>
-                      <ul style={{ margin: "4px 0 0 0", paddingLeft: 18 }}>
-                        <li>MCQ: add ≥2 options and choose a correct answer</li>
-                        <li>Short/Exam: add a model answer</li>
+
+                {/* Quiz questions — How to fix + Where to fix */}
+                {revisionValidationCounts.quizIssues > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <strong>Quiz questions ({revisionValidationCounts.quizIssues} need fixes)</strong>
+                    <div style={{ marginTop: 6, marginBottom: 8 }}>
+                      <strong>How to fix:</strong>
+                      <ul style={{ margin: "4px 0 0 0", paddingLeft: 20 }}>
+                        <li>MCQ: Add at least 2 answer options, then select which option is correct.</li>
+                        <li>Short/Exam: Add a model answer students can compare against.</li>
+                        <li>Open the Quiz Bank for this topic, fix the highlighted question(s), then save.</li>
                       </ul>
-                    </li>
-                  )}
-                  {revisionValidationCounts.flashcardIssues > 0 && (
-                    <li style={{ marginBottom: 6 }}>
-                      <strong>Flashcards ({revisionValidationCounts.flashcardIssues}):</strong> add front and back text to each card
-                    </li>
-                  )}
-                </ul>
+                    </div>
+                    <div style={{ marginBottom: 4 }}>
+                      <strong>Where to fix:</strong> Quiz questions are edited in the Topic Quiz Bank.
+                      {topicKeyForBank ? (
+                        <>
+                          <br />
+                          <Link
+                            to={`/teacher/topic-banks/quizzes?topicKey=${encodeURIComponent(topicKeyForBank)}`}
+                            style={{ display: "inline-block", marginTop: 6, padding: "6px 12px", background: "#f59e0b", color: "#fff", borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                          >
+                            Open Quiz Bank →
+                          </Link>
+                          <span style={{ display: "block", marginTop: 4, fontSize: 12, color: "#78716c" }}>Opens the Quiz Bank with this lesson&apos;s topic pre-selected.</span>
+                        </>
+                      ) : (
+                        <>
+                          <br />
+                          <Link
+                            to="/teacher/topic-banks/quizzes"
+                            style={{ display: "inline-block", marginTop: 6, padding: "6px 12px", background: "#f59e0b", color: "#fff", borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                          >
+                            Open Quiz Bank →
+                          </Link>
+                          <span style={{ display: "block", marginTop: 4, fontSize: 12, color: "#78716c" }}>Select this lesson&apos;s topic to fix questions.</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Flashcards — How to fix + Where to fix */}
                 {revisionValidationCounts.flashcardIssues > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsFlashcardsCollapsed(false);
-                      setTimeout(() => {
-                        flashcardsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }, 100);
-                    }}
-                    style={{
-                      padding: "6px 12px",
-                      background: "#f59e0b",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontWeight: 500
-                    }}
-                  >
-                    Jump to Flashcards
-                  </button>
+                  <div style={{ marginBottom: 8 }}>
+                    <strong>Flashcards ({revisionValidationCounts.flashcardIssues} need fixes)</strong>
+                    <div style={{ marginTop: 6, marginBottom: 8 }}>
+                      <strong>How to fix:</strong>
+                      <ul style={{ margin: "4px 0 0 0", paddingLeft: 20 }}>
+                        <li>Open the Flashcards section below.</li>
+                        <li>For each card with issues, fill in Front (question) and Back (answer).</li>
+                        <li>Click &quot;Save flashcards&quot; when done.</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong>Where to fix:</strong>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsFlashcardsCollapsed(false);
+                          setFilterFlashcardsBrokenOnly(true);
+                          setTimeout(() => {
+                            flashcardsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }, 100);
+                        }}
+                        style={{
+                          display: "inline-block",
+                          marginTop: 6,
+                          padding: "6px 12px",
+                          background: "#f59e0b",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontSize: 13,
+                          fontWeight: 600
+                        }}
+                      >
+                        Jump to Flashcards →
+                      </button>
+                      <span style={{ display: "block", marginTop: 4, fontSize: 12, color: "#78716c" }}>Fix by filling Front (question) and Back (answer), then Save.</span>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -4400,6 +4446,8 @@ const EditLessonPage: React.FC = () => {
                         lessonTopicKey={lesson?.topicKey ?? lesson?.topic ?? null}
                         onSaved={() => fetchLessonSmart()}
                         isAdmin={isAdmin}
+                        filterBrokenOnly={filterFlashcardsBrokenOnly}
+                        onFilterBrokenChange={setFilterFlashcardsBrokenOnly}
                       />
                     </>
                 </div>

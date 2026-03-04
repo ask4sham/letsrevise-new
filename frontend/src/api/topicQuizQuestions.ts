@@ -169,6 +169,15 @@ export async function deleteTopicQuizQuestion(id: string): Promise<void> {
   await api.delete(`/topic-quiz-questions/${id}`);
 }
 
+/** PATCH: edit question (teacher owner or admin). Use for fixing validation issues (choices, correctAnswer, acceptableAnswers). */
+export async function patchTopicQuizQuestion(
+  id: string,
+  patch: Partial<Pick<TopicQuizQuestion, "questionText" | "choices" | "correctIndex" | "acceptableAnswers" | "matchMode" | "explanation" | "tags">> & { correctChoice?: string }
+): Promise<TopicQuizQuestion> {
+  const res = await api.patch<{ item: TopicQuizQuestion }>(`/topic-quiz-questions/${id}`, patch);
+  return res.data!.item;
+}
+
 /** PR-A1: Generate assessment from topic bank (kind=assessment, published-only, replace). */
 export async function generateAssessmentFromTopic(
   lessonId: string,

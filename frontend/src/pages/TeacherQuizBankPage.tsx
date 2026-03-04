@@ -13,12 +13,14 @@ import {
   bulkPublishTopicQuizQuestions,
   bulkUnpublishTopicQuizQuestions,
   deleteTopicQuizQuestion,
+  patchTopicQuizQuestion,
   type TopicQuizQuestion,
   type BulkPreviewResponse,
   type QuizKind,
   type QuizQuestionType,
   type BulkCreateQuizItem,
 } from "../api/topicQuizQuestions";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getQuestionAnalytics } from "../api/teacherAnalytics";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
@@ -28,9 +30,14 @@ import type { SpecKey } from "../api/taxonomy";
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
 const TeacherQuizBankPage: React.FC = () => {
+  const { user } = useCurrentUser({ watchLocation: true });
+  const userType = (user?.userType || user?.type || "").toString().toLowerCase();
+  const isAdmin = userType === "admin" || (user as { isAdmin?: boolean })?.isAdmin === true;
+
   const [searchParams] = useSearchParams();
   const kindFromUrl = (searchParams.get("kind") || "quiz").toLowerCase() as QuizKind;
   const initialKind: QuizKind = kindFromUrl === "assessment" ? "assessment" : "quiz";
+  const topicKeyFromUrl = searchParams.get("topicKey") ?? "";
 
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
@@ -42,6 +49,15 @@ const TeacherQuizBankPage: React.FC = () => {
   useEffect(() => {
     setKind(initialKind);
   }, [kindFromUrl]);
+
+  /** Deep-link: pre-select topic from URL (?topicKey=...) when coming from lesson editor */
+  useEffect(() => {
+    if (!topicKeyFromUrl || !taxonomy?.units) return;
+    const units = taxonomy.units ?? [];
+    setTopicKey(topicKeyFromUrl);
+    const unitContaining = units.find((u: TaxonomyUnit) => (u.topics || []).some((t: { topic: string; key: string }) => t.key === topicKeyFromUrl));
+    if (unitContaining) setSelectedUnit(unitContaining.unit);
+  }, [topicKeyFromUrl, taxonomy?.units]);
   const [questions, setQuestions] = useState<TopicQuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +86,26 @@ const TeacherQuizBankPage: React.FC = () => {
     explanation: "",
   });
   const [addSaving, setAddSaving] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<TopicQuizQuestion | null>(null);
+  const [editForm, setEditForm] = useState<{
+    type: QuizQuestionType;
+    questionText: string;
+    choices: string[];
+    correctIndex: number;
+    acceptableAnswers: string[];
+    matchMode: "exact" | "contains";
+    explanation: string;
+  }>({
+    type: "mcq",
+    questionText: "",
+    choices: ["", ""],
+    correctIndex: 0,
+    acceptableAnswers: [""],
+    matchMode: "contains",
+    explanation: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
   const [previewResult, setPreviewResult] = useState<BulkPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -256,6 +292,74 @@ const TeacherQuizBankPage: React.FC = () => {
     }
   };
 
+  const openEditModal = (q: TopicQuizQuestion) => {
+    const isShortAnswer = q.type === "short-answer" || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0 && (!Array.isArray(q.choices) || q.choices.length < 2));
+    setEditItem(q);
+    setEditForm({
+      type: isShortAnswer ? "short-answer" : "mcq",
+      questionText: q.questionText ?? (q as { question?: string }).question ?? "",
+      choices: Array.isArray(q.choices) && q.choices.length >= 2 ? [...q.choices] : ["", ""],
+      correctIndex: q.correctIndex ?? 0,
+      acceptableAnswers: Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0 ? [...q.acceptableAnswers] : [""],
+      matchMode: (q.matchMode as "exact" | "contains") ?? "contains",
+      explanation: q.explanation ?? "",
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editItem) return;
+    if (!editForm.questionText.trim()) {
+      setMessage("Enter question text.");
+      return;
+    }
+    if (editForm.type === "mcq") {
+      const validChoices = editForm.choices.map((c) => c.trim()).filter(Boolean);
+      if (validChoices.length < 2) {
+        setMessage("MCQ needs at least 2 choices.");
+        return;
+      }
+      if (editForm.correctIndex < 0 || editForm.correctIndex >= validChoices.length) {
+        setMessage("Select a valid correct answer.");
+        return;
+      }
+    } else {
+      const validAnswers = editForm.acceptableAnswers.map((a) => a.trim()).filter(Boolean);
+      if (validAnswers.length === 0) {
+        setMessage("Short answer needs at least one acceptable answer.");
+        return;
+      }
+    }
+    setEditSaving(true);
+    setMessage(null);
+    try {
+      if (editForm.type === "mcq") {
+        const choices = editForm.choices.map((c) => c.trim()).filter(Boolean);
+        await patchTopicQuizQuestion(editItem._id, {
+          questionText: editForm.questionText.trim(),
+          choices,
+          correctChoice: String.fromCharCode(65 + editForm.correctIndex),
+          explanation: editForm.explanation.trim() || undefined,
+        });
+      } else {
+        await patchTopicQuizQuestion(editItem._id, {
+          questionText: editForm.questionText.trim(),
+          acceptableAnswers: editForm.acceptableAnswers.map((a) => a.trim()).filter(Boolean),
+          matchMode: editForm.matchMode,
+          explanation: editForm.explanation.trim() || undefined,
+        });
+      }
+      setEditModalOpen(false);
+      setEditItem(null);
+      setMessage("Question saved.");
+      fetchQuestions();
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.message || "Save failed");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleAddQuestion = async () => {
     if (!topicKey || !addForm.questionText.trim()) {
       setMessage("Select a topic and enter question text.");
@@ -342,6 +446,11 @@ const TeacherQuizBankPage: React.FC = () => {
           Topic {kind === "assessment" ? "Assessment" : "Quiz"} Bank
         </h1>
       </div>
+      {!isAdmin && (
+        <p style={{ margin: "0 0 16px", fontSize: 14, color: "#4b5563" }}>
+          You can edit and save questions here. Admins control publishing and deletion.
+        </p>
+      )}
       <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <label style={{ fontWeight: 600 }}>Mode:</label>
         <button
@@ -621,25 +730,29 @@ const TeacherQuizBankPage: React.FC = () => {
                 </button>
                 {!loading && questions.length > 0 && (
                   <>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
-                      <input type="checkbox" checked={selectedIds.size === questions.length && questions.length > 0} onChange={toggleSelectAll} />
-                      Select all
-                    </label>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === "publish") handleBulkPublish();
-                        else if (v === "unpublish") handleBulkUnpublish();
-                        e.target.value = "";
-                      }}
-                      disabled={selectedIds.size === 0 || bulkLoading}
-                      style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
-                    >
-                      <option value="">Bulk actions</option>
-                      <option value="publish">Publish selected ({selectedIds.size})</option>
-                      <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
-                    </select>
+                    {isAdmin && (
+                      <>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
+                          <input type="checkbox" checked={selectedIds.size === questions.length && questions.length > 0} onChange={toggleSelectAll} />
+                          Select all
+                        </label>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === "publish") handleBulkPublish();
+                            else if (v === "unpublish") handleBulkUnpublish();
+                            e.target.value = "";
+                          }}
+                          disabled={selectedIds.size === 0 || bulkLoading}
+                          style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                        >
+                          <option value="">Bulk actions</option>
+                          <option value="publish">Publish selected ({selectedIds.size})</option>
+                          <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
+                        </select>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -668,9 +781,11 @@ const TeacherQuizBankPage: React.FC = () => {
                     boxSizing: "border-box",
                   }}
                 >
-                  <label style={{ flexShrink: 0, marginTop: 2 }}>
-                    <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => toggleSelect(q._id)} />
-                  </label>
+                  {isAdmin && (
+                    <label style={{ flexShrink: 0, marginTop: 2 }}>
+                      <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => toggleSelect(q._id)} />
+                    </label>
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, marginBottom: 4, color: "#111827", wordBreak: "break-word", overflowWrap: "break-word" }}>
                       {q.questionText ?? (q as { question?: string }).question}
@@ -696,33 +811,45 @@ const TeacherQuizBankPage: React.FC = () => {
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                    {q.status === "draft" ? (
-                      <button
-                        type="button"
-                        onClick={() => handlePublish(q._id)}
-                        disabled={!!actionLoading}
-                        style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}
-                      >
-                        {actionLoading === q._id ? "…" : "Publish"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleUnpublish(q._id)}
-                        disabled={!!actionLoading}
-                        style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280" }}
-                      >
-                        {actionLoading === q._id ? "…" : "Unpublish"}
-                      </button>
-                    )}
                     <button
                       type="button"
-                      onClick={() => handleDelete(q._id)}
+                      onClick={() => openEditModal(q)}
                       disabled={!!actionLoading}
-                      style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                      style={{ padding: "4px 8px", fontSize: 12, color: "#2563eb", fontWeight: 600 }}
                     >
-                      Delete
+                      Edit
                     </button>
+                    {isAdmin && (
+                      <>
+                        {q.status === "draft" ? (
+                          <button
+                            type="button"
+                            onClick={() => handlePublish(q._id)}
+                            disabled={!!actionLoading}
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#059669" }}
+                          >
+                            {actionLoading === q._id ? "…" : "Publish"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleUnpublish(q._id)}
+                            disabled={!!actionLoading}
+                            style={{ padding: "4px 8px", fontSize: 12, color: "#6b7280" }}
+                          >
+                            {actionLoading === q._id ? "…" : "Unpublish"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(q._id)}
+                          disabled={!!actionLoading}
+                          style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </li>
                 );
@@ -880,6 +1007,160 @@ const TeacherQuizBankPage: React.FC = () => {
                 style={{ padding: "8px 16px", borderRadius: 8, background: "#059669", color: "#fff", fontWeight: 600, border: "none", cursor: addSaving ? "not-allowed" : "pointer" }}
               >
                 {addSaving ? "Saving…" : "Add draft"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editModalOpen && editItem && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+          onClick={() => !editSaving && setEditModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 520,
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 700 }}>Edit question</h3>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Type</label>
+              <select
+                value={editForm.type}
+                onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value as QuizQuestionType }))}
+                style={{ padding: "8px 12px", width: "100%", borderRadius: 8, border: "1px solid #d1d5db" }}
+              >
+                <option value="mcq">MCQ</option>
+                <option value="short-answer">Short Answer</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Question</label>
+              <textarea
+                value={editForm.questionText}
+                onChange={(e) => setEditForm((f) => ({ ...f, questionText: e.target.value }))}
+                rows={3}
+                placeholder="Question text…"
+                style={{ padding: 8, width: "100%", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+              />
+            </div>
+            {editForm.type === "mcq" && (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Choices (2–6)</label>
+                  {(editForm.choices.length < 6 ? [...editForm.choices, ""] : editForm.choices).map((choice, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ width: 24, fontWeight: 600 }}>{String.fromCharCode(65 + i)}</span>
+                      <input
+                        type="text"
+                        value={i < editForm.choices.length ? choice : ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const next = [...editForm.choices];
+                          while (next.length <= i) next.push("");
+                          next[i] = val;
+                          if (i === next.length - 1 && val && next.length < 6) next.push("");
+                          const trimmed = next.filter((c, j) => j < next.length - 1 || (c && c.trim()));
+                          setEditForm((f) => ({
+                            ...f,
+                            choices: trimmed.length >= 2 ? trimmed : trimmed.length === 1 ? [trimmed[0], ""] : ["", ""],
+                            correctIndex: Math.min(f.correctIndex, Math.max(0, trimmed.length - 1)),
+                          }));
+                        }}
+                        placeholder={`Choice ${String.fromCharCode(65 + i)}`}
+                        style={{ flex: 1, padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Correct answer</label>
+                  <select
+                    value={Math.min(editForm.correctIndex, Math.max(0, editForm.choices.filter((c) => c.trim()).length - 1))}
+                    onChange={(e) => setEditForm((f) => ({ ...f, correctIndex: Number(e.target.value) }))}
+                    style={{ padding: "8px 12px", width: "100%", borderRadius: 8, border: "1px solid #d1d5db" }}
+                  >
+                    {editForm.choices.filter((c) => c.trim()).length === 0 ? (
+                      <option value={0}>— Add choices first —</option>
+                    ) : (
+                      editForm.choices.filter((c) => c.trim()).map((c, i) => (
+                        <option key={i} value={i}>{String.fromCharCode(65 + i)}: {c.slice(0, 50)}{c.length > 50 ? "…" : ""}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </>
+            )}
+            {editForm.type === "short-answer" && (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Acceptable answers (one per line or comma-separated)</label>
+                  <textarea
+                    value={editForm.acceptableAnswers.join("\n")}
+                    onChange={(e) => setEditForm((f) => ({
+                      ...f,
+                      acceptableAnswers: e.target.value.split(/[\n,]/).map((a) => a.trim()).filter(Boolean).slice(0, 10) || [""],
+                    }))}
+                    rows={3}
+                    placeholder="nucleus&#10;the nucleus"
+                    style={{ padding: 8, width: "100%", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+                  />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Match mode</label>
+                  <select
+                    value={editForm.matchMode}
+                    onChange={(e) => setEditForm((f) => ({ ...f, matchMode: e.target.value as "exact" | "contains" }))}
+                    style={{ padding: "8px 12px", width: "100%", borderRadius: 8, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="contains">Contains (keyword/phrase)</option>
+                    <option value="exact">Exact (normalized)</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Explanation (optional)</label>
+              <textarea
+                value={editForm.explanation}
+                onChange={(e) => setEditForm((f) => ({ ...f, explanation: e.target.value }))}
+                rows={2}
+                placeholder="Optional explanation shown after answer"
+                style={{ padding: 8, width: "100%", borderRadius: 8, border: "1px solid #d1d5db", resize: "vertical" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => !editSaving && setEditModalOpen(false)}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: editSaving ? "not-allowed" : "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+                style={{ padding: "8px 16px", borderRadius: 8, background: "#059669", color: "#fff", fontWeight: 600, border: "none", cursor: editSaving ? "not-allowed" : "pointer" }}
+              >
+                {editSaving ? "Saving…" : "Save (Draft)"}
               </button>
             </div>
           </div>
