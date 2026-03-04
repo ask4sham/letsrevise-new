@@ -16,18 +16,32 @@ const path = require("path");
 
 const Lesson = require("../models/Lesson");
 
-const OVERLAP_THRESHOLD = 0.6;
+const DEFAULT_THRESHOLD = 0.6;
 
 function parseArgs() {
   const args = process.argv.slice(2);
   const apply = args.includes("--apply");
   const dryRun = !apply;
   let specKey = null;
-  const idx = args.indexOf("--specKey");
-  if (idx !== -1 && args[idx + 1]) {
-    specKey = String(args[idx + 1]).trim();
+  let threshold = DEFAULT_THRESHOLD;
+  let maxLessons = null;
+
+  const specIdx = args.indexOf("--specKey");
+  if (specIdx !== -1 && args[specIdx + 1]) {
+    specKey = String(args[specIdx + 1]).trim();
   }
-  return { dryRun, apply, specKey };
+  const thIdx = args.indexOf("--threshold");
+  if (thIdx !== -1 && args[thIdx + 1] != null) {
+    const t = parseFloat(args[thIdx + 1], 10);
+    if (Number.isFinite(t) && t >= 0 && t <= 1) threshold = t;
+  }
+  const maxIdx = args.indexOf("--maxLessons");
+  if (maxIdx !== -1 && args[maxIdx + 1] != null) {
+    const n = parseInt(args[maxIdx + 1], 10);
+    if (Number.isInteger(n) && n > 0) maxLessons = n;
+  }
+
+  return { dryRun, apply, specKey, threshold, maxLessons };
 }
 
 function normalizeQuestionText(text) {
@@ -123,16 +137,20 @@ function run() {
       const overlapRatio = n === 0 ? 0 : overlapCount / n;
 
       let action = "NO_ACTION";
-      if (overlapRatio >= OVERLAP_THRESHOLD) {
-        action = dryRun ? "CLEARED" : "CLEARED";
-        lessonsDeduplicated += 1;
-        if (apply) {
-          const doc = await Lesson.findById(lesson._id);
-          if (doc && doc.assessment && Array.isArray(doc.assessment.questions)) {
-            doc.assessment.questions = [];
-            doc.markModified("assessment");
-            await doc.save();
-            console.log("[APPLY] Cleared embedded assessment for lesson:", lesson._id, lesson.title || "(no title)");
+      if (overlapRatio >= threshold) {
+        if (apply && maxLessons != null && lessonsDeduplicated >= maxLessons) {
+          action = "SKIPPED_MAX";
+        } else {
+          action = "CLEARED";
+          lessonsDeduplicated += 1;
+          if (apply) {
+            const doc = await Lesson.findById(lesson._id);
+            if (doc && doc.assessment && Array.isArray(doc.assessment.questions)) {
+              doc.assessment.questions = [];
+              doc.markModified("assessment");
+              await doc.save();
+              console.log("[APPLY] Cleared embedded assessment for lesson:", lesson._id, lesson.title || "(no title)");
+            }
           }
         }
       } else {
@@ -168,6 +186,8 @@ function run() {
       "| **Run date** | " + new Date().toISOString() + " |",
       "| **Mode** | " + (dryRun ? "DRY RUN" : "APPLY") + " |",
       "| **Spec filter** | " + (specKey || "—") + " |",
+      "| **Threshold** | " + threshold + " |",
+      ...(maxLessons != null ? ["| **MaxLessons** | " + maxLessons + " |"] : []),
       "",
       "## Summary",
       "",

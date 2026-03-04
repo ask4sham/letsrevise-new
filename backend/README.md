@@ -6,7 +6,7 @@ One-off and recurring maintenance tasks run from the backend directory.
 
 This script removes duplicated embedded lesson assessments when they substantially overlap with lesson practice questions.
 
-**Default mode: DRY RUN.** Apply commands prompt for confirmation unless `--force` is used (e.g. via the `:apply:force` npm scripts).
+**Default mode: DRY RUN.** Apply commands require you to type **`APPLY ALL`** or **`APPLY <SPEC_KEY>`** exactly (matching the run scope) unless `--force` or `--yes` is used. Passing `--spec` without `--specKey=...` aborts with exit code 2.
 
 **Commands (from `backend/`):**
 
@@ -14,26 +14,33 @@ This script removes duplicated embedded lesson assessments when they substantial
 |--------|--------|
 | Dry run all lessons | `npm run maintenance:dedup-practice` |
 | Dry run for one spec | `npm run maintenance:dedup-practice:spec --specKey=AQA_GCSE_BIOLOGY` |
-| Apply changes (prompts) | `npm run maintenance:dedup-practice:apply` |
-| Apply changes (no prompt) | `npm run maintenance:dedup-practice:apply:force` |
-| Apply for one spec (prompts) | `npm run maintenance:dedup-practice:spec:apply --specKey=AQA_GCSE_BIOLOGY` |
-| Apply for one spec (no prompt) | `npm run maintenance:dedup-practice:spec:apply:force --specKey=AQA_GCSE_BIOLOGY` |
+| Apply (prompts for `APPLY ALL`) | `npm run maintenance:dedup-practice:apply` |
+| Apply, no prompt | `npm run maintenance:dedup-practice:apply:force` |
+| Apply for one spec (prompts for `APPLY AQA_GCSE_BIOLOGY`) | `npm run maintenance:dedup-practice:spec:apply --specKey=AQA_GCSE_BIOLOGY` |
+| Apply for one spec, no prompt | `npm run maintenance:dedup-practice:spec:apply:force --specKey=AQA_GCSE_BIOLOGY` |
 
 **Examples:**
 
 ```bash
 npm run maintenance:dedup-practice:apply
-# will prompt: Type APPLY to continue
+# Prompts: "This will MODIFY the database. To continue, type: APPLY ALL"
+# You must type exactly: APPLY ALL
 
 npm run maintenance:dedup-practice:apply:force
-# no prompt
+# No prompt (same as --yes in wrapper)
 
 npm run maintenance:dedup-practice:spec:apply --specKey=AQA_GCSE_BIOLOGY
-# will prompt
+# Prompts: type exactly APPLY AQA_GCSE_BIOLOGY
 
 npm run maintenance:dedup-practice:spec:apply:force --specKey=AQA_GCSE_BIOLOGY
-# no prompt
+# No prompt
 ```
+
+**Optional flags (pass through wrapper or to script):**
+
+- **`--force`** or **`--yes`** — Skip confirmation in apply mode.
+- **`--threshold 0.6`** — Overlap ratio threshold (0–1). Default 0.6. Clear when `overlapRatio >= threshold`.
+- **`--maxLessons N`** — In apply mode, stop after clearing N lessons (staged rollouts).
 
 Reports are written to:
 
