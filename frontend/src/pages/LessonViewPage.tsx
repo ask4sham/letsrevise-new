@@ -3117,15 +3117,20 @@ const LessonViewPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Blocks — checkpoint blocks rendered via LessonCheckpoint below. PR-006: block-{idx} for citation deep links. */}
+                {/* Blocks — checkpoint rendered via LessonCheckpoint below. PR-006.1: id=block-{idx} uses original block index for citation deep links. */}
                 <div>
-                  {blocksToRender.map((b, idx) => (
-                    <div key={idx} id={`block-${idx}`}>
-                      {b.type === "diagram"
-                        ? renderDiagramBlock(b, idx)
-                        : renderCallout(b.type, safeStr(b.content, ""), idx)}
-                    </div>
-                  ))}
+                  {blocks.map((b, idx) => {
+                    if (b.type === "stretch" && !showDeeperKnowledge) return null;
+                    if (b.type === "checkpoint") return null;
+                    if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return null;
+                    return (
+                      <div key={idx} id={`block-${idx}`}>
+                        {b.type === "diagram"
+                          ? renderDiagramBlock(b, idx)
+                          : renderCallout(b.type, safeStr(b.content, ""), idx)}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}

@@ -227,4 +227,31 @@ Notes:
 - Feedback stored in EnquiryLog.feedback; POST /api/enquiry/:id/feedback.
 
 Follow-ups:
+PR-006.1 — Fix blockIndex (accurate per chunk)
+PR-007 — Student rollout behind feature flag
+
+---
+
+**PR-006.1 — Correct blockIndex per chunk (citation deep-link accuracy)**
+
+Date: 2025-03-04
+
+Summary:
+Fixed lessonBlockIndexer to compute accurate blockIndexStart/blockIndexEnd per chunk instead of hardcoding blockIndex: 0. Uses [[BLOCK:n]] markers in page text during chunking, then extracts block range for each chunk. Enquiry deepLink uses blockIndexStart for scroll target.
+
+Files changed:
+
+- backend/services/knowledge/indexers/lessonBlockIndexer.js (blockTextUnits, markers, stripBlockMarkers)
+- backend/controllers/enquiry.controller.js (deepLink uses blockIndexStart)
+- backend/scripts/buildKnowledgeIndex.js (report includes blockIndexStart/End)
+- frontend/src/pages/LessonViewPage.tsx (block id uses original block index from blocks array)
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Notes:
+- After merging, re-run index + embed to refresh KnowledgeDocuments:
+  - node backend/scripts/buildKnowledgeIndex.js --apply --source lessonBlock --specKey AQA_GCSE_BIOLOGY
+  - node backend/scripts/embedKnowledgeDocuments.js --apply --source lessonBlock --specKey aqa-gcse-biology
+  - (specKey in embed matches KnowledgeDocument.specKey, which comes from topicKey e.g. aqa-gcse-biology)
+
+Follow-ups:
 PR-007 — Student rollout behind feature flag
