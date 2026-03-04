@@ -147,6 +147,8 @@ interface Lesson {
   topicKey?: string;
   /** Assessment questions (from topic bank snapshot) */
   assessment?: { questions?: Array<unknown> };
+  /** Lesson↔AssessmentPaper: IDs of attached assessment papers */
+  assessmentPaperIds?: string[];
   /** Past papers (from topic bank snapshot) */
   pastPapers?: Array<unknown>;
 }
@@ -1210,6 +1212,9 @@ const LessonViewPage: React.FC = () => {
   const [nextStepsLoading, setNextStepsLoading] = useState(false);
   const [nextSteps, setNextSteps] = useState<{ studentSummary: string; updatedAt: string | null } | null>(null);
 
+  // Lesson↔AssessmentPaper: summaries of attached papers (for student view)
+  const [attachedPapersSummaries, setAttachedPapersSummaries] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number }>>([]);
+
   const pageParam = useMemo(() => searchParams.get("page") || "", [searchParams]);
 
   const hasStructuredPages = useMemo(
@@ -1381,6 +1386,35 @@ const LessonViewPage: React.FC = () => {
       })
       .finally(() => setPracticeLoading(false));
   }, [id, accessDecision?.allowed, accessDecision?.reason, practiceSeed, topicKeyForBank]);
+
+  // Fetch summaries of attached assessment papers when lesson.assessmentPaperIds changes
+  useEffect(() => {
+    const ids = lesson?.assessmentPaperIds;
+    if (!ids?.length) {
+      setAttachedPapersSummaries([]);
+      return;
+    }
+    let cancelled = false;
+    Promise.all(ids.map((paperId: string) => api.get(`/assessment-papers/${paperId}`).then((r: any) => r.data?.paper ?? r.data)))
+      .then((papers) => {
+        if (cancelled) return;
+        setAttachedPapersSummaries(
+          papers
+            .filter(Boolean)
+            .map((p: any) => ({
+              _id: String(p._id),
+              title: p.title || "Untitled",
+              kind: p.kind || "practice_set",
+              questionCount: (p.items?.length ?? 0) + (p.questionBankIds?.length ?? 0),
+              timeSeconds: p.timeSeconds,
+            }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setAttachedPapersSummaries([]);
+      });
+    return () => { cancelled = true; };
+  }, [lesson?.assessmentPaperIds]);
 
   const loadBankOnly = useCallback(async () => {
     if (!id || accessDecision?.allowed !== true) return;
@@ -1691,6 +1725,9 @@ const LessonViewPage: React.FC = () => {
         },
         topicKey: typeof data.topicKey === "string" ? data.topicKey : undefined,
         assessment: data.assessment,
+        assessmentPaperIds: Array.isArray(data.assessmentPaperIds)
+          ? data.assessmentPaperIds.map((id: any) => String(id))
+          : [],
         pastPapers: Array.isArray(data.pastPapers) ? data.pastPapers : undefined,
       };
 
@@ -3331,6 +3368,40 @@ const LessonViewPage: React.FC = () => {
                   lessonId={id || undefined}
                 />
 
+                {/* Lesson↔AssessmentPaper: attached assessment papers (student can start attempt) */}
+                {attachedPapersSummaries.length > 0 && (
+                  <Section title="Assessment" variant="plain">
+                    <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151" }}>
+                      Try these assessment papers linked to this lesson.
+                    </p>
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {attachedPapersSummaries.map((p) => (
+                        <li key={p._id}>
+                          <Link
+                            to={`/assessments/papers/${p._id}/start`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "10px 14px",
+                              borderRadius: 8,
+                              border: "1px solid #e5e7eb",
+                              background: "#f8fafc",
+                              color: "#1e293b",
+                              textDecoration: "none",
+                              fontWeight: 600,
+                              fontSize: 14,
+                            }}
+                          >
+                            {p.title} · {p.kind.replace(/_/g, " ")} · {p.questionCount} questions
+                            {p.timeSeconds ? ` · ${Math.round(p.timeSeconds / 60)} min` : ""} → Start
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </Section>
+                )}
+
                 {/* PR3b: Practice questions (entitled only) */}
                 <PracticeSection
                   practiceLoading={practiceLoading}
@@ -3917,6 +3988,40 @@ const LessonViewPage: React.FC = () => {
           allowed={targetedPracticeAllowed}
           lessonId={id || undefined}
         />
+
+        {/* Lesson↔AssessmentPaper: attached assessment papers */}
+        {attachedPapersSummaries.length > 0 && (
+          <Section title="Assessment" variant="plain">
+            <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151" }}>
+              Try these assessment papers linked to this lesson.
+            </p>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {attachedPapersSummaries.map((p) => (
+                <li key={p._id}>
+                  <Link
+                    to={`/assessments/papers/${p._id}/start`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
+                      background: "#f8fafc",
+                      color: "#1e293b",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {p.title} · {p.kind.replace(/_/g, " ")} · {p.questionCount} questions
+                    {p.timeSeconds ? ` · ${Math.round(p.timeSeconds / 60)} min` : ""} → Start
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
         {/* PR3b: Practice questions (entitled only) */}
         <PracticeSection

@@ -115,6 +115,7 @@ router.get("/", auth, requireActiveSubscription, async (req, res) => {
       examBoard,
       level,
       kind,
+      topicKey,
       published,
       q, // search query
       page = 1,
@@ -146,6 +147,9 @@ router.get("/", auth, requireActiveSubscription, async (req, res) => {
     }
     if (kind) {
       query.kind = String(kind).trim();
+    }
+    if (topicKey && String(topicKey).trim()) {
+      query.topicKey = String(topicKey).trim();
     }
 
     // Search in title

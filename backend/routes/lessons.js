@@ -4,6 +4,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 
 const Lesson = require("../models/Lesson");
+const AssessmentPaper = require("../models/AssessmentPaper");
 const LessonUnlock = require("../models/LessonUnlock");
 const LessonReview = require("../models/LessonReview");
 const LessonRevisionDraft = require("../models/LessonRevisionDraft");
@@ -2597,6 +2598,58 @@ router.delete("/:id/exam-questions/:questionId", auth, requireLessonOwnerOrAdmin
     return res.json({ ok: true, removed });
   } catch (err) {
     console.error("DELETE exam-questions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
+   Lesson↔AssessmentPaper linking
+   POST /:id/assessment-papers — attach paper (body: { paperId })
+   DELETE /:id/assessment-papers/:paperId — detach paper
+   ========================================= */
+
+router.post("/:id/assessment-papers", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const paperId = req.body?.paperId;
+    if (!paperId || !mongoose.Types.ObjectId.isValid(String(paperId))) {
+      return res.status(400).json({ msg: "paperId is required and must be a valid ObjectId" });
+    }
+    const paper = await AssessmentPaper.findById(paperId).select("_id").lean();
+    if (!paper) return res.status(404).json({ msg: "Assessment paper not found" });
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const ids = Array.isArray(lesson.assessmentPaperIds) ? lesson.assessmentPaperIds : [];
+    const idStr = String(paperId);
+    if (ids.some((id) => String(id) === idStr)) {
+      return res.json({ ok: true, attached: false, msg: "Already attached" });
+    }
+    lesson.assessmentPaperIds = [...ids, new mongoose.Types.ObjectId(paperId)];
+    await lesson.save();
+    return res.json({ ok: true, attached: true });
+  } catch (err) {
+    console.error("POST lesson assessment-papers error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+router.delete("/:id/assessment-papers/:paperId", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const paperId = req.params.paperId;
+    if (!mongoose.Types.ObjectId.isValid(paperId)) {
+      return res.status(400).json({ msg: "Invalid paper id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const ids = Array.isArray(lesson.assessmentPaperIds) ? lesson.assessmentPaperIds : [];
+    const before = ids.length;
+    lesson.assessmentPaperIds = ids.filter((id) => String(id) !== String(paperId));
+    const removed = before !== lesson.assessmentPaperIds.length;
+    await lesson.save();
+    return res.json({ ok: true, removed });
+  } catch (err) {
+    console.error("DELETE lesson assessment-papers error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

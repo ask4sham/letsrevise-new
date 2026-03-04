@@ -78,6 +78,8 @@ const AssessmentPaperSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    /** Optional: for filtering papers by topic (e.g. lesson attach modal). */
+    topicKey: { type: String, trim: true, default: null },
     year: {
       type: Number,
     },

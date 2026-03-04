@@ -371,6 +371,9 @@ const LessonSchema = new mongoose.Schema(
 
     /** PR-EDGE-1: When true, teacher opted in to auto-generate from topic banks on create/topic change. */
     autoGenerateFromBanks: { type: Boolean, default: false },
+
+    /** Lesson↔AssessmentPaper linking: papers attached to this lesson (teacher attach; students access from lesson). */
+    assessmentPaperIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: "AssessmentPaper" }], default: [] },
   },
   { timestamps: true }
 );
