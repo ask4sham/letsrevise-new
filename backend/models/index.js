@@ -5,4 +5,6 @@
 // Model loader: ensure models are registered once.
 require("./Curriculum");
 require("./AiGenerationJob");
+require("./SpecStatement");
+require("./KnowledgeDocument");
 

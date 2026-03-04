@@ -38,8 +38,19 @@ Teacher tool for creating and editing flashcards.
 - ExamQuestion
 - TopicFlashcard
 - TopicQuizQuestion
+- SpecStatement (PR-001: exam specification knowledge layer)
+- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks)
+
+## SpecStatement API (admin only)
+
+- GET /api/spec-statements?specKey=&topicKey=&examBoard=&level=
+- POST /api/spec-statements
+- PUT /api/spec-statements/:id
+- DELETE /api/spec-statements/:id
 
 ## Scripts
 
 - backend/scripts/dedupLessonPracticeSources.js
 - backend/scripts/runDedupLessonPracticeSources.js
+- backend/scripts/seedSpecStatements.js (--specKey, --file)
+- backend/scripts/buildKnowledgeIndex.js (--apply, --specKey, --source)
