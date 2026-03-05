@@ -83,6 +83,7 @@ const CoverageDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [highDemandOnly, setHighDemandOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
   const [copyHint, setCopyHint] = useState(false);
@@ -448,6 +449,14 @@ const CoverageDashboardPage: React.FC = () => {
                 <span style={{ fontSize: 13 }}>{s}</span>
               </label>
             ))}
+            <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={highDemandOnly}
+                onChange={(e) => setHighDemandOnly(e.target.checked)}
+              />
+              <span style={{ fontSize: 13 }}>High demand (≥60)</span>
+            </label>
           </div>
         </div>
       )}
@@ -498,6 +507,14 @@ const CoverageDashboardPage: React.FC = () => {
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.knowledgeDocsLesson}</td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.enquiriesTotal}</td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.enquiriesWeakEvidence}</td>
+                    <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.summariesTotal ?? 0}</td>
+                    <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.weakSummariesTotal ?? 0}</td>
+                    <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                        <ScoreBar score={r.demandScore ?? 0} />
+                        <span style={{ minWidth: 28 }}>{r.demandScore ?? 0}</span>
+                      </div>
+                    </td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{(r.weakRate * 100).toFixed(1)}%</td>
                     <td style={{ padding: "10px 16px", textAlign: "center" }}>
                       <button
@@ -542,9 +559,9 @@ const CoverageDashboardPage: React.FC = () => {
                   </tr>
                   {expandedTopic === r.topicKey && r.topWeakQuestions && r.topWeakQuestions.length > 0 && (
                     <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                      <td colSpan={10} style={{ padding: "12px 16px" }}>
+                      <td colSpan={13} style={{ padding: "12px 16px" }}>
                         <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13 }}>
-                          Top weak evidence questions
+                          Top weak evidence enquiries
                         </div>
                         <ul style={{ margin: 0, paddingLeft: 20 }}>
                           {r.topWeakQuestions.map((q, i) => (

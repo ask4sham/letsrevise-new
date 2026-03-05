@@ -427,7 +427,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
             <div style={{ fontSize: 12, fontFamily: "monospace", color: "#6b7280" }}>{topicKey}</div>
             <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Window: {windowDays} days</div>
             {row && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 8 }}>
                 <span
                   style={{
                     padding: "2px 8px",
@@ -442,6 +442,12 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                 </span>
                 <ScoreBar score={row.score} />
                 <span style={{ fontSize: 12 }}>{row.score}</span>
+                <span style={{ fontSize: 11, color: "#6b7280" }} title="Enquiries / weak enquiries">
+                  enq {row.enquiriesTotal}/{row.enquiriesWeakEvidence}
+                </span>
+                <span style={{ fontSize: 11, color: "#6b7280" }} title="Summaries / weak summaries">
+                  sum {row.summariesTotal ?? 0}/{row.weakSummariesTotal ?? 0}
+                </span>
               </div>
             )}
           </div>

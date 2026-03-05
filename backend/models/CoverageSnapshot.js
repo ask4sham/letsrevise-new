@@ -33,6 +33,19 @@ const CoverageSnapshotSchema = new mongoose.Schema(
     weakRate: { type: Number, required: true, default: 0 },
     topWeakQuestions: { type: [TopWeakQuestionSchema], default: [] },
     notes: { type: String, default: "" },
+    /** PR-028: Topic summaries + demand metrics */
+    summariesTotal: { type: Number, default: 0 },
+    weakSummariesTotal: { type: Number, default: 0 },
+    summariesByMode: {
+      type: {
+        overview: Number,
+        lessonPlan: Number,
+        revisionSheet: Number,
+        examFocus: Number,
+      },
+      default: () => ({}),
+    },
+    demandScore: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -56,16 +56,19 @@ function parseArgs() {
 
   let coverageWeight = 0.65;
   let weakWeight = 0.35;
+  let demandWeight = 0;
   const weightsIdx = args.indexOf("--weights");
   if (weightsIdx !== -1 && args[weightsIdx + 1]) {
     const s = String(args[weightsIdx + 1]);
     const m1 = s.match(/coverage=([\d.]+)/);
     const m2 = s.match(/weak=([\d.]+)/);
+    const m3 = s.match(/demand=([\d.]+)/);
     if (m1) coverageWeight = parseFloat(m1[1]) || 0.65;
     if (m2) weakWeight = parseFloat(m2[1]) || 0.35;
+    if (m3) demandWeight = parseFloat(m3[1]) || 0;
   }
 
-  return { apply, specKey, windowDays, useSnapshots, top, minEnquiries, coverageWeight, weakWeight };
+  return { apply, specKey, windowDays, useSnapshots, top, minEnquiries, coverageWeight, weakWeight, demandWeight };
 }
 
 function promptApplyConfirmation(displayKey) {
@@ -126,7 +129,7 @@ async function run() {
       useSnapshots,
       top,
       minEnquiries,
-      weights: { coverage: coverageWeight, weak: weakWeight },
+      weights: { coverage: coverageWeight, weak: weakWeight, demand: demandWeight },
       applyIfMissingSnapshots,
     });
 

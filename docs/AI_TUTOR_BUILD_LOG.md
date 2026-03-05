@@ -1095,4 +1095,33 @@ Notes:
 - Open loads full log and displays in existing summary modal without regenerating.
 
 Follow-ups:
+PR-028 — Wire Topic Summaries + Enquiries into Coverage metrics
+
+---
+
+**PR-028 — Wire Topic Summaries + Enquiries into Coverage metrics (usage-driven coverage)**
+
+Date: 2026-03-05
+
+Summary:
+Coverage engine now aggregates TopicSummaryLog and EnquiryLog for usage-driven metrics. CoverageSnapshot schema extended with summariesTotal, weakSummariesTotal, summariesByMode, demandScore. Demand score (0–100) = enquiriesTotal + (summariesTotal × 2), normalized across topics. Sprint order script supports optional --weights demand=0.15; default demand weight 0 preserves existing ordering. Coverage dashboard: new columns (enquiries, weak enq, summaries, weak sum, demand bar), "High demand (≥60)" filter, "weak enquiries" label. CoverageTopicDrawer header badges show enq/sum counts.
+
+Files changed:
+
+- backend/models/CoverageSnapshot.js (summariesTotal, weakSummariesTotal, summariesByMode, demandScore)
+- backend/services/coverage/coverageEngine.js (TopicSummaryLog aggregation, demandScore, topicKeys from EnquiryLog/TopicSummaryLog)
+- backend/scripts/buildCoverageReport.js ($set new fields)
+- backend/scripts/buildSprintOrderFromCoverage.js (--weights demand=)
+- backend/services/sprintOrder/sprintOrderService.js (demandWeight, computePriority, writeSnapshots)
+- frontend/src/api/coverage.ts (CoverageRow types)
+- frontend/src/pages/CoverageDashboardPage.tsx (columns, High demand filter, weak enquiries label)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (header badges enq/sum)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Weak summary: confidenceLevel === "weak" OR response.warnings contains "insufficient".
+- Sprint order: node scripts/buildSprintOrderFromCoverage.js --specKey aqa-gcse-biology --weights "coverage=0.60,weak=0.25,demand=0.15"
+
+Follow-ups:
 None

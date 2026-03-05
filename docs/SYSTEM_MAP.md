@@ -26,8 +26,8 @@ Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Ac
 **AskAiStudentPanel** (PR-007, PR-019, PR-020)
 Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student.
 
-**CoverageDashboardPage** (PR-010, PR-012, PR-013)
-Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel.
+**CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
+Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
 
 **CoverageTopicDrawer** (PR-013, PR-014, PR-023, PR-024, PR-027)
 Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic (PR-023). Teaching summary section: "Summarise topic" opens modal with mode (Overview/Lesson plan/Revision sheet/Exam focus), max sources, allowExternal; generates structured summary with citations, confidence, copy buttons (PR-024). PR-027: "Recent summaries" list with Open, Download PDF, Load more.
@@ -59,7 +59,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - ExternalSourceReview (PR-022: audit trail for promote/deny)
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
-- CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days)
+- CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days; PR-028: summariesTotal, weakSummariesTotal, summariesByMode, demandScore)
 - ContentGenerationJob (PR-014: starter pack generation jobs, audit trail)
 
 ## SpecStatement API (admin only)
@@ -89,7 +89,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - backend/scripts/runVectorMigrations.js
 - backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
 - backend/scripts/buildCoverageReport.js (--specKey, --apply, --windowDays, --top, --includeWeakQuestions)
-- backend/scripts/buildSprintOrderFromCoverage.js (--specKey, --apply, --windowDays, --useSnapshots, --top, --minEnquiries, --weights)
+- backend/scripts/buildSprintOrderFromCoverage.js (--specKey, --apply, --windowDays, --useSnapshots, --top, --minEnquiries, --weights coverage= weak= demand=)
 - backend/scripts/runBuildSprintOrderFromCoverage.js (wrapper: reads npm_config_specKey, forwards args)
 - backend/scripts/runEnquirySmokeTest.js
 
