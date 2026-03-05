@@ -17,8 +17,8 @@ Displays attached practice papers.
 **FlashcardsEditor**
 Teacher tool for creating and editing flashcards.
 
-**AskAiPanel** (PR-005, PR-019, PR-020)
-Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, localStorage askai:mode:teacher.
+**AskAiPanel** (PR-005, PR-019, PR-020, PR-021)
+Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. localStorage askai:mode:teacher, askai:allowExternal:teacher.
 
 **AskAiStudentPanel** (PR-007, PR-019, PR-020)
 Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student.
@@ -51,7 +51,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - TopicFlashcard
 - TopicQuizQuestion
 - SpecStatement (PR-001: exam specification knowledge layer)
-- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks)
+- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks; PR-021: sourceType externalTrusted)
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
 - CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days)

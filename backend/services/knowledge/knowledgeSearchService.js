@@ -39,7 +39,7 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, limit = 1
     specKey: { $in: specVariants },
   };
   if (topicKey && String(topicKey).trim()) mongoQuery.topicKey = String(topicKey).trim();
-  if (sourceType && ["specStatement", "lessonBlock"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
+  if (sourceType && ["specStatement", "lessonBlock", "externalTrusted"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
 
   const docs = await KnowledgeDocument.find(mongoQuery).lean();
   const scoreMap = new Map(vectorResults.map((r) => [r.knowledgeDocumentId, r.score]));

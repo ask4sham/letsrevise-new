@@ -14,11 +14,13 @@ export type PostEnquiryParams = {
   conversationId?: string;
   /** PR-020: Response mode (quick/explain/exam/revision) */
   responseMode?: "quick" | "explain" | "exam" | "revision";
+  /** PR-021: Allow external search fallback when course content is thin (teacher/admin only) */
+  allowExternal?: boolean;
 };
 
 export type EnquiryCitation = {
   knowledgeDocumentId: string;
-  sourceType: "specStatement" | "lessonBlock";
+  sourceType: "specStatement" | "lessonBlock" | "externalTrusted";
   sourceId: string;
   quote: string;
   reason: string;
@@ -29,6 +31,8 @@ export type EnquiryCitation = {
     pageId?: string;
     blockIndex?: number;
   };
+  /** PR-021: URL for external citations */
+  externalUrl?: string;
 };
 
 export type EnquiryPracticeItem =
@@ -58,16 +62,18 @@ export type UsedSource = {
   sourceType: string;
   sourceId: string;
   title: string;
+  /** PR-021: URL for external sources */
+  url?: string;
   topicKey: string;
   score: number;
 };
 
 export type SuggestedTopic = { topicKey: string; title?: string | null };
 
-/** PR-017: Confidence indicator */
+/** PR-017: Confidence indicator. PR-021: sources.external for external refs. */
 export type ConfidenceSignals = {
   topScore: number | null;
-  sources: { spec: number; lesson: number; total: number };
+  sources: { spec: number; lesson: number; external?: number; total: number };
   warnings: string[];
 };
 
@@ -95,6 +101,9 @@ export type PostEnquiryResponse = {
   confidenceLevel?: "strong" | "moderate" | "weak";
   confidenceReason?: string;
   confidenceSignals?: ConfidenceSignals;
+  /** PR-021: External search was used */
+  externalUsed?: boolean;
+  externalSources?: Array<{ url: string; title: string; domain: string }>;
 };
 
 export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquiryResponse> {
@@ -107,6 +116,7 @@ export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquir
     includePractice: params.includePractice ?? true,
     conversationId: params.conversationId || undefined,
     responseMode: params.responseMode || undefined,
+    allowExternal: params.allowExternal ?? undefined,
   });
   return res.data;
 }

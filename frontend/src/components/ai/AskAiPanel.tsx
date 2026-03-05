@@ -58,6 +58,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [recentDropdownOpen, setRecentDropdownOpen] = useState(false);
   const [responseMode, setResponseMode] = useState<"quick" | "explain" | "exam" | "revision">("explain");
+  const [allowExternal, setAllowExternal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sessionKey = getSessionKey(specKey, topicKey, lessonId);
@@ -69,9 +70,19 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
     }
   }, []);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("askai:allowExternal:teacher");
+    setAllowExternal(stored === "true");
+  }, []);
+
   const handleModeChange = (mode: "quick" | "explain" | "exam" | "revision") => {
     setResponseMode(mode);
     localStorage.setItem("askai:mode:teacher", mode);
+  };
+
+  const handleAllowExternalChange = (checked: boolean) => {
+    setAllowExternal(checked);
+    localStorage.setItem("askai:allowExternal:teacher", String(checked));
   };
 
   const loadConversation = useCallback(
@@ -298,6 +309,16 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
           </button>
         ))}
       </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={allowExternal}
+            onChange={(e) => handleAllowExternalChange(e.target.checked)}
+          />
+          <span>Use external references when course content is thin</span>
+        </label>
+      </div>
 
       <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 12 }}>
         {hasMore && (
@@ -490,6 +511,40 @@ function AssistantBubbleTeacher({
           }}
         >
           <strong>Note:</strong> {response.answer.warnings.join(" ")}
+        </div>
+      )}
+
+      {response.externalUsed && (
+        <div style={{ marginBottom: 12 }}>
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 8,
+              background: "#fefce8",
+              border: "1px solid #facc15",
+              color: "#854d0e",
+              fontSize: 14,
+            }}
+          >
+            External references were used (exploratory). Check your course specification.
+          </div>
+          {response.externalSources && response.externalSources.length > 0 && (
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ cursor: "pointer", fontSize: 13, color: "#64748b" }}>
+                External sources ({response.externalSources.length})
+              </summary>
+              <ul style={{ margin: "8px 0 0 0", paddingLeft: 20, fontSize: 13 }}>
+                {response.externalSources.map((s, i) => (
+                  <li key={i}>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0284c7" }}>
+                      {s.title || s.domain || s.url}
+                    </a>
+                    {s.domain && <span style={{ color: "#94a3b8" }}> ({s.domain})</span>}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 

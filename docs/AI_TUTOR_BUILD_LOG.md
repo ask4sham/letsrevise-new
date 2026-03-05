@@ -788,3 +788,40 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-021 — Controlled external search fallback (teacher/admin first, safe + off-by-default)**
+
+Date: 2026-03-05
+
+Summary:
+When enquiry confidence is weak, allow optional fallback to fetch external references from an allowlist (aqa.org.uk, ocr.org.uk, qualifications.pearson.com). External results are labeled EXTERNAL (exploratory), never mixed invisibly with curriculum, cited with URL + snippet, stored as KnowledgeDocuments sourceType=externalTrusted. Feature-flagged AI_TUTOR_EXTERNAL_SEARCH_ENABLED (default false). Teacher/admin only; students cannot trigger. Rate limit for external: 3/min teachers, 10/min admins. Mock + Brave Search providers.
+
+Files changed:
+
+- backend/config/externalSearch.js (feature flag, domains, max results/snippet)
+- backend/.env.example (AI_TUTOR_EXTERNAL_SEARCH_*)
+- backend/services/externalSearch/provider.js (mock, brave)
+- backend/models/KnowledgeDocument.js (externalTrusted sourceType, sourceId Mixed)
+- backend/services/knowledge/indexers/externalTrustedIndexer.js (index + embed)
+- backend/services/knowledge/knowledgeSearchService.js (externalTrusted filter)
+- backend/controllers/enquiry.controller.js (allowExternal, external flow)
+- backend/services/enquiry/enquiryCache.js (allowExternal in cache key)
+- backend/services/enquiry/confidence.js (external-only → weak, sources.external)
+- backend/middleware/externalSearchRateLimit.js (3/min teacher, 10/min admin)
+- backend/routes/enquiry.routes.js (externalSearchRateLimit middleware)
+- frontend/src/api/enquiry.ts (allowExternal, externalUsed, externalSources, externalUrl)
+- frontend/src/components/ai/AskAiPanel.tsx (checkbox, callout, externalSources list)
+- frontend/src/components/ai/citationLinks.ts (externalUrl for externalTrusted)
+- frontend/src/components/ai/CitationsList.tsx (anchor for external URLs)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Off by default. Weak confidence only. allowExternal in cache key.
+- Never remove "Insufficient trusted sources" when external used.
+- No scraping; snippets only. EXTERNAL_SEARCH_PROVIDER=brave|mock.
+
+Follow-ups:
+None
