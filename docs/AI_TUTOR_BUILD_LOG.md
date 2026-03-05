@@ -472,3 +472,36 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-014 — Content Starter Pack generator**
+
+Date: 2026-03-05
+
+Summary:
+One-click generator for THIN/EMPTY topics: creates draft lesson outline, flashcards, quiz questions, and exam questions from spec statements. Uses only trusted internal sources (SpecStatements, KnowledgeDocuments). All output is DRAFT; nothing auto-published. Teacher/admin only, rate limited (3/min teacher, 10/min admin).
+
+Files changed:
+
+- backend/models/ContentGenerationJob.js (new)
+- backend/services/generation/starterPackService.js (new)
+- backend/services/llm/provider.js (generateStarterPack added)
+- backend/controllers/contentGeneration.controller.js (new)
+- backend/routes/contentGeneration.routes.js (new)
+- backend/middleware/contentGenerationRateLimit.js (new)
+- backend/app.js
+- frontend/src/api/generation.ts (new)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- POST /api/generate/starter-pack { specKey, topicKey, statementCodes?, tier? }
+- GET /api/generate/jobs?specKey=...&topicKey=...&limit=20 — audit recent jobs
+- If statementCodes empty, uses top 3 missing statements from drilldown
+- Deterministic seed per run; no overwrite of existing drafts
+- Outputs: lesson (draft), TopicFlashcard (draft), TopicQuizQuestion (draft), ExamQuestion (draft)
+
+Follow-ups:
+None

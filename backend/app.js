@@ -134,6 +134,9 @@ app.use("/api/feature-flags", require("./routes/featureFlags"));
 // PR-009: Coverage engine (teacher + admin)
 app.use("/api/coverage", require("./routes/coverage.routes"));
 
+// PR-014: Content starter pack generator (teacher + admin, rate limited)
+app.use("/api/generate", require("./routes/contentGeneration.routes"));
+
 // PR-012: Sprint order download (teacher + admin, rate limited)
 app.use("/api/sprint-order", require("./routes/sprintOrder.routes"));
 

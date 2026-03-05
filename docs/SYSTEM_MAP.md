@@ -26,8 +26,8 @@ Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practic
 **CoverageDashboardPage** (PR-010, PR-012, PR-013)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel.
 
-**CoverageTopicDrawer** (PR-013)
-Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard.
+**CoverageTopicDrawer** (PR-013, PR-014)
+Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014).
 
 ## Backend
 
@@ -55,6 +55,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
 - CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days)
+- ContentGenerationJob (PR-014: starter pack generation jobs, audit trail)
 
 ## SpecStatement API (admin only)
 
@@ -119,3 +120,11 @@ NPM maintenance scripts (backend):
 - GET /api/sprint-order?specKey=... — teacher/admin, rate limited (10/min teacher, 30/min admin), markdown download
 - POST /api/sprint-order/snapshots/ensure — admin only, X-Confirm required
 - frontend/src/api/sprintOrder.ts — getSprintOrderMarkdown (fetch + trigger download)
+
+## Content Generation API (PR-014)
+
+- POST /api/generate/starter-pack { specKey, topicKey, statementCodes?, tier? } — teacher/admin, rate limited (3/min teacher, 10/min admin)
+- GET /api/generate/jobs?specKey=...&topicKey=...&limit=20 — teacher/admin, audit recent jobs
+- ContentGenerationJob model — tracks generation requests and outputs
+- backend/services/generation/starterPackService.js — retrieval + LLM call
+- frontend/src/api/generation.ts — postGenerateStarterPack, getGenerationJobs
