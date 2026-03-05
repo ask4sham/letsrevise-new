@@ -57,9 +57,22 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
   const [oldestReturnedAt, setOldestReturnedAt] = useState<string | null>(null);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [recentDropdownOpen, setRecentDropdownOpen] = useState(false);
+  const [responseMode, setResponseMode] = useState<"quick" | "explain" | "exam" | "revision">("explain");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sessionKey = getSessionKey(specKey, topicKey, lessonId);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("askai:mode:teacher");
+    if (stored && ["quick", "explain", "exam", "revision"].includes(stored)) {
+      setResponseMode(stored as "quick" | "explain" | "exam" | "revision");
+    }
+  }, []);
+
+  const handleModeChange = (mode: "quick" | "explain" | "exam" | "revision") => {
+    setResponseMode(mode);
+    localStorage.setItem("askai:mode:teacher", mode);
+  };
 
   const loadConversation = useCallback(
     (id: string, opts?: { limit?: number; before?: string }) => {
@@ -261,6 +274,30 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
       <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#0369a1" }}>
         Get answers from trusted LetsRevise curriculum sources. Ask follow-ups in the same thread.
       </p>
+
+      <div style={{ marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: "#64748b", marginRight: 8 }}>Mode:</span>
+        {(["quick", "explain", "exam", "revision"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => handleModeChange(m)}
+            style={{
+              marginRight: 6,
+              padding: "4px 10px",
+              fontSize: 12,
+              fontWeight: 600,
+              background: responseMode === m ? "#0284c7" : "#e0f2fe",
+              color: responseMode === m ? "#fff" : "#0369a1",
+              border: "1px solid #7dd3fc",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            {m.charAt(0).toUpperCase() + m.slice(1)}
+          </button>
+        ))}
+      </div>
 
       <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 12 }}>
         {hasMore && (
@@ -560,73 +597,131 @@ function AssistantBubbleTeacher({
             Practice
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {response.answer.practice.map((p, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: 12,
-                  background: "#fff",
-                  borderRadius: 8,
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <span
+            {response.answer.practice.map((p, i) =>
+              p.type === "flashcard" ? (
+                <div
+                  key={i}
                   style={{
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: "#f1f5f9",
-                    color: "#475569",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    marginRight: 8,
+                    padding: 12,
+                    background: "#fff",
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
                   }}
                 >
-                  {p.type.toUpperCase()}
-                </span>
-                <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
-                {p.type === "mcq" && Array.isArray(p.options) && (
-                  <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                    {p.options.map((opt, j) => (
-                      <li key={j}>{opt}</li>
-                    ))}
-                  </ul>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onTogglePractice(enquiryLogId, i)}
-                  style={{
-                    padding: "4px 10px",
-                    fontSize: 12,
-                    background: "#e2e8f0",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    color: "#475569",
-                  }}
-                >
-                  {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Show answer"}
-                </button>
-                {showAnswer[`${enquiryLogId}-${i}`] && (
-                  <div
+                  <span
                     style={{
-                      marginTop: 8,
-                      padding: 8,
-                      background: "#f0fdf4",
-                      borderRadius: 6,
-                      border: "1px solid #bbf7d0",
-                      fontSize: 13,
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      fontWeight: 600,
+                      fontSize: 11,
+                      marginRight: 8,
                     }}
                   >
-                    <strong>Answer:</strong> {p.answer}
-                    {p.markScheme && (
-                      <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
-                        <strong>Mark scheme:</strong> {p.markScheme}
-                      </div>
-                    )}
+                    FLASHCARD
+                  </span>
+                  <div style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>
+                    {p.front}
                   </div>
-                )}
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => onTogglePractice(enquiryLogId, i)}
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      background: "#e2e8f0",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      color: "#475569",
+                    }}
+                  >
+                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide back" : "Show back"}
+                  </button>
+                  {showAnswer[`${enquiryLogId}-${i}`] && p.back && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 8,
+                        background: "#f0fdf4",
+                        borderRadius: 6,
+                        border: "1px solid #bbf7d0",
+                        fontSize: 13,
+                      }}
+                    >
+                      {p.back}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  key={i}
+                  style={{
+                    padding: 12,
+                    background: "#fff",
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: "#f1f5f9",
+                      color: "#475569",
+                      fontWeight: 600,
+                      fontSize: 11,
+                      marginRight: 8,
+                    }}
+                  >
+                    {p.type.toUpperCase()}
+                  </span>
+                  <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
+                  {p.type === "mcq" && Array.isArray(p.options) && (
+                    <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                      {p.options.map((opt, j) => (
+                        <li key={j}>{opt}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onTogglePractice(enquiryLogId, i)}
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      background: "#e2e8f0",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      color: "#475569",
+                    }}
+                  >
+                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Show answer"}
+                  </button>
+                  {showAnswer[`${enquiryLogId}-${i}`] && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 8,
+                        background: "#f0fdf4",
+                        borderRadius: 6,
+                        border: "1px solid #bbf7d0",
+                        fontSize: 13,
+                      }}
+                    >
+                      <strong>Answer:</strong> {p.answer}
+                      {p.markScheme && (
+                        <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
+                          <strong>Mark scheme:</strong> {p.markScheme}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            )}
           </div>
         </div>
       )}

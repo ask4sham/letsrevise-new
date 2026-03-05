@@ -17,11 +17,11 @@ Displays attached practice papers.
 **FlashcardsEditor**
 Teacher tool for creating and editing flashcards.
 
-**AskAiPanel** (PR-005, PR-019)
-Teacher-only panel in LessonViewPage: threaded chat UI, conversation + follow-ups, /api/enquiry with conversationId, answer + citations + practice + feedback per message.
+**AskAiPanel** (PR-005, PR-019, PR-020)
+Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, localStorage askai:mode:teacher.
 
-**AskAiStudentPanel** (PR-007, PR-019)
-Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help"; threaded chat, practice-first, collapsed explanation/citations.
+**AskAiStudentPanel** (PR-007, PR-019, PR-020)
+Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student.
 
 **CoverageDashboardPage** (PR-010, PR-012, PR-013)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel.
@@ -99,11 +99,11 @@ NPM maintenance scripts (backend):
 - GET /api/conversations/:id — get conversation + messages (owner or admin)
 - GET /api/conversations?specKey=&topicKey=&limit=20 — list recent conversations for user
 
-## Enquiry API (PR-004, PR-006, PR-007, PR-019)
+## Enquiry API (PR-004, PR-006, PR-007, PR-019, PR-020)
 
-- POST /api/enquiry — teacher + admin + student (when flag enabled). Body may include conversationId for threaded follow-ups. Rate limits: student 5/min, teacher 10/min, admin 30/min
+- POST /api/enquiry — teacher + admin + student (when flag enabled). Body: conversationId?, responseMode? (quick|explain|exam|revision). Rate limits: student 5/min, teacher 10/min, admin 30/min
 - POST /api/enquiry/:id/feedback — thumbs up/down + optional comment (teacher + admin)
-- With conversationId: loads last 3 pairs as context, appends user+assistant to ConversationMessage; cache key includes conversationId
+- Cache key includes conversationId + responseMode. Practice types: mcq, short, exam, flashcard (front/back)
 
 ## Feature Flags (PR-007)
 

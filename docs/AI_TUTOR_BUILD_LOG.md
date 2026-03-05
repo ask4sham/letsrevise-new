@@ -759,3 +759,32 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-020 — AI Tutor response modes (quick/explain/exam/revision)**
+
+Date: 2026-03-05
+
+Summary:
+Perplexity-style response modes that change answer shape/tone while staying curriculum-grounded. quick: 3–5 bullets + 1 practice; explain: fuller explanation + 2 practice; exam: examiner style + 1 exam Q + mark scheme; revision: revision sheet + 3 flashcard prompts. Mode switch UI in both panels (teacher: Quick|Explain|Exam|Revision; student: Quick|Explain|Revision). New practice type "flashcard" with front/back rendered as "Show back" toggle. Mode included in cache key. EnquiryLog.responseMode persisted.
+
+Files changed:
+
+- backend/controllers/enquiry.controller.js (responseMode param, default explain)
+- backend/services/enquiry/enquiryCache.js (responseMode in cache key)
+- backend/models/EnquiryLog.js (responseMode, practice type flashcard)
+- backend/services/llm/provider.js (mode-specific prompts, flashcard output)
+- frontend/src/api/enquiry.ts (responseMode, EnquiryPracticeItem flashcard)
+- frontend/src/components/ai/AskAiPanel.tsx (mode switch, flashcard render)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (mode switch Quick/Explain/Revision, flashcard render)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Default mode: explain for both roles. Students: Exam hidden from UI.
+- Citations, confidence, suggested actions, caching unchanged.
+- Student length caps respected.
+
+Follow-ups:
+None

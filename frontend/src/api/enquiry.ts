@@ -12,6 +12,8 @@ export type PostEnquiryParams = {
   includePractice?: boolean;
   /** PR-019: Threaded conversation */
   conversationId?: string;
+  /** PR-020: Response mode (quick/explain/exam/revision) */
+  responseMode?: "quick" | "explain" | "exam" | "revision";
 };
 
 export type EnquiryCitation = {
@@ -29,13 +31,19 @@ export type EnquiryCitation = {
   };
 };
 
-export type EnquiryPracticeItem = {
-  type: "mcq" | "short" | "exam";
-  question: string;
-  options?: string[];
-  answer: string;
-  markScheme?: string;
-};
+export type EnquiryPracticeItem =
+  | {
+      type: "mcq" | "short" | "exam";
+      question: string;
+      options?: string[];
+      answer: string;
+      markScheme?: string;
+    }
+  | {
+      type: "flashcard";
+      front: string;
+      back: string;
+    };
 
 export type EnquiryAnswer = {
   explanation: string;
@@ -98,6 +106,7 @@ export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquir
     limit: params.limit ?? 8,
     includePractice: params.includePractice ?? true,
     conversationId: params.conversationId || undefined,
+    responseMode: params.responseMode || undefined,
   });
   return res.data;
 }

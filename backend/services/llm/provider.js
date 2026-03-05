@@ -52,6 +52,7 @@ function buildConversationContext(conversationContext) {
 function mockGenerate(question, contextChunks, constraints) {
   const chunks = contextChunks || [];
   const hasWeakEvidence = constraints?.weakEvidence === true;
+  const responseMode = (constraints?.responseMode || "explain").toLowerCase();
 
   let explanation = "";
   const keyPoints = [];
@@ -70,9 +71,20 @@ function mockGenerate(question, contextChunks, constraints) {
   } else {
     const firstChunk = chunks[0];
     const snippet = (firstChunk.text || "").slice(0, 150).trim();
-    explanation = `Based on the curriculum content: ${snippet}${snippet ? "..." : ""}`;
-    keyPoints.push("Content is drawn from trusted specification and lesson sources.");
-    keyPoints.push("Always verify against your exam board specification.");
+    if (responseMode === "quick") {
+      explanation = `• Key point 1 from curriculum\n• Key point 2\n• Key point 3`;
+      keyPoints.push("Concise summary");
+    } else if (responseMode === "exam") {
+      explanation = `Key points (exam-style):\n1. ${snippet.slice(0, 80)}...\n2. Syllabus-aligned content.`;
+      keyPoints.push("Command-word aligned");
+    } else if (responseMode === "revision") {
+      explanation = `Revision sheet:\n• Key facts\n• Common mistake to avoid\n• Memory cue`;
+      keyPoints.push("Structured for revision");
+    } else {
+      explanation = `Based on the curriculum content: ${snippet}${snippet ? "..." : ""}`;
+      keyPoints.push("Content is drawn from trusted specification and lesson sources.");
+      keyPoints.push("Always verify against your exam board specification.");
+    }
 
     citations.push({
       knowledgeDocumentId: firstChunk.knowledgeDocumentId,
@@ -82,18 +94,40 @@ function mockGenerate(question, contextChunks, constraints) {
       reason: "Primary source for the answer",
     });
 
-    practice.push({
-      type: "mcq",
-      question: `Which of the following best relates to: ${question.slice(0, 80)}?`,
-      options: ["Option A (from curriculum)", "Option B", "Option C", "Option D"],
-      answer: "Option A (from curriculum)",
-    });
-    practice.push({
-      type: "short",
-      question: "Summarise the key point from the curriculum.",
-      answer: "See explanation above.",
-      markScheme: "1 mark for correct summary",
-    });
+    if (responseMode === "quick") {
+      practice.push({
+        type: "short",
+        question: `Summarise: ${question.slice(0, 60)}?`,
+        answer: "See explanation above.",
+        markScheme: "1 mark",
+      });
+    } else if (responseMode === "exam") {
+      practice.push({
+        type: "exam",
+        question: `Explain ${question.slice(0, 60)}. [4 marks]`,
+        answer: "See explanation.",
+        markScheme: "1 mark per valid point (max 4)",
+      });
+    } else if (responseMode === "revision") {
+      practice.push(
+        { type: "flashcard", front: `What is ${question.slice(0, 40)}?`, back: "See curriculum content." },
+        { type: "flashcard", front: "Common mistake?", back: "Avoid oversimplification." },
+        { type: "flashcard", front: "Memory cue?", back: "Link to key concept." }
+      );
+    } else {
+      practice.push({
+        type: "mcq",
+        question: `Which best relates to: ${question.slice(0, 80)}?`,
+        options: ["Option A (from curriculum)", "Option B", "Option C", "Option D"],
+        answer: "Option A (from curriculum)",
+      });
+      practice.push({
+        type: "short",
+        question: "Summarise the key point.",
+        answer: "See explanation above.",
+        markScheme: "1 mark for correct summary",
+      });
+    }
   }
 
   return {
@@ -117,6 +151,25 @@ async function openaiGenerate(question, contextChunks, constraints) {
   const model = process.env.LLM_MODEL || "gpt-4o-mini";
 
   const context = buildContext(contextChunks);
+  const convCtx = buildConversationContext(constraints?.conversationContext || []);
+  const contextNote =
+    convCtx
+      ? "\n\nUse conversation context only to interpret follow-up questions. Do not invent new facts. Still cite trusted sources."
+      : "";
+
+  const responseMode = (constraints?.responseMode || "explain").toLowerCase();
+  const modeInstructions = {
+    quick:
+      "\n\nQUICK MODE: Answer in 3–5 bullet points, max ~600 chars. Include exactly 1 practice item. No long paragraphs.",
+    explain:
+      "\n\nEXPLAIN MODE: Clear explanation, simple structure, small example. Include 2 practice items (1 mcq + 1 short).",
+    exam:
+      "\n\nEXAM MODE: Answer like an examiner—key points, command words. Include 1 exam-style question + mark scheme. Use syllabus language; no fluff.",
+    revision:
+      "\n\nREVISION MODE: Give a revision sheet—key facts, common mistakes, memory cues. Provide 3 flashcard prompts in practice array as type=flashcard with front and back fields.",
+  };
+  const modeNote = modeInstructions[responseMode] || modeInstructions.explain;
+
   const weakNote =
     constraints?.weakEvidence === true
       ? "\n\nIMPORTANT: The retrieved sources are weak or insufficient. You MUST include a warning 'Insufficient trusted sources' and explain what is missing. Do not make up facts."
@@ -141,14 +194,14 @@ Rules:
 - Every citation must reference a knowledgeDocumentId from the context.
 - quote must be a snippet (<=200 chars) from that document's text.
 - If sources don't cover the question, add "Insufficient trusted sources" to warnings.
-- Return valid JSON only.${contextNote}${weakNote}${studentNote}`;
+- Return valid JSON only.${contextNote}${modeNote}${weakNote}${studentNote}`;
 
   const userPrompt = `${convCtx}Question: ${question}
 
 Context:
 ${context}
 
-Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "knowledgeDocumentId": "...", "sourceType": "...", "sourceId": "...", "quote": "...", "reason": "..." }], "practice": [{ "type": "mcq|short|exam", "question": "...", "options": [], "answer": "...", "markScheme": "..." }], "warnings": [] }`;
+Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "knowledgeDocumentId": "...", "sourceType": "...", "sourceId": "...", "quote": "...", "reason": "..." }], "practice": [{ "type": "mcq|short|exam|flashcard", "question": "...", "options": [], "answer": "...", "markScheme": "...", "front": "...(for flashcard)", "back": "...(for flashcard)" }], "warnings": [] }`;
 
   const res = await axios.post(
     "https://api.openai.com/v1/chat/completions",
@@ -191,6 +244,25 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "know
       quote: String(c.quote || "").slice(0, 200),
       reason: String(c.reason || ""),
     }));
+
+  out.practice = (out.practice || [])
+    .filter((p) => p && (p.type === "flashcard" ? (p.front && p.back) : p.question))
+    .map((p) => {
+      if (p.type === "flashcard") {
+        return {
+          type: "flashcard",
+          front: String(p.front || "").slice(0, 300),
+          back: String(p.back || "").slice(0, 500),
+        };
+      }
+      return {
+        type: p.type || "short",
+        question: String(p.question || ""),
+        options: Array.isArray(p.options) ? p.options.map(String) : undefined,
+        answer: String(p.answer || ""),
+        markScheme: p.markScheme ? String(p.markScheme) : undefined,
+      };
+    });
 
   return out;
 }
