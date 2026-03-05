@@ -1,11 +1,10 @@
 /**
- * PR-005: Teacher-only "Ask AI about this topic" panel.
+ * PR-007: Student "Ask for help" panel — simplified UX, practice-first.
  * PR-019: Threaded tutoring chat. PR-019.1: Recent chats, New chat, pagination.
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   postEnquiry,
-  postEnquiryFeedback,
   postEnquiryAction,
   type PostEnquiryResponse,
 } from "../../api/enquiry";
@@ -30,27 +29,23 @@ type Props = {
   topicKey: string;
   specKey: string;
   lessonId?: string;
-  defaultQuestion?: string;
 };
 
-const SESSION_KEY_PREFIX = "askai:conv:";
+const SESSION_KEY_PREFIX = "askai:conv:student:";
 
 function getSessionKey(specKey: string, topicKey: string, lessonId?: string): string {
   return `${SESSION_KEY_PREFIX}${specKey}:${topicKey}:${lessonId || ""}`;
 }
 
-export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }: Props) {
+export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationInitFailed, setConversationInitFailed] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [question, setQuestion] = useState(defaultQuestion);
+  const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
-  const [feedbackSent, setFeedbackSent] = useState<Record<string, "up" | "down">>({});
-  const [feedbackComment, setFeedbackComment] = useState<Record<string, string>>({});
-  const [showCommentInput, setShowCommentInput] = useState<Record<string, boolean>>({});
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState<Record<string, boolean>>({});
+  const [showExplanation, setShowExplanation] = useState<Record<string, boolean>>({});
   const [practiceHighlightId, setPracticeHighlightId] = useState<string | null>(null);
   const [recentConversations, setRecentConversations] = useState<ConversationListItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -198,7 +193,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
         topicKey,
         conversationId: convId || undefined,
         mode: "lesson",
-        limit: 8,
+        limit: 6,
         includePractice: true,
       });
 
@@ -226,21 +221,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
     setShowAnswer((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleFeedback = async (logId: string, rating: "up" | "down") => {
-    if (feedbackSent[logId] || feedbackSubmitting[logId]) return;
-    setFeedbackSubmitting((prev) => ({ ...prev, [logId]: true }));
-    try {
-      await postEnquiryFeedback(logId, {
-        rating,
-        comment: rating === "down" && feedbackComment[logId] ? feedbackComment[logId] : undefined,
-      });
-      setFeedbackSent((prev) => ({ ...prev, [logId]: rating }));
-      setShowCommentInput((prev) => ({ ...prev, [logId]: false }));
-    } catch {
-      // Silent fail
-    } finally {
-      setFeedbackSubmitting((prev) => ({ ...prev, [logId]: false }));
-    }
+  const toggleExplanation = (enquiryLogId: string) => {
+    setShowExplanation((prev) => ({ ...prev, [enquiryLogId]: !prev[enquiryLogId] }));
   };
 
   const canSend = conversationId || conversationInitFailed;
@@ -251,15 +233,15 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
         marginTop: 24,
         padding: "1rem 1.25rem",
         borderRadius: 12,
-        background: "#f0f9ff",
-        border: "1px solid #bae6fd",
+        background: "#f0fdf4",
+        border: "1px solid #bbf7d0",
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 8, color: "#0c4a6e", fontSize: "1.1rem" }}>
-        Ask AI about this topic
+      <div style={{ fontWeight: 700, marginBottom: 8, color: "#166534", fontSize: "1.1rem" }}>
+        Ask for help on this topic
       </div>
-      <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#0369a1" }}>
-        Get answers from trusted LetsRevise curriculum sources. Ask follow-ups in the same thread.
+      <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#15803d" }}>
+        Ask a question about this lesson… You can ask follow-ups like "Explain simpler" or "Give me another example".
       </p>
 
       <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 12 }}>
@@ -272,9 +254,9 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
               style={{
                 padding: "6px 14px",
                 fontSize: 13,
-                background: "#e0f2fe",
-                color: "#0369a1",
-                border: "1px solid #7dd3fc",
+                background: "#dcfce7",
+                color: "#166534",
+                border: "1px solid #86efac",
                 borderRadius: 8,
                 cursor: loadingEarlier ? "not-allowed" : "pointer",
                 fontWeight: 600,
@@ -299,9 +281,9 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
                 maxWidth: "90%",
                 padding: "10px 14px",
                 borderRadius: 12,
-                background: msg.role === "user" ? "#0284c7" : "#fff",
+                background: msg.role === "user" ? "#16a34a" : "#fff",
                 color: msg.role === "user" ? "#fff" : "#334155",
-                border: msg.role === "user" ? "none" : "1px solid #e2e8f0",
+                border: msg.role === "user" ? "none" : "1px solid #bbf7d0",
                 fontSize: 14,
                 lineHeight: 1.5,
               }}
@@ -309,22 +291,16 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
               {msg.role === "user" ? (
                 <div style={{ whiteSpace: "pre-wrap" }}>{msg.text}</div>
               ) : msg.fullResponse ? (
-                <AssistantBubbleTeacher
+                <AssistantBubbleStudent
                   response={msg.fullResponse}
+                  lessonId={lessonId}
                   enquiryLogId={msg.enquiryLogId}
                   practiceHighlightId={practiceHighlightId}
                   showAnswer={showAnswer}
-                  feedbackSent={feedbackSent}
-                  feedbackComment={feedbackComment}
-                  showCommentInput={showCommentInput}
-                  feedbackSubmitting={feedbackSubmitting}
+                  showExplanation={showExplanation[msg.enquiryLogId || ""]}
                   onTogglePractice={togglePracticeAnswer}
-                  onFeedback={handleFeedback}
-                  onSetCommentInput={(id, v) =>
-                    setShowCommentInput((prev) => ({ ...prev, [id]: v }))
-                  }
-                  onCommentChange={(id, v) =>
-                    setFeedbackComment((prev) => ({ ...prev, [id]: v }))
+                  onToggleExplanation={() =>
+                    msg.enquiryLogId && toggleExplanation(msg.enquiryLogId)
                   }
                   onIntent={(p) => handleIntent(p, msg.enquiryLogId)}
                 />
@@ -362,14 +338,14 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="e.g. What do I need to know about…? / Explain simpler / Give me another example"
+          placeholder="e.g. What do I need to know about…? / Explain simpler"
           rows={2}
           disabled={loading || !canSend}
           maxLength={500}
           style={{
             width: "100%",
             padding: "0.5rem 0.75rem",
-            border: "1px solid #7dd3fc",
+            border: "1px solid #86efac",
             borderRadius: 8,
             fontSize: 16,
             background: "#fff",
@@ -381,7 +357,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
           disabled={loading || !question.trim() || !canSend}
           style={{
             padding: "0.5rem 1rem",
-            background: loading || !canSend ? "#94a3b8" : "#0284c7",
+            background: loading || !canSend ? "#94a3b8" : "#16a34a",
             color: "#fff",
             border: "none",
             borderRadius: 8,
@@ -395,49 +371,35 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
       </form>
 
       <p style={{ marginTop: 12, fontSize: 12, color: "#94a3b8" }}>
-        Uses trusted LetsRevise sources only. If coverage is missing, it will say so.
+        Answers are based on your LetsRevise lessons and course spec.
       </p>
     </div>
   );
 }
 
-type AssistantBubbleTeacherProps = {
+type AssistantBubbleStudentProps = {
   response: PostEnquiryResponse;
+  lessonId?: string;
   enquiryLogId?: string | null;
   practiceHighlightId: string | null;
   showAnswer: Record<string, boolean>;
-  feedbackSent: Record<string, "up" | "down">;
-  feedbackComment: Record<string, string>;
-  showCommentInput: Record<string, boolean>;
-  feedbackSubmitting: Record<string, boolean>;
+  showExplanation: boolean;
   onTogglePractice: (enquiryLogId: string, idx: number) => void;
-  onFeedback: (logId: string, rating: "up" | "down") => void;
-  onSetCommentInput: (id: string, v: boolean) => void;
-  onCommentChange: (id: string, v: string) => void;
+  onToggleExplanation: () => void;
   onIntent: (payload: unknown) => void;
 };
 
-function AssistantBubbleTeacher({
+function AssistantBubbleStudent({
   response,
+  lessonId,
   enquiryLogId,
   practiceHighlightId,
   showAnswer,
-  feedbackSent,
-  feedbackComment,
-  showCommentInput,
-  feedbackSubmitting,
+  showExplanation,
   onTogglePractice,
-  onFeedback,
-  onSetCommentInput,
-  onCommentChange,
+  onToggleExplanation,
   onIntent,
-}: AssistantBubbleTeacherProps) {
-  const logId = response.enquiryLogId || "";
-  const sent = feedbackSent[logId];
-  const comment = feedbackComment[logId] || "";
-  const showComment = showCommentInput[logId];
-  const submitting = feedbackSubmitting[logId];
-
+}: AssistantBubbleStudentProps) {
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
       {response.answer.warnings && response.answer.warnings.length > 0 && (
@@ -457,15 +419,7 @@ function AssistantBubbleTeacher({
       )}
 
       {response.confidenceLevel && (
-        <div
-          style={{
-            marginBottom: 12,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
+        <div style={{ marginBottom: 12 }}>
           <span
             style={{
               padding: "4px 10px",
@@ -474,13 +428,13 @@ function AssistantBubbleTeacher({
               fontWeight: 700,
               backgroundColor:
                 response.confidenceLevel === "strong"
-                  ? "#d1fae5"
+                  ? "#dcfce7"
                   : response.confidenceLevel === "moderate"
                     ? "#fef3c7"
                     : "#fee2e2",
               color:
                 response.confidenceLevel === "strong"
-                  ? "#065f46"
+                  ? "#166534"
                   : response.confidenceLevel === "moderate"
                     ? "#92400e"
                     : "#991b1b",
@@ -488,76 +442,32 @@ function AssistantBubbleTeacher({
           >
             Confidence:{" "}
             {response.confidenceLevel === "strong"
-              ? "Strong"
+              ? "High"
               : response.confidenceLevel === "moderate"
-                ? "Moderate"
-                : "Weak"}
+                ? "Medium"
+                : "Low"}
           </span>
-          {response.confidenceReason && (
-            <span style={{ fontSize: 13, color: "#64748b" }}>{response.confidenceReason}</span>
+          {response.confidenceLevel === "weak" && (
+            <p style={{ margin: "8px 0 0 0", fontSize: 13, color: "#64748b" }}>
+              Your course content may not cover this fully yet.
+            </p>
           )}
         </div>
       )}
 
-      <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
-        Sources used: {response.usedSources?.length ?? 0}
-        {response.cached && (
-          <span style={{ marginLeft: 8, fontStyle: "italic" }}>(cached)</span>
-        )}
-      </div>
-
-      {response.answer.explanation && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: 12,
-            background: "#f8fafc",
-            borderRadius: 8,
-            border: "1px solid #e2e8f0",
-            fontSize: 15,
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {response.answer.explanation}
-        </div>
-      )}
-
-      {response.answer.keyPoints && response.answer.keyPoints.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
-            Key points
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
-            {response.answer.keyPoints.map((kp, i) => (
-              <li key={i}>{kp}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {response.answer.citations && response.answer.citations.length > 0 && (
-        <CitationsList
-          citations={response.answer.citations}
-          usedSources={response.usedSources}
-          defaultQuotesExpanded={true}
-          studentMode={false}
-          linkText="Open source"
-        />
-      )}
-
+      {/* PR-007: Practice first */}
       {response.answer.practice && response.answer.practice.length > 0 && enquiryLogId && (
         <div
           id={`practice-${enquiryLogId}`}
           style={{
-            marginTop: 16,
+            marginBottom: 16,
             transition: "box-shadow 0.3s ease",
-            boxShadow: practiceHighlightId === enquiryLogId ? "0 0 0 3px #7dd3fc" : "none",
+            boxShadow: practiceHighlightId === enquiryLogId ? "0 0 0 3px #86efac" : "none",
             borderRadius: 8,
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
-            Practice
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#166534" }}>
+            Try these practice questions
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {response.answer.practice.map((p, i) => (
@@ -567,15 +477,15 @@ function AssistantBubbleTeacher({
                   padding: 12,
                   background: "#fff",
                   borderRadius: 8,
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #bbf7d0",
                 }}
               >
                 <span
                   style={{
                     padding: "2px 6px",
                     borderRadius: 4,
-                    background: "#f1f5f9",
-                    color: "#475569",
+                    background: "#dcfce7",
+                    color: "#166534",
                     fontWeight: 600,
                     fontSize: 11,
                     marginRight: 8,
@@ -597,14 +507,14 @@ function AssistantBubbleTeacher({
                   style={{
                     padding: "4px 10px",
                     fontSize: 12,
-                    background: "#e2e8f0",
-                    border: "none",
+                    background: "#dcfce7",
+                    border: "1px solid #86efac",
                     borderRadius: 6,
                     cursor: "pointer",
-                    color: "#475569",
+                    color: "#166534",
                   }}
                 >
-                  {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Show answer"}
+                  {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Reveal answer"}
                 </button>
                 {showAnswer[`${enquiryLogId}-${i}`] && (
                   <div
@@ -631,10 +541,61 @@ function AssistantBubbleTeacher({
         </div>
       )}
 
+      {/* Explanation — collapsed by default */}
+      {response.answer.explanation && (
+        <div style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={onToggleExplanation}
+            style={{
+              padding: "8px 12px",
+              fontSize: 14,
+              fontWeight: 600,
+              background: showExplanation ? "#e2e8f0" : "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              cursor: "pointer",
+              color: "#334155",
+            }}
+          >
+            {showExplanation ? "Hide explanation" : "Show explanation"}
+          </button>
+          {showExplanation && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 12,
+                background: "#fff",
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+                fontSize: 15,
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {response.answer.explanation}
+            </div>
+          )}
+        </div>
+      )}
+
+      {response.answer.citations && response.answer.citations.length > 0 && (
+        <CitationsList
+          citations={response.answer.citations}
+          usedSources={response.usedSources}
+          defaultQuotesExpanded={false}
+          studentMode={true}
+          lessonId={lessonId}
+          sectionTitle="Where this came from"
+          showEvidenceLabel="Show evidence"
+          introNote="Evidence from your course content."
+        />
+      )}
+
       {response.suggestedActions && response.suggestedActions.length > 0 && (
         <SuggestedActionsBar
           actions={response.suggestedActions}
-          mode="teacher"
+          mode="student"
           onIntent={onIntent}
           onActionClick={
             enquiryLogId
@@ -644,86 +605,10 @@ function AssistantBubbleTeacher({
         />
       )}
 
-      {enquiryLogId && (
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ fontSize: 13, color: "#64748b" }}>Was this helpful?</span>
-          <button
-            type="button"
-            onClick={() => onFeedback(logId, "up")}
-            disabled={sent !== undefined || submitting}
-            style={{
-              padding: "6px 12px",
-              fontSize: 14,
-              background: sent === "up" ? "#22c55e" : "#e2e8f0",
-              color: sent === "up" ? "#fff" : "#475569",
-              border: "none",
-              borderRadius: 8,
-              cursor: sent ? "default" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            👍 Helpful
-          </button>
-          <button
-            type="button"
-            onClick={() => onSetCommentInput(logId, true)}
-            disabled={sent !== undefined || submitting}
-            style={{
-              padding: "6px 12px",
-              fontSize: 14,
-              background: sent === "down" ? "#ef4444" : "#e2e8f0",
-              color: sent === "down" ? "#fff" : "#475569",
-              border: "none",
-              borderRadius: 8,
-              cursor: sent ? "default" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            👎 Not helpful
-          </button>
-          {showComment && !sent && (
-            <div style={{ flex: "1 1 100%", marginTop: 8 }}>
-              <textarea
-                value={comment}
-                onChange={(e) => onCommentChange(logId, e.target.value)}
-                placeholder="Optional: What could be better?"
-                rows={2}
-                style={{
-                  width: "100%",
-                  maxWidth: 400,
-                  padding: 8,
-                  fontSize: 13,
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => onFeedback(logId, "down")}
-                disabled={submitting}
-                style={{
-                  marginTop: 8,
-                  padding: "6px 12px",
-                  fontSize: 13,
-                  background: "#64748b",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
-              >
-                Submit
-              </button>
-            </div>
-          )}
+      {response.suggestedTopics && response.suggestedTopics.length > 0 && (
+        <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
+          <strong>Try these instead:</strong>{" "}
+          {response.suggestedTopics.map((s) => s.topicKey).join(", ")}
         </div>
       )}
     </div>
