@@ -449,7 +449,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     <ReviewPublishChecklist
                       jobId={genResult.jobId}
                       topicKey={topicKey}
-                      lessonId={genResult.outputs.lessonId}
+                      specKey={specKey as string}
                     />
                   </div>
                 </section>

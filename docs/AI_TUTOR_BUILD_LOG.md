@@ -542,3 +542,31 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-014.1a — Publish Check API + UI Checklist (no auto-publish)**
+
+Date: 2026-03-05
+
+Summary:
+Review checklist for generated drafts: backend check + UI. Check only — no publishing. validateStarterPackPublishability({ jobId, user }) with ownership (teachers own job, admins any). Rate limit 10/min teacher, 30/min admin. Fix links open in new tab. Sections by type: Lesson / Flashcards / Quiz / Exam.
+
+Files changed:
+
+- backend/services/publishGate/validatePublishableContent.js (validateStarterPackPublishability, fixLink)
+- backend/controllers/publishGate.controller.js (ownership, jobId-only check)
+- backend/middleware/publishGateRateLimit.js (new)
+- backend/routes/publishGate.routes.js (rate limit)
+- frontend/src/components/generation/ReviewPublishChecklist.tsx (no Publish button, fixLink new tab, sections by type)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx
+- frontend/src/api/generation.ts (fixLink, jobId required)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- GET /api/publish-gate/check?jobId=...
+- No publishing in this PR; checklist guides fixes only
+
+Follow-ups:
+None
