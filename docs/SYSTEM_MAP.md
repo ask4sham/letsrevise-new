@@ -129,10 +129,12 @@ NPM maintenance scripts (backend):
 - backend/services/generation/starterPackService.js — retrieval + LLM call
 - frontend/src/api/generation.ts — postGenerateStarterPack, getGenerationJobs
 
-## Publish Gate API (PR-014.1 / PR-014.1a)
+## Publish Gate API (PR-014.1 / PR-014.1a / PR-014.1b)
 
 - GET /api/publish-gate/check?jobId=... — teacher/admin, rate limited (10/min teacher, 30/min admin), returns { ok, blocks, warns, issues: [{ level, type, entityId, message, fixLink }], summaryByType }
-- POST /api/publish-gate/publish { scope, jobId } — teacher/admin, publishes job outputs if no blocking issues (PR-014.1)
+- POST /api/publish-gate/publish { jobId } — teacher/admin, publishes all job outputs (lesson, flashcards, quiz, exam) only when blocks === 0. Returns 400 with issues if blocked. Idempotent.
 - backend/services/publishGate/validatePublishableContent.js — validatePublishableContent, validateStarterPackPublishability (ownership)
-- frontend/src/components/generation/ReviewPublishChecklist.tsx — Run check, show issues by type (Lesson/Flashcards/Quiz/Exam), Fix links open in new tab. No Publish button in PR-014.1a.
+- backend/middleware/requirePublishGateIfGenerated.js — for entities with metadata.generatedFrom.jobId, runs validation and blocks publish if issues
+- Hard gates: TopicFlashcard, TopicQuizQuestion, Lesson, ExamQuestion publish routes check gate for generated content; non-generated content unchanged
+- frontend/src/components/generation/ReviewPublishChecklist.tsx — Run check, "Publish all" when blocks === 0, success links (View lesson as student, Back to coverage)
 - EditLessonPage: intercept publish for lessons with metadata.generatedFrom.jobId; show gate modal if blocked

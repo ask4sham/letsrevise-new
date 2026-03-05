@@ -440,6 +440,11 @@ router.post("/:id/publish", auth, async (req, res) => {
     const card = await TopicFlashcard.findOne({ _id: id });
     if (!card) return res.status(404).json({ error: "Flashcard not found" });
     if (!isAdmin && String(card.ownerId) !== String(ownerId)) return res.status(404).json({ error: "Flashcard not found" });
+    const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
+    const gate = await checkPublishGateForGenerated(card.toObject ? card.toObject() : card, req.user);
+    if (!gate.ok) {
+      return res.status(400).json({ error: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
+    }
     card.status = "published";
     await card.save();
     return res.json({ flashcard: card.toObject() });

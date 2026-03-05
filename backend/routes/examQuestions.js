@@ -252,7 +252,18 @@ router.put("/:id", auth, async (req, res) => {
     if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
     if (markScheme !== undefined) question.markScheme = markScheme;
     if (content !== undefined) question.content = content;
-    if (status !== undefined) question.status = status;
+    if (status !== undefined) {
+      const newStatus = String(status).trim().toLowerCase();
+      if (newStatus === "published") {
+        const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
+        const qObj = question.toObject ? question.toObject() : { ...question._doc, metadata: question.metadata };
+        const gate = await checkPublishGateForGenerated(qObj, req.user);
+        if (!gate.ok) {
+          return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
+        }
+      }
+      question.status = newStatus;
+    }
     await question.save();
     return res.json({ success: true, question: toResponseQuestion(question.toObject ? question.toObject() : question) });
   } catch (err) {

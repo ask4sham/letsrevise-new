@@ -569,4 +569,36 @@ Notes:
 - No publishing in this PR; checklist guides fixes only
 
 Follow-ups:
+PR-014.1b — Publish all + hard gates
+
+---
+
+**PR-014.1b — Publish endpoint + hard gates for AI-generated drafts**
+
+Date: 2026-03-05
+
+Summary:
+Added "Publish all" workflow for starter-pack outputs when checklist has zero BLOCK issues. Hard publish gating: generated content (metadata.generatedFrom.jobId) cannot be published via existing publish buttons without passing the gate. Non-generated content unchanged.
+
+Files changed:
+
+- backend/controllers/publishGate.controller.js (POST /publish-gate/publish, jobId only)
+- backend/middleware/requirePublishGateIfGenerated.js (checkPublishGateForGenerated)
+- backend/routes/topicFlashcards.js (gate on POST /:id/publish)
+- backend/routes/topicQuizQuestions.js (gate on POST /:id/publish)
+- backend/routes/lessons.js (gate in publishToggleHandler)
+- backend/routes/admin.js (gate when setting isPublished via PUT admin/lessons)
+- backend/routes/examQuestions.js (gate when status=published)
+- frontend/src/api/generation.ts (postPublishGatePublish { jobId })
+- frontend/src/components/generation/ReviewPublishChecklist.tsx (Publish all button, success links)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- POST /api/publish-gate/publish { jobId } — teacher/admin, returns 400 if blocks > 0
+- Idempotent: already published returns ok with counts
+- requirePublishGateIfGenerated: checks metadata.generatedFrom.jobId, runs validation
+- "View lesson as student" and "Back to coverage" links on success
+
+Follow-ups:
 None

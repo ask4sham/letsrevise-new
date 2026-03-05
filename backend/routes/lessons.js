@@ -1684,6 +1684,26 @@ async function publishToggleHandler(req, res, mode) {
       return res.status(403).json({ msg: "Lesson is moderated and cannot be published" });
     }
 
+    let willBePublished = false;
+    if (mode === "publish") {
+      willBePublished = true;
+    } else {
+      if (typeof req.body?.isPublished === "boolean") {
+        willBePublished = req.body.isPublished;
+      } else {
+        willBePublished = !Boolean(lesson.isPublished);
+      }
+    }
+
+    if (willBePublished) {
+      const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
+      const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
+      const gate = await checkPublishGateForGenerated(lessonObj, req.user);
+      if (!gate.ok) {
+        return res.status(400).json({ error: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
+      }
+    }
+
     if (mode === "publish") {
       lesson.isPublished = true;
     } else {

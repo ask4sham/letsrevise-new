@@ -990,6 +990,15 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
       if (["draft", "archived", "flagged"].includes(s)) updates.isPublished = false;
     }
 
+    if (updates.isPublished === true || updates.status === "published") {
+      const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
+      const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
+      const gate = await checkPublishGateForGenerated(lessonObj, req.user);
+      if (!gate.ok) {
+        return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
+      }
+    }
+
     // Prevent writing weird non-objects
     for (const [k, v] of Object.entries(updates)) {
       if (k === "resources" || k === "uploadedImages" || k === "tags" || k === "pages") continue;
