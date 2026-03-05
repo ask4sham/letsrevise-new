@@ -370,6 +370,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
                 <AssistantBubbleTeacher
                   response={msg.fullResponse}
                   enquiryLogId={msg.enquiryLogId}
+                  specKey={specKey}
+                  topicKey={topicKey}
                   practiceHighlightId={practiceHighlightId}
                   showAnswer={showAnswer}
                   feedbackSent={feedbackSent}
@@ -462,6 +464,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
 type AssistantBubbleTeacherProps = {
   response: PostEnquiryResponse;
   enquiryLogId?: string | null;
+  specKey?: string;
+  topicKey?: string;
   practiceHighlightId: string | null;
   showAnswer: Record<string, boolean>;
   feedbackSent: Record<string, "up" | "down">;
@@ -635,6 +639,8 @@ function AssistantBubbleTeacher({
           defaultQuotesExpanded={true}
           studentMode={false}
           linkText="Open source"
+          specKey={specKey}
+          topicKey={topicKey}
         />
       )}
 

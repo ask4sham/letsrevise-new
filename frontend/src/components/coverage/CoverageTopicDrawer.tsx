@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { getCoverageDrilldown, type CoverageDrilldownResponse } from "../../api/coverageDrilldown";
 import { getSprintOrderMarkdown } from "../../api/sprintOrder";
 import { postGenerateStarterPack, type StarterPackResponse } from "../../api/generation";
+import { getTeacherNotes, type TeacherNoteItem } from "../../api/teacherNotes";
 import { ReviewPublishChecklist } from "../generation/ReviewPublishChecklist";
 import type { CoverageRow } from "../../api/coverage";
 import type { SpecKey } from "../../api/taxonomy";
@@ -49,6 +50,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [genResult, setGenResult] = useState<StarterPackResponse | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [showGenConfirm, setShowGenConfirm] = useState(false);
+  const [teacherNotes, setTeacherNotes] = useState<TeacherNoteItem[]>([]);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -67,6 +69,15 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
       });
     return () => { cancelled = true; };
   }, [open, specKey, topicKey, windowDays]);
+
+  useEffect(() => {
+    if (!open || !specKey || !topicKey?.trim()) return;
+    let cancelled = false;
+    getTeacherNotes({ specKey, topicKey, limit: 20 })
+      .then((res) => { if (!cancelled) setTeacherNotes(res.items ?? []); })
+      .catch(() => { if (!cancelled) setTeacherNotes([]); });
+    return () => { cancelled = true; };
+  }, [open, specKey, topicKey]);
 
   const handleCopyTopicKey = () => {
     navigator.clipboard.writeText(topicKey);
@@ -498,6 +509,100 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                       ))}
                     </tbody>
                   </table>
+                )}
+              </section>
+
+              {/* PR-023: Section — Teacher notes (curated) */}
+              <section style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700 }}>
+                  Teacher notes (curated) — {teacherNotes.length}
+                </h3>
+                {teacherNotes.length === 0 ? (
+                  <>
+                    <p style={{ fontSize: 13, color: "#6b7280" }}>No curated notes yet.</p>
+                    <Link
+                      to={`/external-sources?specKey=${encodeURIComponent(specKey)}&topicKey=${encodeURIComponent(topicKey)}`}
+                      style={{
+                        display: "inline-block",
+                        marginTop: 8,
+                        fontSize: 13,
+                        color: "#2563eb",
+                        fontWeight: 600,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Review external sources →
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {teacherNotes.slice(0, 5).map((n) => (
+                      <div
+                        key={n.knowledgeDocumentId}
+                        style={{
+                          padding: 12,
+                          marginBottom: 8,
+                          background: "#f8fafc",
+                          borderRadius: 8,
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                          {n.title || "Teacher note"}
+                        </div>
+                        {n.metadata?.domain && (
+                          <div style={{ marginBottom: 4 }}>
+                            <a
+                              href={n.metadata?.url || `https://${n.metadata.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: 12,
+                                color: "#2563eb",
+                                textDecoration: "none",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                  background: "#e0e7ff",
+                                  color: "#3730a3",
+                                  marginRight: 6,
+                                }}
+                              >
+                                {n.metadata.domain}
+                              </span>
+                              → Open
+                            </a>
+                          </div>
+                        )}
+                        <p style={{ margin: "0 0 4px 0", fontSize: 12, color: "#64748b", lineHeight: 1.4 }}>
+                          {(n.textSnippet || "").slice(0, 180)}
+                          {(n.textSnippet || "").length > 180 ? "…" : ""}
+                        </p>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                          {n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}
+                        </div>
+                      </div>
+                    ))}
+                    {teacherNotes.length > 5 && (
+                      <Link
+                        to={`/external-sources?specKey=${encodeURIComponent(specKey)}&topicKey=${encodeURIComponent(topicKey)}`}
+                        style={{ fontSize: 13, color: "#2563eb", fontWeight: 600 }}
+                      >
+                        View all ({teacherNotes.length}) →
+                      </Link>
+                    )}
+                    {teacherNotes.length <= 5 && (
+                      <Link
+                        to={`/external-sources?specKey=${encodeURIComponent(specKey)}&topicKey=${encodeURIComponent(topicKey)}`}
+                        style={{ display: "block", marginTop: 8, fontSize: 13, color: "#2563eb", fontWeight: 600 }}
+                      >
+                        Review external sources →
+                      </Link>
+                    )}
+                  </>
                 )}
               </section>
 

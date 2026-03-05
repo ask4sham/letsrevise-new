@@ -860,3 +860,32 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-023 — Teacher notes surfaced in Coverage drilldown + Ask AI (adoption booster)**
+
+Date: 2026-03-05
+
+Summary:
+Surface promoted teacherNotes in CoverageTopicDrawer (drilldown) and AskAiPanel citations. Teachers see curated notes in the topic drawer and know when Ask AI used them. New GET /api/teacher-notes (teacher/admin) endpoint. Coverage drawer shows Teacher notes (curated) section with cards (title, domain, snippet, updatedAt). ExternalSourcesPage supports ?specKey=&topicKey= deep links. CitationsList shows "Includes teacher-curated notes." with link to coverage when teacherNote sources used (teacher/admin only).
+
+Files changed:
+
+- backend/controllers/teacherNotes.controller.js
+- backend/routes/teacherNotes.routes.js
+- backend/app.js (mount /api/teacher-notes)
+- frontend/src/api/teacherNotes.ts
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (Teacher notes section)
+- frontend/src/pages/ExternalSourcesPage.tsx (specKey, topicKey query params)
+- frontend/src/components/ai/CitationsList.tsx (helper line + specKey/topicKey props)
+- frontend/src/components/ai/AskAiPanel.tsx (pass specKey, topicKey to CitationsList)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- No changes to external search logic. Teacher notes remain teacher/admin only.
+- Minimal: read + link + small preview. Reuses existing APIs; one new endpoint.
+
+Follow-ups:
+None
