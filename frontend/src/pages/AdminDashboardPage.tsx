@@ -608,6 +608,20 @@ const AdminDashboardPage: React.FC = () => {
         >
           Paywall metrics →
         </Link>
+        <Link
+          to="/coverage"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#ecfdf5",
+            color: "#047857",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          AI Coverage →
+        </Link>
       </div>
       </div>
 

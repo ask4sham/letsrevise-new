@@ -350,5 +350,32 @@ Usage:
 - GET /api/coverage/topics?specKey=aqa-gcse-biology&status=THIN
 
 Follow-ups:
-- PR-010: UI dashboard (teacher/admin) showing coverage + hotspots
+- PR-010: UI dashboard (teacher/admin) showing coverage + hotspots (implemented below)
 - PR-011: Auto-create Jira-style sprint order from THIN/EMPTY topics (optional)
+
+---
+
+**PR-010 — Coverage Dashboard UI (teacher/admin)**
+
+Date: 2026-03-05
+
+Summary:
+Added Coverage Dashboard page at /coverage for teachers and admins. Shows coverage status per topicKey (NO_SPEC, EMPTY, THIN, OK, STRONG), weak-evidence hotspots, top failing questions. Snapshot vs live toggle, status filters, search. Nav links in Teacher Dashboard and Admin Dashboard.
+
+Files changed:
+
+- frontend/src/api/coverage.ts (new)
+- frontend/src/pages/CoverageDashboardPage.tsx (new)
+- frontend/src/App.tsx (route /coverage)
+- frontend/src/pages/TeacherDashboard.tsx (AI Coverage link)
+- frontend/src/pages/AdminDashboardPage.tsx (AI Coverage link)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Uses existing /api/coverage, /api/coverage/snapshots, /api/coverage/topics endpoints.
+- Default: latest snapshot. "Refresh (live)" for on-demand compute.
+- Students cannot access (ProtectedRoute requireTeacherOrAdmin).
+
+Follow-ups:
+- PR-011: Auto Sprint Order from Coverage (optional)

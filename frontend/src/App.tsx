@@ -96,6 +96,7 @@ import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
 import TeacherTopicPerformancePage from "./pages/TeacherTopicPerformancePage";
 import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
 import DocsViewerPage from "./pages/DocsViewerPage";
+import CoverageDashboardPage from "./pages/CoverageDashboardPage";
 
 import "./App.css";
 
@@ -286,6 +287,15 @@ function App() {
             element={
               <ProtectedRoute requireTeacherOrAdmin>
                 <TeacherCoveragePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/coverage"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <CoverageDashboardPage />
               </ProtectedRoute>
             }
           />

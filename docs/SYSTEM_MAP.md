@@ -23,6 +23,9 @@ Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + 
 **AskAiStudentPanel** (PR-007)
 Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practice-first, collapsed explanation/citations.
 
+**CoverageDashboardPage** (PR-010)
+Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle.
+
 ## Backend
 
 **Lesson APIs**
@@ -93,3 +96,8 @@ Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practic
 - GET /api/coverage?specKey=...&windowDays=14 — teacher + admin, live computed coverage
 - GET /api/coverage/snapshots?specKey=...&latest=true — teacher + admin, saved snapshots
 - GET /api/coverage/topics?specKey=...&status=THIN — teacher + admin, filtered topicKeys
+
+## Frontend Coverage (PR-010)
+
+- frontend/src/api/coverage.ts — getCoverage, getCoverageSnapshots, getCoverageTopics
+- /coverage — CoverageDashboardPage (teacher/admin)
