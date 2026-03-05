@@ -12,6 +12,7 @@ import {
   postTopicSummary,
   getTopicSummaryLogs,
   getTopicSummaryLogById,
+  postTopicSummaryToLesson,
   type TopicSummaryMode,
   type TopicSummaryResponse,
   type TopicSummaryLogItem,
@@ -78,6 +79,9 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [logsPagination, setLogsPagination] = useState<TopicSummaryLogsResponse["pagination"] | null>(null);
   const [logsLoadingMore, setLogsLoadingMore] = useState(false);
   const [openLogLoading, setOpenLogLoading] = useState(false);
+  const [showToLessonConfirm, setShowToLessonConfirm] = useState(false);
+  const [toLessonLoading, setToLessonLoading] = useState(false);
+  const [toLessonResult, setToLessonResult] = useState<{ lessonId: string; lessonUrlEdit: string; lessonUrlView: string } | null>(null);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -252,6 +256,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
         topicSummaryLogId: log.topicSummaryLogId,
       };
       setSummaryResult(asResponse);
+      setToLessonResult(null);
     } catch (e: any) {
       setCopyToast(e?.message ?? "Failed to load summary");
       setTimeout(() => setCopyToast(null), 3000);
@@ -305,6 +310,28 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
     navigator.clipboard.writeText(topicKey);
     setCopyToast("topicKey copied");
     setTimeout(() => setCopyToast(null), 2000);
+  };
+
+  const handleCreateDraftLesson = async () => {
+    const logId = summaryResult?.topicSummaryLogId;
+    if (!logId) return;
+    setShowToLessonConfirm(false);
+    setToLessonLoading(true);
+    setToLessonResult(null);
+    setSummaryError(null);
+    try {
+      const res = await postTopicSummaryToLesson({ topicSummaryLogId: logId });
+      setToLessonResult({ lessonId: res.lessonId, lessonUrlEdit: res.lessonUrlEdit, lessonUrlView: res.lessonUrlView });
+      setCopyToast("Draft lesson created");
+      setTimeout(() => setCopyToast(null), 3000);
+    } catch (e: any) {
+      const msg = e?.response?.data?.error ?? e?.message ?? "Failed to create draft lesson";
+      setSummaryError(msg);
+      setCopyToast(msg);
+      setTimeout(() => setCopyToast(null), 4000);
+    } finally {
+      setToLessonLoading(false);
+    }
   };
 
   const handleAskAi = (question: string) => {
@@ -582,6 +609,71 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                   </button>
                 </div>
               </section>
+
+              {/* PR-029: Create draft lesson confirmation modal */}
+              {showToLessonConfirm && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.4)",
+                    zIndex: 1200,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 16,
+                  }}
+                  onClick={() => setShowToLessonConfirm(false)}
+                >
+                  <div
+                    style={{
+                      background: "white",
+                      borderRadius: 12,
+                      padding: 24,
+                      maxWidth: 420,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Create draft lesson</h3>
+                    <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#4b5563" }}>
+                      Creates a draft lesson only. You can edit and publish later.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowToLessonConfirm(false)}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#e5e7eb",
+                          color: "#374151",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateDraftLesson}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#10b981",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* PR-014: Generate starter pack confirmation modal */}
               {showGenConfirm && (
@@ -1257,6 +1349,19 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                             Add mini revision appendix
                           </label>
                         </div>
+                        {toLessonResult ? (
+                          <div style={{ marginBottom: 16, padding: 12, background: "#d1fae5", borderRadius: 8, border: "1px solid #059669" }}>
+                            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#065f46" }}>Draft lesson created</div>
+                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                              <Link to={toLessonResult.lessonUrlEdit} style={{ fontSize: 13, color: "#059669", fontWeight: 600 }}>
+                                Edit lesson →
+                              </Link>
+                              <a href={toLessonResult.lessonUrlView} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#059669", fontWeight: 600 }}>
+                                View lesson (new tab) →
+                              </a>
+                            </div>
+                          </div>
+                        ) : null}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                           <button type="button" onClick={handleCopySummary} style={{ padding: "6px 12px", fontSize: 12, background: "#e2e8f0", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
                             Copy summary
@@ -1275,11 +1380,21 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                           >
                             {pdfDownloading ? "Downloading…" : "Download PDF"}
                           </button>
+                          {summaryResult?.topicSummaryLogId && (
+                            <button
+                              type="button"
+                              onClick={() => setShowToLessonConfirm(true)}
+                              disabled={toLessonLoading}
+                              style={{ padding: "6px 12px", fontSize: 12, background: "#10b981", color: "white", border: "none", borderRadius: 6, cursor: toLessonLoading ? "wait" : "pointer", fontWeight: 600 }}
+                            >
+                              {toLessonLoading ? "Creating…" : "Create draft lesson"}
+                            </button>
+                          )}
                         </div>
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                           <button
                             type="button"
-                            onClick={() => { setSummaryResult(null); setSummaryError(null); }}
+                            onClick={() => { setSummaryResult(null); setSummaryError(null); setToLessonResult(null); }}
                             style={{ padding: "8px 16px", background: "#8b5cf6", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
                           >
                             New summary

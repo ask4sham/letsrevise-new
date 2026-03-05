@@ -29,8 +29,8 @@ Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden,
 **CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
 
-**CoverageTopicDrawer** (PR-013, PR-014, PR-023, PR-024, PR-027)
-Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic (PR-023). Teaching summary section: "Summarise topic" opens modal with mode (Overview/Lesson plan/Revision sheet/Exam focus), max sources, allowExternal; generates structured summary with citations, confidence, copy buttons (PR-024). PR-027: "Recent summaries" list with Open, Download PDF, Load more.
+**CoverageTopicDrawer** (PR-013, PR-014, PR-023, PR-024, PR-027, PR-028, PR-029)
+Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic (PR-023). Teaching summary section: "Summarise topic" opens modal with mode (Overview/Lesson plan/Revision sheet/Exam focus), max sources, allowExternal; generates structured summary with citations, confidence, copy buttons (PR-024). PR-027: "Recent summaries" list with Open, Download PDF, Load more. PR-028: header badges enq/sum counts. PR-029: "Create draft lesson" button in summary modal (when topicSummaryLogId exists), confirm modal, success links Edit/View lesson.
 
 ## Backend
 
@@ -114,12 +114,13 @@ NPM maintenance scripts (backend):
 
 - GET /api/teacher-notes?specKey=&topicKey=&limit=20 — teacher/admin, list teacherNote KnowledgeDocuments for topic (sourceType=teacherNote, sorted by updatedAt desc)
 
-## Topic Summary API (PR-024, PR-024.1, PR-025)
+## Topic Summary API (PR-024, PR-024.1, PR-025, PR-029)
 
 - POST /api/topic-summary { specKey, topicKey, mode?, maxSources?, allowExternal? } — teacher/admin + student (when isAiTutorEnabledForSpec). Teachers: all 4 modes, 6/min. Admins: 20/min. Students (PR-024.1): overview and revisionSheet only, maxSources≤10, allowExternal forced false, 3/min. Student responses: no confidenceSignals, no teacherNote in citations, shorter/simpler LLM output. Cached 24h (key includes studentSafe).
 - POST /api/topic-summary/export { topicSummaryLogId?, specKey, topicKey, mode?, includeCitations?, includeEvidenceAppendix?, includeNextSteps?, includeMiniRevisionAppendix?, evidenceQuoteChars?, summary?, usedSources?, ... } — teacher + student (when AI tutor enabled). Returns PDF attachment. Rate limited: students 2/min, teachers 6/min, admins 20/min. PDF rendered by backend/services/pdf/topicSummaryPdf.js (PDFKit). PR-026: layout engine, pagination, footer. PR-026.1: evidence appendix, next steps, mini revision appendix (teacher only); export options with role-based defaults.
 - GET /api/topic-summary/logs?specKey=&topicKey=&limit=&before= — teacher/admin + student (when AI tutor enabled). List recent logs (teacher: own; admin: all; student: own, studentSafe). PR-027.
 - GET /api/topic-summary/logs/:id — teacher/admin + student (when AI tutor enabled). Get full log for re-opening modal. PR-027.
+- POST /api/topic-summary/to-lesson { topicSummaryLogId, lessonTitle?, strategy?, includeCheckpoint? } — teacher/admin only. Converts TopicSummaryLog to draft Lesson (3 pages, no AI). Rate limit 3/min teacher, 10/min admin. PR-029.
 
 ## External Sources API (PR-022)
 

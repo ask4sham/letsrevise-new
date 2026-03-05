@@ -1124,4 +1124,31 @@ Notes:
 - Sprint order: node scripts/buildSprintOrderFromCoverage.js --specKey aqa-gcse-biology --weights "coverage=0.60,weak=0.25,demand=0.15"
 
 Follow-ups:
+PR-029 — Teach Mode: Convert Topic Summary → Draft Lesson Skeleton
+
+---
+
+**PR-029 — Teach Mode: Convert Topic Summary → Draft Lesson Skeleton (no auto-publish)**
+
+Date: 2026-03-05
+
+Summary:
+Teachers can create a draft lesson from a topic summary in one click. POST /api/topic-summary/to-lesson accepts topicSummaryLogId and produces a DRAFT Lesson with 3 pages (Overview, Core ideas, Exam practice). Pure transformation — no AI. Teacher/admin only; rate limit 3/min teacher, 10/min admin. CoverageTopicDrawer Teaching summary modal: "Create draft lesson" button (enabled when topicSummaryLogId exists), confirm modal, success links (Edit lesson, View lesson). Lesson.metadata.generatedFrom = { topicSummaryLogId, kind: "topicSummary" }.
+
+Files changed:
+
+- backend/controllers/topicSummaryToLesson.controller.js (new)
+- backend/middleware/topicSummaryToLessonRateLimit.js (new)
+- backend/routes/topicSummaryToLesson.routes.js (new)
+- backend/app.js (mount /api/topic-summary/to-lesson)
+- frontend/src/api/topicSummary.ts (postTopicSummaryToLesson)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (Create draft lesson button, confirm modal, success links)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- No new LLM calls; formatting/transformation only.
+- Publish remains gated by existing publish gate.
+
+Follow-ups:
 None
