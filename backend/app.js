@@ -179,5 +179,32 @@ app.use("/api/quiz-attempts", require("./routes/quizAttempts"));
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 
+// JSON parse error (body-parser SyntaxError → 400, not 500)
+app.use((err, req, res, next) => {
+  const isJsonSyntaxError =
+    err instanceof SyntaxError &&
+    err.status === 400 &&
+    "body" in err;
+
+  if (isJsonSyntaxError) {
+    return res.status(400).json({
+      error: "Invalid JSON",
+      message: "Malformed JSON body",
+    });
+  }
+
+  return next(err);
+});
+
+// Global error guard (unhandled → 500; respects err.status when present)
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  const msg = status === 500 ? "Unhandled server error" : "Request failed";
+  const safeMessage =
+    process.env.NODE_ENV === "production" && status === 500 ? "Internal error" : (err?.message || "Unknown error");
+  console.error("[unhandled]", err);
+  res.status(status).json({ error: msg, message: safeMessage });
+});
+
 // ✅ Export for testing
 module.exports = app;

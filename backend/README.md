@@ -156,6 +156,19 @@ npm run worker:knowledge-refresh
 
 The worker polls every 5 seconds. If the vector DB is down, the job completes with the index and coverage updated; embeddings are skipped (logged). Jobs are deduplicated by specKey+topicKey. Admin endpoints: `GET /api/admin/jobs?type=KNOWLEDGE_REFRESH`, `POST /api/admin/jobs/enqueue-knowledge-refresh` (body: `{ specKey, topicKey? }`).
 
+## Invalid JSON handling
+
+Malformed JSON body returns **400** (not 500):
+
+```bash
+curl.exe -i -X POST http://localhost:5000/api/topic-summary/export \
+  -H "Content-Type: application/json" --data-raw "{"
+```
+
+Expected: `HTTP/1.1 400` with `{"error":"Invalid JSON","message":"Malformed JSON body"}`.
+
+---
+
 ## Enquiry API (PR-004, PR-007)
 
 **POST /api/enquiry** — RAG answer with citations. Teacher + admin always; students when `AI_TUTOR_ENABLED_SPECS` includes the spec.

@@ -372,14 +372,6 @@ app.use("/api", (req, res) => {
 });
 
 /* ============================================================
-   GLOBAL ERROR GUARD (unhandled errors → 500)
-============================================================ */
-app.use((err, req, res, next) => {
-  console.error("[unhandled]", err);
-  res.status(500).json({ error: "Unhandled server error", message: err?.message });
-});
-
-/* ============================================================
    STATIC SITE
 ============================================================ */
 
