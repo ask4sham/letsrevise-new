@@ -482,6 +482,8 @@ type AssistantBubbleTeacherProps = {
 function AssistantBubbleTeacher({
   response,
   enquiryLogId,
+  specKey,
+  topicKey,
   practiceHighlightId,
   showAnswer,
   feedbackSent,
