@@ -671,3 +671,30 @@ Notes:
 
 Follow-ups:
 PR-017 (confidence indicators), PR-018 (citation UI)
+
+---
+
+**PR-017 — Confidence indicators**
+
+Date: 2026-03-05
+
+Summary:
+Expose answer confidence (strong/moderate/weak) from existing weak-evidence and retrieval signals. Backend computes deterministically. Teachers see badge + reason + source counts; students see badge only (High/Medium/Low). When weak, students see "Your course content may not cover this fully yet."
+
+Files changed:
+
+- backend/services/enquiry/confidence.js (new)
+- backend/controllers/enquiry.controller.js (computeConfidence, add to cached + fresh responses)
+- frontend/src/api/enquiry.ts (ConfidenceSignals, confidenceLevel, confidenceReason, confidenceSignals)
+- frontend/src/components/ai/AskAiPanel.tsx (Confidence badge + reason + Sources)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (Confidence badge, weak note)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- weak: "Insufficient trusted sources" OR usedSources.length=0 OR topScore<0.35
+- strong: topScore>=0.60 AND spec>=1 AND lesson>=1 AND no weak warning
+- moderate: otherwise. Works when vector DB down (topScore null).
+
+Follow-ups:
+PR-018 (citation UI)

@@ -190,6 +190,53 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
             </div>
           )}
 
+          {/* PR-017: Confidence badge + reason (teacher/admin) */}
+          {response.confidenceLevel && (
+            <div
+              style={{
+                marginBottom: 12,
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  backgroundColor:
+                    response.confidenceLevel === "strong"
+                      ? "#d1fae5"
+                      : response.confidenceLevel === "moderate"
+                        ? "#fef3c7"
+                        : "#fee2e2",
+                  color:
+                    response.confidenceLevel === "strong"
+                      ? "#065f46"
+                      : response.confidenceLevel === "moderate"
+                        ? "#92400e"
+                        : "#991b1b",
+                }}
+              >
+                Confidence: {response.confidenceLevel === "strong" ? "Strong" : response.confidenceLevel === "moderate" ? "Moderate" : "Weak"}
+              </span>
+              {response.confidenceReason && (
+                <span style={{ fontSize: 13, color: "#64748b" }}>{response.confidenceReason}</span>
+              )}
+              {response.confidenceSignals && (
+                <span
+                  style={{ fontSize: 12, color: "#94a3b8" }}
+                  title="Source breakdown"
+                >
+                  Sources: Spec {response.confidenceSignals.sources.spec}, Lesson {response.confidenceSignals.sources.lesson}
+                </span>
+              )}
+            </div>
+          )}
+
           <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
             Sources used: {response.usedSources?.length ?? 0}
             {response.cached && (

@@ -139,7 +139,9 @@ NPM maintenance scripts (backend):
 - frontend/src/components/generation/ReviewPublishChecklist.tsx — Run check, "Publish all" when blocks === 0, success links (View lesson as student, Back to coverage)
 - EditLessonPage: intercept publish for lessons with metadata.generatedFrom.jobId; show gate modal if blocked
 - Response now includes suggestedActions (PR-016a): practice, lesson, flashcards, quiz, coverage (teacher/admin when weak)
-- AskAiPanel / AskAiStudentPanel: "Next steps" section renders actions
+- Response includes confidenceLevel, confidenceReason, confidenceSignals (PR-017): strong/moderate/weak from retrieval + sources
+- AskAiPanel: Confidence badge + reason + "Sources: Spec X, Lesson Y" (teacher/admin)
+- AskAiStudentPanel: Confidence: High/Medium/Low badge; weak shows "Your course content may not cover this fully yet."
 - CoverageDashboardPage: ?focusTopicKey=... auto-opens topic drawer
 
 ## Background Jobs (PR-015)
