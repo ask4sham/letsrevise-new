@@ -90,6 +90,7 @@ const CoverageDashboardPage: React.FC = () => {
   const [sprintOrderLoading, setSprintOrderLoading] = useState(false);
   const [sprintOrderToast, setSprintOrderToast] = useState<string | null>(null);
   const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
+  const [shouldOpenPracticeSetModal, setShouldOpenPracticeSetModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const onSpecChange = (v: SpecKey) => {
@@ -139,8 +140,10 @@ const CoverageDashboardPage: React.FC = () => {
   }, [specKey, useSnapshot, windowDays]);
 
   // PR-016a: Apply specKey + focusTopicKey from URL (e.g. from "Fix coverage" suggested action)
+  // PR-032: openPracticeSet=1 auto-opens practice set modal in drawer
   const urlSpecKey = searchParams.get("specKey");
   const focusTopicKey = searchParams.get("focusTopicKey");
+  const openPracticeSet = searchParams.get("openPracticeSet") === "1";
   useEffect(() => {
     if (urlSpecKey && (urlSpecKey === "aqa-gcse-biology" || urlSpecKey === "aqa-gcse-chemistry")) {
       setSpecKey(urlSpecKey);
@@ -149,13 +152,14 @@ const CoverageDashboardPage: React.FC = () => {
     if (focusTopicKey && focusTopicKey.trim()) {
       setSelectedTopicKey(focusTopicKey.trim());
     }
-    if (focusTopicKey || urlSpecKey) {
+    if (focusTopicKey || urlSpecKey || openPracticeSet) {
       const next = new URLSearchParams(searchParams);
       next.delete("focusTopicKey");
+      next.delete("openPracticeSet");
       if (urlSpecKey) next.delete("specKey");
       setSearchParams(next, { replace: true });
     }
-  }, [focusTopicKey, urlSpecKey]);
+  }, [focusTopicKey, urlSpecKey, openPracticeSet]);
 
   const filteredRows = useMemo(() => {
     let out = rows;
@@ -603,11 +607,15 @@ const CoverageDashboardPage: React.FC = () => {
       {/* Topic detail drawer */}
       <CoverageTopicDrawer
         open={!!selectedTopicKey}
-        onClose={() => setSelectedTopicKey(null)}
+        onClose={() => {
+          setSelectedTopicKey(null);
+          setShouldOpenPracticeSetModal(false);
+        }}
         specKey={specKey}
         topicKey={selectedTopicKey || ""}
         windowDays={windowDays}
         row={selectedTopicKey ? rows.find((r) => r.topicKey === selectedTopicKey) ?? null : null}
+        initialOpenPracticeSet={shouldOpenPracticeSetModal}
       />
     </div>
   );

@@ -124,17 +124,19 @@ async function handleEnquiry(req, res) {
 
       const usedSourcesCached = cached.response.usedSources || [];
       const answerCached = cached.response.answer || {};
+      const confidence = computeConfidence({
+        usedSources: usedSourcesCached,
+        retrievalScores: usedSourcesCached.map((s) => s.score).filter((n) => typeof n === "number"),
+        warnings: answerCached.warnings || [],
+      });
       const suggestedActions = buildSuggestedActions({
         role: (req.user?.userType || req.user?.role || "").toString(),
         specKey: spec,
         topicKey: topicKey || null,
         usedSources: usedSourcesCached,
         answer: answerCached,
-      });
-      const confidence = computeConfidence({
-        usedSources: usedSourcesCached,
-        retrievalScores: usedSourcesCached.map((s) => s.score).filter((n) => typeof n === "number"),
-        warnings: answerCached.warnings || [],
+        confidenceLevel: confidence.confidenceLevel,
+        allowExternal: !!cached.response.externalUsed,
       });
       const cachePayload = {
         enquiryLogId: logDoc._id?.toString() || null,
@@ -360,6 +362,12 @@ async function handleEnquiry(req, res) {
       return base;
     });
 
+    const confidence = computeConfidence({
+      usedSources: usedSourcesPayload,
+      retrievalScores: retrievalResults.slice(0, topN).map((s) => s.score).filter((n) => typeof n === "number"),
+      warnings: answer.warnings || [],
+    });
+
     const suggestedActions = buildSuggestedActions({
       role: (req.user?.userType || req.user?.role || "").toString(),
       specKey: spec,
@@ -369,12 +377,8 @@ async function handleEnquiry(req, res) {
         practice: answer.practice,
         warnings: answer.warnings,
       },
-    });
-
-    const confidence = computeConfidence({
-      usedSources: usedSourcesPayload,
-      retrievalScores: retrievalResults.slice(0, topN).map((s) => s.score).filter((n) => typeof n === "number"),
-      warnings: answer.warnings || [],
+      confidenceLevel: confidence.confidenceLevel,
+      allowExternal: allowExternalVal,
     });
 
     const responsePayload = {

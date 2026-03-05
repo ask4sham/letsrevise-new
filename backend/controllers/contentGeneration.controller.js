@@ -10,6 +10,7 @@ const ExamQuestion = require("../models/ExamQuestion");
 const ContentGenerationJob = require("../models/ContentGenerationJob");
 const { runStarterPackGeneration } = require("../services/generation/starterPackService");
 const { runWeakEvidenceFixGeneration } = require("../services/generation/weakEvidenceFixService");
+const { runPracticeSetGeneration } = require("../services/generation/practiceSetService");
 const { fingerprint: flashcardFingerprint } = require("../utils/flashcardDedupe");
 const { fingerprintItem: quizFingerprintItem } = require("../utils/quizDedupe");
 const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
@@ -309,6 +310,221 @@ async function postStarterPack(req, res) {
 }
 
 /**
+ * POST /api/generate/practice-set
+ * PR-032: Generate draft practice set (flashcards, quiz, exam questions).
+ */
+async function postPracticeSet(req, res) {
+  if (!requireTeacherOrAdmin(req, res)) return;
+
+  const { specKey, topicKey, counts, allowExternal } = req.body || {};
+  const normalizedSpec = normalizeSpecKey(specKey);
+  const topic = String(topicKey || "").trim();
+
+  if (!normalizedSpec || !topic) {
+    return res.status(400).json({ error: "specKey and topicKey are required" });
+  }
+
+  const seed = crypto
+    .createHash("sha256")
+    .update(`${normalizedSpec}|${topic}|${Date.now()}|${Math.random()}`)
+    .digest("hex")
+    .slice(0, 16);
+
+  const userId = req.user._id || req.user.userId || req.user.id;
+  const role = (req.user.userType || req.user.role || "teacher").toString();
+
+  const job = new ContentGenerationJob({
+    requestedBy: userId,
+    role,
+    specKey: normalizedSpec,
+    topicKey: topic,
+    mode: "practiceSet",
+    status: "running",
+    seed,
+    inputs: { counts: counts || {}, allowExternal: !!allowExternal },
+    outputs: {},
+  });
+  await job.save();
+
+  try {
+    const { pack, contextChunks, counts: effectiveCounts, warnings } = await runPracticeSetGeneration({
+      specKey: normalizedSpec,
+      topicKey: topic,
+      counts: counts || {},
+      allowExternal: !!allowExternal,
+      seed,
+      user: req.user,
+    });
+
+    job.inputs = {
+      counts: effectiveCounts,
+      allowExternal: !!allowExternal,
+      retrievedDocs: (contextChunks || []).slice(0, 15).map((c) => ({
+        knowledgeDocumentId: c.knowledgeDocumentId,
+        sourceType: c.sourceType,
+        snippet: (c.text || "").slice(0, 80),
+      })),
+    };
+
+    const meta = parseSpecToMeta(normalizedSpec);
+    const topicDisplay = topicDisplayName(topic);
+    const generatedFrom = { jobId: String(job._id), seed };
+
+    const flashcardIds = [];
+    for (const f of pack?.flashcards || []) {
+      const front = (f.front || "").trim().slice(0, 500);
+      const back = (f.back || "").trim().slice(0, 2000);
+      if (!front || !back) continue;
+      const fp = flashcardFingerprint(front, back);
+      const doc = new TopicFlashcard({
+        ownerId: userId,
+        subject: meta.subject,
+        examBoard: meta.examBoard,
+        level: meta.level,
+        topicKey: topic,
+        topic: topicDisplay,
+        front,
+        back,
+        status: "draft",
+        fingerprint: fp,
+        metadata: { generatedFrom },
+      });
+      await doc.save();
+      flashcardIds.push(doc._id);
+    }
+    job.outputs.flashcardIds = flashcardIds;
+
+    const quizIds = [];
+    for (const q of pack?.quiz || []) {
+      const questionText = (q.question || "").trim();
+      if (!questionText) continue;
+
+      const isShort = (q.type || "").toLowerCase() === "short";
+      if (isShort) {
+        const acceptableAnswers = Array.isArray(q.answers) ? q.answers.map((x) => String(x).trim()).filter(Boolean) : [];
+        const item = {
+          questionText,
+          acceptableAnswers,
+          matchMode: "contains",
+          type: "short-answer",
+          kind: q.kind || "quiz",
+        };
+        const fp = quizFingerprintItem(item);
+        const doc = new TopicQuizQuestion({
+          ownerId: userId,
+          topicKey: topic,
+          questionText,
+          choices: [],
+          correctIndex: 0,
+          acceptableAnswers,
+          matchMode: "contains",
+          explanation: (q.explanation || "").trim().slice(0, 1000),
+          type: "short-answer",
+          kind: q.kind || "quiz",
+          status: "draft",
+          fingerprint: fp,
+          metadata: { generatedFrom },
+        });
+        await doc.save();
+        quizIds.push(doc._id);
+      } else {
+        const choices = Array.isArray(q.options) ? q.options.map((x) => String(x).trim()) : [];
+        const correctIndex = Math.min(Math.max(0, Number(q.correctIndex) || 0), Math.max(0, choices.length - 1));
+        const item = {
+          questionText,
+          choices,
+          correctIndex,
+          type: "mcq",
+          kind: q.kind || "quiz",
+        };
+        const fp = quizFingerprintItem(item);
+        const doc = new TopicQuizQuestion({
+          ownerId: userId,
+          topicKey: topic,
+          questionText,
+          choices,
+          correctIndex,
+          explanation: (q.explanation || "").trim().slice(0, 1000),
+          type: "mcq",
+          kind: q.kind || "quiz",
+          status: "draft",
+          fingerprint: fp,
+          metadata: { generatedFrom },
+        });
+        await doc.save();
+        quizIds.push(doc._id);
+      }
+    }
+    job.outputs.quizQuestionIds = quizIds;
+
+    const examIds = [];
+    const examItems = pack?.exam || pack?.examQuestions || [];
+    for (const eq of examItems) {
+      const question = (eq.question || "").trim();
+      const markScheme = (eq.markScheme || "").trim();
+      const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
+      if (!question) continue;
+      const fp = examQuestionFingerprint({
+        specKey: normalizedSpec,
+        topicKey: topic,
+        question,
+        markScheme,
+        marks,
+      });
+      const doc = new ExamQuestion({
+        teacherId: userId,
+        subject: meta.subject,
+        examBoard: meta.examBoard,
+        level: meta.level,
+        topic: topicDisplay,
+        topicKey: topic,
+        type: "short",
+        marks,
+        question,
+        markScheme: markScheme ? [markScheme] : [],
+        status: "draft",
+        fingerprint: fp,
+        metadata: { generatedFrom },
+      });
+      await doc.save();
+      examIds.push(doc._id);
+    }
+    job.outputs.examQuestionIds = examIds;
+
+    job.status = "completed";
+    if (Array.isArray(warnings) && warnings.length) {
+      job.errors = warnings;
+    }
+    await job.save();
+
+    const enc = encodeURIComponent(topic);
+    return res.json({
+      jobId: job._id,
+      outputs: {
+        flashcardIdsCount: flashcardIds.length,
+        quizCount: quizIds.length,
+        examCount: examIds.length,
+      },
+      links: {
+        flashcardsBank: `/teacher/topic-banks/flashcards?topicKey=${enc}`,
+        quizBank: `/teacher/topic-banks/quizzes?topicKey=${enc}`,
+        examBank: `/teacher/exam-question-bank?topicKey=${enc}`,
+      },
+    });
+  } catch (err) {
+    job.status = "failed";
+    job.errors = [err.message || String(err)];
+    await job.save();
+    console.error("[contentGeneration] practice-set failed:", err);
+    return res.status(500).json({
+      error: "Generation failed",
+      message: err.message,
+      jobId: job._id,
+    });
+  }
+}
+
+/**
  * GET /api/generate/jobs
  */
 async function getJobs(req, res) {
@@ -335,5 +551,6 @@ async function getJobs(req, res) {
 module.exports = {
   postStarterPack,
   postWeakEvidenceFix,
+  postPracticeSet,
   getJobs,
 };

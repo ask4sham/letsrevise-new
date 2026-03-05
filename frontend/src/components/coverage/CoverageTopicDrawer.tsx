@@ -9,8 +9,10 @@ import { getSprintOrderMarkdown } from "../../api/sprintOrder";
 import {
   postGenerateStarterPack,
   postGenerateWeakEvidenceFix,
+  postGeneratePracticeSet,
   type StarterPackResponse,
   type WeakEvidenceFixResponse,
+  type PracticeSetResponse,
 } from "../../api/generation";
 import { getTeacherNotes, type TeacherNoteItem } from "../../api/teacherNotes";
 import {
@@ -37,6 +39,8 @@ type Props = {
   windowDays: number;
   row?: CoverageRow | null;
   onAskAi?: (question: string) => void;
+  /** PR-032: When true, auto-open the practice set modal when drawer opens. */
+  initialOpenPracticeSet?: boolean;
 };
 
 function ScoreBar({ score }: { score: number }) {
@@ -95,6 +99,19 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [weakFixQuestionIndices, setWeakFixQuestionIndices] = useState<Set<number>>(new Set());
   const [weakFixAllowExternal, setWeakFixAllowExternal] = useState(false);
   const [weakFixWindowDays, setWeakFixWindowDays] = useState(14);
+  const [practiceSetLoading, setPracticeSetLoading] = useState(false);
+  const [practiceSetResult, setPracticeSetResult] = useState<PracticeSetResponse | null>(null);
+  const [practiceSetError, setPracticeSetError] = useState<string | null>(null);
+  const [showPracticeSetModal, setShowPracticeSetModal] = useState(false);
+  const [practiceSetPreset, setPracticeSetPreset] = useState<"standard" | "exam-heavy" | "flashcards-heavy">("standard");
+  const [practiceSetAllowExternal, setPracticeSetAllowExternal] = useState(false);
+
+  // PR-032: Auto-open practice set modal when drawer opens with initialOpenPracticeSet
+  useEffect(() => {
+    if (open && initialOpenPracticeSet) {
+      setShowPracticeSetModal(true);
+    }
+  }, [open, initialOpenPracticeSet]);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -398,6 +415,37 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
     }
   };
 
+  const getPracticeSetCounts = () => {
+    switch (practiceSetPreset) {
+      case "exam-heavy":
+        return { quizMcq: 3, quizShort: 2, exam: 4, flashcards: 4 };
+      case "flashcards-heavy":
+        return { quizMcq: 3, quizShort: 2, exam: 1, flashcards: 10 };
+      default:
+        return { quizMcq: 5, quizShort: 3, exam: 2, flashcards: 6 };
+    }
+  };
+
+  const handleGeneratePracticeSet = async () => {
+    setShowPracticeSetModal(false);
+    setPracticeSetLoading(true);
+    setPracticeSetError(null);
+    setPracticeSetResult(null);
+    try {
+      const res = await postGeneratePracticeSet({
+        specKey,
+        topicKey,
+        counts: getPracticeSetCounts(),
+        allowExternal: practiceSetAllowExternal,
+      });
+      setPracticeSetResult(res);
+    } catch (e: any) {
+      setPracticeSetError(e?.response?.data?.message ?? e?.message ?? "Generation failed");
+    } finally {
+      setPracticeSetLoading(false);
+    }
+  };
+
   const handleGenerateWeakEvidenceFix = async () => {
     setShowWeakFixModal(false);
     setWeakFixLoading(true);
@@ -652,6 +700,23 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                   >
                     {genLoading ? "Generating…" : "Generate starter pack (draft)"}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPracticeSetModal(true)}
+                    disabled={practiceSetLoading}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#0ea5e9",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: practiceSetLoading ? "wait" : "pointer",
+                    }}
+                  >
+                    {practiceSetLoading ? "Generating…" : "Generate practice set (draft)"}
+                  </button>
                 </div>
               </section>
 
@@ -784,6 +849,155 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* PR-032: Generate practice set modal */}
+              {showPracticeSetModal && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.4)",
+                    zIndex: 1100,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 16,
+                  }}
+                  onClick={() => setShowPracticeSetModal(false)}
+                >
+                  <div
+                    style={{
+                      background: "white",
+                      borderRadius: 12,
+                      padding: 24,
+                      maxWidth: 420,
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Generate practice set (draft)</h3>
+                    <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#4b5563" }}>
+                      Creates draft flashcards, quiz questions (MCQ + short), and exam questions. Nothing is published.
+                    </p>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 600 }}>Preset</label>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {(["standard", "exam-heavy", "flashcards-heavy"] as const).map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setPracticeSetPreset(p)}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: 12,
+                              background: practiceSetPreset === p ? "#0ea5e9" : "#f3f4f6",
+                              color: practiceSetPreset === p ? "white" : "#374151",
+                              border: "none",
+                              borderRadius: 6,
+                              cursor: "pointer",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {p === "standard" ? "Standard" : p === "exam-heavy" ? "Exam-heavy" : "Flashcards-heavy"}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 6 }}>
+                        {practiceSetPreset === "standard" && "5 MCQ, 3 short, 2 exam, 6 flashcards"}
+                        {practiceSetPreset === "exam-heavy" && "3 MCQ, 2 short, 4 exam, 4 flashcards"}
+                        {practiceSetPreset === "flashcards-heavy" && "3 MCQ, 2 short, 1 exam, 10 flashcards"}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={practiceSetAllowExternal}
+                          onChange={(e) => setPracticeSetAllowExternal(e.target.checked)}
+                        />
+                        Allow external trusted sources (teacher/admin only)
+                      </label>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowPracticeSetModal(false)}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#e5e7eb",
+                          color: "#374151",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGeneratePracticeSet}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#0ea5e9",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Generate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PR-032: Practice set success panel */}
+              {practiceSetResult && (
+                <section style={{ marginBottom: 24, padding: 16, background: "#e0f2fe", borderRadius: 12, border: "1px solid #0ea5e9" }}>
+                  <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700, color: "#0369a1" }}>
+                    Practice set created
+                  </h3>
+                  <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#0284c7" }}>
+                    Job ID: {practiceSetResult.jobId}
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <Link
+                      to={practiceSetResult.links.flashcardsBank}
+                      style={{ fontSize: 13, color: "#0284c7", fontWeight: 600 }}
+                    >
+                      Review draft flashcards ({practiceSetResult.outputs.flashcardIdsCount})
+                    </Link>
+                    <Link
+                      to={practiceSetResult.links.quizBank}
+                      style={{ fontSize: 13, color: "#0284c7", fontWeight: 600 }}
+                    >
+                      Review draft quiz ({practiceSetResult.outputs.quizCount})
+                    </Link>
+                    <Link
+                      to={practiceSetResult.links.examBank}
+                      style={{ fontSize: 13, color: "#0284c7", fontWeight: 600 }}
+                    >
+                      Review draft exam questions ({practiceSetResult.outputs.examCount})
+                    </Link>
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <ReviewPublishChecklist
+                      jobId={practiceSetResult.jobId}
+                      topicKey={topicKey}
+                      specKey={specKey as string}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {practiceSetError && (
+                <section style={{ marginBottom: 24, padding: 12, background: "#fee2e2", borderRadius: 8 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "#b91c1c" }}>{practiceSetError}</p>
+                </section>
               )}
 
               {/* PR-014: Success panel with links */}

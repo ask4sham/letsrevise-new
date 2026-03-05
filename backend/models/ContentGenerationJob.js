@@ -13,7 +13,7 @@ const ContentGenerationJobSchema = new mongoose.Schema(
     tier: { type: String, trim: true, default: null },
     mode: {
       type: String,
-      enum: ["starterPack", "weakEvidenceFix"],
+      enum: ["starterPack", "weakEvidenceFix", "practiceSet"],
       default: "starterPack",
     },
     status: {
@@ -30,6 +30,7 @@ const ContentGenerationJobSchema = new mongoose.Schema(
       weakQuestions: { type: [String], default: [] },
       allowExternal: { type: Boolean, default: false },
       windowDays: { type: Number, default: 14 },
+      counts: { type: mongoose.Schema.Types.Mixed, default: null },
     },
     outputs: {
       lessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson", default: null },

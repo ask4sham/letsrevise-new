@@ -855,4 +855,186 @@ async function generateTopicSummary({ mode, specKey, topicKey, contextChunks, co
   return mockGenerateTopicSummary({ mode: modeNorm, specKey, topicKey, contextChunks, constraints });
 }
 
-module.exports = { generateEnquiryAnswer, generateStarterPack, generateTopicSummary, generateWeakEvidenceFixPack, getProvider, buildContext };
+/**
+ * PR-032: Generate practice set — flashcards, quiz (MCQ + short), exam questions.
+ * Output: { flashcards: [{front,back}], quiz: [...], exam: [...] }
+ */
+function mockGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }) {
+  const topicPart = (topicKey || "").split(":").pop() || topicKey || "";
+  const nFlash = Math.min(10, Math.max(1, counts?.flashcards || 6));
+  const nMcq = Math.min(10, Math.max(1, counts?.quizMcq || 5));
+  const nShort = Math.min(5, Math.max(0, counts?.quizShort || 3));
+  const nExam = Math.min(5, Math.max(1, counts?.exam || 2));
+
+  const flashcards = [];
+  for (let i = 0; i < nFlash; i++) {
+    flashcards.push({
+      front: `Define key term ${i + 1} for ${topicPart}`,
+      back: `Definition from curriculum. ${weakConfidence ? "(Limited sources)" : ""}`,
+    });
+  }
+
+  const quiz = [];
+  for (let i = 0; i < nMcq; i++) {
+    quiz.push({
+      type: "mcq",
+      question: `Which best describes ${topicPart}? (Q${i + 1})`,
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      correctIndex: 0,
+      explanation: "Based on spec.",
+    });
+  }
+  for (let i = 0; i < nShort; i++) {
+    quiz.push({
+      type: "short",
+      question: `Summarise: ${topicPart} (Q${i + 1})`,
+      answers: ["Key concept from curriculum"],
+      markScheme: "1 mark per valid point",
+    });
+  }
+
+  const exam = [];
+  for (let i = 0; i < nExam; i++) {
+    exam.push({
+      question: `Explain ${topicPart}. [${i + 3} marks]`,
+      markScheme: "1 mark per valid point.",
+      marks: i + 3,
+      examinerTip: "Use key terms from spec.",
+    });
+  }
+
+  return { flashcards, quiz, exam };
+}
+
+async function openaiGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }) {
+  const axios = require("axios");
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || !String(apiKey).trim()) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY required when LLM_PROVIDER=openai");
+  }
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
+  const nFlash = Math.min(10, Math.max(1, counts?.flashcards || 6));
+  const nMcq = Math.min(10, Math.max(1, counts?.quizMcq || 5));
+  const nShort = Math.min(5, Math.max(0, counts?.quizShort || 3));
+  const nExam = Math.min(5, Math.max(1, counts?.exam || 2));
+
+  const context = buildContext(contextChunks || []);
+  const weakNote = weakConfidence
+    ? "\n\nIMPORTANT: The retrieved sources are limited. Bias heavily toward spec statements. Add a note that sources may be generic."
+    : "";
+
+  const systemPrompt = `You are a curriculum author for UK GCSE/A-Level. Generate a PRACTICE SET (draft) using ONLY the provided context. No external sources.
+
+Rules:
+- Derive ALL content from the provided context chunks.
+- MCQs: exactly 4 options, correctIndex 0-3. At least 2 options required.
+- Short-answer: answers array (acceptable answers), markScheme.
+- Exam: question, markScheme, marks (1-6), optional examinerTip.
+- Keep language GCSE/A-Level appropriate.
+- Return valid JSON only.${weakNote}`;
+
+  const userPrompt = `Spec: ${specKey}
+Topic: ${topicKey}
+
+Generate:
+- ${nFlash} flashcards (front, back)
+- ${nMcq} MCQ questions (type "mcq", question, options [4], correctIndex, explanation)
+- ${nShort} short-answer questions (type "short", question, answers [], markScheme)
+- ${nExam} exam-style questions (question, markScheme, marks, examinerTip?)
+
+Context:
+${context || "(minimal - produce best-effort from topic)"}
+
+Return JSON:
+{
+  "flashcards": [{ "front": "...", "back": "..." }],
+  "quiz": [
+    { "type": "mcq", "question": "...", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "..." },
+    { "type": "short", "question": "...", "answers": ["..."], "markScheme": "..." }
+  ],
+  "exam": [{ "question": "...", "markScheme": "...", "marks": 4, "examinerTip": "..." }]
+}`;
+
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.4,
+      max_tokens: 4000,
+    },
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error("Invalid JSON from LLM: " + e.message);
+  }
+
+  const flashcards = (Array.isArray(parsed.flashcards) ? parsed.flashcards : [])
+    .slice(0, nFlash)
+    .map((f) => ({
+      front: String(f.front || "").slice(0, 500),
+      back: String(f.back || "").slice(0, 2000),
+    }))
+    .filter((f) => f.front && f.back);
+
+  const quizRaw = Array.isArray(parsed.quiz) ? parsed.quiz : [];
+  const quiz = [];
+  for (const q of quizRaw) {
+    const t = (q.type || "mcq").toLowerCase();
+    if (t === "mcq") {
+      const opts = Array.isArray(q.options) ? q.options.map(String).slice(0, 6) : [];
+      if (opts.length < 2) continue;
+      const ci = Math.max(0, Math.min(Number(q.correctIndex) ?? 0, opts.length - 1));
+      quiz.push({
+        type: "mcq",
+        question: String(q.question || "").slice(0, 1000),
+        options: opts,
+        correctIndex: ci,
+        explanation: String(q.explanation || "").slice(0, 500),
+      });
+    } else if (t === "short") {
+      const answers = Array.isArray(q.answers) ? q.answers : Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : [];
+      if (answers.length === 0) continue;
+      quiz.push({
+        type: "short",
+        question: String(q.question || "").slice(0, 1000),
+        answers: answers.map(String).slice(0, 10),
+        markScheme: String(q.markScheme || "").slice(0, 500),
+      });
+    }
+  }
+
+  const exam = (Array.isArray(parsed.exam) ? parsed.exam : [])
+    .slice(0, nExam)
+    .map((eq) => ({
+      question: String(eq.question || "").slice(0, 2000),
+      markScheme: String(eq.markScheme || "").slice(0, 1000),
+      marks: Math.max(1, Math.min(Number(eq.marks) || 4, 10)),
+      examinerTip: eq.examinerTip ? String(eq.examinerTip).slice(0, 300) : undefined,
+    }))
+    .filter((eq) => eq.question);
+
+  return { flashcards, quiz, exam };
+}
+
+async function generatePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }) {
+  const provider = getProvider();
+  if (provider === "openai") {
+    return openaiGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence });
+  }
+  return Promise.resolve(mockGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }));
+}
+
+module.exports = { generateEnquiryAnswer, generateStarterPack, generateTopicSummary, generateWeakEvidenceFixPack, generatePracticeSet, getProvider, buildContext };
