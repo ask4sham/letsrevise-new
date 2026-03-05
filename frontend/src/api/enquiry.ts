@@ -18,22 +18,38 @@ export type PostEnquiryParams = {
   allowExternal?: boolean;
 };
 
-export type EnquiryCitation = {
-  knowledgeDocumentId: string;
-  sourceType: "specStatement" | "lessonBlock" | "externalTrusted";
-  sourceId: string;
-  quote: string;
-  reason: string;
-  deepLink?: {
-    type: "lesson";
-    lessonId: string;
-    pageIndex?: number;
-    pageId?: string;
-    blockIndex?: number;
-  };
-  /** PR-021: URL for external citations */
-  externalUrl?: string;
-};
+export type EnquiryCitation =
+  | {
+      knowledgeDocumentId: string;
+      sourceType: "specStatement";
+      sourceId: string;
+      quote?: string;
+      reason?: string;
+    }
+  | {
+      knowledgeDocumentId: string;
+      sourceType: "lessonBlock";
+      sourceId: string;
+      quote?: string;
+      reason?: string;
+      deepLink?: {
+        type: "lessonBlock";
+        lessonId: string;
+        pageIndex?: number;
+        pageId?: string;
+        blockIndex?: number;
+        blockIndexStart?: number;
+        blockIndexEnd?: number;
+      };
+    }
+  | {
+      knowledgeDocumentId: string;
+      sourceType: "externalTrusted";
+      sourceId: string;
+      externalUrl: string; // required for this branch
+      quote?: string;
+      reason?: string;
+    };
 
 export type EnquiryPracticeItem =
   | {
