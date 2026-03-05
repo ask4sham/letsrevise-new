@@ -982,5 +982,28 @@ Notes:
 - PDF includes title, subtitle, confidence, summary, key points, mode sections, citations.
 - Teacher and student flows both supported.
 
+PowerShell curl (avoid `-f` with JSON; use string concatenation or ConvertTo-Json):
+
+```powershell
+$jwt = "YOUR_JWT"
+$id  = "YOUR_TOPIC_SUMMARY_LOG_ID"
+
+# Option A: string concatenation
+$body = '{"topicSummaryLogId":"' + $id + '"}'
+curl.exe -L -X POST "http://localhost:5000/api/topic-summary/export" `
+  -H "Authorization: Bearer $jwt" `
+  -H "Content-Type: application/json" `
+  -d $body `
+  -o "topic-summary.pdf"
+
+# Option B: ConvertTo-Json (handles escaping)
+$body = @{ topicSummaryLogId = $id } | ConvertTo-Json -Compress
+curl.exe -L -X POST "http://localhost:5000/api/topic-summary/export" `
+  -H "Authorization: Bearer $jwt" `
+  -H "Content-Type: application/json" `
+  -d $body `
+  -o "topic-summary.pdf"
+```
+
 Follow-ups:
 None

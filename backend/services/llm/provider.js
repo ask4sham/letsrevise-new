@@ -527,8 +527,14 @@ function mockGenerateTopicSummary({ mode, specKey, topicKey, contextChunks, cons
             { front: "What is X?", back: "Explanation" },
             { front: "Common mistake?", back: "Avoid Y" },
           ],
-      ...(studentSafe && { checkYourself: { question: "Which best describes this topic?", options: ["A", "B", "C", "D"], answer: "A" }),
     };
+    if (studentSafe) {
+      base.sections.revisionSheet.checkYourself = {
+        question: "Which best describes this topic?",
+        options: ["A", "B", "C", "D"],
+        answer: "A",
+      };
+    }
   } else if (mode === "examFocus") {
     base.sections.examFocus = {
       commandWords: ["State", "Describe", "Explain", "Compare", "Evaluate"],
