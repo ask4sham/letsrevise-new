@@ -23,8 +23,8 @@ Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + 
 **AskAiStudentPanel** (PR-007)
 Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practice-first, collapsed explanation/citations.
 
-**CoverageDashboardPage** (PR-010)
-Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle.
+**CoverageDashboardPage** (PR-010, PR-012)
+Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button.
 
 ## Backend
 
@@ -108,3 +108,9 @@ NPM maintenance scripts (backend):
 
 - frontend/src/api/coverage.ts — getCoverage, getCoverageSnapshots, getCoverageTopics
 - /coverage — CoverageDashboardPage (teacher/admin)
+
+## Sprint Order API (PR-012)
+
+- GET /api/sprint-order?specKey=... — teacher/admin, rate limited (10/min teacher, 30/min admin), markdown download
+- POST /api/sprint-order/snapshots/ensure — admin only, X-Confirm required
+- frontend/src/api/sprintOrder.ts — getSprintOrderMarkdown (fetch + trigger download)

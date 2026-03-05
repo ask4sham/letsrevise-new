@@ -411,4 +411,35 @@ Usage (from backend/):
 Windows PowerShell (from project root): use ; instead of && to chain commands.
 
 Follow-ups:
-- PR-012: Integrate sprint output into teacher/admin UI (optional)
+- PR-012: Integrate sprint output into teacher/admin UI (implemented below)
+
+---
+
+**PR-012 — Coverage Dashboard: sprint order download**
+
+Date: 2026-03-05
+
+Summary:
+Added "Generate sprint order" button on /coverage that downloads the same markdown as PR-011. Refactored PR-011 logic into sprintOrderService so script and API share identical output. API is rate-limited (10/min teacher, 30/min admin), never writes snapshots. Optional admin-only POST /api/sprint-order/snapshots/ensure for ensuring snapshots with confirmation.
+
+Files changed:
+
+- backend/services/sprintOrder/sprintOrderService.js (new)
+- backend/scripts/buildSprintOrderFromCoverage.js (refactored to use service)
+- backend/controllers/sprintOrder.controller.js (new)
+- backend/routes/sprintOrder.routes.js (new)
+- backend/middleware/sprintOrderRateLimit.js (new)
+- backend/app.js
+- frontend/src/api/sprintOrder.ts (new)
+- frontend/src/pages/CoverageDashboardPage.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Script still exists and delegates to sprintOrderService; output format identical.
+- GET /api/sprint-order returns markdown with Content-Disposition attachment.
+- X-SprintOrder-Source header indicates SNAPSHOT or LIVE.
+- POST /api/sprint-order/snapshots/ensure requires X-Confirm: "APPLY &lt;SPEC_DISPLAY&gt;".
+
+Follow-ups:
+None
