@@ -17,25 +17,28 @@ export function buildCitationLink(
   const studentSafe = opts?.studentSafe ?? false;
   const lessonId = opts?.lessonId;
 
-  if (citation.sourceType === "lessonBlock" && citation.deepLink && citation.deepLink.lessonId) {
-    const { lessonId: lid, pageIndex, blockIndex } = citation.deepLink;
-    if (studentSafe && lessonId && citation.sourceId !== lessonId) return null;
-    let url = `/lesson/${lid}`;
-    const page = pageIndex ?? 0;
-    url += `?page=${page}`;
-    if (blockIndex != null) url += `#block-${blockIndex}`;
-    return url;
-  }
-
-  if (citation.sourceType === "lessonBlock" && citation.sourceId) {
-    if (studentSafe && lessonId && citation.sourceId !== lessonId) return null;
-    return `/lesson/${citation.sourceId}`;
-  }
-
-  // PR-021: External citation — return URL for external link
-  if (citation.sourceType === "externalTrusted" && citation.externalUrl) {
+  // External citations: always return externalUrl (opens in new tab where used)
+  if (citation.sourceType === "externalTrusted") {
     return citation.externalUrl;
   }
 
+  // lessonBlock: deepLink with page/block, or fallback to /lesson/:sourceId
+  if (citation.sourceType === "lessonBlock") {
+    if (citation.deepLink && citation.deepLink.lessonId) {
+      const { lessonId: lid, pageIndex, blockIndex } = citation.deepLink;
+      if (studentSafe && lessonId && citation.sourceId !== lessonId) return null;
+      let url = `/lesson/${lid}`;
+      const page = pageIndex ?? 0;
+      url += `?page=${page}`;
+      if (blockIndex != null) url += `#block-${blockIndex}`;
+      return url;
+    }
+    if (citation.sourceId) {
+      if (studentSafe && lessonId && citation.sourceId !== lessonId) return null;
+      return `/lesson/${citation.sourceId}`;
+    }
+  }
+
+  // specStatement: no link (unless spec viewer added later)
   return null;
 }
