@@ -288,4 +288,31 @@ Notes:
 - Student UI: "Ask for help on this topic", practice first, "Show explanation" / "Where this came from" collapsed.
 
 Follow-ups:
-PR-008 — Quality flywheel (evaluation harness, coverage dashboard)
+PR-009 — Quality flywheel (evaluation harness, coverage dashboard)
+
+---
+
+**PR-008 — Local pgvector dev environment + embedding diagnostics**
+
+Date: 2025-03-04
+
+Summary:
+Added deterministic local pgvector setup via Docker, npm scripts, and improved error messages for embedding scripts. "Local DB auth" no longer blocks development.
+
+Files changed:
+
+- docker-compose.vector.yml (pgvector/pgvector:pg16, port 5433)
+- backend/package.json (vector:up, vector:down, vector:logs, vector:migrate, vector:reset)
+- backend/.env.example (VECTOR_DB_URL default for local Docker)
+- backend/README.md (full 5-step local workflow)
+- backend/services/vector/pgvectorClient.js (testConnection, formatConnectionError for auth/ECONNREFUSED/extension/pg_hba)
+- backend/scripts/embedKnowledgeDocuments.js (early connection test when --apply, actionable hint on failure)
+- backend/scripts/runVectorMigrations.js (formatted errors, exit 1)
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Notes:
+- vector:reset is destructive (removes volume).
+- On a fresh machine: npm run vector:up, npm run vector:migrate, then embed --apply works with localhost:5433.
+
+Follow-ups:
+None

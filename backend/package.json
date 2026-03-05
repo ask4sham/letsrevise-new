@@ -44,7 +44,12 @@
     "maintenance:dedup-practice:spec:apply": "node scripts/runDedupLessonPracticeSources.js --apply --spec",
     "maintenance:dedup-practice:spec:apply:force": "node scripts/runDedupLessonPracticeSources.js --apply --force --spec",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "vector:up": "docker compose -f ../docker-compose.vector.yml up -d",
+    "vector:down": "docker compose -f ../docker-compose.vector.yml down",
+    "vector:logs": "docker logs -f letsrevise-vector-db",
+    "vector:migrate": "node scripts/runVectorMigrations.js",
+    "vector:reset": "docker compose -f ../docker-compose.vector.yml down -v"
   },
   "keywords": [
     "education",

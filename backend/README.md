@@ -89,7 +89,45 @@ Teachers need exam questions in the Question Bank to build worksheets. You can a
 | `EMBEDDINGS_API_KEY` | Required when provider=openai |
 | `EMBEDDINGS_MODEL` | Optional; default `text-embedding-3-small` |
 
-**Commands:**
+### Vector DB (local Docker, recommended)
+
+Deterministic local pgvector — no manual Postgres setup. On a fresh machine with Docker:
+
+```bash
+# 1) Start pgvector (port 5433)
+docker compose -f docker-compose.vector.yml up -d
+# or: cd backend && npm run vector:up
+
+# 2) Run migrations
+node backend/scripts/runVectorMigrations.js
+# or: npm run vector:migrate
+
+# 3) Build knowledge index
+node backend/scripts/buildKnowledgeIndex.js --apply --specKey aqa-gcse-biology
+
+# 4) Embed documents
+node backend/scripts/embedKnowledgeDocuments.js --apply --specKey aqa-gcse-biology
+
+# 5) Test search
+# GET /api/knowledge/search?q=cells&specKey=aqa-gcse-biology
+```
+
+Set in `backend/.env`:
+
+```
+VECTOR_DB_URL=postgresql://letsrevise_user:letsrevise_pass@localhost:5433/letsrevise
+```
+
+**npm scripts:** `vector:up`, `vector:down`, `vector:logs`, `vector:migrate`, `vector:reset` (destructive: removes volume).
+
+**Common connection errors** (scripts print hints and exit 1):
+
+- `password authentication failed` → Check credentials in `VECTOR_DB_URL`
+- `does not exist` → Create DB or run `npm run vector:up` then `npm run vector:migrate`
+- `ECONNREFUSED` → Start Docker (`npm run vector:up`) or ensure Postgres is running
+- `extension "vector" is not available` → Use Docker pgvector image (`docker-compose.vector.yml`)
+
+**Commands (manual Postgres):**
 
 ```bash
 # Run pgvector migrations
