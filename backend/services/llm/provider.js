@@ -471,4 +471,175 @@ async function generateStarterPack({ specKey, topicKey, statementCodes, statemen
   return Promise.resolve(mockGenerateStarterPack({ specKey, topicKey, statementCodes, statements, contextChunks, seed }));
 }
 
-module.exports = { generateEnquiryAnswer, generateStarterPack, getProvider, buildContext };
+/**
+ * PR-024: Topic summary generation — mode-specific structured output.
+ */
+function mockGenerateTopicSummary({ mode, specKey, topicKey, contextChunks, constraints }) {
+  const chunks = contextChunks || [];
+  const snippet = chunks[0]?.text ? chunks[0].text.slice(0, 150) : "No sources";
+  const docId = chunks[0]?.knowledgeDocumentId || "unknown";
+
+  const base = {
+    summary: `Topic summary for ${topicKey}. Based on curriculum: ${snippet}...`,
+    keyPoints: ["Key point 1 from sources", "Key point 2", "Key point 3", "Key point 4"],
+    sections: {},
+    citations: [
+      {
+        knowledgeDocumentId: docId,
+        sourceType: chunks[0]?.sourceType || "lessonBlock",
+        sourceId: chunks[0]?.sourceId || "",
+        quote: snippet,
+        reason: "Primary source",
+        externalUrl: chunks[0]?.sourceType === "externalTrusted" ? chunks[0].metadata?.url : undefined,
+      },
+    ],
+    warnings: chunks.length === 0 ? ["Insufficient trusted sources"] : [],
+  };
+
+  if (mode === "lessonPlan") {
+    base.sections.lessonPlan = {
+      durationMinutes: 50,
+      segments: [
+        { minutes: "0-5", title: "Starter", teacherScript: "Introduce topic", activity: "Quick question", checkForUnderstanding: "Thumbs up/down" },
+        { minutes: "5-15", title: "Main 1", teacherScript: "Explain key concept", activity: "Paired discussion", checkForUnderstanding: "Mini whiteboard" },
+        { minutes: "15-30", title: "Main 2", teacherScript: "Develop", activity: "Worksheet", checkForUnderstanding: "Peer check" },
+        { minutes: "30-45", title: "Practice", teacherScript: "Guided practice", activity: "Exam-style Q", checkForUnderstanding: "Mark scheme" },
+        { minutes: "45-50", title: "Plenary", teacherScript: "Recap", activity: "Exit ticket", checkForUnderstanding: "Summary" },
+      ],
+    };
+  } else if (mode === "revisionSheet") {
+    base.sections.revisionSheet = {
+      commonMistakes: ["Confusing similar terms", "Missing units", "Incomplete answers"],
+      memoryCues: ["Acronym: ABC", "Link to everyday example", "Diagram"],
+      flashcards: [
+        { front: "Define key term", back: "Definition from spec" },
+        { front: "What is X?", back: "Explanation" },
+        { front: "Common mistake?", back: "Avoid Y" },
+      ],
+    };
+  } else if (mode === "examFocus") {
+    base.sections.examFocus = {
+      commandWords: ["State", "Describe", "Explain", "Compare", "Evaluate"],
+      examTips: ["Read command words", "Check marks", "Use key terms"],
+      examQuestion: {
+        question: "Explain the key concept. [4 marks]",
+        answer: "See mark scheme",
+        markScheme: "1 mark per valid point, max 4",
+        marks: 4,
+      },
+    };
+  }
+
+  return Promise.resolve(base);
+}
+
+async function openaiGenerateTopicSummary({ mode, specKey, topicKey, contextChunks, constraints }) {
+  const axios = require("axios");
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || !String(apiKey).trim()) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY required when LLM_PROVIDER=openai");
+  }
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
+  const context = buildContext(contextChunks || []);
+  const modeInstructions = {
+    overview:
+      "OVERVIEW: 1200-1600 chars summary, 6-10 key points. Succinct, curriculum-aligned.",
+    lessonPlan:
+      "LESSON PLAN: 45-60 min, 5-8 segments. Each: minutes, title, teacherScript, activity, checkForUnderstanding. Include common misconceptions.",
+    revisionSheet:
+      "REVISION SHEET: Headings-style. commonMistakes, memoryCues, 6 flashcards with front/back.",
+    examFocus:
+      "EXAM FOCUS: Examiner tone. commandWords, examTips, examQuestion with question, answer, markScheme, marks. No fluff.",
+  };
+  const modeNote = modeInstructions[mode] || modeInstructions.overview;
+
+  const systemPrompt = `You are an educational AI for UK GCSE/A-Level. Summarise the topic using ONLY the provided sources.
+
+Rules:
+- Use ONLY the provided [knowledgeDocumentId] sources.
+- Every citation must reference a knowledgeDocumentId from the context.
+- quote must be a snippet (<=200 chars) from that document's text.
+- Return valid JSON only. No markdown.
+${modeNote}`;
+
+  const schema = `{
+  "summary": "string (1200-1600 chars for overview)",
+  "keyPoints": ["string"],
+  "sections": {
+    "lessonPlan"?: { "durationMinutes": number, "segments": [{ "minutes": "string", "title": "string", "teacherScript": "string", "activity": "string", "checkForUnderstanding": "string" }] },
+    "revisionSheet"?: { "commonMistakes": ["string"], "memoryCues": ["string"], "flashcards": [{ "front": "string", "back": "string" }] },
+    "examFocus"?: { "commandWords": ["string"], "examTips": ["string"], "examQuestion": { "question": "string", "answer": "string", "markScheme": "string", "marks": number } }
+  },
+  "citations": [{ "knowledgeDocumentId": "string", "sourceType": "string", "sourceId": "string", "quote": "string", "reason": "string", "externalUrl"?: "string" }],
+  "warnings": ["string"]
+}`;
+
+  const userPrompt = `Spec: ${specKey}
+Topic: ${topicKey}
+Mode: ${mode}
+
+Context:
+${context || "(no sources)"}
+
+Return JSON: ${schema}`;
+
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 4000,
+    },
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error("Invalid JSON from LLM: " + e.message);
+  }
+
+  const out = {
+    summary: String(parsed.summary || "").trim(),
+    keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map(String).slice(0, 15) : [],
+    sections: parsed.sections || {},
+    citations: (Array.isArray(parsed.citations) ? parsed.citations : [])
+      .filter((c) => c && c.knowledgeDocumentId)
+      .map((c) => ({
+        knowledgeDocumentId: String(c.knowledgeDocumentId),
+        sourceType: String(c.sourceType || "lessonBlock"),
+        sourceId: String(c.sourceId || ""),
+        quote: String(c.quote || "").slice(0, 200),
+        reason: String(c.reason || ""),
+        externalUrl: c.externalUrl ? String(c.externalUrl) : undefined,
+      })),
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String) : [],
+  };
+
+  return out;
+}
+
+async function generateTopicSummary({ mode, specKey, topicKey, contextChunks, constraints = {} }) {
+  const provider = getProvider();
+  const m = (mode || "overview").toLowerCase();
+  const validModes = ["overview", "lessonplan", "revisionsheet", "examfocus"];
+  const modeKey = m.replace(/([a-z])([A-Z])/g, "$1$2").toLowerCase();
+  const modeNorm = m === "lessonplan" ? "lessonPlan" : m === "revisionsheet" ? "revisionSheet" : m === "examfocus" ? "examFocus" : "overview";
+
+  if (provider === "openai") {
+    return openaiGenerateTopicSummary({ mode: modeNorm, specKey, topicKey, contextChunks, constraints });
+  }
+  return mockGenerateTopicSummary({ mode: modeNorm, specKey, topicKey, contextChunks, constraints });
+}
+
+module.exports = { generateEnquiryAnswer, generateStarterPack, generateTopicSummary, getProvider, buildContext };

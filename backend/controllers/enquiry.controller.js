@@ -2,6 +2,7 @@
  * PR-004: Enquiry (RAG) controller.
  * PR-006: Caching, deep links, enquiryLogId.
  */
+const { verifyCitations } = require("../utils/citationVerification");
 const { searchKnowledge } = require("../services/knowledge/knowledgeSearchService");
 const { generateEnquiryAnswer, getProvider: getLlmProvider } = require("../services/llm/provider");
 const { getProvider: getEmbeddingsProvider } = require("../services/embeddings/provider");
@@ -18,72 +19,6 @@ const ConversationMessage = require("../models/ConversationMessage");
 
 const WEAK_SCORE_THRESHOLD = 0.35;
 const CONVERSATION_CONTEXT_PAIRS = 3; // last 3 user+assistant pairs = 6 messages
-
-/**
- * Verify citations: cited knowledgeDocumentId must be in retrieved set,
- * and quote must appear (approx) in that document's text.
- * @param {Array} citations - from LLM
- * @param {Map<string, { text }>} docMap - retrieved docs by id
- * @returns {{ valid: Array, warnings: string[] }}
- */
-function verifyCitations(citations, docMap) {
-  const valid = [];
-  const warnings = [];
-
-  for (const c of citations || []) {
-    const id = c?.knowledgeDocumentId ? String(c.knowledgeDocumentId).trim() : null;
-    if (!id) continue;
-    const doc = docMap.get(id);
-    if (!doc) continue;
-
-    const quote = (c.quote || "").trim();
-    const meta = doc.metadata || {};
-    const blockIndex =
-      meta.blockIndexStart != null ? meta.blockIndexStart : meta.blockIndex;
-    const deepLink =
-      (c.sourceType || doc.sourceType) === "lessonBlock" && doc.sourceId
-        ? {
-            type: "lesson",
-            lessonId: String(doc.sourceId),
-            pageIndex: meta.pageIndex,
-            pageId: meta.pageId,
-            blockIndex: blockIndex != null ? blockIndex : 0,
-            ...(meta.blockIndexEnd != null && { blockIndexEnd: meta.blockIndexEnd }),
-          }
-        : null;
-
-    const citationBase = {
-      knowledgeDocumentId: id,
-      sourceType: c.sourceType || doc.sourceType,
-      sourceId: c.sourceId || doc.sourceId,
-      quote: quote ? quote.slice(0, 200) : (doc.text || "").slice(0, 200),
-      reason: c.reason || "",
-      ...(deepLink && { deepLink }),
-      ...(doc.sourceType === "externalTrusted" && {
-        externalUrl: (meta.url && String(meta.url).trim()) || (meta.domain ? `https://${meta.domain}` : "#"),
-      }),
-    };
-
-    if (!quote) {
-      valid.push(citationBase);
-      continue;
-    }
-
-    const docText = (doc.text || "").toLowerCase();
-    const quoteNorm = quote.toLowerCase().replace(/\s+/g, " ").trim();
-    const snippet = quoteNorm.slice(0, 150);
-    if (docText.includes(snippet) || snippet.split(" ").every((w) => docText.includes(w))) {
-      valid.push(citationBase);
-    }
-  }
-
-  const dropped = (citations || []).length - valid.length;
-  if (dropped > 0) {
-    warnings.push("Some citations could not be verified");
-  }
-
-  return { valid, warnings };
-}
 
 /**
  * POST /api/enquiry handler.

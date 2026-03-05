@@ -9,4 +9,6 @@ require("./SpecStatement");
 require("./KnowledgeDocument");
 require("./EnquiryLog");
 require("./EnquiryCache");
+require("./TopicSummaryLog");
+require("./TopicSummaryCache");
 

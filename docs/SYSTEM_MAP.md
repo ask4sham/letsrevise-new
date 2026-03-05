@@ -29,8 +29,8 @@ Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden,
 **CoverageDashboardPage** (PR-010, PR-012, PR-013)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel.
 
-**CoverageTopicDrawer** (PR-013, PR-014, PR-023)
-Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic; "View all" / "Review external sources" deep links to ExternalSourcesPage (PR-023).
+**CoverageTopicDrawer** (PR-013, PR-014, PR-023, PR-024)
+Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic (PR-023). Teaching summary section: "Summarise topic" opens modal with mode (Overview/Lesson plan/Revision sheet/Exam focus), max sources, allowExternal; generates structured summary with citations, confidence, copy buttons (PR-024).
 
 ## Backend
 
@@ -113,6 +113,10 @@ NPM maintenance scripts (backend):
 ## Teacher Notes API (PR-023)
 
 - GET /api/teacher-notes?specKey=&topicKey=&limit=20 — teacher/admin, list teacherNote KnowledgeDocuments for topic (sourceType=teacherNote, sorted by updatedAt desc)
+
+## Topic Summary API (PR-024)
+
+- POST /api/topic-summary { specKey, topicKey, mode?, maxSources?, allowExternal? } — teacher/admin only. Modes: overview, lessonPlan, revisionSheet, examFocus. Returns structured summary with citations, confidence, key points, mode-specific sections. Rate limited: 6/min teachers, 20/min admins. Cached 24h (TopicSummaryCache). Retrieval: topicSummaryRetrieval.js. LLM: generateTopicSummary in provider.js.
 
 ## External Sources API (PR-022)
 

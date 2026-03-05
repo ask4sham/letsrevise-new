@@ -888,4 +888,39 @@ Notes:
 - Minimal: read + link + small preview. Reuses existing APIs; one new endpoint.
 
 Follow-ups:
-None
+PR-024 — Topic summaries (Perplexity-style)
+
+---
+
+**PR-024 — Topic summaries (Perplexity-style, curriculum-first)**
+
+Date: 2026-03-05
+
+Summary:
+Topic-level summarisation across specStatement, lessonBlock, teacherNote, and optionally externalTrusted (when allowExternal + weak confidence). Four modes: overview, lessonPlan, revisionSheet, examFocus. Structured teaching artifact with verified citations, confidence indicators, coverage signals. Caching (TopicSummaryCache, 24h TTL) and rate limiting (6/min teachers, 20/min admins). Teacher/admin only; student version in PR-024.1.
+
+Files changed:
+
+- backend/models/TopicSummaryLog.js
+- backend/models/TopicSummaryCache.js
+- backend/utils/citationVerification.js (extracted from enquiry)
+- backend/controllers/enquiry.controller.js (use shared verifyCitations)
+- backend/services/topicSummary/topicSummaryRetrieval.js
+- backend/services/topicSummary/topicSummaryCache.js
+- backend/services/llm/provider.js (generateTopicSummary)
+- backend/controllers/topicSummary.controller.js
+- backend/routes/topicSummary.routes.js
+- backend/middleware/topicSummaryRateLimit.js
+- backend/app.js (mount /api/topic-summary)
+- frontend/src/api/topicSummary.ts
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (Teaching summary section + modal)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Reuses computeConfidence, verifyCitations, knowledgeSearchService.
+- External only when allowExternal, teacher/admin, weak confidence, AI_TUTOR_EXTERNAL_SEARCH_ENABLED.
+- Citation verification ensures quotes appear in source text.
+
+Follow-ups:
+PR-024.1 — Student topic summary (after UX and safety hardening)
