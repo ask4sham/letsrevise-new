@@ -146,6 +146,9 @@ app.use("/api/sprint-order", require("./routes/sprintOrder.routes"));
 // PR-019: Conversations (threaded tutoring chat)
 app.use("/api/conversations", require("./routes/conversations.routes"));
 
+// PR-022: External source moderation (teacher/admin only)
+app.use("/api/external-sources", require("./routes/externalSources.routes"));
+
 // PR-004: Enquiry (RAG) — teacher + admin + student (when flag enabled)
 // Lazy-load to avoid pulling in vector DB / embeddings at app init (fixes Jest Babel parse in tests)
 let enquiryRouter = null;

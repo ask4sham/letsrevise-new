@@ -20,6 +20,9 @@ Teacher tool for creating and editing flashcards.
 **AskAiPanel** (PR-005, PR-019, PR-020, PR-021)
 Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. localStorage askai:mode:teacher, askai:allowExternal:teacher.
 
+**ExternalSourcesPage** (PR-022)
+Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Actions: Deny domain, Deny URL, Promote to Teacher Note.
+
 **AskAiStudentPanel** (PR-007, PR-019, PR-020)
 Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student.
 
@@ -51,7 +54,9 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - TopicFlashcard
 - TopicQuizQuestion
 - SpecStatement (PR-001: exam specification knowledge layer)
-- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks; PR-021: sourceType externalTrusted)
+- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks; PR-021: externalTrusted; PR-022: teacherNote)
+- ExternalSourcePolicy (PR-022: url/domain allow/deny)
+- ExternalSourceReview (PR-022: audit trail for promote/deny)
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
 - CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days)
@@ -104,6 +109,14 @@ NPM maintenance scripts (backend):
 - POST /api/enquiry — teacher + admin + student (when flag enabled). Body: conversationId?, responseMode? (quick|explain|exam|revision). Rate limits: student 5/min, teacher 10/min, admin 30/min
 - POST /api/enquiry/:id/feedback — thumbs up/down + optional comment (teacher + admin)
 - Cache key includes conversationId + responseMode. Practice types: mcq, short, exam, flashcard (front/back)
+
+## External Sources API (PR-022)
+
+- GET /api/external-sources/policies?status=&kind=&q= — teacher/admin, list policies
+- POST /api/external-sources/policies { kind, value, status, reason? } — upsert
+- DELETE /api/external-sources/policies/:id — remove policy
+- GET /api/external-sources/recent?specKey=&topicKey=&limit= — recent external sources from EnquiryLog
+- POST /api/external-sources/promote { enquiryLogId, url?, title?, snippet?, specKey, topicKey, noteTitle?, noteText? } — promote to teacherNote
 
 ## Feature Flags (PR-007)
 

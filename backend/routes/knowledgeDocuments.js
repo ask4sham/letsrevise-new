@@ -21,7 +21,7 @@ router.get("/", auth, requireAdmin, async (req, res) => {
     const query = {};
     if (specKey && String(specKey).trim()) query.specKey = String(specKey).trim();
     if (topicKey && String(topicKey).trim()) query.topicKey = String(topicKey).trim();
-    if (sourceType && ["specStatement", "lessonBlock"].includes(String(sourceType))) query.sourceType = sourceType;
+    if (sourceType && ["specStatement", "lessonBlock", "externalTrusted", "teacherNote"].includes(String(sourceType))) query.sourceType = sourceType;
     if (q && String(q).trim()) query.text = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
     const lim = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));

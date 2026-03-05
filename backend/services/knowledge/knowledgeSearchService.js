@@ -39,7 +39,7 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, limit = 1
     specKey: { $in: specVariants },
   };
   if (topicKey && String(topicKey).trim()) mongoQuery.topicKey = String(topicKey).trim();
-  if (sourceType && ["specStatement", "lessonBlock", "externalTrusted"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
+  if (sourceType && ["specStatement", "lessonBlock", "externalTrusted", "teacherNote"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
 
   const docs = await KnowledgeDocument.find(mongoQuery).lean();
   const scoreMap = new Map(vectorResults.map((r) => [r.knowledgeDocumentId, r.score]));
@@ -48,7 +48,8 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, limit = 1
     .map((d) => {
       const id = String(d._id);
       const score = scoreMap.get(id) || 0;
-      const boost = d.sourceType === "specStatement" ? 0.05 : 0;
+      const boost =
+        d.sourceType === "specStatement" ? 0.05 : d.sourceType === "teacherNote" ? 0.02 : 0;
       return {
         knowledgeDocumentId: id,
         sourceType: d.sourceType,

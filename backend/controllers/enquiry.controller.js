@@ -10,6 +10,7 @@ const { buildSuggestedActions } = require("../services/enquiry/suggestedActions"
 const { computeConfidence } = require("../services/enquiry/confidence");
 const { isExternalSearchEnabled, getExternalAllowedDomains, getExternalMaxResults } = require("../config/externalSearch");
 const { searchWeb } = require("../services/externalSearch/provider");
+const { filterDenied } = require("../services/externalSearch/policyService");
 const { indexExternalResults, embedExternalDocs } = require("../services/knowledge/indexers/externalTrustedIndexer");
 const EnquiryLog = require("../models/EnquiryLog");
 const Conversation = require("../models/Conversation");
@@ -92,7 +93,7 @@ async function handleEnquiry(req, res) {
     const role = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
     const isStudentUser = role === "student";
 
-    let { question, specKey, topicKey, mode, limit = 8, includePractice = true, conversationId, responseMode } = req.body || {};
+    let { question, specKey, topicKey, mode, limit = 8, includePractice = true, conversationId, responseMode, allowExternal } = req.body || {};
 
     // PR-019: Resolve conversationId and load context (fallback to single-turn if invalid)
     let conversationContext = [];
@@ -216,13 +217,65 @@ async function handleEnquiry(req, res) {
       return res.json(cachePayload);
     }
 
-    const retrievalResults = await searchKnowledge({
+    let retrievalResults = await searchKnowledge({
       query: q,
       specKey: spec,
       topicKey: topicKey || undefined,
       limit: topN,
       topK: 50,
     });
+
+    let externalUsed = false;
+    let externalSources = [];
+
+    // PR-021: External search fallback — only when weak, teacher/admin, allowExternal, feature enabled
+    // PR-022: filterDenied before indexing; if all denied, keep externalUsed=false
+    if (
+      (retrievalResults.length === 0 || (retrievalResults[0]?.score ?? 0) < WEAK_SCORE_THRESHOLD) &&
+      isTeacherOrAdmin &&
+      allowExternalVal &&
+      isExternalSearchEnabled()
+    ) {
+      const searchQuery = `${q} ${spec} ${topicKey || ""}`.trim();
+      const domains = getExternalAllowedDomains();
+      const extResultsRaw = await searchWeb({
+        query: searchQuery,
+        domains,
+        limit: getExternalMaxResults(),
+      });
+      const extResults = await filterDenied(extResultsRaw);
+      if (extResults.length > 0) {
+        const indexed = await indexExternalResults({
+          results: extResults,
+          specKey: spec,
+          topicKey: topicKey || null,
+        });
+        await embedExternalDocs(indexed);
+        retrievalResults = await searchKnowledge({
+          query: q,
+          specKey: spec,
+          topicKey: topicKey || undefined,
+          limit: topN,
+          topK: 50,
+        });
+        externalUsed = true;
+        externalSources = indexed.map((x) => ({ url: x.url, title: x.title, domain: x.domain }));
+      }
+    }
+
+    // PR-022: Filter out externalTrusted that are now denied (may have been indexed before policy)
+    const retrievalFiltered = [];
+    for (const r of retrievalResults) {
+      if (r.sourceType === "externalTrusted") {
+        const denied = await isDenied({
+          url: r.metadata?.url,
+          domain: r.metadata?.domain,
+        });
+        if (denied) continue;
+      }
+      retrievalFiltered.push(r);
+    }
+    retrievalResults = retrievalFiltered;
 
     const topScore = retrievalResults.length > 0 ? retrievalResults[0].score : 0;
     const weakEvidence = retrievalResults.length === 0 || topScore < WEAK_SCORE_THRESHOLD;
@@ -305,6 +358,10 @@ async function handleEnquiry(req, res) {
         llm: getLlmProvider(),
         embeddings: getEmbeddingsProvider(),
       },
+      ...(externalUsed && {
+        externalUsed: true,
+        externalSources: externalSources,
+      }),
     };
 
     const logDoc = await EnquiryLog.create(logEntry);
@@ -352,14 +409,21 @@ async function handleEnquiry(req, res) {
       },
     }, convIdValid, responseMode);
 
-    const usedSourcesPayload = retrievalResults.slice(0, topN).map((r) => ({
-      knowledgeDocumentId: r.knowledgeDocumentId,
-      sourceType: r.sourceType,
-      sourceId: r.sourceId,
-      title: r.title,
-      topicKey: r.topicKey,
-      score: Math.round(r.score * 1000) / 1000,
-    }));
+    const usedSourcesPayload = retrievalResults.slice(0, topN).map((r) => {
+      const base = {
+        knowledgeDocumentId: r.knowledgeDocumentId,
+        sourceType: r.sourceType,
+        sourceId: r.sourceId,
+        title: r.title,
+        topicKey: r.topicKey,
+        score: Math.round(r.score * 1000) / 1000,
+      };
+      if (r.sourceType === "externalTrusted") {
+        const url = r.metadata?.url && String(r.metadata.url).trim();
+        base.url = url || (r.metadata?.domain ? `https://${r.metadata.domain}` : "#");
+      }
+      return base;
+    });
 
     const suggestedActions = buildSuggestedActions({
       role: (req.user?.userType || req.user?.role || "").toString(),

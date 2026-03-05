@@ -49,6 +49,13 @@ export type EnquiryCitation =
       externalUrl: string; // required for this branch
       quote?: string;
       reason?: string;
+    }
+  | {
+      knowledgeDocumentId: string;
+      sourceType: "teacherNote";
+      sourceId: string;
+      quote?: string;
+      reason?: string;
     };
 
 export type EnquiryPracticeItem =
@@ -86,10 +93,10 @@ export type UsedSource = {
 
 export type SuggestedTopic = { topicKey: string; title?: string | null };
 
-/** PR-017: Confidence indicator. PR-021: sources.external for external refs. */
+/** PR-017: Confidence indicator. PR-021: external. PR-022: teacherNote. */
 export type ConfidenceSignals = {
   topScore: number | null;
-  sources: { spec: number; lesson: number; external?: number; total: number };
+  sources: { spec: number; lesson: number; teacherNote?: number; external?: number; total: number };
   warnings: string[];
 };
 

@@ -825,3 +825,38 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-022 — External sources moderation + promotion (trust layer)**
+
+Date: 2026-03-05
+
+Summary:
+Teacher/admin moderation workflow for externalTrusted sources: review recent sources, deny URL/domain, promote snippet to teacherNote KnowledgeDocument. ExternalSourcePolicy model (kind: url|domain, status: allowed|denied). filterDenied before indexing; retrieval filters denied externalTrusted. teacherNote sourceType with +0.02 boost. EnquiryLog stores externalUsed/externalSources. Promote triggers enqueueKnowledgeRefresh. ExternalSourcesPage at /external-sources (tabs: Recent, Denylist; promote modal).
+
+Files changed:
+
+- backend/models/ExternalSourcePolicy.js
+- backend/models/ExternalSourceReview.js
+- backend/models/KnowledgeDocument.js (teacherNote)
+- backend/models/EnquiryLog.js (externalUsed, externalSources)
+- backend/services/externalSearch/policyService.js
+- backend/controllers/enquiry.controller.js (filterDenied, isDenied, allowExternal block)
+- backend/controllers/externalSources.controller.js
+- backend/routes/externalSources.routes.js
+- backend/services/knowledge/knowledgeSearchService.js (teacherNote)
+- backend/services/enquiry/confidence.js (teacherNote)
+- frontend/src/api/externalSources.ts
+- frontend/src/pages/ExternalSourcesPage.tsx
+- frontend/src/api/enquiry.ts (teacherNote citation)
+- frontend/src/components/ai/CitationsList.tsx (NOTE badge)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Students unaffected. Denied sources never indexed or returned.
+- teacherNote contributes moderate confidence.
+
+Follow-ups:
+None

@@ -71,6 +71,7 @@ import TeacherQuizBankPage from "./pages/TeacherQuizBankPage";
 import TeacherPastPapersBankPage from "./pages/TeacherPastPapersBankPage";
 import TeacherCoveragePage from "./pages/TeacherCoveragePage";
 import TeacherQuestionBrowserPage from "./pages/TeacherQuestionBrowserPage";
+import ExternalSourcesPage from "./pages/ExternalSourcesPage";
 
 // ✅ NEW: Assessment pages - ALL in src/pages/
 import AssessmentPaperStartPage from "./pages/AssessmentPaperStartPage";
@@ -291,6 +292,14 @@ function App() {
             }
           />
 
+          <Route
+            path="/external-sources"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <ExternalSourcesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/coverage"
             element={
