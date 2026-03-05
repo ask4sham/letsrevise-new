@@ -5,11 +5,13 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { buildCitationLink } from "./citationLinks";
+import { makeAbsoluteAssetUrl } from "../../utils/assetUrl";
 import type { EnquiryCitation, UsedSource } from "../../api/enquiry";
 
 function badgeLabel(sourceType: string): string {
   if (sourceType === "specStatement") return "SPEC";
   if (sourceType === "lessonBlock") return "LESSON";
+  if (sourceType === "lessonDiagram") return "DIAGRAM";
   if (sourceType === "teacherNote") return "NOTE";
   if (sourceType === "externalTrusted") return "EXTERNAL";
   return "EXTERNAL";
@@ -18,6 +20,7 @@ function badgeLabel(sourceType: string): string {
 function badgeStyle(sourceType: string): { bg: string; color: string } {
   if (sourceType === "specStatement") return { bg: "#dbeafe", color: "#1e40af" };
   if (sourceType === "lessonBlock") return { bg: "#dcfce7", color: "#166534" };
+  if (sourceType === "lessonDiagram") return { bg: "#ede9fe", color: "#5b21b6" };
   if (sourceType === "teacherNote") return { bg: "#e0e7ff", color: "#3730a3" };
   return { bg: "#fef3c7", color: "#92400e" };
 }
@@ -55,6 +58,7 @@ export function CitationsList({
 
   const specCount = usedSources.filter((s) => s.sourceType === "specStatement").length;
   const lessonCount = usedSources.filter((s) => s.sourceType === "lessonBlock").length;
+  const diagramCount = usedSources.filter((s) => s.sourceType === "lessonDiagram").length;
   const noteCount = usedSources.filter((s) => s.sourceType === "teacherNote").length;
   const externalCount = usedSources.filter((s) => s.sourceType === "externalTrusted").length;
 
@@ -160,15 +164,65 @@ export function CitationsList({
                     <span style={{ color: "#475569" }}>— {src.title}</span>
                   )}
                 </div>
-                <div style={{ color: "#64748b", fontStyle: "italic", marginBottom: 6 }}>
-                  &ldquo;{c.quote}&rdquo;
-                </div>
+                {c.sourceType === "lessonDiagram" && (c.imageUrl || c.caption) && (
+                  <div
+                    style={{
+                      marginBottom: 8,
+                      padding: 8,
+                      background: "#f8fafc",
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    {c.imageUrl && (
+                      <img
+                        src={makeAbsoluteAssetUrl(c.imageUrl) || c.imageUrl}
+                        alt={c.caption || "Diagram"}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: 120,
+                          objectFit: "contain",
+                          borderRadius: 8,
+                          marginBottom: c.caption ? 8 : 0,
+                        }}
+                      />
+                    )}
+                    {c.caption && (
+                      <div style={{ fontSize: 12, color: "#475569", marginBottom: 4 }}>{c.caption}</div>
+                    )}
+                    {linkTarget && (
+                      <Link
+                        to={linkTarget}
+                        target={studentMode ? undefined : "_blank"}
+                        rel={studentMode ? undefined : "noopener noreferrer"}
+                        style={{
+                          fontSize: 12,
+                          color: "#0284c7",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        View in lesson →
+                      </Link>
+                    )}
+                  </div>
+                )}
+                {c.sourceType !== "lessonDiagram" && (
+                  <div style={{ color: "#64748b", fontStyle: "italic", marginBottom: 6 }}>
+                    &ldquo;{c.quote}&rdquo;
+                  </div>
+                )}
+                {c.sourceType === "lessonDiagram" && !c.imageUrl && !c.caption && (
+                  <div style={{ color: "#64748b", fontStyle: "italic", marginBottom: 6 }}>
+                    &ldquo;{c.quote}&rdquo;
+                  </div>
+                )}
                 {c.reason && (
                   <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6 }}>
                     Reason: {c.reason}
                   </div>
                 )}
-                {linkTarget &&
+                {linkTarget && (c.sourceType !== "lessonDiagram" || (!c.imageUrl && !c.caption)) &&
                   (linkTarget.startsWith("http") ? (
                     <a
                       href={linkTarget}

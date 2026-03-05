@@ -34,6 +34,7 @@ const safeSlice = (v, n) => toText(v).slice(0, n);
 function badgeLabel(sourceType) {
   if (sourceType === "specStatement") return "SPEC";
   if (sourceType === "lessonBlock") return "LESSON";
+  if (sourceType === "lessonDiagram") return "DIAGRAM";
   if (sourceType === "teacherNote") return "NOTE";
   if (sourceType === "externalTrusted") return "EXTERNAL";
   return "EXTERNAL";

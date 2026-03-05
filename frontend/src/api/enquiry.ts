@@ -56,6 +56,27 @@ export type EnquiryCitation =
       sourceId: string;
       quote?: string;
       reason?: string;
+    }
+  | {
+      knowledgeDocumentId: string;
+      sourceType: "lessonDiagram";
+      sourceId: string;
+      quote?: string;
+      reason?: string;
+      deepLink?: {
+        type: "lesson";
+        lessonId: string;
+        pageIndex?: number;
+        pageId?: string;
+        blockIndex?: number;
+        caption?: string;
+        imageUrl?: string;
+      };
+      lessonId?: string;
+      pageId?: string;
+      blockIndex?: number;
+      caption?: string;
+      imageUrl?: string;
     };
 
 export type EnquiryPracticeItem =

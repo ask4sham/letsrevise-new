@@ -1151,4 +1151,35 @@ Notes:
 - Publish remains gated by existing publish gate.
 
 Follow-ups:
+PR-030 — Diagram-aware retrieval
+
+---
+
+**PR-030 — Diagram-aware retrieval (AI answers can reference lesson diagrams)**
+
+Date: 2026-03-05
+
+Summary:
+Index lesson diagram blocks into KnowledgeDocuments (sourceType: lessonDiagram). Ask AI and Topic Summaries can retrieve and cite diagrams. Retrieval: +0.03 boost when query contains diagram/label/identify/structure/parts/draw/look at. CitationsList: DIAGRAM badge (purple), diagram preview card with image + caption + "View in lesson" link. Citation verification returns lessonDiagram metadata (lessonId, pageId, blockIndex, caption, imageUrl). Topic summary retrieval includes lessonDiagram. No image generation; only existing lesson diagrams.
+
+Files changed:
+
+- backend/models/KnowledgeDocument.js (sourceType lessonDiagram)
+- backend/services/knowledge/indexers/lessonBlockIndexer.js (index diagram blocks)
+- backend/services/knowledge/knowledgeSearchService.js (lessonDiagram filter, ranking boost)
+- backend/services/knowledge/embedChangedDocuments.js (include lessonDiagram)
+- backend/services/topicSummary/topicSummaryRetrieval.js (lessonDiagram in internalTypes)
+- backend/utils/citationVerification.js (lessonDiagram deepLink + metadata)
+- backend/services/pdf/topicSummaryPdf.js (DIAGRAM badge)
+- frontend/src/api/enquiry.ts (EnquiryCitation lessonDiagram)
+- frontend/src/components/ai/citationLinks.ts (lessonDiagram link)
+- frontend/src/components/ai/CitationsList.tsx (DIAGRAM badge, preview card)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Rebuild: node backend/scripts/buildKnowledgeIndex.js --apply --source lessonBlock (includes diagrams)
+- Embed: lessonDiagram included in default sourceTypes
+
+Follow-ups:
 None

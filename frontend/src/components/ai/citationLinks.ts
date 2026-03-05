@@ -22,8 +22,8 @@ export function buildCitationLink(
     return citation.externalUrl;
   }
 
-  // lessonBlock: deepLink with page/block, or fallback to /lesson/:sourceId
-  if (citation.sourceType === "lessonBlock") {
+  // lessonBlock / lessonDiagram: deepLink with page/block, or fallback to /lesson/:sourceId
+  if (citation.sourceType === "lessonBlock" || citation.sourceType === "lessonDiagram") {
     if (citation.deepLink && citation.deepLink.lessonId) {
       const { lessonId: lid, pageIndex, blockIndex } = citation.deepLink;
       if (studentSafe && lessonId && citation.sourceId !== lessonId) return null;

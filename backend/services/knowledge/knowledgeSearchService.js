@@ -39,17 +39,22 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, limit = 1
     specKey: { $in: specVariants },
   };
   if (topicKey && String(topicKey).trim()) mongoQuery.topicKey = String(topicKey).trim();
-  if (sourceType && ["specStatement", "lessonBlock", "externalTrusted", "teacherNote"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
+  if (sourceType && ["specStatement", "lessonBlock", "lessonDiagram", "externalTrusted", "teacherNote"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
 
   const docs = await KnowledgeDocument.find(mongoQuery).lean();
   const scoreMap = new Map(vectorResults.map((r) => [r.knowledgeDocumentId, r.score]));
+
+  const diagramBoostTerms = ["diagram", "label", "identify", "structure", "parts", "draw", "look at"];
+  const queryLower = queryText.toLowerCase();
+  const hasDiagramIntent = diagramBoostTerms.some((t) => queryLower.includes(t));
 
   return docs
     .map((d) => {
       const id = String(d._id);
       const score = scoreMap.get(id) || 0;
-      const boost =
+      let boost =
         d.sourceType === "specStatement" ? 0.05 : d.sourceType === "teacherNote" ? 0.02 : 0;
+      if (d.sourceType === "lessonDiagram" && hasDiagramIntent) boost += 0.03;
       return {
         knowledgeDocumentId: id,
         sourceType: d.sourceType,

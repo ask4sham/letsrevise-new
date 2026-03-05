@@ -54,7 +54,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - TopicFlashcard
 - TopicQuizQuestion
 - SpecStatement (PR-001: exam specification knowledge layer)
-- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks; PR-021: externalTrusted; PR-022: teacherNote)
+- KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks; PR-021: externalTrusted; PR-022: teacherNote; PR-030: lessonDiagram)
 - ExternalSourcePolicy (PR-022: url/domain allow/deny)
 - ExternalSourceReview (PR-022: audit trail for promote/deny)
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
@@ -72,7 +72,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 ## KnowledgeDocument API
 
 - GET /api/knowledge-documents — admin only (debug)
-- GET /api/knowledge/search — teacher + admin (semantic search, q + specKey required)
+- GET /api/knowledge/search — teacher + admin (semantic search, q + specKey required). PR-030: lessonDiagram sourceType; +0.03 boost for diagram-intent queries.
 
 ## Vector Store (Postgres/pgvector)
 
