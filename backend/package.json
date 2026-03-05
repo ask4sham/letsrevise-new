@@ -53,7 +53,8 @@
     "vector:down": "docker compose -f ../docker-compose.vector.yml down",
     "vector:logs": "docker logs -f letsrevise-vector-db",
     "vector:migrate": "node scripts/runVectorMigrations.js",
-    "vector:reset": "docker compose -f ../docker-compose.vector.yml down -v"
+    "vector:reset": "docker compose -f ../docker-compose.vector.yml down -v",
+    "worker:knowledge-refresh": "node workers/knowledgeRefreshWorker.js"
   },
   "keywords": [
     "education",

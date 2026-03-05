@@ -252,6 +252,7 @@ router.put("/:id", auth, async (req, res) => {
     if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
     if (markScheme !== undefined) question.markScheme = markScheme;
     if (content !== undefined) question.content = content;
+    let justPublished = false;
     if (status !== undefined) {
       const newStatus = String(status).trim().toLowerCase();
       if (newStatus === "published") {
@@ -261,10 +262,22 @@ router.put("/:id", auth, async (req, res) => {
         if (!gate.ok) {
           return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
         }
+        justPublished = true;
       }
       question.status = newStatus;
     }
     await question.save();
+
+    // PR-015: Enqueue knowledge refresh when publishing (async, non-blocking)
+    if (justPublished && question.topicKey) {
+      const specKey = String(question.topicKey).split(":")[0];
+      if (specKey) {
+        const { enqueueKnowledgeRefresh } = require("../services/jobs/enqueueKnowledgeRefresh");
+        enqueueKnowledgeRefresh({ specKey, topicKey: question.topicKey, userId: req.user?._id }).catch((e) =>
+          console.error("[examQuestions] enqueueKnowledgeRefresh error:", e?.message)
+        );
+      }
+    }
     return res.json({ success: true, question: toResponseQuestion(question.toObject ? question.toObject() : question) });
   } catch (err) {
     console.error("ExamQuestions PUT error:", err);

@@ -138,3 +138,13 @@ NPM maintenance scripts (backend):
 - Hard gates: TopicFlashcard, TopicQuizQuestion, Lesson, ExamQuestion publish routes check gate for generated content; non-generated content unchanged
 - frontend/src/components/generation/ReviewPublishChecklist.tsx — Run check, "Publish all" when blocks === 0, success links (View lesson as student, Back to coverage)
 - EditLessonPage: intercept publish for lessons with metadata.generatedFrom.jobId; show gate modal if blocked
+
+## Background Jobs (PR-015)
+
+- BackgroundJob model — type KNOWLEDGE_REFRESH, status queued|running|completed|failed, specKey, topicKey, sourceTypes, logs
+- enqueueKnowledgeRefresh — fired on publish (gate, lesson, flashcard, quiz, exam); deduplicates by specKey+topicKey
+- knowledgeRefreshWorker — polls every 5s; runs rebuildKnowledgeIndex → embedChangedDocuments → refreshCoverageSnapshot
+- Safe when vector DB down: index and coverage complete; embeddings skipped with log
+- GET /api/admin/jobs?type=...&status=... — admin, list jobs
+- POST /api/admin/jobs/enqueue-knowledge-refresh { specKey, topicKey? } — admin, manual enqueue
+- npm run worker:knowledge-refresh (run worker in dev/prod)

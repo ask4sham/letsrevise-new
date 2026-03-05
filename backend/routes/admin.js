@@ -32,6 +32,49 @@ const checkAdmin = (req, res, next) => {
 };
 
 /* =========================================
+   PR-015: GET /api/admin/jobs — list background jobs (admin only)
+   Query: ?type=KNOWLEDGE_REFRESH&status=queued&limit=20
+   ========================================= */
+const BackgroundJob = require("../models/BackgroundJob");
+router.get("/jobs", auth, checkAdmin, async (req, res) => {
+  try {
+    const { type, status, limit } = req.query || {};
+    const query = {};
+    if (type) query.type = String(type).trim();
+    if (status) query.status = String(status).trim();
+    const lim = Math.min(parseInt(limit, 10) || 20, 100);
+    const jobs = await BackgroundJob.find(query).sort({ createdAt: -1 }).limit(lim).lean();
+    return res.json({ jobs });
+  } catch (err) {
+    console.error("GET /api/admin/jobs error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
+   PR-015: POST /api/admin/jobs/enqueue-knowledge-refresh — manual enqueue (admin only)
+   Body: { specKey, topicKey? }
+   ========================================= */
+router.post("/jobs/enqueue-knowledge-refresh", auth, checkAdmin, async (req, res) => {
+  try {
+    const { specKey, topicKey } = req.body || {};
+    const sk = specKey ? String(specKey).trim() : null;
+    if (!sk) return res.status(400).json({ msg: "specKey required" });
+    const { enqueueKnowledgeRefresh } = require("../services/jobs/enqueueKnowledgeRefresh");
+    const job = await enqueueKnowledgeRefresh({
+      specKey: sk,
+      topicKey: topicKey ? String(topicKey).trim() : null,
+      sourceTypes: ["lessonBlock", "specStatement"],
+      userId: req.user?._id,
+    });
+    return res.json({ ok: true, job: job ? { _id: job._id, status: job.status, specKey: job.specKey, topicKey: job.topicKey } : null });
+  } catch (err) {
+    console.error("POST /api/admin/jobs/enqueue-knowledge-refresh error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
    POST /api/admin/seed-question-bank
    Admin-only. Runs AQA GCSE Biology question seed (all units) in background.
    Idempotent: existing topics are skipped. Teachers never need to run CLI seeds.
@@ -1010,6 +1053,20 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
 
     Object.assign(lesson, updates);
     await lesson.save();
+
+    // PR-015: Enqueue knowledge refresh when publishing (async, non-blocking)
+    if ((updates.isPublished === true || updates.status === "published") && lesson.topicKey) {
+      const specKey = String(lesson.topicKey).split(":")[0];
+      if (specKey) {
+        const { enqueueKnowledgeRefresh } = require("../services/jobs/enqueueKnowledgeRefresh");
+        enqueueKnowledgeRefresh({
+          specKey,
+          topicKey: lesson.topicKey,
+          sourceTypes: ["lessonBlock"],
+          userId: req.user?._id,
+        }).catch((e) => console.error("[admin] enqueueKnowledgeRefresh error:", e?.message));
+      }
+    }
 
     return res.json({
       success: true,

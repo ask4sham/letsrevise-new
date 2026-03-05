@@ -447,6 +447,17 @@ router.post("/:id/publish", auth, async (req, res) => {
     }
     card.status = "published";
     await card.save();
+
+    // PR-015: Enqueue knowledge refresh (async, non-blocking)
+    if (card.topicKey) {
+      const specKey = String(card.topicKey).split(":")[0];
+      if (specKey) {
+        const { enqueueKnowledgeRefresh } = require("../services/jobs/enqueueKnowledgeRefresh");
+        enqueueKnowledgeRefresh({ specKey, topicKey: card.topicKey, userId: req.user?._id }).catch((e) =>
+          console.error("[topicFlashcards] enqueueKnowledgeRefresh error:", e?.message)
+        );
+      }
+    }
     return res.json({ flashcard: card.toObject() });
   } catch (err) {
     console.error("TopicFlashcards publish error:", err);

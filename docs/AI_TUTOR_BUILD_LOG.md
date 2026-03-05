@@ -602,3 +602,43 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-015 — Automatic publish → reindex → embed → coverage refresh pipeline**
+
+Date: 2026-03-05
+
+Summary:
+When content is published (lesson or bank items), a background job is enqueued to refresh the knowledge index, embeddings, and coverage snapshots. Async, non-blocking. Safe when vector DB is down (index + coverage complete; embeddings skipped with log). Idempotent, deduplicated by specKey+topicKey.
+
+Files changed:
+
+- backend/models/BackgroundJob.js (new)
+- backend/services/jobs/enqueueKnowledgeRefresh.js (new)
+- backend/services/knowledge/rebuildKnowledgeIndex.js (new)
+- backend/services/knowledge/embedChangedDocuments.js (new)
+- backend/services/coverage/refreshCoverageSnapshot.js (new)
+- backend/workers/knowledgeRefreshWorker.js (new)
+- backend/services/knowledge/indexers/specStatementIndexer.js (topicKey filter)
+- backend/services/knowledge/indexers/lessonBlockIndexer.js (topicKey filter)
+- backend/controllers/publishGate.controller.js (enqueue on publish)
+- backend/routes/lessons.js (enqueue on lesson publish)
+- backend/routes/admin.js (enqueue on admin lesson publish, GET/POST jobs)
+- backend/routes/topicFlashcards.js (enqueue on publish)
+- backend/routes/topicQuizQuestions.js (enqueue on publish)
+- backend/routes/examQuestions.js (enqueue on publish)
+- backend/package.json (worker:knowledge-refresh)
+- backend/README.md (worker docs)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- BackgroundJob: type=KNOWLEDGE_REFRESH, status queued|running|completed|failed, TTL 30d
+- Worker polls every 5s, runs index → embed → coverage; retries up to 3 on failure
+- GET /api/admin/jobs?type=KNOWLEDGE_REFRESH&status=queued — admin
+- POST /api/admin/jobs/enqueue-knowledge-refresh { specKey, topicKey? } — admin
+- npm run worker:knowledge-refresh
+
+Follow-ups:
+None

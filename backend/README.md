@@ -145,6 +145,17 @@ node backend/scripts/embedKnowledgeDocuments.js --apply --specKey AQA_GCSE_BIOLO
 
 **Dimension:** 1536 (config constant in `backend/config/vectorDb.js`).
 
+### Knowledge refresh worker (PR-015)
+
+When content is published (lesson, flashcards, quiz, exam), a background job is enqueued to refresh the knowledge index, embeddings, and coverage snapshots. Run the worker in a separate process:
+
+```bash
+# From backend/ or project root
+npm run worker:knowledge-refresh
+```
+
+The worker polls every 5 seconds. If the vector DB is down, the job completes with the index and coverage updated; embeddings are skipped (logged). Jobs are deduplicated by specKey+topicKey. Admin endpoints: `GET /api/admin/jobs?type=KNOWLEDGE_REFRESH`, `POST /api/admin/jobs/enqueue-knowledge-refresh` (body: `{ specKey, topicKey? }`).
+
 ## Enquiry API (PR-004, PR-007)
 
 **POST /api/enquiry** — RAG answer with citations. Teacher + admin always; students when `AI_TUTOR_ENABLED_SPECS` includes the spec.

@@ -1723,6 +1723,20 @@ async function publishToggleHandler(req, res, mode) {
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
 
+    // PR-015: Enqueue knowledge refresh when publishing (async, non-blocking)
+    if (lesson.isPublished && lesson.topicKey) {
+      const specKey = String(lesson.topicKey).split(":")[0];
+      if (specKey) {
+        const { enqueueKnowledgeRefresh } = require("../services/jobs/enqueueKnowledgeRefresh");
+        enqueueKnowledgeRefresh({
+          specKey,
+          topicKey: lesson.topicKey,
+          sourceTypes: ["lessonBlock"],
+          userId: req.user?._id,
+        }).catch((e) => console.error("[lessons] enqueueKnowledgeRefresh error:", e?.message));
+      }
+    }
+
     return res.json({
       success: true,
       msg: lesson.isPublished
