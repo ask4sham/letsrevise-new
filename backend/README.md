@@ -167,6 +167,13 @@ curl.exe -i -X POST http://localhost:5000/api/topic-summary/export \
 
 Expected: `HTTP/1.1 400` with `{"error":"Invalid JSON","message":"Malformed JSON body"}`.
 
+**PowerShell:** Prefer string concatenation over `ConvertTo-Json` (which can emit BOM or mangle `{}`):
+
+```powershell
+$body = '{"topicSummaryLogId":"' + $id + '"}'
+curl.exe ... -H "Content-Type: application/json" --data-raw $body
+```
+
 ---
 
 ## Enquiry API (PR-004, PR-007)

@@ -37,8 +37,31 @@ app.use(cors({
 // PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
 app.use(bodyLimit);
 
-// ✅ Add minimal essential middleware that Supertest needs (2MB global limit)
-app.use(express.json({ limit: "2mb" }));
+// JSON body parser: strip BOM (PowerShell ConvertTo-Json can emit it) then parse
+const JSON_LIMIT = "2mb";
+app.use((req, res, next) => {
+  const contentType = req.headers["content-type"] || "";
+  if (!contentType.includes("application/json")) {
+    return express.json({ limit: JSON_LIMIT })(req, res, next);
+  }
+  const chunks = [];
+  req.on("data", (c) => chunks.push(c));
+  req.on("end", () => {
+    const buf = Buffer.concat(chunks);
+    let str = buf.toString("utf8");
+    if (str.length > 0 && str.charCodeAt(0) === 0xfeff) str = str.slice(1);
+    try {
+      req.body = str && str.trim() ? JSON.parse(str) : {};
+    } catch (e) {
+      const err = new SyntaxError(e.message);
+      err.status = 400;
+      err.body = str;
+      return next(err);
+    }
+    next();
+  });
+  req.on("error", next);
+});
 
 // PR-BULK-INGEST-3: Serve uploaded files (local storage)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
