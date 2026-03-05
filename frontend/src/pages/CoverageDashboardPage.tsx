@@ -15,7 +15,7 @@ import {
   type CoverageSnapshotsResponse,
 } from "../api/coverage";
 import { getSprintOrderMarkdown } from "../api/sprintOrder";
-import { CoverageTopicPanel } from "../components/coverage/CoverageTopicPanel";
+import { CoverageTopicDrawer } from "../components/coverage/CoverageTopicDrawer";
 import type { SpecKey } from "../api/taxonomy";
 
 const WINDOW_OPTIONS = [7, 14, 30] as const;
@@ -478,7 +478,23 @@ const CoverageDashboardPage: React.FC = () => {
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.enquiriesTotal}</td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.enquiriesWeakEvidence}</td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{(r.weakRate * 100).toFixed(1)}%</td>
-                    <td style={{ padding: "10px 16px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                    <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTopicKey(r.topicKey)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#2563eb",
+                          cursor: "pointer",
+                          fontSize: 13,
+                          textDecoration: "underline",
+                          padding: 0,
+                          marginRight: 8,
+                        }}
+                      >
+                        View
+                      </button>
                       <Link
                         to={`/teacher/content-coverage`}
                         style={{ fontSize: 13, color: "#2563eb", marginRight: 8 }}
@@ -488,10 +504,7 @@ const CoverageDashboardPage: React.FC = () => {
                       {(r.topWeakQuestions?.length ?? 0) > 0 && (
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedTopic((prev) => (prev === r.topicKey ? null : r.topicKey));
-                          }}
+                          onClick={() => setExpandedTopic((prev) => (prev === r.topicKey ? null : r.topicKey))}
                           style={{
                             background: "none",
                             border: "none",
@@ -549,33 +562,15 @@ const CoverageDashboardPage: React.FC = () => {
         <p style={{ color: "#6b7280" }}>No rows match the current filters.</p>
       )}
 
-      {/* Drill-down panel */}
-      {selectedTopicKey && (() => {
-        const row = rows.find((r) => r.topicKey === selectedTopicKey);
-        return (
-          <>
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.3)",
-                zIndex: 999,
-              }}
-              onClick={() => setSelectedTopicKey(null)}
-              aria-hidden="true"
-            />
-            {row && (
-              <CoverageTopicPanel
-                topicKey={selectedTopicKey}
-                specKey={specKey}
-                windowDays={windowDays}
-                row={row}
-                onClose={() => setSelectedTopicKey(null)}
-              />
-            )}
-          </>
-        );
-      })()}
+      {/* Topic detail drawer */}
+      <CoverageTopicDrawer
+        open={!!selectedTopicKey}
+        onClose={() => setSelectedTopicKey(null)}
+        specKey={specKey}
+        topicKey={selectedTopicKey || ""}
+        windowDays={windowDays}
+        row={selectedTopicKey ? rows.find((r) => r.topicKey === selectedTopicKey) ?? null : null}
+      />
     </div>
   );
 };

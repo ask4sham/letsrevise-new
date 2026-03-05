@@ -209,7 +209,6 @@ export const CoverageTopicPanel: React.FC<Props> = ({ topicKey, specKey, windowD
                       <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
                         <th style={{ textAlign: "left", padding: "8px 0" }}>Question</th>
                         <th style={{ textAlign: "right", padding: "8px 0" }}>enquiries</th>
-                        <th style={{ textAlign: "right", padding: "8px 0" }}>weak rate</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -217,7 +216,6 @@ export const CoverageTopicPanel: React.FC<Props> = ({ topicKey, specKey, windowD
                         <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
                           <td style={{ padding: "8px 0" }}>&quot;{q.question.slice(0, 80)}{q.question.length > 80 ? "…" : ""}&quot;</td>
                           <td style={{ textAlign: "right", padding: "8px 0" }}>{q.enquiries}</td>
-                          <td style={{ textAlign: "right", padding: "8px 0" }}>{q.weakRate}%</td>
                         </tr>
                       ))}
                     </tbody>

@@ -459,7 +459,7 @@ Files changed:
 - backend/routes/coverageDrilldown.routes.js (new)
 - backend/routes/coverage.routes.js
 - frontend/src/api/coverageDrilldown.ts (new)
-- frontend/src/components/coverage/CoverageTopicPanel.tsx (new)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (new)
 - frontend/src/pages/CoverageDashboardPage.tsx
 - docs/AI_TUTOR_BUILD_LOG.md
 - docs/SYSTEM_MAP.md

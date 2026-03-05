@@ -26,8 +26,8 @@ Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practic
 **CoverageDashboardPage** (PR-010, PR-012, PR-013)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel.
 
-**CoverageTopicPanel** (PR-013)
-Side drawer on /coverage: missing spec statements, contributing lessons, weak questions, quick actions.
+**CoverageTopicDrawer** (PR-013)
+Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard.
 
 ## Backend
 
