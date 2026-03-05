@@ -21,6 +21,8 @@ import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
+import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
+import { getAiTutorEnabled } from "../api/featureFlags";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import type { SpecKey } from "../api/taxonomy";
@@ -1070,6 +1072,10 @@ const LessonViewPage: React.FC = () => {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const { user, refresh, token } = useCurrentUser({ watchLocation: true });
 
+  // PR-007: AI Tutor feature flag (must be at top — hooks rules)
+  const [aiTutorEnabled, setAiTutorEnabled] = useState<boolean | null>(null);
+  const aiTutorFetchedRef = useRef<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   /** PR-LESSON-VIEW-FIX-1: Store API error details for teacher/dev debug display */
@@ -1230,6 +1236,17 @@ const LessonViewPage: React.FC = () => {
 
   // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering)
   const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
+
+  // PR-007: Fetch AI Tutor flag when student + specKey (cached per specKey for session)
+  useEffect(() => {
+    const isStudent = user?.userType === "student";
+    if (!isStudent || !specKey || !user) return;
+    if (aiTutorFetchedRef.current === specKey) return;
+    aiTutorFetchedRef.current = specKey;
+    getAiTutorEnabled(specKey)
+      .then((enabled) => setAiTutorEnabled(enabled))
+      .catch(() => setAiTutorEnabled(false));
+  }, [specKey, user]);
 
   // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug). Priority: URL topicKey first (from browse), then lesson.topicKey, then lesson.topicSlug.
   const topicKeyForBank = useMemo(() => {
@@ -2674,6 +2691,8 @@ const LessonViewPage: React.FC = () => {
   // ============================
   // ✅ Check if user is teacher or admin
   // ============================
+  const isStudent = user?.userType === "student";
+
   const isTeacherOrAdmin =
     user?.userType === "admin" ||
     user?.userType === "teacher" ||
@@ -3288,6 +3307,14 @@ const LessonViewPage: React.FC = () => {
                 {/* PR-005: Ask AI about this topic — teacher/admin only */}
                 {isTeacherOrAdmin && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
                   <AskAiPanel
+                    specKey={specKey}
+                    topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+                    lessonId={id || undefined}
+                  />
+                )}
+                {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
+                {isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+                  <AskAiStudentPanel
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
                     lessonId={id || undefined}
@@ -3926,6 +3953,14 @@ const LessonViewPage: React.FC = () => {
         {/* PR-005: Ask AI about this topic — teacher/admin only */}
         {isTeacherOrAdmin && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
           <AskAiPanel
+            specKey={specKey}
+            topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+            lessonId={id || undefined}
+          />
+        )}
+        {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
+        {isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+          <AskAiStudentPanel
             specKey={specKey}
             topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
             lessonId={id || undefined}

@@ -107,9 +107,11 @@ node backend/scripts/embedKnowledgeDocuments.js --apply --specKey AQA_GCSE_BIOLO
 
 **Dimension:** 1536 (config constant in `backend/config/vectorDb.js`).
 
-## Enquiry API (PR-004)
+## Enquiry API (PR-004, PR-007)
 
-**POST /api/enquiry** — RAG answer with citations (teacher + admin).
+**POST /api/enquiry** — RAG answer with citations. Teacher + admin always; students when `AI_TUTOR_ENABLED_SPECS` includes the spec.
+
+**Rate limits:** student 5/min, teacher 10/min, admin 30/min.
 
 ```bash
 # Smoke test (mock mode)
@@ -117,6 +119,14 @@ node backend/scripts/runEnquirySmokeTest.js
 ```
 
 Body: `{ question, specKey, topicKey?, mode?, limit?, includePractice? }`
+
+**PR-007 Student rollout:**
+
+| Variable | Description |
+|----------|-------------|
+| `AI_TUTOR_ENABLED_SPECS` | Comma-separated specKeys (e.g. `aqa-gcse-biology`). Empty = disabled for students. |
+
+**GET /api/feature-flags/ai-tutor?specKey=...** — auth required; returns `{ enabled: boolean }`.
 
 ---
 

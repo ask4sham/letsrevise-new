@@ -20,6 +20,9 @@ Teacher tool for creating and editing flashcards.
 **AskAiPanel** (PR-005)
 Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + citations + practice rendering.
 
+**AskAiStudentPanel** (PR-007)
+Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practice-first, collapsed explanation/citations.
+
 ## Backend
 
 **Lesson APIs**
@@ -74,7 +77,11 @@ Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + 
 - backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
 - backend/scripts/runEnquirySmokeTest.js
 
-## Enquiry API (PR-004, PR-006)
+## Enquiry API (PR-004, PR-006, PR-007)
 
-- POST /api/enquiry — teacher + admin (rate limited: 10/min teacher, 30/min admin)
+- POST /api/enquiry — teacher + admin + student (when flag enabled). Rate limits: student 5/min, teacher 10/min, admin 30/min
 - POST /api/enquiry/:id/feedback — thumbs up/down + optional comment (teacher + admin)
+
+## Feature Flags (PR-007)
+
+- GET /api/feature-flags/ai-tutor?specKey=... — auth required, returns { enabled: boolean }

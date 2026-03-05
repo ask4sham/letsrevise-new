@@ -248,10 +248,44 @@ Files changed:
 - docs/AI_TUTOR_BUILD_LOG.md
 
 Notes:
-- After merging, re-run index + embed to refresh KnowledgeDocuments:
+- PR-006.1 blockIndex: After merging, re-run index + embed to refresh KnowledgeDocuments:
   - node backend/scripts/buildKnowledgeIndex.js --apply --source lessonBlock --specKey AQA_GCSE_BIOLOGY
   - node backend/scripts/embedKnowledgeDocuments.js --apply --source lessonBlock --specKey aqa-gcse-biology
   - (specKey in embed matches KnowledgeDocument.specKey, which comes from topicKey e.g. aqa-gcse-biology)
 
 Follow-ups:
-PR-007 — Student rollout behind feature flag
+PR-007 — Student rollout behind feature flag (implemented below)
+
+---
+
+**PR-007 — Student rollout (feature-flagged, student-safe mode)**
+
+Date: 2025-03-04
+
+Summary:
+Exposed "Ask AI" to students behind feature flag AI_TUTOR_ENABLED_SPECS. Student-safe UX: practice-first, explanation/citations collapsed by default, no admin links. Stricter rate limit (5/min), student-mode LLM constraints, suggestedTopics on weak evidence.
+
+Files changed:
+
+- backend/config/featureFlags.js (new)
+- backend/routes/featureFlags.js (new) — GET /api/feature-flags/ai-tutor?specKey=...
+- backend/routes/enquiry.routes.js (students allowed when flag enabled)
+- backend/middleware/enquiryRateLimit.js (5/min students)
+- backend/controllers/enquiry.controller.js (student-safe mode, suggestedTopics)
+- backend/services/llm/provider.js (studentMode constraints)
+- backend/.env.example (AI_TUTOR_ENABLED_SPECS)
+- frontend/src/api/featureFlags.ts (new)
+- frontend/src/api/enquiry.ts (suggestedTopics type)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (new)
+- frontend/src/pages/LessonViewPage.tsx (student panel when enabled)
+- backend/app.js (feature-flags route)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- AI_TUTOR_ENABLED_SPECS: comma-separated specKeys (e.g. aqa-gcse-biology). Empty = disabled.
+- Teachers/admins bypass flag. Students 5/min, teachers 10/min, admins 30/min.
+- Student UI: "Ask for help on this topic", practice first, "Show explanation" / "Where this came from" collapsed.
+
+Follow-ups:
+PR-008 — Quality flywheel (evaluation harness, coverage dashboard)
