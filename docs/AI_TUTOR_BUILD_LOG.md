@@ -924,3 +924,31 @@ Notes:
 
 Follow-ups:
 PR-024.1 — Student topic summary (after UX and safety hardening)
+
+---
+
+**PR-024.1 — Student-safe topic summaries (feature-flagged per spec)**
+
+Date: 2026-03-05
+
+Summary:
+Allow students to generate topic summaries when AI_TUTOR_ENABLED_SPECS includes the spec. Gated by isAiTutorEnabledForSpec (same as PR-007). Students: overview and revisionSheet modes only; allowExternal forced false; maxSources capped at 10; retrieval excludes teacherNote; LLM studentSafe prompts (shorter, GCSE-level); citations omit teacherNote; confidenceSignals omitted; rate limit 3/min. UI: "Summarise this topic" button near Ask AI on LessonViewPage; TopicSummaryStudentModal with Overview/Revision sheet modes.
+
+Files changed:
+
+- backend/controllers/topicSummary.controller.js (student gating, constraints, omit signals)
+- backend/services/topicSummary/topicSummaryRetrieval.js (student: specStatement + lessonBlock only)
+- backend/services/topicSummary/topicSummaryCache.js (studentSafe in cache key)
+- backend/services/llm/provider.js (studentSafe prompts, shorter limits)
+- backend/middleware/topicSummaryRateLimit.js (students 3/min)
+- frontend/src/components/ai/TopicSummaryStudentModal.tsx
+- frontend/src/pages/LessonViewPage.tsx (button + modal for students)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Teacher/admin behavior unchanged.
+- Citations: lessonBlock deep-link via CitationsList studentMode; teacherNote omitted for students.
+
+Follow-ups:
+None

@@ -22,6 +22,7 @@ import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
+import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
 import { getAiTutorEnabled } from "../api/featureFlags";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
@@ -1075,6 +1076,8 @@ const LessonViewPage: React.FC = () => {
   // PR-007: AI Tutor feature flag (must be at top — hooks rules)
   const [aiTutorEnabled, setAiTutorEnabled] = useState<boolean | null>(null);
   const aiTutorFetchedRef = useRef<string | null>(null);
+  // PR-024.1: Student topic summary modal
+  const [showTopicSummaryModal, setShowTopicSummaryModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -3690,6 +3693,15 @@ const LessonViewPage: React.FC = () => {
               onBackToTopics={() => navigate("/browse-lessons")}
             />
           )}
+          {/* PR-024.1: Student topic summary modal (structured view) */}
+          {showTopicSummaryModal && isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+            <TopicSummaryStudentModal
+              specKey={specKey}
+              topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+              lessonId={id || undefined}
+              onClose={() => setShowTopicSummaryModal(false)}
+            />
+          )}
         </div>
 
       </div>
@@ -3960,11 +3972,31 @@ const LessonViewPage: React.FC = () => {
         )}
         {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
         {isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
-          <AskAiStudentPanel
-            specKey={specKey}
-            topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
-            lessonId={id || undefined}
-          />
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => setShowTopicSummaryModal(true)}
+                style={{
+                  padding: "8px 14px",
+                  fontSize: 13,
+                  background: "#8b5cf6",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Summarise this topic
+              </button>
+            </div>
+            <AskAiStudentPanel
+              specKey={specKey}
+              topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+              lessonId={id || undefined}
+            />
+          </>
         )}
 
         {/* Check your understanding — gate on hasFullLessonAccess */}
@@ -4288,6 +4320,15 @@ const LessonViewPage: React.FC = () => {
             currentTopicKey={topicKeyForBank}
             onNavigateTopic={(key) => navigate(`/browse-lessons?topicKey=${encodeURIComponent(key)}`)}
             onBackToTopics={() => navigate("/browse-lessons")}
+          />
+        )}
+        {/* PR-024.1: Student topic summary modal */}
+        {showTopicSummaryModal && isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+          <TopicSummaryStudentModal
+            specKey={specKey}
+            topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+            lessonId={id || undefined}
+            onClose={() => setShowTopicSummaryModal(false)}
           />
         )}
       </div>

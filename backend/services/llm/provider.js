@@ -473,15 +473,19 @@ async function generateStarterPack({ specKey, topicKey, statementCodes, statemen
 
 /**
  * PR-024: Topic summary generation — mode-specific structured output.
+ * PR-024.1: studentSafe = shorter, simpler, GCSE student language.
  */
 function mockGenerateTopicSummary({ mode, specKey, topicKey, contextChunks, constraints }) {
   const chunks = contextChunks || [];
   const snippet = chunks[0]?.text ? chunks[0].text.slice(0, 150) : "No sources";
   const docId = chunks[0]?.knowledgeDocumentId || "unknown";
+  const studentSafe = constraints?.studentSafe === true;
 
   const base = {
-    summary: `Topic summary for ${topicKey}. Based on curriculum: ${snippet}...`,
-    keyPoints: ["Key point 1 from sources", "Key point 2", "Key point 3", "Key point 4"],
+    summary: studentSafe
+      ? `Key ideas for ${topicKey}. ${snippet.slice(0, 200)}...`
+      : `Topic summary for ${topicKey}. Based on curriculum: ${snippet}...`,
+    keyPoints: studentSafe ? ["Key point 1", "Key point 2", "Key point 3", "Key point 4", "Key point 5"] : ["Key point 1 from sources", "Key point 2", "Key point 3", "Key point 4"],
     sections: {},
     citations: [
       {
@@ -511,11 +515,19 @@ function mockGenerateTopicSummary({ mode, specKey, topicKey, contextChunks, cons
     base.sections.revisionSheet = {
       commonMistakes: ["Confusing similar terms", "Missing units", "Incomplete answers"],
       memoryCues: ["Acronym: ABC", "Link to everyday example", "Diagram"],
-      flashcards: [
-        { front: "Define key term", back: "Definition from spec" },
-        { front: "What is X?", back: "Explanation" },
-        { front: "Common mistake?", back: "Avoid Y" },
-      ],
+      flashcards: studentSafe
+        ? [
+            { front: "Define key term", back: "Definition from spec" },
+            { front: "What is X?", back: "Explanation" },
+            { front: "Common mistake?", back: "Avoid Y" },
+            { front: "Key concept?", back: "Brief answer" },
+          ]
+        : [
+            { front: "Define key term", back: "Definition from spec" },
+            { front: "What is X?", back: "Explanation" },
+            { front: "Common mistake?", back: "Avoid Y" },
+          ],
+      ...(studentSafe && { checkYourself: { question: "Which best describes this topic?", options: ["A", "B", "C", "D"], answer: "A" }),
     };
   } else if (mode === "examFocus") {
     base.sections.examFocus = {
@@ -554,6 +566,9 @@ async function openaiGenerateTopicSummary({ mode, specKey, topicKey, contextChun
   };
   const modeNote = modeInstructions[mode] || modeInstructions.overview;
 
+  const studentNote = studentSafe
+    ? "\nSTUDENT MODE: Simple GCSE-level language. Do not mention embeddings, retrieval, or internal systems."
+    : "";
   const systemPrompt = `You are an educational AI for UK GCSE/A-Level. Summarise the topic using ONLY the provided sources.
 
 Rules:
@@ -561,7 +576,7 @@ Rules:
 - Every citation must reference a knowledgeDocumentId from the context.
 - quote must be a snippet (<=200 chars) from that document's text.
 - Return valid JSON only. No markdown.
-${modeNote}`;
+${modeNote}${studentNote}`;
 
   const schema = `{
   "summary": "string (1200-1600 chars for overview)",
@@ -609,10 +624,28 @@ Return JSON: ${schema}`;
     throw new Error("Invalid JSON from LLM: " + e.message);
   }
 
+  let summary = String(parsed.summary || "").trim();
+  let keyPoints = Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map(String) : [];
+  if (studentSafe) {
+    summary = summary.slice(0, 950);
+    keyPoints = keyPoints.slice(0, 7);
+  } else {
+    keyPoints = keyPoints.slice(0, 15);
+  }
+  let sections = parsed.sections || {};
+  if (studentSafe && sections.revisionSheet?.flashcards) {
+    sections = {
+      ...sections,
+      revisionSheet: {
+        ...sections.revisionSheet,
+        flashcards: sections.revisionSheet.flashcards.slice(0, 4),
+      },
+    };
+  }
   const out = {
-    summary: String(parsed.summary || "").trim(),
-    keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map(String).slice(0, 15) : [],
-    sections: parsed.sections || {},
+    summary,
+    keyPoints,
+    sections,
     citations: (Array.isArray(parsed.citations) ? parsed.citations : [])
       .filter((c) => c && c.knowledgeDocumentId)
       .map((c) => ({

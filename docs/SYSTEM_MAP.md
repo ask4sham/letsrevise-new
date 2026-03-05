@@ -3,7 +3,7 @@
 ## Frontend
 
 **LessonViewPage.tsx**
-Student lesson interface showing lesson content and practice. Teacher/admin: "Ask AI about this topic" panel (PR-005).
+Student lesson interface showing lesson content and practice. Teacher/admin: "Ask AI about this topic" panel (PR-005). Students (PR-024.1): "Summarise this topic" button near Ask AI opens TopicSummaryStudentModal (Overview/Revision sheet only, feature-flagged).
 
 **EditLessonPage.tsx**
 Teacher lesson editor including pages, blocks, flashcards, quizzes, and assessments.
@@ -114,9 +114,9 @@ NPM maintenance scripts (backend):
 
 - GET /api/teacher-notes?specKey=&topicKey=&limit=20 — teacher/admin, list teacherNote KnowledgeDocuments for topic (sourceType=teacherNote, sorted by updatedAt desc)
 
-## Topic Summary API (PR-024)
+## Topic Summary API (PR-024, PR-024.1)
 
-- POST /api/topic-summary { specKey, topicKey, mode?, maxSources?, allowExternal? } — teacher/admin only. Modes: overview, lessonPlan, revisionSheet, examFocus. Returns structured summary with citations, confidence, key points, mode-specific sections. Rate limited: 6/min teachers, 20/min admins. Cached 24h (TopicSummaryCache). Retrieval: topicSummaryRetrieval.js. LLM: generateTopicSummary in provider.js.
+- POST /api/topic-summary { specKey, topicKey, mode?, maxSources?, allowExternal? } — teacher/admin + student (when isAiTutorEnabledForSpec). Teachers: all 4 modes, 6/min. Admins: 20/min. Students (PR-024.1): overview and revisionSheet only, maxSources≤10, allowExternal forced false, 3/min. Student responses: no confidenceSignals, no teacherNote in citations, shorter/simpler LLM output. Cached 24h (key includes studentSafe).
 
 ## External Sources API (PR-022)
 
