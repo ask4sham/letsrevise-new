@@ -167,11 +167,12 @@ curl.exe -i -X POST http://localhost:5000/api/topic-summary/export \
 
 Expected: `HTTP/1.1 400` with `{"error":"Invalid JSON","message":"Malformed JSON body"}`.
 
-**PowerShell:** Prefer string concatenation over `ConvertTo-Json` (which can emit BOM or mangle `{}`):
+**PowerShell:** Prefer `Invoke-RestMethod` / `Invoke-WebRequest` (avoids curl + JSON quoting):
 
 ```powershell
-$body = '{"topicSummaryLogId":"' + $id + '"}'
-curl.exe ... -H "Content-Type: application/json" --data-raw $body
+$resp = Invoke-RestMethod -Uri "http://localhost:5000/api/topic-summary" -Method POST -Headers @{ Authorization = "Bearer $jwt" } -ContentType "application/json" -Body '{"specKey":"aqa-gcse-biology","topicKey":"aqa-gcse-biology:cell-structure","mode":"overview"}'
+$id = $resp.topicSummaryLogId
+Invoke-WebRequest -Uri "http://localhost:5000/api/topic-summary/export" -Method POST -Headers @{ Authorization = "Bearer $jwt" } -ContentType "application/json" -Body ('{"topicSummaryLogId":"' + $id + '"}') -OutFile "topic-summary.pdf"
 ```
 
 ---

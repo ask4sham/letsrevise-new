@@ -982,18 +982,20 @@ Notes:
 - PDF includes title, subtitle, confidence, summary, key points, mode sections, citations.
 - Teacher and student flows both supported.
 
-PowerShell curl — **use string concatenation** (ConvertTo-Json can emit BOM or mangle `{}`):
+PowerShell — **recommended: Invoke-RestMethod / Invoke-WebRequest** (avoids curl + JSON quoting issues):
 
 ```powershell
 $jwt = "YOUR_JWT"
-$id  = "YOUR_TOPIC_SUMMARY_LOG_ID"
+$body = '{"specKey":"aqa-gcse-biology","topicKey":"aqa-gcse-biology:cell-structure","mode":"overview","maxSources":10}'
 
-$body = '{"topicSummaryLogId":"' + $id + '"}'
-curl.exe -L -X POST "http://localhost:5000/api/topic-summary/export" `
-  -H "Authorization: Bearer $jwt" `
-  -H "Content-Type: application/json" `
-  --data-raw $body `
-  -o "topic-summary.pdf"
+$resp = Invoke-RestMethod -Uri "http://localhost:5000/api/topic-summary" -Method POST -Headers @{ Authorization = "Bearer $jwt" } -ContentType "application/json" -Body $body
+$id = $resp.topicSummaryLogId
+
+if ($id) {
+  $exportBody = '{"topicSummaryLogId":"' + $id + '"}'
+  Invoke-WebRequest -Uri "http://localhost:5000/api/topic-summary/export" -Method POST -Headers @{ Authorization = "Bearer $jwt" } -ContentType "application/json" -Body $exportBody -OutFile "topic-summary.pdf"
+  Write-Host "Saved to topic-summary.pdf"
+}
 ```
 
 Follow-ups:

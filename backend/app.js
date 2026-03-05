@@ -48,11 +48,20 @@ app.use((req, res, next) => {
   req.on("data", (c) => chunks.push(c));
   req.on("end", () => {
     const buf = Buffer.concat(chunks);
-    let str = buf.toString("utf8");
-    if (str.length > 0 && str.charCodeAt(0) === 0xfeff) str = str.slice(1);
+    const hasUtf16LeBom = buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe;
+    const looksUtf16Le = buf.length >= 2 && buf[0] === 0x7b && buf[1] === 0x00;
+    let str = hasUtf16LeBom || looksUtf16Le ? buf.toString("utf16le") : buf.toString("utf8");
+    if (!hasUtf16LeBom && !looksUtf16Le && str.length > 0 && str.charCodeAt(0) === 0xfeff) str = str.slice(1);
     try {
       req.body = str && str.trim() ? JSON.parse(str) : {};
     } catch (e) {
+      if (!(hasUtf16LeBom || looksUtf16Le)) {
+        try {
+          str = buf.toString("utf16le");
+          req.body = str && str.trim() ? JSON.parse(str) : {};
+          return next();
+        } catch (_) {}
+      }
       const err = new SyntaxError(e.message);
       err.status = 400;
       err.body = str;
