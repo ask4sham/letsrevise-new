@@ -137,6 +137,9 @@ app.use("/api/coverage", require("./routes/coverage.routes"));
 // PR-014: Content starter pack generator (teacher + admin, rate limited)
 app.use("/api/generate", require("./routes/contentGeneration.routes"));
 
+// PR-014.1: Publish gate — check and publish generated content (teacher + admin)
+app.use("/api/publish-gate", require("./routes/publishGate.routes"));
+
 // PR-012: Sprint order download (teacher + admin, rate limited)
 app.use("/api/sprint-order", require("./routes/sprintOrder.routes"));
 

@@ -34,6 +34,9 @@ const ContentGenerationJobSchema = new mongoose.Schema(
       examQuestionIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     },
     errors: { type: [String], default: [] },
+    /** PR-014.1: Publish gate — who published and when */
+    publishedAt: { type: Date, default: null },
+    publishedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );

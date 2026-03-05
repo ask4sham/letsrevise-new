@@ -164,6 +164,7 @@ async function postStarterPack(req, res) {
     const llmPages = llmLesson.pages || [];
     const pages = mapLlmPagesToLessonPages(llmPages, seed);
 
+    const generatedFrom = { jobId: String(job._id), statementCodes: job.statementCodes || [], seed };
     const lesson = new Lesson({
       title: (llmLesson.title || `Draft — ${topicDisplay}`).trim(),
       description: (llmLesson.subtitle || `Starter pack for ${topicDisplay}`).trim(),
@@ -178,6 +179,7 @@ async function postStarterPack(req, res) {
       status: "draft",
       isPublished: false,
       pages,
+      metadata: { generatedFrom },
     });
     await lesson.save();
     job.outputs.lessonId = lesson._id;
@@ -199,6 +201,7 @@ async function postStarterPack(req, res) {
         back,
         status: "draft",
         fingerprint: fp,
+        metadata: { generatedFrom },
       });
       await doc.save();
       flashcardIds.push(doc._id);
@@ -262,6 +265,7 @@ async function postStarterPack(req, res) {
         markScheme: markScheme ? [markScheme] : [],
         status: "draft",
         fingerprint: fp,
+        metadata: { generatedFrom },
       });
       await doc.save();
       examIds.push(doc._id);

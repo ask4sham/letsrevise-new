@@ -125,6 +125,14 @@ NPM maintenance scripts (backend):
 
 - POST /api/generate/starter-pack { specKey, topicKey, statementCodes?, tier? } — teacher/admin, rate limited (3/min teacher, 10/min admin)
 - GET /api/generate/jobs?specKey=...&topicKey=...&limit=20 — teacher/admin, audit recent jobs
-- ContentGenerationJob model — tracks generation requests and outputs
+- ContentGenerationJob model — tracks generation requests and outputs; publishedAt, publishedBy (PR-014.1)
 - backend/services/generation/starterPackService.js — retrieval + LLM call
 - frontend/src/api/generation.ts — postGenerateStarterPack, getGenerationJobs
+
+## Publish Gate API (PR-014.1)
+
+- GET /api/publish-gate/check?scope=starterPack&jobId=... — teacher/admin, returns { ok, blocks, warns, issues, summaryByType }
+- POST /api/publish-gate/publish { scope, jobId } — teacher/admin, publishes job outputs if no blocking issues
+- backend/services/publishGate/validatePublishableContent.js — deterministic rules (lesson, quiz, flashcard, exam)
+- frontend/src/components/generation/ReviewPublishChecklist.tsx — Run check, show issues, Publish all
+- EditLessonPage: intercept publish for lessons with metadata.generatedFrom.jobId; show gate modal if blocked

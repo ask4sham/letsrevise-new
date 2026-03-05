@@ -117,6 +117,8 @@ const ExamQuestionSchema = new mongoose.Schema(
     skill: { type: String, enum: ["recall", "application", "analysis", "exam-technique"], default: null },
     estimatedTimeSec: { type: Number, min: 1, default: null },
     isArchived: { type: Boolean, default: false },
+    /** PR-014.1: generatedFrom { jobId, statementCodes, seed } for publish gate */
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );

@@ -17,6 +17,7 @@ import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
+import { getPublishGateCheck, type PublishGateCheckResponse } from "../api/generation";
 import {
   type LessonBlockType,
   BLOCK_META,
@@ -155,6 +156,8 @@ interface Lesson {
   readiness?: LessonReadiness;
   reviewedAt?: string | null;
   reviewedBy?: string | null;
+  /** PR-014.1: generatedFrom { jobId, statementCodes, seed } */
+  metadata?: { generatedFrom?: { jobId?: string } };
   /** Lesson↔AssessmentPaper: IDs of attached assessment papers */
   assessmentPaperIds?: string[];
   /** PR-PP2: Past papers (snapshot from topic bank) */
@@ -419,6 +422,9 @@ const EditLessonPage: React.FC = () => {
   const [makeClassroomReadyError, setMakeClassroomReadyError] = useState<string | null>(null);
   /** PR20.1: Copy student link feedback */
   const [copyLinkFeedback, setCopyLinkFeedback] = useState(false);
+  /** PR-014.1: Publish gate for generated content (metadata.generatedFrom.jobId) */
+  const [publishGateGeneratedOpen, setPublishGateGeneratedOpen] = useState(false);
+  const [publishGateGeneratedResult, setPublishGateGeneratedResult] = useState<PublishGateCheckResponse | null>(null);
   /** AI diagram generation: block key (pageId-blockIndex) when loading */
   const [generateDiagramLoading, setGenerateDiagramLoading] = useState<string | null>(null);
   const [generateDiagramError, setGenerateDiagramError] = useState<string | null>(null);
@@ -708,6 +714,7 @@ const EditLessonPage: React.FC = () => {
           : [],
         assessment: data.assessment ?? undefined,
         pastPapers: Array.isArray(data.pastPapers) ? data.pastPapers : undefined,
+        metadata: data.metadata ?? undefined,
       };
 
       if (Array.isArray(mapped.pages)) {
@@ -2094,6 +2101,23 @@ const EditLessonPage: React.FC = () => {
     if (!lesson || !id || !isMongoObjectId(id)) return;
 
     const newStatus = !lesson.isPublished;
+
+    /** PR-014.1: For generated content, run publish gate check first */
+    const jobId = lesson.metadata?.generatedFrom?.jobId;
+    if (newStatus && jobId && !skipGate) {
+      try {
+        const check = await getPublishGateCheck({ scope: "starterPack", jobId });
+        if (!check.ok) {
+          setPublishGateGeneratedResult(check);
+          setPublishGateGeneratedOpen(true);
+          return;
+        }
+      } catch (e) {
+        console.warn("[EditLessonPage] Publish gate check failed:", e);
+        // Proceed if check fails (network etc) — CTO could tighten
+      }
+    }
+
     /** PR20: Readiness gate — when publishing, if issues exist open modal unless skipGate */
     if (newStatus && !skipGate) {
       const { issues } = computeLocalPublishIssues(lesson, attachedExamQuestions.length);
@@ -4681,6 +4705,99 @@ const EditLessonPage: React.FC = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* PR-014.1: Generated content publish gate modal */}
+      {publishGateGeneratedOpen && publishGateGeneratedResult && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10002,
+            padding: 20,
+          }}
+          onClick={() => setPublishGateGeneratedOpen(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 24,
+              maxWidth: 480,
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 900, marginBottom: 12, fontSize: 18 }}>Fix issues before publishing</div>
+            <p style={{ margin: "0 0 16px", fontSize: 14, color: "#374151" }}>
+              This lesson was generated. Resolve the blocking issues below, then try again.
+            </p>
+            {publishGateGeneratedResult.issues
+              .filter((i) => i.level === "block")
+              .map((issue, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    background: "#fee2e2",
+                    borderRadius: 8,
+                    marginBottom: 8,
+                    fontSize: 13,
+                  }}
+                >
+                  <span>{issue.message}</span>
+                  {issue.fixPath && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPublishGateGeneratedOpen(false);
+                        navigate(issue.fixPath);
+                      }}
+                      style={{
+                        marginLeft: 12,
+                        padding: "4px 12px",
+                        background: "#374151",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: 12,
+                      }}
+                    >
+                      Fix
+                    </button>
+                  )}
+                </div>
+              ))}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => setPublishGateGeneratedOpen(false)}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  background: "#e5e7eb",
+                  color: "#374151",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

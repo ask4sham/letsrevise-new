@@ -332,6 +332,8 @@ const LessonSchema = new mongoose.Schema(
       ref: "Lesson", 
       default: null 
     },
+    /** PR-014.1: generatedFrom { jobId, statementCodes, seed } for publish gate */
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
 
     /** USP 3a: Past paper questions attached to this lesson (teacher-only link; no PDF ingestion yet). */
     examQuestions: [

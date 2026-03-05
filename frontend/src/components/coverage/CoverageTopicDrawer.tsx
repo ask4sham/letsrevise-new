@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { getCoverageDrilldown, type CoverageDrilldownResponse } from "../../api/coverageDrilldown";
 import { getSprintOrderMarkdown } from "../../api/sprintOrder";
 import { postGenerateStarterPack, type StarterPackResponse } from "../../api/generation";
+import { ReviewPublishChecklist } from "../generation/ReviewPublishChecklist";
 import type { CoverageRow } from "../../api/coverage";
 import type { SpecKey } from "../../api/taxonomy";
 
@@ -443,6 +444,13 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     >
                       Review draft exam questions ({genResult.outputs.examCount})
                     </Link>
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <ReviewPublishChecklist
+                      jobId={genResult.jobId}
+                      topicKey={topicKey}
+                      lessonId={genResult.outputs.lessonId}
+                    />
                   </div>
                 </section>
               )}

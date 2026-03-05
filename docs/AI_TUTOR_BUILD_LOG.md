@@ -504,4 +504,41 @@ Notes:
 - Outputs: lesson (draft), TopicFlashcard (draft), TopicQuizQuestion (draft), ExamQuestion (draft)
 
 Follow-ups:
+PR-014.1 — Review & Publish checklist
+
+---
+
+**PR-014.1 — Human-in-the-loop Review & Publish checklist**
+
+Date: 2026-03-05
+
+Summary:
+Before AI-generated draft content can be published, a structured publish gate validates content quality (MCQ options, correct answer, empty fields, mark scheme). Blocks publish until fixed. Deep-links teacher to editor sections. Applies to content with metadata.generatedFrom.jobId. Non-generated content unchanged.
+
+Files changed:
+
+- backend/services/publishGate/validatePublishableContent.js (new)
+- backend/controllers/publishGate.controller.js (new)
+- backend/routes/publishGate.routes.js (new)
+- backend/models/ContentGenerationJob.js (publishedAt, publishedBy)
+- backend/models/Lesson.js (metadata)
+- backend/models/TopicFlashcard.js (metadata)
+- backend/models/TopicQuizQuestion.js (metadata)
+- backend/models/ExamQuestion.js (metadata)
+- backend/controllers/contentGeneration.controller.js (metadata.generatedFrom on created items)
+- backend/app.js
+- frontend/src/api/generation.ts (getPublishGateCheck, postPublishGatePublish)
+- frontend/src/components/generation/ReviewPublishChecklist.tsx (new)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (ReviewPublishChecklist in success panel)
+- frontend/src/pages/EditLessonPage.tsx (intercept publish for generated lessons)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- GET /api/publish-gate/check?scope=starterPack&jobId=...
+- POST /api/publish-gate/publish { scope, jobId }
+- Lesson/quiz/flashcard/exam publish rules: block on empty fields, invalid MCQ, missing mark scheme
+- EditLessonPage: when lesson.metadata.generatedFrom.jobId exists, run gate check before publish
+
+Follow-ups:
 None
