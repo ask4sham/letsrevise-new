@@ -79,12 +79,19 @@ function normalizeTopicSummaryExportPayload(payload) {
     });
   }
 
+  const sourceCounts = p.sourceCounts && typeof p.sourceCounts === "object" ? p.sourceCounts : {};
+  const suggestedActions = Array.isArray(p.suggestedActions) ? p.suggestedActions : [];
+  const practiceMcq = p.practiceMcq && typeof p.practiceMcq === "object" ? p.practiceMcq : null;
+
   return {
     summaryText,
     keyPoints,
     sections,
     citations,
     usedSources,
+    sourceCounts,
+    suggestedActions,
+    practiceMcq,
   };
 }
 
@@ -172,13 +179,13 @@ function addKeyValueTable(doc, rows) {
 }
 
 /**
- * Add citations section (numbered [1]..).
+ * Add evidence appendix (numbered [1].. with quote truncation).
  */
-function addCitations(doc, citations, usedSources, meta) {
+function addEvidenceAppendix(doc, citations, usedSources, quoteChars = 180) {
   if (!Array.isArray(citations) || citations.length === 0) return;
   const sourceMap = new Map((usedSources || []).map((s) => [s.knowledgeDocumentId, s]));
 
-  addSectionHeader(doc, "Evidence & sources");
+  addSectionHeader(doc, "Evidence used");
   doc.fontSize(10).font("Helvetica").fillColor("#475569");
 
   citations.forEach((c, i) => {
@@ -186,7 +193,7 @@ function addCitations(doc, citations, usedSources, meta) {
     const src = sourceMap.get(c.knowledgeDocumentId);
     const badge = badgeLabel(toText(c.sourceType || "externalTrusted"));
     const titleText = safeSlice(src?.title || c.reason || "Source", 80);
-    const quoteText = safeSlice(c.quote, 300);
+    const quoteText = safeSlice(c.quote, Math.max(50, Math.min(500, quoteChars)));
 
     doc.font("Helvetica-Bold").fillColor("#1e293b");
     doc.text(`[${i + 1}] [${badge}] ${titleText}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
@@ -195,14 +202,148 @@ function addCitations(doc, citations, usedSources, meta) {
     doc.text(`"${quoteText}"`, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
     if (c.externalUrl) {
       doc.moveDown(0.1);
-      doc.fillColor("#2563eb");
+      doc.fillColor("#475569");
       const url = toText(c.externalUrl);
       const domain = url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
       doc.text(`→ ${domain}`, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
-      doc.fillColor("#475569");
+      doc.moveDown(0.05);
+      doc.text(url, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
     }
     doc.moveDown(0.35);
   });
+}
+
+/**
+ * Add "At a glance" block: Mode, Confidence, Source counts, Date.
+ */
+function addAtAGlance(doc, { modeLabel, confidenceLevel, sourceCounts, dateStr, isStudent }) {
+  doc.fontSize(10).font("Helvetica").fillColor("#64748b");
+  const parts = [`Mode: ${modeLabel}`, `Generated: ${dateStr}`];
+  if (confidenceLevel && !isStudent) {
+    const conf = toText(confidenceLevel).charAt(0).toUpperCase() + toText(confidenceLevel).slice(1);
+    parts.splice(1, 0, `Confidence: ${conf}`);
+  }
+  if (sourceCounts && typeof sourceCounts === "object") {
+    const sc = sourceCounts;
+    const counts = [sc.spec, sc.lesson, sc.note, sc.external].filter((n) => typeof n === "number");
+    if (counts.some((n) => n > 0)) {
+      parts.push(`Sources: Spec ${sc.spec ?? 0} / Lesson ${sc.lesson ?? 0} / Notes ${sc.note ?? 0} / External ${sc.external ?? 0}`);
+    }
+  }
+  doc.text(parts.join("  •  "), MARGIN, doc.y, { width: CONTENT_WIDTH });
+  doc.moveDown(0.5);
+}
+
+/**
+ * Derive expanded key points (up to maxBullets) from keyPoints + sections.
+ */
+function deriveExpandedKeyPoints(keyPoints, sections, maxBullets) {
+  const out = [...keyPoints.map(toText).filter(Boolean)];
+  if (out.length >= maxBullets) return out.slice(0, maxBullets);
+  const rs = sections?.revisionSheet;
+  if (rs?.commonMistakes?.length) {
+    rs.commonMistakes.slice(0, 2).forEach((m) => out.push(`Common mistake: ${toText(m).slice(0, 120)}`));
+  }
+  if (rs?.memoryCues?.length && out.length < maxBullets) {
+    rs.memoryCues.slice(0, 2).forEach((m) => out.push(`Memory cue: ${toText(m).slice(0, 120)}`));
+  }
+  const lp = sections?.lessonPlan;
+  if (lp?.segments?.length && out.length < maxBullets) {
+    lp.segments.slice(0, 2).forEach((s) => out.push(`${toText(s.title)}: ${toText(s.activity).slice(0, 80)}`));
+  }
+  const ef = sections?.examFocus;
+  if (ef?.commandWords?.length && out.length < maxBullets) {
+    out.push(`Command words: ${ef.commandWords.map(toText).slice(0, 5).join(", ")}`);
+  }
+  return out.slice(0, maxBullets);
+}
+
+/**
+ * Add "Common mistakes & examiner tips" section.
+ */
+function addCommonMistakesExaminerTips(doc, sections) {
+  const rs = sections?.revisionSheet;
+  const ef = sections?.examFocus;
+  const commonMistakes = Array.isArray(rs?.commonMistakes) ? rs.commonMistakes : [];
+  const examTips = Array.isArray(ef?.examTips) ? ef.examTips : [];
+
+  if (commonMistakes.length > 0) {
+    addSectionHeader(doc, "Common mistakes");
+    addBullets(doc, commonMistakes, { maxLen: 400 });
+  }
+  if (examTips.length > 0) {
+    addSectionHeader(doc, "Examiner tips");
+    addBullets(doc, examTips, { maxLen: 400 });
+  } else if (ef?.examQuestion?.markScheme) {
+    addSectionHeader(doc, "Examiner tips");
+    addParagraph(doc, safeSlice(ef.examQuestion.markScheme, 300));
+  }
+}
+
+/**
+ * Compute next steps (3–5 items). No LLM.
+ */
+function computeNextSteps(suggestedActions, specKey, topicKey) {
+  if (Array.isArray(suggestedActions) && suggestedActions.length > 0) {
+    return suggestedActions.slice(0, 5).map((a) => (typeof a === "string" ? a : toText(a?.label ?? a?.action ?? a))).filter(Boolean);
+  }
+  return [
+    "View lesson for this topic",
+    "Practice questions",
+    "Review flashcards",
+    "Take quiz",
+  ];
+}
+
+/**
+ * Add "Next steps" section.
+ */
+function addNextStepsSection(doc, items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  addSectionHeader(doc, "Next steps");
+  addBullets(doc, items, { maxLen: 200 });
+}
+
+/**
+ * Add mini revision appendix (4 flashcards + 1 MCQ). Teacher/admin only.
+ */
+function addMiniRevisionAppendix(doc, sections, practiceMcq) {
+  const rs = sections?.revisionSheet;
+  const flashcards = Array.isArray(rs?.flashcards) ? rs.flashcards : [];
+  const toShow = flashcards.slice(0, 4);
+  if (toShow.length === 0 && !practiceMcq) return;
+
+  addSectionHeader(doc, "Mini revision appendix");
+  if (toShow.length > 0) {
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#334155");
+    doc.text("Flashcard prompts", MARGIN, doc.y, { width: CONTENT_WIDTH });
+    doc.moveDown(0.25);
+    toShow.forEach((f, i) => {
+      ensureSpace(doc, 28);
+      doc.font("Helvetica").fillColor("#475569");
+      doc.text(`${i + 1}. ${safeSlice(f?.front, 150)}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
+      doc.moveDown(0.1);
+      doc.text(`   → ${safeSlice(f?.back, 120)}`, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
+      doc.moveDown(0.2);
+    });
+  }
+  if (practiceMcq && typeof practiceMcq === "object") {
+    doc.moveDown(0.3);
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#334155");
+    doc.text("Quick check", MARGIN, doc.y, { width: CONTENT_WIDTH });
+    doc.moveDown(0.2);
+    doc.font("Helvetica").fillColor("#475569");
+    const q = toText(practiceMcq.question ?? practiceMcq.stem ?? "").slice(0, 200);
+    doc.text(`Q: ${q}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
+    const opts = practiceMcq.options || practiceMcq.choices || [];
+    if (Array.isArray(opts) && opts.length > 0) {
+      opts.forEach((o, i) => {
+        doc.text(`  ${String.fromCharCode(65 + i)}. ${toText(o).slice(0, 100)}`, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
+      });
+    }
+    const ans = practiceMcq.correctAnswer ?? practiceMcq.answer;
+    if (ans) doc.text(`Answer: ${toText(ans)}`, MARGIN, doc.y, { width: CONTENT_WIDTH - 10, indent: 10 });
+  }
 }
 
 /**
@@ -218,17 +359,22 @@ function renderTopicSummaryPdf({
   summaryPayload,
   usedSources = [],
   includeCitations = true,
+  includeEvidenceAppendix = true,
+  includeNextSteps = true,
+  includeMiniRevisionAppendix = false,
+  evidenceQuoteChars = 180,
   topicSummaryLogId,
 }) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     const doc = new PDFDocument({ size: "A4", margin: MARGIN });
     doc.on("data", (chunk) => chunks.push(chunk));
+    let renderedPages = 1;
     doc.on("end", () => {
       const buffer = Buffer.concat(chunks);
-      if (buffer.length < 5120 && process.env.NODE_ENV !== "test") {
-        console.warn(
-          `[topicSummaryPdf] Small PDF (${buffer.length} bytes) topicSummaryLogId=${topicSummaryLogId || "n/a"}`
+      if (process.env.NODE_ENV === "development" && process.env.NODE_ENV !== "test") {
+        console.log(
+          `[topicSummaryPdf] summaryChars=${summaryPayload?.summary?.length ?? 0} keyPoints=${summaryPayload?.keyPoints?.length ?? 0} citations=${summaryPayload?.citations?.length ?? 0} renderedPages=${renderedPages} bytes=${buffer.length}`
         );
       }
       resolve(buffer);
@@ -242,12 +388,14 @@ function renderTopicSummaryPdf({
       return reject(err);
     }
 
-    const { summaryText, keyPoints, sections, citations } = normalized;
-    const usedSourcesList = normalized.usedSources;
+    const { summaryText, keyPoints, sections, citations, sourceCounts, suggestedActions, practiceMcq } = normalized;
+    const usedSourcesList = usedSources && usedSources.length > 0 ? usedSources : (normalized.usedSources || []);
     const title = formatTopicTitle(topicKey);
     const modeLabel = formatMode(mode);
     const dateStr = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
     let pageNum = 1;
+    const isStudent = (generatedForRole || "").toString().toLowerCase() === "student";
+    const maxKeyPoints = isStudent ? 8 : 12;
 
     const meta = { specKey: specKey || "spec", topicKey: topicKey || "topic", dateStr, pageNum };
 
@@ -257,6 +405,7 @@ function renderTopicSummaryPdf({
 
     doc.on("pageAdded", () => {
       pageNum += 1;
+      renderedPages = pageNum;
       meta.pageNum = pageNum;
       doc.y = MARGIN;
       drawFooter();
@@ -266,18 +415,12 @@ function renderTopicSummaryPdf({
     addTitle(doc, `Topic summary — ${title}`, `${specKey} • ${modeLabel} • ${dateStr}`);
     doc.y = doc.y + 4;
 
-    // Confidence (teachers/admin only; student-safe: omit reason)
-    const isStudent = (generatedForRole || "").toString().toLowerCase() === "student";
-    if (confidenceLevel && !isStudent) {
-      const confLabel = toText(confidenceLevel).charAt(0).toUpperCase() + toText(confidenceLevel).slice(1);
-      doc.fontSize(11).font("Helvetica-Bold").fillColor("#000000");
-      doc.text(`Confidence: ${confLabel}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
-      if (confidenceReason) {
-        doc.moveDown(0.2);
-        doc.fontSize(10).font("Helvetica").fillColor("#64748b");
-        doc.text(toText(confidenceReason), MARGIN, doc.y, { width: CONTENT_WIDTH });
-      }
-      doc.moveDown(0.6);
+    // At a glance (PR-026.1)
+    addAtAGlance(doc, { modeLabel, confidenceLevel, sourceCounts, dateStr, isStudent });
+    if (confidenceReason && !isStudent) {
+      doc.fontSize(10).font("Helvetica").fillColor("#64748b");
+      doc.text(toText(confidenceReason), MARGIN, doc.y, { width: CONTENT_WIDTH });
+      doc.moveDown(0.5);
     }
 
     // Summary
@@ -286,10 +429,19 @@ function renderTopicSummaryPdf({
       addParagraph(doc, summaryText);
     }
 
-    // Key points
-    if (keyPoints.length > 0) {
-      addSectionHeader(doc, "Key points");
-      addBullets(doc, keyPoints);
+    // Key points (expanded) — up to 12 teachers, 8 students
+    const expandedKp = deriveExpandedKeyPoints(keyPoints, sections, maxKeyPoints);
+    if (expandedKp.length > 0) {
+      addSectionHeader(doc, "Key points (expanded)");
+      addBullets(doc, expandedKp);
+    }
+
+    // Common mistakes & examiner tips (overview mode: synthesize from sections when not in full revision/exam block)
+    const rs = sections?.revisionSheet;
+    const ef = sections?.examFocus;
+    const modeVal = (mode || "").toString().toLowerCase();
+    if (modeVal === "overview" && (rs?.commonMistakes?.length || ef?.examTips?.length || ef?.examQuestion?.markScheme)) {
+      addCommonMistakesExaminerTips(doc, sections);
     }
 
     // Mode sections
@@ -303,7 +455,6 @@ function renderTopicSummaryPdf({
       addKeyValueTable(doc, rows);
     }
 
-    const rs = sections.revisionSheet;
     if (rs && typeof rs === "object") {
       addSectionHeader(doc, "Revision sheet");
       const commonMistakes = Array.isArray(rs.commonMistakes) ? rs.commonMistakes : [];
@@ -336,7 +487,6 @@ function renderTopicSummaryPdf({
       }
     }
 
-    const ef = sections.examFocus;
     if (ef && typeof ef === "object") {
       addSectionHeader(doc, "Exam focus");
       const commandWords = Array.isArray(ef.commandWords) ? ef.commandWords : [];
@@ -360,14 +510,25 @@ function renderTopicSummaryPdf({
       }
     }
 
-    // Citations
-    if (includeCitations && citations.length > 0) {
+    // Next steps (PR-026.1)
+    if (includeNextSteps) {
+      const nextItems = computeNextSteps(suggestedActions, specKey, topicKey);
+      addNextStepsSection(doc, nextItems);
+    }
+
+    // Evidence appendix (PR-026.1) — includeEvidenceAppendix controls; evidenceQuoteChars for truncation
+    if (includeEvidenceAppendix && citations.length > 0) {
       ensureSpace(doc, 80);
       if (doc.y + 80 > CONTENT_BOTTOM) {
         doc.addPage();
         meta.pageNum = ++pageNum;
       }
-      addCitations(doc, citations, usedSourcesList, meta);
+      addEvidenceAppendix(doc, citations, usedSourcesList, evidenceQuoteChars);
+    }
+
+    // Mini revision appendix (teacher/admin only)
+    if (includeMiniRevisionAppendix && !isStudent) {
+      addMiniRevisionAppendix(doc, sections, practiceMcq);
     }
 
     drawFooter();

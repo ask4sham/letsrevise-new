@@ -9,6 +9,11 @@ export type PostTopicSummaryPdfParams = {
   topicKey: string;
   mode?: string;
   includeCitations?: boolean;
+  /** PR-026.1: Richer export options */
+  includeEvidenceAppendix?: boolean;
+  includeNextSteps?: boolean;
+  includeMiniRevisionAppendix?: boolean;
+  evidenceQuoteChars?: number;
   /** Fallback: full payload when logId not available */
   summary?: object;
   usedSources?: Array<{
@@ -20,6 +25,8 @@ export type PostTopicSummaryPdfParams = {
   }>;
   confidenceLevel?: string;
   confidenceReason?: string;
+  sourceCounts?: { spec?: number; lesson?: number; note?: number; external?: number; total?: number };
+  suggestedActions?: string[];
 };
 
 /**
@@ -36,10 +43,16 @@ export async function postTopicSummaryPdf(params: PostTopicSummaryPdfParams): Pr
         topicKey: params.topicKey.trim(),
         mode: params.mode ?? "overview",
         includeCitations: params.includeCitations ?? true,
+        includeEvidenceAppendix: params.includeEvidenceAppendix,
+        includeNextSteps: params.includeNextSteps,
+        includeMiniRevisionAppendix: params.includeMiniRevisionAppendix,
+        evidenceQuoteChars: params.evidenceQuoteChars,
         ...(params.summary && { summary: params.summary }),
         ...(params.usedSources && { usedSources: params.usedSources }),
         ...(params.confidenceLevel && { confidenceLevel: params.confidenceLevel }),
         ...(params.confidenceReason && { confidenceReason: params.confidenceReason }),
+        ...(params.sourceCounts && { sourceCounts: params.sourceCounts }),
+        ...(params.suggestedActions && { suggestedActions: params.suggestedActions }),
       },
       { responseType: "blob" }
     );

@@ -1042,4 +1042,30 @@ Known limitations:
 - Some topics may produce small PDFs (< 5KB) if content is minimal; these are not rejected.
 
 Follow-ups:
+PR-026.1 — Richer PDF exports (evidence appendix, next steps, mini revision)
+
+---
+
+**PR-026.1 — Richer Topic Summary PDFs (target 10KB+)**
+
+Date: 2026-03-05
+
+Summary:
+Extended PDF export with richer sections and export options. New sections: "At a glance" (mode, confidence, source counts), "Key points (expanded)" (up to 12/8 bullets, derived from sections), "Common mistakes & examiner tips", "Next steps" (3–5 items from suggestedActions or computed), "Evidence used" appendix (with evidenceQuoteChars), "Mini revision appendix" (4 flashcards + 1 MCQ, teacher/admin only). Export options: includeEvidenceAppendix (default true teachers, false students), includeNextSteps (default true), includeMiniRevisionAppendix (default false, teacher only), evidenceQuoteChars (180 teachers, 120 students). Replaced size warning with dev-only content diagnostics.
+
+Files changed:
+
+- backend/controllers/topicSummaryExport.controller.js (export options, validation, student caps)
+- backend/services/pdf/topicSummaryPdf.js (normalize, at-a-glance, expanded key points, next steps, evidence appendix, mini revision)
+- frontend/src/api/topicSummaryExport.ts (new params)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (toggles: evidence, next steps, mini revision)
+- frontend/src/components/ai/TopicSummaryStudentModal.tsx (toggles: evidence OFF, next steps ON)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Students cannot enable mini revision appendix. evidenceQuoteChars capped at 120 for students.
+- No artificial padding; richer content from real sections and citations.
+
+Follow-ups:
 None

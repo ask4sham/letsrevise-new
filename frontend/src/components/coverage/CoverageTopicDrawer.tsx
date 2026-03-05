@@ -66,6 +66,9 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryResult, setSummaryResult] = useState<TopicSummaryResponse | null>(null);
   const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [pdfIncludeEvidence, setPdfIncludeEvidence] = useState(true);
+  const [pdfIncludeNextSteps, setPdfIncludeNextSteps] = useState(true);
+  const [pdfIncludeMiniRevision, setPdfIncludeMiniRevision] = useState(false);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -1011,6 +1014,21 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                             />
                           </div>
                         )}
+                        <div style={{ marginBottom: 12, padding: 10, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>PDF export options</div>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 12, cursor: "pointer" }}>
+                            <input type="checkbox" checked={pdfIncludeEvidence} onChange={(e) => setPdfIncludeEvidence(e.target.checked)} />
+                            Include evidence appendix
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 12, cursor: "pointer" }}>
+                            <input type="checkbox" checked={pdfIncludeNextSteps} onChange={(e) => setPdfIncludeNextSteps(e.target.checked)} />
+                            Include next steps
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
+                            <input type="checkbox" checked={pdfIncludeMiniRevision} onChange={(e) => setPdfIncludeMiniRevision(e.target.checked)} />
+                            Add mini revision appendix
+                          </label>
+                        </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                           <button type="button" onClick={handleCopySummary} style={{ padding: "6px 12px", fontSize: 12, background: "#e2e8f0", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
                             Copy summary

@@ -23,6 +23,8 @@ export function TopicSummaryStudentModal({ specKey, topicKey, lessonId, onClose 
   const [result, setResult] = useState<TopicSummaryResponse | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [pdfIncludeEvidence, setPdfIncludeEvidence] = useState(false);
+  const [pdfIncludeNextSteps, setPdfIncludeNextSteps] = useState(true);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -247,6 +249,17 @@ export function TopicSummaryStudentModal({ specKey, topicKey, lessonId, onClose 
                 />
               </div>
             )}
+            <div style={{ marginBottom: 12, padding: 10, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>PDF export options</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 12, cursor: "pointer" }}>
+                <input type="checkbox" checked={pdfIncludeEvidence} onChange={(e) => setPdfIncludeEvidence(e.target.checked)} />
+                Include evidence appendix
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
+                <input type="checkbox" checked={pdfIncludeNextSteps} onChange={(e) => setPdfIncludeNextSteps(e.target.checked)} />
+                Include next steps
+              </label>
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
               <button type="button" onClick={handleCopySummary} style={{ padding: "6px 12px", fontSize: 12, background: "#e2e8f0", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
                 Copy summary
