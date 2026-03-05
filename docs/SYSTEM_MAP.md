@@ -48,6 +48,7 @@ Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practic
 - KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks)
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
+- CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days)
 
 ## SpecStatement API (admin only)
 
@@ -75,6 +76,7 @@ Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practic
 - backend/scripts/buildKnowledgeIndex.js (--apply, --specKey, --source)
 - backend/scripts/runVectorMigrations.js
 - backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
+- backend/scripts/buildCoverageReport.js (--specKey, --apply, --windowDays, --top, --includeWeakQuestions)
 - backend/scripts/runEnquirySmokeTest.js
 
 ## Enquiry API (PR-004, PR-006, PR-007)
@@ -85,3 +87,9 @@ Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practic
 ## Feature Flags (PR-007)
 
 - GET /api/feature-flags/ai-tutor?specKey=... — auth required, returns { enabled: boolean }
+
+## Coverage API (PR-009)
+
+- GET /api/coverage?specKey=...&windowDays=14 — teacher + admin, live computed coverage
+- GET /api/coverage/snapshots?specKey=...&latest=true — teacher + admin, saved snapshots
+- GET /api/coverage/topics?specKey=...&status=THIN — teacher + admin, filtered topicKeys

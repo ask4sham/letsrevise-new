@@ -316,3 +316,39 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-009 — Coverage engine (reports + API)**
+
+Date: 2026-03-05
+
+Summary:
+Added coverage computation for spec/topic across SpecStatements, KnowledgeDocuments, and EnquiryLog weak evidence. Coverage metrics: specStatementsTotal, knowledgeDocsSpec, knowledgeDocsLesson, retrieval readiness score (0–100), status (NO_SPEC, EMPTY, THIN, OK, STRONG), weak-evidence enquiry counts and top questions. Script generates markdown report; coverage APIs for teacher/admin.
+
+Files changed:
+
+- backend/models/CoverageSnapshot.js (new)
+- backend/services/coverage/coverageEngine.js (new)
+- backend/scripts/buildCoverageReport.js (new)
+- backend/controllers/coverage.controller.js (new)
+- backend/routes/coverage.routes.js (new)
+- backend/app.js
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Coverage is computed per (specKey, topicKey). Score = 50*specIndexedRatio + 25*lessonPresence + 25*lessonDensity.
+- Weak evidence: EnquiryLog.response.warnings contains "Insufficient trusted sources".
+- TTL 90 days on CoverageSnapshot.
+
+Usage:
+- node backend/scripts/buildCoverageReport.js --specKey aqa-gcse-biology
+- node backend/scripts/buildCoverageReport.js --specKey aqa-gcse-biology --apply
+- GET /api/coverage?specKey=aqa-gcse-biology&windowDays=14
+- GET /api/coverage/snapshots?specKey=aqa-gcse-biology&latest=true
+- GET /api/coverage/topics?specKey=aqa-gcse-biology&status=THIN
+
+Follow-ups:
+- PR-010: UI dashboard (teacher/admin) showing coverage + hotspots
+- PR-011: Auto-create Jira-style sprint order from THIN/EMPTY topics (optional)

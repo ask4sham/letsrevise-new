@@ -131,8 +131,18 @@ app.use("/api/knowledge", require("./routes/knowledgeDocuments"));
 // PR-007: Feature flags (auth required)
 app.use("/api/feature-flags", require("./routes/featureFlags"));
 
+// PR-009: Coverage engine (teacher + admin)
+app.use("/api/coverage", require("./routes/coverage.routes"));
+
 // PR-004: Enquiry (RAG) — teacher + admin + student (when flag enabled)
-app.use("/api/enquiry", require("./routes/enquiry.routes"));
+// Lazy-load to avoid pulling in vector DB / embeddings at app init (fixes Jest Babel parse in tests)
+let enquiryRouter = null;
+app.use("/api/enquiry", (req, res, next) => {
+  if (!enquiryRouter) {
+    enquiryRouter = require("./routes/enquiry.routes");
+  }
+  return enquiryRouter(req, res, next);
+});
 
 // PR-EDGE-3: Teacher overview dashboard (topic-coverage must be before /api/teacher so GET /api/teacher/topic-coverage hits it)
 app.use("/api/teacher/analytics", require("./routes/teacherAnalytics"));
