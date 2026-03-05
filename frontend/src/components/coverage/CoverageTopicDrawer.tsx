@@ -169,6 +169,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const handleDownloadPdf = async () => {
     if (!summaryResult) return;
     setPdfDownloading(true);
+    setCopyToast("Generating PDF…");
     try {
       await postTopicSummaryPdf({
         topicSummaryLogId: summaryResult.topicSummaryLogId,
@@ -183,10 +184,10 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
           confidenceReason: summaryResult.confidenceReason,
         }),
       });
-      setCopyToast("PDF downloaded");
+      setCopyToast("Downloaded");
       setTimeout(() => setCopyToast(null), 2000);
     } catch (e: any) {
-      setCopyToast(e?.response?.data?.error ?? e?.message ?? "Download failed");
+      setCopyToast(e?.message ?? "Download failed");
       setTimeout(() => setCopyToast(null), 3000);
     } finally {
       setPdfDownloading(false);

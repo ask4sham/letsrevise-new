@@ -999,4 +999,47 @@ if ($id) {
 ```
 
 Follow-ups:
+PR-026 — Topic Summary PDF v2 (handout layout, pagination, footer)
+
+---
+
+**PR-026 — Topic Summary PDF v2 (usable handout + robust layout)**
+
+Date: 2026-03-05
+
+Summary:
+Refactored topic summary PDF export into a layout engine with proper text wrapping, headings, bullet lists, mode sections (overview/revision sheet/lesson plan/exam focus), numbered citations with source badges, automatic pagination, and footer "LetsRevise • specKey • topicKey • date • Page X". Empty content returns 400 with clear message (never a tiny/empty PDF). Frontend shows "Generating PDF…" → "Downloaded" or "No content to export yet" on 400.
+
+Files changed:
+
+- backend/services/pdf/topicSummaryPdf.js (layout engine, helpers, normalizeTopicSummaryExportPayload)
+- backend/controllers/topicSummaryExport.controller.js (400 guards, filename LetsRevise_TopicSummary_*)
+- frontend/src/api/topicSummaryExport.ts (parse 400 JSON from blob for toast message)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (toast UX)
+- frontend/src/components/ai/TopicSummaryStudentModal.tsx (toast UX)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- PDF includes title, subtitle, confidence (teachers only; students omit reason), summary, key points, mode sections, citations with [1] SPEC, [2] LESSON, etc. External citations show shortened domain.
+- If buffer < 5KB after render, logs warning (does not fail).
+- Invalid topicSummaryLogId → 400 "Invalid topicSummaryLogId". Log with no exportable content → 400 "TopicSummaryLog has no exportable content".
+
+PowerShell — generate summary then export:
+
+```powershell
+$jwt = "YOUR_JWT"
+$body = '{"specKey":"aqa-gcse-biology","topicKey":"aqa-gcse-biology:cell-structure","mode":"overview","maxSources":10}'
+$resp = Invoke-RestMethod -Uri "http://localhost:5000/api/topic-summary" -Method POST -Headers @{ Authorization = "Bearer $jwt" } -ContentType "application/json" -Body $body
+$id = $resp.topicSummaryLogId
+if ($id) {
+  Invoke-WebRequest -Uri "http://localhost:5000/api/topic-summary/export" -Method POST -Headers @{ Authorization = "Bearer $jwt" } -ContentType "application/json" -Body ('{"topicSummaryLogId":"' + $id + '"}') -OutFile "topic-summary.pdf"
+  Write-Host "Saved to topic-summary.pdf"
+}
+```
+
+Known limitations:
+- Some topics may produce small PDFs (< 5KB) if content is minimal; these are not rejected.
+
+Follow-ups:
 None

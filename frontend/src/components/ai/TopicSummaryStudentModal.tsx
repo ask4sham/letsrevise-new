@@ -61,6 +61,7 @@ export function TopicSummaryStudentModal({ specKey, topicKey, lessonId, onClose 
   const handleDownloadPdf = async () => {
     if (!result) return;
     setPdfDownloading(true);
+    setCopyToast("Generating PDF…");
     try {
       await postTopicSummaryPdf({
         topicSummaryLogId: result.topicSummaryLogId,
@@ -75,10 +76,10 @@ export function TopicSummaryStudentModal({ specKey, topicKey, lessonId, onClose 
           confidenceReason: result.confidenceReason,
         }),
       });
-      setCopyToast("PDF downloaded");
+      setCopyToast("Downloaded");
       setTimeout(() => setCopyToast(null), 2000);
     } catch (e: any) {
-      setCopyToast(e?.response?.data?.error ?? e?.message ?? "Download failed");
+      setCopyToast(e?.message ?? "Download failed");
       setTimeout(() => setCopyToast(null), 3000);
     } finally {
       setPdfDownloading(false);
