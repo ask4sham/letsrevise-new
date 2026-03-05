@@ -10,8 +10,12 @@ import { postGenerateStarterPack, type StarterPackResponse } from "../../api/gen
 import { getTeacherNotes, type TeacherNoteItem } from "../../api/teacherNotes";
 import {
   postTopicSummary,
+  getTopicSummaryLogs,
+  getTopicSummaryLogById,
   type TopicSummaryMode,
   type TopicSummaryResponse,
+  type TopicSummaryLogItem,
+  type TopicSummaryLogsResponse,
 } from "../../api/topicSummary";
 import { postTopicSummaryPdf } from "../../api/topicSummaryExport";
 import { CitationsList } from "../ai/CitationsList";
@@ -69,6 +73,11 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [pdfIncludeEvidence, setPdfIncludeEvidence] = useState(true);
   const [pdfIncludeNextSteps, setPdfIncludeNextSteps] = useState(true);
   const [pdfIncludeMiniRevision, setPdfIncludeMiniRevision] = useState(false);
+  const [recentLogs, setRecentLogs] = useState<TopicSummaryLogItem[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsPagination, setLogsPagination] = useState<TopicSummaryLogsResponse["pagination"] | null>(null);
+  const [logsLoadingMore, setLogsLoadingMore] = useState(false);
+  const [openLogLoading, setOpenLogLoading] = useState(false);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -102,6 +111,29 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
     if (stored === "true") setSummaryAllowExternal(true);
   }, []);
 
+  useEffect(() => {
+    if (!open || !specKey || !topicKey?.trim()) return;
+    let cancelled = false;
+    setLogsLoading(true);
+    getTopicSummaryLogs({ specKey, topicKey, limit: 10 })
+      .then((res) => {
+        if (!cancelled) {
+          setRecentLogs(res.items);
+          setLogsPagination(res.pagination);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRecentLogs([]);
+          setLogsPagination(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLogsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [open, specKey, topicKey]);
+
   const handleGenerateSummary = async () => {
     setSummaryLoading(true);
     setSummaryError(null);
@@ -115,6 +147,14 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
         allowExternal: summaryAllowExternal,
       });
       setSummaryResult(res);
+      if (res.topicSummaryLogId) {
+        getTopicSummaryLogs({ specKey, topicKey, limit: 10 })
+          .then((logsRes) => {
+            setRecentLogs(logsRes.items);
+            setLogsPagination(logsRes.pagination);
+          })
+          .catch(() => {});
+      }
     } catch (e: any) {
       setSummaryError(e?.response?.data?.error ?? e?.message ?? "Failed to generate summary");
     } finally {
@@ -194,6 +234,70 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
       setTimeout(() => setCopyToast(null), 3000);
     } finally {
       setPdfDownloading(false);
+    }
+  };
+
+  const handleOpenLog = async (logId: string) => {
+    try {
+      const log = await getTopicSummaryLogById(logId);
+      const asResponse: TopicSummaryResponse = {
+        specKey: log.specKey,
+        topicKey: log.topicKey,
+        mode: log.mode,
+        confidenceLevel: (log.confidenceLevel as TopicSummaryResponse["confidenceLevel"]) ?? "moderate",
+        confidenceReason: log.confidenceReason ?? "",
+        usedSources: log.usedSources,
+        externalUsed: log.externalUsed,
+        summary: log.summary,
+        topicSummaryLogId: log.topicSummaryLogId,
+      };
+      setSummaryResult(asResponse);
+    } catch (e: any) {
+      setCopyToast(e?.message ?? "Failed to load summary");
+      setTimeout(() => setCopyToast(null), 3000);
+    } finally {
+      setOpenLogLoading(false);
+    }
+  };
+
+  const handleDownloadPdfFromLog = async (logId: string) => {
+    setPdfDownloading(true);
+    setCopyToast("Generating PDF…");
+    try {
+      await postTopicSummaryPdf({
+        topicSummaryLogId: logId,
+        specKey,
+        topicKey,
+        mode: "overview",
+        includeCitations: true,
+        includeEvidenceAppendix: pdfIncludeEvidence,
+        includeNextSteps: pdfIncludeNextSteps,
+        includeMiniRevisionAppendix: pdfIncludeMiniRevision,
+      });
+      setCopyToast("Downloaded");
+      setTimeout(() => setCopyToast(null), 2000);
+    } catch (e: any) {
+      setCopyToast(e?.message ?? "Download failed");
+      setTimeout(() => setCopyToast(null), 3000);
+    } finally {
+      setPdfDownloading(false);
+    }
+  };
+
+  const handleLoadMoreLogs = async () => {
+    if (!logsPagination?.hasMore || !logsPagination?.oldestReturnedAt) return;
+    setLogsLoadingMore(true);
+    try {
+      const res = await getTopicSummaryLogs({
+        specKey,
+        topicKey,
+        limit: 10,
+        before: logsPagination.oldestReturnedAt,
+      });
+      setRecentLogs((prev) => [...prev, ...res.items]);
+      setLogsPagination(res.pagination);
+    } finally {
+      setLogsLoadingMore(false);
     }
   };
 
@@ -724,7 +828,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                 )}
               </section>
 
-              {/* PR-024: Section — Teaching summary */}
+              {/* PR-024: Section — Teaching summary. PR-027: Recent summaries */}
               <section style={{ marginBottom: 24 }}>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700 }}>
                   Teaching summary
@@ -732,6 +836,122 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                 <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#6b7280" }}>
                   Summarise topic across spec, lessons, and teacher notes. Perplexity-style teaching artifact.
                 </p>
+                {logsLoading ? (
+                  <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 12 }}>Loading recent summaries…</p>
+                ) : recentLogs.length > 0 ? (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Recent summaries</div>
+                    <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                      {recentLogs.map((log) => (
+                        <li
+                          key={log._id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: 8,
+                            padding: "8px 10px",
+                            marginBottom: 6,
+                            background: "#f8fafc",
+                            borderRadius: 8,
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                background: "#e0e7ff",
+                                color: "#4338ca",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {log.mode === "overview" ? "Overview" : log.mode === "lessonPlan" ? "Lesson plan" : log.mode === "revisionSheet" ? "Revision sheet" : "Exam focus"}
+                            </span>
+                            <span style={{ fontSize: 12, color: "#64748b" }}>
+                              {new Date(log.createdAt).toLocaleString()}
+                            </span>
+                            {log.confidenceLevel && (
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                  background: log.confidenceLevel === "strong" ? "#d1fae5" : log.confidenceLevel === "moderate" ? "#fef3c7" : "#fee2e2",
+                                  color: log.confidenceLevel === "strong" ? "#065f46" : log.confidenceLevel === "moderate" ? "#92400e" : "#991b1b",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {log.confidenceLevel === "strong" ? "Strong" : log.confidenceLevel === "moderate" ? "Moderate" : "Weak"}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowSummaryModal(true);
+                                handleOpenLog(log._id);
+                              }}
+                              style={{
+                                padding: "4px 10px",
+                                fontSize: 11,
+                                background: "#8b5cf6",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Open
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPdfFromLog(log._id)}
+                              disabled={pdfDownloading}
+                              style={{
+                                padding: "4px 10px",
+                                fontSize: 11,
+                                background: "#dc2626",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 6,
+                                cursor: pdfDownloading ? "wait" : "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Download PDF
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {logsPagination?.hasMore && (
+                      <button
+                        type="button"
+                        onClick={handleLoadMoreLogs}
+                        disabled={logsLoadingMore}
+                        style={{
+                          marginTop: 8,
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          background: "#f1f5f9",
+                          color: "#475569",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 6,
+                          cursor: logsLoadingMore ? "wait" : "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {logsLoadingMore ? "Loading…" : "Load more"}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -783,7 +1003,9 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <h3 style={{ margin: "0 0 16px 0", fontSize: 18 }}>Teaching summary</h3>
-                    {!summaryResult ? (
+                    {openLogLoading ? (
+                      <p style={{ fontSize: 14, color: "#6b7280" }}>Loading summary…</p>
+                    ) : !summaryResult ? (
                       <>
                         <div style={{ marginBottom: 16 }}>
                           <label style={{ display: "block", marginBottom: 8, fontSize: 13, fontWeight: 600 }}>Mode</label>

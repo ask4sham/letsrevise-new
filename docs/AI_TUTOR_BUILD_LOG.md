@@ -1068,4 +1068,31 @@ Notes:
 - No artificial padding; richer content from real sections and citations.
 
 Follow-ups:
+PR-027 — Saved Topic Summaries (recent list + re-open + export)
+
+---
+
+**PR-027 — Saved Topic Summaries (recent list + re-open + export)**
+
+Date: 2026-03-05
+
+Summary:
+Added GET /api/topic-summary/logs (list) and GET /api/topic-summary/logs/:id (get one) for saved topic summaries. Teachers see own logs; admins see all. Students see own logs only when AI tutor enabled for spec (studentSafe, allowExternal false). CoverageTopicDrawer shows "Recent summaries" with mode badge, date, confidence, Open and Download PDF actions. Load more pagination. TopicSummaryLog now persists confidenceLevel and confidenceReason.
+
+Files changed:
+
+- backend/models/TopicSummaryLog.js (response.confidenceLevel, response.confidenceReason)
+- backend/controllers/topicSummary.controller.js (persist confidence when creating log)
+- backend/controllers/topicSummaryLogs.controller.js (new)
+- backend/routes/topicSummary.routes.js (GET /logs, GET /logs/:id)
+- frontend/src/api/topicSummary.ts (getTopicSummaryLogs, getTopicSummaryLogById, types)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (Recent summaries section)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- List query: specKey, topicKey (required), limit (default 10 max 50), before (ISO for pagination).
+- Open loads full log and displays in existing summary modal without regenerating.
+
+Follow-ups:
 None
