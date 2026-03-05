@@ -723,3 +723,39 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-019 — Threaded tutoring conversations**
+
+Date: 2026-03-05
+
+Summary:
+Turn Ask AI from single-shot Q&A into a tutoring chat. Users can ask follow-ups ("Explain simpler", "Give me another example") in the same thread. Conversation + ConversationMessage models store minimal context (last 3 user+assistant pairs) for LLM coherence. Enquiry API accepts conversationId; cache keys include conversationId. AskAiPanel and AskAiStudentPanel render chat UI with message bubbles; conversationId persisted in sessionStorage for refresh. All existing features preserved: citations, confidence, suggested actions, feedback, caching, rate limits, student gating.
+
+Files changed:
+
+- backend/models/Conversation.js (new)
+- backend/models/ConversationMessage.js (new)
+- backend/models/EnquiryLog.js (conversationId, turnIndex)
+- backend/controllers/conversations.controller.js (new)
+- backend/routes/conversations.routes.js (new)
+- backend/controllers/enquiry.controller.js (conversationId, context load, append messages)
+- backend/services/enquiry/enquiryCache.js (conversationId in cache key)
+- backend/services/llm/provider.js (conversationContext param)
+- backend/app.js (mount /api/conversations)
+- frontend/src/api/conversations.ts (new)
+- frontend/src/api/enquiry.ts (conversationId in PostEnquiryParams)
+- frontend/src/components/ai/AskAiPanel.tsx (chat UI, messages, sessionStorage)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (chat UI, messages, sessionStorage)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Minimal context: last 6 messages (3 pairs) passed to LLM as conversationContext.
+- Cache keys: specKey|topicKey|mode|question|conversationId — no cross-conversation leakage.
+- Fallback: if conversation creation fails, single-turn enquiry still works.
+- Students remain gated by AI_TUTOR_ENABLED_SPECS and rate limits.
+
+Follow-ups:
+None

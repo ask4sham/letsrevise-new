@@ -38,6 +38,15 @@ function buildContext(contextChunks) {
 }
 
 /**
+ * PR-019: Build conversation context string for follow-up interpretation.
+ */
+function buildConversationContext(conversationContext) {
+  if (!conversationContext || conversationContext.length === 0) return "";
+  const lines = conversationContext.map((m) => `${m.role}: ${(m.text || "").slice(0, 400)}`);
+  return "Recent conversation:\n" + lines.join("\n") + "\n\n";
+}
+
+/**
  * Mock provider: deterministic response from context snippets.
  */
 function mockGenerate(question, contextChunks, constraints) {
@@ -132,9 +141,9 @@ Rules:
 - Every citation must reference a knowledgeDocumentId from the context.
 - quote must be a snippet (<=200 chars) from that document's text.
 - If sources don't cover the question, add "Insufficient trusted sources" to warnings.
-- Return valid JSON only.${weakNote}${studentNote}`;
+- Return valid JSON only.${contextNote}${weakNote}${studentNote}`;
 
-  const userPrompt = `Question: ${question}
+  const userPrompt = `${convCtx}Question: ${question}
 
 Context:
 ${context}
@@ -188,7 +197,7 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "know
 
 /**
  * Generate structured enquiry answer.
- * @param {{ question: string, contextChunks: Array, constraints?: { weakEvidence?: boolean, includePractice?: boolean, studentMode?: boolean } }}
+ * @param {{ question: string, contextChunks: Array, constraints?: { weakEvidence?: boolean, includePractice?: boolean, studentMode?: boolean, conversationContext?: Array<{role,text}> } }}
  * @returns {Promise<{ explanation, keyPoints, citations, practice, warnings }>}
  */
 async function generateEnquiryAnswer({ question, contextChunks, constraints = {} }) {

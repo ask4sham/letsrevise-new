@@ -1,0 +1,134 @@
+/**
+ * PR-005: Enquiry (RAG) API client.
+ */
+import api from "../services/api";
+
+export type PostEnquiryParams = {
+  question: string;
+  specKey: string;
+  topicKey?: string;
+  mode?: "lesson" | "revision" | "exam";
+  limit?: number;
+  includePractice?: boolean;
+  /** PR-019: Threaded conversation */
+  conversationId?: string;
+};
+
+export type EnquiryCitation = {
+  knowledgeDocumentId: string;
+  sourceType: "specStatement" | "lessonBlock";
+  sourceId: string;
+  quote: string;
+  reason: string;
+  deepLink?: {
+    type: "lesson";
+    lessonId: string;
+    pageIndex?: number;
+    pageId?: string;
+    blockIndex?: number;
+  };
+};
+
+export type EnquiryPracticeItem = {
+  type: "mcq" | "short" | "exam";
+  question: string;
+  options?: string[];
+  answer: string;
+  markScheme?: string;
+};
+
+export type EnquiryAnswer = {
+  explanation: string;
+  keyPoints: string[];
+  citations: EnquiryCitation[];
+  practice: EnquiryPracticeItem[];
+  warnings: string[];
+};
+
+export type UsedSource = {
+  knowledgeDocumentId: string;
+  sourceType: string;
+  sourceId: string;
+  title: string;
+  topicKey: string;
+  score: number;
+};
+
+export type SuggestedTopic = { topicKey: string; title?: string | null };
+
+/** PR-017: Confidence indicator */
+export type ConfidenceSignals = {
+  topScore: number | null;
+  sources: { spec: number; lesson: number; total: number };
+  warnings: string[];
+};
+
+/** PR-016a: Next-step action from enquiry response */
+export type SuggestedAction = {
+  id: string;
+  label: string;
+  description?: string;
+  href?: string;
+  type: "link" | "intent";
+  payload?: { action?: string };
+};
+
+export type PostEnquiryResponse = {
+  enquiryLogId?: string | null;
+  cached?: boolean;
+  question: string;
+  specKey: string;
+  topicKey: string | null;
+  usedSources: UsedSource[];
+  answer: EnquiryAnswer;
+  suggestedTopics?: SuggestedTopic[];
+  suggestedActions?: SuggestedAction[];
+  /** PR-017 */
+  confidenceLevel?: "strong" | "moderate" | "weak";
+  confidenceReason?: string;
+  confidenceSignals?: ConfidenceSignals;
+};
+
+export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquiryResponse> {
+  const res = await api.post<PostEnquiryResponse>("/enquiry", {
+    question: params.question.trim(),
+    specKey: params.specKey.trim(),
+    topicKey: params.topicKey?.trim() || undefined,
+    mode: params.mode ?? "lesson",
+    limit: params.limit ?? 8,
+    includePractice: params.includePractice ?? true,
+    conversationId: params.conversationId || undefined,
+  });
+  return res.data;
+}
+
+/**
+ * PR-006: Submit feedback for an enquiry (thumbs up/down + optional comment).
+ */
+export async function postEnquiryFeedback(
+  enquiryLogId: string,
+  params: { rating: "up" | "down"; comment?: string }
+): Promise<void> {
+  await api.post(`/enquiry/${enquiryLogId}/feedback`, {
+    rating: params.rating,
+    comment: params.comment?.trim() || undefined,
+  });
+}
+
+/**
+ * PR-016b: Log which suggested action was clicked (optional analytics).
+ */
+export async function postEnquiryAction(enquiryLogId: string, actionId: string): Promise<void> {
+  await api.post(`/enquiry/${enquiryLogId}/action`, { actionId });
+}
+
+/**
+ * Derive specKey from topicKey (e.g. "aqa-gcse-biology:cell-structure" -> "aqa-gcse-biology").
+ */
+export function specKeyFromTopicKey(topicKey: string | null | undefined): string | null {
+  if (!topicKey || typeof topicKey !== "string") return null;
+  const t = topicKey.trim();
+  const idx = t.indexOf(":");
+  if (idx > 0) return t.slice(0, idx);
+  return t || null;
+}
