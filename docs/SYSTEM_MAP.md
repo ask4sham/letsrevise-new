@@ -23,8 +23,11 @@ Teacher-only panel in LessonViewPage: prompt input, /api/enquiry call, answer + 
 **AskAiStudentPanel** (PR-007)
 Student panel when AI_TUTOR_ENABLED_SPECS includes spec: "Ask for help", practice-first, collapsed explanation/citations.
 
-**CoverageDashboardPage** (PR-010, PR-012)
-Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button.
+**CoverageDashboardPage** (PR-010, PR-012, PR-013)
+Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel.
+
+**CoverageTopicPanel** (PR-013)
+Side drawer on /coverage: missing spec statements, contributing lessons, weak questions, quick actions.
 
 ## Backend
 
@@ -103,10 +106,12 @@ NPM maintenance scripts (backend):
 - GET /api/coverage?specKey=...&windowDays=14 — teacher + admin, live computed coverage
 - GET /api/coverage/snapshots?specKey=...&latest=true — teacher + admin, saved snapshots
 - GET /api/coverage/topics?specKey=...&status=THIN — teacher + admin, filtered topicKeys
+- GET /api/coverage/drilldown?specKey=...&topicKey=...&windowDays=14 — teacher/admin, drill-down (PR-013)
 
 ## Frontend Coverage (PR-010)
 
 - frontend/src/api/coverage.ts — getCoverage, getCoverageSnapshots, getCoverageTopics
+- frontend/src/api/coverageDrilldown.ts — getCoverageDrilldown (PR-013)
 - /coverage — CoverageDashboardPage (teacher/admin)
 
 ## Sprint Order API (PR-012)

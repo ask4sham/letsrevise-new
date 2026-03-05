@@ -15,6 +15,7 @@ import {
   type CoverageSnapshotsResponse,
 } from "../api/coverage";
 import { getSprintOrderMarkdown } from "../api/sprintOrder";
+import { CoverageTopicPanel } from "../components/coverage/CoverageTopicPanel";
 import type { SpecKey } from "../api/taxonomy";
 
 const WINDOW_OPTIONS = [7, 14, 30] as const;
@@ -86,6 +87,7 @@ const CoverageDashboardPage: React.FC = () => {
   const [copyHint, setCopyHint] = useState(false);
   const [sprintOrderLoading, setSprintOrderLoading] = useState(false);
   const [sprintOrderToast, setSprintOrderToast] = useState<string | null>(null);
+  const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -476,7 +478,7 @@ const CoverageDashboardPage: React.FC = () => {
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.enquiriesTotal}</td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{r.enquiriesWeakEvidence}</td>
                     <td style={{ padding: "10px 16px", textAlign: "right" }}>{(r.weakRate * 100).toFixed(1)}%</td>
-                    <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                    <td style={{ padding: "10px 16px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
                       <Link
                         to={`/teacher/content-coverage`}
                         style={{ fontSize: 13, color: "#2563eb", marginRight: 8 }}
@@ -486,9 +488,10 @@ const CoverageDashboardPage: React.FC = () => {
                       {(r.topWeakQuestions?.length ?? 0) > 0 && (
                         <button
                           type="button"
-                          onClick={() =>
-                            setExpandedTopic((prev) => (prev === r.topicKey ? null : r.topicKey))
-                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedTopic((prev) => (prev === r.topicKey ? null : r.topicKey));
+                          }}
                           style={{
                             background: "none",
                             border: "none",
@@ -545,6 +548,34 @@ const CoverageDashboardPage: React.FC = () => {
       {!loading && filteredRows.length === 0 && rows.length > 0 && (
         <p style={{ color: "#6b7280" }}>No rows match the current filters.</p>
       )}
+
+      {/* Drill-down panel */}
+      {selectedTopicKey && (() => {
+        const row = rows.find((r) => r.topicKey === selectedTopicKey);
+        return (
+          <>
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.3)",
+                zIndex: 999,
+              }}
+              onClick={() => setSelectedTopicKey(null)}
+              aria-hidden="true"
+            />
+            {row && (
+              <CoverageTopicPanel
+                topicKey={selectedTopicKey}
+                specKey={specKey}
+                windowDays={windowDays}
+                row={row}
+                onClose={() => setSelectedTopicKey(null)}
+              />
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };

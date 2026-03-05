@@ -443,3 +443,32 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-013 — Coverage drill-down panel**
+
+Date: 2026-03-05
+
+Summary:
+Added drill-down panel when clicking a topic row on /coverage. Shows missing spec statements, lessons contributing knowledge docs, weak student questions, and quick actions (create lesson, question bank, flashcard bank). Backend endpoint GET /api/coverage/drilldown.
+
+Files changed:
+
+- backend/controllers/coverageDrilldown.controller.js (new)
+- backend/routes/coverageDrilldown.routes.js (new)
+- backend/routes/coverage.routes.js
+- frontend/src/api/coverageDrilldown.ts (new)
+- frontend/src/components/coverage/CoverageTopicPanel.tsx (new)
+- frontend/src/pages/CoverageDashboardPage.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Teacher/admin only.
+- Missing spec = SpecStatements without matching KnowledgeDocument (metadata.statementCode).
+- Lessons = KD with sourceType=lessonBlock grouped by lessonId.
+- Weak questions = EnquiryLog with "Insufficient trusted sources" in response.warnings.
+
+Follow-ups:
+None
