@@ -6,7 +6,12 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getCoverageDrilldown, type CoverageDrilldownResponse } from "../../api/coverageDrilldown";
 import { getSprintOrderMarkdown } from "../../api/sprintOrder";
-import { postGenerateStarterPack, type StarterPackResponse } from "../../api/generation";
+import {
+  postGenerateStarterPack,
+  postGenerateWeakEvidenceFix,
+  type StarterPackResponse,
+  type WeakEvidenceFixResponse,
+} from "../../api/generation";
 import { getTeacherNotes, type TeacherNoteItem } from "../../api/teacherNotes";
 import {
   postTopicSummary,
@@ -82,6 +87,14 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [showToLessonConfirm, setShowToLessonConfirm] = useState(false);
   const [toLessonLoading, setToLessonLoading] = useState(false);
   const [toLessonResult, setToLessonResult] = useState<{ lessonId: string; lessonUrlEdit: string; lessonUrlView: string } | null>(null);
+  const [weakFixLoading, setWeakFixLoading] = useState(false);
+  const [weakFixResult, setWeakFixResult] = useState<WeakEvidenceFixResponse | null>(null);
+  const [weakFixError, setWeakFixError] = useState<string | null>(null);
+  const [showWeakFixModal, setShowWeakFixModal] = useState(false);
+  const [weakFixStatementCodes, setWeakFixStatementCodes] = useState<Set<string>>(new Set());
+  const [weakFixQuestionIndices, setWeakFixQuestionIndices] = useState<Set<number>>(new Set());
+  const [weakFixAllowExternal, setWeakFixAllowExternal] = useState(false);
+  const [weakFixWindowDays, setWeakFixWindowDays] = useState(14);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -382,6 +395,38 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
       setGenError(e?.response?.data?.message ?? e?.message ?? "Generation failed");
     } finally {
       setGenLoading(false);
+    }
+  };
+
+  const handleGenerateWeakEvidenceFix = async () => {
+    setShowWeakFixModal(false);
+    setWeakFixLoading(true);
+    setWeakFixError(null);
+    setWeakFixResult(null);
+    try {
+      const statementCodes = weakFixStatementCodes.size > 0
+        ? Array.from(weakFixStatementCodes).slice(0, 5)
+        : undefined;
+      const weakQuestions = weakFixQuestionIndices.size > 0 && data?.weakQuestions
+        ? Array.from(weakFixQuestionIndices)
+          .sort((a, b) => a - b)
+          .slice(0, 5)
+          .map((i) => data!.weakQuestions[i]?.question)
+          .filter(Boolean)
+        : undefined;
+      const res = await postGenerateWeakEvidenceFix({
+        specKey,
+        topicKey,
+        statementCodes,
+        weakQuestions,
+        allowExternal: weakFixAllowExternal,
+        windowDays: weakFixWindowDays,
+      });
+      setWeakFixResult(res);
+    } catch (e: any) {
+      setWeakFixError(e?.response?.data?.message ?? e?.message ?? "Generation failed");
+    } finally {
+      setWeakFixLoading(false);
     }
   };
 
@@ -1445,7 +1490,214 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     ))}
                   </ul>
                 )}
+                {(data.specStatements.missing.length > 0 || data.weakQuestions.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWeakFixModal(true)}
+                    disabled={weakFixLoading}
+                    style={{
+                      marginTop: 12,
+                      padding: "8px 16px",
+                      background: "#8b5cf6",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: weakFixLoading ? "wait" : "pointer",
+                    }}
+                  >
+                    {weakFixLoading ? "Generating…" : "Fix weak evidence (draft pack)"}
+                  </button>
+                )}
               </section>
+
+              {/* PR-031: Fix weak evidence modal */}
+              {showWeakFixModal && (
+                <div
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.4)",
+                    zIndex: 1150,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 16,
+                  }}
+                  onClick={() => setShowWeakFixModal(false)}
+                >
+                  <div
+                    style={{
+                      background: "white",
+                      borderRadius: 12,
+                      padding: 24,
+                      maxWidth: 480,
+                      maxHeight: "85vh",
+                      overflow: "auto",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Fix weak evidence (draft pack)</h3>
+                    <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#4b5563" }}>
+                      Creates drafts only. Publishing requires passing the checklist. Select up to 5 missing statements and 5 weak questions to target.
+                    </p>
+                    <div style={{ marginBottom: 16, fontSize: 12, color: "#6b7280" }}>
+                      Missing statements: {data?.specStatements?.missing?.length ?? 0} • Weak enquiries: {data?.weakQuestions?.length ?? 0}
+                    </div>
+                    {data?.specStatements?.missing && data.specStatements.missing.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 600 }}>Missing statements (max 5)</h4>
+                        <div style={{ maxHeight: 120, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8 }}>
+                          {data.specStatements.missing.slice(0, 10).map((m) => (
+                            <label key={m.statementCode} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, fontSize: 12, cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={weakFixStatementCodes.has(m.statementCode)}
+                                onChange={() => {
+                                  const next = new Set(weakFixStatementCodes);
+                                  if (next.has(m.statementCode)) next.delete(m.statementCode);
+                                  else if (next.size < 5) next.add(m.statementCode);
+                                  setWeakFixStatementCodes(next);
+                                }}
+                              />
+                              <span>{m.statementCode}: {(m.statementText || "").slice(0, 60)}…</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {data?.weakQuestions && data.weakQuestions.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 600 }}>Weak questions (max 5)</h4>
+                        <div style={{ maxHeight: 120, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8 }}>
+                          {data.weakQuestions.slice(0, 10).map((q, i) => (
+                            <label key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, fontSize: 12, cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={weakFixQuestionIndices.has(i)}
+                                onChange={() => {
+                                  const next = new Set(weakFixQuestionIndices);
+                                  if (next.has(i)) next.delete(i);
+                                  else if (next.size < 5) next.add(i);
+                                  setWeakFixQuestionIndices(next);
+                                }}
+                              />
+                              <span>&quot;{(q.question || "").slice(0, 50)}…&quot; ({q.enquiries})</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={weakFixAllowExternal}
+                          onChange={(e) => setWeakFixAllowExternal(e.target.checked)}
+                        />
+                        Allow external trusted sources (teacher/admin only)
+                      </label>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600 }}>Window (days)</label>
+                      <select
+                        value={weakFixWindowDays}
+                        onChange={(e) => setWeakFixWindowDays(Number(e.target.value))}
+                        style={{ marginLeft: 8, padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                      >
+                        <option value={7}>7</option>
+                        <option value={14}>14</option>
+                        <option value={30}>30</option>
+                      </select>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowWeakFixModal(false)}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#e5e7eb",
+                          color: "#374151",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateWeakEvidenceFix}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#8b5cf6",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Create drafts
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PR-031: Weak evidence fix success panel */}
+              {weakFixResult && (
+                <section style={{ marginBottom: 24, padding: 16, background: "#ede9fe", borderRadius: 12, border: "1px solid #8b5cf6" }}>
+                  <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700, color: "#5b21b6" }}>
+                    Weak evidence fix pack created
+                  </h3>
+                  <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6d28d9" }}>
+                    Job ID: {weakFixResult.jobId}
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <Link
+                      to={`/edit-lesson/${weakFixResult.lessonId}`}
+                      style={{ fontSize: 13, color: "#7c3aed", fontWeight: 600 }}
+                    >
+                      Edit draft lesson →
+                    </Link>
+                    <Link
+                      to={weakFixResult.links.flashcardsBank}
+                      style={{ fontSize: 13, color: "#7c3aed", fontWeight: 600 }}
+                    >
+                      Review draft flashcards ({weakFixResult.flashcards.length})
+                    </Link>
+                    <Link
+                      to={weakFixResult.links.quizBank}
+                      style={{ fontSize: 13, color: "#7c3aed", fontWeight: 600 }}
+                    >
+                      Review draft quiz ({weakFixResult.quiz.length})
+                    </Link>
+                    <Link
+                      to={weakFixResult.links.examBank}
+                      style={{ fontSize: 13, color: "#7c3aed", fontWeight: 600 }}
+                    >
+                      Review draft exam questions ({weakFixResult.exam.length})
+                    </Link>
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <ReviewPublishChecklist
+                      jobId={weakFixResult.jobId}
+                      topicKey={topicKey}
+                      specKey={specKey as string}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {weakFixError && (
+                <section style={{ marginBottom: 24, padding: 12, background: "#fee2e2", borderRadius: 8 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "#b91c1c" }}>{weakFixError}</p>
+                </section>
+              )}
 
               {/* Section 4 — Sprint */}
               <section>

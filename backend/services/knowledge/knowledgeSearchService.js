@@ -9,10 +9,10 @@ const { searchEmbeddings } = require("../vector/pgvectorClient");
 
 /**
  * Semantic search over KnowledgeDocuments.
- * @param {{ query: string, specKey: string, topicKey?: string, sourceType?: string, limit?: number, topK?: number }}
+ * @param {{ query: string, specKey: string, topicKey?: string, sourceType?: string, sourceTypes?: string[], limit?: number, topK?: number }}
  * @returns {Promise<Array<{ knowledgeDocumentId, sourceType, sourceId, title, text, topicKey, score, metadata }>>}
  */
-async function searchKnowledge({ query, specKey, topicKey, sourceType, limit = 10, topK = 50 }) {
+async function searchKnowledge({ query, specKey, topicKey, sourceType, sourceTypes, limit = 10, topK = 50 }) {
   const queryText = (query || "").trim();
   if (!queryText) return [];
   const spec = (specKey || "").trim();
@@ -39,7 +39,13 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, limit = 1
     specKey: { $in: specVariants },
   };
   if (topicKey && String(topicKey).trim()) mongoQuery.topicKey = String(topicKey).trim();
-  if (sourceType && ["specStatement", "lessonBlock", "lessonDiagram", "externalTrusted", "teacherNote"].includes(String(sourceType))) mongoQuery.sourceType = sourceType;
+  const validTypes = ["specStatement", "lessonBlock", "lessonDiagram", "externalTrusted", "teacherNote"];
+  if (Array.isArray(sourceTypes) && sourceTypes.length > 0) {
+    const filtered = sourceTypes.filter((t) => validTypes.includes(String(t)));
+    if (filtered.length > 0) mongoQuery.sourceType = { $in: filtered };
+  } else if (sourceType && validTypes.includes(String(sourceType))) {
+    mongoQuery.sourceType = sourceType;
+  }
 
   const docs = await KnowledgeDocument.find(mongoQuery).lean();
   const scoreMap = new Map(vectorResults.map((r) => [r.knowledgeDocumentId, r.score]));

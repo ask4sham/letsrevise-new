@@ -1182,4 +1182,35 @@ Notes:
 - Embed: lessonDiagram included in default sourceTypes
 
 Follow-ups:
+PR-031 — Weak Evidence Fix Mode
+
+---
+
+**PR-031 — Weak Evidence Fix Mode (coverage drill-down → generate gap-fix drafts)**
+
+Date: 2026-03-05
+
+Summary:
+From Coverage drill-down for a topicKey, teachers/admins can generate draft content to fix missing spec statements coverage and weak enquiries (Insufficient trusted sources). Creates ONLY drafts; reuses Publish Gate (no auto-publish). "Fix weak evidence (draft pack)" button in Weak enquiries section opens modal with statement/question selection (max 5 each), allowExternal toggle, windowDays (7/14/30). Output: 1 draft lesson page, 4 flashcards, 5 quiz questions (MCQ/short), 2 exam questions. ContentGenerationJob mode extended with "weakEvidenceFix"; inputs: missingStatementCodes, weakQuestions, allowExternal, windowDays. Rate limit: 2/min teacher, 6/min admin for weak-evidence-fix.
+
+Files changed:
+
+- backend/models/ContentGenerationJob.js (mode weakEvidenceFix, inputs extended, index mode+createdAt)
+- backend/services/generation/weakEvidenceFixService.js (new)
+- backend/services/knowledge/knowledgeSearchService.js (sourceTypes array support)
+- backend/services/llm/provider.js (generateWeakEvidenceFixPack mock + openai)
+- backend/controllers/contentGeneration.controller.js (postWeakEvidenceFix)
+- backend/routes/contentGeneration.routes.js (POST /weak-evidence-fix)
+- backend/middleware/contentGenerationRateLimit.js (route-aware: 2/6 for weak-evidence-fix)
+- frontend/src/api/generation.ts (postGenerateWeakEvidenceFix)
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (Fix weak evidence button, modal, success panel, ReviewPublishChecklist)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Retrieval: specStatement, lessonBlock, teacherNote, lessonDiagram; externalTrusted only when allowExternal.
+- ReviewPublishChecklist works unchanged (metadata.generatedFrom.jobId pattern).
+- Knowledge refresh enqueued after publish (PR-015).
+
+Follow-ups:
 None

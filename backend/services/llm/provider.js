@@ -472,6 +472,180 @@ async function generateStarterPack({ specKey, topicKey, statementCodes, statemen
 }
 
 /**
+ * PR-031: Generate weak evidence fix pack — targeted content to fix missing spec + weak enquiries.
+ * Output: 1 lesson page, 4 flashcards, 5 quiz, 2 exam questions.
+ */
+function mockGenerateWeakEvidenceFixPack({ specKey, topicKey, statementCodes, statements, weakQuestions, contextChunks }) {
+  const stmtTexts = (statements || []).map((s) => `${s.statementCode || ""}: ${(s.statementText || "").slice(0, 80)}`).join("; ");
+  const weakHint = (weakQuestions || [])[0] ? ` Address: ${weakQuestions[0].slice(0, 60)}...` : "";
+  return {
+    lesson: {
+      title: `Draft — Gap fix: ${topicKey.split(":").pop() || topicKey}`,
+      subtitle: statementCodes?.length ? `Covers: ${statementCodes.join(", ")}` : "",
+      learningObjectives: (statements || []).slice(0, 3).map((s) => (s.statementText || "").slice(0, 100)),
+      pages: [
+        {
+          title: "Gap-fill content",
+          blocks: [
+            { type: "text", content: `This content addresses missing spec coverage and weak enquiry areas.${weakHint} Key concepts: ${stmtTexts || "see spec statements"}.` },
+            { type: "bulletList", items: ["Key point 1", "Key point 2", "Key point 3"] },
+          ],
+        },
+      ],
+    },
+    flashcards: [
+      { front: "Define key term 1", back: "Definition from spec", tags: [] },
+      { front: "Define key term 2", back: "Definition from spec", tags: [] },
+      { front: "Key concept?", back: "Explanation", tags: [] },
+      { front: "Common misconception?", back: "Clarification", tags: [] },
+    ],
+    quiz: [
+      { kind: "mcq", question: "Which best describes the topic?", options: ["Option A", "Option B", "Option C", "Option D"], correctIndex: 0, explanation: "Based on spec." },
+      { kind: "mcq", question: "Another checkpoint?", options: ["A", "B", "C", "D"], correctIndex: 1, explanation: "" },
+      { kind: "short", question: "Summarise the key point.", acceptableAnswers: ["See explanation"], explanation: "" },
+      { kind: "mcq", question: "Third question?", options: ["1", "2", "3", "4"], correctIndex: 0, explanation: "" },
+      { kind: "short", question: "What is the main concept?", acceptableAnswers: ["Key concept"], explanation: "" },
+    ],
+    examQuestions: [
+      { question: "Explain the key concept. [4 marks]", markScheme: "1 mark per valid point.", marks: 4 },
+      { question: "Describe the process. [3 marks]", markScheme: "Credit correct sequence.", marks: 3 },
+    ],
+  };
+}
+
+async function openaiGenerateWeakEvidenceFixPack({ specKey, topicKey, statementCodes, statements, weakQuestions, contextChunks }) {
+  const axios = require("axios");
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || !String(apiKey).trim()) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY required when LLM_PROVIDER=openai");
+  }
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
+  const statementsText = (statements || []).map((s) => `[${s.statementCode || "?"}] ${s.statementText || ""}`).join("\n");
+  const weakText = (weakQuestions || []).map((q, i) => `${i + 1}. ${q}`).join("\n");
+  const context = buildContext(contextChunks || []);
+
+  const systemPrompt = `You are a curriculum author for UK GCSE/A-Level. Generate a WEAK EVIDENCE FIX PACK — draft content to address missing spec coverage and weak enquiry questions. Use ONLY the provided spec statements, weak questions, and context. No external sources.
+
+Rules:
+- Derive ALL content from the provided statements, weak questions, and context chunks.
+- Output exactly: 1 lesson page (2-4 blocks), 4 flashcards, 5 quiz questions (MCQ or short), 2 exam questions.
+- Keep language GCSE/A-Level appropriate.
+- Return valid JSON only.
+- Blocks: use "text", "bulletList", or "checkpoint".
+- Quiz: kind "mcq" (options, correctIndex) or "short" (acceptableAnswers array).
+- Exam: question, markScheme, marks (1-6).`;
+
+  const userPrompt = `Spec: ${specKey}
+Topic: ${topicKey}
+Statement codes: ${(statementCodes || []).join(", ")}
+
+Spec statements:
+${statementsText || "(none)"}
+
+Weak enquiry questions (students asked these but had insufficient sources):
+${weakText || "(none)"}
+
+Context:
+${context || "(minimal)"}
+
+Return JSON:
+{
+  "lesson": {
+    "title": "...",
+    "subtitle": "...",
+    "learningObjectives": ["..."],
+    "pages": [{ "title": "...", "blocks": [{ "type": "text", "content": "..." }, { "type": "bulletList", "items": ["..."] }] }]
+  },
+  "flashcards": [{ "front": "...", "back": "...", "tags": [] }],
+  "quiz": [
+    { "kind": "mcq", "question": "...", "options": ["..."], "correctIndex": 0, "explanation": "..." },
+    { "kind": "short", "question": "...", "acceptableAnswers": ["..."], "explanation": "..." }
+  ],
+  "examQuestions": [{ "question": "...", "markScheme": "...", "marks": 4 }]
+}`;
+
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.4,
+      max_tokens: 4000,
+    },
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error("Invalid JSON from LLM: " + e.message);
+  }
+
+  const lesson = parsed.lesson || {};
+  const pages = Array.isArray(lesson.pages) ? lesson.pages : [];
+  const flashcards = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
+  const quiz = Array.isArray(parsed.quiz) ? parsed.quiz : [];
+  const examQuestions = Array.isArray(parsed.examQuestions) ? parsed.examQuestions : [];
+
+  return {
+    lesson: {
+      title: String(lesson.title || "").trim() || `Draft — Gap fix: ${topicKey.split(":").pop() || topicKey}`,
+      subtitle: String(lesson.subtitle || "").trim(),
+      learningObjectives: Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.map(String) : [],
+      pages: pages.map((p) => ({
+        title: String(p.title || "").trim() || "Page",
+        blocks: Array.isArray(p.blocks) ? p.blocks : [],
+      })),
+    },
+    flashcards: flashcards.slice(0, 4).map((f) => ({
+      front: String(f.front || "").slice(0, 500),
+      back: String(f.back || "").slice(0, 2000),
+      tags: Array.isArray(f.tags) ? f.tags.map(String) : [],
+    })),
+    quiz: quiz.slice(0, 5).map((q) => {
+      const kind = (q.kind || "mcq").toLowerCase();
+      if (kind === "short") {
+        return {
+          kind: "short",
+          question: String(q.question || "").slice(0, 1000),
+          acceptableAnswers: Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers.map(String).slice(0, 10) : [],
+          explanation: String(q.explanation || "").slice(0, 500),
+        };
+      }
+      return {
+        kind: "mcq",
+        question: String(q.question || "").slice(0, 1000),
+        options: Array.isArray(q.options) ? q.options.map(String).slice(0, 6) : [],
+        correctIndex: Math.max(0, Math.min(Number(q.correctIndex) || 0, 5)),
+        explanation: String(q.explanation || "").slice(0, 500),
+      };
+    }),
+    examQuestions: examQuestions.slice(0, 2).map((eq) => ({
+      question: String(eq.question || "").slice(0, 2000),
+      markScheme: String(eq.markScheme || "").slice(0, 1000),
+      marks: Math.max(1, Math.min(Number(eq.marks) || 4, 10)),
+    })),
+  };
+}
+
+async function generateWeakEvidenceFixPack({ specKey, topicKey, statementCodes, statements, weakQuestions, contextChunks }) {
+  const provider = getProvider();
+  if (provider === "openai") {
+    return openaiGenerateWeakEvidenceFixPack({ specKey, topicKey, statementCodes, statements, weakQuestions, contextChunks });
+  }
+  return Promise.resolve(mockGenerateWeakEvidenceFixPack({ specKey, topicKey, statementCodes, statements, weakQuestions, contextChunks }));
+}
+
+/**
  * PR-024: Topic summary generation — mode-specific structured output.
  * PR-024.1: studentSafe = shorter, simpler, GCSE student language.
  */
@@ -681,4 +855,4 @@ async function generateTopicSummary({ mode, specKey, topicKey, contextChunks, co
   return mockGenerateTopicSummary({ mode: modeNorm, specKey, topicKey, contextChunks, constraints });
 }
 
-module.exports = { generateEnquiryAnswer, generateStarterPack, generateTopicSummary, getProvider, buildContext };
+module.exports = { generateEnquiryAnswer, generateStarterPack, generateTopicSummary, generateWeakEvidenceFixPack, getProvider, buildContext };

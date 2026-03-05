@@ -13,7 +13,7 @@ const ContentGenerationJobSchema = new mongoose.Schema(
     tier: { type: String, trim: true, default: null },
     mode: {
       type: String,
-      enum: ["starterPack"],
+      enum: ["starterPack", "weakEvidenceFix"],
       default: "starterPack",
     },
     status: {
@@ -26,6 +26,10 @@ const ContentGenerationJobSchema = new mongoose.Schema(
     inputs: {
       statements: { type: [mongoose.Schema.Types.Mixed], default: [] },
       retrievedDocs: { type: [mongoose.Schema.Types.Mixed], default: [] },
+      missingStatementCodes: { type: [String], default: [] },
+      weakQuestions: { type: [String], default: [] },
+      allowExternal: { type: Boolean, default: false },
+      windowDays: { type: Number, default: 14 },
     },
     outputs: {
       lessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson", default: null },
@@ -42,5 +46,6 @@ const ContentGenerationJobSchema = new mongoose.Schema(
 );
 
 ContentGenerationJobSchema.index({ specKey: 1, topicKey: 1, createdAt: -1 });
+ContentGenerationJobSchema.index({ mode: 1, createdAt: -1 });
 
 module.exports = mongoose.model("ContentGenerationJob", ContentGenerationJobSchema);

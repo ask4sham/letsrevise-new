@@ -29,8 +29,8 @@ Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden,
 **CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
 
-**CoverageTopicDrawer** (PR-013, PR-014, PR-023, PR-024, PR-027, PR-028, PR-029)
-Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic (PR-023). Teaching summary section: "Summarise topic" opens modal with mode (Overview/Lesson plan/Revision sheet/Exam focus), max sources, allowExternal; generates structured summary with citations, confidence, copy buttons (PR-024). PR-027: "Recent summaries" list with Open, Download PDF, Load more. PR-028: header badges enq/sum counts. PR-029: "Create draft lesson" button in summary modal (when topicSummaryLogId exists), confirm modal, success links Edit/View lesson.
+**CoverageTopicDrawer** (PR-013, PR-014, PR-023, PR-024, PR-027, PR-028, PR-029, PR-031)
+Side drawer on /coverage: View button opens drawer with spec coverage, lessons, weak questions, sprint download. Ask AI copies question to clipboard. "Generate starter pack (draft)" creates draft lesson + flashcards + quiz + exam questions (PR-014). Teacher notes (curated) section lists promoted teacherNotes for topic (PR-023). Teaching summary section: "Summarise topic" opens modal with mode (Overview/Lesson plan/Revision sheet/Exam focus), max sources, allowExternal; generates structured summary with citations, confidence, copy buttons (PR-024). PR-027: "Recent summaries" list with Open, Download PDF, Load more. PR-028: header badges enq/sum counts. PR-029: "Create draft lesson" button in summary modal (when topicSummaryLogId exists), confirm modal, success links Edit/View lesson. PR-031: "Fix weak evidence (draft pack)" in Weak enquiries section — modal with statement/question selection, allowExternal, windowDays; creates 1 lesson + 4 flashcards + 5 quiz + 2 exam drafts; ReviewPublishChecklist.
 
 ## Backend
 
@@ -153,13 +153,15 @@ NPM maintenance scripts (backend):
 - POST /api/sprint-order/snapshots/ensure — admin only, X-Confirm required
 - frontend/src/api/sprintOrder.ts — getSprintOrderMarkdown (fetch + trigger download)
 
-## Content Generation API (PR-014)
+## Content Generation API (PR-014, PR-031)
 
 - POST /api/generate/starter-pack { specKey, topicKey, statementCodes?, tier? } — teacher/admin, rate limited (3/min teacher, 10/min admin)
+- POST /api/generate/weak-evidence-fix { specKey, topicKey, allowExternal?, windowDays?, statementCodes?, weakQuestions? } — teacher/admin, rate limited (2/min teacher, 6/min admin). PR-031: creates draft pack to fix missing spec + weak enquiries.
 - GET /api/generate/jobs?specKey=...&topicKey=...&limit=20 — teacher/admin, audit recent jobs
-- ContentGenerationJob model — tracks generation requests and outputs; publishedAt, publishedBy (PR-014.1)
+- ContentGenerationJob model — tracks generation requests and outputs; mode: starterPack | weakEvidenceFix (PR-031); publishedAt, publishedBy (PR-014.1)
 - backend/services/generation/starterPackService.js — retrieval + LLM call
-- frontend/src/api/generation.ts — postGenerateStarterPack, getGenerationJobs
+- backend/services/generation/weakEvidenceFixService.js — PR-031: missing statements + weak questions → retrieval → LLM
+- frontend/src/api/generation.ts — postGenerateStarterPack, postGenerateWeakEvidenceFix, getGenerationJobs
 
 ## Publish Gate API (PR-014.1 / PR-014.1a / PR-014.1b)
 

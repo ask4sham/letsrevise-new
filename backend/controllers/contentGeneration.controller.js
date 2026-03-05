@@ -9,6 +9,7 @@ const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
 const ContentGenerationJob = require("../models/ContentGenerationJob");
 const { runStarterPackGeneration } = require("../services/generation/starterPackService");
+const { runWeakEvidenceFixGeneration } = require("../services/generation/weakEvidenceFixService");
 const { fingerprint: flashcardFingerprint } = require("../utils/flashcardDedupe");
 const { fingerprintItem: quizFingerprintItem } = require("../utils/quizDedupe");
 const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
@@ -333,5 +334,6 @@ async function getJobs(req, res) {
 
 module.exports = {
   postStarterPack,
+  postWeakEvidenceFix,
   getJobs,
 };
