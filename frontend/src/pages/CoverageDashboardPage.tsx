@@ -2,9 +2,10 @@
  * PR-010: AI Coverage Dashboard — teacher/admin only.
  * Shows coverage status per topicKey, weak-evidence hotspots, top failing questions.
  * Route: /coverage
+ * PR-016a: ?focusTopicKey=... opens drawer automatically.
  */
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
@@ -88,6 +89,7 @@ const CoverageDashboardPage: React.FC = () => {
   const [sprintOrderLoading, setSprintOrderLoading] = useState(false);
   const [sprintOrderToast, setSprintOrderToast] = useState<string | null>(null);
   const [selectedTopicKey, setSelectedTopicKey] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -134,6 +136,25 @@ const CoverageDashboardPage: React.FC = () => {
     if (useSnapshot) loadSnapshot();
     else loadLive();
   }, [specKey, useSnapshot, windowDays]);
+
+  // PR-016a: Apply specKey + focusTopicKey from URL (e.g. from "Fix coverage" suggested action)
+  const urlSpecKey = searchParams.get("specKey");
+  const focusTopicKey = searchParams.get("focusTopicKey");
+  useEffect(() => {
+    if (urlSpecKey && (urlSpecKey === "aqa-gcse-biology" || urlSpecKey === "aqa-gcse-chemistry")) {
+      setSpecKey(urlSpecKey);
+      setStoredSpecKey(urlSpecKey);
+    }
+    if (focusTopicKey && focusTopicKey.trim()) {
+      setSelectedTopicKey(focusTopicKey.trim());
+    }
+    if (focusTopicKey || urlSpecKey) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("focusTopicKey");
+      if (urlSpecKey) next.delete("specKey");
+      setSearchParams(next, { replace: true });
+    }
+  }, [focusTopicKey, urlSpecKey]);
 
   const filteredRows = useMemo(() => {
     let out = rows;

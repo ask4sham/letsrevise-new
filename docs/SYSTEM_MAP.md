@@ -138,6 +138,9 @@ NPM maintenance scripts (backend):
 - Hard gates: TopicFlashcard, TopicQuizQuestion, Lesson, ExamQuestion publish routes check gate for generated content; non-generated content unchanged
 - frontend/src/components/generation/ReviewPublishChecklist.tsx — Run check, "Publish all" when blocks === 0, success links (View lesson as student, Back to coverage)
 - EditLessonPage: intercept publish for lessons with metadata.generatedFrom.jobId; show gate modal if blocked
+- Response now includes suggestedActions (PR-016a): practice, lesson, flashcards, quiz, coverage (teacher/admin when weak)
+- AskAiPanel / AskAiStudentPanel: "Next steps" section renders actions
+- CoverageDashboardPage: ?focusTopicKey=... auto-opens topic drawer
 
 ## Background Jobs (PR-015)
 

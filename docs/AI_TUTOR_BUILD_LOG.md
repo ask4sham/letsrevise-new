@@ -642,3 +642,32 @@ Notes:
 
 Follow-ups:
 None
+
+---
+
+**PR-016a — Suggested learning actions (Next steps)**
+
+Date: 2026-03-05
+
+Summary:
+After every /api/enquiry response, return suggestedActions: practice (scroll), view lesson, flashcards, quiz, coverage (teacher/admin when weak evidence). Deterministic, no extra LLM calls. Students see only student-safe actions. "Next steps" section added to AskAiPanel and AskAiStudentPanel.
+
+Files changed:
+
+- backend/services/enquiry/suggestedActions.js (new)
+- backend/controllers/enquiry.controller.js (buildSuggestedActions, add to response)
+- frontend/src/api/enquiry.ts (SuggestedAction type)
+- frontend/src/components/ai/AskAiPanel.tsx (Next steps section)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (Next steps section)
+- frontend/src/pages/CoverageDashboardPage.tsx (?focusTopicKey opens drawer)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- suggestedActions: max 5, priority practice/lesson/flashcards/quiz/coverage
+- Teachers: /teacher/topic-banks/flashcards, /teacher/topic-banks/quizzes, /coverage?focusTopicKey=
+- Students: /lessons/:id/flashcards, /lesson/:id#check-understanding
+- No conversation persistence
+
+Follow-ups:
+PR-017 (confidence indicators), PR-018 (citation UI)

@@ -1,8 +1,9 @@
 /**
  * PR-005: Teacher-only "Ask AI about this topic" panel.
  * PR-006: Citation deep links, feedback (thumbs up/down).
+ * PR-016a: Suggested learning actions (Next steps).
  */
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   postEnquiry,
@@ -29,6 +30,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
   const [feedbackComment, setFeedbackComment] = useState("");
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const practiceSectionRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,7 +296,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
           )}
 
           {response.answer.practice && response.answer.practice.length > 0 && (
-            <div>
+            <div ref={practiceSectionRef}>
               <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
                 Practice
               </div>
@@ -366,6 +368,64 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* PR-016a: Next steps */}
+          {response.suggestedActions && response.suggestedActions.length > 0 && (
+            <div style={{ marginTop: 16, marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
+                Next steps
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {response.suggestedActions.map((action) => {
+                  if (action.type === "intent" && action.payload?.action === "practice") {
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        onClick={() => practiceSectionRef.current?.scrollIntoView({ behavior: "smooth" })}
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          background: "#e0f2fe",
+                          color: "#0369a1",
+                          border: "1px solid #7dd3fc",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    );
+                  }
+                  if (action.href) {
+                    return (
+                      <Link
+                        key={action.id}
+                        to={action.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          background: "#e0f2fe",
+                          color: "#0369a1",
+                          border: "1px solid #7dd3fc",
+                          borderRadius: 8,
+                          textDecoration: "none",
+                          display: "inline-block",
+                        }}
+                      >
+                        {action.label}
+                      </Link>
+                    );
+                  }
+                  return null;
+                })}
               </div>
             </div>
           )}
