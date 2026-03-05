@@ -698,3 +698,28 @@ Notes:
 
 Follow-ups:
 PR-018 (citation UI)
+
+---
+
+**PR-018 — Citation UI improvements**
+
+Date: 2026-03-05
+
+Summary:
+Numbered citations [1],[2],[3] with SPEC/LESSON/EXTERNAL badges, source quality line ("Sources used: Spec ✓ (2), Lesson ✓ (1)"), deep links preserved. Shared CitationsList component. Teacher: quotes expanded by default; Student: collapsed by default with "Show evidence" button.
+
+Files changed:
+
+- frontend/src/components/ai/citationLinks.ts (new — buildCitationLink)
+- frontend/src/components/ai/CitationsList.tsx (new)
+- frontend/src/components/ai/AskAiPanel.tsx (use CitationsList)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (use CitationsList)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- No backend changes. Citation verification unchanged.
+- Student mode: lesson links only when in same lesson context.
+
+Follow-ups:
+None

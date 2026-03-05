@@ -9,9 +9,8 @@ import {
   postEnquiry,
   postEnquiryFeedback,
   type PostEnquiryResponse,
-  type UsedSource,
-  type EnquiryCitation,
 } from "../../api/enquiry";
+import { CitationsList } from "./CitationsList";
 
 type Props = {
   topicKey: string;
@@ -62,22 +61,6 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
 
   const togglePracticeAnswer = (idx: number) => {
     setShowAnswer((prev) => ({ ...prev, [idx]: !prev[idx] }));
-  };
-
-  const sourceMap = new Map<string, UsedSource>();
-  response?.usedSources?.forEach((s) => sourceMap.set(s.knowledgeDocumentId, s));
-
-  const buildCitationLink = (c: EnquiryCitation): string | null => {
-    if (c.deepLink && c.deepLink.type === "lesson" && c.deepLink.lessonId) {
-      const { lessonId, pageIndex, blockIndex } = c.deepLink;
-      let url = `/lesson/${lessonId}`;
-      const page = pageIndex ?? 0;
-      url += `?page=${page}`;
-      if (blockIndex != null) url += `#block-${blockIndex}`;
-      return url;
-    }
-    if (c.sourceType === "lessonBlock" && c.sourceId) return `/lesson/${c.sourceId}`;
-    return null;
   };
 
   const handleFeedback = async (rating: "up" | "down") => {
@@ -275,71 +258,13 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
           )}
 
           {response.answer.citations && response.answer.citations.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
-                Citations
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {response.answer.citations.map((c, i) => {
-                  const src = sourceMap.get(c.knowledgeDocumentId);
-                  const linkTarget = buildCitationLink(c);
-                  const hasLink = !!linkTarget;
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        padding: 10,
-                        background: "#fff",
-                        borderRadius: 8,
-                        border: "1px solid #e5e7eb",
-                        fontSize: 13,
-                      }}
-                    >
-                      <div style={{ marginBottom: 4 }}>
-                        <span
-                          style={{
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            background: c.sourceType === "specStatement" ? "#dbeafe" : "#dcfce7",
-                            color: c.sourceType === "specStatement" ? "#1e40af" : "#166534",
-                            fontWeight: 600,
-                            fontSize: 11,
-                          }}
-                        >
-                          {c.sourceType === "specStatement" ? "Spec" : "Lesson"}
-                        </span>
-                        {src?.title && (
-                          <span style={{ marginLeft: 8, color: "#475569" }}>{src.title}</span>
-                        )}
-                      </div>
-                      <div style={{ color: "#64748b", fontStyle: "italic", marginBottom: 6 }}>
-                        &ldquo;{c.quote}&rdquo;
-                      </div>
-                      {c.reason && (
-                        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 6 }}>
-                          {c.reason}
-                        </div>
-                      )}
-                      {hasLink && linkTarget && (
-                        <Link
-                          to={linkTarget}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            fontSize: 12,
-                            color: "#0284c7",
-                            textDecoration: "none",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Open source →
-                        </Link>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <CitationsList
+              citations={response.answer.citations}
+              usedSources={response.usedSources}
+              defaultQuotesExpanded={true}
+              studentMode={false}
+              linkText="Open source"
+            />
           )}
 
           {response.answer.practice && response.answer.practice.length > 0 && (

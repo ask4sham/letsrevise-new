@@ -143,6 +143,7 @@ NPM maintenance scripts (backend):
 - AskAiPanel: Confidence badge + reason + "Sources: Spec X, Lesson Y" (teacher/admin)
 - AskAiStudentPanel: Confidence: High/Medium/Low badge; weak shows "Your course content may not cover this fully yet."
 - CoverageDashboardPage: ?focusTopicKey=... auto-opens topic drawer
+- CitationsList (PR-018): numbered [1],[2],[3], SPEC/LESSON/EXTERNAL badges, source quality line, deep links. Used by both Ask AI panels.
 
 ## Background Jobs (PR-015)
 
