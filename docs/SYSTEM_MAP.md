@@ -114,9 +114,10 @@ NPM maintenance scripts (backend):
 
 - GET /api/teacher-notes?specKey=&topicKey=&limit=20 — teacher/admin, list teacherNote KnowledgeDocuments for topic (sourceType=teacherNote, sorted by updatedAt desc)
 
-## Topic Summary API (PR-024, PR-024.1)
+## Topic Summary API (PR-024, PR-024.1, PR-025)
 
 - POST /api/topic-summary { specKey, topicKey, mode?, maxSources?, allowExternal? } — teacher/admin + student (when isAiTutorEnabledForSpec). Teachers: all 4 modes, 6/min. Admins: 20/min. Students (PR-024.1): overview and revisionSheet only, maxSources≤10, allowExternal forced false, 3/min. Student responses: no confidenceSignals, no teacherNote in citations, shorter/simpler LLM output. Cached 24h (key includes studentSafe).
+- POST /api/topic-summary/export { topicSummaryLogId?, specKey, topicKey, mode?, includeCitations?, summary?, usedSources?, confidenceLevel?, confidenceReason? } — teacher + student (when AI tutor enabled). Returns PDF attachment. Rate limited: students 2/min, teachers 6/min, admins 20/min. PDF rendered by backend/services/pdf/topicSummaryPdf.js (PDFKit).
 
 ## External Sources API (PR-022)
 

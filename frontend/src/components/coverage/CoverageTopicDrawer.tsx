@@ -13,6 +13,7 @@ import {
   type TopicSummaryMode,
   type TopicSummaryResponse,
 } from "../../api/topicSummary";
+import { postTopicSummaryPdf } from "../../api/topicSummaryExport";
 import { CitationsList } from "../ai/CitationsList";
 import { ReviewPublishChecklist } from "../generation/ReviewPublishChecklist";
 import type { CoverageRow } from "../../api/coverage";
@@ -64,6 +65,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryResult, setSummaryResult] = useState<TopicSummaryResponse | null>(null);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
 
   useEffect(() => {
     if (!open || !topicKey?.trim()) return;
@@ -162,6 +164,33 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
     navigator.clipboard.writeText(parts.join("\n"));
     setCopyToast("Everything copied");
     setTimeout(() => setCopyToast(null), 2000);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!summaryResult) return;
+    setPdfDownloading(true);
+    try {
+      await postTopicSummaryPdf({
+        topicSummaryLogId: summaryResult.topicSummaryLogId,
+        specKey: summaryResult.specKey,
+        topicKey: summaryResult.topicKey,
+        mode: summaryResult.mode,
+        includeCitations: true,
+        ...(!summaryResult.topicSummaryLogId && {
+          summary: summaryResult.summary,
+          usedSources: summaryResult.usedSources,
+          confidenceLevel: summaryResult.confidenceLevel,
+          confidenceReason: summaryResult.confidenceReason,
+        }),
+      });
+      setCopyToast("PDF downloaded");
+      setTimeout(() => setCopyToast(null), 2000);
+    } catch (e: any) {
+      setCopyToast(e?.response?.data?.error ?? e?.message ?? "Download failed");
+      setTimeout(() => setCopyToast(null), 3000);
+    } finally {
+      setPdfDownloading(false);
+    }
   };
 
   const handleCopyTopicKey = () => {
@@ -990,6 +1019,14 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                           </button>
                           <button type="button" onClick={handleCopyEverything} style={{ padding: "6px 12px", fontSize: 12, background: "#e2e8f0", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
                             Copy everything
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDownloadPdf}
+                            disabled={pdfDownloading}
+                            style={{ padding: "6px 12px", fontSize: 12, background: "#dc2626", color: "white", border: "none", borderRadius: 6, cursor: pdfDownloading ? "wait" : "pointer", fontWeight: 600 }}
+                          >
+                            {pdfDownloading ? "Downloading…" : "Download PDF"}
                           </button>
                         </div>
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

@@ -951,4 +951,36 @@ Notes:
 - Citations: lessonBlock deep-link via CitationsList studentMode; teacherNote omitted for students.
 
 Follow-ups:
+PR-025 — Export Topic Summary to PDF
+
+---
+
+**PR-025 — Export Topic Summary to PDF (teacher + student)**
+
+Date: 2026-03-05
+
+Summary:
+Add "Download PDF" button to topic summary results. Backend POST /api/topic-summary/export generates a clean PDF via PDFKit. Accepts topicSummaryLogId (preferred) or full summary payload. Rate limited: students 2/min, teachers 6/min, admins 20/min. No LLM calls, no external fetch. TopicSummaryLog extended with keyPoints for PDF export.
+
+Files changed:
+
+- backend/package.json (pdfkit)
+- backend/services/pdf/topicSummaryPdf.js
+- backend/controllers/topicSummaryExport.controller.js
+- backend/routes/topicSummaryExport.routes.js
+- backend/middleware/topicSummaryExportRateLimit.js
+- backend/models/TopicSummaryLog.js (keyPoints)
+- backend/controllers/topicSummary.controller.js (persist keyPoints)
+- backend/app.js (mount /api/topic-summary/export)
+- frontend/src/api/topicSummaryExport.ts
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx (Download PDF button)
+- frontend/src/components/ai/TopicSummaryStudentModal.tsx (Download PDF button)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- PDF includes title, subtitle, confidence, summary, key points, mode sections, citations.
+- Teacher and student flows both supported.
+
+Follow-ups:
 None

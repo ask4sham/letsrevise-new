@@ -152,6 +152,7 @@ app.use("/api/external-sources", require("./routes/externalSources.routes"));
 // PR-023: Teacher notes listing (teacher/admin only)
 app.use("/api/teacher-notes", require("./routes/teacherNotes.routes"));
 app.use("/api/topic-summary", require("./routes/topicSummary.routes"));
+app.use("/api/topic-summary/export", require("./routes/topicSummaryExport.routes"));
 
 // PR-004: Enquiry (RAG) — teacher + admin + student (when flag enabled)
 // Lazy-load to avoid pulling in vector DB / embeddings at app init (fixes Jest Babel parse in tests)
