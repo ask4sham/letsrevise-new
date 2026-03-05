@@ -80,7 +80,14 @@ Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hot
 - backend/scripts/runVectorMigrations.js
 - backend/scripts/embedKnowledgeDocuments.js (--apply, --specKey, --source, --limit, --batchSize)
 - backend/scripts/buildCoverageReport.js (--specKey, --apply, --windowDays, --top, --includeWeakQuestions)
+- backend/scripts/buildSprintOrderFromCoverage.js (--specKey, --apply, --windowDays, --useSnapshots, --top, --minEnquiries, --weights)
+- backend/scripts/runBuildSprintOrderFromCoverage.js (wrapper: reads npm_config_specKey, forwards args)
 - backend/scripts/runEnquirySmokeTest.js
+
+NPM maintenance scripts (backend):
+- maintenance:sprint-order — dry run (requires --specKey=...)
+- maintenance:sprint-order:apply
+- maintenance:sprint-order:spec / maintenance:sprint-order:spec:apply
 
 ## Enquiry API (PR-004, PR-006, PR-007)
 
