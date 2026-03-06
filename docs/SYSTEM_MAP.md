@@ -17,14 +17,14 @@ Displays attached practice papers.
 **FlashcardsEditor**
 Teacher tool for creating and editing flashcards.
 
-**AskAiPanel** (PR-005, PR-019, PR-020, PR-021)
-Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. localStorage askai:mode:teacher, askai:allowExternal:teacher.
+**AskAiPanel** (PR-005, PR-019, PR-020, PR-021, PR-034)
+Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. PR-034: InlineDiagramBlock renders cited lessonDiagram images inline (after keyPoints, before citations). localStorage askai:mode:teacher, askai:allowExternal:teacher.
 
 **ExternalSourcesPage** (PR-022, PR-023)
 Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Actions: Deny domain, Deny URL, Promote to Teacher Note. Deep link filters: ?specKey=&topicKey= preselect spec and topic (PR-023).
 
-**AskAiStudentPanel** (PR-007, PR-019, PR-020, PR-033)
-Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student. PR-033: Tutor action chips above input — Explain again, Explain simpler, Another example, Practice question, Show diagram (when lessonId). sendStudentMessage({ message, modeOverride? }) shared for typed input and chips; sendTutorPrompt(message, mode) for chips; input preserved when using chips.
+**AskAiStudentPanel** (PR-007, PR-019, PR-020, PR-033, PR-034)
+Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student. PR-033: Tutor action chips above input — Explain again, Explain simpler, Another example, Practice question, Show diagram (when lessonId). PR-034: InlineDiagramBlock renders cited lessonDiagram images inline (after explanation, before citations); CitationsList still shows DIAGRAM badge.
 
 **CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
@@ -177,7 +177,14 @@ NPM maintenance scripts (backend):
 - AskAiPanel: Confidence badge + reason + "Sources: Spec X, Lesson Y" (teacher/admin)
 - AskAiStudentPanel: Confidence: High/Medium/Low badge; weak shows "Your course content may not cover this fully yet."
 - CoverageDashboardPage: ?focusTopicKey=... auto-opens topic drawer
-- CitationsList (PR-018): numbered [1],[2],[3], SPEC/LESSON/EXTERNAL badges, source quality line, deep links. Used by both Ask AI panels.
+- CitationsList (PR-018, PR-030): numbered [1],[2],[3], SPEC/LESSON/DIAGRAM/EXTERNAL badges, source quality line, deep links. Used by both Ask AI panels. PR-030: DIAGRAM badge, diagram preview card. PR-034: InlineDiagramBlock renders lessonDiagram citations inline (image, caption, View in lesson) in assistant bubbles; CitationsList unchanged.
+
+**Diagram rendering flow (PR-034):**
+1. Enquiry response includes answer.citations with sourceType: lessonDiagram (imageUrl, caption, deepLink).
+2. AssistantBubbleStudent / AssistantBubbleTeacher filter citations for lessonDiagram + imageUrl, limit 2.
+3. InlineDiagramBlock renders: image (makeAbsoluteAssetUrl), caption, Link "View in lesson" → /lesson/:id?page=N#block-M.
+4. CitationsList still renders all citations including diagrams as [N] DIAGRAM in evidence section.
+5. Students: backend returns only accessible lesson citations; no extra frontend checks.
 
 ## Background Jobs (PR-015)
 

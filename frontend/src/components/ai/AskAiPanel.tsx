@@ -16,6 +16,7 @@ import {
   type ConversationListItem,
 } from "../../api/conversations";
 import { CitationsList } from "./CitationsList";
+import { InlineDiagramBlock } from "./InlineDiagramBlock";
 import { SuggestedActionsBar } from "./SuggestedActionsBar";
 
 type ChatMessage = {
@@ -632,6 +633,11 @@ function AssistantBubbleTeacher({
             ))}
           </ul>
         </div>
+      )}
+
+      {/* PR-034: Inline diagram rendering — after explanation/keyPoints, before citations */}
+      {response.answer.citations && (
+        <InlineDiagramBlock citations={response.answer.citations} studentMode={false} />
       )}
 
       {response.answer.citations && response.answer.citations.length > 0 && (

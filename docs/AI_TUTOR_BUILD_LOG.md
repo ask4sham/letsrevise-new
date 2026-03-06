@@ -1268,4 +1268,33 @@ Notes:
 - Show diagram nudges retrieval toward lessonDiagram (PR-030).
 
 Follow-ups:
+PR-034 — Inline diagram rendering
+
+---
+
+**PR-034 — Inline diagram rendering in AI answers**
+
+Date: 2026-03-05
+
+Summary:
+When an answer cites a lessonDiagram source, render the diagram inline inside the assistant response (not only in CitationsList). Frontend-only. Filter response.answer.citations for sourceType === "lessonDiagram" with imageUrl; limit to max 2. InlineDiagramBlock: image, caption, "View in lesson" link. Placement: after explanation/keyPoints, before CitationsList. CitationsList unchanged — diagram still appears as [3] DIAGRAM in evidence. Student safety: backend returns only accessible lesson citations; no extra frontend checks.
+
+Files changed:
+
+- frontend/src/components/ai/InlineDiagramBlock.tsx (new)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (InlineDiagramBlock after explanation)
+- frontend/src/components/ai/AskAiPanel.tsx (InlineDiagramBlock after keyPoints)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Uses makeAbsoluteAssetUrl for image URLs; lesson link: /lesson/:id?page=N#block-M.
+- studentMode: student links open same tab; teacher links open new tab.
+
+Acceptance:
+- Diagram appears inline in assistant message when cited.
+- Citation still appears in evidence section.
+- Clicking "View in lesson" opens the lesson page.
+
+Follow-ups:
 None
