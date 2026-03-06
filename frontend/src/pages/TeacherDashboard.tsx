@@ -620,15 +620,19 @@ const TeacherDashboard: React.FC = () => {
     setAiError("");
     setAiLoading(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         subject: (aiForm.subject || "").trim(),
         level: (aiForm.level || "").trim(),
         topic: topic || aiTopicSelection.mainTopicTitle || "",
-        board: (aiForm.board || "").trim(), // optional
+        board: (aiForm.board || "").trim(),
         tier: aiForm.level === "GCSE" ? (aiForm.tier || "").trim() : "",
+        autoGenerateFromBanks: aiForm.autoGenerateFromBanks === true,
       };
       if (topicKey) payload.topicKey = topicKey;
-      payload.autoGenerateFromBanks = aiForm.autoGenerateFromBanks === true;
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[GenerateLessonMaterials] request payload", payload);
+      }
 
       const res = await api.post("/ai/generate-and-save", payload);
       const lessonId = res?.data?.lessonId;
@@ -648,13 +652,13 @@ const TeacherDashboard: React.FC = () => {
       navigate(`/edit-lesson/${lessonId}`);
     } catch (err: any) {
       console.error("AI generate-and-save failed:", err);
+      const data = err?.response?.data;
       const msg =
-        err?.response?.data?.details ||
-        err?.response?.data?.error ||
+        (typeof data?.details === "string" ? data.details : null) ||
+        (typeof data?.error === "string" ? data.error : null) ||
         err?.message ||
-        "AI generation failed.";
+        "AI generation failed. Please try again.";
       setAiError(msg);
-      alert(msg);
     } finally {
       setAiLoading(false);
     }

@@ -17,6 +17,7 @@ const {
   getSpecPointsForTopic,
   getPastPaperSnippetsForTopic,
   resolveSpecAndTopicKey,
+  boardSubjectToSpecKey,
   COVERAGE_THRESHOLD,
 } = require("../services/syllabusAlignment");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -26,7 +27,7 @@ const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFr
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { generateContextAwareDiagram } = require("../services/diagramGeneration");
-const { findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { findTopicByKey, topicToKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 
@@ -787,6 +788,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Not authenticated" });
     if (!requireTeacherOrAdmin(req, res)) return;
 
+    // Extract ALL body fields first — autoGenerateFromBanks must be declared before any use
+    const autoGenerateFromBanks = req.body?.autoGenerateFromBanks === true;
     const topic = safeStr(req.body?.topic, "");
     const subject = safeStr(req.body?.subject, "");
     const level = safeStr(req.body?.level, "");
@@ -800,10 +803,13 @@ router.post("/generate-and-save", auth, async (req, res) => {
         ? req.body.topicKey.trim()
         : null;
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[generate-and-save] handler v2", { autoGenerateFromBanksFromBody: req.body?.autoGenerateFromBanks, autoGenerateFromBanks });
+    }
+
     if (!topic || !subject || !level) {
       return res.status(400).json({
-        error: "Missing required fields",
-        details: "Please provide topic, subject, and level.",
+        error: "Please provide topic, subject, and level.",
       });
     }
 
@@ -814,10 +820,20 @@ router.post("/generate-and-save", auth, async (req, res) => {
     // ✅ 1) Find the single Gold Standard master template
     const gold = await Lesson.findOne({ isTemplate: true }).lean();
     if (!gold) {
-      return res.status(500).json({
+      return res.status(422).json({
         error: "Gold template missing",
-        details: "No Lesson found with isTemplate:true. Seed the Gold Standard Master Template first.",
       });
+    }
+
+    // ✅ Taxonomy validation: when topicKey is provided, ensure it maps to syllabus
+    if (topicKey) {
+      const specKey =
+        boardSubjectToSpecKey(board, subject) || parseTopicKey(topicKey).specKey || null;
+      if (specKey && !isValidTopicForSpec(specKey, topicKey)) {
+        return res.status(400).json({
+          error: "Selected topic could not be mapped to syllabus. Please choose a topic from the list.",
+        });
+      }
     }
 
     // Algorithm 1: resolve spec/topic and load syllabus + past paper context (no breaking change if missing)
@@ -1016,8 +1032,13 @@ router.post("/generate-and-save", auth, async (req, res) => {
       ...(autoAttachResult && { attached: autoAttachResult }),
     });
   } catch (error) {
-    console.error("❌ AI generate-and-save error:", error?.message || error);
+    if (process.env.NODE_ENV !== "production" && error?.stack) {
+      console.error("❌ AI generate-and-save stack:", error.stack);
+    } else {
+      console.error("❌ AI generate-and-save error:", error?.message || error);
+    }
 
+    // OpenAI / upstream 4xx/5xx with status
     if (error?.response?.status) {
       const status = error.response.status;
       const msg =
@@ -1025,17 +1046,13 @@ router.post("/generate-and-save", auth, async (req, res) => {
         error.response?.data?.message ||
         "OpenAI API error";
       return res.status(status === 429 ? 429 : 500).json({
-        error: status === 429 ? "OpenAI rate limit exceeded" : "AI request failed",
+        error: status === 429 ? "OpenAI rate limit exceeded" : "Failed to generate lesson materials",
         details: msg,
       });
     }
 
     return res.status(500).json({
-      error: "Failed to generate and save lesson draft.",
-      details:
-        process.env.NODE_ENV === "development"
-          ? String(error?.message || error)
-          : undefined,
+      error: "Failed to generate lesson materials",
     });
   }
 });
