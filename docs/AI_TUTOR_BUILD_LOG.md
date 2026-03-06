@@ -1213,4 +1213,35 @@ Notes:
 - Knowledge refresh enqueued after publish (PR-015).
 
 Follow-ups:
+PR-033 — Student tutoring actions
+
+---
+
+**PR-033 — Student tutoring actions (Explain again, Simpler, Another example, Practice, Exam question, Show diagram)**
+
+Date: 2026-03-05
+
+Summary:
+Student chat feels like a tutor with one-tap follow-up chips above the input. Chips set responseMode and send precomposed messages into the same conversationId thread. Reuses PR-019 conversation memory and PR-020 responseMode; no new persistence models.
+
+Chips:
+- Explain again (responseMode: explain) — "Can you explain that again in different words?"
+- Simpler (responseMode: quick) — "Explain it more simply, like I'm in Year 9."
+- Another example (responseMode: explain) — "Give a different example and explain it step by step."
+- Practice question (responseMode: quick) — "Give me 1 practice question and then explain the answer." — hidden when last response already has practice in suggestedActions (no duplicate)
+- Exam question (responseMode: explain) — "Give me an exam-style question on this topic and explain how to answer it." (student-safe: no Exam mode)
+- Show diagram (responseMode: explain, when lessonId present) — "If there is a diagram in this lesson, show it and explain what it shows." — nudges retrieval toward lessonDiagram (PR-030 boost)
+
+Files changed:
+
+- frontend/src/components/ai/AskAiStudentPanel.tsx (tutor chips row, sendMessage extraction, lastMessageHasPracticeAction)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- SuggestedActionsBar unchanged; practice intent from backend kept, not duplicated in chips.
+- Diagram hint phrase triggers knowledgeSearchService diagram-intent boost (PR-030).
+- Works with responseMode and conversation caching.
+
+Follow-ups:
 None

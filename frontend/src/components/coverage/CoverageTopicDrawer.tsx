@@ -61,6 +61,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   windowDays,
   row,
   onAskAi,
+  initialOpenPracticeSet = false,
 }) => {
   const [data, setData] = useState<CoverageDrilldownResponse | null>(null);
   const [loading, setLoading] = useState(true);

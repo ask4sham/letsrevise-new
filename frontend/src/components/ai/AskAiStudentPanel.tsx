@@ -1,6 +1,7 @@
 /**
  * PR-007: Student "Ask for help" panel — simplified UX, practice-first.
  * PR-019: Threaded tutoring chat. PR-019.1: Recent chats, New chat, pagination.
+ * PR-033: Tutor action chips (Explain again, Simpler, Another example, Practice, Exam question, Show diagram).
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
@@ -32,6 +33,21 @@ type Props = {
 };
 
 const SESSION_KEY_PREFIX = "askai:conv:student:";
+
+function tutorChipStyle(disabled: boolean): React.CSSProperties {
+  return {
+    padding: "6px 12px",
+    fontSize: 13,
+    fontWeight: 600,
+    borderRadius: 20,
+    cursor: disabled ? "not-allowed" : "pointer",
+    background: disabled ? "#e2e8f0" : "#dcfce7",
+    color: disabled ? "#94a3b8" : "#166534",
+    border: `1px solid ${disabled ? "#cbd5e1" : "#86efac"}`,
+    display: "inline-flex",
+    alignItems: "center",
+  };
+}
 
 function getSessionKey(specKey: string, topicKey: string, lessonId?: string): string {
   return `${SESSION_KEY_PREFIX}${specKey}:${topicKey}:${lessonId || ""}`;
@@ -185,49 +201,73 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
     }
   }, []);
 
+  const sendMessage = useCallback(
+    async (text: string, modeOverride?: "quick" | "explain" | "revision") => {
+      const q = text.trim();
+      if (!q || loading) return;
+
+      const convId = conversationId;
+      if (!convId && !conversationInitFailed) return;
+
+      setLoading(true);
+      setError(null);
+      setQuestion("");
+
+      setMessages((prev) => [...prev, { role: "user", text: q }]);
+
+      try {
+        const res = await postEnquiry({
+          question: q,
+          specKey,
+          topicKey,
+          conversationId: convId || undefined,
+          mode: "lesson",
+          limit: 6,
+          includePractice: true,
+          responseMode: modeOverride ?? responseMode,
+        });
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: res.answer.explanation || "",
+            enquiryLogId: res.enquiryLogId || null,
+            fullResponse: res,
+          },
+        ]);
+        refreshRecent();
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(e?.response?.data?.error || e?.message || "Failed to get answer");
+        setMessages((prev) => prev.slice(0, -1));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [conversationId, conversationInitFailed, loading, specKey, topicKey, responseMode, refreshRecent]
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const q = question.trim();
-    if (!q || loading) return;
+    await sendMessage(question.trim());
+  };
 
-    const convId = conversationId;
-    if (!convId && !conversationInitFailed) return;
-
-    setLoading(true);
-    setError(null);
-    setQuestion("");
-
-    setMessages((prev) => [...prev, { role: "user", text: q }]);
-
-    try {
-      const res = await postEnquiry({
-        question: q,
-        specKey,
-        topicKey,
-        conversationId: convId || undefined,
-        mode: "lesson",
-        limit: 6,
-        includePractice: true,
-        responseMode,
-      });
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: res.answer.explanation || "",
-          enquiryLogId: res.enquiryLogId || null,
-          fullResponse: res,
-        },
-      ]);
-      refreshRecent();
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } }; message?: string };
-      setError(e?.response?.data?.error || e?.message || "Failed to get answer");
-      setMessages((prev) => prev.slice(0, -1));
-    } finally {
-      setLoading(false);
+  // PR-033: Last assistant message has practice in suggestedActions → don't duplicate practice chip
+  const lastMessageHasPracticeAction = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant" && messages[i].fullResponse?.suggestedActions) {
+        return messages[i].fullResponse!.suggestedActions!.some(
+          (a) => a.id === "practice" || (a.payload as { action?: string })?.action === "practice"
+        );
+      }
     }
+    return false;
+  })();
+
+  const handleTutorAction = (text: string, mode: "quick" | "explain" | "revision") => {
+    handleModeChange(mode);
+    sendMessage(text, mode);
   };
 
   const togglePracticeAnswer = (enquiryLogId: string, idx: number) => {
@@ -371,6 +411,92 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
           {error}
         </div>
       )}
+
+      {/* PR-033: Tutor action chips — one-tap follow-ups */}
+      <div style={{ marginBottom: 12 }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#64748b",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            marginBottom: 6,
+          }}
+        >
+          Quick follow-ups
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => handleTutorAction("Can you explain that again in different words?", "explain")}
+            disabled={loading || !canSend}
+            style={tutorChipStyle(loading || !canSend)}
+          >
+            Explain again
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              handleTutorAction("Explain it more simply, like I'm in Year 9.", "quick")
+            }
+            disabled={loading || !canSend}
+            style={tutorChipStyle(loading || !canSend)}
+          >
+            Simpler
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              handleTutorAction("Give a different example and explain it step by step.", "explain")
+            }
+            disabled={loading || !canSend}
+            style={tutorChipStyle(loading || !canSend)}
+          >
+            Another example
+          </button>
+          {!lastMessageHasPracticeAction && (
+            <button
+              type="button"
+              onClick={() =>
+                handleTutorAction("Give me 1 practice question and then explain the answer.", "quick")
+              }
+              disabled={loading || !canSend}
+              style={tutorChipStyle(loading || !canSend)}
+            >
+              Practice question
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() =>
+              handleTutorAction(
+                "Give me an exam-style question on this topic and explain how to answer it.",
+                "explain"
+              )
+            }
+            disabled={loading || !canSend}
+            style={tutorChipStyle(loading || !canSend)}
+          >
+            Exam question
+          </button>
+          {lessonId && (
+            <button
+              type="button"
+              onClick={() =>
+                handleTutorAction(
+                  "If there is a diagram in this lesson, show it and explain what it shows.",
+                  "explain"
+                )
+              }
+              disabled={loading || !canSend}
+              style={tutorChipStyle(loading || !canSend)}
+            >
+              Show diagram
+            </button>
+          )}
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <textarea
