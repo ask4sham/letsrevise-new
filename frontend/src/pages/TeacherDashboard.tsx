@@ -659,8 +659,9 @@ const TeacherDashboard: React.FC = () => {
         <aside className="teacher-dashboard-left" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #22c55e", paddingLeft: 6 }}>Teaching content</div>
+              <div style={{ fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #22c55e", paddingLeft: 6 }}>CONTENT CREATION</div>
               <Link to="/create-lesson" style={{ padding: "10px 14px", background: "#22c55e", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, textAlign: "center", borderLeft: "3px solid #16a34a" }}>+ Create lesson</Link>
+              <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.12)", color: "#166534", border: "1px solid #22c55e", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%", textAlign: "center" }}>Generate lesson with AI</button>
               <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>My lessons</Link>
               <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>Exam lessons</Link>
               <div style={{ fontSize: 11, color: "#1e40af", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #3b82f6", paddingLeft: 6 }}>Practice banks</div>
@@ -1529,43 +1530,7 @@ const TeacherDashboard: React.FC = () => {
                             fontWeight: 500,
                           }}
                         >
-                          Edit
-                        </button>
-                      </Link>
-                      <button
-                        onClick={() => navigate(`/lesson/${lesson._id}#practice`)}
-                        style={{
-                          width: 100,
-                          height: 32,
-                          padding: "0 12px",
-                          borderRadius: 6,
-                          border: "1px solid #d1d5db",
-                          background: "#fff",
-                          color: "#374151",
-                          cursor: "pointer",
-                          fontSize: 13,
-                          fontWeight: 500,
-                        }}
-                      >
-                        Practice Questions
-                      </button>
-                      <Link to={`/teacher/reports/lesson/${lesson.id}`}>
-                        <button
-                          type="button"
-                          style={{
-                            width: 100,
-                            height: 32,
-                            padding: "0 12px",
-                            borderRadius: 6,
-                            border: "1px solid #6366f1",
-                            background: "rgba(99,102,241,0.1)",
-                            color: "#4f46e5",
-                            cursor: "pointer",
-                            fontSize: 13,
-                            fontWeight: 500,
-                          }}
-                        >
-                          Report
+                          Edit Lesson
                         </button>
                       </Link>
                       <button
@@ -1583,8 +1548,27 @@ const TeacherDashboard: React.FC = () => {
                           fontWeight: 500,
                         }}
                       >
-                        {lesson.isPublished ? "Unpublish" : "Publish"}
+                        {lesson.isPublished ? "Unpublish Lesson" : "Publish Lesson"}
                       </button>
+                      <Link to={`/teacher/reports/lesson/${lesson.id}`}>
+                        <button
+                          type="button"
+                          style={{
+                            width: 100,
+                            height: 32,
+                            padding: "0 12px",
+                            borderRadius: 6,
+                            border: "1px solid #6366f1",
+                            background: "rgba(99,102,241,0.1)",
+                            color: "#4f46e5",
+                            cursor: "pointer",
+                            fontSize: 13,
+                            fontWeight: 500,
+                          }}
+                        >
+                          Lesson Attempts
+                        </button>
+                      </Link>
                     </div>
                   </div>
                 );
@@ -1601,11 +1585,7 @@ const TeacherDashboard: React.FC = () => {
             <h3 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1rem" }}>Quick teaching tools</h3>
             <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6b7280" }}>Shortcuts for common actions.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 6, textTransform: "uppercase" }}>Generate materials</div>
-              <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ width: "100%", padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", textAlign: "center" }}>Generate lesson materials</button>
-              </div>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Review work</div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 6, textTransform: "uppercase" }}>Review work</div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
               </div>
