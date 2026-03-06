@@ -3487,6 +3487,9 @@ const LessonViewPage: React.FC = () => {
                   <StudyPlanPanel specKey={specKey} />
                 )}
 
+                {/* Testing section: Quick Quiz, Practice papers, Practice questions, Flashcards — only after final page */}
+                {isLastPage && (
+                <>
                 {/* Quick Quiz — page-aware in structured view */}
                 <Section title="Quick Quiz" variant="card">
                   {!hasFullLessonAccess ? (
@@ -3814,6 +3817,8 @@ const LessonViewPage: React.FC = () => {
                     )}
                   </div>
                 </Section>
+                </>
+                )}
               </div>
             </main>
 
