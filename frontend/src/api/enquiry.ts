@@ -148,6 +148,8 @@ export type PostEnquiryResponse = {
   /** PR-021: External search was used */
   externalUsed?: boolean;
   externalSources?: Array<{ url: string; title: string; domain: string }>;
+  /** PR-035: External exam context was used (exam/past paper/mark scheme query) */
+  externalExamContextUsed?: boolean;
 };
 
 export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquiryResponse> {

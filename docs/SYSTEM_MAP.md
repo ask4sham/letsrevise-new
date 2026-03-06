@@ -17,8 +17,8 @@ Displays attached practice papers.
 **FlashcardsEditor**
 Teacher tool for creating and editing flashcards.
 
-**AskAiPanel** (PR-005, PR-019, PR-020, PR-021, PR-034)
-Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. PR-034: InlineDiagramBlock renders cited lessonDiagram images inline (after keyPoints, before citations). localStorage askai:mode:teacher, askai:allowExternal:teacher.
+**AskAiPanel** (PR-005, PR-019, PR-020, PR-021, PR-034, PR-035)
+Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. PR-034: InlineDiagramBlock renders cited lessonDiagram images inline (after keyPoints, before citations). PR-035: When external exam context used, shows "⚠ External exam context used" with source links. localStorage askai:mode:teacher, askai:allowExternal:teacher.
 
 **ExternalSourcesPage** (PR-022, PR-023)
 Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Actions: Deny domain, Deny URL, Promote to Teacher Note. Deep link filters: ?specKey=&topicKey= preselect spec and topic (PR-023).
@@ -57,7 +57,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - KnowledgeDocument (PR-002: unified retrievable layer for SpecStatements + Lesson blocks; PR-021: externalTrusted; PR-022: teacherNote; PR-030: lessonDiagram)
 - ExternalSourcePolicy (PR-022: url/domain allow/deny)
 - ExternalSourceReview (PR-022: audit trail for promote/deny)
-- EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached)
+- EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached; PR-035: externalExamContextUsed)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
 - CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days; PR-028: summariesTotal, weakSummariesTotal, summariesByMode, demandScore)
 - ContentGenerationJob (PR-014: starter pack generation jobs, audit trail)

@@ -9,7 +9,7 @@ const { getProvider: getEmbeddingsProvider } = require("../services/embeddings/p
 const { getCached, setCached } = require("../services/enquiry/enquiryCache");
 const { buildSuggestedActions } = require("../services/enquiry/suggestedActions");
 const { computeConfidence } = require("../services/enquiry/confidence");
-const { isExternalSearchEnabled, getExternalAllowedDomains, getExternalMaxResults } = require("../config/externalSearch");
+const { isExternalSearchEnabled, getExternalAllowedDomains, getExternalMaxResults, getDomainsForQuery, isExamContextQuery } = require("../config/externalSearch");
 const { searchWeb } = require("../services/externalSearch/provider");
 const { filterDenied } = require("../services/externalSearch/policyService");
 const { indexExternalResults, embedExternalDocs } = require("../services/knowledge/indexers/externalTrustedIndexer");
@@ -76,8 +76,8 @@ async function handleEnquiry(req, res) {
     const topN = Math.min(20, Math.max(1, parseInt(limit, 10) || 8));
     const modeVal = mode != null ? String(mode).trim() : null;
 
-    // PR-006: Check cache before retrieval + LLM (PR-019: conversationId, PR-020: responseMode in key)
-    const cached = await getCached(spec, topicKey || null, modeVal, q, convIdValid, responseMode);
+    // PR-006: Check cache before retrieval + LLM (PR-019: conversationId, PR-020: responseMode, PR-021: allowExternal in key)
+    const cached = await getCached(spec, topicKey || null, modeVal, q, convIdValid, responseMode, allowExternalVal);
     if (cached.hit && cached.response) {
       const userId = req.user?._id || req.user?.userId || req.user?.id;
       const role = (req.user?.userType || req.user?.role || "").toString();
@@ -150,6 +150,9 @@ async function handleEnquiry(req, res) {
       if (cached.response.externalUsed) {
         cachePayload.externalUsed = true;
         cachePayload.externalSources = cached.response.externalSources || [];
+        if (cached.response.externalExamContextUsed) {
+          cachePayload.externalExamContextUsed = true;
+        }
       }
       return res.json(cachePayload);
     }
@@ -174,7 +177,8 @@ async function handleEnquiry(req, res) {
       isExternalSearchEnabled()
     ) {
       const searchQuery = `${q} ${spec} ${topicKey || ""}`.trim();
-      const domains = getExternalAllowedDomains();
+      const baseDomains = getExternalAllowedDomains();
+      const domains = getDomainsForQuery(q, baseDomains);
       const extResultsRaw = await searchWeb({
         query: searchQuery,
         domains,
@@ -199,6 +203,8 @@ async function handleEnquiry(req, res) {
         externalSources = indexed.map((x) => ({ url: x.url, title: x.title, domain: x.domain }));
       }
     }
+
+    const externalExamContextUsed = externalUsed && isExamContextQuery(q);
 
     // PR-022: Filter out externalTrusted that are now denied (may have been indexed before policy)
     const retrievalFiltered = [];
@@ -298,6 +304,7 @@ async function handleEnquiry(req, res) {
       ...(externalUsed && {
         externalUsed: true,
         externalSources: externalSources,
+        ...(externalExamContextUsed && { externalExamContextUsed: true }),
       }),
     };
 
@@ -344,7 +351,12 @@ async function handleEnquiry(req, res) {
         practice: answer.practice,
         warnings: answer.warnings,
       },
-    }, convIdValid, responseMode);
+      ...(externalUsed && {
+        externalUsed: true,
+        externalSources,
+        ...(externalExamContextUsed && { externalExamContextUsed: true }),
+      }),
+    }, convIdValid, responseMode, allowExternalVal);
 
     const usedSourcesPayload = retrievalResults.slice(0, topN).map((r) => {
       const base = {
@@ -403,6 +415,7 @@ async function handleEnquiry(req, res) {
     if (externalUsed) {
       responsePayload.externalUsed = true;
       responsePayload.externalSources = externalSources;
+      if (externalExamContextUsed) responsePayload.externalExamContextUsed = true;
     }
     if (suggestedTopics.length > 0) {
       responsePayload.suggestedTopics = suggestedTopics;

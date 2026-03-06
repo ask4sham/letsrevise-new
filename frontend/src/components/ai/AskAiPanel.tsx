@@ -533,7 +533,11 @@ function AssistantBubbleTeacher({
               fontSize: 14,
             }}
           >
-            External references were used (exploratory). Check your course specification.
+            {response.externalExamContextUsed ? (
+              <>⚠ External exam context used</>
+            ) : (
+              <>External references were used (exploratory). Check your course specification.</>
+            )}
           </div>
           {response.externalSources && response.externalSources.length > 0 && (
             <details style={{ marginTop: 8 }}>

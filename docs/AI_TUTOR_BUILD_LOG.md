@@ -1297,4 +1297,37 @@ Acceptance:
 - Clicking "View in lesson" opens the lesson page.
 
 Follow-ups:
+PR-035 — Live exam context search
+
+---
+
+**PR-035 — Live exam context search (controlled domains)**
+
+Date: 2026-03-05
+
+Summary:
+Extend PR-021 external search: allow teachers/admins to optionally search recent exam context from trusted education domains when evidence is weak. Default domains: aqa.org.uk, ocr.org.uk, pearson.com, bbc.co.uk, openstax.org, nih.gov, nhs.uk. Env override still allowed. Domain query expansion: append site: filters (site:aqa.org.uk OR site:ocr.org.uk OR ...). Exam question detection: if query contains "exam", "past paper", "mark scheme", "6 mark", "explain question" — boost results from exam board domains (aqa, ocr, pearson first). UI: AskAiPanel shows "⚠ External exam context used" when external exam context used (with links). Students never trigger external search.
+
+Files changed:
+
+- backend/config/externalSearch.js (default domains, isExamContextQuery, getDomainsForQuery, EXAM_BOARD_DOMAINS)
+- backend/controllers/enquiry.controller.js (getDomainsForQuery, externalExamContextUsed)
+- backend/services/enquiry/enquiryCache.js (externalExamContextUsed in get/set)
+- backend/services/externalSearch/provider.js (site: query expansion comment)
+- backend/models/EnquiryLog.js (externalExamContextUsed)
+- frontend/src/api/enquiry.ts (externalExamContextUsed)
+- frontend/src/components/ai/AskAiPanel.tsx (⚠ External exam context used)
+- backend/.env.example
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Exam keywords: exam, past paper, mark scheme, 6 mark, explain question.
+- getDomainsForQuery puts exam boards first when exam context detected.
+
+Acceptance:
+- Teacher question "Recent GCSE enzyme questions" → AI returns external citations from exam boards.
+- When external exam context used, UI shows "⚠ External exam context used" with source links.
+
+Follow-ups:
 None
