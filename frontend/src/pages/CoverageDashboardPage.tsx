@@ -565,7 +565,7 @@ const CoverageDashboardPage: React.FC = () => {
                     <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
                       <td colSpan={13} style={{ padding: "12px 16px" }}>
                         <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13 }}>
-                          Top weak evidence enquiries
+                          Questions students struggle with
                         </div>
                         <ul style={{ margin: 0, paddingLeft: 20 }}>
                           {r.topWeakQuestions.map((q, i) => (

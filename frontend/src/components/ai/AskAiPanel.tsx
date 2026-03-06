@@ -297,7 +297,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 8, color: "#0c4a6e", fontSize: "1.1rem" }}>
-        Ask AI about this topic
+        Ask the AI tutor about this topic
       </div>
       <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#0369a1" }}>
         Get answers from trusted LetsRevise curriculum sources. Ask follow-ups in the same thread.

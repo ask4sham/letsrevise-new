@@ -699,7 +699,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                       cursor: genLoading ? "wait" : "pointer",
                     }}
                   >
-                    {genLoading ? "Generating…" : "Generate starter pack (draft)"}
+                    {genLoading ? "Generating…" : "Generate lesson materials"}
                   </button>
                   <button
                     type="button"
@@ -1005,7 +1005,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
               {genResult && (
                 <section style={{ marginBottom: 24, padding: 16, background: "#d1fae5", borderRadius: 12 }}>
                   <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700, color: "#065f46" }}>
-                    Starter pack created
+                    Lesson materials created
                   </h3>
                   <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#047857" }}>
                     Job ID: {genResult.jobId}
@@ -1328,7 +1328,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     cursor: "pointer",
                   }}
                 >
-                  Summarise topic
+                  Create topic summary
                 </button>
               </section>
 
@@ -1673,10 +1673,10 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Section 3 — Weak questions */}
+              {/* Section 3 — Topics students struggle with */}
               <section style={{ marginBottom: 24 }}>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700 }}>
-                  Weak questions ({data.weakQuestions.length})
+                  Topics students struggle with ({data.weakQuestions.length})
                 </h3>
                 {data.weakQuestions.length === 0 ? (
                   <p style={{ fontSize: 13, color: "#6b7280" }}>No weak-evidence enquiries in window.</p>
@@ -1754,12 +1754,12 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Fix weak evidence (draft pack)</h3>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: 16 }}>Fix topic with AI</h3>
                     <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#4b5563" }}>
-                      Creates drafts only. Publishing requires passing the checklist. Select up to 5 missing statements and 5 weak questions to target.
+                      Create draft content to improve a difficult topic. Select up to 5 missing statements and 5 questions students struggle with.
                     </p>
                     <div style={{ marginBottom: 16, fontSize: 12, color: "#6b7280" }}>
-                      Missing statements: {data?.specStatements?.missing?.length ?? 0} • Weak enquiries: {data?.weakQuestions?.length ?? 0}
+                      Missing statements: {data?.specStatements?.missing?.length ?? 0} • Questions students struggle with: {data?.weakQuestions?.length ?? 0}
                     </div>
                     {data?.specStatements?.missing && data.specStatements.missing.length > 0 && (
                       <div style={{ marginBottom: 16 }}>
@@ -1867,7 +1867,7 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
               {weakFixResult && (
                 <section style={{ marginBottom: 24, padding: 16, background: "#ede9fe", borderRadius: 12, border: "1px solid #8b5cf6" }}>
                   <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700, color: "#5b21b6" }}>
-                    Weak evidence fix pack created
+                    Topic fix pack created
                   </h3>
                   <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6d28d9" }}>
                     Job ID: {weakFixResult.jobId}

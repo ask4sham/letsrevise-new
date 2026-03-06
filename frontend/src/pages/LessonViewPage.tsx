@@ -919,11 +919,12 @@ function PracticeSection({
 
   return (
     <Section
-      title="Practice questions"
+      title="Practice Questions"
       id="practice"
       right={rightLabel ? <span style={{ fontSize: 12, color: "#6b7280" }}>{rightLabel}</span> : undefined}
       variant="plain"
     >
+      <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>Practice questions help students reinforce what they learned in the lesson.</p>
       {practiceLoading && (
         <p style={{ color: "#6b7280", margin: 0 }}>Loading practice questions…</p>
       )}
@@ -3356,8 +3357,8 @@ const LessonViewPage: React.FC = () => {
                   <StudyPlanPanel specKey={specKey} />
                 )}
 
-                {/* Check your understanding — page-aware in structured view */}
-                <Section title="Check your understanding" variant="card">
+                {/* Quick Quiz — page-aware in structured view */}
+                <Section title="Quick Quiz" variant="card">
                   {!hasFullLessonAccess ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       Quiz available after unlocking the full lesson.
@@ -3380,7 +3381,7 @@ const LessonViewPage: React.FC = () => {
                       )}
                       {endOfLessonQuizQuestions.length > 0 && (
                         <div style={{ marginTop: 24 }}>
-                          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 15 }}>End of lesson test</div>
+                          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 15 }}>End of Lesson Test</div>
                           <QuizView
                             title=""
                             questions={endOfLessonQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
@@ -4035,8 +4036,8 @@ const LessonViewPage: React.FC = () => {
           <StudyPlanPanel specKey={specKey} />
         )}
 
-        {/* Check your understanding — gate on hasFullLessonAccess */}
-        <Section title="Check your understanding" variant="card">
+        {/* Quick Quiz — gate on hasFullLessonAccess */}
+        <Section title="Quick Quiz" variant="card">
           {!hasFullLessonAccess ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               Quiz available after unlocking the full lesson.
@@ -4046,10 +4047,13 @@ const LessonViewPage: React.FC = () => {
               No quiz questions generated for this topic yet.
             </div>
           ) : (
-            <QuizView
-              title=""
-              questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
-            />
+            <>
+              <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>This quick quiz checks your understanding before moving on.</p>
+              <QuizView
+                title=""
+                questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+              />
+            </>
           )}
         </Section>
 

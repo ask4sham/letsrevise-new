@@ -1464,3 +1464,62 @@ Acceptance:
 
 Follow-ups:
 None
+
+---
+
+**PR-034.1 — Teacher dashboard clarity improvements (remove duplicate Create Lesson, colour-code action groups, teacher-friendly labels)**
+
+Date: 2026-03-05
+
+Summary:
+UX clarity pass: Create Lesson removed from right toolbox (appears only in left Content column). Left column action groups colour-coded by purpose: green = teaching content, blue = practice banks, purple = monitor course health, grey = account. Internal AI/developer terminology replaced with teacher-friendly language. Right toolbox contains only quick generation/improvement tools. No route or functionality changes.
+
+Files changed:
+
+- frontend/src/pages/TeacherDashboard.tsx
+- frontend/src/components/coverage/CoverageTopicDrawer.tsx
+- frontend/src/pages/CoverageDashboardPage.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Label changes:
+- Starter pack → Generate lesson materials
+- Weak evidence / Weak questions → Topics students struggle with
+- Fix weak evidence → Fix topic with AI
+- Summarise topic → Create topic summary
+- Sprint plan → Course improvement plan
+- Questions students asked → Student questions
+
+Acceptance:
+- Create Lesson appears only once (left column).
+- Left column colour-coded: green/blue/purple/grey.
+- Teacher-friendly terminology throughout.
+- All routes and features unchanged.
+
+Follow-ups:
+None
+
+---
+
+**PR-040 — Lesson page clarity improvements**
+
+Date: 2026-03-05
+
+Summary:
+Clarify student learning flow: renamed Classroom → Student View, Practice → Practice Questions, Check your understanding → Quick Quiz. Added helper text for Quick Quiz and Practice Questions. AI tutor wording: Ask the AI tutor about this topic. Section headings: Lesson Content, Quick Quiz, Practice Questions, Flashcards, End of Lesson Test. No backend, API, or route changes.
+
+Files changed:
+
+- frontend/src/pages/TeacherDashboard.tsx (Classroom → Student View, Practice → Practice Questions)
+- frontend/src/pages/EditLessonPage.tsx (Start classroom mode → Open Student View)
+- frontend/src/pages/TeacherNeedsAttentionPage.tsx (Open Classroom mode → Open Student View)
+- frontend/src/pages/LessonViewPage.tsx (Check your understanding → Quick Quiz, Practice questions → Practice Questions, helpers, End of Lesson Test)
+- frontend/src/components/ai/AskAboutLesson.tsx
+- frontend/src/components/ai/AskAiPanel.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Acceptance:
+- Teachers understand: Lesson → Quick Quiz → Practice Questions → Flashcards → End of Lesson Test.
+- No backend or route changes.
+
+Follow-ups:
+None

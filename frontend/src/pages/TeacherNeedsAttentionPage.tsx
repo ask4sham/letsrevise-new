@@ -313,7 +313,7 @@ export default function TeacherNeedsAttentionPage() {
                 cursor: "pointer",
               }}
             >
-              Open Classroom mode now
+              Open Student View now
             </button>
           )}
         </div>
@@ -347,7 +347,7 @@ export default function TeacherNeedsAttentionPage() {
               color: "#047857",
             }}
           >
-            Open Classroom mode
+            Open Student View
           </button>
           <button
             type="button"

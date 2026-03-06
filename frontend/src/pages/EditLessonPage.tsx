@@ -4965,7 +4965,7 @@ const EditLessonPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontWeight: 900, marginBottom: 12, fontSize: 18 }}>Published.</div>
-            <p style={{ margin: "0 0 20px", fontSize: 14, color: "#374151" }}>Start Classroom mode?</p>
+            <p style={{ margin: "0 0 20px", fontSize: 14, color: "#374151" }}>Open Student View?</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
                 type="button"
@@ -4997,7 +4997,7 @@ const EditLessonPage: React.FC = () => {
                   cursor: "pointer",
                 }}
               >
-                Start classroom mode
+                Open Student View
               </button>
             </div>
           </div>

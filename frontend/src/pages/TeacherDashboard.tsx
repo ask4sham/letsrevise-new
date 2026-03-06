@@ -720,28 +720,28 @@ const TeacherDashboard: React.FC = () => {
           margin: "0 auto",
         }}
       >
-        {/* LEFT: Content actions (vertical stack) — PR-039 clarity groupings */}
+        {/* LEFT: Content actions — PR-034.1 colour-coded groups (green=teach, blue=practice, purple=monitor, grey=account) */}
         <aside className="teacher-dashboard-left" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Content</div>
-              <Link to="/create-lesson" style={{ padding: "10px 14px", background: "#48bb78", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, textAlign: "center" }}>+ Create lesson</Link>
-              <button type="button" onClick={openAiModal} style={{ padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>✨ Generate with AI</button>
-              <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>My lessons</Link>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Course tools</div>
-              <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Exam lessons</Link>
-              <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic banks – Flashcards</Link>
-              <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic banks – Quizzes</Link>
-              <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic banks – Exam questions</Link>
-              <Link to="/teacher/content-coverage" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Content Coverage</Link>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Course health</div>
-              <Link to="/coverage" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Coverage</Link>
-              <Link to="/teacher/questions" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Questions students asked</Link>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Account</div>
-              <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "white", color: "#374151", border: "1px solid #d1d5db", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%", textAlign: "center" }}>{creatingWorksheet ? "Creating…" : "📄 Create worksheet"}</button>
-              <Link to="/teacher/reports/attempts" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment reports</Link>
-              <Link to="/teacher/ops/link-students" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create students</Link>
-              <Link to="/teacher/exam-question-bank" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create Questions</Link>
+              <div style={{ fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #22c55e", paddingLeft: 6 }}>Teaching content</div>
+              <Link to="/create-lesson" style={{ padding: "10px 14px", background: "#22c55e", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, textAlign: "center", borderLeft: "3px solid #16a34a" }}>+ Create lesson</Link>
+              <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.12)", color: "#166534", border: "1px solid #22c55e", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%", textAlign: "center" }}>Generate lesson materials</button>
+              <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>My lessons</Link>
+              <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>Exam lessons</Link>
+              <div style={{ fontSize: 11, color: "#1e40af", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #3b82f6", paddingLeft: 6 }}>Practice banks</div>
+              <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Flashcards</Link>
+              <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Quizzes</Link>
+              <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Exam questions</Link>
+              <Link to="/teacher/content-coverage" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Content coverage</Link>
+              <div style={{ fontSize: 11, color: "#6b21a8", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #8b5cf6", paddingLeft: 6 }}>Monitor course health</div>
+              <Link to="/coverage" title="See which topics need more support" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Coverage</Link>
+              <Link to="/teacher/questions" title="See where students are asking questions or where coverage is weak" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Student questions</Link>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #9ca3af", paddingLeft: 6 }}>Account</div>
+              <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", border: "1px solid #d1d5db", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%", textAlign: "center" }}>{creatingWorksheet ? "Creating…" : "Create worksheet"}</button>
+              <Link to="/teacher/reports/attempts" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment reports</Link>
+              <Link to="/teacher/ops/link-students" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create students</Link>
+              <Link to="/teacher/exam-question-bank" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create questions</Link>
             </div>
           </div>
         </aside>
@@ -789,7 +789,7 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* PR-039: How to use LetsRevise guide card (dismissible) */}
+          {/* PR-034.1: How LetsRevise works (dismissible) */}
           {!howToUseDismissed && (
             <div
               style={{
@@ -802,11 +802,12 @@ const TeacherDashboard: React.FC = () => {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                 <div>
-                  <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem", fontWeight: 700, color: "#166534" }}>How to use LetsRevise</h3>
+                  <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem", fontWeight: 700, color: "#166534" }}>How LetsRevise works</h3>
                   <ol style={{ margin: 0, paddingLeft: 18, color: "#374151", fontSize: 14, lineHeight: 1.6 }}>
-                    <li>Create or upload lessons</li>
+                    <li>Create lessons</li>
                     <li>Students ask AI questions</li>
-                    <li>Improve topics where students struggle</li>
+                    <li>See where students struggle</li>
+                    <li>Improve topics with AI</li>
                   </ol>
                   <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <Link to="/create-lesson" style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>Create lesson</Link>
@@ -1952,24 +1953,7 @@ const TeacherDashboard: React.FC = () => {
                           fontWeight: 500,
                         }}
                       >
-                        Practice
-                      </button>
-                      <button
-                        onClick={() => navigate(`/teacher/classroom/${lesson._id}`)}
-                        style={{
-                          width: 100,
-                          height: 32,
-                          padding: "0 12px",
-                          borderRadius: 6,
-                          border: "1px solid #22c55e",
-                          background: "rgba(34,197,94,0.1)",
-                          color: "#15803d",
-                          cursor: "pointer",
-                          fontSize: 13,
-                          fontWeight: 500,
-                        }}
-                      >
-                        Classroom
+                        Practice Questions
                       </button>
                       <Link to={`/teacher/reports/lesson/${lesson.id}`}>
                         <button
@@ -2017,47 +2001,43 @@ const TeacherDashboard: React.FC = () => {
 
         </main>
 
-        {/* RIGHT: Quick teaching tools + compact stats — PR-039 clarity */}
+        {/* RIGHT: Quick teaching tools — PR-034.1 no duplicate Create Lesson, teacher-friendly labels */}
         <aside className="teacher-dashboard-right" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-            <h3 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1rem" }}>🛠 Quick teaching tools</h3>
-            <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6b7280" }}>Create teaching materials in seconds.</p>
+            <h3 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1rem" }}>Quick teaching tools</h3>
+            <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6b7280" }}>Generate teaching materials and improve topics quickly.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 6, textTransform: "uppercase" }}>Generate materials</div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/create-lesson" style={{ display: "block", padding: "12px 14px", background: "#16a34a", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, border: "none", textAlign: "center", boxShadow: "0 2px 4px rgba(22,163,74,0.3)" }}>+ Create lesson</Link>
+                <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ width: "100%", padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", textAlign: "center" }}>Generate lesson materials</button>
               </div>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Teaching content</div>
               <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={openAiModal} title="Generate lessons, quizzes and flashcards for a topic" style={{ width: "100%", padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", textAlign: "center" }}>✨ AI starter packs</button>
+                <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
               </div>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Practice materials</div>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📝 Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
-              </div>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Course improvement</div>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
-              </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Course planning</div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/coverage" title="See which topics need more support" style={{ display: "block", padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Coverage</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</Link>
+                <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" title="See the next priority topics to improve" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>Course improvement plan</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>🧠 Misconceptions (7d)</Link>
+                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>Needs attention <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>🔁 Reteach plans</Link>
+                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>Misconceptions (7d)</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={handleViewAnalytics} style={{ width: "100%", padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>📊 View analytics</button>
+                <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>Reteach plans</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>💰 Cash out earnings</button>
+                <button type="button" onClick={handleViewAnalytics} style={{ width: "100%", padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>View analytics</button>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Cash out earnings</button>
               </div>
               <div>
-                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🛠 Fix earnings</button>
+                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Fix earnings</button>
               </div>
             </div>
           </div>
