@@ -157,16 +157,12 @@ const TeacherDashboard: React.FC = () => {
   // ✅ Teacher checklist modal
   const [checklistOpen, setChecklistOpen] = useState(false);
 
-  // Start Here collapsible (default collapsed to reduce clutter)
+  // showStartHere kept for compatibility (Start here banner removed; state unused)
   const [showStartHere, setShowStartHere] = useState(false);
-
   // PR-UX-DASH-INNOV-2: Today's interaction - show all recent or top 5
   const [showAllRecent, setShowAllRecent] = useState(false);
   // PR — Recent activity collapsible: collapsed by default; expand when urgent activity exists
   const [recentExpanded, setRecentExpanded] = useState(false);
-
-  // PR — How LetsRevise works: compact help link opens modal (no large card competing with workflow rail)
-  const [howToUseModalOpen, setHowToUseModalOpen] = useState(false);
 
   // PR-CHEM-2: Subject/spec selector (Biology vs Chemistry)
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
@@ -726,28 +722,6 @@ const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* How LetsRevise works: compact help link */}
-          <div style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={() => setHowToUseModalOpen(true)}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                fontSize: 13,
-                color: "#6b7280",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <span style={{ opacity: 0.8 }}>ℹ</span>
-              <span style={{ textDecoration: "underline" }}>How LetsRevise works</span>
-            </button>
-          </div>
         </div>
 
         <div style={{ marginBottom: "30px", marginTop: 8 }}>
@@ -766,9 +740,33 @@ const TeacherDashboard: React.FC = () => {
                 boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
               }}
             >
-              <div>
-                <div style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: 4 }}>Today&apos;s interaction</div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "#475569" }}>What students did today</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontWeight: 700, fontSize: "1.25rem", marginBottom: 0 }}>Today&apos;s interaction</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "#475569" }}>What students did today</div>
+                </div>
+                {overview?.recentActivity && overview.recentActivity.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setRecentExpanded((v) => !v)}
+                    aria-expanded={recentExpanded}
+                    style={{
+                      alignSelf: "flex-start",
+                      background: "none",
+                      border: "none",
+                      padding: "4px 0",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: "0.95rem",
+                      color: "#111827",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    Recent <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>{recentExpanded ? "▾" : "▸"}</span>
+                  </button>
+                )}
               </div>
               {overviewLoading && <span style={{ color: "#6b7280", fontSize: 14 }}>Loading…</span>}
               {overviewError && (
@@ -981,46 +979,11 @@ const TeacherDashboard: React.FC = () => {
                   )}
                 </>
               )}
-              {(overview.needsMarking?.worksheets?.count ?? 0) === 0 &&
-                (overview.awaitingRelease?.worksheets?.count ?? 0) === 0 &&
-                (overview.awaitingRelease?.quizzes?.count ?? 0) === 0 &&
-                (overview.awaitingRelease?.assessments?.count ?? 0) === 0 &&
-                (overview.dueSoon?.worksheets?.count ?? 0) === 0 &&
-                (overview.dueSoon?.quizzes?.count ?? 0) === 0 &&
-                (overview.dueSoon?.assessments?.count ?? 0) === 0 &&
-                (overview.quizSubmissionsToday ?? 0) === 0 &&
-                (overview.lowScoreCount ?? 0) === 0 &&
-                (overview.awaitingReleaseTotal ?? 0) === 0 && (
-                <span style={{ color: "#6b7280", fontSize: 14 }}>Nothing urgent.</span>
-              )}
               </div>
               )}
-              {overview && overview.recentActivity && overview.recentActivity.length > 0 && (
+              {overview && overview.recentActivity && overview.recentActivity.length > 0 && recentExpanded && (
                 <div style={{ width: "100%", paddingTop: 14, borderTop: "1px solid #e5e7eb", fontSize: 14 }}>
-                  <button
-                    type="button"
-                    onClick={() => setRecentExpanded((v) => !v)}
-                    aria-expanded={recentExpanded}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: "0.95rem",
-                      color: "#111827",
-                      textAlign: "left",
-                    }}
-                  >
-                    <span>Recent</span>
-                    <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>{recentExpanded ? "▾" : "▸"}</span>
-                  </button>
-                  {recentExpanded && (
-                    <div style={{ marginTop: 8 }}>
+                  <div style={{ marginTop: 0 }}>
                       {overview.recentActivity.length > 5 && (
                         <div style={{ marginBottom: 8, display: "flex", justifyContent: "flex-end" }}>
                           <button
@@ -1046,8 +1009,7 @@ const TeacherDashboard: React.FC = () => {
                           {a.label}
                         </Link>
                       ))}
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1090,108 +1052,6 @@ const TeacherDashboard: React.FC = () => {
             </div>
           )}
 
-        </div>
-
-        {/* Start Here: collapsible (default collapsed) */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            marginBottom: "20px",
-            borderLeft: "6px solid #48bb78",
-            overflow: "hidden",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setShowStartHere(!showStartHere)}
-            style={{
-              width: "100%",
-              padding: "14px 18px",
-              textAlign: "left",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "1rem",
-              fontWeight: "bold",
-              color: "#111827",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span>Start here (how to create a lesson)</span>
-            <span style={{ fontSize: "1.2rem" }}>{showStartHere ? "▼" : "▶"}</span>
-          </button>
-          {!showStartHere && (
-            <p style={{ margin: 0, padding: "0 18px 14px", color: "#6b7280", fontSize: "0.9rem" }}>
-              Follow these steps to publish correctly.
-            </p>
-          )}
-          {showStartHere && (
-            <div style={{ padding: "0 18px 18px 18px", borderTop: "1px solid #e5e7eb" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
-                <div style={{ maxWidth: "820px" }}>
-                  <p style={{ margin: "8px 0 10px", color: "#4b5563" }}>
-                    Follow this structure to create high-quality GCSE lessons (core + deeper knowledge done correctly).
-                  </p>
-                  <ol style={{ margin: 0, paddingLeft: "18px", color: "#111827", lineHeight: 1.6 }}>
-                    <li>Click <b>Create lesson (manual)</b> or <b>Generate with AI</b></li>
-                    <li>Fill lesson details and <b>save as Draft</b></li>
-                    <li>Use multiple pages (Overview → Core → Check → Exam tips)</li>
-                    <li>Put advanced content <b>ONLY</b> in <b>Deeper knowledge</b> blocks</li>
-                    <li>Keep lesson as <b>Draft</b> and submit for review</li>
-                  </ol>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", minWidth: "200px" }}>
-                  <Link
-                    to="/create-lesson"
-                    style={{
-                      padding: "10px 14px",
-                      background: "#48bb78",
-                      color: "white",
-                      textDecoration: "none",
-                      borderRadius: "8px",
-                      fontWeight: "bold",
-                      textAlign: "center",
-                    }}
-                  >
-                    + Create lesson (manual)
-                  </Link>
-                  <button
-                    onClick={openChecklist}
-                    style={{
-                      padding: "10px 14px",
-                      background: "white",
-                      color: "#111827",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
-                  >
-                    View lesson checklist
-                  </button>
-                  <button
-                    onClick={handleCopyGoldStandardLesson}
-                    style={{
-                      padding: "10px 14px",
-                      background: "white",
-                      color: "#111827",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
-                    title="Creates a copy of the gold-standard lesson as a new draft you can edit"
-                  >
-                    Copy gold-standard lesson
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Lessons List */}
@@ -1797,50 +1657,6 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </div>
         </aside>
-
-        {/* How LetsRevise works — lightweight help modal */}
-        {howToUseModalOpen && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.45)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "20px",
-              zIndex: 9998,
-            }}
-            onClick={() => setHowToUseModalOpen(false)}
-          >
-            <div
-              style={{
-                width: "100%",
-                maxWidth: "420px",
-                background: "white",
-                borderRadius: "12px",
-                padding: "24px",
-                boxShadow: "0 12px 30px rgba(0,0,0,0.2)",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#166534" }}>How LetsRevise works</h3>
-                <button type="button" onClick={() => setHowToUseModalOpen(false)} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#6b7280", padding: 4 }}>✕</button>
-              </div>
-              <ol style={{ margin: "12px 0 0", paddingLeft: 18, color: "#374151", fontSize: 14, lineHeight: 1.6 }}>
-                <li>Create lessons</li>
-                <li>Students ask AI questions</li>
-                <li>See where students struggle</li>
-                <li>Improve topics with AI</li>
-              </ol>
-              <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <Link to="/create-lesson" onClick={() => setHowToUseModalOpen(false)} style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>Create lesson</Link>
-                <Link to="/coverage" onClick={() => setHowToUseModalOpen(false)} style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>View coverage</Link>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ✅ Checklist Modal */}
         {checklistOpen && (
