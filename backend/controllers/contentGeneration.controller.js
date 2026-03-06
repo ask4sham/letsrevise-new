@@ -310,6 +310,260 @@ async function postStarterPack(req, res) {
 }
 
 /**
+ * POST /api/generate/weak-evidence-fix
+ * PR-031: Generate draft pack to fix missing spec coverage and weak enquiries.
+ */
+async function postWeakEvidenceFix(req, res) {
+  if (!requireTeacherOrAdmin(req, res)) return;
+
+  const { specKey, topicKey, statementCodes, weakQuestions, allowExternal, windowDays } = req.body || {};
+  const normalizedSpec = normalizeSpecKey(specKey);
+  const topic = String(topicKey || "").trim();
+
+  if (!normalizedSpec || !topic) {
+    return res.status(400).json({ error: "specKey and topicKey are required" });
+  }
+
+  const seed = crypto
+    .createHash("sha256")
+    .update(`${normalizedSpec}|${topic}|${(statementCodes || []).join(",")}|${Date.now()}`)
+    .digest("hex")
+    .slice(0, 16);
+
+  const userId = req.user._id || req.user.userId || req.user.id;
+  const role = (req.user.userType || req.user.role || "teacher").toString();
+  const effectiveWindowDays = Math.min(30, Math.max(7, Number(windowDays) || 14));
+
+  const job = new ContentGenerationJob({
+    requestedBy: userId,
+    role,
+    specKey: normalizedSpec,
+    topicKey: topic,
+    mode: "weakEvidenceFix",
+    status: "running",
+    seed,
+    inputs: {
+      missingStatementCodes: Array.isArray(statementCodes) ? statementCodes.slice(0, 5) : [],
+      weakQuestions: Array.isArray(weakQuestions) ? weakQuestions.slice(0, 5) : [],
+      allowExternal: !!allowExternal,
+      windowDays: effectiveWindowDays,
+    },
+    outputs: {},
+  });
+  await job.save();
+
+  try {
+    const {
+      pack,
+      inputsUsed,
+      contextChunks,
+    } = await runWeakEvidenceFixGeneration({
+      specKey: normalizedSpec,
+      topicKey: topic,
+      missingStatementCodes: Array.isArray(statementCodes) ? statementCodes : undefined,
+      weakQuestions: Array.isArray(weakQuestions) ? weakQuestions : undefined,
+      allowExternal: !!allowExternal,
+      windowDays: effectiveWindowDays,
+      user: req.user,
+    });
+
+    job.inputs = {
+      missingStatementCodes: inputsUsed.missingStatementCodes || [],
+      weakQuestions: inputsUsed.weakQuestions || [],
+      allowExternal: !!allowExternal,
+      windowDays: effectiveWindowDays,
+      retrievedDocs: (contextChunks || []).slice(0, 15).map((c) => ({
+        knowledgeDocumentId: c.knowledgeDocumentId,
+        sourceType: c.sourceType,
+        snippet: (c.text || "").slice(0, 80),
+      })),
+    };
+
+    const meta = parseSpecToMeta(normalizedSpec);
+    const topicDisplay = topicDisplayName(topic);
+    const generatedFrom = { jobId: String(job._id), seed };
+    const llmLesson = pack?.lesson || {};
+    const llmPages = llmLesson.pages || [];
+    const pages = mapLlmPagesToLessonPages(llmPages, seed);
+
+    const lesson = new Lesson({
+      title: (llmLesson.title || `Draft — Gap fix: ${topicDisplay}`).trim(),
+      description: (llmLesson.subtitle || `Covers missing spec + weak enquiries`).trim(),
+      content: (llmLesson.learningObjectives || []).join("\n") || "",
+      teacherId: userId,
+      teacherName: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email || "",
+      subject: meta.subject,
+      level: meta.level,
+      topic: topicDisplay,
+      topicKey: topic,
+      board: meta.examBoard,
+      status: "draft",
+      isPublished: false,
+      pages,
+      metadata: { generatedFrom },
+    });
+    await lesson.save();
+    job.outputs.lessonId = lesson._id;
+
+    const flashcardIds = [];
+    for (const f of pack?.flashcards || []) {
+      const front = (f.front || "").trim().slice(0, 500);
+      const back = (f.back || "").trim().slice(0, 2000);
+      if (!front || !back) continue;
+      const fp = flashcardFingerprint(front, back);
+      const doc = new TopicFlashcard({
+        ownerId: userId,
+        subject: meta.subject,
+        examBoard: meta.examBoard,
+        level: meta.level,
+        topicKey: topic,
+        topic: topicDisplay,
+        front,
+        back,
+        status: "draft",
+        fingerprint: fp,
+        metadata: { generatedFrom },
+      });
+      await doc.save();
+      flashcardIds.push(doc._id);
+    }
+    job.outputs.flashcardIds = flashcardIds;
+
+    const quizIds = [];
+    for (const q of pack?.quiz || []) {
+      const questionText = (q.question || "").trim();
+      if (!questionText) continue;
+
+      const isShort = (q.kind || "").toLowerCase() === "short";
+      if (isShort) {
+        const acceptableAnswers = Array.isArray(q.acceptableAnswers)
+          ? q.acceptableAnswers.map((x) => String(x).trim()).filter(Boolean)
+          : [];
+        const item = {
+          questionText,
+          acceptableAnswers,
+          matchMode: "contains",
+          type: "short-answer",
+          kind: q.kind || "quiz",
+        };
+        const fp = quizFingerprintItem(item);
+        const doc = new TopicQuizQuestion({
+          ownerId: userId,
+          topicKey: topic,
+          questionText,
+          choices: [],
+          correctIndex: 0,
+          acceptableAnswers,
+          matchMode: "contains",
+          explanation: (q.explanation || "").trim().slice(0, 1000),
+          type: "short-answer",
+          kind: q.kind || "quiz",
+          status: "draft",
+          fingerprint: fp,
+          metadata: { generatedFrom },
+        });
+        await doc.save();
+        quizIds.push(doc._id);
+      } else {
+        const choices = Array.isArray(q.options) ? q.options.map((x) => String(x).trim()) : [];
+        const correctIndex = Math.min(Math.max(0, Number(q.correctIndex) || 0), Math.max(0, choices.length - 1));
+        const item = {
+          questionText,
+          choices,
+          correctIndex,
+          type: "mcq",
+          kind: q.kind || "quiz",
+        };
+        const fp = quizFingerprintItem(item);
+        const doc = new TopicQuizQuestion({
+          ownerId: userId,
+          topicKey: topic,
+          questionText,
+          choices,
+          correctIndex,
+          explanation: (q.explanation || "").trim().slice(0, 1000),
+          type: "mcq",
+          kind: q.kind || "quiz",
+          status: "draft",
+          fingerprint: fp,
+          metadata: { generatedFrom },
+        });
+        await doc.save();
+        quizIds.push(doc._id);
+      }
+    }
+    job.outputs.quizQuestionIds = quizIds;
+
+    const examIds = [];
+    for (const eq of pack?.examQuestions || []) {
+      const question = (eq.question || "").trim();
+      const markScheme = (eq.markScheme || "").trim();
+      const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
+      if (!question) continue;
+      const fp = examQuestionFingerprint({
+        specKey: normalizedSpec,
+        topicKey: topic,
+        question,
+        markScheme,
+        marks,
+      });
+      const doc = new ExamQuestion({
+        teacherId: userId,
+        subject: meta.subject,
+        examBoard: meta.examBoard,
+        level: meta.level,
+        topic: topicDisplay,
+        topicKey: topic,
+        type: "short",
+        marks,
+        question,
+        markScheme: markScheme ? [markScheme] : [],
+        status: "draft",
+        fingerprint: fp,
+        metadata: { generatedFrom },
+      });
+      await doc.save();
+      examIds.push(doc._id);
+    }
+    job.outputs.examQuestionIds = examIds;
+
+    job.status = "completed";
+    await job.save();
+
+    const enc = encodeURIComponent(topic);
+    return res.json({
+      jobId: job._id,
+      lessonId: String(lesson._id),
+      flashcards: flashcardIds.map((id) => String(id)),
+      quiz: quizIds.map((id) => String(id)),
+      exam: examIds.map((id) => String(id)),
+      inputsUsed: {
+        missingStatementCodes: job.inputs.missingStatementCodes || [],
+        weakQuestions: job.inputs.weakQuestions || [],
+        allowExternal: !!allowExternal,
+        windowDays: effectiveWindowDays,
+      },
+      links: {
+        editLesson: `/edit-lesson/${lesson._id}`,
+        flashcardsBank: `/teacher/topic-banks/flashcards?topicKey=${enc}`,
+        quizBank: `/teacher/topic-banks/quizzes?topicKey=${enc}`,
+        examBank: `/teacher/exam-question-bank?topicKey=${enc}`,
+      },
+    });
+  } catch (err) {
+    job.status = "failed";
+    job.errors = [err.message || String(err)];
+    await job.save();
+    console.error("[contentGeneration] weak-evidence-fix failed:", err);
+    return res.status(500).json({
+      error: "Generation failed",
+      message: err.message,
+      jobId: job._id,
+    });
+  }
+}
+
+/**
  * POST /api/generate/practice-set
  * PR-032: Generate draft practice set (flashcards, quiz, exam questions).
  */

@@ -1217,6 +1217,26 @@ PR-033 — Student tutoring actions
 
 ---
 
+**PR-032.1 — Fix weak-evidence-fix route wiring**
+
+Date: 2026-03-05
+
+Summary:
+postWeakEvidenceFix was exported but never implemented; the route would fail when called. Implemented the handler to call runWeakEvidenceFixGeneration, create ContentGenerationJob (mode weakEvidenceFix), persist lesson + flashcards + quiz + exam drafts, and return the response shape expected by CoverageTopicDrawer success panel. Added missing isPracticeSetRoute in contentGenerationRateLimit middleware. Suggested action gating for "Create practice set (draft)" was already correct (teacher/admin, specKey, topicKey).
+
+Files changed:
+
+- backend/controllers/contentGeneration.controller.js (postWeakEvidenceFix handler)
+- backend/middleware/contentGenerationRateLimit.js (isPracticeSetRoute)
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Acceptance:
+- POST /api/generate/weak-evidence-fix returns 200 and creates drafts.
+- CoverageTopicDrawer weak evidence button works end-to-end.
+- No stale exports or dead routes.
+
+---
+
 **PR-033 — Student tutoring actions (Explain again, Simpler, Another example, Practice, Exam question, Show diagram)**
 
 Date: 2026-03-05
