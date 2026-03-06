@@ -81,9 +81,9 @@ function mockGenerate(question, contextChunks, constraints) {
       explanation = `Revision sheet:\n• Key facts\n• Common mistake to avoid\n• Memory cue`;
       keyPoints.push("Structured for revision");
     } else {
-      explanation = `Based on the curriculum content: ${snippet}${snippet ? "..." : ""}`;
-      keyPoints.push("Content is drawn from trusted specification and lesson sources.");
-      keyPoints.push("Always verify against your exam board specification.");
+    explanation = `Based on the curriculum content: ${snippet}${snippet ? "..." : ""}`;
+    keyPoints.push("Content is drawn from trusted specification and lesson sources.");
+    keyPoints.push("Always verify against your exam board specification.");
     }
 
     citations.push({
@@ -115,18 +115,18 @@ function mockGenerate(question, contextChunks, constraints) {
         { type: "flashcard", front: "Memory cue?", back: "Link to key concept." }
       );
     } else {
-      practice.push({
-        type: "mcq",
+    practice.push({
+      type: "mcq",
         question: `Which best relates to: ${question.slice(0, 80)}?`,
-        options: ["Option A (from curriculum)", "Option B", "Option C", "Option D"],
-        answer: "Option A (from curriculum)",
-      });
-      practice.push({
-        type: "short",
+      options: ["Option A (from curriculum)", "Option B", "Option C", "Option D"],
+      answer: "Option A (from curriculum)",
+    });
+    practice.push({
+      type: "short",
         question: "Summarise the key point.",
-        answer: "See explanation above.",
-        markScheme: "1 mark for correct summary",
-      });
+      answer: "See explanation above.",
+      markScheme: "1 mark for correct summary",
+    });
     }
   }
 
@@ -354,6 +354,8 @@ async function openaiGenerateStarterPack({ specKey, topicKey, statementCodes, st
 
   const systemPrompt = `You are a curriculum author for UK GCSE/A-Level. Generate a STARTER PACK (draft content) using ONLY the provided spec statements and context. No external sources, no internet references.
 
+STRICT SCOPE: Generate content ONLY for the selected sub-topic (Topic). Do NOT include neighbouring sub-topics. For example, if Topic is cell-structure: include cell membrane, cytoplasm, nucleus, ribosomes; do NOT include mitosis, diffusion, osmosis, stem cells. Stay strictly within the sub-topic.
+
 Rules:
 - Derive ALL content from the provided statements and context chunks.
 - Keep language GCSE/A-Level appropriate.
@@ -526,6 +528,8 @@ async function openaiGenerateWeakEvidenceFixPack({ specKey, topicKey, statementC
   const context = buildContext(contextChunks || []);
 
   const systemPrompt = `You are a curriculum author for UK GCSE/A-Level. Generate a WEAK EVIDENCE FIX PACK — draft content to address missing spec coverage and weak enquiry questions. Use ONLY the provided spec statements, weak questions, and context. No external sources.
+
+STRICT SCOPE: Generate content ONLY for the selected sub-topic (Topic). Do NOT include neighbouring sub-topics. If evidence for this sub-topic is limited, stay within the sub-topic — do not broaden to sibling topics.
 
 Rules:
 - Derive ALL content from the provided statements, weak questions, and context chunks.
@@ -925,6 +929,8 @@ async function openaiGeneratePracticeSet({ specKey, topicKey, contextChunks, cou
     : "";
 
   const systemPrompt = `You are a curriculum author for UK GCSE/A-Level. Generate a PRACTICE SET (draft) using ONLY the provided context. No external sources.
+
+STRICT SCOPE: Generate content ONLY for the selected sub-topic (Topic). Do NOT include neighbouring sub-topics. Stay strictly within the sub-topic.
 
 Rules:
 - Derive ALL content from the provided context chunks.

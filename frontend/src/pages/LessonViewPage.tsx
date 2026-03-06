@@ -18,8 +18,8 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
-import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
+import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
 import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
@@ -3335,7 +3335,6 @@ const LessonViewPage: React.FC = () => {
                     <div>
                       <SummariseLesson lessonId={id} lessonTitle={lesson?.title} />
                     </div>
-                    <AskAboutLesson lessonId={id} lessonTitle={lesson?.title} />
                   </div>
                 )}
 

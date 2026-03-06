@@ -27,7 +27,8 @@ const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFr
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { generateContextAwareDiagram } = require("../services/diagramGeneration");
-const { findTopicByKey, topicToKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { findTopicByKey, findTopicBySpecAndKey, topicToKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftValidation");
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 
@@ -344,6 +345,8 @@ function buildUserPromptFromMd({
   specPoints,
   pastPaperSnippets,
   extraCoveragePoints = [],
+  subTopicDisplay = null,
+  topicKey = null,
 }) {
   const lvl = normalizeLevel(level);
   const tierFinal = lvl === "GCSE" ? normalizeTier(tier) : ""; // non-GCSE => empty string
@@ -355,6 +358,14 @@ function buildUserPromptFromMd({
     board: board === undefined || board === null ? "" : String(board),
     tier: tierFinal,
   });
+
+  if (subTopicDisplay || topicKey) {
+    const scopeLabel = subTopicDisplay || topic;
+    out += `\n\n## STRICT SCOPE (curriculum trust requirement)\n`;
+    out += `- Only generate content for the selected sub-topic: **${scopeLabel}**.\n`;
+    out += `- Do NOT include content from neighbouring sub-topics (e.g. do not include mitosis, cell division, diffusion, osmosis, stem cells, microscopy when the topic is cell structure unless explicitly in the curriculum context).\n`;
+    out += `- If evidence for this sub-topic is limited, stay within the sub-topic rather than expanding into related topics.\n`;
+  }
 
   if (Array.isArray(specPoints) && specPoints.length > 0) {
     out += "\n\n## Specification points to cover (you must address these)\n";
@@ -615,6 +626,8 @@ async function generateSanitizedDraft({
   specPoints = [],
   pastPaperSnippets = [],
   extraCoveragePoints = [],
+  subTopicDisplay = null,
+  topicKey = null,
 }) {
   const systemPrompt = buildSystemPrompt(subject, level);
   const userPrompt = buildUserPromptFromMd({
@@ -626,6 +639,8 @@ async function generateSanitizedDraft({
     specPoints,
     pastPaperSnippets,
     extraCoveragePoints,
+    subTopicDisplay,
+    topicKey,
   });
 
   const ai = await callOpenAI({ systemPrompt, userPrompt });
@@ -825,32 +840,54 @@ router.post("/generate-and-save", auth, async (req, res) => {
       });
     }
 
-    // ✅ Taxonomy validation: when topicKey is provided, ensure it maps to syllabus
-    if (topicKey) {
-      const specKey =
-        boardSubjectToSpecKey(board, subject) || parseTopicKey(topicKey).specKey || null;
-      if (specKey && !isValidTopicForSpec(specKey, topicKey)) {
+    const specKey = boardSubjectToSpecKey(board, subject) || (topicKey ? parseTopicKey(topicKey).specKey : null);
+
+    // ✅ Derive canonical topicKey: prefer from request (strip namespace if present); otherwise resolve from topic string
+    const rawFromRequest = topicKey ? (parseTopicKey(topicKey).topicKey || topicKey.trim()) : null;
+    let canonicalTopicKey = rawFromRequest || null;
+    let subTopicDisplay = topic;
+
+    if (canonicalTopicKey) {
+      if (specKey && !isValidTopicForSpec(specKey, canonicalTopicKey)) {
         return res.status(400).json({
           error: "Selected topic could not be mapped to syllabus. Please choose a topic from the list.",
         });
       }
+    } else {
+      const resolved = resolveSpecAndTopicKey(board, subject, topic);
+      if (!resolved) {
+        return res.status(400).json({
+          error: "Could not map the selected subject/main topic/sub-topic to a curriculum topic.",
+        });
+      }
+      const topicMeta = findTopicBySpecAndKey(resolved.specKey, resolved.topicKey);
+      if (!topicMeta) {
+        return res.status(400).json({
+          error: "Could not map the selected topic to a curriculum sub-topic. Please select a specific sub-topic from the list.",
+        });
+      }
+      canonicalTopicKey = resolved.topicKey;
+      subTopicDisplay = topicMeta?.topic || topic;
     }
 
-    // Algorithm 1: resolve spec/topic and load syllabus + past paper context (no breaking change if missing)
-    let specPoints = [];
-    let pastPaperSnippets = [];
-    const resolved = resolveSpecAndTopicKey(board, subject, topic);
-    if (resolved) {
-      specPoints = getSpecPointsForTopic(resolved.specKey, resolved.topicKey) || [];
-      pastPaperSnippets = await getPastPaperSnippetsForTopic(
-        resolved.specKey,
-        resolved.topicKey,
-        5,
-        PastPaperQuestion
-      );
+    if (!specKey) {
+      return res.status(400).json({
+        error: "Could not determine exam board and subject. Please provide board and subject.",
+      });
     }
 
-    // ✅ 2) Generate AI draft (sanitized)
+    // Use exact topicKey for retrieval (no prefix/broad matching)
+    let specPoints = getSpecPointsForTopic(specKey, canonicalTopicKey) || [];
+    let pastPaperSnippets = await getPastPaperSnippetsForTopic(
+      specKey,
+      canonicalTopicKey,
+      5,
+      PastPaperQuestion
+    );
+
+    const thinCoverage = specPoints.length === 0;
+
+    // ✅ 2) Generate AI draft (sanitized) with sub-topic scope guardrails
     const { sanitized } = await generateSanitizedDraft({
       topic,
       subject,
@@ -859,6 +896,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
       tier,
       specPoints,
       pastPaperSnippets,
+      subTopicDisplay,
+      topicKey: canonicalTopicKey,
     });
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
@@ -980,7 +1019,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       tags: Array.isArray(sanitized.tags) ? sanitized.tags : [],
 
       // Namespaced topicKey for practice/banks (same as manual Create Lesson)
-      ...(topicKey && { topicKey }),
+      ...(canonicalTopicKey && { topicKey: canonicalTopicKey }),
 
       // Gold structure
       pages: pagesMerged,
@@ -1002,7 +1041,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
     await lessonDoc.save();
 
     let autoAttachResult = null;
-    if (topicKey && autoGenerateFromBanks) {
+    if (canonicalTopicKey && autoGenerateFromBanks) {
       try {
         const attach = await autoAttachLessonContent({
           lessonId: lessonDoc._id,
@@ -1022,7 +1061,19 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
-    return res.json({
+    const driftCheck = canonicalTopicKey
+      ? validateGeneratedContentAgainstTopic({
+          topicKey: canonicalTopicKey,
+          specKey,
+          subTopicLabel: subTopicDisplay,
+          pages: pagesMerged,
+          quizItems: lessonDoc.quiz,
+          flashcards: lessonDoc.flashcards,
+          examQuestions: lessonDoc.examQuestions,
+        })
+      : { valid: true, warnings: [] };
+
+    const responsePayload = {
       success: true,
       message: "AI draft saved from Gold Template clone.",
       lessonId: String(lessonDoc._id),
@@ -1030,7 +1081,15 @@ router.post("/generate-and-save", auth, async (req, res) => {
       pagesCount: Array.isArray(lessonDoc.pages) ? lessonDoc.pages.length : 0,
       templateSource: String(gold._id),
       ...(autoAttachResult && { attached: autoAttachResult }),
-    });
+      ...(thinCoverage && { thinCoverage: true }),
+    };
+    if (thinCoverage) {
+      responsePayload.warning = "Content coverage for this sub-topic is limited. The draft was kept within the selected sub-topic.";
+    }
+    if (!driftCheck.valid && driftCheck.warnings?.length > 0) {
+      responsePayload.warning = (responsePayload.warning ? responsePayload.warning + " " : "") + driftCheck.warnings[0];
+    }
+    return res.json(responsePayload);
   } catch (error) {
     if (process.env.NODE_ENV !== "production" && error?.stack) {
       console.error("❌ AI generate-and-save stack:", error.stack);

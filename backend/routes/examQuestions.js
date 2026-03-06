@@ -89,14 +89,13 @@ router.get("/mine", auth, async (req, res) => {
 
     const query = { teacherId, status: { $in: ["draft", "published"] }, isArchived: { $ne: true } };
 
+    // STRICT TAXONOMY: Only exact sub-topic matching. No specKey-only broadening.
     if (topicKeyQ && String(topicKeyQ).trim()) {
       const spec = (specKey && String(specKey).trim()) || DEFAULT_SPEC_LEGACY;
       const candidates = queryCandidates(spec, parseTopicKey(String(topicKeyQ).trim()).topicKey || String(topicKeyQ).trim());
       if (candidates.length) query.topicKey = { $in: candidates };
-    } else if (specKey && String(specKey).trim()) {
-      const spec = String(specKey).trim();
-      query.topicKey = { $regex: "^" + spec.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ":" };
     }
+    // When specKey only (no topicKey): no topic filter — returns all teacher's questions. Require topicKey for sub-topic filtering.
 
     if (q && String(q).trim()) {
       query.question = { $regex: String(q).trim(), $options: "i" };

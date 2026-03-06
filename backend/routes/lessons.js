@@ -2737,6 +2737,7 @@ router.post("/:id/auto-attach-content", auth, requireLessonOwnerOrAdmin, async (
       topicKey: result.topicKey,
       attached: result.attached,
       lesson: result.lesson,
+      ...(result.thinCoverage && { thinCoverage: true, warning: result.warning }),
     });
   } catch (err) {
     if (err.statusCode === 404) {
@@ -3157,6 +3158,7 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
       topicKey: req.body.topicKey,
       limit,
     });
+    const thinCoverage = result.added < result.requested && result.requested > 0;
     return res.json({
       ok: true,
       topicKey: result.topicKey,
@@ -3164,6 +3166,10 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
       requested: result.requested,
       added: result.added,
       addedIds: result.addedIds,
+      ...(thinCoverage && {
+        thinCoverage: true,
+        warning: "Question bank coverage is limited for this sub-topic. Only exact-match questions were used.",
+      }),
     });
   } catch (err) {
     if (err.code === "INVALID_TOPIC_KEY") {

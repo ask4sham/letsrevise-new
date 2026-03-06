@@ -648,8 +648,9 @@ const TeacherDashboard: React.FC = () => {
       await fetchLessonsFromBackend();
       await fetchTeacherStatsFromBackend();
 
-      // Go straight to edit
-      navigate(`/edit-lesson/${lessonId}`);
+      const warning = res?.data?.warning;
+      // Go straight to edit (pass warning so EditLessonPage can show it)
+      navigate(`/edit-lesson/${lessonId}`, warning ? { state: { generationWarning: warning } } : undefined);
     } catch (err: any) {
       console.error("AI generate-and-save failed:", err);
       const data = err?.response?.data;
@@ -2293,6 +2294,28 @@ const TeacherDashboard: React.FC = () => {
                 </div>
 
                 {aiForm.topicKey.trim() ? (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background: "#ecfdf5",
+                      border: "1px solid #a7f3d0",
+                      fontSize: "0.875rem",
+                      color: "#065f46",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>AI will generate content only for the selected sub-topic.</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", color: "#047857" }}>
+                      {aiTopicSelection.subject && <span>Subject: {aiTopicSelection.subject}</span>}
+                      {aiTopicSelection.specKey && <span>Spec: {aiTopicSelection.specKey}</span>}
+                      {aiTopicSelection.mainTopicTitle && <span>Main topic: {aiTopicSelection.mainTopicTitle}</span>}
+                      {aiTopicSelection.topic && <span>Sub-topic: {aiTopicSelection.topic}</span>}
+                    </div>
+                  </div>
+                ) : null}
+
+                {aiForm.topicKey.trim() ? (
                   <ExistingLessonsPanel
                     topicKey={aiForm.topicKey}
                     currentUserId={user?._id ? String(user._id) : undefined}
@@ -2375,6 +2398,9 @@ const TeacherDashboard: React.FC = () => {
                     />
                     Auto-generate from topic banks (attach flashcards + quiz when draft is created)
                   </label>
+                  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 2, marginLeft: 24 }}>
+                    Only questions for the selected sub-topic will be attached.
+                  </div>
                 </div>
                 </div>
               </div>
