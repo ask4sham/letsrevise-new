@@ -1523,3 +1523,32 @@ Acceptance:
 
 Follow-ups:
 None
+
+---
+
+**PR-034.2 — Teacher dashboard cleanup (remove duplicates and resolve wording clashes)**
+
+Date: 2026-03-05
+
+Summary:
+Presentation-only cleanup on teacher dashboard: removed duplicate Coverage from right toolbox (kept in left column under Monitor course health); standardised teacher-facing wording by renaming "Content coverage" to "Topic coverage" to distinguish from "Coverage" (AI coverage dashboard). No layout, route, API, or functionality changes.
+
+Files changed:
+- frontend/src/pages/TeacherDashboard.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Changes:
+- Removed duplicate Coverage button from right column "Course planning" (done in prior edit)
+- Renamed left-column "Content coverage" to "Topic coverage" — clarifies it refers to which topics have lessons (route: /teacher/content-coverage), vs "Coverage" (route: /coverage) for AI coverage dashboard
+- Lesson cards: single preview action "Preview Lesson" (no Student View duplicate)
+- Right toolbox: only quick actions (Generate, Needs marking, Course improvement plan, Needs attention, Misconceptions, Reteach plans, View analytics, Cash out, Fix earnings)
+
+Acceptance:
+- Coverage appears only once (left column).
+- Create Lesson only in left Teaching Content (no duplicate in right toolbox).
+- Lesson cards show only Preview Lesson.
+- Topic coverage vs Coverage clearly distinct.
+- No layout or route changes.
+
+Follow-ups:
+None
