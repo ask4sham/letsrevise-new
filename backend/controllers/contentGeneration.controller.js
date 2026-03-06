@@ -48,11 +48,29 @@ function topicDisplayName(topicKey) {
   return last ? last.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : topicKey || "Topic";
 }
 
-function mapLlmBlockToLessonBlock(block, pageIdx) {
+/** Subsection title patterns → lesson block type. PR: subsection labels become blocks, not pages. */
+const SUBSECTION_PATTERNS = {
+  examTip: /exam\s*tips?|exam\s*focus/i,
+  commonMistake: /misconception|common\s*mistake|avoid/i,
+  stretch: /stretch|deeper\s*knowledge|extension/i,
+  keyIdea: /core\s*concept|key\s*(idea|point)|overview|introduction|comparison|examples/i,
+  checkpoint: /check\s*understanding|quick\s*check|test\s*yourself/i,
+};
+
+function mapLlmBlockToLessonBlock(block, pageTitle = "") {
   if (!block || typeof block !== "object") return null;
   const t = String(block.type || "text").toLowerCase();
   if (t === "text") {
-    return { type: "text", content: (block.content || "").trim() || "" };
+    const content = (block.content || "").trim();
+    if (!content) return null;
+    let blockType = "text";
+    for (const [type, pattern] of Object.entries(SUBSECTION_PATTERNS)) {
+      if (pattern.test(pageTitle)) {
+        blockType = type;
+        break;
+      }
+    }
+    return { type: blockType, content };
   }
   if (t === "bulletlist") {
     const items = Array.isArray(block.items) ? block.items : [];
@@ -66,40 +84,93 @@ function mapLlmBlockToLessonBlock(block, pageIdx) {
     return { type: "text", content };
   }
   if (t === "checkpoint") {
+    const prompt = (block.question || block.prompt || "").trim();
+    if (!prompt) return null;
+    const options = Array.isArray(block.options) ? block.options.map((o) => String(o || "").trim()).filter(Boolean).slice(0, 6) : [];
+    const questionType = options.length > 0 ? "mcq" : "short";
+    const correctAnswer = (block.answer || block.correctAnswer || "").trim();
     return {
       type: "checkpoint",
-      prompt: (block.question || block.prompt || "").trim(),
-      questionType: "short",
-      options: [],
-      correctAnswer: (block.answer || block.correctAnswer || "").trim(),
+      prompt,
+      questionType,
+      options: questionType === "mcq" && options.length < 4 ? [...options, ...Array(4 - options.length).fill("Option")].slice(0, 4) : options.slice(0, 4),
+      correctAnswer: correctAnswer || (options[0] || ""),
     };
   }
-  return { type: "text", content: JSON.stringify(block).slice(0, 500) };
+  if (t === "examtip" || t === "exam_tip") return { type: "examTip", content: (block.content || "").trim() || "" };
+  if (t === "commonmistake" || t === "misconception") return { type: "commonMistake", content: (block.content || "").trim() || "" };
+  if (t === "stretch" || t === "deeperknowledge") return { type: "stretch", content: (block.content || "").trim() || "" };
+  if (t === "keyidea") return { type: "keyIdea", content: (block.content || "").trim() || "" };
+  return { type: "text", content: (block.content || JSON.stringify(block)).slice(0, 500) };
 }
 
-function mapLlmPagesToLessonPages(llmPages, seed) {
+/**
+ * PR: Collapse multiple LLM pages into ONE lesson page.
+ * Subsection labels (Core Concept, Exam Tips, Check Understanding, Stretch) become blocks, not pages.
+ */
+function collapseLlmPagesToSinglePage(llmPages, seed) {
   if (!Array.isArray(llmPages) || llmPages.length === 0) {
     return [
       {
         pageId: `p_starter_${seed.slice(0, 8)}_0`,
-        title: "Introduction",
+        title: "Page 1",
         order: 0,
         blocks: [{ type: "text", content: "Draft content — edit and expand." }],
       },
     ];
   }
   const hash = crypto.createHash("sha256").update(seed).digest("hex").slice(0, 8);
-  return llmPages.map((p, i) => {
-    const blocks = Array.isArray(p.blocks)
-      ? p.blocks.map((b) => mapLlmBlockToLessonBlock(b, i)).filter(Boolean)
-      : [];
-    return {
-      pageId: `p_starter_${hash}_${i}`,
-      title: (p.title || `Page ${i + 1}`).trim(),
-      order: i,
-      blocks: blocks.length ? blocks : [{ type: "text", content: "Placeholder — add content." }],
-    };
-  });
+  const allBlocks = [];
+  const sorted = [...llmPages].sort((a, b) => (Number(a?.order) ?? 0) - (Number(b?.order) ?? 0));
+
+  for (const p of sorted) {
+    const pageTitle = String(p?.title || "").trim();
+    const blocksRaw = Array.isArray(p?.blocks) ? p.blocks : [];
+    const cp = p?.checkpoint || {};
+
+    for (const b of blocksRaw) {
+      const mapped = mapLlmBlockToLessonBlock(b, pageTitle);
+      if (mapped) allBlocks.push(mapped);
+    }
+
+    if (blocksRaw.length === 0 && cp && String(cp?.question || "").trim()) {
+      const options = Array.isArray(cp?.options) ? cp.options.map((o) => String(o || "").trim()).filter(Boolean).slice(0, 4) : [];
+      while (options.length < 4) options.push(`Option ${options.length + 1}`);
+      const answer = String(cp?.answer || "").trim();
+      allBlocks.push({
+        type: "checkpoint",
+        prompt: String(cp?.question || "Quick check").trim(),
+        questionType: "mcq",
+        options: options.slice(0, 4),
+        correctAnswer: options.some((o) => o === answer) ? answer : options[0],
+      });
+    }
+  }
+
+  const hasCheckpoint = allBlocks.some((b) => b?.type === "checkpoint");
+  const finalBlocks = allBlocks.length > 0 ? allBlocks : [{ type: "text", content: "Placeholder — add content." }];
+  if (!hasCheckpoint) {
+    finalBlocks.push({
+      type: "checkpoint",
+      prompt: "Quick check: which statement is correct?",
+      questionType: "mcq",
+      options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+      correctAnswer: "Option 1",
+    });
+  }
+
+  return [
+    {
+      pageId: `p_starter_${hash}_0`,
+      title: "Page 1",
+      order: 0,
+      blocks: finalBlocks,
+    },
+  ];
+}
+
+function mapLlmPagesToLessonPages(llmPages, seed) {
+  return collapseLlmPagesToSinglePage(llmPages, seed);
 }
 
 /**
@@ -861,4 +932,5 @@ module.exports = {
   postWeakEvidenceFix,
   postPracticeSet,
   getJobs,
+  collapseLlmPagesToSinglePage,
 };

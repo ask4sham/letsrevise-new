@@ -109,6 +109,7 @@ function hasDiagram(pages) {
  * JSON Schema for Structured Outputs
  * - Matches your Lesson.pages[] structure in backend/models/Lesson.js
  * - We keep pageId out of the AI output (server generates it on save)
+ * - PR: Single-page default — exactly 1 page, subsection labels become blocks not pages
  */
 const LESSON_DRAFT_SCHEMA = {
   type: "object",
@@ -131,12 +132,12 @@ const LESSON_DRAFT_SCHEMA = {
     tier: { type: "string" },
     pages: {
       type: "array",
-      minItems: 2,
-      maxItems: 6,
+      minItems: 1,
+      maxItems: 1,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "order", "pageType", "blocks", "checkpoint"],
+        required: ["title", "order", "pageType", "blocks"],
         properties: {
           title: { type: "string" },
           order: { type: "number" },
@@ -144,7 +145,7 @@ const LESSON_DRAFT_SCHEMA = {
           blocks: {
             type: "array",
             minItems: 1,
-            maxItems: 12,
+            maxItems: 24,
             items: {
               type: "object",
               additionalProperties: false,
@@ -166,7 +167,6 @@ const LESSON_DRAFT_SCHEMA = {
           checkpoint: {
             type: "object",
             additionalProperties: false,
-            required: ["question", "options", "answer"],
             properties: {
               question: { type: "string" },
               options: {
@@ -252,19 +252,21 @@ STRICT REQUIREMENTS:
 8. Do NOT include external links
 
 LESSON STRUCTURE RULES:
-- Create 3 to 5 lesson pages
-- Each page must include:
+- Create a SINGLE-PAGE draft. Exactly 1 page. Do NOT create multiple pages.
+- Use section types as blocks within the page: text, keyIdea, examTip, commonMistake, stretch (Higher only), checkpoint.
+- Do NOT create separate pages for: Core Concept 1, Core Concept 2, Comparison, Check Understanding, Exam Tips, Stretch.
+- The single page must include:
   - Clear explanation text (at least one "text" block)
   - At least one "keyIdea", "examTip", or "commonMistake" block
-  - For Higher tier only: at least one "stretch" block per page (deeper/extension content)
-  - One checkpoint question with EXACTLY 4 options
-  - The "answer" must match one of the 4 options EXACTLY
-- Foundation: simpler language. Higher: deeper detail + stretch blocks.
+  - For Higher tier only: at least one "stretch" block (deeper/extension content)
+  - One checkpoint block with EXACTLY 4 options; "correctAnswer" must match one option EXACTLY
+- Foundation: simpler language. Higher: deeper detail + stretch block.
 
 TAGS RULE:
 - Provide 5–12 short tags (single words or short phrases)
 
 OUTPUT SCHEMA (DO NOT CHANGE):
+- Exactly 1 page in "pages" array. All content in blocks on that page.
 
 {
   "title": "string",
@@ -275,17 +277,13 @@ OUTPUT SCHEMA (DO NOT CHANGE):
   "tier": "string",
   "pages": [
     {
-      "title": "string",
-      "order": number,
+      "title": "Page 1",
+      "order": 1,
       "pageType": "string",
       "blocks": [
-        { "type": "text | keyIdea | examTip | commonMistake | stretch", "content": "string" }
-      ],
-      "checkpoint": {
-        "question": "string",
-        "options": ["string", "string", "string", "string"],
-        "answer": "string"
-      }
+        { "type": "text | keyIdea | examTip | commonMistake | stretch", "content": "string" },
+        { "type": "checkpoint", "prompt": "string", "questionType": "mcq|short", "options": ["string"], "correctAnswer": "string", "explanation": "string" }
+      ]
     }
   ]
 }
@@ -439,6 +437,91 @@ async function callOpenAI({ systemPrompt, userPrompt }) {
   return { raw: outputText, usage: data.usage || null, model: data.model || model };
 }
 
+/**
+ * PR: Deterministic post-processing — collapse multiple AI pages into ONE.
+ * Subsection labels (Core Concept 1, Exam Tips, Check Understanding, Stretch) become blocks, not pages.
+ * Maps page titles to block types when blocks are generic text.
+ */
+function collapsePagesToSingle(pages) {
+  if (!Array.isArray(pages) || pages.length === 0) return [];
+  if (pages.length === 1) return pages;
+
+  const subsectionPatterns = {
+    examTip: /exam\s*tips?|exam\s*focus/i,
+    commonMistake: /misconception|common\s*mistake|avoid/i,
+    stretch: /stretch|deeper\s*knowledge|extension/i,
+    keyIdea: /core\s*concept|key\s*(idea|point)|overview|introduction/i,
+    checkpoint: /check\s*understanding|quick\s*check|test\s*yourself/i,
+  };
+
+  const allBlocks = [];
+  const sorted = [...pages].sort((a, b) => (Number(a?.order) || 0) - (Number(b?.order) || 0));
+
+  for (const p of sorted) {
+    const pageTitle = safeStr(p?.title, "");
+    const blocksRaw = Array.isArray(p?.blocks) ? p.blocks : [];
+    const cp = p?.checkpoint || {};
+
+    for (const b of blocksRaw) {
+      const existingType = normalizeBlockType(b?.type);
+      if (existingType === "checkpoint" || existingType === "diagram") {
+        allBlocks.push(b);
+        continue;
+      }
+      const content = safeStr(b?.content, "").trim();
+      if (!content) continue;
+
+      let blockType = existingType;
+      if (blockType === "text") {
+        for (const [type, pattern] of Object.entries(subsectionPatterns)) {
+          if (pattern.test(pageTitle)) {
+            blockType = type;
+            break;
+          }
+        }
+      }
+      allBlocks.push({ ...b, type: blockType, content: content || b?.content });
+    }
+
+    if (blocksRaw.length === 0 && cp && safeStr(cp?.question, "").trim()) {
+      const options = clampOptions(cp?.options);
+      while (options.length < 4) options.push(`Option ${options.length + 1}`);
+      const answer = safeStr(cp?.answer, "");
+      allBlocks.push({
+        type: "checkpoint",
+        prompt: safeStr(cp?.question, "Quick check"),
+        questionType: "mcq",
+        options: options.slice(0, 4),
+        correctAnswer: options.some((o) => o.trim() === answer.trim()) ? answer : options[0],
+        explanation: "",
+      });
+    }
+  }
+
+  const hasCheckpoint = allBlocks.some((b) => b?.type === "checkpoint");
+  const finalBlocks = allBlocks.length > 0 ? allBlocks : [{ type: "text", content: "Content coming soon." }];
+  if (!hasCheckpoint && finalBlocks.length > 0) {
+    finalBlocks.push({
+      type: "checkpoint",
+      prompt: "Quick check: which statement is correct?",
+      questionType: "mcq",
+      options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+      correctAnswer: "Option 1",
+      explanation: "",
+    });
+  }
+
+  return [
+    {
+      title: "Page 1",
+      order: 1,
+      pageType: "",
+      blocks: finalBlocks,
+      checkpoint: undefined,
+    },
+  ];
+}
+
 function sanitizeDraft(draft, { subject, level, topic }) {
   const lvl = normalizeLevel(level);
 
@@ -555,8 +638,10 @@ function sanitizeDraft(draft, { subject, level, topic }) {
             },
       };
     })
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .slice(0, 6);
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  // PR: Single-page default — collapse multiple pages into one (deterministic post-processing)
+  clean.pages = collapsePagesToSingle(clean.pages);
 
   if (!clean.pages.length) {
     clean.pages = [
@@ -564,23 +649,18 @@ function sanitizeDraft(draft, { subject, level, topic }) {
         title: "Page 1",
         order: 1,
         pageType: "",
-        blocks: [{ type: "text", content: `## ${safeStr(topic)}\n\nAdd content here.` }],
-        checkpoint: {
-          question: "Which statement is correct?",
-          options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-          answer: "Option 1",
-        },
-      },
-      {
-        title: "Page 2",
-        order: 2,
-        pageType: "",
-        blocks: [{ type: "text", content: "## Worked example\n\nAdd content here." }],
-        checkpoint: {
-          question: "Which statement is correct?",
-          options: ["Option 1", "Option 2", "Option 3", "Option 4"],
-          answer: "Option 1",
-        },
+        blocks: [
+          { type: "text", content: `## ${safeStr(topic)}\n\nAdd content here.` },
+          {
+            type: "checkpoint",
+            prompt: "Which statement is correct?",
+            questionType: "mcq",
+            options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+            correctAnswer: "Option 1",
+            explanation: "",
+          },
+        ],
+        checkpoint: undefined,
       },
     ];
   }
@@ -832,13 +912,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
       `🤖 AI generate-and-save (clone-first): user=${getAuthUserId(req)} type=${req.user.userType} | ${subject} | ${level} | ${topic}`
     );
 
-    // ✅ 1) Find the single Gold Standard master template
+    // ✅ 1) Find the single Gold Standard master template (optional — used only for templateSource tracking)
     const gold = await Lesson.findOne({ isTemplate: true }).lean();
-    if (!gold) {
-      return res.status(422).json({
-        error: "Gold template missing",
-      });
-    }
 
     const specKey = boardSubjectToSpecKey(board, subject) || (topicKey ? parseTopicKey(topicKey).specKey : null);
 
@@ -941,45 +1016,31 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const teacherName =
       first || last ? `${first} ${last}`.trim() : safeStr(req.user?.email, "Teacher");
 
-    // ✅ 5) Clone template pages (keep EXACT 7 pages + pageIds from template)
-    // If any template page lacks pageId for some reason, ensure it.
-    const templatePages = Array.isArray(gold.pages) ? gold.pages : [];
-    const pagesCloned = templatePages.map((p, idx) => ({
-      pageId: safeStr(p?.pageId, "") || makePageIdFallback(idx),
-      title: safeStr(p?.title, `Page ${idx + 1}`),
-      order: Number.isFinite(Number(p?.order)) ? Number(p.order) : idx + 1,
-      pageType: safeStr(p?.pageType, ""),
-      hero: p?.hero,
-      visualModelId: p?.visualModelId,
-      checkpoint: p?.checkpoint,
-      blocks: Array.isArray(p?.blocks) ? p.blocks : [],
-    }));
+    // ✅ 5) PR: Single-page default — use exactly 1 page from collapsed AI content (no template clone)
+    // sanitized.pages is already collapsed to 1 page by collapsePagesToSingle in sanitizeDraft
+    const aiPages = ensurePageIds(sanitized.pages);
+    const singlePage = aiPages[0] || {
+      title: "Page 1",
+      order: 1,
+      pageType: "",
+      blocks: [{ type: "text", content: "Content coming soon." }],
+      checkpoint: undefined,
+    };
 
-    // ✅ 6) Merge AI content into the cloned pages (best-effort, preserves 7-page structure)
-    // We take AI pages (2-6) and map them onto the first N template pages by order.
-    // ✅ Use ensurePageIds which now preserves hero field
-    const aiPages = ensurePageIds(sanitized.pages); // ensures pageId exists and preserves hero
-    const byOrder = new Map(aiPages.map((p) => [Number(p.order || 0), p]));
-
-    const pagesMerged = pagesCloned
-      .sort((a, b) => (a.order || 0) - (b.order || 0))
-      .map((tp, i) => {
-        const ai = byOrder.get(i + 1) || null;
-
-        // If we have AI content for this slot, replace blocks + checkpoint only.
-        // Keep existing hero from template or curated visual
-        if (ai) {
-          return {
-            ...tp,
-            blocks: Array.isArray(ai.blocks) && ai.blocks.length ? ai.blocks : tp.blocks,
-            checkpoint: ai.checkpoint || tp.checkpoint,
-            // Preserve hero: use AI hero if exists (from curated visuals), otherwise template hero
-            hero: ai.hero || tp.hero,
-          };
-        }
-
-        return tp;
-      });
+    const pagesMerged = [
+      {
+        pageId: safeStr(singlePage?.pageId, "") || makePageIdFallback(0),
+        title: safeStr(singlePage?.title, "Page 1"),
+        order: 1,
+        pageType: safeStr(singlePage?.pageType, ""),
+        hero: singlePage?.hero,
+        visualModelId: singlePage?.visualModelId,
+        checkpoint: singlePage?.checkpoint,
+        blocks: Array.isArray(singlePage?.blocks) && singlePage.blocks.length
+          ? singlePage.blocks
+          : [{ type: "text", content: "Content coming soon." }],
+      },
+    ];
 
     // ✅ Biology fallback: ensure page 1 has a real diagram (DB lookup; no env)
     const subjectNorm = subject.toLowerCase();
@@ -1032,10 +1093,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
       status: "draft",
       isPublished: false,
 
-      // ✅ Template tracking (agreed)
+      // ✅ Template tracking (agreed; omit if no gold template)
       isTemplate: false,
-      createdFromTemplate: true,
-      templateSource: gold._id,
+      createdFromTemplate: !!gold,
+      ...(gold?._id && { templateSource: gold._id }),
     });
 
     await lessonDoc.save();
@@ -1075,11 +1136,11 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
     const responsePayload = {
       success: true,
-      message: "AI draft saved from Gold Template clone.",
+      message: "AI draft saved successfully.",
       lessonId: String(lessonDoc._id),
       title: lessonDoc.title,
       pagesCount: Array.isArray(lessonDoc.pages) ? lessonDoc.pages.length : 0,
-      templateSource: String(gold._id),
+      ...(gold?._id && { templateSource: String(gold._id) }),
       ...(autoAttachResult && { attached: autoAttachResult }),
       ...(thinCoverage && { thinCoverage: true }),
     };

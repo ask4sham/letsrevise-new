@@ -362,8 +362,10 @@ Rules:
 - Include statement codes in metadata where relevant.
 - Return valid JSON only.
 - Do not reference "internet" or external sources.
-- Blocks: use "text", "bulletList", "workedExample", or "checkpoint".
-- Lesson: 2-4 pages, 2-4 blocks per page.
+- Create a SINGLE-PAGE lesson draft. Do NOT create multiple pages. Put all content in blocks within one page.
+- Blocks: use "text", "bulletList", "keyIdea", "examTip", "commonMistake", "stretch", "workedExample", "checkpoint". Use section types (key ideas, exam tips, misconceptions, checkpoint, deeper knowledge) as blocks within the page.
+- Do NOT create separate pages for: Core Concept 1, Core Concept 2, Comparison, Check Understanding, Exam Tips, Stretch.
+- Lesson: exactly 1 page, 4-10 blocks (mix of text, keyIdea, examTip, checkpoint, etc.).
 - Flashcards: 5-10 items.
 - Quiz: 8-12 MCQ items.
 - Exam questions: 3-5 items with marks 1-6.`;
@@ -378,7 +380,7 @@ ${statementsText || "(none - use context)"}
 Context:
 ${context || "(minimal - produce best-effort from statements)"}
 
-Return JSON:
+Return JSON (exactly 1 lesson page, all content in blocks):
 {
   "lesson": {
     "title": "...",
@@ -386,12 +388,13 @@ Return JSON:
     "learningObjectives": ["..."],
     "pages": [
       {
-        "title": "...",
+        "title": "Page 1",
         "blocks": [
           { "type": "text", "content": "..." },
+          { "type": "keyIdea", "content": "..." },
+          { "type": "examTip", "content": "..." },
           { "type": "bulletList", "items": ["..."] },
-          { "type": "workedExample", "prompt": "...", "answer": "..." },
-          { "type": "checkpoint", "question": "...", "answer": "..." }
+          { "type": "checkpoint", "question": "...", "options": ["A","B","C","D"], "answer": "..." }
         ]
       }
     ]
@@ -533,10 +536,10 @@ STRICT SCOPE: Generate content ONLY for the selected sub-topic (Topic). Do NOT i
 
 Rules:
 - Derive ALL content from the provided statements, weak questions, and context chunks.
-- Output exactly: 1 lesson page (2-4 blocks), 4 flashcards, 5 quiz questions (MCQ or short), 2 exam questions.
+- Output exactly: 1 lesson page with 4-8 blocks. Do NOT create multiple pages. Use blocks (text, keyIdea, examTip, commonMistake, checkpoint) within the single page.
 - Keep language GCSE/A-Level appropriate.
 - Return valid JSON only.
-- Blocks: use "text", "bulletList", or "checkpoint".
+- Blocks: use "text", "bulletList", "keyIdea", "examTip", "commonMistake", "checkpoint".
 - Quiz: kind "mcq" (options, correctIndex) or "short" (acceptableAnswers array).
 - Exam: question, markScheme, marks (1-6).`;
 
@@ -553,13 +556,13 @@ ${weakText || "(none)"}
 Context:
 ${context || "(minimal)"}
 
-Return JSON:
+Return JSON (exactly 1 lesson page, all content in blocks):
 {
   "lesson": {
     "title": "...",
     "subtitle": "...",
     "learningObjectives": ["..."],
-    "pages": [{ "title": "...", "blocks": [{ "type": "text", "content": "..." }, { "type": "bulletList", "items": ["..."] }] }]
+    "pages": [{ "title": "Page 1", "blocks": [{ "type": "text", "content": "..." }, { "type": "keyIdea", "content": "..." }, { "type": "checkpoint", "question": "...", "options": ["A","B","C","D"], "answer": "..." }] }]
   },
   "flashcards": [{ "front": "...", "back": "...", "tags": [] }],
   "quiz": [
