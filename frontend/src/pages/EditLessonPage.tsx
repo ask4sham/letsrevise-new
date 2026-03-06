@@ -1,6 +1,6 @@
 /** @module EditLessonPage */
 import React, { useMemo, useEffect, useState, useRef } from "react";
-import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
@@ -28,6 +28,7 @@ import {
   BLOCK_TYPES_FOR_BUTTONS,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
+import Toast from "../components/Toast";
 
 interface LessonPageBlock {
   type: LessonBlockType;
@@ -363,9 +364,11 @@ const parseMarkScheme = (markSchemeStr: string): string[] => {
 
 const EditLessonPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { token, user } = useCurrentUser({ watchLocation: true });
+  const [generationWarning, setGenerationWarning] = useState<string | null>(() => (location.state as { generationWarning?: string } | null)?.generationWarning ?? null);
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2309,6 +2312,14 @@ const EditLessonPage: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
+      {generationWarning && (
+        <Toast
+          message={generationWarning}
+          type="warning"
+          duration={6000}
+          onClose={() => setGenerationWarning(null)}
+        />
+      )}
     <div
       style={{
         minHeight: "100vh",
@@ -2606,7 +2617,7 @@ const EditLessonPage: React.FC = () => {
               {/* Card 4: Practice questions (in this lesson) — Lane A */}
               <div style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
                 <div style={{ fontWeight: 900, marginBottom: 8 }}>Practice questions (in this lesson)</div>
-                <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>These appear as the practice questions for students. Attach from your Question Bank.</p>
+                <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>These appear as the practice questions for students. Only questions for the selected sub-topic will be attached.</p>
                 <button
                   type="button"
                   onClick={() => { setAddFromBankModalOpen(true); setBankTopicKey(""); setBankQuestions([]); setSelectedBankQuestionIds(new Set()); }}
@@ -2631,7 +2642,8 @@ const EditLessonPage: React.FC = () => {
                           const listRes = await api.get(`/lessons/${id}/exam-questions`);
                           setAttachedExamQuestions(Array.isArray(listRes?.data?.questions) ? listRes.data.questions : []);
                         }
-                        setAutoAttachMessage(added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add.");
+                        const msg = data?.warning ?? (added > 0 ? `Added ${added} question${added !== 1 ? "s" : ""} for ${topicName}` : "No new questions to add.");
+                        setAutoAttachMessage(msg);
                       } catch (err: any) {
                         setAutoAttachMessage(err?.response?.data?.msg ?? err?.response?.data?.error ?? "Failed to attach.");
                       } finally {
@@ -2649,7 +2661,24 @@ const EditLessonPage: React.FC = () => {
                     <option value={15}>15</option>
                   </select>
                 </span>
-                {autoAttachMessage && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, fontSize: 13, background: autoAttachMessage.startsWith("Added") ? "#dcfce7" : "#fee2e2", color: "#166534" }}>{autoAttachMessage}</div>}
+                {autoAttachMessage && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      background: autoAttachMessage.startsWith("Added")
+                        ? "#dcfce7"
+                        : autoAttachMessage.includes("limited") || autoAttachMessage.includes("exact-match")
+                          ? "#fef3c7"
+                          : "#fee2e2",
+                      color: autoAttachMessage.startsWith("Added") ? "#166534" : autoAttachMessage.includes("limited") || autoAttachMessage.includes("exact-match") ? "#92400e" : "#b91c1c",
+                    }}
+                  >
+                    {autoAttachMessage}
+                  </div>
+                )}
                 {attachedExamQuestions.length > 0 && (
                   <ul style={{ marginTop: 12, paddingLeft: 20, listStyle: "disc" }}>
                     {attachedExamQuestions.map((q) => (
@@ -4509,6 +4538,7 @@ const EditLessonPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontWeight: 900, marginBottom: 12 }}>Add from Question Bank</div>
+            <div style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 10 }}>Only questions for the selected sub-topic will be shown.</div>
             <div style={{ marginBottom: 10 }}>
               <SpecSelector value={specKey} onChange={onSpecChange} />
             </div>

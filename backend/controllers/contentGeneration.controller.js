@@ -15,6 +15,8 @@ const { fingerprint: flashcardFingerprint } = require("../utils/flashcardDedupe"
 const { fingerprintItem: quizFingerprintItem } = require("../utils/quizDedupe");
 const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
 const { normalizeSpecKey } = require("../config/featureFlags");
+const { filterBankItemsByDrift } = require("../utils/topicDriftValidation");
+const { parseTopicKey } = require("../utils/topicKey");
 
 function requireTeacherOrAdmin(req, res) {
   if (!req.user) {
@@ -186,8 +188,24 @@ async function postStarterPack(req, res) {
     await lesson.save();
     job.outputs.lessonId = lesson._id;
 
+    // STRICT TAXONOMY: Filter AI-generated bank items for sibling-topic drift
+    const specKeyForDrift = parseTopicKey(topic).specKey || normalizedSpec;
+    const topicKeyShort = parseTopicKey(topic).topicKey || topic;
+    const filtered = filterBankItemsByDrift({
+      topicKey: topicKeyShort,
+      specKey: specKeyForDrift,
+      subTopicLabel: topicDisplay,
+      flashcards: pack?.flashcards || [],
+      quizItems: pack?.quiz || [],
+      examQuestions: pack?.examQuestions || [],
+    });
+    let allWarnings = Array.isArray(warnings) ? [...warnings] : [];
+    if (filtered.removedCount > 0) {
+      allWarnings.push(`Removed ${filtered.removedCount} item(s) that drifted into neighbouring sub-topics: ${filtered.driftedPhrases.slice(0, 3).join(", ")}`);
+    }
+
     const flashcardIds = [];
-    for (const f of pack?.flashcards || []) {
+    for (const f of filtered.flashcards) {
       const front = (f.front || "").trim().slice(0, 500);
       const back = (f.back || "").trim().slice(0, 2000);
       if (!front || !back) continue;
@@ -211,7 +229,7 @@ async function postStarterPack(req, res) {
     job.outputs.flashcardIds = flashcardIds;
 
     const quizIds = [];
-    for (const q of pack?.quiz || []) {
+    for (const q of filtered.quizItems) {
       const questionText = (q.question || "").trim();
       const choices = Array.isArray(q.options) ? q.options.map((x) => String(x).trim()) : [];
       const correctIndex = Math.min(Math.max(0, Number(q.correctIndex) || 0), Math.max(0, choices.length - 1));
@@ -242,7 +260,7 @@ async function postStarterPack(req, res) {
     job.outputs.quizQuestionIds = quizIds;
 
     const examIds = [];
-    for (const eq of pack?.examQuestions || []) {
+    for (const eq of filtered.examQuestions) {
       const question = (eq.question || "").trim();
       const markScheme = (eq.markScheme || "").trim();
       const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
@@ -275,8 +293,8 @@ async function postStarterPack(req, res) {
     job.outputs.examQuestionIds = examIds;
 
     job.status = "completed";
-    if (Array.isArray(warnings) && warnings.length) {
-      job.errors = warnings;
+    if (allWarnings.length) {
+      job.errors = allWarnings;
     }
     await job.save();
 
@@ -405,8 +423,24 @@ async function postWeakEvidenceFix(req, res) {
     await lesson.save();
     job.outputs.lessonId = lesson._id;
 
+    // STRICT TAXONOMY: Filter AI-generated bank items for sibling-topic drift
+    const specKeyForDrift = parseTopicKey(topic).specKey || normalizedSpec;
+    const topicKeyShort = parseTopicKey(topic).topicKey || topic;
+    const filtered = filterBankItemsByDrift({
+      topicKey: topicKeyShort,
+      specKey: specKeyForDrift,
+      subTopicLabel: topicDisplay,
+      flashcards: pack?.flashcards || [],
+      quizItems: pack?.quiz || [],
+      examQuestions: pack?.examQuestions || [],
+    });
+    let allWarnings = [];
+    if (filtered.removedCount > 0) {
+      allWarnings.push(`Removed ${filtered.removedCount} item(s) that drifted into neighbouring sub-topics: ${filtered.driftedPhrases.slice(0, 3).join(", ")}`);
+    }
+
     const flashcardIds = [];
-    for (const f of pack?.flashcards || []) {
+    for (const f of filtered.flashcards) {
       const front = (f.front || "").trim().slice(0, 500);
       const back = (f.back || "").trim().slice(0, 2000);
       if (!front || !back) continue;
@@ -430,7 +464,7 @@ async function postWeakEvidenceFix(req, res) {
     job.outputs.flashcardIds = flashcardIds;
 
     const quizIds = [];
-    for (const q of pack?.quiz || []) {
+    for (const q of filtered.quizItems) {
       const questionText = (q.question || "").trim();
       if (!questionText) continue;
 
@@ -495,7 +529,7 @@ async function postWeakEvidenceFix(req, res) {
     job.outputs.quizQuestionIds = quizIds;
 
     const examIds = [];
-    for (const eq of pack?.examQuestions || []) {
+    for (const eq of filtered.examQuestions) {
       const question = (eq.question || "").trim();
       const markScheme = (eq.markScheme || "").trim();
       const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
@@ -528,12 +562,14 @@ async function postWeakEvidenceFix(req, res) {
     job.outputs.examQuestionIds = examIds;
 
     job.status = "completed";
+    if (allWarnings.length) job.errors = allWarnings;
     await job.save();
 
     const enc = encodeURIComponent(topic);
     return res.json({
       jobId: job._id,
       lessonId: String(lesson._id),
+      ...(allWarnings.length > 0 && { warnings: allWarnings }),
       flashcards: flashcardIds.map((id) => String(id)),
       quiz: quizIds.map((id) => String(id)),
       exam: examIds.map((id) => String(id)),
@@ -624,8 +660,27 @@ async function postPracticeSet(req, res) {
     const topicDisplay = topicDisplayName(topic);
     const generatedFrom = { jobId: String(job._id), seed };
 
+    // STRICT TAXONOMY: Filter AI-generated bank items for sibling-topic drift
+    const specKeyForDrift = parseTopicKey(topic).specKey || normalizedSpec;
+    const topicKeyShort = parseTopicKey(topic).topicKey || topic;
+    const packFlashcards = pack?.flashcards || [];
+    const packQuiz = pack?.quiz || [];
+    const packExam = pack?.exam || pack?.examQuestions || [];
+    const filteredPractice = filterBankItemsByDrift({
+      topicKey: topicKeyShort,
+      specKey: specKeyForDrift,
+      subTopicLabel: topicDisplay,
+      flashcards: packFlashcards,
+      quizItems: packQuiz,
+      examQuestions: packExam,
+    });
+    let practiceWarnings = [];
+    if (filteredPractice.removedCount > 0) {
+      practiceWarnings.push(`Removed ${filteredPractice.removedCount} item(s) that drifted into neighbouring sub-topics: ${filteredPractice.driftedPhrases.slice(0, 3).join(", ")}`);
+    }
+
     const flashcardIds = [];
-    for (const f of pack?.flashcards || []) {
+    for (const f of filteredPractice.flashcards) {
       const front = (f.front || "").trim().slice(0, 500);
       const back = (f.back || "").trim().slice(0, 2000);
       if (!front || !back) continue;
@@ -649,7 +704,7 @@ async function postPracticeSet(req, res) {
     job.outputs.flashcardIds = flashcardIds;
 
     const quizIds = [];
-    for (const q of pack?.quiz || []) {
+    for (const q of filteredPractice.quizItems) {
       const questionText = (q.question || "").trim();
       if (!questionText) continue;
 
@@ -712,8 +767,7 @@ async function postPracticeSet(req, res) {
     job.outputs.quizQuestionIds = quizIds;
 
     const examIds = [];
-    const examItems = pack?.exam || pack?.examQuestions || [];
-    for (const eq of examItems) {
+    for (const eq of filteredPractice.examQuestions) {
       const question = (eq.question || "").trim();
       const markScheme = (eq.markScheme || "").trim();
       const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
@@ -746,14 +800,14 @@ async function postPracticeSet(req, res) {
     job.outputs.examQuestionIds = examIds;
 
     job.status = "completed";
-    if (Array.isArray(warnings) && warnings.length) {
-      job.errors = warnings;
-    }
+    const allJobErrors = [...(Array.isArray(warnings) ? warnings : []), ...practiceWarnings];
+    if (allJobErrors.length) job.errors = allJobErrors;
     await job.save();
 
     const enc = encodeURIComponent(topic);
     return res.json({
       jobId: job._id,
+      ...(practiceWarnings.length > 0 && { warnings: practiceWarnings }),
       outputs: {
         flashcardIdsCount: flashcardIds.length,
         quizCount: quizIds.length,
