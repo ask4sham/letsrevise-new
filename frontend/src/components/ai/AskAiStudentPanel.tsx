@@ -1,7 +1,7 @@
 /**
  * PR-007: Student "Ask for help" panel — simplified UX, practice-first.
  * PR-019: Threaded tutoring chat. PR-019.1: Recent chats, New chat, pagination.
- * PR-033: Tutor action chips (Explain again, Simpler, Another example, Practice, Exam question, Show diagram).
+ * PR-033: Tutor action chips (Explain again, Explain simpler, Another example, Practice question, Show diagram).
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
@@ -211,7 +211,8 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
 
       setLoading(true);
       setError(null);
-      setQuestion("");
+      // PR-033: Only clear input when sending user's typed text (form submit), not chip messages
+      if (q === question.trim()) setQuestion("");
 
       setMessages((prev) => [...prev, { role: "user", text: q }]);
 
@@ -245,7 +246,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
         setLoading(false);
       }
     },
-    [conversationId, conversationInitFailed, loading, specKey, topicKey, responseMode, refreshRecent]
+    [conversationId, conversationInitFailed, loading, question, specKey, topicKey, responseMode, refreshRecent]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -424,7 +425,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
             marginBottom: 6,
           }}
         >
-          Quick follow-ups
+          Tutor actions
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button
@@ -455,30 +456,15 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
           >
             Another example
           </button>
-          {!lastMessageHasPracticeAction && (
-            <button
-              type="button"
-              onClick={() =>
-                handleTutorAction("Give me 1 practice question and then explain the answer.", "quick")
-              }
-              disabled={loading || !canSend}
-              style={tutorChipStyle(loading || !canSend)}
-            >
-              Practice question
-            </button>
-          )}
           <button
             type="button"
             onClick={() =>
-              handleTutorAction(
-                "Give me an exam-style question on this topic and explain how to answer it.",
-                "explain"
-              )
+              handleTutorAction("Give me 1 practice question on this, then explain the answer.", "quick")
             }
             disabled={loading || !canSend}
             style={tutorChipStyle(loading || !canSend)}
           >
-            Exam question
+            Practice question
           </button>
           {lessonId && (
             <button

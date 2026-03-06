@@ -24,7 +24,7 @@ Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revi
 Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Actions: Deny domain, Deny URL, Promote to Teacher Note. Deep link filters: ?specKey=&topicKey= preselect spec and topic (PR-023).
 
 **AskAiStudentPanel** (PR-007, PR-019, PR-020, PR-033)
-Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student. PR-033: Tutor action chips above input — Explain again, Simpler, Another example, Practice question (hidden when suggestedActions has practice), Exam question, Show diagram (when lessonId).
+Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student. PR-033: Tutor action chips above input — Explain again, Explain simpler, Another example, Practice question, Show diagram (when lessonId). Chips send precomposed follow-ups into same thread; responseMode set per chip; input preserved when using chips.
 
 **CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
