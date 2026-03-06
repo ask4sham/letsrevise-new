@@ -1902,7 +1902,7 @@ const TeacherDashboard: React.FC = () => {
                         flexShrink: 0,
                       }}
                     >
-                      <Link to={`/lesson/${lesson._id}`}>
+                      <Link to={`/lesson/${lesson._id}?entry=preview`}>
                         <button
                           style={{
                             width: 100,
@@ -1917,7 +1917,7 @@ const TeacherDashboard: React.FC = () => {
                             fontWeight: 500,
                           }}
                         >
-                          View
+                          Preview Lesson
                         </button>
                       </Link>
                       <Link to={`/edit-lesson/${lesson._id}`}>

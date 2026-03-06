@@ -1093,6 +1093,10 @@ const LessonViewPage: React.FC = () => {
   const [accessDecision, setAccessDecision] = useState<{ allowed?: boolean; reason?: string } | null>(null);
   const loggedPreviewRef = useRef<string | null>(null);
   const lessonViewProgressLoggedRef = useRef<string | null>(null);
+  /** Preview entry lock: suppresses quiz/practice auto-scroll during initial load (SS2 fix) */
+  const previewLockRef = useRef(false);
+  /** Stays true for ~400ms after preview entry so child components (AskAiPanel) keep suppressAutoScroll */
+  const [previewEntrySuppressScroll, setPreviewEntrySuppressScroll] = useState(false);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -1107,6 +1111,12 @@ const LessonViewPage: React.FC = () => {
   const [showFlashcards, setShowFlashcards] = useState(false);
   const flashcardsViewerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (previewLockRef.current) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LessonViewPage] blocked flashcards scroll (preview lock active)");
+      }
+      return;
+    }
     if (showFlashcards && flashcardsViewerRef.current) {
       flashcardsViewerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -1116,6 +1126,12 @@ const LessonViewPage: React.FC = () => {
   const [showReviews, setShowReviews] = useState(false);
   const reviewsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (previewLockRef.current) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LessonViewPage] blocked reviews scroll (preview lock active)");
+      }
+      return;
+    }
     if (showReviews && reviewsRef.current) {
       reviewsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -1181,7 +1197,7 @@ const LessonViewPage: React.FC = () => {
     return sortPages(lesson.pages);
   }, [lesson]);
 
-  const currentPageIndex = useMemo(() => {
+  const rawPageIndex = useMemo(() => {
     if (!hasStructuredPages) return 0;
     if (!pageParam) return 0;
 
@@ -1202,6 +1218,16 @@ const LessonViewPage: React.FC = () => {
     return 0;
   }, [hasStructuredPages, pageParam, orderedPages]);
 
+  // entry=preview: force content-first render (page 1) — overrides URL until we clean it
+  const entry = searchParams.get("entry") ?? "";
+  const hasExplicitTarget =
+    (location.hash || "").trim() !== "" ||
+    searchParams.has("openPractice") ||
+    searchParams.has("openQuiz") ||
+    searchParams.get("openTopicSummary") === "1" ||
+    searchParams.has("scrollTo");
+  const isPreviewEntry = entry === "preview" && !hasExplicitTarget;
+  const currentPageIndex = isPreviewEntry ? 0 : rawPageIndex;
   const currentPage = useMemo(() => {
     if (!hasStructuredPages) return null;
     return orderedPages[currentPageIndex] || null;
@@ -1294,15 +1320,93 @@ const LessonViewPage: React.FC = () => {
     }
   }, [accessDecision?.reason, id]);
 
-  // Scroll to #practice when arriving via /lesson/:id#practice
+  // Set preview lock when entering via Preview Lesson (before any scroll effects run)
   useEffect(() => {
+    if (isPreviewEntry && !hasExplicitTarget) {
+      previewLockRef.current = true;
+    }
+  }, [isPreviewEntry, hasExplicitTarget]);
+
+  // Scroll to #practice when arriving via /lesson/:id#practice (explicit deep link only)
+  useEffect(() => {
+    if (previewLockRef.current && !hasExplicitTarget) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LessonViewPage] blocked #practice scroll (preview lock active)");
+      }
+      return;
+    }
     if (location.hash === "#practice") {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LessonViewPage] auto-scroll trigger", { reason: "practice", hash: location.hash });
+      }
       setTimeout(() => {
         const el = document.getElementById("practice");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 50);
     }
-  }, [location.hash, id]);
+  }, [location.hash, id, hasExplicitTarget]);
+
+  // entry=preview: dashboard View/Preview Lesson — force top-of-content (SS2 fix)
+  // Run ONCE after lesson + page are ready, then release lock after settle
+  useEffect(() => {
+    if (!id || !isPreviewEntry || hasExplicitTarget) return;
+    if (!lesson) return;
+    // For structured pages, wait for currentPage; for legacy, lesson is enough
+    if (hasStructuredPages && !currentPage) return;
+
+    // Disable browser scroll restoration so we control position
+    const prevRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+
+    // Force first page when structured pages exist, then clean entry from URL
+    const next = new URLSearchParams(searchParams);
+    if (orderedPages.length > 0) {
+      next.set("page", String(orderedPages[0].pageId));
+    }
+    next.delete("entry");
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+
+    // Scroll to top after layout paints (requestAnimationFrame)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LessonViewPage] PREVIEW_RESET scrollTo top", {
+        lessonId: id,
+        pageId: currentPage?.pageId,
+        entry: searchParams.get("entry"),
+        hash: location.hash,
+      });
+    }
+    setPreviewEntrySuppressScroll(true);
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LessonViewPage] preview entry reset applied", {
+        entry,
+        hasExplicitTarget,
+        pageId: orderedPages[0]?.pageId ?? null,
+        lessonId: id,
+      });
+    }
+
+    // Delayed scroll-to-top to counteract any late scroll (e.g. AskAi loadConversation)
+    const t2 = setTimeout(() => window.scrollTo({ top: 0, behavior: "auto" }), 300);
+
+    // Release the lock after async loads settle (AskAi loadConversation can take 200–800ms)
+    const t = setTimeout(() => {
+      previewLockRef.current = false;
+      setPreviewEntrySuppressScroll(false);
+      window.history.scrollRestoration = prevRestoration;
+    }, 1200);
+
+    return () => {
+      clearTimeout(t);
+      clearTimeout(t2);
+    };
+  }, [id, isPreviewEntry, hasExplicitTarget, lesson?.id, currentPage?.pageId, hasStructuredPages, orderedPages, searchParams, setSearchParams]);
 
   // PR-037: openTopicSummary=1 — open TopicSummaryStudentModal on mount, then clear param
   useEffect(() => {
@@ -1544,9 +1648,18 @@ const LessonViewPage: React.FC = () => {
 
   // PR-006: Scroll to block when citation deep link has #block-N
   useEffect(() => {
+    if (previewLockRef.current && !hasExplicitTarget) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LessonViewPage] blocked #block-N scroll (preview lock active)");
+      }
+      return;
+    }
     const hash = location.hash || (typeof window !== "undefined" ? window.location.hash : "");
     const m = hash && /^#block-(\d+)$/.exec(hash);
     if (!m || !hasStructuredPages) return;
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LessonViewPage] auto-scroll trigger", { reason: "block", hash });
+    }
     const blockId = `block-${m[1]}`;
     const el = document.getElementById(blockId);
     if (el) {
@@ -1555,7 +1668,7 @@ const LessonViewPage: React.FC = () => {
       }, 100);
       return () => clearTimeout(t);
     }
-  }, [currentPageIndex, hasStructuredPages, location.hash]);
+  }, [currentPageIndex, hasStructuredPages, location.hash, hasExplicitTarget]);
 
   // ✅ Gate: students can only view lessons that match their level (if user level is known)
   useEffect(() => {
@@ -1747,12 +1860,16 @@ const LessonViewPage: React.FC = () => {
       setLesson(mapped);
 
       // If lesson has pages but no URL param, ensure URL points to page 1 (stable deep-link)
+      // When entry=preview, always force first page (content-first from dashboard)
       if (mapped.pages && mapped.pages.length > 0) {
         const ordered = sortPages(mapped.pages);
         const first = ordered[0];
         const current = searchParams.get("page");
-        if (!current && first?.pageId) {
-          setSearchParams({ page: String(first.pageId) }, { replace: true });
+        const isPreview = searchParams.get("entry") === "preview";
+        if (first?.pageId && (!current || isPreview)) {
+          const next = new URLSearchParams(searchParams);
+          next.set("page", String(first.pageId));
+          setSearchParams(next, { replace: true });
         }
       }
     } catch (err: any) {
@@ -2733,6 +2850,18 @@ const LessonViewPage: React.FC = () => {
   // Single source of truth: backend accessDecision.allowed; fallbacks only if backend missing (see lessonAccess.ts).
   const hasFullLessonAccess = computeFullLessonAccess(accessDecision, user);
 
+  // Dev-only: render flags for preview entry debugging
+  if (process.env.NODE_ENV !== "production" && lesson && (isPreviewEntry || entry === "preview")) {
+    console.log("[LessonViewPage] render flags", {
+      entry,
+      isPreviewEntry,
+      hasExplicitTarget,
+      currentPageIndex,
+      pageId: currentPage?.pageId ?? null,
+      lessonId: id,
+    });
+  }
+
   // ============================
   // ✅ New Student View (Pages)
   // ============================
@@ -3342,6 +3471,7 @@ const LessonViewPage: React.FC = () => {
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
                     lessonId={id || undefined}
+                    suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll}
                   />
                 )}
                 {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
@@ -3350,6 +3480,7 @@ const LessonViewPage: React.FC = () => {
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
                     lessonId={id || undefined}
+                    suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll}
                   />
                 )}
                 {/* PR-038: Today's study plan — student only */}
@@ -4028,6 +4159,7 @@ const LessonViewPage: React.FC = () => {
               specKey={specKey}
               topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
               lessonId={id || undefined}
+              suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll}
             />
           </>
         )}

@@ -33,6 +33,8 @@ type Props = {
   specKey: string;
   lessonId?: string;
   defaultQuestion?: string;
+  /** When true, skip auto-scroll to messages end (e.g. preview entry, keeps lesson at top) */
+  suppressAutoScroll?: boolean;
 };
 
 const SESSION_KEY_PREFIX = "askai:conv:";
@@ -55,7 +57,7 @@ function getSessionKey(specKey: string, topicKey: string, lessonId?: string): st
   return `${SESSION_KEY_PREFIX}${specKey}:${topicKey}:${lessonId || ""}`;
 }
 
-export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }: Props) {
+export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", suppressAutoScroll = false }: Props) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationInitFailed, setConversationInitFailed] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -204,8 +206,17 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
   };
 
   useEffect(() => {
+    if (suppressAutoScroll) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[AskAiPanel] suppressed scroll (preview entry)", { messagesLength: messages.length });
+      }
+      return;
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[AskAiPanel] SCROLL_TRIGGER messages effect", { messagesLength: messages.length });
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, suppressAutoScroll]);
 
   const handleIntent = useCallback((payload: unknown, enquiryLogId?: string | null) => {
     const p = payload as { action?: string };
