@@ -2016,9 +2016,6 @@ const TeacherDashboard: React.FC = () => {
               </div>
               <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Course planning</div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/coverage" title="See which topics need more support" style={{ display: "block", padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Coverage</Link>
-              </div>
-              <div style={{ marginBottom: 8 }}>
                 <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" title="See the next priority topics to improve" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>Course improvement plan</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
