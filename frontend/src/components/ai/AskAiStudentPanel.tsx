@@ -201,9 +201,10 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
     }
   }, []);
 
-  const sendMessage = useCallback(
-    async (text: string, modeOverride?: "quick" | "explain" | "revision") => {
-      const q = text.trim();
+  /** PR-033: Shared send for typed input and tutor chips. Does not clear input when sending chip prompts. */
+  const sendStudentMessage = useCallback(
+    async ({ message, modeOverride }: { message: string; modeOverride?: "quick" | "explain" | "revision" }) => {
+      const q = message.trim();
       if (!q || loading) return;
 
       const convId = conversationId;
@@ -211,7 +212,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
 
       setLoading(true);
       setError(null);
-      // PR-033: Only clear input when sending user's typed text (form submit), not chip messages
+      // Only clear input when sending user's typed text (form submit), not tutor chip messages
       if (q === question.trim()) setQuestion("");
 
       setMessages((prev) => [...prev, { role: "user", text: q }]);
@@ -251,24 +252,12 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await sendMessage(question.trim());
+    await sendStudentMessage({ message: question.trim() });
   };
 
-  // PR-033: Last assistant message has practice in suggestedActions → don't duplicate practice chip
-  const lastMessageHasPracticeAction = (() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "assistant" && messages[i].fullResponse?.suggestedActions) {
-        return messages[i].fullResponse!.suggestedActions!.some(
-          (a) => a.id === "practice" || (a.payload as { action?: string })?.action === "practice"
-        );
-      }
-    }
-    return false;
-  })();
-
-  const handleTutorAction = (text: string, mode: "quick" | "explain" | "revision") => {
+  const sendTutorPrompt = (message: string, mode: "quick" | "explain" | "revision") => {
     handleModeChange(mode);
-    sendMessage(text, mode);
+    sendStudentMessage({ message, modeOverride: mode });
   };
 
   const togglePracticeAnswer = (enquiryLogId: string, idx: number) => {
@@ -430,7 +419,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button
             type="button"
-            onClick={() => handleTutorAction("Can you explain that again in different words?", "explain")}
+            onClick={() => sendTutorPrompt("Can you explain that again in different words?", "explain")}
             disabled={loading || !canSend}
             style={tutorChipStyle(loading || !canSend)}
           >
@@ -438,18 +427,16 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
           </button>
           <button
             type="button"
-            onClick={() =>
-              handleTutorAction("Explain it more simply, like I'm in Year 9.", "quick")
-            }
+            onClick={() => sendTutorPrompt("Explain it more simply, like I'm in Year 9.", "quick")}
             disabled={loading || !canSend}
             style={tutorChipStyle(loading || !canSend)}
           >
-            Simpler
+            Explain simpler
           </button>
           <button
             type="button"
             onClick={() =>
-              handleTutorAction("Give a different example and explain it step by step.", "explain")
+              sendTutorPrompt("Give a different example and explain it step by step.", "explain")
             }
             disabled={loading || !canSend}
             style={tutorChipStyle(loading || !canSend)}
@@ -459,7 +446,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
           <button
             type="button"
             onClick={() =>
-              handleTutorAction("Give me 1 practice question on this, then explain the answer.", "quick")
+              sendTutorPrompt("Give me 1 practice question on this, then explain the answer.", "quick")
             }
             disabled={loading || !canSend}
             style={tutorChipStyle(loading || !canSend)}
@@ -470,7 +457,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
             <button
               type="button"
               onClick={() =>
-                handleTutorAction(
+                sendTutorPrompt(
                   "If there is a diagram in this lesson, show it and explain what it shows.",
                   "explain"
                 )

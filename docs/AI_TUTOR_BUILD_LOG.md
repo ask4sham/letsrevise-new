@@ -1237,30 +1237,35 @@ Acceptance:
 
 ---
 
-**PR-033 — Student tutoring actions (Explain again, Explain simpler, Another example, Practice question, Show diagram)**
+**PR-033 — Student tutor action chips**
 
 Date: 2026-03-05
 
 Summary:
-Student chat feels like a tutor with one-tap follow-up chips above the input. Chips set responseMode and send precomposed messages into the same conversationId thread. Reuses PR-019 conversation memory and PR-020 responseMode; no new persistence models. No Exam mode for students (student-safe: responseMode stays quick/explain/revision).
+Student chat feels like a tutor with one-tap follow-up chips above the input. Chips use the same conversation thread (PR-019) and responseMode logic (PR-020). No new backend models or endpoints. Frontend-only.
 
 Chips:
-- Explain again (responseMode: explain) — "Can you explain that again in different words?"
-- Explain simpler (responseMode: quick) — "Explain it more simply, like I'm in Year 9."
-- Another example (responseMode: explain) — "Give a different example and explain it step by step."
-- Practice question (responseMode: quick) — "Give me 1 practice question on this, then explain the answer."
-- Show diagram (responseMode: explain, when lessonId present) — "If there is a diagram in this lesson, show it and explain what it shows." — nudges retrieval toward lessonDiagram (PR-030 boost)
+- Explain again (mode: explain) — "Can you explain that again in different words?"
+- Explain simpler (mode: quick) — "Explain it more simply, like I'm in Year 9."
+- Another example (mode: explain) — "Give a different example and explain it step by step."
+- Practice question (mode: quick) — "Give me 1 practice question on this, then explain the answer."
+- Show diagram (mode: explain, when lessonId) — "If there is a diagram in this lesson, show it and explain what it shows."
+
+Implementation:
+- sendStudentMessage({ message, modeOverride? }) — shared helper for typed input and tutor chips
+- sendTutorPrompt(message, mode) — chip helper: updates mode, calls sendStudentMessage
+- Input box is NOT cleared when a chip is clicked (only cleared on form submit)
+- Chips disabled while loading; wrap on narrow screens
 
 Files changed:
 
-- frontend/src/components/ai/AskAiStudentPanel.tsx (tutor chips row, sendMessage with input-preservation on chip send)
+- frontend/src/components/ai/AskAiStudentPanel.tsx
 - docs/AI_TUTOR_BUILD_LOG.md
 - docs/SYSTEM_MAP.md
 
 Notes:
-- Chip messages sent directly; user's typed input is NOT cleared when clicking a chip (only cleared on form submit).
-- Diagram hint phrase triggers knowledgeSearchService diagram-intent boost (PR-030).
-- Works with responseMode and conversation caching.
+- SuggestedActionsBar unchanged. No Exam mode for students (quick/explain/revision only).
+- Show diagram nudges retrieval toward lessonDiagram (PR-030).
 
 Follow-ups:
 None
