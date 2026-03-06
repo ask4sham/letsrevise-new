@@ -28,6 +28,7 @@ import {
 import { postTopicSummaryPdf } from "../../api/topicSummaryExport";
 import { CitationsList } from "../ai/CitationsList";
 import { ReviewPublishChecklist } from "../generation/ReviewPublishChecklist";
+import { getMasteryAggregate, type MasteryAggregateTopic } from "../../api/mastery";
 import type { CoverageRow } from "../../api/coverage";
 import type { SpecKey } from "../../api/taxonomy";
 
@@ -106,6 +107,25 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
   const [showPracticeSetModal, setShowPracticeSetModal] = useState(false);
   const [practiceSetPreset, setPracticeSetPreset] = useState<"standard" | "exam-heavy" | "flashcards-heavy">("standard");
   const [practiceSetAllowExternal, setPracticeSetAllowExternal] = useState(false);
+  const [masteryTopic, setMasteryTopic] = useState<MasteryAggregateTopic | null>(null);
+
+  // PR — Adaptive Testing Loop: fetch mastery aggregate for teacher visibility
+  useEffect(() => {
+    if (!open || !specKey || !topicKey?.trim()) return;
+    const fullKey = topicKey.includes(":") ? topicKey : `${specKey}:${topicKey}`;
+    let cancelled = false;
+    getMasteryAggregate(specKey)
+      .then((res) => {
+        if (!cancelled) {
+          const m = res.topics?.find((t) => t.topicKey === fullKey || t.topicKey === topicKey);
+          setMasteryTopic(m ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMasteryTopic(null);
+      });
+    return () => { cancelled = true; };
+  }, [open, specKey, topicKey]);
 
   // PR-032: Auto-open practice set modal when drawer opens with initialOpenPracticeSet
   useEffect(() => {
@@ -643,6 +663,28 @@ export const CoverageTopicDrawer: React.FC<Props> = ({
 
           {data && !loading && (
             <>
+              {/* PR — Adaptive Testing Loop: Teacher mastery visibility */}
+              {masteryTopic && (
+                <section style={{ marginBottom: 24, padding: 14, borderRadius: 12, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                  <h3 style={{ margin: "0 0 10px 0", fontSize: 14, fontWeight: 700 }}>Topic progress</h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, color: "#374151" }}>{masteryTopic.topicTitle} —</span>
+                    <ScoreBar score={masteryTopic.avgMastery * 100} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>
+                      {Math.round(masteryTopic.avgMastery * 100)}% mastery
+                    </span>
+                  </div>
+                  {masteryTopic.strugglingCount > 0 && (
+                    <div style={{ marginTop: 8, fontSize: 13, color: "#b91c1c", fontWeight: 600 }}>
+                      Students struggling: {masteryTopic.strugglingCount}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>
+                    {masteryTopic.studentCount} student{masteryTopic.studentCount !== 1 ? "s" : ""} with quiz attempts
+                  </div>
+                </section>
+              )}
+
               {/* Section 1 — Spec statements */}
               <section style={{ marginBottom: 24 }}>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 700 }}>

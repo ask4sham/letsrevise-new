@@ -27,7 +27,9 @@ import { StudyPlanPanel } from "../components/ai/StudyPlanPanel";
 import { getAiTutorEnabled } from "../api/featureFlags";
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
+import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
+import { recordMastery, getMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getUserDisplayName } from "../utils/userDisplayName";
@@ -1137,6 +1139,9 @@ const LessonViewPage: React.FC = () => {
     }
   }, [showReviews]);
 
+  // PR — Adaptive Testing Loop: topic mastery for adaptive feedback
+  const [masteryData, setMasteryData] = useState<{ attempts: number; correct: number; masteryScore: number } | null>(null);
+
   // Unlock (1 ShamCoin) flow: error message when 400 "Not enough ShamCoins"
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
@@ -1294,6 +1299,38 @@ const LessonViewPage: React.FC = () => {
       null;
     return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: rawCandidate || undefined });
   }, [lesson, specKey, searchParams]);
+
+  // PR — Adaptive Testing Loop: handleQuestionAnswered and fetch mastery (must be after topicKeyForBank, hasStructuredPages, currentPage, etc.)
+  const handleQuestionAnswered = useCallback(
+    async (correct: boolean) => {
+      const tk = topicKeyForBank;
+      if (!tk || user?.userType !== "student") return;
+      try {
+        const res = await recordMastery(tk, correct);
+        setMasteryData({ attempts: res.attempts, correct: res.correct, masteryScore: res.masteryScore });
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[LessonViewPage] recordMastery failed:", e);
+        }
+      }
+    },
+    [topicKeyForBank, user?.userType]
+  );
+
+  // Fetch initial mastery when student reaches last page (structured) or on legacy single-page view
+  useEffect(() => {
+    if (user?.userType !== "student" || !topicKeyForBank) return;
+    const isStructuredLastPage =
+      hasStructuredPages &&
+      currentPage &&
+      orderedPages.length > 0 &&
+      (orderedPages.length <= 1 || currentPageIndex === orderedPages.length - 1);
+    const isLegacySinglePage = !hasStructuredPages;
+    if (!isStructuredLastPage && !isLegacySinglePage) return;
+    getMastery(topicKeyForBank)
+      .then((res) => setMasteryData({ attempts: res.attempts, correct: res.correct, masteryScore: res.masteryScore }))
+      .catch(() => {});
+  }, [user?.userType, topicKeyForBank, hasStructuredPages, currentPage, orderedPages.length, currentPageIndex]);
 
   useEffect(() => {
     fetchLessonSmart();
@@ -3510,6 +3547,7 @@ const LessonViewPage: React.FC = () => {
                         <QuizView
                           title=""
                           questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                          onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
                         />
                       )}
                       {endOfLessonQuizQuestions.length > 0 && (
@@ -3518,12 +3556,31 @@ const LessonViewPage: React.FC = () => {
                           <QuizView
                             title=""
                             questions={endOfLessonQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                            onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
                           />
                         </div>
                       )}
                     </>
                   )}
                 </Section>
+
+                {/* PR — Adaptive Testing Loop: adaptive feedback based on quiz mastery */}
+                {isStudent && topicKeyForBank && masteryData && (
+                  <AdaptiveFeedbackCard
+                    masteryScore={masteryData.masteryScore}
+                    topicKey={topicKeyForBank}
+                    hasAttempts={masteryData.attempts > 0}
+                    onReviewFlashcards={() => {
+                      setShowFlashcards(true);
+                      setTimeout(() => flashcardsViewerRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+                    }}
+                    onTryMorePractice={() => setPracticeSeedCounter((c) => c + 1)}
+                    onReviewContent={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                    onShowDiagram={() => {
+                      document.getElementById("lesson-visual")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  />
+                )}
 
                 {/* Lane B: Practice papers (full papers attached to lesson) */}
                 {attachedPapersSummaries.length > 0 && (
@@ -4188,10 +4245,29 @@ const LessonViewPage: React.FC = () => {
               <QuizView
                 title=""
                 questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
               />
             </>
           )}
         </Section>
+
+        {/* PR — Adaptive Testing Loop: adaptive feedback (legacy view) */}
+        {isStudent && topicKeyForBank && masteryData && (
+          <AdaptiveFeedbackCard
+            masteryScore={masteryData.masteryScore}
+            topicKey={topicKeyForBank}
+            hasAttempts={masteryData.attempts > 0}
+            onReviewFlashcards={() => {
+              setShowFlashcards(true);
+              setTimeout(() => flashcardsViewerRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+            }}
+            onTryMorePractice={() => setPracticeSeedCounter((c) => c + 1)}
+            onReviewContent={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            onShowDiagram={() => {
+              document.getElementById("lesson-visual")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+        )}
 
         {/* Lane B: Practice papers (full papers attached to lesson) */}
         {attachedPapersSummaries.length > 0 && (
