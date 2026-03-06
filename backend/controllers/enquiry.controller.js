@@ -10,6 +10,7 @@ const { getCached, setCached } = require("../services/enquiry/enquiryCache");
 const { buildSuggestedActions } = require("../services/enquiry/suggestedActions");
 const { buildLearningSuggestions } = require("../services/enquiry/learningSuggestions");
 const { computeConfidence } = require("../services/enquiry/confidence");
+const { upsertStudentTopicProgressSignal } = require("../services/progress/studentTopicProgressService");
 const { isExternalSearchEnabled, getExternalAllowedDomains, getExternalMaxResults, getDomainsForQuery, isExamContextQuery } = require("../config/externalSearch");
 const { searchWeb } = require("../services/externalSearch/provider");
 const { filterDenied } = require("../services/externalSearch/policyService");
@@ -154,6 +155,17 @@ async function handleEnquiry(req, res) {
         if (cached.response.externalExamContextUsed) {
           cachePayload.externalExamContextUsed = true;
         }
+      }
+      // PR-038: Update student topic progress (aiEnquiries, weakAiEnquiries)
+      if (isStudentUser && topicKey) {
+        const uid = req.user?._id || req.user?.userId || req.user?.id;
+        const weak = confidence.confidenceLevel === "weak" ||
+          (Array.isArray(answerCached.warnings) && answerCached.warnings.some((w) =>
+            typeof w === "string" && w.toLowerCase().includes("insufficient trusted sources")));
+        (async () => {
+          await upsertStudentTopicProgressSignal({ userId: uid, specKey: spec, topicKey, signalType: "aiEnquiries", value: 1 });
+          if (weak) await upsertStudentTopicProgressSignal({ userId: uid, specKey: spec, topicKey, signalType: "weakAiEnquiries", value: 1 });
+        })().catch(() => {});
       }
       return res.json(cachePayload);
     }
@@ -423,6 +435,17 @@ async function handleEnquiry(req, res) {
     }
     if (learningSuggestions.length > 0) {
       responsePayload.learningSuggestions = learningSuggestions;
+    }
+    // PR-038: Update student topic progress (aiEnquiries, weakAiEnquiries)
+    if (isStudentUser && topicKey) {
+      const uid = req.user?._id || req.user?.userId || req.user?.id;
+      const weak = confidence.confidenceLevel === "weak" ||
+        (Array.isArray(answer.warnings) && answer.warnings.some((w) =>
+          typeof w === "string" && w.toLowerCase().includes("insufficient trusted sources")));
+      (async () => {
+        await upsertStudentTopicProgressSignal({ userId: uid, specKey: spec, topicKey, signalType: "aiEnquiries", value: 1 });
+        if (weak) await upsertStudentTopicProgressSignal({ userId: uid, specKey: spec, topicKey, signalType: "weakAiEnquiries", value: 1 });
+      })().catch(() => {});
     }
     return res.json(responsePayload);
   } catch (err) {

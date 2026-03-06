@@ -3,7 +3,7 @@
 ## Frontend
 
 **LessonViewPage.tsx**
-Student lesson interface showing lesson content and practice. Teacher/admin: "Ask AI about this topic" panel (PR-005). Students (PR-024.1): "Summarise this topic" button near Ask AI opens TopicSummaryStudentModal (Overview/Revision sheet only, feature-flagged).
+Student lesson interface showing lesson content and practice. Teacher/admin: "Ask AI about this topic" panel (PR-005). Students (PR-024.1): "Summarise this topic" button near Ask AI opens TopicSummaryStudentModal (Overview/Revision sheet only, feature-flagged). PR-037: ?openTopicSummary=1 auto-opens TopicSummaryStudentModal. PR-038: "Today's study plan" StudyPlanPanel (student only); POST lesson-view on mount.
 
 **EditLessonPage.tsx**
 Teacher lesson editor including pages, blocks, flashcards, quizzes, and assessments.
@@ -25,6 +25,9 @@ Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Ac
 
 **AskAiStudentPanel** (PR-007, PR-019, PR-020, PR-033, PR-034, PR-036, PR-037)
 Student panel: threaded chat, mode switch (Quick help, Explain, Revision) with tooltips. PR-033: Tutor action chips. PR-034: InlineDiagramBlock. PR-036: Mode indicator "Mode: X" above each answer. PR-037: Study coach section — coverage-aware topic suggestions (Thin/Missing/Strong badges) with actions (View lesson, Summarise topic, Practice). localStorage askai:mode:student.
+
+**StudyPlanPanel** (PR-038)
+"Today's study plan" — student-only panel on LessonViewPage. Fetches GET /api/study-coach/plan. Shows top 3 topic cards with mastery bar, status badge, reason, action buttons (View lesson, Summarise topic, Practice, Ask AI).
 
 **CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
@@ -60,6 +63,7 @@ Side drawer on /coverage: View button opens drawer with spec coverage, lessons, 
 - EnquiryLog (PR-004: RAG enquiry observability; PR-006: feedback, cached; PR-035: externalExamContextUsed)
 - EnquiryCache (PR-006: enquiry response cache, 24h TTL)
 - CoverageSnapshot (PR-009: cached per-topic coverage metrics, TTL 90 days; PR-028: summariesTotal, weakSummariesTotal, summariesByMode, demandScore)
+- StudentTopicProgress (PR-038: student topic mastery, signals, recommendations)
 - ContentGenerationJob (PR-014: starter pack generation jobs, audit trail)
 
 ## SpecStatement API (admin only)

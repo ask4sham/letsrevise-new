@@ -11,4 +11,5 @@ require("./EnquiryLog");
 require("./EnquiryCache");
 require("./TopicSummaryLog");
 require("./TopicSummaryCache");
+require("./StudentTopicProgress");
 

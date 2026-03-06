@@ -182,6 +182,23 @@ const TeacherDashboard: React.FC = () => {
   // PR-UX-DASH-INNOV-2: Today's interaction - show all recent or top 5
   const [showAllRecent, setShowAllRecent] = useState(false);
 
+  // PR-039: How to use LetsRevise card (dismissible, persist in localStorage)
+  const [howToUseDismissed, setHowToUseDismissedState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("teacherDashboard.howToUseDismissed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const setHowToUseDismissed = (v: boolean) => {
+    setHowToUseDismissedState(v);
+    try {
+      localStorage.setItem("teacherDashboard.howToUseDismissed", String(v));
+    } catch {
+      /* ignore */
+    }
+  };
+
   // PR-CHEM-2: Subject/spec selector (Biology vs Chemistry)
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomyData } = useTaxonomy(specKey);
@@ -703,26 +720,27 @@ const TeacherDashboard: React.FC = () => {
           margin: "0 auto",
         }}
       >
-        {/* LEFT: Content actions (vertical stack) */}
+        {/* LEFT: Content actions (vertical stack) — PR-039 clarity groupings */}
         <aside className="teacher-dashboard-left" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-            <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Content</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Lessons</div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Content</div>
               <Link to="/create-lesson" style={{ padding: "10px 14px", background: "#48bb78", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, textAlign: "center" }}>+ Create lesson</Link>
               <button type="button" onClick={openAiModal} style={{ padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%" }}>✨ Generate with AI</button>
-              <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Browse lessons</Link>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Banks</div>
-              <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic Banks → Flashcards</Link>
-              <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic Banks → Quizzes</Link>
-              <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic Banks → Past Papers</Link>
+              <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>My lessons</Link>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Course tools</div>
+              <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Exam lessons</Link>
+              <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic banks – Flashcards</Link>
+              <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic banks – Quizzes</Link>
+              <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Topic banks – Exam questions</Link>
               <Link to="/teacher/content-coverage" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Content Coverage</Link>
-              <Link to="/coverage" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>AI Coverage</Link>
-              <Link to="/teacher/questions" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Questions (Browse & Edit)</Link>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Worksheets</div>
-              <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "#059669", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%" }}>{creatingWorksheet ? "Creating…" : "📄 Create worksheet"}</button>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Assessment</div>
-              <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment Papers</Link>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Course health</div>
+              <Link to="/coverage" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Coverage</Link>
+              <Link to="/teacher/questions" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Questions students asked</Link>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 8, marginBottom: 4, textTransform: "uppercase" }}>Account</div>
+              <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "white", color: "#374151", border: "1px solid #d1d5db", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%", textAlign: "center" }}>{creatingWorksheet ? "Creating…" : "📄 Create worksheet"}</button>
+              <Link to="/teacher/reports/attempts" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment reports</Link>
+              <Link to="/teacher/ops/link-students" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create students</Link>
               <Link to="/teacher/exam-question-bank" style={{ padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Create Questions</Link>
             </div>
           </div>
@@ -747,8 +765,11 @@ const TeacherDashboard: React.FC = () => {
                 <span role="img" aria-label="teacher">👨‍🏫</span>
                 Teacher Dashboard
               </h1>
-              <p style={{ marginTop: "4px", color: "#666", opacity: 0.85 }}>
+              <p style={{ marginTop: "4px", marginBottom: 2, color: "#666", opacity: 0.85 }}>
                 Welcome back, {user?.firstName}! Manage your lessons and track your earnings.
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>
+                Create lessons → Help students learn → Improve topics where students struggle.
               </p>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
@@ -767,6 +788,35 @@ const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* PR-039: How to use LetsRevise guide card (dismissible) */}
+          {!howToUseDismissed && (
+            <div
+              style={{
+                marginBottom: 20,
+                padding: 16,
+                background: "#f0fdf4",
+                borderRadius: 12,
+                border: "1px solid #86efac",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                <div>
+                  <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem", fontWeight: 700, color: "#166534" }}>How to use LetsRevise</h3>
+                  <ol style={{ margin: 0, paddingLeft: 18, color: "#374151", fontSize: 14, lineHeight: 1.6 }}>
+                    <li>Create or upload lessons</li>
+                    <li>Students ask AI questions</li>
+                    <li>Improve topics where students struggle</li>
+                  </ol>
+                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <Link to="/create-lesson" style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>Create lesson</Link>
+                    <Link to="/coverage" style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>View coverage</Link>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setHowToUseDismissed(true)} aria-label="Dismiss" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#6b7280", padding: 4 }}>✕</button>
+              </div>
+            </div>
+          )}
 
           {/* PR-EDGE-3: Today panel — actionable summary; PR-UX-DASH-TEACH-1: renamed + badge strip */}
           {overview && (
@@ -1059,7 +1109,8 @@ const TeacherDashboard: React.FC = () => {
                 border: "1px solid rgba(245,158,11,0.3)",
               }}
             >
-              <div style={{ fontWeight: 700, marginRight: 12, marginBottom: 4, width: "100%" }}>Questions causing difficulty</div>
+              <div style={{ fontWeight: 700, marginRight: 12, marginBottom: 4, width: "100%" }}>💡 Suggested teaching actions</div>
+              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>Based on student questions and course coverage.</div>
               {questionAnalytics.slice(0, 5).map((q, i) => (
                 <div
                   key={q.questionId}
@@ -1226,11 +1277,12 @@ const TeacherDashboard: React.FC = () => {
               >
                 <div>
                   <h3 style={{ color: "#333", margin: 0, fontSize: "1rem", fontWeight: 600 }}>
-                    Quick setup
+                    ⚙️ Course setup
                   </h3>
                   <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
                     {quickSetupRemaining === 0 ? "All done ✅" : `${quickSetupRemaining} remaining`}
                   </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Choose the exam board and subject you are teaching.</div>
                 </div>
                 <span style={{ fontSize: "1.1rem", color: "#6b7280" }}>
                   {(quickSetupRemaining === 0 ? quickSetupCollapsed : quickSetupCollapsed) ? "▸" : "▾"}
@@ -1423,11 +1475,13 @@ const TeacherDashboard: React.FC = () => {
                   Link students (beta)
                 </Link>
               </div>
-              {/* PR5: Topics not yet covered (toggled by "View uncovered topics" CTA above) */}
+              {/* PR5: Topics not yet covered (toggled by "View uncovered topics" CTA above); PR-039 Improve this topic */}
               {coverage.uncoveredTopics.length > 0 && showUncoveredTopics && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontWeight: 600, fontSize: "0.95rem", marginBottom: 4, color: "#374151" }}>✨ Improve this topic</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>Generate teaching materials or fix gaps in this topic.</div>
                     <div
                       style={{
-                        marginTop: 12,
                         paddingLeft: 12,
                         borderLeft: "3px solid #e5e7eb",
                         fontSize: "13px",
@@ -1528,6 +1582,7 @@ const TeacherDashboard: React.FC = () => {
                           </div>
                         );
                       })}
+                    </div>
                     </div>
                   )}
               </div>
@@ -1962,19 +2017,35 @@ const TeacherDashboard: React.FC = () => {
 
         </main>
 
-        {/* RIGHT: Teacher tools + compact stats (vertical stack) */}
+        {/* RIGHT: Quick teaching tools + compact stats — PR-039 clarity */}
         <aside className="teacher-dashboard-right" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-            <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Teacher tools</h3>
+            <h3 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1rem" }}>🛠 Quick teaching tools</h3>
+            <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6b7280" }}>Create teaching materials in seconds.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/create-lesson" style={{ display: "block", padding: "12px 14px", background: "#16a34a", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, border: "none", textAlign: "center", boxShadow: "0 2px 4px rgba(22,163,74,0.3)" }}>+ Create lesson</Link>
+              </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Teaching content</div>
+              <div style={{ marginBottom: 8 }}>
+                <button type="button" onClick={openAiModal} title="Generate lessons, quizzes and flashcards for a topic" style={{ width: "100%", padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", textAlign: "center" }}>✨ AI starter packs</button>
+              </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Practice materials</div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>📝 Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
               </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Course improvement</div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention (action required) <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
+                <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>🚨 Needs attention <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>🧠 Misconceptions (7d) <CountBadge n={0} /></Link>
+                <Link to="/coverage" title="See which topics need more support" style={{ display: "block", padding: "10px 14px", background: "white", color: "#374151", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Coverage</Link>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</Link>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>🧠 Misconceptions (7d)</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>🔁 Reteach plans</Link>
@@ -1985,11 +2056,8 @@ const TeacherDashboard: React.FC = () => {
               <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>💰 Cash out earnings</button>
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🛠 Fix earnings</button>
-              </div>
               <div>
-                <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>📌 Sprint plan</Link>
+                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>🛠 Fix earnings</button>
               </div>
             </div>
           </div>

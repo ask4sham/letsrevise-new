@@ -23,7 +23,9 @@ import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
 import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
+import { StudyPlanPanel } from "../components/ai/StudyPlanPanel";
 import { getAiTutorEnabled } from "../api/featureFlags";
+import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import type { SpecKey } from "../api/taxonomy";
@@ -1089,6 +1091,7 @@ const LessonViewPage: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [accessDecision, setAccessDecision] = useState<{ allowed?: boolean; reason?: string } | null>(null);
   const loggedPreviewRef = useRef<string | null>(null);
+  const lessonViewProgressLoggedRef = useRef<string | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -1312,6 +1315,18 @@ const LessonViewPage: React.FC = () => {
     next.delete("openTopicSummary");
     setSearchParams(next, { replace: true });
   }, [searchParams, user?.userType, aiTutorEnabled, specKey, topicKeyForBank, lesson]);
+
+  // PR-038: record lesson view for StudentTopicProgress (once per session per lesson)
+  useEffect(() => {
+    const isStudentUser = (user?.userType ?? "").toString().toLowerCase() === "student";
+    if (!isStudentUser || !specKey || !id) return;
+    const tk = topicKeyForBank || (lesson as { topicKey?: string })?.topicKey;
+    if (!tk) return;
+    const sessionKey = `${id}:${specKey}:${tk}`;
+    if (lessonViewProgressLoggedRef.current === sessionKey) return;
+    lessonViewProgressLoggedRef.current = sessionKey;
+    postLessonView(specKey, tk).catch(() => {});
+  }, [id, specKey, topicKeyForBank, lesson, user?.userType]);
 
   // PR3b + PR-PRACTICE-1: Fetch practice questions with limit, seed, source
   const practiceSeed = useMemo(() => {
@@ -3336,6 +3351,10 @@ const LessonViewPage: React.FC = () => {
                     lessonId={id || undefined}
                   />
                 )}
+                {/* PR-038: Today's study plan — student only */}
+                {isStudent && specKey && (
+                  <StudyPlanPanel specKey={specKey} />
+                )}
 
                 {/* Check your understanding — page-aware in structured view */}
                 <Section title="Check your understanding" variant="card">
@@ -4010,6 +4029,10 @@ const LessonViewPage: React.FC = () => {
               lessonId={id || undefined}
             />
           </>
+        )}
+        {/* PR-038: Today's study plan — student only */}
+        {isStudent && specKey && (
+          <StudyPlanPanel specKey={specKey} />
         )}
 
         {/* Check your understanding — gate on hasFullLessonAccess */}

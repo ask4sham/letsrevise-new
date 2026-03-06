@@ -9,6 +9,7 @@ const { verifyCitations } = require("../utils/citationVerification");
 const { getCached, setCached } = require("../services/topicSummary/topicSummaryCache");
 const { isAiTutorEnabledForSpec } = require("../config/featureFlags");
 const TopicSummaryLog = require("../models/TopicSummaryLog");
+const { upsertStudentTopicProgressSignal } = require("../services/progress/studentTopicProgressService");
 
 function isTeacherOrAdmin(req) {
   const t = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
@@ -202,6 +203,12 @@ async function postTopicSummary(req, res) {
       topicSummaryLogId: String(logDoc._id),
       cached: false,
     };
+
+    // PR-038: Update student topic progress (topicSummaries)
+    if (studentSafe) {
+      const uid = req.user?._id || req.user?.userId || req.user?.id;
+      upsertStudentTopicProgressSignal({ userId: uid, specKey: spec, topicKey: topic, signalType: "topicSummaries", value: 1 }).catch(() => {});
+    }
 
     await setCached(spec, topic, modeVal, maxSrc, allowExt, {
       ...responsePayload,

@@ -183,6 +183,10 @@ app.use("/api/external-sources", require("./routes/externalSources.routes"));
 
 // PR-023: Teacher notes listing (teacher/admin only)
 app.use("/api/teacher-notes", require("./routes/teacherNotes.routes"));
+// PR-038: Student progress signals (lesson-view, practice-attempt, flashcard-review)
+app.use("/api/progress", require("./routes/progress.routes"));
+// PR-038: Study coach (personalised study plan)
+app.use("/api/study-coach", require("./routes/studyCoach.routes"));
 app.use("/api/topic-summary", require("./routes/topicSummary.routes"));
 app.use("/api/topic-summary", require("./routes/topicSummaryToLesson.routes"));
 app.use("/api/topic-summary/export", require("./routes/topicSummaryExport.routes"));

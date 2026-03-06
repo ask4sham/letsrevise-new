@@ -1393,3 +1393,74 @@ Acceptance:
 
 Follow-ups:
 None
+
+---
+
+**PR-038 — Adaptive Learning Engine (student topic mastery + next best action)**
+
+Date: 2026-03-05
+
+Summary:
+Turn LetsRevise toward an adaptive learning system: track student progress by topicKey, estimate mastery from activity signals, recommend next best topic/action, surface "Today's study plan". Uses CoverageSnapshot and existing interaction data. Deterministic scoring; explainable recommendations.
+
+Files changed:
+
+- backend/models/StudentTopicProgress.js (new)
+- backend/models/index.js
+- backend/services/progress/studentTopicProgressService.js (new — upsertStudentTopicProgressSignal, recomputeMastery)
+- backend/controllers/enquiry.controller.js (aiEnquiries, weakAiEnquiries for students)
+- backend/controllers/topicSummary.controller.js (topicSummaries for students)
+- backend/controllers/studyCoach.controller.js (new — getPlan, getTopic)
+- backend/routes/progress.routes.js (new — lesson-view, practice-attempt, flashcard-review)
+- backend/routes/studyCoach.routes.js (new)
+- backend/app.js (mount /api/progress, /api/study-coach)
+- frontend/src/api/studyCoach.ts (new)
+- frontend/src/components/ai/StudyPlanPanel.tsx (new)
+- frontend/src/pages/LessonViewPage.tsx (StudyPlanPanel, postLessonView on mount)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- StudentTopicProgress: masteryScore 0–100, confidenceBand (low/medium/high), status (new/learning/practising/secure).
+- Signals: lessonViews, aiEnquiries, weakAiEnquiries, topicSummaries, practiceAttempts, practiceCorrect, flashcardReviews.
+- Scoring: lessonViews +15, aiEnquiries +10, topicSummaries +10, flashcardReviews +15, practice +40, weakAiEnquiries -15. THIN/EMPTY cap at 70.
+- Study plan: GET /api/study-coach/plan?specKey=... (student only). Fallback from CoverageSnapshot when no progress.
+- Lesson-view: POST /api/progress/lesson-view once per session when student views lesson.
+
+Acceptance:
+- Student enquiries and topic summaries update StudentTopicProgress.
+- Student can fetch study plan for specKey.
+- LessonViewPage shows Today's study plan panel with top 3 recommended topics/actions.
+- Recommendations deterministic and explainable.
+- No teacher/admin UI changes.
+
+Follow-ups:
+None
+
+---
+
+**PR-039 — Teacher dashboard clarity redesign (same layout, clearer workflow)**
+
+Date: 2026-03-05
+
+Summary:
+Clarity pass on teacher dashboard: clearer headings, helper text, grouping labels, and workflow messaging. No layout changes, no route changes, no feature removal. Teachers understand the platform in under 10 seconds: see student activity → improve topics → generate teaching materials.
+
+Files changed:
+
+- frontend/src/pages/TeacherDashboard.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Notes:
+- Purpose statement under header: "Create lessons → Help students learn → Improve topics where students struggle."
+- Left sidebar: regrouped into Content, Course tools, Course health, Account.
+- Center: "Student activity today", "Suggested teaching actions", "Course setup", "Improve this topic" section.
+- Right toolbox: "Quick teaching tools" with Create lesson primary, categories.
+- "How to use LetsRevise" dismissible card.
+
+Acceptance:
+- Dashboard layout unchanged. All buttons, routes, features work.
+- Teacher understands purpose in under 10 seconds.
+
+Follow-ups:
+None
