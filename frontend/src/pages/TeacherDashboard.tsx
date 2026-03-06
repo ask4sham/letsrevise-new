@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { createWorksheet } from "../api/worksheets";
@@ -160,44 +160,13 @@ const TeacherDashboard: React.FC = () => {
   // Start Here collapsible (default collapsed to reduce clutter)
   const [showStartHere, setShowStartHere] = useState(false);
 
-  // PR-UX-DASH-INNOV-1: Quick setup collapsible (persist in localStorage)
-  const [quickSetupCollapsed, setQuickSetupCollapsedState] = useState<boolean>(() => {
-    try {
-      const s = localStorage.getItem("teacherDashboard.quickSetupCollapsed");
-      return s !== "false";
-    } catch {
-      return true;
-    }
-  });
-
-  const setQuickSetupCollapsed = (v: boolean) => {
-    setQuickSetupCollapsedState(v);
-    try {
-      localStorage.setItem("teacherDashboard.quickSetupCollapsed", String(v));
-    } catch {
-      /* ignore */
-    }
-  };
-
   // PR-UX-DASH-INNOV-2: Today's interaction - show all recent or top 5
   const [showAllRecent, setShowAllRecent] = useState(false);
+  // PR — Recent activity collapsible: collapsed by default; expand when urgent activity exists
+  const [recentExpanded, setRecentExpanded] = useState(false);
 
-  // PR-039: How to use LetsRevise card (dismissible, persist in localStorage)
-  const [howToUseDismissed, setHowToUseDismissedState] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("teacherDashboard.howToUseDismissed") === "true";
-    } catch {
-      return false;
-    }
-  });
-  const setHowToUseDismissed = (v: boolean) => {
-    setHowToUseDismissedState(v);
-    try {
-      localStorage.setItem("teacherDashboard.howToUseDismissed", String(v));
-    } catch {
-      /* ignore */
-    }
-  };
+  // PR — How LetsRevise works: compact help link opens modal (no large card competing with workflow rail)
+  const [howToUseModalOpen, setHowToUseModalOpen] = useState(false);
 
   // PR-CHEM-2: Subject/spec selector (Biology vs Chemistry)
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
@@ -233,12 +202,6 @@ const TeacherDashboard: React.FC = () => {
     return { taxonomyMap: map, taxonomyUnits: taxonomyUnitsMapped };
   }, [taxonomyData]);
 
-  // PR5: Topic filter state
-  const [filterUnit, setFilterUnit] = useState<string>("all");
-  const [filterTopicKey, setFilterTopicKey] = useState<string>("all");
-  const [filterTier, setFilterTier] = useState<"all" | "foundation" | "higher">("all");
-  const [filterReadiness, setFilterReadiness] = useState<"all" | "READY" | "NEEDS_REVIEW" | "DRAFT">("all");
-
   // PR5: Collapsible "Topics not yet covered"
   const [showUncoveredTopics, setShowUncoveredTopics] = useState(false);
 
@@ -259,18 +222,6 @@ const TeacherDashboard: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // PR5 + PR7: Client-side filtering
-  const filteredLessons = useMemo(() => {
-    return lessons.filter((l) => {
-      const topicKey = topicToKey(l.topic);
-      const taxonomy = taxonomyMap[topicKey];
-      if (filterUnit !== "all" && taxonomy?.unit !== filterUnit) return false;
-      if (filterTopicKey !== "all" && topicKey !== filterTopicKey) return false;
-      if (filterTier !== "all" && l.tier !== filterTier) return false;
-      if (filterReadiness !== "all" && (l.readiness?.status ?? "DRAFT") !== filterReadiness) return false;
-      return true;
-    });
-  }, [lessons, taxonomyMap, filterUnit, filterTopicKey, filterTier, filterReadiness]);
 
   // PR5: Coverage (published lessons only)
   const coverage = useMemo(() => {
@@ -297,43 +248,26 @@ const TeacherDashboard: React.FC = () => {
     };
   }, [lessons, taxonomyUnits]);
 
-  // PR19: Quick setup counts (no backend changes)
-  const quickSetup = useMemo(() => {
-    const published = lessons.filter((l) => l.isPublished);
-    const noPracticeCount = published.filter(
-      (l) => !l.examQuestions || (Array.isArray(l.examQuestions) && l.examQuestions.length === 0)
-    ).length;
-    const notReviewedCount = published.filter((l) => !l.reviewedAt).length;
-    const hasUsedClassroomMode =
-      typeof window !== "undefined" && window.localStorage.getItem("hasUsedClassroomMode") === "true";
-    return {
-      noPracticeCount,
-      notReviewedCount,
-      hasUsedClassroomMode,
-      uncoveredCount: coverage.uncoveredTopics.length,
-    };
-  }, [lessons, coverage.uncoveredTopics.length]);
-
-  // PR-UX-DASH-INNOV-1: Quick setup remaining count
-  const quickSetupRemaining = useMemo(() => {
-    let n = 0;
-    if (quickSetup.noPracticeCount > 0) n += 1;
-    if (quickSetup.uncoveredCount > 0) n += 1;
-    if (!quickSetup.hasUsedClassroomMode && lessons.some((l) => l.isPublished)) n += 1;
-    if (quickSetup.notReviewedCount > 0) n += 1;
-    return n;
-  }, [quickSetup, lessons]);
-
+  // PR — Recent: auto-expand when urgent activity exists (once per session)
+  const hasAutoExpandedRecentRef = useRef(false);
   useEffect(() => {
-    if (quickSetupRemaining === 0) {
-      setQuickSetupCollapsedState(true);
-      try {
-        localStorage.setItem("teacherDashboard.quickSetupCollapsed", "true");
-      } catch {
-        /* ignore */
-      }
+    if (!overview || hasAutoExpandedRecentRef.current) return;
+    const hasUrgent =
+      (overview.needsMarking?.worksheets?.count ?? 0) > 0 ||
+      (overview.awaitingRelease?.worksheets?.count ?? 0) > 0 ||
+      (overview.awaitingRelease?.quizzes?.count ?? 0) > 0 ||
+      (overview.awaitingRelease?.assessments?.count ?? 0) > 0 ||
+      (overview.dueSoon?.worksheets?.count ?? 0) > 0 ||
+      (overview.dueSoon?.quizzes?.count ?? 0) > 0 ||
+      (overview.dueSoon?.assessments?.count ?? 0) > 0 ||
+      (overview.quizSubmissionsToday ?? 0) > 0 ||
+      (overview.lowScoreCount ?? 0) > 0 ||
+      (overview.awaitingReleaseTotal ?? 0) > 0;
+    if (hasUrgent && overview.recentActivity && overview.recentActivity.length > 0) {
+      hasAutoExpandedRecentRef.current = true;
+      setRecentExpanded(true);
     }
-  }, [quickSetupRemaining]);
+  }, [overview]);
 
   useEffect(() => {
     const init = async () => {
@@ -731,14 +665,13 @@ const TeacherDashboard: React.FC = () => {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #22c55e", paddingLeft: 6 }}>Teaching content</div>
               <Link to="/create-lesson" style={{ padding: "10px 14px", background: "#22c55e", color: "white", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, textAlign: "center", borderLeft: "3px solid #16a34a" }}>+ Create lesson</Link>
-              <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.12)", color: "#166534", border: "1px solid #22c55e", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%", textAlign: "center" }}>Generate lesson materials</button>
               <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>My lessons</Link>
               <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>Exam lessons</Link>
               <div style={{ fontSize: 11, color: "#1e40af", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #3b82f6", paddingLeft: 6 }}>Practice banks</div>
               <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Flashcards</Link>
               <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Quizzes</Link>
               <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Exam questions</Link>
-              <Link to="/teacher/content-coverage" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Topic coverage</Link>
+              <Link to="/teacher/content-coverage" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }} title="Topic bank coverage (flashcards, quizzes per topic)">Topic bank coverage</Link>
               <div style={{ fontSize: 11, color: "#6b21a8", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #8b5cf6", paddingLeft: 6 }}>Monitor course health</div>
               <Link to="/coverage" title="See which topics need more support" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Coverage</Link>
               <Link to="/teacher/questions" title="See where students are asking questions or where coverage is weak" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Student questions</Link>
@@ -794,36 +727,30 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* PR-034.1: How LetsRevise works (dismissible) */}
-          {!howToUseDismissed && (
-            <div
+          {/* How LetsRevise works: compact help link */}
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setHowToUseModalOpen(true)}
               style={{
-                marginBottom: 20,
-                padding: 16,
-                background: "#f0fdf4",
-                borderRadius: 12,
-                border: "1px solid #86efac",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontSize: 13,
+                color: "#6b7280",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                <div>
-                  <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem", fontWeight: 700, color: "#166534" }}>How LetsRevise works</h3>
-                  <ol style={{ margin: 0, paddingLeft: 18, color: "#374151", fontSize: 14, lineHeight: 1.6 }}>
-                    <li>Create lessons</li>
-                    <li>Students ask AI questions</li>
-                    <li>See where students struggle</li>
-                    <li>Improve topics with AI</li>
-                  </ol>
-                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <Link to="/create-lesson" style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>Create lesson</Link>
-                    <Link to="/coverage" style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>View coverage</Link>
-                  </div>
-                </div>
-                <button type="button" onClick={() => setHowToUseDismissed(true)} aria-label="Dismiss" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#6b7280", padding: 4 }}>✕</button>
-              </div>
-            </div>
-          )}
+              <span style={{ opacity: 0.8 }}>ℹ</span>
+              <span style={{ textDecoration: "underline" }}>How LetsRevise works</span>
+            </button>
+          </div>
+        </div>
 
+        <div style={{ marginBottom: "30px", marginTop: 8 }}>
           {/* PR-EDGE-3: Today panel — actionable summary; PR-UX-DASH-TEACH-1: renamed + badge strip */}
           {overview && (
             <div
@@ -1070,32 +997,57 @@ const TeacherDashboard: React.FC = () => {
               )}
               {overview && overview.recentActivity && overview.recentActivity.length > 0 && (
                 <div style={{ width: "100%", paddingTop: 14, borderTop: "1px solid #e5e7eb", fontSize: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Recent</div>
-                    {overview.recentActivity.length > 5 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllRecent((v) => !v)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#2563eb",
-                          fontSize: 13,
-                          cursor: "pointer",
-                          padding: 0,
-                          fontWeight: 500,
-                          textDecoration: "underline",
-                        }}
-                      >
-                        {showAllRecent ? "Show less" : `View all activity (${overview.recentActivity.length})`}
-                      </button>
-                    )}
-                  </div>
-                  {(showAllRecent ? overview.recentActivity : overview.recentActivity.slice(0, 5)).map((a, i) => (
-                    <Link key={i} to={a.link} style={{ display: "block", color: "#4b5563", marginBottom: 6, textDecoration: "none", lineHeight: 1.5 }}>
-                      {a.label}
-                    </Link>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRecentExpanded((v) => !v)}
+                    aria-expanded={recentExpanded}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: "0.95rem",
+                      color: "#111827",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span>Recent</span>
+                    <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>{recentExpanded ? "▾" : "▸"}</span>
+                  </button>
+                  {recentExpanded && (
+                    <div style={{ marginTop: 8 }}>
+                      {overview.recentActivity.length > 5 && (
+                        <div style={{ marginBottom: 8, display: "flex", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowAllRecent((v) => !v)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#2563eb",
+                              fontSize: 13,
+                              cursor: "pointer",
+                              padding: 0,
+                              fontWeight: 500,
+                              textDecoration: "underline",
+                            }}
+                          >
+                            {showAllRecent ? "Show less" : `View all activity (${overview.recentActivity.length})`}
+                          </button>
+                        </div>
+                      )}
+                      {(showAllRecent ? overview.recentActivity : overview.recentActivity.slice(0, 5)).map((a, i) => (
+                        <Link key={i} to={a.link} style={{ display: "block", color: "#4b5563", marginBottom: 6, textDecoration: "none", lineHeight: 1.5 }}>
+                          {a.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1252,112 +1204,9 @@ const TeacherDashboard: React.FC = () => {
             marginBottom: "30px",
           }}
         >
-          {/* PR5: Coverage card (when taxonomy loaded); PR19: Quick setup; PR-UX-DASH-INNOV-1: collapsible */}
+          {/* PR5: Coverage card (when taxonomy loaded); Course setup card removed — duplicates SpecSelector + coverage block */}
           {taxonomyUnits.length > 0 && (
             <>
-            <div
-              style={{
-                marginBottom: "24px",
-                borderRadius: "10px",
-                border: "1px solid #e5e7eb",
-                background: "#f9fafb",
-                overflow: "hidden",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setQuickSetupCollapsed(!quickSetupCollapsed)}
-                style={{
-                  width: "100%",
-                  padding: "16px",
-                  textAlign: "left",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-                aria-expanded={!quickSetupCollapsed}
-              >
-                <div>
-                  <h3 style={{ color: "#333", margin: 0, fontSize: "1rem", fontWeight: 600 }}>
-                    ⚙️ Course setup
-                  </h3>
-                  <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
-                    {quickSetupRemaining === 0 ? "All done ✅" : `${quickSetupRemaining} remaining`}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Choose the exam board and subject you are teaching.</div>
-                </div>
-                <span style={{ fontSize: "1.1rem", color: "#6b7280" }}>
-                  {(quickSetupRemaining === 0 ? quickSetupCollapsed : quickSetupCollapsed) ? "▸" : "▾"}
-                </span>
-              </button>
-              {!quickSetupCollapsed && (
-              <div style={{ padding: "0 16px 16px 16px", borderTop: "1px solid #e5e7eb" }}>
-              <ul style={{ margin: "16px 0 0 0", paddingLeft: 20, fontSize: 14, color: "#374151", listStyle: "disc" }}>
-                <li style={{ marginBottom: 6 }}>
-                  {quickSetup.noPracticeCount > 0 ? (
-                    <Link to="/teacher/reports/needs-attention#setup" style={{ color: "#2563eb", textDecoration: "none" }}>
-                      Attach practice to your published lessons
-                    </Link>
-                  ) : (
-                    <span>Attach practice to your published lessons</span>
-                  )}
-                  {quickSetup.noPracticeCount > 0 && (
-                    <span style={{ color: "#6b7280" }}> ({quickSetup.noPracticeCount})</span>
-                  )}
-                </li>
-                <li style={{ marginBottom: 6 }}>
-                  {quickSetup.uncoveredCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowUncoveredTopics(true)}
-                      style={{ background: "none", border: "none", padding: 0, color: "#2563eb", cursor: "pointer", textDecoration: "none", fontSize: "inherit" }}
-                    >
-                      Cover remaining topics
-                    </button>
-                  ) : (
-                    <span>Cover remaining topics</span>
-                  )}
-                  {quickSetup.uncoveredCount > 0 && (
-                    <span style={{ color: "#6b7280" }}> ({quickSetup.uncoveredCount})</span>
-                  )}
-                </li>
-                <li style={{ marginBottom: 6 }}>
-                  {!quickSetup.hasUsedClassroomMode ? (
-                    lessons.some((l) => l.isPublished) ? (
-                      <Link to={`/teacher/classroom/${lessons.find((l) => l.isPublished)?._id ?? ""}`} style={{ color: "#2563eb", textDecoration: "none" }}>
-                        Try Classroom mode once
-                      </Link>
-                    ) : (
-                      <span>Try Classroom mode once (publish a lesson first)</span>
-                    )
-                  ) : (
-                    <span style={{ color: "#16a34a" }}>Try Classroom mode once ✓</span>
-                  )}
-                </li>
-                <li>
-                  {quickSetup.notReviewedCount > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setFilterReadiness("NEEDS_REVIEW")}
-                      style={{ background: "none", border: "none", padding: 0, color: "#2563eb", cursor: "pointer", textDecoration: "none", fontSize: "inherit" }}
-                    >
-                      Mark lessons reviewed
-                    </button>
-                  ) : (
-                    <span>Mark lessons reviewed</span>
-                  )}
-                  {quickSetup.notReviewedCount > 0 && (
-                    <span style={{ color: "#6b7280" }}> ({quickSetup.notReviewedCount})</span>
-                  )}
-                </li>
-              </ul>
-              </div>
-              )}
-            </div>
             <div
               style={{
                 marginBottom: "20px",
@@ -1595,134 +1444,18 @@ const TeacherDashboard: React.FC = () => {
             </>
           )}
 
-          {/* PR5: Filter bar (when taxonomy loaded) */}
-          {taxonomyUnits.length > 0 && lessons.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 12,
-                alignItems: "center",
-                marginBottom: 16,
-                padding: "12px 0",
-                borderBottom: "1px solid #e5e7eb",
-              }}
-            >
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                Unit:
-                <select
-                  value={filterUnit}
-                  onChange={(e) => {
-                    setFilterUnit(e.target.value);
-                    setFilterTopicKey("all");
-                  }}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    fontSize: 13,
-                  }}
-                >
-                  <option value="all">All units</option>
-                  {taxonomyUnits.map((u) => (
-                    <option key={u.unit} value={u.unit}>
-                      {u.unit}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                Topic:
-                <select
-                  value={filterTopicKey}
-                  onChange={(e) => setFilterTopicKey(e.target.value)}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    fontSize: 13,
-                    minWidth: 180,
-                  }}
-                >
-                  <option value="all">All topics</option>
-                  {filterUnit === "all"
-                    ? taxonomyUnits.map((u) => (
-                        <optgroup key={u.unit} label={u.unit}>
-                          {u.topics.map((t) => (
-                            <option key={t.key} value={t.key}>
-                              {t.topic}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))
-                    : taxonomyUnits
-                        .filter((u) => u.unit === filterUnit)
-                        .flatMap((u) => u.topics)
-                        .map((t) => (
-                          <option key={t.key} value={t.key}>
-                            {t.topic}
-                          </option>
-                        ))}
-                </select>
-              </label>
-              <span style={{ fontSize: 13, color: "#6b7280" }}>Tier:</span>
-              <div style={{ display: "flex", gap: 4 }}>
-                {(["all", "foundation", "higher"] as const).map((tier) => (
-                  <button
-                    key={tier}
-                    type="button"
-                    onClick={() => setFilterTier(tier)}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: "1px solid #d1d5db",
-                      background: filterTier === tier ? "#e5e7eb" : "#fff",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontWeight: filterTier === tier ? 600 : 400,
-                    }}
-                  >
-                    {tier === "all" ? "All" : tier === "foundation" ? "Foundation" : "Higher"}
-                  </button>
-                ))}
-              </div>
-              <span style={{ fontSize: 13, color: "#6b7280" }}>Readiness:</span>
-              <div style={{ display: "flex", gap: 4 }}>
-                {(["all", "READY", "NEEDS_REVIEW", "DRAFT"] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setFilterReadiness(r)}
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: r === "NEEDS_REVIEW" ? "1px solid #fca5a5" : "1px solid #d1d5db",
-                      background: filterReadiness === r ? (r === "NEEDS_REVIEW" ? "#fef2f2" : "#e5e7eb") : "#fff",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontWeight: filterReadiness === r ? 600 : 400,
-                      color: r === "NEEDS_REVIEW" ? "#dc2626" : undefined,
-                    }}
-                  >
-                    {r === "all" ? "All" : r === "READY" ? "Classroom-ready" : r === "NEEDS_REVIEW" ? "Needs review" : "Draft"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              marginTop: taxonomyUnits.length > 0 ? 16 : 0,
               marginBottom: "20px",
             }}
           >
             <h2 style={{ color: "#333", margin: 0 }}>My Lessons</h2>
             <div style={{ color: "#666" }}>
-              {filteredLessons.length} lesson{filteredLessons.length !== 1 ? "s" : ""}
-              {filteredLessons.length !== lessons.length && ` (of ${lessons.length})`}
+              {lessons.length} lesson{lessons.length !== 1 ? "s" : ""}
             </div>
           </div>
 
@@ -1767,13 +1500,9 @@ const TeacherDashboard: React.FC = () => {
                 </Link>
               </div>
             </div>
-          ) : filteredLessons.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px", color: "#666" }}>
-              No lessons match the current filters. Try changing Unit, Topic, or Tier.
-            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {filteredLessons.map((lesson) => {
+              {lessons.map((lesson) => {
                 const topicKey = topicToKey(lesson.topic);
                 const taxonomyInfo = topicKey ? taxonomyMap[topicKey] : undefined;
                 const subtitle =
@@ -1922,7 +1651,7 @@ const TeacherDashboard: React.FC = () => {
                             fontWeight: 500,
                           }}
                         >
-                          Preview Lesson
+                          Preview lesson
                         </button>
                       </Link>
                       <Link to={`/edit-lesson/${lesson._id}`}>
@@ -2006,28 +1735,26 @@ const TeacherDashboard: React.FC = () => {
 
         </main>
 
-        {/* RIGHT: Quick teaching tools — PR-034.1 no duplicate Create Lesson, teacher-friendly labels */}
+        {/* RIGHT: Quick teaching tools — high-value shortcuts, no duplicates of left nav */}
         <aside className="teacher-dashboard-right" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ background: "white", padding: 16, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
             <h3 style={{ color: "#333", margin: "0 0 4px 0", fontSize: "1rem" }}>Quick teaching tools</h3>
-            <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6b7280" }}>Generate teaching materials and improve topics quickly.</p>
+            <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#6b7280" }}>Shortcuts for common actions.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 6, textTransform: "uppercase" }}>Generate materials</div>
               <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ width: "100%", padding: "10px 14px", background: "#0d6efd", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", textAlign: "center" }}>Generate lesson materials</button>
               </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Review work</div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/worksheets/needs-marking" style={{ display: "block", padding: "10px 14px", background: "#fef3c7", color: "#92400e", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #f59e0b", textAlign: "center" }}>Needs marking <CountBadge n={overview?.needsMarking?.worksheets?.count ?? 0} /></Link>
               </div>
-              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Course planning</div>
-              <div style={{ marginBottom: 8 }}>
-                <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" title="See the next priority topics to improve" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>Course improvement plan</Link>
-              </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Improve course</div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/reports/needs-attention" style={{ display: "block", padding: "10px 14px", background: "rgba(220,38,38,0.08)", color: "#dc2626", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "2px solid #dc2626", textAlign: "center" }}>Needs attention <CountBadge n={lessons.filter((l) => (l.readiness?.status ?? "DRAFT") !== "READY").length} /></Link>
               </div>
               <div style={{ marginBottom: 8 }}>
-                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>Misconceptions (7d)</Link>
+                <Link to="/teacher/misconceptions" style={{ display: "block", padding: "10px 14px", background: "rgba(59,130,246,0.1)", color: "#2563eb", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #2563eb", textAlign: "center" }}>Misconceptions</Link>
               </div>
               <div style={{ marginBottom: 8 }}>
                 <Link to="/teacher/reteach-plans" style={{ display: "block", padding: "10px 14px", background: "rgba(16,185,129,0.1)", color: "#059669", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #059669", textAlign: "center" }}>Reteach plans</Link>
@@ -2035,6 +1762,10 @@ const TeacherDashboard: React.FC = () => {
               <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={handleViewAnalytics} style={{ width: "100%", padding: "10px 14px", background: "#667eea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>View analytics</button>
               </div>
+              <div style={{ marginBottom: 8 }}>
+                <Link to="/docs/view?file=SPRINT_CELL_BIOLOGY_WEEK_1.md" title="See the next priority topics to improve" style={{ display: "block", padding: "10px 14px", background: "#f1f5f9", color: "#475569", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #cbd5e1", textAlign: "center" }}>Course improvement plan</Link>
+              </div>
+              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Business</div>
               <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Cash out earnings</button>
               </div>
@@ -2066,6 +1797,50 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </div>
         </aside>
+
+        {/* How LetsRevise works — lightweight help modal */}
+        {howToUseModalOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "20px",
+              zIndex: 9998,
+            }}
+            onClick={() => setHowToUseModalOpen(false)}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: "420px",
+                background: "white",
+                borderRadius: "12px",
+                padding: "24px",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.2)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#166534" }}>How LetsRevise works</h3>
+                <button type="button" onClick={() => setHowToUseModalOpen(false)} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#6b7280", padding: 4 }}>✕</button>
+              </div>
+              <ol style={{ margin: "12px 0 0", paddingLeft: 18, color: "#374151", fontSize: 14, lineHeight: 1.6 }}>
+                <li>Create lessons</li>
+                <li>Students ask AI questions</li>
+                <li>See where students struggle</li>
+                <li>Improve topics with AI</li>
+              </ol>
+              <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <Link to="/create-lesson" onClick={() => setHowToUseModalOpen(false)} style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>Create lesson</Link>
+                <Link to="/coverage" onClick={() => setHowToUseModalOpen(false)} style={{ fontSize: 13, color: "#16a34a", fontWeight: 600, textDecoration: "none" }}>View coverage</Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ✅ Checklist Modal */}
         {checklistOpen && (

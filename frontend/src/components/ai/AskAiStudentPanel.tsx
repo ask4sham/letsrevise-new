@@ -231,27 +231,27 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
   const sendStudentMessage = useCallback(
     async ({ message, modeOverride }: { message: string; modeOverride?: "quick" | "explain" | "revision" }) => {
       const q = message.trim();
-      if (!q || loading) return;
+    if (!q || loading) return;
 
       const convId = conversationId;
       if (!convId && !conversationInitFailed) return;
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
       // Only clear input when sending user's typed text (form submit), not tutor chip messages
       if (q === question.trim()) setQuestion("");
 
       setMessages((prev) => [...prev, { role: "user", text: q }]);
 
-      try {
-        const res = await postEnquiry({
-          question: q,
-          specKey,
-          topicKey,
+    try {
+      const res = await postEnquiry({
+        question: q,
+        specKey,
+        topicKey,
           conversationId: convId || undefined,
-          mode: "lesson",
-          limit: 6,
-          includePractice: true,
+        mode: "lesson",
+        limit: 6,
+        includePractice: true,
           responseMode: modeOverride ?? responseMode,
         });
 
@@ -265,13 +265,13 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
           },
         ]);
         refreshRecent();
-      } catch (err: unknown) {
-        const e = err as { response?: { data?: { error?: string } }; message?: string };
-        setError(e?.response?.data?.error || e?.message || "Failed to get answer");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      setError(e?.response?.data?.error || e?.message || "Failed to get answer");
         setMessages((prev) => prev.slice(0, -1));
-      } finally {
-        setLoading(false);
-      }
+    } finally {
+      setLoading(false);
+    }
     },
     [conversationId, conversationInitFailed, loading, question, specKey, topicKey, responseMode, refreshRecent]
   );
@@ -582,17 +582,17 @@ function AssistantBubbleStudent({
         <div
           style={{
             marginBottom: 12,
-            padding: 12,
-            borderRadius: 8,
-            background: "#fefce8",
-            border: "1px solid #fde047",
-            color: "#854d0e",
-            fontSize: 14,
-          }}
-        >
-          <strong>Note:</strong> {response.answer.warnings.join(" ")}
-        </div>
-      )}
+                padding: 12,
+                borderRadius: 8,
+                background: "#fefce8",
+                border: "1px solid #fde047",
+                color: "#854d0e",
+                fontSize: 14,
+              }}
+            >
+              <strong>Note:</strong> {response.answer.warnings.join(" ")}
+            </div>
+          )}
 
       {response.confidenceLevel && (
         <div style={{ marginBottom: 12 }}>
@@ -631,7 +631,7 @@ function AssistantBubbleStudent({
         </div>
       )}
 
-      {/* PR-007: Practice first */}
+          {/* PR-007: Practice first */}
       {response.answer.practice && response.answer.practice.length > 0 && enquiryLogId && (
         <div
           id={`practice-${enquiryLogId}`}
@@ -642,10 +642,10 @@ function AssistantBubbleStudent({
             borderRadius: 8,
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#166534" }}>
-            Try these practice questions
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#166534" }}>
+                Try these practice questions
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {response.answer.practice.map((p, i) =>
               p.type === "flashcard" ? (
                 <div
@@ -704,114 +704,114 @@ function AssistantBubbleStudent({
                   )}
                 </div>
               ) : (
+                  <div
+                    key={i}
+                    style={{
+                      padding: 12,
+                      background: "#fff",
+                      borderRadius: 8,
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: "#dcfce7",
+                        color: "#166534",
+                        fontWeight: 600,
+                        fontSize: 11,
+                        marginRight: 8,
+                      }}
+                    >
+                      {p.type.toUpperCase()}
+                    </span>
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
+                    {p.type === "mcq" && Array.isArray(p.options) && (
+                      <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                        {p.options.map((opt, j) => (
+                          <li key={j}>{opt}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <button
+                      type="button"
+                    onClick={() => onTogglePractice(enquiryLogId, i)}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        background: "#dcfce7",
+                        border: "1px solid #86efac",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        color: "#166534",
+                      }}
+                    >
+                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Reveal answer"}
+                    </button>
+                  {showAnswer[`${enquiryLogId}-${i}`] && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          padding: 8,
+                          background: "#f0fdf4",
+                          borderRadius: 6,
+                          border: "1px solid #bbf7d0",
+                          fontSize: 13,
+                        }}
+                      >
+                        <strong>Answer:</strong> {p.answer}
+                        {p.markScheme && (
+                          <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
+                            <strong>Mark scheme:</strong> {p.markScheme}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+              )
+            )}
+              </div>
+            </div>
+          )}
+
+          {/* Explanation — collapsed by default */}
+          {response.answer.explanation && (
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+            onClick={onToggleExplanation}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: showExplanation ? "#e2e8f0" : "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  color: "#334155",
+                }}
+              >
+                {showExplanation ? "Hide explanation" : "Show explanation"}
+              </button>
+              {showExplanation && (
                 <div
-                  key={i}
                   style={{
+                    marginTop: 8,
                     padding: 12,
                     background: "#fff",
                     borderRadius: 8,
-                    border: "1px solid #bbf7d0",
+                    border: "1px solid #e2e8f0",
+                    fontSize: 15,
+                    lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
                   }}
                 >
-                  <span
-                    style={{
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: "#dcfce7",
-                      color: "#166534",
-                      fontWeight: 600,
-                      fontSize: 11,
-                      marginRight: 8,
-                    }}
-                  >
-                    {p.type.toUpperCase()}
-                  </span>
-                  <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
-                  {p.type === "mcq" && Array.isArray(p.options) && (
-                    <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                      {p.options.map((opt, j) => (
-                        <li key={j}>{opt}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onTogglePractice(enquiryLogId, i)}
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      background: "#dcfce7",
-                      border: "1px solid #86efac",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: "#166534",
-                    }}
-                  >
-                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Reveal answer"}
-                  </button>
-                  {showAnswer[`${enquiryLogId}-${i}`] && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        padding: 8,
-                        background: "#f0fdf4",
-                        borderRadius: 6,
-                        border: "1px solid #bbf7d0",
-                        fontSize: 13,
-                      }}
-                    >
-                      <strong>Answer:</strong> {p.answer}
-                      {p.markScheme && (
-                        <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
-                          <strong>Mark scheme:</strong> {p.markScheme}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {response.answer.explanation}
                 </div>
-              )
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Explanation — collapsed by default */}
-      {response.answer.explanation && (
-        <div style={{ marginBottom: 16 }}>
-          <button
-            type="button"
-            onClick={onToggleExplanation}
-            style={{
-              padding: "8px 12px",
-              fontSize: 14,
-              fontWeight: 600,
-              background: showExplanation ? "#e2e8f0" : "#f1f5f9",
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              cursor: "pointer",
-              color: "#334155",
-            }}
-          >
-            {showExplanation ? "Hide explanation" : "Show explanation"}
-          </button>
-          {showExplanation && (
-            <div
-              style={{
-                marginTop: 8,
-                padding: 12,
-                background: "#fff",
-                borderRadius: 8,
-                border: "1px solid #e2e8f0",
-                fontSize: 15,
-                lineHeight: 1.6,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {response.answer.explanation}
+              )}
             </div>
           )}
-        </div>
-      )}
 
       {/* PR-034: Inline diagram rendering — after explanation, before citations */}
       {response.answer.citations && (
@@ -820,7 +820,7 @@ function AssistantBubbleStudent({
 
       {/* PR-037: Study Coach — coverage-aware learning suggestions */}
       {response.learningSuggestions && response.learningSuggestions.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: "#166534" }}>
             Study coach
           </div>
@@ -839,12 +839,12 @@ function AssistantBubbleStudent({
                   <span style={{ fontWeight: 600, fontSize: 14, color: "#334155" }}>
                     {s.topicKey.split(":").pop()?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || s.topicKey}
                   </span>
-                  <span
-                    style={{
-                      padding: "2px 6px",
-                      borderRadius: 4,
+                          <span
+                            style={{
+                              padding: "2px 6px",
+                              borderRadius: 4,
                       fontSize: 11,
-                      fontWeight: 600,
+                              fontWeight: 600,
                       background:
                         s.status === "THIN"
                           ? "#fef3c7"
@@ -866,36 +866,36 @@ function AssistantBubbleStudent({
                         : s.status === "STRONG" || s.status === "OK"
                           ? "Strong"
                           : s.status}
-                  </span>
-                </div>
+                          </span>
+                        </div>
                 <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
                   {s.reason}
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {s.actions.map((a) => (
-                    <Link
+                          <Link
                       key={a.id}
                       to={a.href}
-                      style={{
+                            style={{
                         padding: "6px 12px",
-                        fontSize: 12,
+                              fontSize: 12,
                         fontWeight: 600,
                         background: "#dcfce7",
                         color: "#166534",
                         border: "1px solid #86efac",
                         borderRadius: 6,
-                        textDecoration: "none",
-                      }}
-                    >
+                              textDecoration: "none",
+                            }}
+                          >
                       {a.label}
-                    </Link>
+                          </Link>
                   ))}
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+            </div>
+          )}
 
       {response.answer.citations && response.answer.citations.length > 0 && (
         <CitationsList
@@ -923,10 +923,10 @@ function AssistantBubbleStudent({
         />
       )}
 
-      {response.suggestedTopics && response.suggestedTopics.length > 0 && (
-        <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
-          <strong>Try these instead:</strong>{" "}
-          {response.suggestedTopics.map((s) => s.topicKey).join(", ")}
+          {response.suggestedTopics && response.suggestedTopics.length > 0 && (
+            <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
+              <strong>Try these instead:</strong>{" "}
+              {response.suggestedTopics.map((s) => s.topicKey).join(", ")}
         </div>
       )}
     </div>

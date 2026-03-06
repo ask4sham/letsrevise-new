@@ -20,6 +20,33 @@ Follow-ups:
 
 ---
 
+**PR — Teacher Dashboard stabilization pass (de-duplication, workflow clarity, teacher-first navigation)**
+
+Date: 2025-03-05
+
+Summary:
+Stabilization pass on Teacher Dashboard: fixed workflow step highlight logic, removed duplicate actions, reduced repeated labels, streamlined left column (navigation) and right column (quick actions). No route/API/permission changes.
+
+Files changed:
+
+- frontend/src/pages/TeacherDashboard.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+
+Notes:
+
+- Workflow highlight: uses earliest relevant step (no lessons → Step 1; has lessons but no published → Step 2; student submissions/recent interactions → Step 3; weak topics/needs attention → Step 4).
+- Removed Generate lesson materials from left column (kept in workflow Step 1 + right Quick tools).
+- Renamed Topic coverage → Topic bank coverage (distinct from Coverage) to avoid confusion.
+- Workflow Step 4 reduced to 3 links: Coverage, Fix topic with AI, Reteach plans.
+- Right column: simplified to Generate materials, Review work (Needs marking), Improve course (Needs attention, Misconceptions, Reteach plans, View analytics, Course improvement plan), Business (Cash out, Fix earnings). Removed duplicates of left-nav items.
+- Lesson cards: single preview action labeled "Preview lesson".
+- All existing functionality preserved; no routes, permissions, or backend changes.
+
+Follow-ups:
+None.
+
+---
+
 ## Initial entry
 
 **PR-000 — Establish project memory and logging**

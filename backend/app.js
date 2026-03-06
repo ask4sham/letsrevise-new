@@ -185,6 +185,8 @@ app.use("/api/external-sources", require("./routes/externalSources.routes"));
 app.use("/api/teacher-notes", require("./routes/teacherNotes.routes"));
 // PR-038: Student progress signals (lesson-view, practice-attempt, flashcard-review)
 app.use("/api/progress", require("./routes/progress.routes"));
+// PR — Adaptive Testing Loop: topic mastery (record quiz answers, get/aggregate mastery)
+app.use("/api/mastery", require("./routes/mastery.routes"));
 // PR-038: Study coach (personalised study plan)
 app.use("/api/study-coach", require("./routes/studyCoach.routes"));
 app.use("/api/topic-summary", require("./routes/topicSummary.routes"));

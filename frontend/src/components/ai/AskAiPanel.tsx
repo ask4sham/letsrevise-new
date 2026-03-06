@@ -549,17 +549,17 @@ function AssistantBubbleTeacher({
         <div
           style={{
             marginBottom: 12,
-            padding: 12,
-            borderRadius: 8,
-            background: "#fefce8",
-            border: "1px solid #fde047",
-            color: "#854d0e",
-            fontSize: 14,
-          }}
-        >
-          <strong>Note:</strong> {response.answer.warnings.join(" ")}
-        </div>
-      )}
+                padding: 12,
+                borderRadius: 8,
+                background: "#fefce8",
+                border: "1px solid #fde047",
+                color: "#854d0e",
+                fontSize: 14,
+              }}
+            >
+              <strong>Note:</strong> {response.answer.warnings.join(" ")}
+            </div>
+          )}
 
       {response.externalUsed && (
         <div style={{ marginBottom: 12 }}>
@@ -642,49 +642,49 @@ function AssistantBubbleTeacher({
         </div>
       )}
 
-      <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
-        Sources used: {response.usedSources?.length ?? 0}
-        {response.cached && (
-          <span style={{ marginLeft: 8, fontStyle: "italic" }}>(cached)</span>
-        )}
-      </div>
-
-      {response.answer.explanation && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: 12,
-            background: "#f8fafc",
-            borderRadius: 8,
-            border: "1px solid #e2e8f0",
-            fontSize: 15,
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {response.answer.explanation}
-        </div>
-      )}
-
-      {response.answer.keyPoints && response.answer.keyPoints.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
-            Key points
+          <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
+            Sources used: {response.usedSources?.length ?? 0}
+            {response.cached && (
+              <span style={{ marginLeft: 8, fontStyle: "italic" }}>(cached)</span>
+            )}
           </div>
-          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
-            {response.answer.keyPoints.map((kp, i) => (
-              <li key={i}>{kp}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+
+          {response.answer.explanation && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+            background: "#f8fafc",
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+                fontSize: 15,
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {response.answer.explanation}
+            </div>
+          )}
+
+          {response.answer.keyPoints && response.answer.keyPoints.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
+                Key points
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
+                {response.answer.keyPoints.map((kp, i) => (
+                  <li key={i}>{kp}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
       {/* PR-034: Inline diagram rendering — after explanation/keyPoints, before citations */}
       {response.answer.citations && (
         <InlineDiagramBlock citations={response.answer.citations} studentMode={false} />
       )}
 
-      {response.answer.citations && response.answer.citations.length > 0 && (
+          {response.answer.citations && response.answer.citations.length > 0 && (
         <CitationsList
           citations={response.answer.citations}
           usedSources={response.usedSources}
@@ -706,43 +706,43 @@ function AssistantBubbleTeacher({
             borderRadius: 8,
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
             Practice
-          </div>
+              </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {response.answer.practice.map((p, i) =>
               p.type === "flashcard" ? (
-                <div
-                  key={i}
-                  style={{
+                    <div
+                      key={i}
+                      style={{
                     padding: 12,
-                    background: "#fff",
-                    borderRadius: 8,
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: "2px 6px",
-                      borderRadius: 4,
+                        background: "#fff",
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb",
+                      }}
+                    >
+                        <span
+                          style={{
+                            padding: "2px 6px",
+                            borderRadius: 4,
                       background: "#fef3c7",
                       color: "#92400e",
-                      fontWeight: 600,
-                      fontSize: 11,
+                            fontWeight: 600,
+                            fontSize: 11,
                       marginRight: 8,
-                    }}
-                  >
+                          }}
+                        >
                     FLASHCARD
-                  </span>
+                        </span>
                   <div style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>
                     {p.front}
-                  </div>
+                      </div>
                   <button
                     type="button"
                     onClick={() => onTogglePractice(enquiryLogId, i)}
-                    style={{
+                          style={{
                       padding: "4px 10px",
-                      fontSize: 12,
+                            fontSize: 12,
                       background: "#e2e8f0",
                       border: "none",
                       borderRadius: 6,
@@ -764,80 +764,80 @@ function AssistantBubbleTeacher({
                       }}
                     >
                       {p.back}
-                    </div>
-                  )}
-                </div>
+            </div>
+          )}
+              </div>
               ) : (
-                <div
-                  key={i}
-                  style={{
-                    padding: 12,
-                    background: "#fff",
-                    borderRadius: 8,
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <span
+                  <div
+                    key={i}
                     style={{
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: "#f1f5f9",
-                      color: "#475569",
-                      fontWeight: 600,
-                      fontSize: 11,
-                      marginRight: 8,
+                      padding: 12,
+                      background: "#fff",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
                     }}
                   >
-                    {p.type.toUpperCase()}
-                  </span>
-                  <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
-                  {p.type === "mcq" && Array.isArray(p.options) && (
-                    <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                      {p.options.map((opt, j) => (
-                        <li key={j}>{opt}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onTogglePractice(enquiryLogId, i)}
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      background: "#e2e8f0",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: "#475569",
-                    }}
-                  >
-                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Show answer"}
-                  </button>
-                  {showAnswer[`${enquiryLogId}-${i}`] && (
-                    <div
+                    <span
                       style={{
-                        marginTop: 8,
-                        padding: 8,
-                        background: "#f0fdf4",
-                        borderRadius: 6,
-                        border: "1px solid #bbf7d0",
-                        fontSize: 13,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: "#f1f5f9",
+                        color: "#475569",
+                        fontWeight: 600,
+                        fontSize: 11,
+                        marginRight: 8,
                       }}
                     >
-                      <strong>Answer:</strong> {p.answer}
-                      {p.markScheme && (
-                        <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
-                          <strong>Mark scheme:</strong> {p.markScheme}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                      {p.type.toUpperCase()}
+                    </span>
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>{p.question}</div>
+                    {p.type === "mcq" && Array.isArray(p.options) && (
+                      <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                        {p.options.map((opt, j) => (
+                          <li key={j}>{opt}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <button
+                      type="button"
+                    onClick={() => onTogglePractice(enquiryLogId, i)}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        background: "#e2e8f0",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        color: "#475569",
+                      }}
+                    >
+                    {showAnswer[`${enquiryLogId}-${i}`] ? "Hide answer" : "Show answer"}
+                    </button>
+                  {showAnswer[`${enquiryLogId}-${i}`] && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          padding: 8,
+                          background: "#f0fdf4",
+                          borderRadius: 6,
+                          border: "1px solid #bbf7d0",
+                          fontSize: 13,
+                        }}
+                      >
+                        <strong>Answer:</strong> {p.answer}
+                        {p.markScheme && (
+                          <div style={{ marginTop: 4, fontSize: 12, color: "#166534" }}>
+                            <strong>Mark scheme:</strong> {p.markScheme}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
               )
             )}
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          )}
 
       {response.suggestedActions && response.suggestedActions.length > 0 && (
         <SuggestedActionsBar
@@ -862,76 +862,76 @@ function AssistantBubbleTeacher({
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: 13, color: "#64748b" }}>Was this helpful?</span>
-          <button
-            type="button"
-            onClick={() => onFeedback(logId, "up")}
-            disabled={sent !== undefined || submitting}
-            style={{
-              padding: "6px 12px",
-              fontSize: 14,
-              background: sent === "up" ? "#22c55e" : "#e2e8f0",
-              color: sent === "up" ? "#fff" : "#475569",
-              border: "none",
-              borderRadius: 8,
-              cursor: sent ? "default" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            👍 Helpful
-          </button>
-          <button
-            type="button"
-            onClick={() => onSetCommentInput(logId, true)}
-            disabled={sent !== undefined || submitting}
-            style={{
-              padding: "6px 12px",
-              fontSize: 14,
-              background: sent === "down" ? "#ef4444" : "#e2e8f0",
-              color: sent === "down" ? "#fff" : "#475569",
-              border: "none",
-              borderRadius: 8,
-              cursor: sent ? "default" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            👎 Not helpful
-          </button>
-          {showComment && !sent && (
-            <div style={{ flex: "1 1 100%", marginTop: 8 }}>
-              <textarea
-                value={comment}
-                onChange={(e) => onCommentChange(logId, e.target.value)}
-                placeholder="Optional: What could be better?"
-                rows={2}
-                style={{
-                  width: "100%",
-                  maxWidth: 400,
-                  padding: 8,
-                  fontSize: 13,
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                }}
-              />
+              <span style={{ fontSize: 13, color: "#64748b" }}>Was this helpful?</span>
               <button
                 type="button"
-                onClick={() => onFeedback(logId, "down")}
-                disabled={submitting}
+            onClick={() => onFeedback(logId, "up")}
+            disabled={sent !== undefined || submitting}
                 style={{
-                  marginTop: 8,
                   padding: "6px 12px",
-                  fontSize: 13,
-                  background: "#64748b",
-                  color: "#fff",
+                  fontSize: 14,
+              background: sent === "up" ? "#22c55e" : "#e2e8f0",
+              color: sent === "up" ? "#fff" : "#475569",
                   border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
+                  borderRadius: 8,
+              cursor: sent ? "default" : "pointer",
+                  fontWeight: 600,
                 }}
               >
-                Submit
+                👍 Helpful
               </button>
-            </div>
-          )}
+              <button
+                type="button"
+            onClick={() => onSetCommentInput(logId, true)}
+            disabled={sent !== undefined || submitting}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 14,
+              background: sent === "down" ? "#ef4444" : "#e2e8f0",
+              color: sent === "down" ? "#fff" : "#475569",
+                  border: "none",
+                  borderRadius: 8,
+              cursor: sent ? "default" : "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                👎 Not helpful
+              </button>
+          {showComment && !sent && (
+                <div style={{ flex: "1 1 100%", marginTop: 8 }}>
+                  <textarea
+                value={comment}
+                onChange={(e) => onCommentChange(logId, e.target.value)}
+                    placeholder="Optional: What could be better?"
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      maxWidth: 400,
+                      padding: 8,
+                      fontSize: 13,
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <button
+                    type="button"
+                onClick={() => onFeedback(logId, "down")}
+                disabled={submitting}
+                    style={{
+                      marginTop: 8,
+                      padding: "6px 12px",
+                      fontSize: 13,
+                      background: "#64748b",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Submit
+                  </button>
+                </div>
+              )}
         </div>
       )}
     </div>
