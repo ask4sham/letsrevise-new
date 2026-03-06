@@ -25,6 +25,7 @@ type ChatMessage = {
   createdAt?: string;
   enquiryLogId?: string | null;
   fullResponse?: PostEnquiryResponse | null;
+  responseMode?: "quick" | "explain" | "exam" | "revision";
 };
 
 type Props = {
@@ -35,6 +36,20 @@ type Props = {
 };
 
 const SESSION_KEY_PREFIX = "askai:conv:";
+
+/** PR-036: Teacher mode labels and tooltips */
+const TEACHER_MODE_LABELS: Record<"quick" | "explain" | "exam" | "revision", string> = {
+  quick: "Quick answer",
+  explain: "Full explanation",
+  exam: "Exam practice",
+  revision: "Revision mode",
+};
+const TEACHER_MODE_TOOLTIPS: Record<"quick" | "explain" | "exam" | "revision", string> = {
+  quick: "Short explanation + quick practice",
+  explain: "Detailed explanation + examples",
+  exam: "Exam-style question with mark scheme",
+  revision: "Flashcards + memory cues",
+};
 
 function getSessionKey(specKey: string, topicKey: string, lessonId?: string): string {
   return `${SESSION_KEY_PREFIX}${specKey}:${topicKey}:${lessonId || ""}`;
@@ -234,6 +249,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
           text: res.answer.explanation || "",
           enquiryLogId: res.enquiryLogId || null,
           fullResponse: res,
+          responseMode,
         },
       ]);
       refreshRecent();
@@ -293,6 +309,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
           <button
             key={m}
             type="button"
+            title={TEACHER_MODE_TOOLTIPS[m]}
             onClick={() => handleModeChange(m)}
             style={{
               marginRight: 6,
@@ -306,7 +323,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
               cursor: "pointer",
             }}
           >
-            {m.charAt(0).toUpperCase() + m.slice(1)}
+            {TEACHER_MODE_LABELS[m]}
           </button>
         ))}
       </div>
@@ -370,6 +387,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
               ) : msg.fullResponse ? (
                 <AssistantBubbleTeacher
                   response={msg.fullResponse}
+                  responseMode={(msg.responseMode ?? responseMode) as "quick" | "explain" | "exam" | "revision"}
+                  modeLabels={TEACHER_MODE_LABELS}
                   enquiryLogId={msg.enquiryLogId}
                   specKey={specKey}
                   topicKey={topicKey}
@@ -464,6 +483,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "" }
 
 type AssistantBubbleTeacherProps = {
   response: PostEnquiryResponse;
+  responseMode?: "quick" | "explain" | "exam" | "revision";
+  modeLabels?: Record<"quick" | "explain" | "exam" | "revision", string>;
   enquiryLogId?: string | null;
   specKey?: string;
   topicKey?: string;
@@ -482,6 +503,8 @@ type AssistantBubbleTeacherProps = {
 
 function AssistantBubbleTeacher({
   response,
+  responseMode,
+  modeLabels = TEACHER_MODE_LABELS,
   enquiryLogId,
   specKey,
   topicKey,
@@ -505,6 +528,12 @@ function AssistantBubbleTeacher({
 
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
+      {/* PR-036: Mode indicator above answer */}
+      {responseMode && (
+        <div style={{ marginBottom: 8, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+          Mode: {modeLabels[responseMode]}
+        </div>
+      )}
       {response.answer.warnings && response.answer.warnings.length > 0 && (
         <div
           style={{

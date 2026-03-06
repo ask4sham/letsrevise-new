@@ -1330,4 +1330,30 @@ Acceptance:
 - When external exam context used, UI shows "⚠ External exam context used" with source links.
 
 Follow-ups:
+PR-036 — Clarify AI response modes in UI
+
+---
+
+**PR-036 — Clarify AI response modes in UI**
+
+Date: 2026-03-05
+
+Summary:
+Make response modes clearer to users. Renamed modes: Teacher — Quick answer, Full explanation, Revision mode, Exam practice; Student — Quick help, Explain, Revision. Added tooltips (e.g. "Short explanation + quick practice", "Detailed explanation + examples"). Visual indicator "Mode: Full explanation" above each answer. Mode persisted in askai:mode:teacher / askai:mode:student (no backend changes).
+
+Files changed:
+
+- frontend/src/components/ai/AskAiPanel.tsx
+- frontend/src/components/ai/AskAiStudentPanel.tsx
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- ChatMessage stores responseMode for per-message mode display.
+- Tooltips via HTML title attribute.
+
+Acceptance:
+- Users clearly see which mode they are using.
+
+Follow-ups:
 None

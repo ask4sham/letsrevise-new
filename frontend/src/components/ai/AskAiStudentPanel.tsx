@@ -25,6 +25,7 @@ type ChatMessage = {
   createdAt?: string;
   enquiryLogId?: string | null;
   fullResponse?: PostEnquiryResponse | null;
+  responseMode?: "quick" | "explain" | "revision";
 };
 
 type Props = {
@@ -34,6 +35,18 @@ type Props = {
 };
 
 const SESSION_KEY_PREFIX = "askai:conv:student:";
+
+/** PR-036: Student mode labels and tooltips */
+const STUDENT_MODE_LABELS: Record<"quick" | "explain" | "revision", string> = {
+  quick: "Quick help",
+  explain: "Explain",
+  revision: "Revision",
+};
+const STUDENT_MODE_TOOLTIPS: Record<"quick" | "explain" | "revision", string> = {
+  quick: "Short explanation + quick practice",
+  explain: "Detailed explanation + examples",
+  revision: "Flashcards + memory cues",
+};
 
 function tutorChipStyle(disabled: boolean): React.CSSProperties {
   return {
@@ -295,6 +308,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
           <button
             key={m}
             type="button"
+            title={STUDENT_MODE_TOOLTIPS[m]}
             onClick={() => handleModeChange(m)}
             style={{
               marginRight: 6,
@@ -308,7 +322,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
               cursor: "pointer",
             }}
           >
-            {m.charAt(0).toUpperCase() + m.slice(1)}
+            {STUDENT_MODE_LABELS[m]}
           </button>
         ))}
       </div>
@@ -362,6 +376,8 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
               ) : msg.fullResponse ? (
                 <AssistantBubbleStudent
                   response={msg.fullResponse}
+                  responseMode={(msg.responseMode ?? responseMode) as "quick" | "explain" | "revision"}
+                  modeLabels={STUDENT_MODE_LABELS}
                   lessonId={lessonId}
                   enquiryLogId={msg.enquiryLogId}
                   practiceHighlightId={practiceHighlightId}
@@ -517,6 +533,8 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId }: Props) {
 
 type AssistantBubbleStudentProps = {
   response: PostEnquiryResponse;
+  responseMode?: "quick" | "explain" | "revision";
+  modeLabels?: Record<"quick" | "explain" | "revision", string>;
   lessonId?: string;
   enquiryLogId?: string | null;
   practiceHighlightId: string | null;
@@ -529,6 +547,8 @@ type AssistantBubbleStudentProps = {
 
 function AssistantBubbleStudent({
   response,
+  responseMode,
+  modeLabels = STUDENT_MODE_LABELS,
   lessonId,
   enquiryLogId,
   practiceHighlightId,
@@ -540,6 +560,12 @@ function AssistantBubbleStudent({
 }: AssistantBubbleStudentProps) {
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
+      {/* PR-036: Mode indicator above answer */}
+      {responseMode && (
+        <div style={{ marginBottom: 8, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+          Mode: {modeLabels[responseMode]}
+        </div>
+      )}
       {response.answer.warnings && response.answer.warnings.length > 0 && (
         <div
           style={{

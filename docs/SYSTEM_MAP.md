@@ -17,14 +17,14 @@ Displays attached practice papers.
 **FlashcardsEditor**
 Teacher tool for creating and editing flashcards.
 
-**AskAiPanel** (PR-005, PR-019, PR-020, PR-021, PR-034, PR-035)
-Teacher-only panel: threaded chat, response mode switch (Quick|Explain|Exam|Revision), flashcard practice type, "Use external references when course content is thin" checkbox. PR-034: InlineDiagramBlock renders cited lessonDiagram images inline (after keyPoints, before citations). PR-035: When external exam context used, shows "⚠ External exam context used" with source links. localStorage askai:mode:teacher, askai:allowExternal:teacher.
+**AskAiPanel** (PR-005, PR-019, PR-020, PR-021, PR-034, PR-035, PR-036)
+Teacher-only panel: threaded chat, response mode switch (Quick answer, Full explanation, Exam practice, Revision mode) with tooltips. PR-034: InlineDiagramBlock. PR-035: External exam context indicator. PR-036: Mode indicator "Mode: X" above each answer. localStorage askai:mode:teacher, askai:allowExternal:teacher.
 
 **ExternalSourcesPage** (PR-022, PR-023)
 Route: /external-sources. Teacher/admin only. Tabs: Recent sources, Denylist. Actions: Deny domain, Deny URL, Promote to Teacher Note. Deep link filters: ?specKey=&topicKey= preselect spec and topic (PR-023).
 
-**AskAiStudentPanel** (PR-007, PR-019, PR-020, PR-033, PR-034)
-Student panel: threaded chat, mode switch (Quick|Explain|Revision), Exam hidden, flashcard practice, localStorage askai:mode:student. PR-033: Tutor action chips above input — Explain again, Explain simpler, Another example, Practice question, Show diagram (when lessonId). PR-034: InlineDiagramBlock renders cited lessonDiagram images inline (after explanation, before citations); CitationsList still shows DIAGRAM badge.
+**AskAiStudentPanel** (PR-007, PR-019, PR-020, PR-033, PR-034, PR-036)
+Student panel: threaded chat, mode switch (Quick help, Explain, Revision) with tooltips. PR-033: Tutor action chips. PR-034: InlineDiagramBlock. PR-036: Mode indicator "Mode: X" above each answer. localStorage askai:mode:student.
 
 **CoverageDashboardPage** (PR-010, PR-012, PR-013, PR-028)
 Teacher/admin page at /coverage: AI coverage status per topic, weak-evidence hotspots, snapshot vs live toggle, "Generate sprint order" download button, row click opens drill-down panel. PR-028: columns enquiries, weak enq, summaries, weak sum, demand; "High demand (≥60)" filter; "weak enquiries" label.
