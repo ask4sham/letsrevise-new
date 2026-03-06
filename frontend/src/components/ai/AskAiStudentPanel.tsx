@@ -15,6 +15,7 @@ import {
   listConversations,
   type ConversationListItem,
 } from "../../api/conversations";
+import { Link } from "react-router-dom";
 import { CitationsList } from "./CitationsList";
 import { InlineDiagramBlock } from "./InlineDiagramBlock";
 import { SuggestedActionsBar } from "./SuggestedActionsBar";
@@ -804,6 +805,85 @@ function AssistantBubbleStudent({
       {/* PR-034: Inline diagram rendering — after explanation, before citations */}
       {response.answer.citations && (
         <InlineDiagramBlock citations={response.answer.citations} studentMode={true} />
+      )}
+
+      {/* PR-037: Study Coach — coverage-aware learning suggestions */}
+      {response.learningSuggestions && response.learningSuggestions.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14, color: "#166534" }}>
+            Study coach
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {response.learningSuggestions.map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: 12,
+                  background: "#fff",
+                  borderRadius: 8,
+                  border: "1px solid #bbf7d0",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: "#334155" }}>
+                    {s.topicKey.split(":").pop()?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || s.topicKey}
+                  </span>
+                  <span
+                    style={{
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background:
+                        s.status === "THIN"
+                          ? "#fef3c7"
+                          : s.status === "NO_SPEC" || s.status === "EMPTY"
+                            ? "#fee2e2"
+                            : "#dcfce7",
+                      color:
+                        s.status === "THIN"
+                          ? "#92400e"
+                          : s.status === "NO_SPEC" || s.status === "EMPTY"
+                            ? "#991b1b"
+                            : "#166534",
+                    }}
+                  >
+                    {s.status === "NO_SPEC" || s.status === "EMPTY"
+                      ? "Missing"
+                      : s.status === "THIN"
+                        ? "Thin"
+                        : s.status === "STRONG" || s.status === "OK"
+                          ? "Strong"
+                          : s.status}
+                  </span>
+                </div>
+                <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+                  {s.reason}
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {s.actions.map((a) => (
+                    <Link
+                      key={a.id}
+                      to={a.href}
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: "#dcfce7",
+                        color: "#166534",
+                        border: "1px solid #86efac",
+                        borderRadius: 6,
+                        textDecoration: "none",
+                      }}
+                    >
+                      {a.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {response.answer.citations && response.answer.citations.length > 0 && (

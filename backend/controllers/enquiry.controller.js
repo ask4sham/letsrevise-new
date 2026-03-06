@@ -8,6 +8,7 @@ const { generateEnquiryAnswer, getProvider: getLlmProvider } = require("../servi
 const { getProvider: getEmbeddingsProvider } = require("../services/embeddings/provider");
 const { getCached, setCached } = require("../services/enquiry/enquiryCache");
 const { buildSuggestedActions } = require("../services/enquiry/suggestedActions");
+const { buildLearningSuggestions } = require("../services/enquiry/learningSuggestions");
 const { computeConfidence } = require("../services/enquiry/confidence");
 const { isExternalSearchEnabled, getExternalAllowedDomains, getExternalMaxResults, getDomainsForQuery, isExamContextQuery } = require("../config/externalSearch");
 const { searchWeb } = require("../services/externalSearch/provider");
@@ -326,38 +327,6 @@ async function handleEnquiry(req, res) {
         await Conversation.updateOne({ _id: convIdValid }, { $set: update });
       }
 
-    // PR-006: Store in cache for future hits (PR-019: include conversationId in key)
-    await setCached(spec, topicKey || null, modeVal, q, {
-      question: q,
-      usedSources: retrievalResults.slice(0, topN).map((r) => {
-        const b = {
-          knowledgeDocumentId: r.knowledgeDocumentId,
-          sourceType: r.sourceType,
-          sourceId: r.sourceId,
-          title: r.title,
-          topicKey: r.topicKey,
-          score: Math.round(r.score * 1000) / 1000,
-        };
-        if (r.sourceType === "externalTrusted") {
-          const url = r.metadata?.url && String(r.metadata.url).trim();
-          b.url = url || (r.metadata?.domain ? `https://${r.metadata.domain}` : "#");
-        }
-        return b;
-      }),
-      answer: {
-        explanation: answer.explanation,
-        keyPoints: answer.keyPoints,
-        citations: answer.citations,
-        practice: answer.practice,
-        warnings: answer.warnings,
-      },
-      ...(externalUsed && {
-        externalUsed: true,
-        externalSources,
-        ...(externalExamContextUsed && { externalExamContextUsed: true }),
-      }),
-    }, convIdValid, responseMode, allowExternalVal);
-
     const usedSourcesPayload = retrievalResults.slice(0, topN).map((r) => {
       const base = {
         knowledgeDocumentId: r.knowledgeDocumentId,
@@ -393,6 +362,38 @@ async function handleEnquiry(req, res) {
       allowExternal: allowExternalVal,
     });
 
+    const roleStr = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
+    const learningSuggestions =
+      roleStr === "student"
+        ? await buildLearningSuggestions({
+            specKey: spec,
+            topicKey: topicKey || null,
+            role: roleStr,
+            confidenceLevel: confidence.confidenceLevel,
+            warnings: answer.warnings || [],
+            limit: 3,
+          })
+        : [];
+
+    // PR-006: Store in cache (PR-037: learningSuggestions)
+    await setCached(spec, topicKey || null, modeVal, q, {
+      question: q,
+      usedSources: usedSourcesPayload,
+      answer: {
+        explanation: answer.explanation,
+        keyPoints: answer.keyPoints,
+        citations: answer.citations,
+        practice: answer.practice,
+        warnings: answer.warnings,
+      },
+      ...(externalUsed && {
+        externalUsed: true,
+        externalSources,
+        ...(externalExamContextUsed && { externalExamContextUsed: true }),
+      }),
+      ...(learningSuggestions.length > 0 && { learningSuggestions }),
+    }, convIdValid, responseMode, allowExternalVal);
+
     const responsePayload = {
       enquiryLogId: logDoc._id?.toString() || null,
       cached: false,
@@ -419,6 +420,9 @@ async function handleEnquiry(req, res) {
     }
     if (suggestedTopics.length > 0) {
       responsePayload.suggestedTopics = suggestedTopics;
+    }
+    if (learningSuggestions.length > 0) {
+      responsePayload.learningSuggestions = learningSuggestions;
     }
     return res.json(responsePayload);
   } catch (err) {

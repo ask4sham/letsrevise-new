@@ -1300,6 +1300,19 @@ const LessonViewPage: React.FC = () => {
     }
   }, [location.hash, id]);
 
+  // PR-037: openTopicSummary=1 — open TopicSummaryStudentModal on mount, then clear param
+  useEffect(() => {
+    if (searchParams.get("openTopicSummary") !== "1") return;
+    const isStudentUser = (user?.userType ?? "").toString().toLowerCase() === "student";
+    if (!isStudentUser || !aiTutorEnabled || !specKey) return;
+    const tk = topicKeyForBank || (lesson as { topicKey?: string })?.topicKey;
+    if (!tk) return;
+    setShowTopicSummaryModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("openTopicSummary");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, user?.userType, aiTutorEnabled, specKey, topicKeyForBank, lesson]);
+
   // PR3b + PR-PRACTICE-1: Fetch practice questions with limit, seed, source
   const practiceSeed = useMemo(() => {
     if (!id) return "";

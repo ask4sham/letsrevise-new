@@ -1357,3 +1357,39 @@ Acceptance:
 
 Follow-ups:
 None
+
+---
+
+**PR-037 — AI Study Coach (coverage-aware tutoring)**
+
+Date: 2026-03-05
+
+Summary:
+Turn Ask AI into a study coach that recommends the next best topic/action using CoverageSnapshot + EnquiryLog + TopicSummary data. No new LLM calls; recommendation logic + UI only. Students get a "Study coach" section with topic suggestions driven by coverage status (THIN/EMPTY/NO_SPEC), weak evidence, and demand signals. Each suggestion includes actions: View lesson, Summarise topic, Practice, Flashcards. LessonViewPage supports ?openTopicSummary=1 to auto-open TopicSummaryStudentModal when student + AI tutor enabled.
+
+Files changed:
+
+- backend/services/enquiry/learningSuggestions.js (new — buildLearningSuggestions, findBestLessonForTopicKey)
+- backend/controllers/enquiry.controller.js (learningSuggestions for students, cache)
+- backend/services/enquiry/enquiryCache.js (learningSuggestions in get/set)
+- frontend/src/api/enquiry.ts (LearningSuggestion type)
+- frontend/src/components/ai/AskAiStudentPanel.tsx (Study coach section)
+- frontend/src/pages/LessonViewPage.tsx (?openTopicSummary=1 → open TopicSummaryStudentModal, clear param)
+- docs/AI_TUTOR_BUILD_LOG.md
+- docs/SYSTEM_MAP.md
+
+Notes:
+- Only for students; teachers/admins return [].
+- Uses latest CoverageSnapshot for specKey; prioritizes EMPTY/NO_SPEC > THIN > weakEnquiries > high demand > OK.
+- Actions: lesson, summarise (?openTopicSummary=1), practice (#check-understanding), flashcards.
+- findBestLessonForTopicKey: prefer published, newest lesson.
+
+Acceptance:
+- Student asks AI → gets Study coach section when relevant.
+- Suggestions driven by CoverageSnapshot and weak evidence, not extra LLM calls.
+- Suggested links work (lesson, summary, practice).
+- Teacher/admin flows unchanged.
+- No new models required.
+
+Follow-ups:
+None

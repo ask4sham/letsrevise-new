@@ -150,6 +150,17 @@ export type PostEnquiryResponse = {
   externalSources?: Array<{ url: string; title: string; domain: string }>;
   /** PR-035: External exam context was used (exam/past paper/mark scheme query) */
   externalExamContextUsed?: boolean;
+  /** PR-037: AI Study Coach — coverage-aware learning suggestions (students only) */
+  learningSuggestions?: LearningSuggestion[];
+};
+
+/** PR-037: Learning suggestion from coverage + weak evidence */
+export type LearningSuggestion = {
+  topicKey: string;
+  status: "EMPTY" | "THIN" | "OK" | "STRONG" | "NO_SPEC";
+  reason: string;
+  priority: number;
+  actions: Array<{ id: string; label: string; href: string }>;
 };
 
 export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquiryResponse> {
