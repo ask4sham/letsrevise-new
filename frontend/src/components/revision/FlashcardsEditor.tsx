@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../services/api";
-import { importFlashcards } from "../../api/flashcardBank";
+import { importFlashcards, getFlashcardBank } from "../../api/flashcardBank";
 import { SpecSelector } from "../SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../../utils/specKey";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
@@ -327,6 +327,8 @@ export default function FlashcardsEditor({
   const { data: taxonomy } = useTaxonomy(specKey);
   const [topicKeyForBank, setTopicKeyForBank] = useState<string>("");
   const [bankImportLoading, setBankImportLoading] = useState(false);
+  /** Highlight Save button after successful import so teacher notices they must save */
+  const [saveButtonHighlight, setSaveButtonHighlight] = useState(false);
   // PR-F1: Save current cards to topic bank
   const [topicKeyForImport, setTopicKeyForImport] = useState<string>("");
   const [topicNameForImport, setTopicNameForImport] = useState<string>("");
@@ -339,6 +341,25 @@ export default function FlashcardsEditor({
     setTopicKeyForBank("");
     setTopicKeyForImport("");
   };
+
+  /** Clear Save button highlight after 8s so it doesn't stay prominent forever */
+  useEffect(() => {
+    if (!saveButtonHighlight) return;
+    const t = setTimeout(() => setSaveButtonHighlight(false), 8000);
+    return () => clearTimeout(t);
+  }, [saveButtonHighlight]);
+
+  /** Preselect lesson topic in Import from question bank when lesson has exact topicKey */
+  useEffect(() => {
+    if (!topicKeyForBankProp || !taxonomy?.units) return;
+    const raw = String(topicKeyForBankProp).trim();
+    if (!raw) return;
+    const topicSlug = raw.includes(":") ? raw.slice(raw.indexOf(":") + 1) : raw;
+    const allKeys = (taxonomy.units || []).flatMap((u) => (u.topics || []).map((t) => t.key));
+    if (topicSlug && allKeys.includes(topicSlug)) {
+      setTopicKeyForBank(topicSlug);
+    }
+  }, [topicKeyForBankProp, taxonomy?.units]);
 
   useEffect(() => {
     const raw = Array.isArray(initialCards) ? initialCards : [];
@@ -416,21 +437,61 @@ export default function FlashcardsEditor({
     }
     setBankImportLoading(true);
     try {
-      const res = await api.get("/exam-questions", { params: { topicKey } });
-      const list = Array.isArray((res?.data as any)?.questions) ? (res.data as any).questions : [];
-      const imported = list.map((q: ExamQuestionItem) => examQuestionToFlashcard(q)).filter((c) => c.front && c.front !== "—");
+      const namespacedKey = topicKey.includes(":") ? topicKey : `${specKey}:${topicKey}`;
+      let imported: Flashcard[] = [];
+
+      // 1) Try FlashcardBank first (same source as "Load flashcards from bank" in Lesson View)
+      try {
+        const bankData = await getFlashcardBank(namespacedKey);
+        const bankCards = bankData?.cards || [];
+        if (bankCards.length > 0) {
+          imported = bankCards.map((c, i) => ({
+            id: newId(),
+            front: (c.front || "").trim() || "—",
+            back: (c.back || "").trim() || "—",
+            difficulty: 1,
+            tags: Array.isArray(c.tags) ? c.tags : [],
+          })).filter((c) => c.front && c.front !== "—");
+        }
+      } catch {
+        // FlashcardBank not found or error — fall through to ExamQuestion
+      }
+
+      // 2) Fallback: ExamQuestion (Worksheet Builder question bank)
       if (imported.length === 0) {
-        setStatus("No questions found for this topic in the question bank. Populate the bank from Admin or seed scripts.");
+        const res = await api.get("/exam-questions", { params: { topicKey } });
+        const list = Array.isArray((res?.data as any)?.questions) ? (res.data as any).questions : [];
+        imported = list.map((q: ExamQuestionItem) => examQuestionToFlashcard(q)).filter((c) => c.front && c.front !== "—");
+      }
+
+      if (imported.length === 0) {
+        setStatus("No flashcards found for this exact topic.");
         return;
       }
-      setCards((prev) => [...prev, ...imported]);
-      setStatus(`Imported ${imported.length} flashcards from the question bank. Click "Save flashcards" to save.`);
+      const addedCountRef = { current: 0 };
+      setCards((prev) => {
+        const seen = new Set(prev.map((c) => `${String(c.front ?? "").trim().toLowerCase()}__${String(c.back ?? "").trim().toLowerCase()}`));
+        const toAdd = imported.filter((c) => {
+          const key = `${String(c.front ?? "").trim().toLowerCase()}__${String(c.back ?? "").trim().toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        addedCountRef.current = toAdd.length;
+        return [...prev, ...toAdd];
+      });
+      const n = addedCountRef.current;
+      const addedMsg = n === imported.length
+        ? `${n} flashcards added. Click "Save flashcards" to save them to this lesson.`
+        : `${n} new flashcards added (${imported.length - n} duplicates skipped). Click "Save flashcards" to save them to this lesson.`;
+      setStatus(addedMsg);
+      setSaveButtonHighlight(true);
     } catch (e: any) {
       setError(e?.response?.data?.msg || e?.message || "Failed to load question bank.");
     } finally {
       setBankImportLoading(false);
     }
-  }, [topicKeyForBank, examQuestionToFlashcard]);
+  }, [topicKeyForBank, specKey, examQuestionToFlashcard]);
 
   const hasLessonTopic = Boolean(lessonTopicKey && String(lessonTopicKey).trim());
 
@@ -606,6 +667,7 @@ export default function FlashcardsEditor({
 
   const saveAll = async () => {
     resetMessages();
+    setSaveButtonHighlight(false);
 
     if (!token) {
       setError("You must be logged in to save flashcards.");
@@ -858,7 +920,22 @@ export default function FlashcardsEditor({
             <button type="button" style={styles.btn} onClick={handleAddOne}>
               Add Flashcard
             </button>
-            <button type="button" style={styles.btnGhost} onClick={saveAll} disabled={saving}>
+            <button
+              type="button"
+              style={{
+                ...styles.btnGhost,
+                ...(saveButtonHighlight
+                  ? {
+                      border: "2px solid #2563eb",
+                      background: "#eff6ff",
+                      boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.3)",
+                      fontWeight: 900,
+                    }
+                  : {}),
+              }}
+              onClick={saveAll}
+              disabled={saving}
+            >
               {saving ? "Saving..." : "Save flashcards"}
             </button>
           </div>
