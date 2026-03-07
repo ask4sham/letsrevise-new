@@ -12,6 +12,7 @@ import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
+import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -39,6 +40,8 @@ interface LessonPageBlock {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  /** Page Quiz block fields (when type === "pageQuiz") — written to lesson.quiz.questions with pageId */
+  question?: string;
   /** Diagram block fields (when type === "diagram") */
   visualId?: string;
   caption?: string;
@@ -417,6 +420,8 @@ const EditLessonPage: React.FC = () => {
   /** Attached assessment papers (summaries for display) */
   const [attachedPapersSummaries, setAttachedPapersSummaries] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number; subject?: string; level?: string; examBoard?: string }>>([]);
   const [attachPaperModalOpen, setAttachPaperModalOpen] = useState(false);
+  const [attachPageQuizModalOpen, setAttachPageQuizModalOpen] = useState(false);
+  const [attachPageQuizToast, setAttachPageQuizToast] = useState<string | null>(null);
   /** PR20: Publish gate modal + Make classroom-ready + Post-publish CTA */
   const [publishGateOpen, setPublishGateOpen] = useState(false);
   const [publishGateIssues, setPublishGateIssues] = useState<string[]>([]);
@@ -685,6 +690,7 @@ const EditLessonPage: React.FC = () => {
         subject: safeStr(data.subject, "Not set"),
         level: safeStr(data.level, "Not set"),
         topic: safeStr(data.topic, "Not set"),
+        topicKey: typeof data.topicKey === "string" && data.topicKey.trim() ? data.topicKey.trim() : undefined,
         examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
         teacherName: safeStr(data.teacherName, "Teacher"),
         teacherId: safeStr(data.teacherId?._id || data.teacherId, ""),
@@ -1080,6 +1086,15 @@ const EditLessonPage: React.FC = () => {
           mode: "static",
           annotations: [],
           steps: [],
+        });
+      } else if (type === "pageQuiz") {
+        blocks.push({
+          type: "pageQuiz",
+          question: "",
+          questionType: "mcq",
+          options: ["", "", "", ""],
+          correctAnswer: "",
+          explanation: "",
         });
       } else {
         blocks.push({ type, content: "" });
@@ -2013,6 +2028,17 @@ const EditLessonPage: React.FC = () => {
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
             };
           }
+          if (b.type === "pageQuiz") {
+            const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
+            return {
+              type: "pageQuiz",
+              question: String(b.question ?? b.prompt ?? "").trim(),
+              questionType: b.questionType === "short" ? "short" : "mcq",
+              options: opts,
+              correctAnswer: String(b.correctAnswer ?? "").trim(),
+              explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+            };
+          }
           if (b.type === "diagram") {
             const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
@@ -2039,17 +2065,53 @@ const EditLessonPage: React.FC = () => {
         }),
       }));
 
+      // Build quiz.questions from pageQuiz blocks + existing end-of-lesson questions
+      const pageQuizQuestions: QuizQuestion[] = [];
+      for (const p of sanitizedPages) {
+        const pageId = p.pageId;
+        if (!pageId) continue;
+        for (const b of p.blocks || []) {
+          if (b.type !== "pageQuiz") continue;
+          const qText = String(b.question ?? b.prompt ?? "").trim();
+          if (!qText) continue;
+          const correctAnswer = String(b.correctAnswer ?? "").trim();
+          if (!correctAnswer) continue;
+          const qt = b.questionType === "short" ? "short" : "mcq";
+          const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()).filter(Boolean) : [];
+          if (qt === "mcq" && opts.length < 2) continue;
+          pageQuizQuestions.push({
+            id: `pq_${pageId}_${pageQuizQuestions.length}_${Date.now()}`,
+            type: qt as "mcq" | "short",
+            question: qText,
+            options: qt === "mcq" ? opts : undefined,
+            correctAnswer,
+            explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+            pageId,
+          });
+        }
+      }
+      const endOfLessonQuestions = (lesson.quiz?.questions || []).filter(
+        (q: QuizQuestion) => !q.pageId || String(q.pageId) === "END"
+      );
+      const mergedQuizQuestions = [...pageQuizQuestions, ...endOfLessonQuestions];
+
       const payload: any = {
         title: lesson.title,
         description: lesson.description,
         subject: lesson.subject,
         level: lesson.level,
         topic: lesson.topic,
+        topicKey: topicKeyForBank ?? lesson.topicKey ?? undefined,
         board: lesson.examBoardName || "",
         estimatedDuration: lesson.estimatedDuration,
         shamCoinPrice: lesson.shamCoinPrice,
         isFreePreview: !!lesson.isFreePreview,
         pages: sanitizedPages,
+        quiz: {
+          ...(lesson.quiz || {}),
+          timeSeconds: lesson.quiz?.timeSeconds ?? 600,
+          questions: mergedQuizQuestions,
+        },
       };
 
       let saved = false;
@@ -2318,6 +2380,14 @@ const EditLessonPage: React.FC = () => {
           type="warning"
           duration={6000}
           onClose={() => setGenerationWarning(null)}
+        />
+      )}
+      {attachPageQuizToast && (
+        <Toast
+          message={attachPageQuizToast}
+          type="success"
+          duration={4000}
+          onClose={() => setAttachPageQuizToast(null)}
         />
       )}
     <div
@@ -2878,8 +2948,32 @@ const EditLessonPage: React.FC = () => {
                             </button>
                           );
                         })}
+                        <button
+                          type="button"
+                          onClick={() => setAttachPageQuizModalOpen(true)}
+                          disabled={!topicKeyForBank}
+                          title={!topicKeyForBank ? "This lesson needs a valid syllabus topic before quiz questions can be attached." : "Attach published quiz questions from the Topic Quiz Bank to this page."}
+                          style={{
+                            padding: "8px 14px",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            border: "1px solid #2563eb",
+                            borderRadius: 8,
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            cursor: topicKeyForBank ? "pointer" : "not-allowed",
+                            opacity: topicKeyForBank ? 1 : 0.6,
+                          }}
+                        >
+                          Attach Quiz Page From Question Bank
+                        </button>
                       </div>
                     </div>
+                    {topicKeyForBank && (
+                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                        Attach published quiz questions from the Topic Quiz Bank to this page.
+                      </div>
+                    )}
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
                       <label style={{ display: "block" }}>
@@ -4658,6 +4752,35 @@ const EditLessonPage: React.FC = () => {
         api={api}
         onAttachSuccess={async () => {
           await fetchLessonSmart();
+        }}
+      />
+
+      <AttachPageQuizModal
+        open={attachPageQuizModalOpen}
+        onClose={() => setAttachPageQuizModalOpen(false)}
+        lessonId={id ?? ""}
+        topicKey={topicKeyForBank ?? ""}
+        pageId={currentPage?.pageId ?? ""}
+        pageTitle={currentPage?.title}
+        alreadyAttachedSourceIds={
+          (lesson?.quiz?.questions ?? [])
+            .filter((q: any) => String(q?.pageId || "") === String(currentPage?.pageId || "") && (q?.sourceQuestionId || q?.sourceType === "topicQuizQuestion"))
+            .map((q: any) => String(q?.sourceQuestionId || q?.id || ""))
+            .filter(Boolean)
+        }
+        onAttachSuccess={(updatedLesson, result) => {
+          setLesson(updatedLesson);
+          setAttachPageQuizModalOpen(false);
+          if (result) {
+            const { addedCount, alreadyExisted } = result;
+            if (addedCount > 0 && alreadyExisted > 0) {
+              setAttachPageQuizToast(`${addedCount} new question${addedCount !== 1 ? "s" : ""} attached. ${alreadyExisted} already existed.`);
+            } else if (addedCount > 0) {
+              setAttachPageQuizToast(`${addedCount} question${addedCount !== 1 ? "s" : ""} attached to this page.`);
+            } else if (alreadyExisted > 0) {
+              setAttachPageQuizToast("All selected questions were already on this page.");
+            }
+          }
         }}
       />
 

@@ -1,5 +1,14 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { ExplainMyMistakeButton } from "../ai/ExplainMyMistakeButton";
+import { markShortAnswer, checkContradiction } from "../../utils/shortAnswerMarking";
+
+export interface GradeShortAnswerResult {
+  score: number;
+  maxMarks: number;
+  hits: string[];
+  missing?: string[];
+  contradictionFeedback?: string;
+}
 
 function gradeShortAnswer({
   userAnswer,
@@ -11,112 +20,98 @@ function gradeShortAnswer({
   markScheme?: string[];
   correctAnswer?: string;
   marks: number;
-}) {
+}): GradeShortAnswerResult {
   const norm = (s = "") =>
-    s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+    String(s).toLowerCase().replace(/'/g, "").replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 
   const ua = norm(userAnswer);
   const maxMarks = Math.max(1, marks || 1);
 
-  // Levenshtein distance function for fuzzy matching
-  const levenshtein = (a: string, b: string) => {
-    const m = a.length, n = b.length;
-    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-    for (let i = 1; i <= m; i++) {
-      for (let j = 1; j <= n; j++) {
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,
-          dp[i][j - 1] + 1,
-          dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-        );
-      }
-    }
-    return dp[m][n];
-  };
-
-  // Helper for approximate word matching
-  const approxHasWord = (target: string) => {
-    const t = norm(target);
-    const words = ua.split(" ").filter(Boolean);
-    return words.some((w) => levenshtein(w, t) <= 2) || ua.includes(t);
-  };
-
-  // ✅ If markScheme missing, derive mark points from correctAnswer
+  // Build acceptable answers for negation/concept checks
   let effectiveMarkScheme = Array.isArray(markScheme) ? markScheme : [];
   if (!effectiveMarkScheme.length && (correctAnswer || "").trim()) {
     const ca = (correctAnswer || "").replace(/\r\n/g, "\n").trim();
-
-    // Split into mark points using common separators (GCSE-friendly)
     const parts = ca
       .split(/\n+|;|\.| and | but | whereas /i)
       .map((p) => p.trim())
       .filter(Boolean)
       .slice(0, 10);
-
     effectiveMarkScheme = parts.length ? parts : [ca];
   }
 
+  const acceptableAnswers = effectiveMarkScheme.length ? effectiveMarkScheme : (correctAnswer ? [correctAnswer] : []);
+
+  // PR-TRUST: Contradiction check first — never award marks for negated key concepts
+  if (acceptableAnswers.length > 0 && ua) {
+    const contradiction = checkContradiction(userAnswer, acceptableAnswers);
+    if (contradiction.isContradiction) {
+      const feedback = contradiction.negatedConcept
+        ? `Your answer contradicts the key marking point. The expected idea includes "${contradiction.negatedConcept}" in a positive sense.`
+        : "Your answer contradicts the key marking point.";
+      return { score: 0, maxMarks, hits: [], contradictionFeedback: feedback };
+    }
+  }
+
+  // Use deterministic marking for single-answer / fallback
+  if (!effectiveMarkScheme.length && acceptableAnswers.length > 0) {
+    const result = markShortAnswer(userAnswer, acceptableAnswers, { overlapThreshold: 0.45, requireConceptMatch: true });
+    if (!result.correct) {
+      const feedback =
+        result.reason === "no_concept_match"
+          ? "Your answer does not include the key concept(s) required."
+          : result.reason === "contradiction"
+            ? "Your answer contradicts the key marking point."
+            : undefined;
+      return { score: 0, maxMarks, hits: [], contradictionFeedback: feedback };
+    }
+    return { score: maxMarks, maxMarks, hits: ["keyword match"] };
+  }
+
+  // Mark-scheme path: point-by-point (after passing contradiction check)
   if (effectiveMarkScheme.length) {
     const stop = new Set([
-      "the","a","an","and","or","to","of","in","on","for","with","is","are","was","were",
-      "be","being","been","that","this","these","those","it","its","as","at","by","from"
+      "the", "a", "an", "and", "or", "to", "of", "in", "on", "for", "with",
+      "is", "are", "was", "were", "be", "being", "been", "that", "this", "these", "those", "it", "its", "as", "at", "by", "from",
     ]);
 
-    // small typo-tolerant word match
     const words = ua.split(" ").filter(Boolean);
+    const levenshtein = (a: string, b: string) => {
+      const m = a.length, n = b.length;
+      const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+      }
+      return dp[m][n];
+    };
+
     const approxHas = (target: string) => {
       const t = norm(target);
       if (!t) return false;
-      if (ua.includes(t)) return true; // phrase contains
-      return words.some((w) => levenshtein(w, t) <= 2); // typo tolerant
+      if (ua.includes(t)) return true;
+      return words.some((w) => levenshtein(w, t) <= 2);
     };
 
-    // Treat EACH mark-scheme line as 1 mark opportunity.
-    // If the student hits ANY meaningful keyword from that line, they get that mark.
     const matchedPoints: string[] = [];
     const missingPoints: string[] = [];
 
     for (const point of effectiveMarkScheme) {
       const p = (point || "").trim();
       if (!p) continue;
-
       const tokens = norm(p).split(" ").filter((t) => t && !stop.has(t));
       const ok = tokens.some((t) => approxHas(t));
-
       if (ok) matchedPoints.push(p);
       else missingPoints.push(p);
     }
 
     const score = Math.min(matchedPoints.length, maxMarks);
-
-    return {
-      score,
-      maxMarks,
-      hits: matchedPoints,      // we keep your existing "hits" UI working
-      missing: missingPoints,   // optional if you want to display later
-    };
+    return { score, maxMarks, hits: matchedPoints, missing: missingPoints };
   }
 
-  // 2) Fallback: GCSE-safe rule-based marking using meaning keywords
-  const hasNucleusWord = approxHasWord("nucleus"); // Now with fuzzy matching
-  const hasProk = ua.includes("prokaryot") || ua.includes("prokary");
-  const hasEuk = ua.includes("eukaryot") || ua.includes("eukary");
-
-  const negative = /\b(no|not|dont|do not|doesnt|does not|without|lack|lacks|lacking)\b/.test(ua);
-
-  // Award mark if they express the key idea: prokaryotes lack a nucleus OR only eukaryotes have a nucleus
-  const ok =
-    (hasProk && hasNucleusWord && negative) ||
-    (hasEuk && hasNucleusWord && !negative) ||
-    (hasEuk && hasProk && hasNucleusWord); // covers "eukaryotes have nucleus, prokaryotes don't" even if negation parsing is imperfect
-
-  return {
-    score: ok ? maxMarks : 0,
-    maxMarks,
-    hits: ok ? ["keyword match"] : [],
-  };
+  return { score: 0, maxMarks, hits: [] };
 }
 
 export type QuizQuestion =
@@ -156,21 +151,28 @@ export type QuizQuestion =
 export function QuizView({
   questions,
   title = "Quiz",
+  onQuestionAnswered,
+  onContinueLesson,
 }: {
   questions: QuizQuestion[];
   title?: string;
+  /** PR — Adaptive Testing Loop: called when user checks an answer (correct: boolean). */
+  onQuestionAnswered?: (correct: boolean) => void;
+  /** Optional: called when student clicks "Continue lesson" on the completion screen. */
+  onContinueLesson?: () => void;
 }) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showFeedback, setShowFeedback] = useState(false);
   const [lastGrade, setLastGrade] = useState<any>(null);
+  const [isQuizComplete, setIsQuizComplete] = useState(false);
   const [helpExpanded, setHelpExpanded] = useState<boolean>(() => {
-    // Load user preference from localStorage
+    // Load user preference from localStorage; default collapsed so question is prominent
     try {
       const saved = localStorage.getItem("quiz_help_expanded");
-      return saved !== "false"; // Default to true (expanded) if not saved
+      return saved === "true"; // Default to false (collapsed) if not saved
     } catch {
-      return true; // Default to expanded
+      return false; // Default to collapsed
     }
   });
 
@@ -216,6 +218,8 @@ export function QuizView({
 
       setLastGrade(result);
       setShowFeedback(true);
+      const correct = result.score >= result.maxMarks;
+      onQuestionAnswered?.(correct);
       return;
     }
     
@@ -231,11 +235,15 @@ export function QuizView({
 
       setLastGrade(result);
       setShowFeedback(true);
+      const correct = result.score >= result.maxMarks;
+      onQuestionAnswered?.(correct);
       return;
     }
     
-    // For MCQ questions, just show feedback
+    // For MCQ questions, compare selected answer with correct
+    const correct = (answers[q.id] ?? "").trim() === (q.correctAnswer ?? "").trim();
     setShowFeedback(true);
+    onQuestionAnswered?.(correct);
   };
 
   const handleReset = () => {
@@ -243,6 +251,13 @@ export function QuizView({
     setShowFeedback(false);
     setLastGrade(null);
     setI(0);
+    setIsQuizComplete(false);
+  };
+
+  const finishQuiz = () => {
+    setShowFeedback(false);
+    setLastGrade(null);
+    setIsQuizComplete(true);
   };
 
   const toggleHelp = () => {
@@ -273,6 +288,90 @@ export function QuizView({
   const isFirst = i === 0;
   const isLast = i === questions.length - 1;
 
+  // End-of-quiz results screen
+  if (isQuizComplete) {
+    const totalCorrect = score;
+    const totalGradable = questions.filter((qu) => qu.type === "mcq" || qu.type === "short").length;
+    const totalQuestions = questions.length;
+    const percentage =
+      totalGradable > 0
+        ? Math.round((totalCorrect / totalGradable) * 100)
+        : totalQuestions > 0
+          ? Math.round((totalCorrect / totalQuestions) * 100)
+          : 0;
+    const message =
+      percentage >= 80
+        ? "Great work!"
+        : percentage >= 50
+          ? "Good effort."
+          : "Review this topic again.";
+
+    return (
+      <div className="rounded-2xl border p-4">
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 12px" }}>{title || "Quiz"}</h1>
+        <div
+          style={{
+            marginTop: 20,
+            padding: 24,
+            borderRadius: 14,
+            border: "2px solid #e5e7eb",
+            background: "#ffffff",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
+            Quiz complete
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#2563eb", marginBottom: 4 }}>
+            Score: {totalCorrect} / {totalGradable > 0 ? totalGradable : totalQuestions}
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#64748b", marginBottom: 16 }}>
+            {percentage}%
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#334155", marginBottom: 24 }}>
+            {message}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <button
+              type="button"
+              onClick={handleReset}
+              style={{
+                padding: "10px 18px",
+                fontSize: 15,
+                fontWeight: 700,
+                background: "#2563eb",
+                color: "#ffffff",
+                borderRadius: 10,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Retry quiz
+            </button>
+            {onContinueLesson && (
+              <button
+                type="button"
+                onClick={onContinueLesson}
+                style={{
+                  padding: "10px 18px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "#f1f5f9",
+                  color: "#334155",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  cursor: "pointer",
+                }}
+              >
+                Continue lesson
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border p-4">
       {/* ✅ SS2: Bigger title */}
@@ -280,114 +379,6 @@ export function QuizView({
         {title}
       </h1>
 
-      {/* ✅ Improved Quiz Guidance (SS2) - Now Collapsible */}
-      <div
-        style={{
-          marginTop: 6,
-          marginBottom: 14,
-          padding: "10px 14px",
-          borderRadius: 12,
-          background: "#f8fafc",
-          border: "1px solid #e5e7eb",
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#334155",
-          lineHeight: 1.5,
-        }}
-      >
-        {/* Header with toggle */}
-        <div 
-          style={{ 
-            display: "flex", 
-            justifyContent: "space-between", 
-            alignItems: "center",
-            cursor: "pointer",
-            marginBottom: helpExpanded ? 8 : 0,
-          }}
-          onClick={toggleHelp}
-        >
-          <div style={{ fontWeight: 900 }}>
-            How quiz marking works
-          </div>
-          <div style={{ fontSize: 12, color: "#64748b", userSelect: "none" }}>
-            {helpExpanded ? "▾" : "▸"}
-          </div>
-        </div>
-
-        {/* Collapsible content */}
-        {helpExpanded && (
-          <>
-            {/* 🧠 How to answer quiz questions */}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>
-                <span style={{ marginRight: 6 }}>🧠</span> How to answer quiz questions
-              </div>
-              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
-                Read the question carefully and identify the command word
-                <br />
-                (e.g. state, describe, explain, compare)
-              </div>
-              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
-                Use precise scientific vocabulary and correct spelling
-              </div>
-              <div style={{ fontSize: 12.5 }}>
-                If a question is worth more than 1 mark, make more than one distinct point
-              </div>
-            </div>
-
-            <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "8px 0" }} />
-
-            {/* ✍️ Short-answer questions */}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>
-                <span style={{ marginRight: 6 }}>✍️</span> Short-answer questions
-              </div>
-              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
-                Write in clear, complete sentences
-              </div>
-              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
-                Avoid vague phrases like "it helps" or "it does stuff"
-              </div>
-              <div style={{ fontSize: 12.5 }}>
-                <span style={{ color: "#059669", fontWeight: 800 }}>✅</span> "Controls the cell's activities"
-                <br />
-                <span style={{ color: "#dc2626", fontWeight: 800 }}>❌</span> "Controls the cell"
-              </div>
-            </div>
-
-            <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "8px 0" }} />
-
-            {/* ✅ How marking works */}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>
-                <span style={{ marginRight: 6 }}>✅</span> How marking works
-              </div>
-              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
-                Marks are awarded for scientifically correct points, not exact wording
-              </div>
-              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
-                Partial marks are given for partially correct answers
-              </div>
-              <div style={{ fontSize: 12.5 }}>
-                Feedback shows:
-                <br />
-                <span style={{ color: "#059669", fontWeight: 800 }}>✔</span> What was credited
-                <br />
-                <span style={{ color: "#dc2626", fontWeight: 800 }}>✖</span> What was missing
-              </div>
-            </div>
-
-            <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "8px 0" }} />
-
-            {/* Exam tip */}
-            <div style={{ fontSize: 12.5, fontStyle: "italic", paddingTop: 4 }}>
-              <strong>Exam tip:</strong>
-              If a question is worth 2 marks or more, aim to make 2 clear, separate points.
-            </div>
-          </>
-        )}
-      </div>
-      
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm opacity-70">
@@ -440,54 +431,55 @@ export function QuizView({
 
           <button
             type="button"
-            disabled={isLast}
             style={{
               padding: "8px 16px",
               borderRadius: 999,
               border: "none",
-              background: isLast ? "#93c5fd" : "#2563eb",
+              background: "#2563eb",
               color: "#ffffff",
               fontWeight: 700,
-              cursor: isLast ? "not-allowed" : "pointer",
+              cursor: "pointer",
               boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
               transition: "all 0.2s ease",
             }}
-            onClick={goNext}
+            onClick={isLast ? finishQuiz : goNext}
             onMouseEnter={(e) => {
-              if (!isLast) {
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.backgroundColor = "#1d4ed8";
-                e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
-              }
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.backgroundColor = "#1d4ed8";
+              e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
             }}
             onMouseLeave={(e) => {
-              if (!isLast) {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.backgroundColor = "#2563eb";
-                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
-              }
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.backgroundColor = "#2563eb";
+              e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
             }}
             onMouseDown={(e) => {
-              if (!isLast) {
-                e.currentTarget.style.transform = "scale(0.98)";
-              }
+              e.currentTarget.style.transform = "scale(0.98)";
             }}
             onMouseUp={(e) => {
-              if (!isLast) {
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }
+              e.currentTarget.style.transform = "translateY(-1px)";
             }}
           >
-            Next →
+            {isLast ? "Finish quiz" : "Next →"}
           </button>
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border p-4">
-        <div className="text-xs uppercase tracking-wide opacity-60">
+      {/* Clear visual separation: guidance above, question block below */}
+      <div
+        style={{
+          marginTop: 20,
+          padding: 20,
+          borderRadius: 14,
+          border: "2px solid #e5e7eb",
+          background: "#ffffff",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", marginBottom: 8 }}>
           {q.type === "mcq" ? "Multiple choice" : q.type === "short" ? "Short answer" : "Exam-style"}
         </div>
-        <div className="mt-2 text-base font-medium">{q.question}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: "#111827", lineHeight: 1.4, marginBottom: 4 }}>{q.question}</div>
 
         {q.type === "mcq" ? (
           !q.options || q.options.length === 0 ? (
@@ -550,7 +542,7 @@ export function QuizView({
               outline: "none",
               background: "#ffffff",
               boxShadow: "0 6px 18px rgba(37, 99, 235, 0.12)",
-              marginTop: "16px",
+              marginTop: "24px",
               fontFamily: "'Inter', 'Segoe UI', sans-serif",
               resize: "vertical",
             }}
@@ -564,16 +556,29 @@ export function QuizView({
           </div>
         ) : null}
         
-        {/* Tags display */}
-        {(q.tags ?? []).length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {(q.tags ?? []).map((t) => (
-              <span key={t} className="rounded-full border px-2 py-1 text-xs">
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Topic-bank questions: hide technical tags; no badge shown (UI cleanup) */}
+        {(() => {
+          const tags = q.tags ?? [];
+          const hasTopicBank = tags.some(
+            (t) =>
+              t === "auto-attached" ||
+              t === "topic-bank" ||
+              (typeof t === "string" && t.includes(":"))
+          );
+          if (hasTopicBank) return null;
+          if (tags.length > 0) {
+            return (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {tags.map((t) => (
+                  <span key={t} className="rounded-full border px-2 py-1 text-xs">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Primary action buttons — disable Check until MCQ has selection or short/exam has non-empty input */}
@@ -666,15 +671,19 @@ export function QuizView({
             marginTop: 12,
             padding: 12,
             borderRadius: 12,
-            border: "1px solid #e5e7eb",
-            background: "#f8fafc",
+            border: lastGrade.contradictionFeedback ? "1px solid rgba(239,68,68,0.35)" : "1px solid #e5e7eb",
+            background: lastGrade.contradictionFeedback ? "rgba(254,226,226,0.5)" : "#f8fafc",
           }}
         >
           <div style={{ fontWeight: 900, marginBottom: 6 }}>
             Score: {lastGrade.score}/{lastGrade.maxMarks}
           </div>
 
-          {Array.isArray(lastGrade.hits) && lastGrade.hits.length ? (
+          {lastGrade.contradictionFeedback ? (
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#b91c1c" }}>
+              {lastGrade.contradictionFeedback}
+            </div>
+          ) : Array.isArray(lastGrade.hits) && lastGrade.hits.length ? (
             <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.9 }}>
               <span style={{ color: "#059669", marginRight: 4 }}>✔</span>
               Matched: {lastGrade.hits.join(", ")}
@@ -741,6 +750,105 @@ export function QuizView({
           })()}
         </div>
       ) : null}
+
+      {/* How quiz marking works — moved below question so it doesn't dominate; collapsed by default */}
+      <div
+        style={{
+          marginTop: 24,
+          padding: "10px 14px",
+          borderRadius: 12,
+          background: "#f8fafc",
+          border: "1px solid #e5e7eb",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#334155",
+          lineHeight: 1.5,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            marginBottom: helpExpanded ? 8 : 0,
+          }}
+          onClick={toggleHelp}
+        >
+          <div style={{ fontWeight: 900 }}>How quiz marking works</div>
+          <div style={{ fontSize: 12, color: "#64748b", userSelect: "none" }}>
+            {helpExpanded ? "▾" : "▸"}
+          </div>
+        </div>
+
+        {helpExpanded && (
+          <>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                <span style={{ marginRight: 6 }}>🧠</span> How to answer quiz questions
+              </div>
+              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                Read the question carefully and identify the command word
+                <br />
+                (e.g. state, describe, explain, compare)
+              </div>
+              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                Use precise scientific vocabulary and correct spelling
+              </div>
+              <div style={{ fontSize: 12.5 }}>
+                If a question is worth more than 1 mark, make more than one distinct point
+              </div>
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "8px 0" }} />
+
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                <span style={{ marginRight: 6 }}>✍️</span> Short-answer questions
+              </div>
+              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                Write in clear, complete sentences
+              </div>
+              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                Avoid vague phrases like "it helps" or "it does stuff"
+              </div>
+              <div style={{ fontSize: 12.5 }}>
+                <span style={{ color: "#059669", fontWeight: 800 }}>✅</span> "Controls the cell's activities"
+                <br />
+                <span style={{ color: "#dc2626", fontWeight: 800 }}>❌</span> "Controls the cell"
+              </div>
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "8px 0" }} />
+
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                <span style={{ marginRight: 6 }}>✅</span> How marking works
+              </div>
+              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                Marks are awarded for scientifically correct points, not exact wording
+              </div>
+              <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                Partial marks are given for partially correct answers
+              </div>
+              <div style={{ fontSize: 12.5 }}>
+                Feedback shows:
+                <br />
+                <span style={{ color: "#059669", fontWeight: 800 }}>✔</span> What was credited
+                <br />
+                <span style={{ color: "#dc2626", fontWeight: 800 }}>✖</span> What was missing
+              </div>
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "8px 0" }} />
+
+            <div style={{ fontSize: 12.5, fontStyle: "italic", paddingTop: 4 }}>
+              <strong>Exam tip:</strong>
+              If a question is worth 2 marks or more, aim to make 2 clear, separate points.
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

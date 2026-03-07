@@ -1250,16 +1250,31 @@ const LessonViewPage: React.FC = () => {
   }, [lesson]);
 
   // Page-aware quiz: questions for current page only (structured view)
+  const totalPages = orderedPages.length;
+  const isSinglePage = totalPages <= 1;
   const pageQuizQuestions = useMemo(() => {
     if (!hasStructuredPages || !currentPage) return [];
-    const pageId = currentPage.pageId;
-    return quizQuestions.filter((q: any) => q.pageId === pageId);
-  }, [hasStructuredPages, currentPage, quizQuestions]);
+    const pageId = String(currentPage.pageId || "");
+    const withPageId = quizQuestions.filter((q: any) => String(q?.pageId || "") === pageId);
+    // Single-page fallback: show questions with no pageId in Page Quiz (legacy/auto-attached)
+    if (isSinglePage && withPageId.length === 0) {
+      return quizQuestions.filter((q: any) => {
+        const pid = String(q?.pageId ?? "").trim();
+        return !pid || pid === "END";
+      });
+    }
+    return withPageId;
+  }, [hasStructuredPages, currentPage, quizQuestions, isSinglePage, orderedPages.length]);
 
   // End of lesson: questions with no pageId or pageId === "END"
+  // When single page, all such questions are shown in Page Quiz instead, so this stays empty.
   const endOfLessonQuizQuestions = useMemo(() => {
-    return quizQuestions.filter((q: any) => !q.pageId || String(q.pageId) === "END");
-  }, [quizQuestions]);
+    if (isSinglePage) return [];
+    return quizQuestions.filter((q: any) => {
+      const pid = String(q?.pageId ?? "").trim();
+      return !pid || pid === "END";
+    });
+  }, [quizQuestions, isSinglePage]);
 
   // ✅ SINGLE SOURCE OF TRUTH: Flashcards
   const flashcards = useMemo(() => {
@@ -3527,36 +3542,58 @@ const LessonViewPage: React.FC = () => {
                 {/* Testing section: Quick Quiz, Practice papers, Practice questions, Flashcards — only after final page */}
                 {isLastPage && (
                 <>
-                {/* Quick Quiz — page-aware in structured view */}
-                <Section title="Quick Quiz" variant="card">
+                {/* Page Quiz — page-aware in structured view */}
+                <Section title="Quiz Page" variant="card">
+                  <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#6b7280" }}>Short questions for this lesson page.</p>
                   {!hasFullLessonAccess ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
                       Quiz available after unlocking the full lesson.
                     </div>
                   ) : pageQuizQuestions.length === 0 && endOfLessonQuizQuestions.length === 0 ? (
                     <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-                      No quiz questions generated for this topic yet.
+                      {isTeacherOrAdmin ? (
+                        id ? (
+                          <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
+                        ) : (
+                          <>No page quiz questions yet. Add them in Edit Lesson → Attach Quiz Page From Question Bank.</>
+                        )
+                      ) : (
+                        <>No page quiz questions yet.</>
+                      )}
                     </div>
                   ) : (
                     <>
                       {pageQuizQuestions.length === 0 ? (
                         <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-                          No quiz questions for this page yet.
+                          {isTeacherOrAdmin ? (
+                            id ? (
+                              <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
+                            ) : (
+                              <>No page quiz questions yet. Add them in Edit Lesson → Attach Quiz Page From Question Bank.</>
+                            )
+                          ) : (
+                            <>No page quiz questions yet.</>
+                          )}
                         </div>
                       ) : (
-                        <QuizView
-                          title=""
-                          questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
-                          onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
-                        />
+                        <div>
+                          <QuizView
+                            title=""
+                            questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                            onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
+                            onContinueLesson={() => window.scrollBy({ top: 400, behavior: "smooth" })}
+                          />
+                        </div>
                       )}
                       {endOfLessonQuizQuestions.length > 0 && (
                         <div style={{ marginTop: 24 }}>
-                          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 15 }}>End of Lesson Test</div>
+                          <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 15 }}>End of Lesson Test</div>
+                          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>Topic-bank questions for this sub-topic</div>
                           <QuizView
                             title=""
                             questions={endOfLessonQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
                             onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
+                            onContinueLesson={() => window.scrollBy({ top: 400, behavior: "smooth" })}
                           />
                         </div>
                       )}
@@ -4229,23 +4266,32 @@ const LessonViewPage: React.FC = () => {
           <StudyPlanPanel specKey={specKey} />
         )}
 
-        {/* Quick Quiz — gate on hasFullLessonAccess */}
-        <Section title="Quick Quiz" variant="card">
+        {/* Page Quiz — gate on hasFullLessonAccess (legacy view, no pages) */}
+        <Section title="Page Quiz" variant="card">
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#6b7280" }}>Short questions for this lesson page.</p>
           {!hasFullLessonAccess ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               Quiz available after unlocking the full lesson.
             </div>
           ) : quizQuestions.length === 0 ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
-              No quiz questions generated for this topic yet.
+              {isTeacherOrAdmin ? (
+                id ? (
+                  <>No page quiz questions yet. Add them in <Link to={`/edit-lesson/${id}#quiz`} style={{ color: "#2563eb", fontWeight: 600 }}>Edit Lesson → Quiz</Link>.</>
+                ) : (
+                  <>No page quiz questions yet. Add them in Edit Lesson → Attach Quiz Page From Question Bank.</>
+                )
+              ) : (
+                <>No page quiz questions yet.</>
+              )}
             </div>
           ) : (
             <>
-              <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>This quick quiz checks your understanding before moving on.</p>
               <QuizView
                 title=""
                 questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
                 onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
+                onContinueLesson={() => window.scrollBy({ top: 400, behavior: "smooth" })}
               />
             </>
           )}

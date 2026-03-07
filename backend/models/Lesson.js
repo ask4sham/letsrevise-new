@@ -54,15 +54,17 @@ const DiagramConnectorSchema = new mongoose.Schema(
 
 const LessonPageBlockSchema = new mongoose.Schema(
   {
-    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram"
+    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "pageQuiz" | "diagram"
     type: {
       type: String,
-      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"],
+      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "pageQuiz", "diagram"],
       default: "text",
     },
     content: { type: String, default: "" }, // markdown-friendly (for text/keyIdea/examTip/commonMistake/stretch)
     // checkpoint block (when type === "checkpoint") — never send correctAnswer/explanation in preview
+    // pageQuiz block (when type === "pageQuiz") — question text, written to lesson.quiz.questions with pageId
     prompt: { type: String, default: "" },
+    question: { type: String, default: "" },
     questionType: { type: String, enum: ["mcq", "short"], default: "mcq" },
     options: { type: [String], default: undefined },
     correctAnswer: { type: String, default: undefined },
@@ -264,7 +266,11 @@ const LessonSchema = new mongoose.Schema(
           explanation: { type: String, default: "" },
           tags: { type: [String], default: [] },
           difficulty: { type: Number, min: 1, max: 3, default: 1 },
-          marks: { type: Number, default: 1 }
+          marks: { type: Number, default: 1 },
+          // PR: Attach from Topic Quiz Bank — page-scoped questions
+          pageId: { type: String, default: undefined },
+          sourceQuestionId: { type: String, default: undefined },
+          sourceType: { type: String, default: undefined },
         }
       ]
     },
