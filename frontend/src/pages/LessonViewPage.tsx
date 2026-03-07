@@ -35,6 +35,7 @@ import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
 import { hasFullLessonAccess as computeFullLessonAccess } from "../utils/lessonAccess";
+import Toast from "../components/Toast";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -1105,6 +1106,8 @@ const LessonViewPage: React.FC = () => {
 
   // ✅ AI generation state
   const [isGenerating, setIsGenerating] = useState(false);
+  /** PR: success/conflict toast for Generate revision with AI */
+  const [aiToast, setAiToast] = useState<{ message: string; type: "success" | "error" | "info" | "warning" } | null>(null);
   // PR-F1: Load flashcards from bank (teacher, when lesson has none)
   const [loadFromBankLoading, setLoadFromBankLoading] = useState(false);
   const [loadFromBankError, setLoadFromBankError] = useState<string | null>(null);
@@ -2015,15 +2018,42 @@ const LessonViewPage: React.FC = () => {
   };
 
   // PR-CONTENT-TARGETING-1: AI generation only when topicKeyForBank is valid; pass it in body
+  // After generate-revision creates a draft, auto-apply so flashcards appear in student view
   const handleAIGenerate = async () => {
     if (!lesson || !lesson.id || !topicKeyForBank) return;
     setIsGenerating(true);
+    setAiToast(null);
     try {
       await api.post(`/lessons/${lesson.id}/generate-revision`, { topicKey: topicKeyForBank });
-      await fetchLessonSmart(); // Refresh the lesson data
+      let applied = false;
+      let applyData: { flashcardsCount?: number; quizQuestionsCount?: number } | undefined;
+      try {
+        const res = await api.post(`/lessons/${lesson.id}/revision-draft/apply`);
+        applied = true;
+        applyData = res?.data?.lesson;
+      } catch (applyErr: any) {
+        if (applyErr?.response?.status === 409) {
+          setAiToast({
+            message: "Revision materials were generated, but this lesson could not be updated automatically. Open Edit Lesson to review or apply them.",
+            type: "info",
+          });
+        } else {
+          throw applyErr;
+        }
+      }
+      await fetchLessonSmart();
+      if (applied && applyData) {
+        const fc = applyData.flashcardsCount ?? 0;
+        const qc = applyData.quizQuestionsCount ?? 0;
+        const successMsg = fc > 0 && qc > 0
+          ? "Revision materials added to this lesson."
+          : "Flashcards added to this lesson.";
+        setAiToast({ message: successMsg, type: "success" });
+        if (fc > 0) setShowFlashcards(true);
+      }
     } catch (error) {
       console.error("AI generation error:", error);
-      alert("Error generating revision content");
+      setAiToast({ message: "Error generating revision content", type: "error" });
     } finally {
       setIsGenerating(false);
     }
@@ -3000,6 +3030,13 @@ const LessonViewPage: React.FC = () => {
           fontSize: BASE_FONT_SIZE,
         }}
       >
+        {aiToast && (
+          <Toast
+            message={aiToast.message}
+            type={aiToast.type}
+            onClose={() => setAiToast(null)}
+          />
+        )}
         <div style={{ maxWidth: 1750, margin: "0 auto" }}>
           {/* ✅ PROOF PANEL REMOVED FROM HERE */}
 
@@ -3982,6 +4019,13 @@ const LessonViewPage: React.FC = () => {
         fontSize: BASE_FONT_SIZE,
       }}
     >
+      {aiToast && (
+        <Toast
+          message={aiToast.message}
+          type={aiToast.type}
+          onClose={() => setAiToast(null)}
+        />
+      )}
       {/* ✅ PROOF PANEL REMOVED FROM LEGACY VIEW TOO */}
 
       <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>

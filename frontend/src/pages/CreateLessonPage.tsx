@@ -326,6 +326,12 @@ const CreateLessonPage: React.FC = () => {
   });
 
   // Pages editor (same data model as EditLessonPage)
+  const VALID_STARTER_CHECKPOINT = {
+    question: "Which statement is correct?",
+    options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+    answer: "Option 1",
+  };
+
   const [pages, setPages] = useState<LessonPage[]>([
     {
       pageId: newId(),
@@ -334,7 +340,7 @@ const CreateLessonPage: React.FC = () => {
       pageType: "",
       hero: { type: "none", src: "", caption: "" }, // legacy compat
       blocks: [{ type: "text", content: "" }],
-      checkpoint: { question: "", options: ["", "", "", ""], answer: "" },
+      checkpoint: { ...VALID_STARTER_CHECKPOINT },
     },
   ]);
 
@@ -456,7 +462,7 @@ const CreateLessonPage: React.FC = () => {
               pageType: "",
               hero: { type: "none", src: "", caption: "" },
               blocks: [{ type: "text", content: "" }],
-              checkpoint: { question: "", options: ["", "", "", ""], answer: "" },
+              checkpoint: { ...VALID_STARTER_CHECKPOINT },
             },
           ];
     });
@@ -1103,7 +1109,7 @@ const CreateLessonPage: React.FC = () => {
                         Auto-generate from topic banks
                       </div>
                       <div style={{ fontSize: "0.75rem", color: "#4b5563", marginTop: 2 }}>
-                        Attaches starter quizzes and flashcards from published banks (editable).
+                        Attaches starter quizzes and flashcards from published banks (editable). Only questions for the selected sub-topic will be attached.
                       </div>
                     </div>
                     <input
@@ -1454,8 +1460,15 @@ const CreateLessonPage: React.FC = () => {
                                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
                               }}
                             />
-                            <div style={{ marginTop: 8, color: "#64748b", fontSize: "0.8rem" }}>
-                              Tip: paste from Word/Google Docs — bullets (•) become <b>- lists</b>, and headings above bullets become <b>### headings</b>.
+                            <div style={{ marginTop: 8, color: "#64748b", fontSize: "0.8rem", lineHeight: 1.5 }}>
+                              <strong>Editing tips:</strong>
+                              <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                                <li>Use <b>**double asterisks**</b> for bold (e.g. <code>**cell membrane**</code>)</li>
+                                <li>Use <b>*single asterisks*</b> for italic (e.g. <code>*genetic material*</code>)</li>
+                                <li>Use <b>###</b> at the start of a line for headings (e.g. <code>### Cell membrane</code>)</li>
+                                <li>Pasting bullets from Word/Google Docs usually turns them into lists</li>
+                                <li>Text colour is not supported — use headings and bold to highlight key terms</li>
+                              </ul>
                             </div>
                           </div>
                         );

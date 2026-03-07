@@ -13,6 +13,7 @@ const Purchase = require("../models/Purchase");
 const LessonPurchase = require("../models/LessonPurchase");
 const VisualModel = require("../models/VisualModel");
 const ExamQuestion = require("../models/ExamQuestion");
+const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const PracticeAttempt = require("../models/PracticeAttempt");
 const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("../utils/topicTaxonomy");
@@ -131,17 +132,45 @@ function sanitisePageInput(p, isUpdate = false) {
     hero = { type: "none", src: "", caption: "" };
   }
 
-  const allowedBlockTypes = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"];
+  const allowedBlockTypes = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "pageQuiz", "diagram"];
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
         const type = allowedBlockTypes.includes(String(b?.type)) ? String(b.type) : "text";
         if (type === "checkpoint") {
+          const prompt = typeof b?.prompt === "string" ? b.prompt : "";
+          const options = Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [];
+          const correctAnswer = typeof b?.correctAnswer === "string" ? b.correctAnswer : "";
+          const questionType = b?.questionType === "short" ? "short" : "mcq";
+          const nonEmptyOpts = options.filter((o) => String(o || "").trim());
+          const hasPrompt = String(prompt || "").trim().length > 0;
+          const isValidMcq = questionType === "mcq" ? nonEmptyOpts.length >= 2 && nonEmptyOpts.some((o) => String(o).trim() === String(correctAnswer || "").trim()) : hasPrompt && String(correctAnswer || "").trim().length > 0;
+          if (!hasPrompt || !isValidMcq) {
+            return {
+              type: "checkpoint",
+              prompt: "Which statement is correct?",
+              questionType: "mcq",
+              options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+              correctAnswer: "Option 1",
+              explanation: "",
+            };
+          }
           return {
             type: "checkpoint",
-            prompt: typeof b?.prompt === "string" ? b.prompt : "",
-            questionType: b?.questionType === "short" ? "short" : "mcq",
+            prompt: prompt.trim(),
+            questionType,
+            options: questionType === "mcq" ? nonEmptyOpts.slice(0, 6) : [],
+            correctAnswer: correctAnswer.trim(),
+            explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
+          };
+        }
+        if (type === "pageQuiz") {
+          const qText = typeof b?.question === "string" ? b.question : (typeof b?.prompt === "string" ? b.prompt : "");
+          return {
+            type: "pageQuiz",
+            question: qText,
+            questionType: b?.questionType === "short" || b?.type === "shortAnswer" ? "short" : "mcq",
             options: Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [],
-            correctAnswer: typeof b?.correctAnswer === "string" ? b.correctAnswer : undefined,
+            correctAnswer: typeof b?.correctAnswer === "string" ? b.correctAnswer : "",
             explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
           };
         }
@@ -217,7 +246,7 @@ function sanitisePageInput(p, isUpdate = false) {
       })
     : [];
 
-  const checkpoint =
+  let checkpoint =
     p?.checkpoint && typeof p.checkpoint === "object"
       ? {
           question: typeof p.checkpoint.question === "string" ? p.checkpoint.question : "",
@@ -227,6 +256,20 @@ function sanitisePageInput(p, isUpdate = false) {
           answer: typeof p.checkpoint.answer === "string" ? p.checkpoint.answer : "",
         }
       : undefined;
+
+  // PR: Guardrail — never save invalid checkpoint placeholder; replace with valid default
+  const VALID_DEFAULT_CHECKPOINT = {
+    question: "Which statement is correct?",
+    options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+    answer: "Option 1",
+  };
+  const nonEmptyOpts = (checkpoint?.options || []).filter((o) => String(o || "").trim());
+  const hasValidQuestion = String(checkpoint?.question || "").trim().length > 0;
+  const hasEnoughOptions = nonEmptyOpts.length >= 2;
+  const answerMatches = nonEmptyOpts.some((o) => String(o).trim() === String(checkpoint?.answer || "").trim());
+  if (!checkpoint || !hasValidQuestion || !hasEnoughOptions || !answerMatches) {
+    checkpoint = VALID_DEFAULT_CHECKPOINT;
+  }
 
   // ✅ NEW (non-breaking): allow saving visualModelId if provided
   const visualModelId =
@@ -3048,6 +3091,100 @@ router.post("/:id/generate/quiz-from-topic", auth, requireLessonOwnerOrAdmin, as
       return res.status(404).json({ msg: err.message || "Lesson not found" });
     }
     console.error("generate/quiz-from-topic error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// PR: Attach page quiz from Topic Quiz Bank (published-only, exact topicKey, append to lesson.quiz.questions with pageId).
+router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+
+    let namespacedTopicKey;
+    try {
+      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      namespacedTopicKey = resolved.namespacedTopicKey;
+    } catch (err) {
+      if (err.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({ msg: err.message || "Lesson must have a valid topicKey." });
+      }
+      throw err;
+    }
+
+    const { pageId, questionIds } = req.body || {};
+    if (!pageId || typeof pageId !== "string" || !pageId.trim()) {
+      return res.status(400).json({ msg: "pageId is required" });
+    }
+    const ids = Array.isArray(questionIds) ? questionIds.filter((id) => id && mongoose.Types.ObjectId.isValid(String(id))) : [];
+    if (ids.length === 0) {
+      return res.status(400).json({ msg: "questionIds array with at least one valid id is required" });
+    }
+
+    const bankQuestions = await TopicQuizQuestion.find({
+      _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
+      topicKey: namespacedTopicKey,
+      status: "published",
+      kind: "quiz",
+      isArchived: { $ne: true },
+    }).lean();
+
+    const existingQuiz = lesson.quiz && Array.isArray(lesson.quiz.questions) ? lesson.quiz.questions : [];
+    const existingSourceIds = new Set(
+      existingQuiz
+        .filter((q) => String(q.pageId || "") === String(pageId) && (q.sourceQuestionId || q.sourceType === "topicQuizQuestion"))
+        .map((q) => String(q.sourceQuestionId || q.id || ""))
+        .filter(Boolean)
+    );
+
+    const alreadyExistedCount = ids.filter((id) => existingSourceIds.has(String(id))).length;
+
+    const toAttach = [];
+    for (const q of bankQuestions) {
+      const sid = String(q._id);
+      if (existingSourceIds.has(sid)) continue;
+      const choices = Array.isArray(q.choices) ? q.choices : [];
+      const correctIndex = Math.min(Math.max(0, Number(q.correctIndex)), Math.max(0, choices.length - 1));
+      const isShort = String(q.type || "").toLowerCase() === "short-answer";
+      const correctAnswer = isShort
+        ? (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers[0] ? q.acceptableAnswers[0] : "")
+        : (choices[correctIndex] || "");
+      toAttach.push({
+        id: `pq_${pageId}_${Date.now()}_${toAttach.length}`,
+        type: isShort ? "short" : "mcq",
+        question: q.questionText || "",
+        options: isShort ? undefined : choices,
+        correctAnswer,
+        explanation: q.explanation || "",
+        pageId: pageId.trim(),
+        sourceQuestionId: sid,
+        sourceType: "topicQuizQuestion",
+      });
+      existingSourceIds.add(sid);
+    }
+
+    const alreadyExisted = ids.length - toAttach.length;
+    const newQuestions = [...existingQuiz, ...toAttach];
+
+    if (!lesson.quiz || typeof lesson.quiz !== "object") {
+      lesson.quiz = { timeSeconds: 600, questions: [] };
+    }
+    lesson.quiz.questions = newQuestions;
+    lesson.markModified("quiz");
+    await lesson.save();
+
+    return res.json({
+      ok: true,
+      addedCount: toAttach.length,
+      alreadyExisted: alreadyExistedCount,
+      lesson: lesson.toObject ? lesson.toObject() : lesson,
+    });
+  } catch (err) {
+    console.error("attach-page-quiz-from-bank error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

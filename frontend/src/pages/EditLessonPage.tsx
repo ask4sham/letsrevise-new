@@ -1072,10 +1072,10 @@ const EditLessonPage: React.FC = () => {
       if (type === "checkpoint") {
         blocks.push({
           type: "checkpoint",
-          prompt: "",
+          prompt: "Which statement is correct?",
           questionType: "mcq",
-          options: ["", "", "", ""],
-          correctAnswer: "",
+          options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+          correctAnswer: "Option 1",
           explanation: "",
         });
       } else if (type === "diagram") {
@@ -1155,7 +1155,11 @@ const EditLessonPage: React.FC = () => {
         pageType: "",
         hero: { type: "none", src: "", caption: "" },
         blocks: [{ type: "text", content: "" }],
-        checkpoint: { question: "", options: ["", "", "", ""], answer: "" },
+        checkpoint: {
+          question: "Which statement is correct?",
+          options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+          answer: "Option 1",
+        },
       };
 
       const next = { ...prev, pages: [...pages, p] };
@@ -4164,8 +4168,15 @@ const EditLessonPage: React.FC = () => {
                             }}
                           />
                           
-                          <div style={{ marginTop: 6, color: "#6b7280", fontSize: 13 }}>
-                            Tip: paste from Word/Google Docs — bullets (•) become <b>- lists</b>, and headings above bullets become <b>### headings</b>.
+                          <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
+                            <strong>Editing tips:</strong>
+                            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                              <li>Use <b>**double asterisks**</b> for bold (e.g. <code>**cell membrane**</code>)</li>
+                              <li>Use <b>*single asterisks*</b> for italic (e.g. <code>*genetic material*</code>)</li>
+                              <li>Use <b>###</b> at the start of a line for headings (e.g. <code>### Cell membrane</code>)</li>
+                              <li>Pasting bullets from Word/Google Docs usually turns them into lists</li>
+                              <li>Text colour is not supported — use headings and bold to highlight key terms</li>
+                            </ul>
                           </div>
                             </>
                           )}
