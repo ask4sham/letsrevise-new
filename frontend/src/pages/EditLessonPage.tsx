@@ -2452,7 +2452,7 @@ const EditLessonPage: React.FC = () => {
         padding: "18px",
       }}
     >
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1680, margin: "0 auto" }}>
         {lesson?.createdFromTemplate && (
           <div
             style={{
@@ -2539,7 +2539,7 @@ const EditLessonPage: React.FC = () => {
               display: "grid",
               gridTemplateColumns:
                 layoutBreakpoint === "wide"
-                  ? "280px minmax(0, 1fr) 360px"
+                  ? "280px minmax(0, 1fr) 432px"
                   : layoutBreakpoint === "medium"
                     ? "280px minmax(0, 1fr)"
                     : "1fr",
