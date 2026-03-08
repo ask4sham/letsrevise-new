@@ -5,7 +5,7 @@
  */
 const express = require("express");
 const router = express.Router();
-const { getBiologyTopics, getChemistryTopics, getPhysicsTopics, getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
+const { getBiologyTopics, getChemistryTopics, getPhysicsTopics, getTaxonomyBySpecKey, topicDisplayToCanonicalKey } = require("../utils/topicTaxonomy");
 const { getCreateLessonOptions } = require("../services/taxonomyService");
 
 /**
@@ -13,6 +13,25 @@ const { getCreateLessonOptions } = require("../services/taxonomyService");
  * Returns the full AQA GCSE Biology taxonomy (subject, examBoard, level, units with topics).
  * No auth required so teacher UI can load the topic picker without logging in first.
  */
+/**
+ * GET /api/taxonomy/resolve-topic?specKey=X&topic=Y
+ * Resolve topic display name (e.g. "Animal and plant cells") to namespaced topicKey (e.g. "aqa-gcse-biology:animal-plant-cells").
+ * Use when lesson.topicKey is missing but lesson.topic (display) is present.
+ */
+router.get("/resolve-topic", (req, res) => {
+  try {
+    const specKey = (req.query.specKey || "").trim() || "aqa-gcse-biology";
+    const topic = (req.query.topic || "").trim();
+    if (!topic) return res.status(400).json({ error: "topic query is required" });
+    const canonicalKey = topicDisplayToCanonicalKey(topic, specKey);
+    if (!canonicalKey) return res.json({ topicKey: null, resolved: false });
+    return res.json({ topicKey: `${specKey}:${canonicalKey}`, resolved: true });
+  } catch (err) {
+    console.error("resolve-topic error:", err);
+    return res.status(500).json({ error: "Failed to resolve topic" });
+  }
+});
+
 /**
  * GET /api/taxonomy/create-lesson-options
  * Returns nested options for Create Lesson dropdowns: Subject → Spec → Main Topic → Sub-topic.

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../../services/api";
 import { importFlashcards, getFlashcardBank } from "../../api/flashcardBank";
 import { SpecSelector } from "../SpecSelector";
@@ -29,6 +30,8 @@ type Props = {
   /** When true, only show cards missing front or back (from "Jump to Flashcards" issues callout). */
   filterBrokenOnly?: boolean;
   onFilterBrokenChange?: (enabled: boolean) => void;
+  /** When true, lesson is a consumer of Topic Bank only: hide add/bulk/csv, show cards read-only, link to Topic Bank. */
+  readOnlyFromBank?: boolean;
 };
 
 function newId(prefix = "fc") {
@@ -297,6 +300,7 @@ export default function FlashcardsEditor({
   isAdmin = false, // Added: default to false for non-admin
   filterBrokenOnly = false,
   onFilterBrokenChange,
+  readOnlyFromBank = false,
 }: Props) {
   const { token } = useCurrentUser({ watchLocation: true });
   const [cards, setCards] = useState<Flashcard[]>([]);
@@ -313,6 +317,8 @@ export default function FlashcardsEditor({
 
   // CSV upload
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  /** Scroll target after import so teacher sees the newly added flashcards */
+  const flashcardsListRef = useRef<HTMLDivElement>(null);
   const [csvInfo, setCsvInfo] = useState<string>("");
 
   // AI generate
@@ -486,6 +492,10 @@ export default function FlashcardsEditor({
         : `${n} new flashcards added (${imported.length - n} duplicates skipped). Click "Save flashcards" to save them to this lesson.`;
       setStatus(addedMsg);
       setSaveButtonHighlight(true);
+      setShowExisting(true);
+      setTimeout(() => {
+        flashcardsListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (e: any) {
       setError(e?.response?.data?.msg || e?.message || "Failed to load question bank.");
     } finally {
@@ -851,264 +861,278 @@ export default function FlashcardsEditor({
           <span style={styles.pill}>Flashcards ({countLabel})</span>
         </div>
 
-        <div style={styles.btnRow}>
-          <button type="button" style={styles.btnGhost} onClick={downloadCSVTemplate}>
-            Download CSV template
-          </button>
-
-          <button type="button" style={styles.btnGhost} onClick={() => fileInputRef.current?.click()}>
-            Upload CSV
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onCSVChosen(f);
-            }}
-          />
-
-          <button
-            type="button"
-            style={styles.btn}
-            onClick={generateWithAI}
-            disabled={aiLoading || !topicKeyForBank}
-            title={!topicKeyForBank ? "Lesson not mapped to a syllabus subtopic." : undefined}
-          >
-            {aiDoneLabel(aiLoading)}
-          </button>
-        </div>
-      </div>
-
-      <div style={styles.section}>
-        <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>Add New Flashcard</div>
-
-        <div style={{ display: "grid", gap: "10px" }}>
-          <div>
-            <div style={styles.label}>Question/Front</div>
-            <textarea
-              style={styles.textarea}
-              value={front}
-              onChange={(e) => setFront(e.target.value)}
-              placeholder="Enter the question or term..."
-            />
-          </div>
-
-          <div>
-            <div style={styles.label}>Answer/Back</div>
-            <textarea
-              style={styles.textarea}
-              value={back}
-              onChange={(e) => setBack(e.target.value)}
-              placeholder="Enter the answer or definition..."
-            />
-          </div>
-
-          <div>
-            <div style={styles.label}>Tags (comma-separated)</div>
-            <input
-              style={styles.input}
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="e.g., key-concept, formula, vocabulary"
-            />
-          </div>
-
+        {!readOnlyFromBank && (
           <div style={styles.btnRow}>
-            <button type="button" style={styles.btn} onClick={handleAddOne}>
-              Add Flashcard
+            <button type="button" style={styles.btnGhost} onClick={downloadCSVTemplate}>
+              Download CSV template
             </button>
+
+            <button type="button" style={styles.btnGhost} onClick={() => fileInputRef.current?.click()}>
+              Upload CSV
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onCSVChosen(f);
+              }}
+            />
+
             <button
               type="button"
-              style={{
-                ...styles.btnGhost,
-                ...(saveButtonHighlight
-                  ? {
-                      border: "2px solid #2563eb",
-                      background: "#eff6ff",
-                      boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.3)",
-                      fontWeight: 900,
-                    }
-                  : {}),
-              }}
-              onClick={saveAll}
-              disabled={saving}
+              style={styles.btn}
+              onClick={generateWithAI}
+              disabled={aiLoading || !topicKeyForBank}
+              title={!topicKeyForBank ? "Lesson not mapped to a syllabus subtopic." : undefined}
             >
-              {saving ? "Saving..." : "Save flashcards"}
+              {aiDoneLabel(aiLoading)}
             </button>
           </div>
-
-          {status ? <div style={styles.msg}>{status}</div> : null}
-          {error ? <div style={styles.err}>{error}</div> : null}
-          {csvInfo ? <div style={{ ...styles.msg, color: "#1f2937" }}>{csvInfo}</div> : null}
-        </div>
+        )}
       </div>
 
-      <div style={styles.section}>
-        <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Bulk paste import</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
-          Paste either:
-          <br />
-          <span style={{ fontFamily: "monospace" }}>
-            Q: ...{"\n"}A: ...
-          </span>
-          , or <b>• Question{"\n"}Answer</b> (bullet per card), or blocks separated by a blank line.
-        </div>
+      {!readOnlyFromBank && (
+        <>
+          <div style={styles.section}>
+            <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>Add New Flashcard</div>
 
-        <textarea
-          style={{ ...styles.textarea, minHeight: 160 }}
-          value={bulkText}
-          onChange={(e) => setBulkText(e.target.value)}
-          placeholder={`Example:\nQ: Do prokaryotic organisms contain a nucleus?\nA: No. Prokaryotic organisms do not contain a nucleus.\n\nQ: What is a prokaryotic organism?\nA: An organism whose cells lack a nucleus and other membrane-bound organelles.`}
-        />
+            <div style={{ display: "grid", gap: "10px" }}>
+              <div>
+                <div style={styles.label}>Question/Front</div>
+                <textarea
+                  style={styles.textarea}
+                  value={front}
+                  onChange={(e) => setFront(e.target.value)}
+                  placeholder="Enter the question or term..."
+                />
+              </div>
 
-        <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>
-            Detected: <b>{bulkCountPreview}</b> flashcards
-          </div>
+              <div>
+                <div style={styles.label}>Answer/Back</div>
+                <textarea
+                  style={styles.textarea}
+                  value={back}
+                  onChange={(e) => setBack(e.target.value)}
+                  placeholder="Enter the answer or definition..."
+                />
+              </div>
 
-          <div style={styles.btnRow}>
-            <button type="button" style={styles.btnGhost} onClick={() => setBulkText("")}>
-              Clear
-            </button>
-            <button type="button" style={styles.btn} onClick={importBulkPaste}>
-              Import pasted text
-            </button>
-          </div>
-        </div>
-      </div>
+              <div>
+                <div style={styles.label}>Tags (comma-separated)</div>
+                <input
+                  style={styles.input}
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="e.g., key-concept, formula, vocabulary"
+                />
+              </div>
 
-      <div style={styles.section}>
-        <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Import from question bank</div>
-        <div style={{ marginBottom: 10 }}>
-          <SpecSelector value={specKey} onChange={onSpecChange} />
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
-          Add flashcards from the same question bank used by the Worksheet Builder. Choose a topic and append questions as cards (front = question, back = correct answer / mark scheme).
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-          <select
-            value={topicKeyForBank}
-            onChange={(e) => setTopicKeyForBank(e.target.value)}
-            style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
-          >
-            <option value="">Select topic…</option>
-            {taxonomy?.units?.flatMap((u) =>
-              (u.topics || []).map((t) => (
-                <option key={t.key} value={t.key}>
-                  {u.unit} — {t.topic}
-                </option>
-              ))
-            )}
-          </select>
-          <button
-            type="button"
-            style={{ ...styles.btn, opacity: bankImportLoading ? 0.7 : 1 }}
-            onClick={importFromQuestionBank}
-            disabled={bankImportLoading}
-          >
-            {bankImportLoading ? "Loading…" : "Import from question bank (append)"}
-          </button>
-        </div>
-      </div>
+              <div style={styles.btnRow}>
+                <button type="button" style={styles.btn} onClick={handleAddOne}>
+                  Add Flashcard
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.btnGhost,
+                    ...(saveButtonHighlight
+                      ? {
+                          border: "2px solid #2563eb",
+                          background: "#eff6ff",
+                          boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.3)",
+                          fontWeight: 900,
+                        }
+                      : {}),
+                  }}
+                  onClick={saveAll}
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : "Save flashcards"}
+                </button>
+              </div>
 
-      {/* PR-F1: Save current cards to topic bank */}
-      {cards.length > 0 ? (
-        <div style={styles.section}>
-          <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Save to topic bank</div>
-          {!hasLessonTopic && (
-            <div style={{ marginBottom: 10, padding: 8, background: "#fef3c7", borderRadius: 8, fontSize: 13, color: "#92400e" }}>
-              Set Topic first (lesson details) before saving to bank.
+              {status ? <div style={styles.msg}>{status}</div> : null}
+              {error ? <div style={styles.err}>{error}</div> : null}
+              {csvInfo ? <div style={{ ...styles.msg, color: "#1f2937" }}>{csvInfo}</div> : null}
             </div>
-          )}
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
-            Save the current {cards.length} card(s) to the flashcard bank for a topic. Use &quot;Load flashcards from bank&quot; on a lesson with no flashcards to copy them in.
           </div>
-          {duplicateFlashcardCount > 0 && (
-            <div style={{ marginBottom: 8, fontSize: 12, color: "#b45309" }}>⚠️ {duplicateFlashcardCount} duplicate card(s) detected (same front+back). Display only — save and sync are not blocked.</div>
-          )}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-            <select
-              value={topicKeyForImport}
-              onChange={(e) => setTopicKeyForImport(e.target.value)}
-              style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
-            >
-              <option value="">Select topic…</option>
-              {taxonomy?.units?.flatMap((u) =>
-                (u.topics || []).map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {u.unit} — {t.topic}
-                  </option>
-                ))
-              )}
-            </select>
-            <input
-              type="text"
-              value={topicNameForImport}
-              onChange={(e) => setTopicNameForImport(e.target.value)}
-              placeholder="Topic name (optional)"
-              style={{ minWidth: 140, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+
+          <div style={styles.section}>
+            <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Bulk paste import</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
+              Paste either:
+              <br />
+              <span style={{ fontFamily: "monospace" }}>
+                Q: ...{"\n"}A: ...
+              </span>
+              , or <b>• Question{"\n"}Answer</b> (bullet per card), or blocks separated by a blank line.
+            </div>
+
+            <textarea
+              style={{ ...styles.textarea, minHeight: 160 }}
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              placeholder={`Example:\nQ: Do prokaryotic organisms contain a nucleus?\nA: No. Prokaryotic organisms do not contain a nucleus.\n\nQ: What is a prokaryotic organism?\nA: An organism whose cells lack a nucleus and other membrane-bound organelles.`}
             />
-            <button
-              type="button"
-              style={{ ...styles.btn, opacity: importToBankLoading ? 0.7 : 1 }}
-              onClick={() => {
-                if (!hasLessonTopic) {
-                  setError("Set Topic first.");
-                  return;
-                }
-                const key = (topicKeyForImport || "").trim().toLowerCase();
-                if (!key) {
-                  setError("Enter or select a topic key to save to the bank.");
-                  return;
-                }
-                if (cards.length === 0) {
-                  setError("No cards to save.");
-                  return;
-                }
-                setShowSaveToBankConfirm(true);
-              }}
-              disabled={importToBankLoading || !hasLessonTopic}
-            >
-              {importToBankLoading ? "Saving…" : "Import to bank"}
-            </button>
-          </div>
-          {showSaveToBankConfirm && (
-            <div style={{ marginTop: 14, padding: 14, background: "#f0f9ff", border: "1px solid #0ea5e9", borderRadius: 10 }}>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Confirm save to bank</div>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>Topic: <strong>{topicKeyForImport}</strong> · {topicNameForImport || topicKeyForImport?.replace(/-/g, " ") || "—"}</div>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>Count: {cards.length} card(s)</div>
-              <div style={{ fontSize: 12, marginBottom: 10, color: "#475569" }}>Preview (first 3):</div>
-              <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 12 }}>
-                {cards.slice(0, 3).map((c, i) => (
-                  <li key={i}>{(c.front || "").slice(0, 50)}{(c.front && c.front.length > 50) ? "…" : ""} → {(c.back || "").slice(0, 30)}{(c.back && c.back.length > 30) ? "…" : ""}</li>
-                ))}
-              </ul>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" style={{ ...styles.btn }} onClick={() => importCurrentCardsToBank()} disabled={importToBankLoading}>Confirm save</button>
-                <button type="button" style={{ ...styles.btn, background: "#64748b", border: "1px solid #64748b" }} onClick={() => setShowSaveToBankConfirm(false)}>Cancel</button>
+
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>
+                Detected: <b>{bulkCountPreview}</b> flashcards
+              </div>
+
+              <div style={styles.btnRow}>
+                <button type="button" style={styles.btnGhost} onClick={() => setBulkText("")}>
+                  Clear
+                </button>
+                <button type="button" style={styles.btn} onClick={importBulkPaste}>
+                  Import pasted text
+                </button>
               </div>
             </div>
-          )}
-        </div>
-      ) : null}
+          </div>
+
+          <div style={styles.section}>
+            <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Import from question bank</div>
+            <div style={{ marginBottom: 10 }}>
+              <SpecSelector value={specKey} onChange={onSpecChange} />
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
+              Add flashcards from the same question bank used by the Worksheet Builder. Choose a topic and append questions as cards (front = question, back = correct answer / mark scheme).
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <select
+                value={topicKeyForBank}
+                onChange={(e) => setTopicKeyForBank(e.target.value)}
+                style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
+              >
+                <option value="">Select topic…</option>
+                {taxonomy?.units?.flatMap((u) =>
+                  (u.topics || []).map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {u.unit} — {t.topic}
+                    </option>
+                  ))
+                )}
+              </select>
+              <button
+                type="button"
+                style={{ ...styles.btn, opacity: bankImportLoading ? 0.7 : 1 }}
+                onClick={importFromQuestionBank}
+                disabled={bankImportLoading}
+              >
+                {bankImportLoading ? "Loading…" : "Import from question bank (append)"}
+              </button>
+            </div>
+          </div>
+
+          {/* PR-F1: Save current cards to topic bank */}
+          {cards.length > 0 ? (
+            <div style={styles.section}>
+              <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Save to topic bank</div>
+              {!hasLessonTopic && (
+                <div style={{ marginBottom: 10, padding: 8, background: "#fef3c7", borderRadius: 8, fontSize: 13, color: "#92400e" }}>
+                  Set Topic first (lesson details) before saving to bank.
+                </div>
+              )}
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10, lineHeight: "18px" }}>
+                Save the current {cards.length} card(s) to the flashcard bank for a topic. Use &quot;Load flashcards from bank&quot; on a lesson with no flashcards to copy them in.
+              </div>
+              {duplicateFlashcardCount > 0 && (
+                <div style={{ marginBottom: 8, fontSize: 12, color: "#b45309" }}>⚠️ {duplicateFlashcardCount} duplicate card(s) detected (same front+back). Display only — save and sync are not blocked.</div>
+              )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                <select
+                  value={topicKeyForImport}
+                  onChange={(e) => setTopicKeyForImport(e.target.value)}
+                  style={{ minWidth: 220, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13 }}
+                >
+                  <option value="">Select topic…</option>
+                  {taxonomy?.units?.flatMap((u) =>
+                    (u.topics || []).map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {u.unit} — {t.topic}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <input
+                  type="text"
+                  value={topicNameForImport}
+                  onChange={(e) => setTopicNameForImport(e.target.value)}
+                  placeholder="Topic name (optional)"
+                  style={{ minWidth: 140, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+                />
+                <button
+                  type="button"
+                  style={{ ...styles.btn, opacity: importToBankLoading ? 0.7 : 1 }}
+                  onClick={() => {
+                    if (!hasLessonTopic) {
+                      setError("Set Topic first.");
+                      return;
+                    }
+                    const key = (topicKeyForImport || "").trim().toLowerCase();
+                    if (!key) {
+                      setError("Enter or select a topic key to save to the bank.");
+                      return;
+                    }
+                    if (cards.length === 0) {
+                      setError("No cards to save.");
+                      return;
+                    }
+                    setShowSaveToBankConfirm(true);
+                  }}
+                  disabled={importToBankLoading || !hasLessonTopic}
+                >
+                  {importToBankLoading ? "Saving…" : "Import to bank"}
+                </button>
+              </div>
+              {showSaveToBankConfirm && (
+                <div style={{ marginTop: 14, padding: 14, background: "#f0f9ff", border: "1px solid #0ea5e9", borderRadius: 10 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 8 }}>Confirm save to bank</div>
+                  <div style={{ fontSize: 13, marginBottom: 8 }}>Topic: <strong>{topicKeyForImport}</strong> · {topicNameForImport || topicKeyForImport?.replace(/-/g, " ") || "—"}</div>
+                  <div style={{ fontSize: 13, marginBottom: 8 }}>Count: {cards.length} card(s)</div>
+                  <div style={{ fontSize: 12, marginBottom: 10, color: "#475569" }}>Preview (first 3):</div>
+                  <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 12 }}>
+                    {cards.slice(0, 3).map((c, i) => (
+                      <li key={i}>{(c.front || "").slice(0, 50)}{(c.front && c.front.length > 50) ? "…" : ""} → {(c.back || "").slice(0, 30)}{(c.back && c.back.length > 30) ? "…" : ""}</li>
+                    ))}
+                  </ul>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" style={{ ...styles.btn }} onClick={() => importCurrentCardsToBank()} disabled={importToBankLoading}>Confirm save</button>
+                    <button type="button" style={{ ...styles.btn, background: "#64748b", border: "1px solid #64748b" }} onClick={() => setShowSaveToBankConfirm(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </>
+      )}
 
       {/* Existing Flashcards Section with Show/Hide toggle */}
-      <div style={{ marginTop: 16 }}>
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: "center", 
+      <div ref={flashcardsListRef} style={{ marginTop: 16 }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 8,
           flexWrap: "wrap",
-          gap: 8
+          gap: 8,
         }}>
           <div style={{ fontWeight: 900, color: "#111827" }}>
-            Existing Flashcards ({filterBrokenOnly ? `${displayCards.length} of ${cards.length} with issues` : cards.length})
+            {readOnlyFromBank ? "Flashcards" : "Existing Flashcards"} ({filterBrokenOnly ? `${displayCards.length} of ${cards.length} with issues` : cards.length})
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {readOnlyFromBank && topicKeyForBankProp && (
+              <Link
+                to={`/teacher/topic-banks/flashcards?topicKey=${encodeURIComponent(topicKeyForBankProp)}`}
+                style={{ fontSize: 14, color: "#2563eb", fontWeight: 600, textDecoration: "none" }}
+              >
+                Edit flashcards in Topic Bank →
+              </Link>
+            )}
             {brokenCards.length > 0 && onFilterBrokenChange && (
               <button
                 type="button"
@@ -1156,36 +1180,37 @@ export default function FlashcardsEditor({
                 (c as any).localId ??
                 `card-${idx}`;
               return (
-              <div key={key} style={styles.card}>
-                <div style={{ flex: 1, minWidth: 220 }}>
-                  <div style={styles.q}>{c.front}</div>
-                  <div style={styles.a}>{c.back}</div>
-                  <div style={styles.meta}>
-                    <span style={styles.diff}>Difficulty: {normalizeDifficulty(c.difficulty ?? 1)}/3</span>
-                    {(c.tags || []).slice(0, 6).map((t, tagIdx) => (
-                      <span key={`${key}-tag-${tagIdx}-${String(t)}`} style={styles.tag}>
-                        {t}
-                      </span>
-                    ))}
+                <div key={key} style={styles.card}>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={styles.q}>{c.front}</div>
+                    <div style={styles.a}>{c.back}</div>
+                    <div style={styles.meta}>
+                      <span style={styles.diff}>Difficulty: {normalizeDifficulty(c.difficulty ?? 1)}/3</span>
+                      {(c.tags || []).slice(0, 6).map((t, tagIdx) => (
+                        <span key={`${key}-tag-${tagIdx}-${String(t)}`} style={styles.tag}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Updated delete button with admin restrictions */}
-                <button
-                  type="button"
-                  style={{
-                    ...styles.trash,
-                    opacity: isAdmin ? 1 : 0.35,
-                    cursor: isAdmin ? "pointer" : "not-allowed"
-                  }}
-                  onClick={() => handleDelete(c.id)}
-                  title={isAdmin ? "Delete" : "Only admins can delete"}
-                  disabled={!isAdmin}
-                >
-                  🗑️
-                </button>
-              </div>
-            );
+                  {!readOnlyFromBank && (
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.trash,
+                        opacity: isAdmin ? 1 : 0.35,
+                        cursor: isAdmin ? "pointer" : "not-allowed",
+                      }}
+                      onClick={() => handleDelete(c.id)}
+                      title={isAdmin ? "Delete" : "Only admins can delete"}
+                      disabled={!isAdmin}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+              );
             })}
           </div>
         )}

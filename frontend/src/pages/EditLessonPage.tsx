@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api/topicFlashcards";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
-import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTopicKey";
+import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
@@ -524,11 +524,8 @@ const EditLessonPage: React.FC = () => {
   const quizQuestions = useMemo(() => lesson?.quiz?.questions || [], [lesson]);
   const assessmentQuestions = useMemo(() => lesson?.assessment?.questions || [], [lesson]);
 
-  /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — disable generate-from-topic when null */
-  const topicKeyForBank = useMemo(
-    () => resolveLessonTopicKeyForBankFromLesson(lesson),
-    [lesson]
-  );
+  /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — uses taxonomy resolve when lesson.topicKey missing */
+  const topicKeyForBank = useResolvedTopicKeyForBank(lesson);
 
   /** SS1 responsive layout: wide (3 col) / medium (2 col, preview below) / narrow (1 col stack) */
   const [layoutBreakpoint, setLayoutBreakpoint] = useState<"wide" | "medium" | "narrow">("wide");
@@ -2106,6 +2103,9 @@ const EditLessonPage: React.FC = () => {
         level: lesson.level,
         topic: lesson.topic,
         topicKey: topicKeyForBank ?? lesson.topicKey ?? undefined,
+        specKey: (lesson as { specKey?: string }).specKey ?? undefined,
+        mainTopic: (lesson as { mainTopic?: string }).mainTopic ?? undefined,
+        subTopic: (lesson as { subTopic?: string }).subTopic ?? undefined,
         board: lesson.examBoardName || "",
         estimatedDuration: lesson.estimatedDuration,
         shamCoinPrice: lesson.shamCoinPrice,
@@ -2854,6 +2854,22 @@ const EditLessonPage: React.FC = () => {
                       }}
                     />
                   </label>
+
+                  {topicKeyForBank ? (
+                    <div style={{ gridColumn: "1 / -1", padding: "10px 12px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #86efac", fontSize: 13 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 6, color: "#166534" }}>Syllabus mapping</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", color: "#15803d" }}>
+                        <span><strong>Subject:</strong> {lesson.subject || "—"}</span>
+                        <span><strong>Spec:</strong> {(lesson as { specKey?: string }).specKey || topicKeyForBank?.split(":")[0] || "—"}</span>
+                        <span><strong>Main topic:</strong> {(lesson as { mainTopic?: string }).mainTopic || "—"}</span>
+                        <span><strong>Sub-topic:</strong> {(lesson as { subTopic?: string }).subTopic || lesson.topic || "—"}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ gridColumn: "1 / -1", padding: "10px 12px", borderRadius: 10, background: "#fef3c7", border: "1px solid #fcd34d", fontSize: 13, color: "#92400e" }}>
+                      <strong>This lesson needs a syllabus topic.</strong> Set Subject, Level, and Topic to match a taxonomy sub-topic (e.g. "Cell structure" for AQA GCSE Biology). Flashcards, practice, and bank import require a valid mapping.
+                    </div>
+                  )}
 
                   <label style={{ display: "block" }}>
                     <div style={{ fontWeight: 800, marginBottom: 6 }}>
@@ -4499,7 +4515,7 @@ const EditLessonPage: React.FC = () => {
                               await fetchLessonSmart();
                               const count = result.addedCount ?? result.added ?? result.flashcardsCount ?? 0;
                               setSeedFlashcardsSuccess(
-                                count > 0 ? `Added ${count} flashcards from topic bank.` : "No published flashcards in bank for this topic."
+                                count > 0 ? `Added ${count} flashcards from topic bank.` : "No flashcards found for this exact topic."
                               );
                             } catch (e: any) {
                               setSeedFlashcardsError(e?.response?.data?.msg || e?.message || "Failed to generate from topic bank");
@@ -4557,7 +4573,7 @@ const EditLessonPage: React.FC = () => {
                               }
                               let msg: string;
                               if (count > 0) msg = `Updated ${updated}, added ${added} from topic bank.`;
-                              else if (topicBankCount === 0) msg = "No published topic-bank flashcards found for this topic.";
+                              else if (topicBankCount === 0) msg = "No flashcards found for this exact topic.";
                               else msg = "Already up to date.";
                               setSyncFlashcardsSuccess(msg);
                             } catch (e: any) {
@@ -4580,8 +4596,8 @@ const EditLessonPage: React.FC = () => {
                         >
                           {syncFlashcardsLoading ? "Syncing…" : "Sync from Topic Bank"}
                         </button>
-                        <Link to="/teacher/topic-banks/flashcards" style={{ fontSize: 14, color: "#2563eb" }}>
-                          Manage topic bank →
+                        <Link to={topicKeyForBank ? `/teacher/topic-banks/flashcards?topicKey=${encodeURIComponent(topicKeyForBank)}` : "/teacher/topic-banks/flashcards"} style={{ fontSize: 14, color: "#2563eb", fontWeight: 600 }}>
+                          Edit flashcards in Topic Bank →
                         </Link>
                         {seedFlashcardsError && (
                           <span style={{ color: "#dc2626", fontSize: 14 }}>{seedFlashcardsError}</span>
@@ -4606,6 +4622,7 @@ const EditLessonPage: React.FC = () => {
                         isAdmin={isAdmin}
                         filterBrokenOnly={filterFlashcardsBrokenOnly}
                         onFilterBrokenChange={setFilterFlashcardsBrokenOnly}
+                        readOnlyFromBank={true}
                       />
                     </>
                 </div>

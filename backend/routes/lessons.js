@@ -532,6 +532,9 @@ async function createLessonHandler(req, res) {
       level,
       topic,
       topicKey,
+      specKey,
+      mainTopic,
+      subTopic,
       tags,
       estimatedDuration,
       shamCoinPrice,
@@ -615,6 +618,15 @@ async function createLessonHandler(req, res) {
     }
     if (typeof topicKey === "string" && topicKey.trim()) {
       lessonData.topicKey = topicKey.trim();
+    }
+    if (typeof specKey === "string" && specKey.trim()) {
+      lessonData.specKey = specKey.trim();
+    }
+    if (typeof mainTopic === "string" && mainTopic.trim()) {
+      lessonData.mainTopic = mainTopic.trim();
+    }
+    if (typeof subTopic === "string" && subTopic.trim()) {
+      lessonData.subTopic = subTopic.trim();
     }
 
     // PR0: accept examBoard or board, store as board
@@ -812,6 +824,10 @@ async function cloneGoldLesson(req, res) {
         subject: "Biology",
         level: "GCSE",
         topic: "Photosynthesis",
+        topicKey: "aqa-gcse-biology:photosynthesis",
+        specKey: "aqa-gcse-biology",
+        mainTopic: "Bioenergetics",
+        subTopic: "Photosynthesis",
         tags: ["biology", "photosynthesis", "plants", "respiration"],
         estimatedDuration: 60,
         shamCoinPrice: 50,
@@ -2550,6 +2566,23 @@ router.put("/:id", auth, async (req, res) => {
       delete updates.board;
     }
 
+    // PR-TAXONOMY: When topicKey is set, derive specKey from it if not provided
+    const topicKeyVal = updates.topicKey ?? lesson.topicKey;
+    if (typeof topicKeyVal === "string" && topicKeyVal.trim() && topicKeyVal.includes(":")) {
+      const derivedSpecKey = topicKeyVal.trim().slice(0, topicKeyVal.indexOf(":"));
+      if (derivedSpecKey && !updates.specKey) {
+        lesson.specKey = lesson.specKey || derivedSpecKey;
+      }
+    }
+    if (typeof updates.specKey === "string" && updates.specKey.trim()) lesson.specKey = updates.specKey.trim();
+    if (typeof updates.mainTopic === "string" && updates.mainTopic.trim()) lesson.mainTopic = updates.mainTopic.trim();
+    if (typeof updates.subTopic === "string" && updates.subTopic.trim()) lesson.subTopic = updates.subTopic.trim();
+    if (typeof updates.topicKey === "string" && updates.topicKey.trim()) lesson.topicKey = updates.topicKey.trim();
+    delete updates.specKey;
+    delete updates.mainTopic;
+    delete updates.subTopic;
+    delete updates.topicKey;
+
     // Authorable free preview (whitelisted + coerced)
     const flags = pickLessonFlags(req.body);
     if (typeof flags.isFreePreview === "boolean") lesson.isFreePreview = flags.isFreePreview;
@@ -2888,7 +2921,13 @@ async function handleGenerateFlashcardsFromTopic(req, res) {
     }
     const ownerId = lesson.teacherId || lesson.createdBy;
     if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
-    const bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 20, { publishedOnly: true });
+    let bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 20, { publishedOnly: true });
+    if (bankCards.length === 0) {
+      bankCards = await fetchTopicFlashcardsForTopicOnly(namespacedTopicKey, 20, {
+        publishedOnly: true,
+        specKey,
+      });
+    }
     lesson.flashcards = bankCards;
     await lesson.save();
     const addedCount = bankCards.length;
