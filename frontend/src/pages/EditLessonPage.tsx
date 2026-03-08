@@ -3064,7 +3064,7 @@ const EditLessonPage: React.FC = () => {
                         (currentPage!.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
                       );
                       if (isCheckpoint && cp) {
-                        if (hasPageCheckpointContent) cpWarnings.push("Ignored in student view (page checkpoint takes precedence).");
+                        if (hasPageCheckpointContent) cpWarnings.push("This checkpoint will not appear to students because this page already has a page-level checkpoint. Page-level checkpoints take precedence.");
                         if (!(String(cp.prompt ?? "").trim())) cpWarnings.push("Prompt is required.");
                         if (cp.questionType === "mcq") {
                           const filled = (cp.options ?? []).filter((o) => String(o ?? "").trim()).length;
