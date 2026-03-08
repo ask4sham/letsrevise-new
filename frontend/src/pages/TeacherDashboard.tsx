@@ -583,13 +583,19 @@ const TeacherDashboard: React.FC = () => {
       navigate(`/edit-lesson/${lessonId}`, warning ? { state: { generationWarning: warning } } : undefined);
     } catch (err: any) {
       console.error("AI generate-and-save failed:", err);
-      const data = err?.response?.data;
+      // Support both axios error (err.response.data) and api interceptor (err.data)
+      const data = err?.response?.data ?? err?.data;
       const msg =
         (typeof data?.details === "string" ? data.details : null) ||
         (typeof data?.error === "string" ? data.error : null) ||
+        (typeof data?.message === "string" ? data.message : null) ||
         err?.message ||
         "AI generation failed. Please try again.";
-      setAiError(msg);
+      const status = err?.response?.status ?? err?.status;
+      const display = status === 422
+        ? `${msg}${data?.code ? ` (${data.code})` : ""}`
+        : msg;
+      setAiError(display);
     } finally {
       setAiLoading(false);
     }
@@ -664,7 +670,7 @@ const TeacherDashboard: React.FC = () => {
               <button type="button" onClick={openAiModal} title="Create draft lesson content, quizzes and flashcards for a topic" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.12)", color: "#166534", border: "1px solid #22c55e", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer", width: "100%", textAlign: "center" }}>Generate lesson with AI</button>
               <Link to="/browse-lessons" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>My lessons</Link>
               <Link to="/assessments/papers/builder" style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", color: "#166534", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #86efac", textAlign: "center" }}>Exam lessons</Link>
-              <div style={{ fontSize: 11, color: "#1e40af", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #3b82f6", paddingLeft: 6 }}>Practice banks</div>
+              <div style={{ fontSize: 11, color: "#1e40af", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #3b82f6", paddingLeft: 6 }}>Question Banks</div>
               <Link to="/teacher/topic-banks/flashcards" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Flashcards</Link>
               <Link to="/teacher/topic-banks/quizzes" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Quizzes</Link>
               <Link to="/teacher/topic-banks/past-papers" style={{ padding: "10px 14px", background: "rgba(59,130,246,0.08)", color: "#1e40af", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #93c5fd", textAlign: "center" }}>Exam questions</Link>
@@ -672,6 +678,7 @@ const TeacherDashboard: React.FC = () => {
               <div style={{ fontSize: 11, color: "#6b21a8", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #8b5cf6", paddingLeft: 6 }}>Monitor course health</div>
               <Link to="/coverage" title="See which topics need more support" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Coverage</Link>
               <Link to="/teacher/questions" title="See where students are asking questions or where coverage is weak" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Student questions</Link>
+              <Link to="/teacher/content-issues" title="Reported mistakes in lesson content" style={{ padding: "10px 14px", background: "rgba(139,92,246,0.08)", color: "#6b21a8", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #c4b5fd", textAlign: "center" }}>Content Issues</Link>
               <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 10, marginBottom: 4, textTransform: "uppercase", borderLeft: "3px solid #9ca3af", paddingLeft: 6 }}>Account</div>
               <button type="button" onClick={handleCreateWorksheet} disabled={creatingWorksheet} style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", border: "1px solid #d1d5db", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: creatingWorksheet ? "wait" : "pointer", width: "100%", textAlign: "center" }}>{creatingWorksheet ? "Creating…" : "Create worksheet"}</button>
               <Link to="/teacher/reports/attempts" style={{ padding: "10px 14px", background: "#f9fafb", color: "#4b5563", textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, border: "1px solid #d1d5db", textAlign: "center" }}>Assessment reports</Link>

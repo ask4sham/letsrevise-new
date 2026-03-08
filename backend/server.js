@@ -298,6 +298,9 @@ app.use("/api/reports", require("./routes/reports"));
 // PR12: Practice/checkpoint attempts
 app.use("/api/attempts", require("./routes/attempts"));
 
+// Lesson issue reports (students/teachers submit; admin/teachers manage)
+app.use("/api/lesson-issues", require("./routes/lessonIssues"));
+
 // PR-W2.3: Dev-only seed endpoints (ENABLE_DEV_TOOLS=1; teacher/admin)
 app.use("/api/dev", require("./routes/devTools"));
 

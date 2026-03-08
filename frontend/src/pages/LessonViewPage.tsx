@@ -27,6 +27,7 @@ import { StudyPlanPanel } from "../components/ai/StudyPlanPanel";
 import { getAiTutorEnabled } from "../api/featureFlags";
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
+import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
 import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import { recordMastery, getMastery } from "../api/mastery";
@@ -1108,6 +1109,9 @@ const LessonViewPage: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   /** PR: success/conflict toast for Generate revision with AI */
   const [aiToast, setAiToast] = useState<{ message: string; type: "success" | "error" | "info" | "warning" } | null>(null);
+  /** Report Issue modal — blockId when triggered from a specific block */
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportBlockId, setReportBlockId] = useState<string | null>(null);
   // PR-F1: Load flashcards from bank (teacher, when lesson has none)
   const [loadFromBankLoading, setLoadFromBankLoading] = useState(false);
   const [loadFromBankError, setLoadFromBankError] = useState<string | null>(null);
@@ -2409,9 +2413,11 @@ const LessonViewPage: React.FC = () => {
           <div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>
             🔑 Key Idea(s)
           </div>
-          <ReactMarkdown components={markdownComponents as any}>
-            {text}
-          </ReactMarkdown>
+          <div className="lesson-content">
+            <ReactMarkdown components={markdownComponents as any}>
+              {text}
+            </ReactMarkdown>
+          </div>
         </div>
       );
     }
@@ -2429,9 +2435,11 @@ const LessonViewPage: React.FC = () => {
           <div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>
             🧠 Exam insight
           </div>
-          <ReactMarkdown components={markdownComponents as any}>
-            {text}
-          </ReactMarkdown>
+          <div className="lesson-content">
+            <ReactMarkdown components={markdownComponents as any}>
+              {text}
+            </ReactMarkdown>
+          </div>
         </div>
       );
     }
@@ -2449,9 +2457,11 @@ const LessonViewPage: React.FC = () => {
           <div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>
             ⚠️ Common mistake(s)
           </div>
-          <ReactMarkdown components={markdownComponents as any}>
-            {text}
-          </ReactMarkdown>
+          <div className="lesson-content">
+            <ReactMarkdown components={markdownComponents as any}>
+              {text}
+            </ReactMarkdown>
+          </div>
         </div>
       );
     }
@@ -2471,9 +2481,11 @@ const LessonViewPage: React.FC = () => {
           <div style={{ fontWeight: 900, marginBottom: 6, color: "#5b21b6" }}>
             🔍 Deeper knowledge (stretch)
           </div>
-          <ReactMarkdown components={markdownComponents as any}>
-            {text}
-          </ReactMarkdown>
+          <div className="lesson-content">
+            <ReactMarkdown components={markdownComponents as any}>
+              {text}
+            </ReactMarkdown>
+          </div>
         </div>
       );
     }
@@ -2509,6 +2521,7 @@ const LessonViewPage: React.FC = () => {
     return (
       <div
         key={idx}
+        className="lesson-content"
         style={{
           ...base,
           padding: "12px 14px",
@@ -3397,6 +3410,27 @@ const LessonViewPage: React.FC = () => {
                         {b.type === "diagram"
                           ? renderDiagramBlock(b, idx)
                           : renderCallout(b.type, safeStr(b.content, ""), idx)}
+                        {user && id && (
+                          <div style={{ marginTop: 6, fontSize: 12 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReportBlockId(String(idx));
+                                setShowReportModal(true);
+                              }}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#94a3b8",
+                                cursor: "pointer",
+                                textDecoration: "underline",
+                                padding: 0,
+                              }}
+                            >
+                              Report issue with this block
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -3404,16 +3438,39 @@ const LessonViewPage: React.FC = () => {
 
                 {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}
                 {checkpointData && (
-                  <LessonCheckpoint
-                    mode={checkpointData.mode}
-                    prompt={checkpointData.prompt}
-                    options={checkpointData.options}
-                    correctAnswer={checkpointData.correctAnswer}
-                    explanation={checkpointData.explanation}
-                    name={checkpointData.name}
-                    lessonId={id ?? undefined}
-                    entitled={Boolean(accessDecision?.allowed)}
-                  />
+                  <div>
+                    <LessonCheckpoint
+                      mode={checkpointData.mode}
+                      prompt={checkpointData.prompt}
+                      options={checkpointData.options}
+                      correctAnswer={checkpointData.correctAnswer}
+                      explanation={checkpointData.explanation}
+                      name={checkpointData.name}
+                      lessonId={id ?? undefined}
+                      entitled={Boolean(accessDecision?.allowed)}
+                    />
+                    {user && id && (
+                      <div style={{ marginTop: 6, fontSize: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReportBlockId("checkpoint");
+                            setShowReportModal(true);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#94a3b8",
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                            padding: 0,
+                          }}
+                        >
+                          Report issue with this question
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* SS2: Inline Prev/Next removed; use bottom nav (LessonPrevNextBar) only */}
@@ -3983,6 +4040,43 @@ const LessonViewPage: React.FC = () => {
               </div>
             </aside>
           </div>
+          {/* Report Issue — bottom of each lesson page */}
+          {user && id && (
+            <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setReportBlockId(null);
+                  setShowReportModal(true);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#6b7280",
+                  fontSize: 14,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  padding: 0,
+                }}
+              >
+                Found a mistake? Report an issue.
+              </button>
+            </div>
+          )}
+          {showReportModal && id && (
+            <ReportIssueModal
+              lessonId={id}
+              pageId={currentPage?.pageId ?? undefined}
+              pageTitle={currentPage?.title ?? undefined}
+              pageOrder={currentPageIndex >= 0 ? currentPageIndex + 1 : undefined}
+              blockId={reportBlockId ?? undefined}
+              onClose={() => {
+                setShowReportModal(false);
+                setReportBlockId(null);
+              }}
+              onSuccess={() => setAiToast({ message: "Thank you for your report. We'll review it shortly.", type: "success" })}
+            />
+          )}
           {/* PR-STUDENT-LESSON-NAV-3: SS2-style prev/next bar at bottom */}
           {specKey && topicKeyForBank && (
             <LessonPrevNextBar
@@ -4119,6 +4213,7 @@ const LessonViewPage: React.FC = () => {
             Lesson Content
           </h3>
           <div
+            className="lesson-content"
             style={{
               background: "#f8f9fa",
               padding: "20px",
@@ -4655,6 +4750,33 @@ const LessonViewPage: React.FC = () => {
               {nextSteps.studentSummary}
             </div>
           </div>
+        )}
+        {/* Report Issue — bottom of legacy lesson */}
+        {user && id && (
+          <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+            <button
+              type="button"
+              onClick={() => setShowReportModal(true)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#6b7280",
+                fontSize: 14,
+                cursor: "pointer",
+                textDecoration: "underline",
+                padding: 0,
+              }}
+            >
+              Found a mistake? Report an issue.
+            </button>
+          </div>
+        )}
+        {showReportModal && id && (
+          <ReportIssueModal
+            lessonId={id}
+            onClose={() => setShowReportModal(false)}
+            onSuccess={() => setAiToast({ message: "Thank you for your report. We'll review it shortly.", type: "success" })}
+          />
         )}
         {specKey && topicKeyForBank && (
           <LessonPrevNextBar

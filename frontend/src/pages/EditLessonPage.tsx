@@ -30,6 +30,7 @@ import {
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import Toast from "../components/Toast";
+import { listReports, updateReportStatus, type LessonIssueReport } from "../api/lessonIssues";
 
 interface LessonPageBlock {
   type: LessonBlockType;
@@ -452,6 +453,24 @@ const EditLessonPage: React.FC = () => {
   
   // State for mark preview expansion
   const [expandedPreviews, setExpandedPreviews] = useState<Set<string>>(new Set());
+  /** Open lesson issue reports (status=open) for this lesson */
+  const [lessonIssueReports, setLessonIssueReports] = useState<LessonIssueReport[]>([]);
+  /** Expanded "View reports" block key: `${pageId}-${blockId}` */
+  const [expandedReportsKey, setExpandedReportsKey] = useState<string | null>(null);
+  /** Report id being resolved (for loading state) */
+  const [resolvingReportId, setResolvingReportId] = useState<string | null>(null);
+
+  const handleResolveReport = async (reportId: string) => {
+    setResolvingReportId(reportId);
+    try {
+      await updateReportStatus(reportId, "resolved");
+      setLessonIssueReports((prev) => prev.filter((r) => r.id !== reportId));
+    } catch {
+      // Keep report in list on error
+    } finally {
+      setResolvingReportId(null);
+    }
+  };
 
   /** PR11.1: drag-to-position diagram annotations */
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
@@ -519,6 +538,30 @@ const EditLessonPage: React.FC = () => {
     if (!hasStructuredPages) return null;
     return orderedPages[currentPageIndex] || null;
   }, [hasStructuredPages, orderedPages, currentPageIndex]);
+
+  /** Group open reports by pageId and blockId for surfacing in editor */
+  const { reportsByPage, reportsByBlock, reportsByPageOnly } = useMemo(() => {
+    const byPage = new Map<string, number>();
+    const byBlock = new Map<string, LessonIssueReport[]>();
+    const byPageOnly = new Map<string, LessonIssueReport[]>();
+    for (const r of lessonIssueReports) {
+      const pid = r.pageId ?? "";
+      if (!pid) continue;
+      byPage.set(pid, (byPage.get(pid) ?? 0) + 1);
+      const bid = r.blockId ?? "";
+      if (bid) {
+        const key = `${pid}-${bid}`;
+        const list = byBlock.get(key) ?? [];
+        list.push(r);
+        byBlock.set(key, list);
+      } else {
+        const list = byPageOnly.get(pid) ?? [];
+        list.push(r);
+        byPageOnly.set(pid, list);
+      }
+    }
+    return { reportsByPage: byPage, reportsByBlock: byBlock, reportsByPageOnly: byPageOnly };
+  }, [lessonIssueReports]);
 
   const flashcards = useMemo(() => lesson?.flashcards || [], [lesson]);
   const quizQuestions = useMemo(() => lesson?.quiz?.questions || [], [lesson]);
@@ -620,6 +663,14 @@ const EditLessonPage: React.FC = () => {
       setSelectedBankQuestionIds(new Set());
     }).catch(() => setBankQuestions([]));
   }, [addFromBankModalOpen, bankTopicKey]);
+
+  /** Fetch open lesson issue reports when editing a lesson */
+  useEffect(() => {
+    if (!id) return;
+    listReports({ lessonId: id, status: "open" })
+      .then((res) => setLessonIssueReports(res.reports || []))
+      .catch(() => setLessonIssueReports([]));
+  }, [id]);
 
   const fetchLessonSmart = async () => {
     try {
@@ -2557,6 +2608,7 @@ const EditLessonPage: React.FC = () => {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {(orderedPages || []).map((p, idx) => {
                     const isCurrent = pagesReady ? idx === currentPageIndex : false;
+                    const issueCount = reportsByPage.get(p.pageId) ?? 0;
                     return (
                       <div
                         key={p.pageId || idx}
@@ -2582,6 +2634,21 @@ const EditLessonPage: React.FC = () => {
                           }}
                         >
                           {p.title || `Page ${p.order}`}
+                          {issueCount > 0 && (
+                            <span
+                              style={{
+                                marginLeft: 6,
+                                padding: "2px 6px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background: "#fef3c7",
+                                color: "#92400e",
+                              }}
+                            >
+                              {issueCount}
+                            </span>
+                          )}
                         </button>
                         <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
                           <button onClick={() => movePage(p.pageId, -1)} style={{ flex: 1, padding: "6px 8px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.12)", background: "white", cursor: "pointer", fontWeight: 800 }}>↑</button>
@@ -2938,6 +3005,71 @@ const EditLessonPage: React.FC = () => {
                       border: "2px solid rgba(0,0,0,0.16)",
                     }}
                   >
+                    {currentPage && (reportsByPageOnly.get(currentPage.pageId) ?? []).length > 0 && (() => {
+                      const pageReports = reportsByPageOnly.get(currentPage.pageId) ?? [];
+                      const pk = `${currentPage.pageId}-page`;
+                      return (
+                        <div
+                          style={{
+                            marginBottom: 12,
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            background: "#fef3c7",
+                            border: "1px solid #f59e0b",
+                            fontSize: 13,
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, color: "#92400e" }}>
+                            Issue reported on this page{pageReports.length > 1 ? ` (${pageReports.length})` : ""}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedReportsKey(expandedReportsKey === pk ? null : pk)}
+                            style={{
+                              marginTop: 4,
+                              background: "none",
+                              border: "none",
+                              color: "#b45309",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              textDecoration: "underline",
+                              padding: 0,
+                            }}
+                          >
+                            {expandedReportsKey === pk ? "Hide reports" : "View reports"}
+                          </button>
+                          {expandedReportsKey === pk && (
+                            <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
+                              {pageReports.map((rep, ri) => (
+                                <div key={rep.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: ri < pageReports.length - 1 ? "1px solid #fcd34d" : "none" }}>
+                                  <div><strong>{rep.reportTypeLabel}</strong></div>
+                                  <div>{rep.description}</div>
+                                  {rep.suggestedFix && <div style={{ marginTop: 4, fontStyle: "italic" }}>Suggested: {rep.suggestedFix}</div>}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResolveReport(rep.id)}
+                                    disabled={resolvingReportId === rep.id}
+                                    style={{
+                                      marginTop: 6,
+                                      padding: "4px 10px",
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      borderRadius: 6,
+                                      border: "1px solid #059669",
+                                      background: "#ecfdf5",
+                                      color: "#059669",
+                                      cursor: resolvingReportId === rep.id ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {resolvingReportId === rep.id ? "Resolving…" : "Mark resolved"}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                       <div style={{ fontWeight: 900, color: "#111827" }}>
                         Editing: {currentPage?.title || `Page ${currentPage?.order}`}
@@ -3075,8 +3207,72 @@ const EditLessonPage: React.FC = () => {
                         }
                       }
 
+                      const blockReportKey = isCheckpoint ? `${currentPage!.pageId}-checkpoint` : `${currentPage!.pageId}-${idx}`;
+                      const blockReports = reportsByBlock.get(blockReportKey) ?? [];
+
                       return (
                         <div key={key} style={getBlockStyle(blockType)}>
+                          {blockReports.length > 0 && (
+                            <div
+                              style={{
+                                marginBottom: 10,
+                                padding: "8px 12px",
+                                borderRadius: 8,
+                                background: "#fef3c7",
+                                border: "1px solid #f59e0b",
+                                fontSize: 13,
+                              }}
+                            >
+                              <div style={{ fontWeight: 600, color: "#92400e" }}>
+                                Issue reported on this block{blockReports.length > 1 ? ` (${blockReports.length})` : ""}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedReportsKey(expandedReportsKey === blockReportKey ? null : blockReportKey)}
+                                style={{
+                                  marginTop: 4,
+                                  background: "none",
+                                  border: "none",
+                                  color: "#b45309",
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  textDecoration: "underline",
+                                  padding: 0,
+                                }}
+                              >
+                                {expandedReportsKey === blockReportKey ? "Hide reports" : "View reports"}
+                              </button>
+                              {expandedReportsKey === blockReportKey && (
+                                <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
+                                  {blockReports.map((rep, ri) => (
+                                    <div key={rep.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: ri < blockReports.length - 1 ? "1px solid #fcd34d" : "none" }}>
+                                      <div><strong>{rep.reportTypeLabel}</strong></div>
+                                      <div>{rep.description}</div>
+                                      {rep.suggestedFix && <div style={{ marginTop: 4, fontStyle: "italic" }}>Suggested: {rep.suggestedFix}</div>}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleResolveReport(rep.id)}
+                                        disabled={resolvingReportId === rep.id}
+                                        style={{
+                                          marginTop: 6,
+                                          padding: "4px 10px",
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          borderRadius: 6,
+                                          border: "1px solid #059669",
+                                          background: "#ecfdf5",
+                                          color: "#059669",
+                                          cursor: resolvingReportId === rep.id ? "not-allowed" : "pointer",
+                                        }}
+                                      >
+                                        {resolvingReportId === rep.id ? "Resolving…" : "Mark resolved"}
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                             {blockType !== "text" && (
                               <div style={{ fontWeight: 900 }}>
@@ -4211,6 +4407,71 @@ const EditLessonPage: React.FC = () => {
                       border: "2px solid rgba(0,0,0,0.16)",
                     }}
                   >
+                    {currentPage && (() => {
+                      const cpKey = `${currentPage.pageId}-checkpoint`;
+                      const cpReports = reportsByBlock.get(cpKey) ?? [];
+                      return cpReports.length > 0 ? (
+                        <div
+                          style={{
+                            marginBottom: 10,
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            background: "#fef3c7",
+                            border: "1px solid #f59e0b",
+                            fontSize: 13,
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, color: "#92400e" }}>
+                            Issue reported on this block{cpReports.length > 1 ? ` (${cpReports.length})` : ""}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedReportsKey(expandedReportsKey === cpKey ? null : cpKey)}
+                            style={{
+                              marginTop: 4,
+                              background: "none",
+                              border: "none",
+                              color: "#b45309",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              textDecoration: "underline",
+                              padding: 0,
+                            }}
+                          >
+                            {expandedReportsKey === cpKey ? "Hide reports" : "View reports"}
+                          </button>
+                          {expandedReportsKey === cpKey && (
+                            <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
+                              {cpReports.map((rep, ri) => (
+                                <div key={rep.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: ri < cpReports.length - 1 ? "1px solid #fcd34d" : "none" }}>
+                                  <div><strong>{rep.reportTypeLabel}</strong></div>
+                                  <div>{rep.description}</div>
+                                  {rep.suggestedFix && <div style={{ marginTop: 4, fontStyle: "italic" }}>Suggested: {rep.suggestedFix}</div>}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResolveReport(rep.id)}
+                                    disabled={resolvingReportId === rep.id}
+                                    style={{
+                                      marginTop: 6,
+                                      padding: "4px 10px",
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      borderRadius: 6,
+                                      border: "1px solid #059669",
+                                      background: "#ecfdf5",
+                                      color: "#059669",
+                                      cursor: resolvingReportId === rep.id ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {resolvingReportId === rep.id ? "Resolving…" : "Mark resolved"}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
                     <div style={{ fontWeight: 900, marginBottom: 10 }}>Checkpoint</div>
 
                     <label style={{ display: "block" }}>
@@ -4315,7 +4576,7 @@ const EditLessonPage: React.FC = () => {
                     const blockType = normalizeBlockType(b?.type);
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
-                        <div style={getBlockStyle(blockType)}>
+                        <div className="lesson-content" style={getBlockStyle(blockType)}>
                           <ReactMarkdown components={markdownComponents as any}>
                             {safeStr(b.content, "")}
                           </ReactMarkdown>

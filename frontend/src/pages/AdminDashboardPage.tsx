@@ -622,6 +622,20 @@ const AdminDashboardPage: React.FC = () => {
         >
           AI Coverage →
         </Link>
+        <Link
+          to="/teacher/content-issues"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fef3c7",
+            color: "#92400e",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Content Issues →
+        </Link>
       </div>
       </div>
 

@@ -7,6 +7,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import api, { getVisualById } from "../services/api";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 
 interface DiagramAnnotation {
   id: string;
@@ -51,6 +52,7 @@ interface Lesson {
   id: string;
   title: string;
   topic: string;
+  topicKey?: string;
   subject: string;
   level: string;
   pages?: LessonPage[];
@@ -363,6 +365,7 @@ const ClassroomModePage: React.FC = () => {
           id: String(d._id ?? d.id ?? lessonId),
           title: safeStr(d.title, "Untitled"),
           topic: safeStr(d.topic, ""),
+          topicKey: typeof d.topicKey === "string" ? d.topicKey : undefined,
           subject: safeStr(d.subject, "Biology"),
           level: safeStr(d.level, "GCSE"),
           pages: Array.isArray(d.pages) ? d.pages : [],
@@ -372,11 +375,20 @@ const ClassroomModePage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [lessonId]);
 
+  const topicKeyForBank = useMemo(() => {
+    if (!lesson) return null;
+    const specKey = getSpecKeyFromLesson(lesson);
+    const candidate = lesson.topicKey ?? null;
+    return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: candidate ?? undefined });
+  }, [lesson]);
+
   useEffect(() => {
     if (!lessonId) return;
     setPracticeLoading(true);
     api
-      .get(`/lessons/${lessonId}/practice`)
+      .get(`/lessons/${lessonId}/practice`, {
+        params: topicKeyForBank ? { topicKey: topicKeyForBank } : undefined,
+      })
       .then((res) => {
         const data = res?.data;
         setPracticeAllowed(!!data?.allowed);
@@ -387,7 +399,7 @@ const ClassroomModePage: React.FC = () => {
         setPracticeQuestions([]);
       })
       .finally(() => setPracticeLoading(false));
-  }, [lessonId]);
+  }, [lessonId, topicKeyForBank]);
 
   /** PR15: Fetch reteach plan when Reteach tab is selected */
   useEffect(() => {
@@ -430,10 +442,10 @@ const ClassroomModePage: React.FC = () => {
 
   const renderCallout = (kind: LessonPageBlock["type"] | "keyWords", text: string, idx: number) => {
     const base: React.CSSProperties = { padding: 14, borderRadius: 12, margin: "14px 0", lineHeight: 1.8, background: "white", textAlign: "left", fontSize: BASE_FONT };
-    if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key Idea(s)</div><ReactMarkdown>{text}</ReactMarkdown></div>;
-    if (kind === "examTip") return <div key={idx} style={{ ...base, background: "#eef2ff", border: "2px solid rgba(99,102,241,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>🧠 Exam insight</div><ReactMarkdown>{text}</ReactMarkdown></div>;
-    if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake(s)</div><ReactMarkdown>{text}</ReactMarkdown></div>;
-    if (kind === "stretch") return <div key={idx} style={{ ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#5b21b6" }}>🔍 Deeper knowledge</div><ReactMarkdown>{text}</ReactMarkdown></div>;
+    if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key Idea(s)</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
+    if (kind === "examTip") return <div key={idx} style={{ ...base, background: "#eef2ff", border: "2px solid rgba(99,102,241,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>🧠 Exam insight</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
+    if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake(s)</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
+    if (kind === "stretch") return <div key={idx} style={{ ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#5b21b6" }}>🔍 Deeper knowledge</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
     const keywords = (kind === "keyWords" || kind === "text") ? maybeParseKeywordsFromText(text) : null;
     if (keywords && keywords.length > 0) return (
       <div key={idx} style={{ ...base, background: "rgba(139,92,246,0.06)", border: "2px solid rgba(139,92,246,0.30)" }}>
@@ -441,7 +453,7 @@ const ClassroomModePage: React.FC = () => {
         <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>{keywords.map((item, i) => <li key={i}>{item}</li>)}</ul>
       </div>
     );
-    return <div key={idx} style={{ ...base, background: "#fbfbfc", border: "2px solid rgba(0,0,0,0.10)" }}><ReactMarkdown>{text}</ReactMarkdown></div>;
+    return <div key={idx} style={{ ...base, background: "#fbfbfc", border: "2px solid rgba(0,0,0,0.10)" }}><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
   };
 
   const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {

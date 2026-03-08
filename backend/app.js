@@ -114,6 +114,9 @@ app.use("/api/reports", require("./routes/reports"));
 // PR12: Practice/checkpoint attempts (record only)
 app.use("/api/attempts", require("./routes/attempts"));
 
+// Lesson issue reports (students/teachers submit; admin/teachers manage)
+app.use("/api/lesson-issues", require("./routes/lessonIssues"));
+
 // PR-W1: worksheets (teacher/admin only)
 app.use("/api/worksheets", require("./routes/worksheets"));
 
