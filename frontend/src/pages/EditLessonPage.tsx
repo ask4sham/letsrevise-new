@@ -2537,9 +2537,11 @@ const EditLessonPage: React.FC = () => {
             data-col="wrapper"
             style={{
               display: "grid",
+              /* Edit Lesson desktop layout tweak — reversible */
+              /* Before: grid-template-columns: 280px minmax(0, 1fr) 432px; */
               gridTemplateColumns:
                 layoutBreakpoint === "wide"
-                  ? "280px minmax(0, 1fr) 432px"
+                  ? "260px minmax(0, 1.25fr) minmax(0, 1.2fr)"
                   : layoutBreakpoint === "medium"
                     ? "280px minmax(0, 1fr)"
                     : "1fr",
