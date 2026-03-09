@@ -410,3 +410,19 @@ tr:hover td {
   background-color: #b91c1c;
   transform: translateY(-1px);
 }
+
+/* Content Issues — highlighted description box */
+.issue-description-box {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: 3px solid #ef4444;
+  border-radius: 8px;
+  background-color: #fef2f2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.issue-description-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #7f1d1d;
+}

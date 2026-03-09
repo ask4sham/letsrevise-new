@@ -495,8 +495,11 @@ export default function ContentIssuesPage() {
                   {expandedId === r.id && (
                     <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
                       <td colSpan={7} style={{ padding: "12px 16px", fontSize: 13 }}>
-                        <div style={{ marginBottom: 8 }}>
-                          <strong>Description:</strong> {r.description}
+                        <div className="issue-description-box">
+                          <strong>⚠ Reported issue:</strong>
+                          <div className="issue-description-text" style={{ marginTop: 8 }}>
+                            {r.description}
+                          </div>
                         </div>
                         {r.suggestedFix && (
                           <div>
