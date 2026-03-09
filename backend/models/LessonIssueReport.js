@@ -27,6 +27,9 @@ const LessonIssueReportSchema = new mongoose.Schema(
     reportedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     userRole: { type: String, enum: ["student", "teacher", "admin"], default: "student" },
     status: { type: String, enum: STATUSES, default: "open", index: true },
+    /** Resolution audit — set when status becomes resolved */
+    resolvedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    resolvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

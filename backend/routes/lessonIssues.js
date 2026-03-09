@@ -103,6 +103,7 @@ router.get("/", auth, async (req, res) => {
       .limit(lim)
       .populate("lessonId", "title subject level topic")
       .populate("reportedByUserId", "firstName lastName email")
+      .populate("resolvedByUserId", "firstName lastName email")
       .lean();
 
     const lessonIds = [...new Set(reports.map((r) => r.lessonId?._id || r.lessonId).filter(Boolean))];
@@ -123,6 +124,9 @@ router.get("/", auth, async (req, res) => {
       const userName = user
         ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email || "—"
         : "—";
+      const resolvedByName = r.resolvedByUserId
+        ? [r.resolvedByUserId.firstName, r.resolvedByUserId.lastName].filter(Boolean).join(" ").trim() || r.resolvedByUserId.email || "—"
+        : null;
       return {
         id: r._id,
         lessonId: r.lessonId?._id || r.lessonId,
@@ -143,6 +147,9 @@ router.get("/", auth, async (req, res) => {
         userRole: r.userRole,
         status: r.status,
         createdAt: r.createdAt,
+        resolvedByUserId: r.resolvedByUserId?._id || r.resolvedByUserId || null,
+        resolvedByName: resolvedByName,
+        resolvedAt: r.resolvedAt || null,
       };
     });
 
@@ -228,6 +235,10 @@ router.patch("/:id", auth, async (req, res) => {
       return res.status(403).json({ msg: "You can only manage reports for your own lessons" });
     }
     report.status = status;
+    if (status === "resolved") {
+      report.resolvedByUserId = req.user._id || req.user.userId;
+      report.resolvedAt = new Date();
+    }
     await report.save();
     return res.json({ ok: true, status: report.status });
   } catch (err) {

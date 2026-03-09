@@ -503,6 +503,16 @@ export default function ContentIssuesPage() {
                             <strong>Suggested fix:</strong> {r.suggestedFix}
                           </div>
                         )}
+                        {(r.resolvedByName || r.resolvedAt) && (
+                          <div style={{ marginTop: 8, color: "#64748b" }}>
+                            {r.resolvedByName && (
+                              <div><strong>Resolved by:</strong> {r.resolvedByName}</div>
+                            )}
+                            {r.resolvedAt && (
+                              <div><strong>Resolved at:</strong> {formatDate(r.resolvedAt)}</div>
+                            )}
+                          </div>
+                        )}
                         <div style={{ marginTop: 6 }}>
                           <PriorityBadge reportType={r.reportType} />
                         </div>

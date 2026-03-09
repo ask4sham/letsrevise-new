@@ -23,6 +23,10 @@ export interface LessonIssueReport {
   userRole: string;
   status: "open" | "reviewed" | "resolved";
   createdAt: string;
+  /** Resolution audit — set when status becomes resolved */
+  resolvedByUserId?: string | null;
+  resolvedByName?: string | null;
+  resolvedAt?: string | null;
 }
 
 /** Deterministic priority for triage (display-only). No AI, no workflow blocking. */
