@@ -4040,26 +4040,18 @@ const LessonViewPage: React.FC = () => {
               </div>
             </aside>
           </div>
-          {/* Report Issue — bottom of each lesson page */}
+          {/* Report Issue — bottom of each lesson page (students + teachers) */}
           {user && id && (
-            <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+            <div className="report-issue-container" style={{ paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
               <button
                 type="button"
+                className="report-issue-button"
                 onClick={() => {
                   setReportBlockId(null);
                   setShowReportModal(true);
                 }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#6b7280",
-                  fontSize: 14,
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                  padding: 0,
-                }}
               >
-                Found a mistake? Report an issue.
+                🚩 Report a mistake in this lesson
               </button>
             </div>
           )}
@@ -4751,23 +4743,18 @@ const LessonViewPage: React.FC = () => {
             </div>
           </div>
         )}
-        {/* Report Issue — bottom of legacy lesson */}
+        {/* Report Issue — bottom of legacy lesson (students + teachers) */}
         {user && id && (
-          <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+          <div className="report-issue-container" style={{ paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
             <button
               type="button"
-              onClick={() => setShowReportModal(true)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#6b7280",
-                fontSize: 14,
-                cursor: "pointer",
-                textDecoration: "underline",
-                padding: 0,
+              className="report-issue-button"
+              onClick={() => {
+                setReportBlockId(null);
+                setShowReportModal(true);
               }}
             >
-              Found a mistake? Report an issue.
+              🚩 Report a mistake in this lesson
             </button>
           </div>
         )}

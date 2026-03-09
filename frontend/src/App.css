@@ -386,3 +386,27 @@ tr:hover td {
 .teacher-quiz-bank-questions-section .teacher-quiz-bank-questions-list li > div:nth-child(2) {
   min-width: 0 !important;
 }
+
+/* Lesson Report Issue — clearly visible warning button at bottom of lesson */
+.report-issue-container {
+  margin-top: 28px;
+  text-align: center;
+}
+
+.report-issue-button {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  transition: all 0.15s ease;
+}
+
+.report-issue-button:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+}
