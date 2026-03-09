@@ -623,7 +623,7 @@ const AdminDashboardPage: React.FC = () => {
           AI Coverage →
         </Link>
         <Link
-          to="/teacher/content-issues"
+          to="/admin/content-issues"
           style={{
             padding: "0.5rem 1rem",
             backgroundColor: "#fef3c7",

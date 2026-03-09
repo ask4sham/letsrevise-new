@@ -107,7 +107,7 @@ router.get("/", auth, async (req, res) => {
 
     const lessonIds = [...new Set(reports.map((r) => r.lessonId?._id || r.lessonId).filter(Boolean))];
     const lessons = await Lesson.find({ _id: { $in: lessonIds } })
-      .select("_id title teacherId")
+      .select("_id title teacherId topicKey topic subTopic")
       .lean();
     const lessonMap = Object.fromEntries(lessons.map((l) => [String(l._id), l]));
 
@@ -127,6 +127,9 @@ router.get("/", auth, async (req, res) => {
         id: r._id,
         lessonId: r.lessonId?._id || r.lessonId,
         lessonTitle: lesson?.title || r.lessonId?.title || "—",
+        lessonTopicKey: lesson?.topicKey || r.lessonId?.topicKey || null,
+        lessonTopic: lesson?.topic || r.lessonId?.topic || null,
+        lessonSubTopic: lesson?.subTopic || r.lessonId?.subTopic || null,
         pageId: r.pageId,
         pageTitle: r.pageTitle,
         pageOrder: r.pageOrder,
@@ -146,6 +149,57 @@ router.get("/", auth, async (req, res) => {
     return res.json({ reports: items });
   } catch (err) {
     console.error("GET /api/lesson-issues error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/**
+ * GET /api/lesson-issues/stats — summary stats for Content Quality Dashboard
+ * Teacher: own lessons only. Admin: all.
+ */
+router.get("/stats", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ msg: "Teacher or admin access required" });
+  }
+  try {
+    const query = {};
+    if (!isAdmin(req)) {
+      const ownedLessonIds = await Lesson.find({ teacherId: req.user._id }).select("_id").lean();
+      const ids = ownedLessonIds.map((l) => l._id);
+      if (ids.length === 0) {
+        return res.json({ openCount: 0, lessonsAffected: 0, topicsAffected: 0, resolvedThisWeek: 0 });
+      }
+      query.lessonId = { $in: ids };
+    }
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const [openReports, resolvedThisWeek] = await Promise.all([
+      LessonIssueReport.find({ ...query, status: "open" }).select("lessonId").lean(),
+      LessonIssueReport.find({
+        ...query,
+        status: "resolved",
+        createdAt: { $gte: oneWeekAgo },
+      })
+        .select("_id")
+        .lean(),
+    ]);
+
+    const lessonIds = [...new Set(openReports.map((r) => String(r.lessonId)))];
+    const lessons = await Lesson.find({ _id: { $in: lessonIds } })
+      .select("topicKey")
+      .lean();
+    const topicKeys = new Set(lessons.map((l) => l.topicKey).filter(Boolean));
+
+    return res.json({
+      openCount: openReports.length,
+      lessonsAffected: lessonIds.length,
+      topicsAffected: topicKeys.size,
+      resolvedThisWeek: resolvedThisWeek.length,
+    });
+  } catch (err) {
+    console.error("GET /api/lesson-issues/stats error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

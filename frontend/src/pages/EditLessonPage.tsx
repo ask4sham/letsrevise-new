@@ -30,7 +30,7 @@ import {
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import Toast from "../components/Toast";
-import { listReports, updateReportStatus, type LessonIssueReport } from "../api/lessonIssues";
+import { listReports, updateReportStatus, REPORT_PRIORITY, type LessonIssueReport } from "../api/lessonIssues";
 
 interface LessonPageBlock {
   type: LessonBlockType;
@@ -3044,7 +3044,19 @@ const EditLessonPage: React.FC = () => {
                             <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
                               {pageReports.map((rep, ri) => (
                                 <div key={rep.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: ri < pageReports.length - 1 ? "1px solid #fcd34d" : "none" }}>
-                                  <div><strong>{rep.reportTypeLabel}</strong></div>
+                                  <div>
+                                    <strong>{rep.reportTypeLabel}</strong>
+                                    {(() => {
+                                      const p = REPORT_PRIORITY[rep.reportType];
+                                      if (!p) return null;
+                                      const s = p === "high" ? { bg: "#fef2f2", color: "#b91c1c" } : p === "low" ? { bg: "#f0fdf4", color: "#15803d" } : { bg: "#fef3c7", color: "#92400e" };
+                                      return (
+                                        <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color }}>
+                                          {p}
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
                                   <div>{rep.description}</div>
                                   {rep.suggestedFix && <div style={{ marginTop: 4, fontStyle: "italic" }}>Suggested: {rep.suggestedFix}</div>}
                                   <button
@@ -3248,7 +3260,19 @@ const EditLessonPage: React.FC = () => {
                                 <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
                                   {blockReports.map((rep, ri) => (
                                     <div key={rep.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: ri < blockReports.length - 1 ? "1px solid #fcd34d" : "none" }}>
-                                      <div><strong>{rep.reportTypeLabel}</strong></div>
+                                      <div>
+                                        <strong>{rep.reportTypeLabel}</strong>
+                                        {(() => {
+                                          const p = REPORT_PRIORITY[rep.reportType];
+                                          if (!p) return null;
+                                          const s = p === "high" ? { bg: "#fef2f2", color: "#b91c1c" } : p === "low" ? { bg: "#f0fdf4", color: "#15803d" } : { bg: "#fef3c7", color: "#92400e" };
+                                          return (
+                                            <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color }}>
+                                              {p}
+                                            </span>
+                                          );
+                                        })()}
+                                      </div>
                                       <div>{rep.description}</div>
                                       {rep.suggestedFix && <div style={{ marginTop: 4, fontStyle: "italic" }}>Suggested: {rep.suggestedFix}</div>}
                                       <button
@@ -4446,7 +4470,19 @@ const EditLessonPage: React.FC = () => {
                             <div style={{ marginTop: 8, fontSize: 12, color: "#78350f" }}>
                               {cpReports.map((rep, ri) => (
                                 <div key={rep.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: ri < cpReports.length - 1 ? "1px solid #fcd34d" : "none" }}>
-                                  <div><strong>{rep.reportTypeLabel}</strong></div>
+                                  <div>
+                                    <strong>{rep.reportTypeLabel}</strong>
+                                    {(() => {
+                                      const p = REPORT_PRIORITY[rep.reportType];
+                                      if (!p) return null;
+                                      const s = p === "high" ? { bg: "#fef2f2", color: "#b91c1c" } : p === "low" ? { bg: "#f0fdf4", color: "#15803d" } : { bg: "#fef3c7", color: "#92400e" };
+                                      return (
+                                        <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: s.bg, color: s.color }}>
+                                          {p}
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
                                   <div>{rep.description}</div>
                                   {rep.suggestedFix && <div style={{ marginTop: 4, fontStyle: "italic" }}>Suggested: {rep.suggestedFix}</div>}
                                   <button

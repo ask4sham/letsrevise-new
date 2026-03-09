@@ -7,6 +7,9 @@ export interface LessonIssueReport {
   id: string;
   lessonId: string;
   lessonTitle: string;
+  lessonTopicKey?: string | null;
+  lessonTopic?: string | null;
+  lessonSubTopic?: string | null;
   pageId?: string | null;
   pageTitle?: string | null;
   pageOrder?: number | null;
@@ -20,6 +23,27 @@ export interface LessonIssueReport {
   userRole: string;
   status: "open" | "reviewed" | "resolved";
   createdAt: string;
+}
+
+/** Deterministic priority for triage (display-only). No AI, no workflow blocking. */
+export const REPORT_PRIORITY: Record<string, "high" | "medium" | "low"> = {
+  incorrect_information: "high",
+  question_incorrect: "high",
+  image_problem: "medium",
+  other: "medium",
+  typo_spelling: "low",
+};
+
+export interface ReportStats {
+  openCount: number;
+  lessonsAffected: number;
+  topicsAffected: number;
+  resolvedThisWeek: number;
+}
+
+export async function getReportStats(): Promise<ReportStats> {
+  const { data } = await api.get<ReportStats>("/lesson-issues/stats");
+  return data;
 }
 
 export interface SubmitReportPayload {

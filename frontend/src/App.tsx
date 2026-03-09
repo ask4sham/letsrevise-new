@@ -765,6 +765,15 @@ function App() {
           />
 
           <Route
+            path="/admin/content-issues"
+            element={
+              <ProtectedRoute requireAdmin>
+                <ContentIssuesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>
