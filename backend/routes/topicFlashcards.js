@@ -56,15 +56,16 @@ function responseTopicKey(storedKey) {
   return parseTopicKey(storedKey || "").topicKey || storedKey || "";
 }
 
-/** Resolve topicKey + specKey for GET list: return array for $in query (namespaced + legacy). */
-function resolveTopicKeyForQuery(specKeyFromReq, topicKeyFromReq) {
+/** Resolve topicKey + specKey for GET list: return array for $in query (namespaced + legacy + unit__topic). */
+function resolveTopicKeyForQuery(specKeyFromReq, topicKeyFromReq, unitKeyFromReq) {
   if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") return null;
   const trimmed = topicKeyFromReq.trim();
   if (!trimmed) return null;
   const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
-  const { topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
+  const { topicKey: rawTopic } = parseTopicKey(trimmed);
   const topicOnly = rawTopic || trimmed;
-  return queryCandidates(specKey, topicOnly);
+  const unitKey = (unitKeyFromReq && String(unitKeyFromReq).trim()) || null;
+  return queryCandidates(specKey, topicOnly, unitKey);
 }
 
 // GET /api/topic-flashcards?topicKey=cell-structure&status=draft|published|all&mineOnly=1
@@ -75,12 +76,12 @@ router.get("/", auth, async (req, res) => {
   try {
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const { topicKey, specKey: specKeyQ, status, mineOnly } = req.query;
+    const { topicKey, specKey: specKeyQ, status, mineOnly, unitKey: unitKeyQ } = req.query;
 
     if (!topicKey) {
       return res.status(400).json({ error: "topicKey query is required" });
     }
-    const candidates = resolveTopicKeyForQuery(specKeyQ, topicKey);
+    const candidates = resolveTopicKeyForQuery(specKeyQ, topicKey, unitKeyQ);
     if (!candidates || candidates.length === 0) return res.status(400).json({ error: "Invalid topicKey" });
 
     const query = { topicKey: { $in: candidates }, isArchived: { $ne: true } };
@@ -483,6 +484,29 @@ router.post("/:id/unpublish", auth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("TopicFlashcards unpublish error:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/topic-flashcards/:id/reassign — admin only: move card to another topic
+router.post("/:id/reassign", auth, requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { topicKey: newTopicKey, specKey: specKeyBody, topic: topicDisplay } = req.body || {};
+    if (!newTopicKey || typeof newTopicKey !== "string" || !newTopicKey.trim()) {
+      return res.status(400).json({ error: "topicKey is required" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+    const card = await TopicFlashcard.findById(id);
+    if (!card) return res.status(404).json({ error: "Flashcard not found" });
+    const resolved = resolveStoredTopicKey(specKeyBody, newTopicKey.trim());
+    if (resolved.error) return res.status(400).json({ error: resolved.error });
+    card.topicKey = resolved.storedKey;
+    if (topicDisplay != null && typeof topicDisplay === "string") card.topic = topicDisplay.trim();
+    await card.save();
+    return res.json({ flashcard: card.toObject ? card.toObject() : card });
+  } catch (err) {
+    console.error("TopicFlashcards reassign error:", err);
+    return res.status(500).json({ error: err.message || "Reassign failed" });
   }
 });
 

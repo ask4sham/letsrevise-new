@@ -50,6 +50,9 @@ export default function ContentIssuesPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [collapsedLessons, setCollapsedLessons] = useState(true);
+  const [collapsedTopics, setCollapsedTopics] = useState(true);
+  const [collapsedBreakdown, setCollapsedBreakdown] = useState(true);
 
   const fetchReports = useCallback(() => {
     setLoading(true);
@@ -250,129 +253,170 @@ export default function ContentIssuesPage() {
         )}
       </div>
 
-      {/* Most reported lessons */}
+      {/* Most reported lessons — collapsible */}
       {mostReportedLessons.length > 0 && (
-        <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Most reported lessons</h3>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0", textAlign: "left" }}>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Lesson</th>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Topic</th>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Issues</th>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Last reported</th>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mostReportedLessons.map((row) => (
-                  <tr key={row.lessonId} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "8px 8px", fontWeight: 500 }}>{row.title}</td>
-                    <td style={{ padding: "8px 8px", color: "#64748b" }}>{row.topicKey || "—"}</td>
-                    <td style={{ padding: "8px 8px" }}>{row.count}</td>
-                    <td style={{ padding: "8px 8px", color: "#64748b", whiteSpace: "nowrap" }}>
-                      {formatDate(row.lastReported)}
-                    </td>
-                    <td style={{ padding: "8px 8px" }}>
-                      <Link
-                        to={`/edit-lesson/${row.lessonId}`}
-                        style={{ color: "#2563eb", fontWeight: 600, fontSize: 12, textDecoration: "none" }}
-                      >
-                        Edit lesson
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="content-issues-collapsible">
+          <div
+            className="content-issues-collapsible-header"
+            onClick={() => setCollapsedLessons((v) => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && setCollapsedLessons((v) => !v)}
+          >
+            <span>Most reported lessons</span>
+            <span className={`content-issues-collapsible-chevron ${!collapsedLessons ? "expanded" : ""}`}>▼</span>
           </div>
+          {!collapsedLessons && (
+            <div className="content-issues-collapsible-body">
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0", textAlign: "left" }}>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Lesson</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Topic</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Issues</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Last reported</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mostReportedLessons.map((row) => (
+                      <tr key={row.lessonId} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                        <td style={{ padding: "8px 8px", fontWeight: 500 }}>{row.title}</td>
+                        <td style={{ padding: "8px 8px", color: "#64748b" }}>{row.topicKey || "—"}</td>
+                        <td style={{ padding: "8px 8px" }}>{row.count}</td>
+                        <td style={{ padding: "8px 8px", color: "#64748b", whiteSpace: "nowrap" }}>
+                          {formatDate(row.lastReported)}
+                        </td>
+                        <td style={{ padding: "8px 8px" }}>
+                          <Link
+                            to={`/edit-lesson/${row.lessonId}`}
+                            style={{ color: "#2563eb", fontWeight: 600, fontSize: 12, textDecoration: "none" }}
+                          >
+                            Edit lesson
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Most reported topics */}
+      {/* Most reported topics — collapsible */}
       {mostReportedTopics.length > 0 && (
-        <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Most reported topics</h3>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0", textAlign: "left" }}>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Topic</th>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Issues</th>
-                  <th style={{ padding: "8px 8px", fontWeight: 600 }}>Lessons affected</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mostReportedTopics.map((row) => (
-                  <tr key={row.topicKey} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "8px 8px", fontWeight: 500 }}>{row.display}</td>
-                    <td style={{ padding: "8px 8px" }}>{row.count}</td>
-                    <td style={{ padding: "8px 8px", color: "#64748b" }}>{row.lessons}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="content-issues-collapsible">
+          <div
+            className="content-issues-collapsible-header"
+            onClick={() => setCollapsedTopics((v) => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && setCollapsedTopics((v) => !v)}
+          >
+            <span>Most reported topics</span>
+            <span className={`content-issues-collapsible-chevron ${!collapsedTopics ? "expanded" : ""}`}>▼</span>
           </div>
+          {!collapsedTopics && (
+            <div className="content-issues-collapsible-body">
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0", textAlign: "left" }}>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Topic</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Issues</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600 }}>Lessons affected</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mostReportedTopics.map((row) => (
+                      <tr key={row.topicKey} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                        <td style={{ padding: "8px 8px", fontWeight: 500 }}>{row.display}</td>
+                        <td style={{ padding: "8px 8px" }}>{row.count}</td>
+                        <td style={{ padding: "8px 8px", color: "#64748b" }}>{row.lessons}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Report type breakdown */}
+      {/* Report type breakdown (open) — collapsible */}
       {reportTypeBreakdown.length > 0 && (
-        <div style={{ marginBottom: 24, padding: 16, borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>Report type breakdown (open)</h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", fontSize: 13 }}>
-            {reportTypeBreakdown.map(([label, count]) => (
-              <span key={label} style={{ padding: "4px 10px", borderRadius: 6, background: "#e2e8f0", color: "#475569" }}>
-                {label}: {count}
-              </span>
-            ))}
+        <div className="content-issues-collapsible">
+          <div
+            className="content-issues-collapsible-header"
+            onClick={() => setCollapsedBreakdown((v) => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && setCollapsedBreakdown((v) => !v)}
+          >
+            <span>Report type breakdown (open)</span>
+            <span className={`content-issues-collapsible-chevron ${!collapsedBreakdown ? "expanded" : ""}`}>▼</span>
           </div>
+          {!collapsedBreakdown && (
+            <div className="content-issues-collapsible-body">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", fontSize: 13 }}>
+                {reportTypeBreakdown.map(([label, count]) => (
+                  <span key={label} style={{ padding: "4px 10px", borderRadius: 6, background: "#e2e8f0", color: "#475569" }}>
+                    {label}: {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Reports table */}
-      <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700 }}>All reports</h3>
+      {/* All reports — prominent section */}
+      <div style={{ marginTop: 28, marginBottom: 16 }}>
+        <h2 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, color: "#1e293b" }}>All reports</h2>
+      </div>
       {loading ? (
-        <p style={{ color: "#64748b" }}>Loading…</p>
+        <p style={{ color: "#64748b", fontSize: 15 }}>Loading…</p>
       ) : reports.length === 0 ? (
-        <p style={{ color: "#64748b", fontSize: "1rem" }}>No reports found.</p>
+        <p style={{ color: "#64748b", fontSize: 15 }}>No reports found.</p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflowX: "auto", background: "white", borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Lesson</th>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Page</th>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Type</th>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Reported by</th>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Status</th>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Created</th>
-                <th style={{ padding: "12px 8px", fontWeight: 600 }}>Actions</th>
+              <tr style={{ borderBottom: "2px solid #cbd5e1", textAlign: "left", background: "#f8fafc" }}>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Lesson</th>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Page</th>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Type</th>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Reported by</th>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Status</th>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Created</th>
+                <th style={{ padding: "14px 12px", fontWeight: 700, color: "#334155" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {reports.map((r) => (
                 <React.Fragment key={r.id}>
                   <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "12px 8px" }}>
+                    <td style={{ padding: "14px 12px", verticalAlign: "middle" }}>
                       <Link
                         to={`/lesson/${r.lessonId}`}
-                        style={{ color: "#2563eb", textDecoration: "none", fontWeight: 500 }}
+                        style={{ color: "#1e40af", textDecoration: "none", fontWeight: 700, fontSize: 14 }}
                       >
                         {r.lessonTitle || r.lessonId}
                       </Link>
                     </td>
-                    <td style={{ padding: "12px 8px", color: "#64748b" }}>
+                    <td style={{ padding: "14px 12px", color: "#475569", fontWeight: 500, verticalAlign: "middle" }}>
                       {pageDisplay(r)}
                     </td>
-                    <td style={{ padding: "12px 8px" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center" }}>
+                    <td style={{ padding: "14px 12px", verticalAlign: "middle" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", fontWeight: 600 }}>
                         {r.reportTypeLabel}
                         <PriorityBadge reportType={r.reportType} />
                       </span>
                     </td>
-                    <td style={{ padding: "12px 8px" }}>
+                    <td style={{ padding: "14px 12px", color: "#475569", verticalAlign: "middle" }}>
                       {r.reportedByName}
                       {r.userRole && (
                         <span style={{ marginLeft: 6, fontSize: 12, color: "#94a3b8" }}>
@@ -380,13 +424,13 @@ export default function ContentIssuesPage() {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "12px 8px" }}>
+                    <td style={{ padding: "14px 12px", verticalAlign: "middle" }}>
                       <span
                         style={{
-                          padding: "2px 8px",
+                          padding: "4px 10px",
                           borderRadius: 999,
                           fontSize: 12,
-                          fontWeight: 600,
+                          fontWeight: 700,
                           background:
                             r.status === "open"
                               ? "#fef3c7"
@@ -404,23 +448,23 @@ export default function ContentIssuesPage() {
                         {r.status}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 8px", color: "#64748b", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "14px 12px", color: "#64748b", whiteSpace: "nowrap", verticalAlign: "middle" }}>
                       {formatDate(r.createdAt)}
                     </td>
-                    <td style={{ padding: "12px 8px" }}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <td style={{ padding: "14px 12px", verticalAlign: "middle" }}>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                         <button
                           type="button"
                           onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
                           style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
-                            border: "1px solid #64748b",
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "1px solid #94a3b8",
                             background: "#f8fafc",
                             color: "#475569",
                             cursor: "pointer",
                             fontSize: 13,
-                            fontWeight: 500,
+                            fontWeight: 600,
                           }}
                         >
                           {expandedId === r.id ? "Hide" : "View"}
@@ -428,14 +472,14 @@ export default function ContentIssuesPage() {
                         <Link
                           to={lessonViewUrl(r)}
                           style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
+                            padding: "8px 14px",
+                            borderRadius: 8,
                             border: "1px solid #94a3b8",
                             background: "#f8fafc",
                             color: "#475569",
                             textDecoration: "none",
                             fontSize: 13,
-                            fontWeight: 500,
+                            fontWeight: 600,
                           }}
                         >
                           View lesson{r.pageId ? " (page)" : ""}
@@ -443,14 +487,14 @@ export default function ContentIssuesPage() {
                         <Link
                           to={editLessonUrl(r)}
                           style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
-                            border: "1px solid #2563eb",
+                            padding: "8px 14px",
+                            borderRadius: 8,
+                            border: "2px solid #2563eb",
                             background: "#eff6ff",
                             color: "#2563eb",
                             textDecoration: "none",
                             fontSize: 13,
-                            fontWeight: 500,
+                            fontWeight: 700,
                           }}
                         >
                           Edit lesson
@@ -460,14 +504,14 @@ export default function ContentIssuesPage() {
                             type="button"
                             onClick={() => handleMarkResolved(r.id)}
                             style={{
-                              padding: "6px 12px",
-                              borderRadius: 6,
-                              border: "1px solid #059669",
+                              padding: "8px 14px",
+                              borderRadius: 8,
+                              border: "2px solid #059669",
                               background: "#ecfdf5",
                               color: "#059669",
                               cursor: "pointer",
                               fontSize: 13,
-                              fontWeight: 500,
+                              fontWeight: 700,
                             }}
                           >
                             Mark resolved
@@ -477,14 +521,14 @@ export default function ContentIssuesPage() {
                           type="button"
                           onClick={() => handleDelete(r.id)}
                           style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
+                            padding: "8px 14px",
+                            borderRadius: 8,
                             border: "1px solid #dc2626",
                             background: "#fef2f2",
                             color: "#dc2626",
                             cursor: "pointer",
                             fontSize: 13,
-                            fontWeight: 500,
+                            fontWeight: 600,
                           }}
                         >
                           Delete
@@ -493,8 +537,8 @@ export default function ContentIssuesPage() {
                     </td>
                   </tr>
                   {expandedId === r.id && (
-                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                      <td colSpan={7} style={{ padding: "12px 16px", fontSize: 13 }}>
+                    <tr style={{ background: "#fffbeb", borderBottom: "2px solid #e2e8f0" }}>
+                      <td colSpan={7} style={{ padding: "16px 20px", fontSize: 14 }}>
                         <div className="issue-description-box">
                           <strong>⚠ Reported issue:</strong>
                           <div className="issue-description-text" style={{ marginTop: 8 }}>
@@ -502,12 +546,13 @@ export default function ContentIssuesPage() {
                           </div>
                         </div>
                         {r.suggestedFix && (
-                          <div>
-                            <strong>Suggested fix:</strong> {r.suggestedFix}
+                          <div className="issue-suggested-fix">
+                            <strong>Suggested fix:</strong>
+                            <div style={{ marginTop: 6 }}>{r.suggestedFix}</div>
                           </div>
                         )}
                         {(r.resolvedByName || r.resolvedAt) && (
-                          <div style={{ marginTop: 8, color: "#64748b" }}>
+                          <div style={{ marginTop: 12, color: "#64748b", fontSize: 13 }}>
                             {r.resolvedByName && (
                               <div><strong>Resolved by:</strong> {r.resolvedByName}</div>
                             )}
@@ -516,7 +561,7 @@ export default function ContentIssuesPage() {
                             )}
                           </div>
                         )}
-                        <div style={{ marginTop: 6 }}>
+                        <div style={{ marginTop: 10 }}>
                           <PriorityBadge reportType={r.reportType} />
                         </div>
                       </td>

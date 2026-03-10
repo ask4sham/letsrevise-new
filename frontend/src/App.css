@@ -426,3 +426,54 @@ tr:hover td {
   font-weight: 600;
   color: #7f1d1d;
 }
+
+/* Content Issues — collapsible summary sections */
+.content-issues-collapsible {
+  margin-bottom: 24px;
+  padding: 0;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.content-issues-collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 16px;
+  color: #1e293b;
+  transition: background 0.15s ease;
+}
+
+.content-issues-collapsible-header:hover {
+  background: #f1f5f9;
+}
+
+.content-issues-collapsible-chevron {
+  transition: transform 0.2s ease;
+  color: #64748b;
+}
+
+.content-issues-collapsible-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.content-issues-collapsible-body {
+  padding: 0 16px 16px;
+}
+
+/* Content Issues — suggested fix styling */
+.issue-suggested-fix {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  background-color: #ecfdf5;
+  color: #065f46;
+  font-size: 14px;
+  font-weight: 500;
+}

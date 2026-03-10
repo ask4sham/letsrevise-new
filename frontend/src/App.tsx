@@ -54,6 +54,7 @@ import TeacherMisconceptionsPage from "./pages/TeacherMisconceptionsPage";
 import TeacherReteachPlansPage from "./pages/TeacherReteachPlansPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
+import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
 
 // ✅ Settings page (new)
 import SettingsPage from "./pages/SettingsPage";
@@ -769,6 +770,15 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <ContentIssuesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/question-banks"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminQuestionBanksPage />
               </ProtectedRoute>
             }
           />

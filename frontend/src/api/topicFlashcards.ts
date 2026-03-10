@@ -23,6 +23,8 @@ export type ListParams = {
   specKey?: string;
   status?: "draft" | "published" | "all";
   mineOnly?: boolean;
+  /** Unit slug for legacy unit__topic format matching (e.g. "cell-biology") */
+  unitKey?: string;
 };
 
 export async function listTopicFlashcards(params: ListParams = {}): Promise<TopicFlashcard[]> {
@@ -31,6 +33,7 @@ export async function listTopicFlashcards(params: ListParams = {}): Promise<Topi
   if (params.specKey) q.set("specKey", params.specKey);
   if (params.status) q.set("status", params.status);
   if (params.mineOnly) q.set("mineOnly", "1");
+  if (params.unitKey) q.set("unitKey", params.unitKey);
   const res = await api.get<{ items: TopicFlashcard[] }>(
     `/topic-flashcards${q.toString() ? `?${q.toString()}` : ""}`
   );
@@ -158,6 +161,15 @@ export async function updateTopicFlashcard(
 
 export async function deleteTopicFlashcard(id: string): Promise<void> {
   await api.delete(`/topic-flashcards/${id}`);
+}
+
+/** Admin only: move flashcard to another topic. */
+export async function reassignTopicFlashcard(
+  id: string,
+  body: { topicKey: string; specKey?: string; topic?: string }
+): Promise<TopicFlashcard> {
+  const res = await api.post<{ flashcard: TopicFlashcard }>(`/topic-flashcards/${id}/reassign`, body);
+  return res.data!.flashcard;
 }
 
 export async function publishTopicFlashcard(id: string): Promise<TopicFlashcard> {

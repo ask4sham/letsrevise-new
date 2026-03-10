@@ -107,6 +107,7 @@ app.use("/api/taxonomy", require("./routes/taxonomy"));
 // PR-BULK-INGEST-1: Admin bulk import (flashcards; validate + dedupe + dry-run)
 app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));
 app.use("/api/admin/student-teacher-links", require("./routes/adminStudentTeacherLinks"));
+app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
 
 // PR10: Biology readiness report (teacher/admin)
 app.use("/api/reports", require("./routes/reports"));

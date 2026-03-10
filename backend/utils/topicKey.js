@@ -65,15 +65,22 @@ function normalizeToStoredKey(fullKey, defaultSpec = DEFAULT_SPEC_LEGACY) {
 
 /**
  * Return candidate keys for a query: [namespaced, legacy] so $in finds both.
+ * Optionally include unit__topic legacy format when unitKey provided.
  * @param {string} specKey - e.g. "aqa-gcse-chemistry"
  * @param {string} topicKeyOnly - Unprefixed key e.g. "rate-of-reaction"
- * @returns {string[]} e.g. ["aqa-gcse-chemistry:rate-of-reaction", "rate-of-reaction"]
+ * @param {string} [unitKey] - Optional unit slug e.g. "cell-biology" for legacy "unit__topic" format
+ * @returns {string[]} e.g. ["aqa-gcse-chemistry:rate-of-reaction", "rate-of-reaction", "cell-biology:rate-of-reaction"]
  */
-function queryCandidates(specKey, topicKeyOnly) {
-  if (!topicKeyOnly || !specKey) return [topicKeyOnly].filter(Boolean);
+function queryCandidates(specKey, topicKeyOnly, unitKey) {
+  if (!topicKeyOnly) return [].filter(Boolean);
   const t = String(topicKeyOnly).trim();
   if (!t) return [];
-  return [buildTopicKey(specKey, t), t];
+  const base = specKey ? [buildTopicKey(specKey, t), t] : [t];
+  if (unitKey && String(unitKey).trim()) {
+    const u = String(unitKey).trim().toLowerCase().replace(/\s+/g, "-");
+    base.push(`${u}__${t}`);
+  }
+  return [...new Set(base)];
 }
 
 module.exports = {

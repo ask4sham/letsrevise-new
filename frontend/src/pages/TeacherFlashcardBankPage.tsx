@@ -11,6 +11,7 @@ import {
   previewBulkImportTopicFlashcards,
   updateTopicFlashcard,
   deleteTopicFlashcard,
+  reassignTopicFlashcard,
   publishTopicFlashcard,
   unpublishTopicFlashcard,
   bulkPublishTopicFlashcards,
@@ -67,6 +68,9 @@ const TeacherFlashcardBankPage: React.FC = () => {
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [savingEditId, setSavingEditId] = useState<string | null>(null);
+  const [reassignModal, setReassignModal] = useState<{ card: TopicFlashcard } | null>(null);
+  const [reassignTargetKey, setReassignTargetKey] = useState("");
+  const [reassignSaving, setReassignSaving] = useState(false);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -84,11 +88,13 @@ const TeacherFlashcardBankPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      const unitSlug = selectedUnit ? selectedUnit.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") : undefined;
       const list = await listTopicFlashcards({
         topicKey,
         specKey,
         status: statusFilter,
-        mineOnly: true,
+        mineOnly: !isAdmin,
+        unitKey: unitSlug,
       });
       setFlashcards(list);
     } catch (err: any) {
@@ -101,7 +107,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
 
   useEffect(() => {
     fetchFlashcards();
-  }, [topicKey, specKey, statusFilter]);
+  }, [topicKey, specKey, statusFilter, isAdmin, selectedUnit]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,6 +325,37 @@ const TeacherFlashcardBankPage: React.FC = () => {
       setMessage(err?.response?.data?.error || err?.response?.data?.message || err?.message || "Update failed");
     } finally {
       setSavingEditId(null);
+    }
+  };
+
+  const handleReassignOpen = (card: TopicFlashcard) => {
+    setReassignModal({ card });
+    setReassignTargetKey("");
+  };
+
+  const handleReassignClose = () => {
+    setReassignModal(null);
+    setReassignTargetKey("");
+  };
+
+  const handleReassignConfirm = async () => {
+    if (!reassignModal || !reassignTargetKey.trim()) return;
+    setReassignSaving(true);
+    setMessage(null);
+    try {
+      const topicMeta = allTopics.find((t) => t.key === reassignTargetKey) || topicsInUnit.find((t) => t.key === reassignTargetKey);
+      await reassignTopicFlashcard(reassignModal.card._id, {
+        topicKey: reassignTargetKey.trim(),
+        specKey,
+        topic: topicMeta?.topic,
+      });
+      setFlashcards((prev) => prev.filter((f) => f._id !== reassignModal.card._id));
+      setMessage("Card moved to new topic.");
+      handleReassignClose();
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.response?.data?.message || err?.message || "Move failed");
+    } finally {
+      setReassignSaving(false);
     }
   };
 
@@ -565,7 +602,13 @@ const TeacherFlashcardBankPage: React.FC = () => {
           </h2>
           {!topicKey && <p style={{ color: "#6b7280" }}>Select a topic to list cards.</p>}
           {topicKey && loading && <p>Loading…</p>}
-          {topicKey && !loading && flashcards.length === 0 && <p style={{ color: "#6b7280" }}>No cards yet. Add one above.</p>}
+          {topicKey && !loading && flashcards.length === 0 && (
+            <p style={{ color: "#6b7280" }}>
+              {isAdmin
+                ? "No flashcards are mapped to this exact topic yet. Some may need reassignment—check Admin Question Banks."
+                : "No cards yet. Add one above."}
+            </p>
+          )}
           {topicKey && !loading && flashcards.length > 0 && (
             <>
               <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -684,14 +727,24 @@ const TeacherFlashcardBankPage: React.FC = () => {
                           </button>
                         )}
                         {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(f._id)}
-                            disabled={!!actionLoading}
-                            style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
-                          >
-                            Delete
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleReassignOpen(f)}
+                              disabled={!!actionLoading}
+                              style={{ padding: "4px 8px", fontSize: 12, color: "#7c3aed" }}
+                            >
+                              Move
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(f._id)}
+                              disabled={!!actionLoading}
+                              style={{ padding: "4px 8px", fontSize: 12, color: "#dc2626" }}
+                            >
+                              Delete
+                            </button>
+                          </>
                         )}
                       </div>
                     </>
@@ -709,6 +762,53 @@ const TeacherFlashcardBankPage: React.FC = () => {
           )}
         </section>
       </div>
+
+      {/* Admin: Move to topic modal */}
+      {reassignModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "#fff", padding: "1.5rem 2rem", borderRadius: 12, maxWidth: 420, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem" }}>Move to another topic</h3>
+            <p style={{ color: "#6b7280", fontSize: "0.9rem", marginBottom: "1rem" }}>
+              Move &quot;{reassignModal.card.front.slice(0, 50)}{reassignModal.card.front.length > 50 ? "…" : ""}&quot; to a different topic.
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "#374151", marginBottom: "0.5rem" }}>Select new topic:</p>
+            <select
+              value={reassignTargetKey}
+              onChange={(e) => setReassignTargetKey(e.target.value)}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", marginBottom: "1rem" }}
+            >
+              <option value="">— Select topic —</option>
+              {units.map((u) => (
+                <optgroup key={u.unit} label={u.unit}>
+                  {(u.topics || []).map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.topic}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={handleReassignClose}
+                disabled={reassignSaving}
+                style={{ padding: "0.5rem 1rem", background: "#f3f4f6", color: "#374151", border: "none", borderRadius: 6, fontWeight: 600, cursor: reassignSaving ? "not-allowed" : "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReassignConfirm}
+                disabled={reassignSaving || !reassignTargetKey.trim()}
+                style={{ padding: "0.5rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, cursor: reassignSaving || !reassignTargetKey.trim() ? "not-allowed" : "pointer" }}
+              >
+                {reassignSaving ? "Moving…" : "Move"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

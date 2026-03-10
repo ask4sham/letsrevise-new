@@ -636,6 +636,20 @@ const AdminDashboardPage: React.FC = () => {
         >
           Content Issues →
         </Link>
+        <Link
+          to="/admin/question-banks"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#ede9fe",
+            color: "#5b21b6",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Question Banks →
+        </Link>
       </div>
       </div>
 

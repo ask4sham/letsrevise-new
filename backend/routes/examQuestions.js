@@ -284,10 +284,10 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/exam-questions/:id — delete (only owner)
+// DELETE /api/exam-questions/:id — delete (owner or admin). Admin can delete any.
 router.delete("/:id", auth, async (req, res) => {
-  if (!isTeacher(req)) {
-    return res.status(403).json({ success: false, msg: "Teachers only" });
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers and admins only" });
   }
   try {
     const id = req.params.id;
@@ -295,7 +295,9 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(400).json({ success: false, msg: "Invalid ID" });
     }
     const teacherId = req.user.userId || req.user._id;
-    const question = await ExamQuestion.findOneAndDelete({ _id: id, teacherId });
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const query = isAdmin ? { _id: id } : { _id: id, teacherId };
+    const question = await ExamQuestion.findOneAndDelete(query);
     if (!question) {
       return res.status(404).json({ success: false, msg: "Question not found" });
     }
