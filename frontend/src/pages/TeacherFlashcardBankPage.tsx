@@ -71,6 +71,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
   const [reassignModal, setReassignModal] = useState<{ card: TopicFlashcard } | null>(null);
   const [reassignTargetKey, setReassignTargetKey] = useState("");
   const [reassignSaving, setReassignSaving] = useState(false);
+  const [moveSuccessToast, setMoveSuccessToast] = useState<string | null>(null);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -344,13 +345,15 @@ const TeacherFlashcardBankPage: React.FC = () => {
     setMessage(null);
     try {
       const topicMeta = allTopics.find((t) => t.key === reassignTargetKey) || topicsInUnit.find((t) => t.key === reassignTargetKey);
+      const targetTopicDisplay = topicMeta?.topic || reassignTargetKey.trim();
       await reassignTopicFlashcard(reassignModal.card._id, {
         topicKey: reassignTargetKey.trim(),
         specKey,
         topic: topicMeta?.topic,
       });
       setFlashcards((prev) => prev.filter((f) => f._id !== reassignModal.card._id));
-      setMessage("Card moved to new topic.");
+      setMoveSuccessToast(`Flashcard moved to ${targetTopicDisplay}.`);
+      setTimeout(() => setMoveSuccessToast(null), 4000);
       handleReassignClose();
     } catch (err: any) {
       setMessage(err?.response?.data?.error || err?.response?.data?.message || err?.message || "Move failed");
@@ -437,6 +440,11 @@ const TeacherFlashcardBankPage: React.FC = () => {
       {message && (
         <div style={{ padding: 10, marginBottom: 12, borderRadius: 8, background: "#f0f9ff", border: "1px solid #bae6fd" }}>
           {message}
+        </div>
+      )}
+      {moveSuccessToast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, padding: "12px 20px", background: "#059669", color: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 10000, fontWeight: 500 }}>
+          {moveSuccessToast}
         </div>
       )}
       {error && (
@@ -768,10 +776,14 @@ const TeacherFlashcardBankPage: React.FC = () => {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
           <div style={{ background: "#fff", padding: "1.5rem 2rem", borderRadius: 12, maxWidth: 420, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
             <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem" }}>Move to another topic</h3>
-            <p style={{ color: "#6b7280", fontSize: "0.9rem", marginBottom: "1rem" }}>
-              Move &quot;{reassignModal.card.front.slice(0, 50)}{reassignModal.card.front.length > 50 ? "…" : ""}&quot; to a different topic.
+            <p style={{ color: "#6b7280", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+              Card: &quot;{reassignModal.card.front.slice(0, 50)}{reassignModal.card.front.length > 50 ? "…" : ""}&quot;
             </p>
-            <p style={{ fontSize: "0.85rem", color: "#374151", marginBottom: "0.5rem" }}>Select new topic:</p>
+            <p style={{ fontSize: "0.85rem", color: "#374151", marginBottom: "0.25rem" }}><strong>Current topic:</strong> {reassignModal.card.topic || reassignModal.card.topicKey || "—"}</p>
+            {reassignModal.card.topicKey && (
+              <p style={{ fontSize: "0.8rem", color: "#9ca3af", marginBottom: "1rem" }}>topicKey: {reassignModal.card.topicKey}</p>
+            )}
+            <p style={{ fontSize: "0.85rem", color: "#374151", marginBottom: "0.5rem" }}><strong>Target topic:</strong></p>
             <select
               value={reassignTargetKey}
               onChange={(e) => setReassignTargetKey(e.target.value)}
@@ -788,6 +800,11 @@ const TeacherFlashcardBankPage: React.FC = () => {
                 </optgroup>
               ))}
             </select>
+            {reassignTargetKey.trim() && (
+              <p style={{ fontSize: "0.9rem", color: "#4b5563", marginBottom: "1rem", padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>
+                This card will be moved from {reassignModal.card.topic || reassignModal.card.topicKey || "current topic"} to {allTopics.find((t) => t.key === reassignTargetKey)?.topic || topicsInUnit.find((t) => t.key === reassignTargetKey)?.topic || reassignTargetKey}.
+              </p>
+            )}
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
               <button
                 type="button"
