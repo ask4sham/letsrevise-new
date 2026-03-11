@@ -145,6 +145,17 @@ const staticCurated = [
       src: "/visuals/biology/aqa-gcse/cell-biology/cell-division/cell-division.png",
       caption: "Mitosis and meiosis (GCSE)"
     }
+  },
+  {
+    subject: "Biology",
+    examBoard: "AQA",
+    level: "GCSE",
+    topic: "Microscopy",
+    hero: {
+      type: "video",
+      src: "/visuals/biology/aqa-gcse/cell-biology/cell-structure/magnification.mp4",
+      caption: "Cells and Magnification (GCSE)"
+    }
   }
 ];
 

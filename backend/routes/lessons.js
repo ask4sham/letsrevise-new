@@ -2475,6 +2475,24 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
 
     lesson = await attachVisualsToPagesIfPossible(lesson);
 
+    // Enrich Microscopy lessons with magnification video (for existing lessons that have old hero or none)
+    const topicNorm = String(lesson.topic || "").trim().toLowerCase();
+    if (topicNorm === "microscopy" && Array.isArray(lesson.pages) && lesson.pages[0]) {
+      const hero = lesson.pages[0].hero;
+      const hasOldOrNoHero = !hero || !hero.src || String(hero.src).includes("microscopy.svg");
+      if (hasOldOrNoHero) {
+        const { hero: curatedHero } = findCuratedVisual({
+          subject: lesson.subject || "Biology",
+          examBoard: lesson.board || "AQA",
+          level: lesson.level || "GCSE",
+          topic: lesson.topic,
+        });
+        if (curatedHero && curatedHero.type === "video") {
+          lesson.pages[0] = { ...lesson.pages[0], hero: curatedHero };
+        }
+      }
+    }
+
     // Always send a predictable accessDecision shape so frontend can rely on it
     const accessDecision = req.accessDecision && typeof req.accessDecision.reason === "string"
       ? { allowed: !!req.accessDecision.allowed, reason: req.accessDecision.reason }
