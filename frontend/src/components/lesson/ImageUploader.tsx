@@ -37,7 +37,12 @@ const ImageUploader: React.FC<Props> = ({
     setStatus("");
 
     if (!file) {
-      setError("Please choose an image first.");
+      setError("Please choose an image or video first.");
+      return;
+    }
+    const isVideo = file.type.startsWith("video/");
+    if (!file.type.startsWith("image/") && !isVideo) {
+      setError("Please choose an image (png/jpg/webp/gif) or video (mp4/webm/mov).");
       return;
     }
 
@@ -55,8 +60,10 @@ const ImageUploader: React.FC<Props> = ({
         throw new Error("Upload succeeded but no URL returned.");
       }
 
-      // ✅ Build markdown snippet to auto-insert
-      const markdown = `\n\n![${altText}](${url})\n\n`;
+      // ✅ Build markdown snippet to auto-insert (image or video)
+      const markdown = isVideo
+        ? `\n\n[Video: ${altText}](${url})\n\n`
+        : `\n\n![${altText}](${url})\n\n`;
 
       setStatus("Uploaded ✅");
 
@@ -102,12 +109,12 @@ const ImageUploader: React.FC<Props> = ({
       }}
     >
       <div style={{ fontWeight: 800, marginBottom: 8 }}>
-        Upload an image (PNG/JPG/WebP/GIF)
+        Upload an image (PNG/JPG/WebP/GIF) or video (MP4/WebM/MOV)
       </div>
 
       <input
         type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+        accept="image/*,video/mp4,video/webm,video/quicktime"
         onChange={(e) => setFile(e.target.files?.[0] || null)}
       />
 
@@ -133,7 +140,7 @@ const ImageUploader: React.FC<Props> = ({
             fontWeight: 800,
           }}
         >
-          Upload Image
+          Upload
         </button>
 
         <div style={{ color: "#6b7280", fontSize: "0.95rem" }}>

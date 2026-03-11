@@ -70,16 +70,19 @@ const imageMimeTypes = [
   "image/webp",
   "image/gif",
 ];
+const videoMimeTypes = ["video/mp4", "video/webm", "video/quicktime"];
 const upload = multer({
   storage,
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+  limits: { fileSize: 32 * 1024 * 1024 }, // 32MB (for video)
   fileFilter: (req, file, cb) => {
+    const mt = (file.mimetype || "").toLowerCase();
     const ok =
-      imageMimeTypes.includes(file.mimetype) ||
-      (file.mimetype && file.mimetype.startsWith("image/"));
+      imageMimeTypes.includes(mt) ||
+      (mt && mt.startsWith("image/")) ||
+      videoMimeTypes.includes(mt);
     if (!ok)
       return cb(
-        new Error("Only image files are allowed (png/jpg/webp/gif).")
+        new Error("Only image (png/jpg/webp/gif) or video (mp4/webm/mov) are allowed.")
       );
     cb(null, true);
   },
@@ -225,7 +228,7 @@ router.post(
 router.use((err, req, res, next) => {
   console.error("Uploads route error:", err);
   if (err && err.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ error: "File too large (max 8MB)." });
+    return res.status(400).json({ error: "File too large (max 32MB)." });
   }
   return res.status(400).json({ error: err?.message || "Upload error" });
 });

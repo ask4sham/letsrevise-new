@@ -1966,9 +1966,9 @@ const EditLessonPage: React.FC = () => {
     setValue: (next: string) => void
   ) => {
     if (!file) return;
-    const ok = file.type.startsWith("image/");
+    const ok = file.type.startsWith("image/") || file.type.startsWith("video/");
     if (!ok) {
-      alert("Please upload an image (png/jpg/gif/webp). Video upload is not enabled yet.");
+      alert("Please upload an image (png/jpg/gif/webp) or video (mp4/webm/mov).");
       return;
     }
 
@@ -4305,7 +4305,7 @@ const EditLessonPage: React.FC = () => {
                               fileInputRef.current[key] = el;
                             }}
                             type="file"
-                            accept="image/*"
+                            accept="image/*,video/mp4,video/webm,video/quicktime"
                             style={{ display: "none" }}
                             onChange={(e) => {
                               const f = e.target.files?.[0];

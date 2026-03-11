@@ -2356,11 +2356,35 @@ const LessonViewPage: React.FC = () => {
         
         return <p style={{ textAlign: "left" }} {...props}>{children}</p>;
       },
-      a: ({ ...props }: any) => (
-        <a {...props} target="_blank" rel="noopener noreferrer">
-          {props.children}
-        </a>
-      ),
+      a: ({ ...props }: any) => {
+        const href = safeStr(props.href, "");
+        const childStr = typeof props.children === "string"
+          ? props.children
+          : (Array.isArray(props.children) && typeof props.children[0] === "string" ? props.children[0] : "");
+        const isVideoLink = (childStr && String(childStr).startsWith("Video:")) && href;
+        if (isVideoLink) {
+          const srcAbs = href.startsWith("http") ? href : (makeAbsoluteAssetUrl(href) ?? href);
+          return (
+            <div style={{ margin: "12px 0", textAlign: "center" }}>
+              <video
+                controls
+                src={srcAbs}
+                style={{ width: "100%", maxWidth: 720, borderRadius: 12, background: "#000" }}
+              />
+              {childStr !== "Video:" && (
+                <div style={{ marginTop: 6, fontSize: "0.9rem", color: "#6b7280" }}>
+                  {childStr.replace(/^Video:\s*/, "")}
+                </div>
+              )}
+            </div>
+          );
+        }
+        return (
+          <a {...props} target="_blank" rel="noopener noreferrer">
+            {props.children}
+          </a>
+        );
+      },
     };
   }, []);
 

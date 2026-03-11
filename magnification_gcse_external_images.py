@@ -237,7 +237,7 @@ class MagnificationGCSEExternalImages(MovingCameraScene):
         self.play(FadeIn(plant_cell, shift=RIGHT * 0.2), run_time=2)
         self.wait(0.5)
         # Zoom into cell for measurement
-        cell_ruler_group = VGroup(plant_cell, ruler)
+        cell_ruler_group = Group(plant_cell, ruler)
         zoom_to(cell_ruler_group, scale=0.55, run=1.2)
         self.play(GrowArrow(actual_arrow), FadeIn(actual_label), run_time=1.8)
         self.wait(0.3)
