@@ -1,0 +1,5 @@
+{
+  "killSwitch": false,
+  "rolloutPercent": 5,
+  "allowlistPath": ""
+}

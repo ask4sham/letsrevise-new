@@ -1,5 +1,6 @@
-// frontend/src/quizzes/TestYourKnowledge.tsx
+// frontend/src/quizzes/TestYourKnowledge.tsx — PR-AUTH-UI-3: use useCurrentUser for token.
 import React, { useEffect, useState } from "react";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 // ✅ Define the actual Question type from your Lesson type
 type ActualQuestion = {
@@ -83,15 +84,8 @@ const convertToQuizQuestion = (actualQuestion: ActualQuestion): QuizQuestion => 
 const RAW_API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
-function getAuthToken(): string | null {
-  try {
-    return localStorage.getItem("token");
-  } catch {
-    return null;
-  }
-}
-
 const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
+  const { token } = useCurrentUser({ watchLocation: true });
   // ✅ SINGLE SOURCE OF TRUTH: Get questions from lesson.quiz
   const lessonQuestions = lesson?.quiz?.questions ?? [];
   
@@ -275,8 +269,6 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
     if (!activeQuiz) return;
 
     try {
-      const token = getAuthToken();
-
       const res = await fetch(`${API_BASE}/api/quizzes/${activeQuiz.id}/attempt`, {
         method: "POST",
         headers: {

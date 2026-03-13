@@ -1,0 +1,149 @@
+{
+  "subject": "Biology",
+  "examBoard": "AQA",
+  "level": "GCSE",
+  "units": [
+    {
+      "unit": "Cell Biology",
+      "topics": [
+        { "topic": "Cell structure", "key": "cell-structure", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Animal and plant cells", "key": "animal-plant-cells", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Eukaryotes and prokaryotes", "key": "eukaryotes-prokaryotes", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Cell specialisation", "key": "cell-specialisation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Cell differentiation", "key": "cell-differentiation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Microscopy", "key": "microscopy", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Microscopy", "key": "rp-microscopy", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Cell Division", "key": "cell-division", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Chromosomes", "key": "chromosomes", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Mitosis and the cell cycle", "key": "mitosis-cell-cycle", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Stem cells", "key": "stem-cells", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Transport in Cells", "key": "transport-in-cells", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Diffusion", "key": "diffusion", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Factors that affect diffusion", "key": "factors-affect-diffusion", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Osmosis", "key": "osmosis", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Osmosis", "key": "rp-osmosis", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Active transport", "key": "active-transport", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Diffusion in multicellular organisms", "key": "diffusion-multicellular", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Transport summary and applications", "key": "transport-summary", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Culturing microorganisms", "key": "culturing-microorganisms", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Growth", "key": "rp-growth", "tier": ["foundation", "higher"], "requiredPractical": true }
+      ]
+    },
+    {
+      "unit": "Organisation",
+      "topics": [
+        { "topic": "Principles of organisation", "key": "principles-of-organisation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Digestive system", "key": "digestive-system", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Enzymes", "key": "enzymes", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Enzymes", "key": "rp-enzymes", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Circulatory system", "key": "circulatory-system", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Heart", "key": "heart", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Blood vessels and blood", "key": "blood-vessels-blood", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Coronary heart disease", "key": "coronary-heart-disease", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Health and disease", "key": "health-disease", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Non-communicable diseases", "key": "non-communicable-diseases", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Cancer", "key": "cancer", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Plant cell organisation", "key": "plant-cell-organisation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Transport in plants", "key": "transport-in-plants", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Transpiration and stomata", "key": "transpiration-stomata", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Plant transport", "key": "rp-plant-transport", "tier": ["foundation", "higher"], "requiredPractical": true }
+      ]
+    },
+    {
+      "unit": "Infection and Response",
+      "topics": [
+        { "topic": "Communicable disease", "key": "communicable-disease", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Viral diseases", "key": "viral-diseases", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Bacterial diseases", "key": "bacterial-diseases", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Fungal and protist diseases", "key": "fungal-protist-diseases", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Human defence systems", "key": "human-defence-systems", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Vaccination", "key": "vaccination", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Antibiotics and painkillers", "key": "antibiotics-painkillers", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Drug development", "key": "drug-development", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Monoclonal antibodies", "key": "monoclonal-antibodies", "tier": ["higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Microbiology", "key": "rp-microbiology", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Plant disease", "key": "plant-disease", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Bioenergetics",
+      "topics": [
+        { "topic": "Photosynthesis", "key": "photosynthesis", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Photosynthesis", "key": "rp-photosynthesis", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Respiration", "key": "respiration", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Metabolism", "key": "metabolism", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Response to exercise", "key": "response-to-exercise", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Homeostasis and Response",
+      "topics": [
+        { "topic": "Homeostasis", "key": "homeostasis", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "The nervous system", "key": "nervous-system", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Structure and function of the nervous system", "key": "nervous-system-structure", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "The reflex arc", "key": "reflex-arc", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Reaction time", "key": "rp-reaction-time", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "The brain", "key": "the-brain", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "The eye", "key": "the-eye", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Control of body temperature", "key": "control-body-temperature", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Human endocrine system", "key": "human-endocrine-system", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Control of blood glucose concentration", "key": "control-blood-glucose", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Diabetes", "key": "diabetes", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Maintaining water and nitrogen balance", "key": "water-nitrogen-balance", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Hormones in human reproduction", "key": "hormones-human-reproduction", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Contraception", "key": "contraception", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Uses of hormones to treat infertility", "key": "hormones-treat-infertility", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Plant hormones", "key": "plant-hormones", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Uses of plant hormones", "key": "uses-plant-hormones", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Plant growth", "key": "rp-plant-growth", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Negative feedback", "key": "negative-feedback", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Inheritance, Variation and Evolution",
+      "topics": [
+        { "topic": "Sexual and asexual reproduction", "key": "sexual-asexual-reproduction", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Meiosis", "key": "meiosis", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "DNA and the genome", "key": "dna-genome", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Genetic inheritance", "key": "genetic-inheritance", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Inherited disorders", "key": "inherited-disorders", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Variation", "key": "variation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Evolution", "key": "evolution", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Evidence for evolution", "key": "evidence-evolution", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Fossils", "key": "fossils", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Extinction", "key": "extinction", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Resistant bacteria", "key": "resistant-bacteria", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Classification", "key": "classification", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Understanding of genetics", "key": "understanding-genetics", "tier": ["higher"], "requiredPractical": false },
+        { "topic": "Speciation", "key": "speciation", "tier": ["higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Ecology",
+      "topics": [
+        { "topic": "Levels of organisation", "key": "levels-of-organisation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Interdependence", "key": "interdependence", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Biodiversity", "key": "biodiversity", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Ecology", "key": "ecology", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Ecosystems", "key": "rp-ecosystems", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "Adaptations", "key": "adaptations", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Impact of environmental change", "key": "impact-environmental-change", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Trophic levels", "key": "trophic-levels", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Pyramids of biomass", "key": "pyramids-of-biomass", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Transfer of biomass", "key": "transfer-of-biomass", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Decomposition", "key": "decomposition", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Required Practical: Decay", "key": "rp-decay", "tier": ["foundation", "higher"], "requiredPractical": true },
+        { "topic": "How materials are cycled", "key": "how-materials-cycled", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Land use", "key": "land-use", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Deforestation", "key": "deforestation", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Global warming", "key": "global-warming", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Maintaining biodiversity", "key": "maintaining-biodiversity", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Waste management", "key": "waste-management", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Factors affecting food security", "key": "factors-food-security", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Farming techniques", "key": "farming-techniques", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Sustainable fisheries", "key": "sustainable-fisheries", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Role of biotechnology", "key": "role-biotechnology", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    }
+  ]
+}

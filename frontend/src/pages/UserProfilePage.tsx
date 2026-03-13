@@ -1,17 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const UserProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const userStr =
-    typeof window !== "undefined" ? localStorage.getItem("user") : null;
-
-  let user: any = null;
-  try {
-    user = userStr ? JSON.parse(userStr) : null;
-  } catch (e) {
-    console.error("Failed to parse user from localStorage:", e);
-  }
+  const { user } = useCurrentUser({ watchLocation: true });
 
   if (!user) {
     return (

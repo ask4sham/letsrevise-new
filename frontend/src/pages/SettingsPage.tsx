@@ -1,17 +1,10 @@
 // frontend/src/pages/SettingsPage.tsx
+// PR-AUTH-UI-2: use useCurrentUser (no direct localStorage auth reads).
 import React from "react";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const SettingsPage: React.FC = () => {
-  const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-  let user: any = null;
-
-  if (userStr) {
-    try {
-      user = JSON.parse(userStr);
-    } catch (e) {
-      console.error("Failed to parse user in SettingsPage:", e);
-    }
-  }
+  const { user } = useCurrentUser({ watchLocation: true });
 
   return (
     <div

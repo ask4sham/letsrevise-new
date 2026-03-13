@@ -9,6 +9,8 @@ const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 // ✅ Load .env first
 dotenv.config();
 
+console.log("\n>>> BACKEND STARTING", new Date().toISOString(), "<<<\n");
+
 // ✅ DEBUG: Check JWT_SECRET_KEY is loaded
 console.log("🔐 Environment check:");
 console.log("  JWT_SECRET_KEY exists:", !!process.env.JWT_SECRET_KEY);
@@ -38,7 +40,6 @@ const opsRoutes = require("./routes/ops");
 const aiRoutes = require("./routes/ai");
 const aiGenerationJobsRoutes = require("./routes/aiGenerationJobs");
 const contentTreeRoutes = require("./routes/content-tree");
-const uploadsRoutes = require("./routes/uploads");
 const quizzesRoutes = require("./routes/quizzes");
 const assessmentPapersRoutes = require("./routes/assessmentPapers");
 
@@ -124,6 +125,7 @@ if (process.env.NODE_ENV !== "production") {
 
 // Serve uploads
 const uploadsRootPath = path.join(__dirname, "uploads");
+const videosFallbackPath = path.join(__dirname, "public", "visuals", "biology", "aqa-gcse", "cell-biology", "cell-structure");
 if (fs.existsSync(uploadsRootPath)) {
   console.log("Uploads folder found, serving at /uploads ...", uploadsRootPath);
 
@@ -136,6 +138,20 @@ if (fs.existsSync(uploadsRootPath)) {
       },
     })
   );
+  // Fallback: old /uploads/videos/xxx URLs → serve from visuals/biology/aqa-gcse/cell-biology/cell-structure (e.g. magnification.mp4)
+  app.use("/uploads", (req, res, next) => {
+    if (req.method !== "GET" || !req.path.startsWith("/videos/")) return next();
+    const filename = req.path.replace(/^\/videos\//, "");
+    const baseMatch = filename.match(/^\d+-(.+)\.(mp4|webm|mov)$/i);
+    const baseFilename = baseMatch ? `${baseMatch[1]}.${baseMatch[2]}` : filename;
+    const fallbackFile = path.join(videosFallbackPath, baseFilename);
+    if (fs.existsSync(fallbackFile)) {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.sendFile(fallbackFile);
+    }
+    next();
+  });
 } else {
   console.log("Uploads folder not found at:", uploadsRootPath);
 }
@@ -213,6 +229,11 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Diagnostic: if this returns 200, server.js is running our code
+app.get("/api/upload-ping", (req, res) => {
+  res.json({ ok: true, msg: "Upload routes active", ts: Date.now() });
+});
+
 /* ============================================================
    DEBUG INFO
 ============================================================ */
@@ -235,8 +256,9 @@ app.get("/api/_debug/info", (req, res) => {
    API ROUTES
 ============================================================ */
 
-// Mount uploads first so POST /api/uploads/lesson-media (CreateLessonPage) is always reachable
-app.use("/api/uploads", uploadsRoutes);
+// Uploads router (direct /__ping and /video are in app.js)
+app.use("/api/uploads", require("./routes/uploads"));
+console.log("[server] Uploads mounted at /api/uploads");
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -403,13 +425,26 @@ app.get("/", (req, res) => {
    START SERVER
 ============================================================ */
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Health: http://localhost:${PORT}/api/health`);
-  console.log(`Uploads: http://localhost:${PORT}/uploads`);
-  console.log(`Visuals: http://localhost:${PORT}/visuals`);
-  console.log(`Templates: http://localhost:${PORT}/api/templates`);
-  console.log(`Assessment Items: http://localhost:${PORT}/api/assessment-items`);
-  console.log(`Assessment Papers: http://localhost:${PORT}/api/assessment-papers`);
-  console.log(`Assessment Attempts: http://localhost:${PORT}/api/assessment-attempts`);
-});
+function tryListen(port) {
+  const server = app.listen(port, () => {
+    console.log(`\n=== Server running on port ${port} (${new Date().toISOString()}) ===`);
+    console.log(`Health: http://localhost:${port}/api/health`);
+    console.log(`Uploads ping: http://localhost:${port}/api/uploads/__ping`);
+    console.log(`Uploads: http://localhost:${port}/uploads`);
+    console.log(`Visuals: http://localhost:${port}/visuals`);
+    console.log(`Templates: http://localhost:${port}/api/templates`);
+    console.log(`Assessment Items: http://localhost:${port}/api/assessment-items`);
+    console.log(`Assessment Papers: http://localhost:${port}/api/assessment-papers`);
+    console.log(`Assessment Attempts: http://localhost:${port}/api/assessment-attempts`);
+  });
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE" && port < 5010) {
+      console.log(`Port ${port} in use, trying ${port + 1}...`);
+      tryListen(port + 1);
+    } else {
+      throw err;
+    }
+  });
+}
+
+tryListen(PORT);

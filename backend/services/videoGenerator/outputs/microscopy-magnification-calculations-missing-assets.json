@@ -1,0 +1,35 @@
+{
+  "missingAssets": [
+    {
+      "assetKey": "microscope-panel",
+      "expectedFilename": "microscope-panel.png",
+      "exists": false,
+      "prompt": "Educational biology panel showing microscope views and micrograph examples, clean GCSE style, white background, flat illustration, no watermark"
+    },
+    {
+      "assetKey": "magnification-formula",
+      "expectedFilename": "magnification-formula.png",
+      "exists": false,
+      "prompt": "Clean GCSE biology formula graphic showing Magnification = Image Size / Actual Size, educational style, white background, clear typography"
+    },
+    {
+      "assetKey": "ruler-plant-cell",
+      "expectedFilename": "ruler-plant-cell.png",
+      "exists": false,
+      "prompt": "Clean GCSE biology diagram of a plant cell beside a ruler for measurement, flat educational style, white background, no watermark"
+    },
+    {
+      "assetKey": "root-hair-ruler",
+      "expectedFilename": "root-hair-ruler.png",
+      "exists": false,
+      "prompt": "Clean GCSE biology diagram of a root hair cell with ruler measurement, flat educational style, white background, no watermark"
+    }
+  ],
+  "metadata": {
+    "title": "Microscopy - Magnification Calculations",
+    "subject": "Biology",
+    "topic": "Microscopy",
+    "sceneCount": 11,
+    "totalDurationSeconds": 112
+  }
+}

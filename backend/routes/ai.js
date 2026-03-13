@@ -137,7 +137,7 @@ const LESSON_DRAFT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "order", "pageType", "blocks"],
+        required: ["title", "order", "pageType", "blocks", "checkpoint"],
         properties: {
           title: { type: "string" },
           order: { type: "number" },
@@ -167,6 +167,7 @@ const LESSON_DRAFT_SCHEMA = {
           checkpoint: {
             type: "object",
             additionalProperties: false,
+            required: ["question", "options", "answer"],
             properties: {
               question: { type: "string" },
               options: {
@@ -883,6 +884,14 @@ router.post("/generate-and-save", auth, async (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Not authenticated" });
     if (!requireTeacherOrAdmin(req, res)) return;
 
+    // Early check: OpenAI must be configured
+    if (!process.env.OPENAI_API_KEY || !String(process.env.OPENAI_API_KEY).trim()) {
+      return res.status(503).json({
+        error: "AI lesson generation is not configured",
+        details: "OPENAI_API_KEY is missing. Add it to your environment to enable AI generation.",
+      });
+    }
+
     // Extract ALL body fields first — autoGenerateFromBanks must be declared before any use
     const autoGenerateFromBanks = req.body?.autoGenerateFromBanks === true;
     const topic = safeStr(req.body?.topic, "");
@@ -1158,21 +1167,33 @@ router.post("/generate-and-save", auth, async (req, res) => {
       console.error("❌ AI generate-and-save error:", error?.message || error);
     }
 
-    // OpenAI / upstream 4xx/5xx with status
+    // OpenAI / upstream 4xx/5xx — pass through status (422, 429, etc.) so frontend shows real error
     if (error?.response?.status) {
       const status = error.response.status;
+      const body = error.response?.data;
+
+      // Log exact response body for debugging (especially 422)
+      console.error(`❌ [generate-and-save] ${status} response body:`, JSON.stringify(body, null, 2));
+
       const msg =
-        error.response?.data?.error?.message ||
-        error.response?.data?.message ||
+        (body && typeof body.error === "object" && body.error?.message ? body.error.message : null) ||
+        (body && typeof body.error === "string" ? body.error : null) ||
+        (body && typeof body.message === "string" ? body.message : null) ||
         "OpenAI API error";
-      return res.status(status === 429 ? 429 : 500).json({
+
+      const payload = {
         error: status === 429 ? "OpenAI rate limit exceeded" : "Failed to generate lesson materials",
         details: msg,
-      });
+        ...(body?.error?.code && { code: body.error.code }),
+      };
+      return res.status(status).json(payload);
     }
 
+    // Include actual error message so user can debug (e.g. missing key, invalid schema)
+    const details = error?.message ? String(error.message) : undefined;
     return res.status(500).json({
       error: "Failed to generate lesson materials",
+      ...(details && { details }),
     });
   }
 });

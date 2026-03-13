@@ -1,7 +1,8 @@
-// pages/AnalysisPage.tsx
+// pages/AnalysisPage.tsx — PR-AUTH-UI-3: use useCurrentUser for token.
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import EarningsChart from "../components/charts/EarningsChart";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const defaultStats = {
   totalLessons: 0,
@@ -14,20 +15,20 @@ const defaultStats = {
 };
 
 const AnalysisPage: React.FC = () => {
+  const { token } = useCurrentUser({ watchLocation: true });
   const [stats, setStats] = useState<any>(defaultStats);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAnalysisData();
-  }, []);
+  }, [token]);
 
   const fetchAnalysisData = async () => {
     try {
-      const token = localStorage.getItem("token");
       const response = await axios.get(
         "http://localhost:5000/api/lessons/teacher/stats",
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
       );
 

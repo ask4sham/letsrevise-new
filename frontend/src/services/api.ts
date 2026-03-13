@@ -139,9 +139,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<any>) => {
+    const data = error.response?.data as Record<string, unknown> | undefined;
     let message =
-      (error.response?.data as any)?.msg ||
-      (error.response?.data as any)?.message ||
+      (typeof data?.details === "string" ? data.details : null) ||
+      (typeof data?.error === "string" ? data.error : null) ||
+      (typeof data?.msg === "string" ? data.msg : null) ||
+      (typeof data?.message === "string" ? data.message : null) ||
       error.message ||
       "Something went wrong";
     // Axios "Network Error" = request never reached server (backend down, wrong URL, CORS, etc.)

@@ -1,0 +1,133 @@
+{
+  "subject": "English Language",
+  "examBoard": "AQA",
+  "level": "GCSE",
+  "specKey": "aqa-gcse-english-language",
+  "tier": [],
+  "units": [
+    {
+      "unit": "SS1. Paper 1",
+      "key": "ss1-paper-1",
+      "topics": [
+        { "topic": "Paper 1 Overview", "key": "paper-1-overview", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1: Section A Overview", "key": "paper-1-section-a-overview", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1: Section B Overview", "key": "paper-1-section-b-overview", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 1: How to Answer Question 1", "key": "paper-1-how-to-answer-question-1", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1: Question 1 Example", "key": "paper-1-question-1-example", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 1: How to Answer Question 2", "key": "paper-1-how-to-answer-question-2", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 2 Skills: Language Analysis", "key": "paper-1-question-2-skills-language-analysis", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 2: Mark Scheme", "key": "paper-1-question-2-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 2: Model Answer", "key": "paper-1-question-2-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 1: How to Answer Question 3", "key": "paper-1-how-to-answer-question-3", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 3 Skills: Structure Analysis", "key": "paper-1-question-3-skills-structure-analysis", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 3: Mark Scheme", "key": "paper-1-question-3-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 3: Model Answer", "key": "paper-1-question-3-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 1: How to Answer Question 4", "key": "paper-1-how-to-answer-question-4", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 4 Skills: Evaluation", "key": "paper-1-question-4-skills-evaluation", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 4: Mark Scheme", "key": "paper-1-question-4-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 4: Model Answer", "key": "paper-1-question-4-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 1 Question 5: Creative Writing", "key": "paper-1-question-5-creative-writing", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 5: Descriptive Writing", "key": "paper-1-question-5-descriptive-writing", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 5: Language Techniques", "key": "paper-1-question-5-language-techniques", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 5: SPaG", "key": "paper-1-question-5-spag", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 5: Mark Scheme", "key": "paper-1-question-5-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 5: Creative Writing Model Answer", "key": "paper-1-question-5-creative-writing-model-answer", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 1 Question 5: Descriptive Writing Model Answer", "key": "paper-1-question-5-descriptive-writing-model-answer", "tier": [], "requiredPractical": false }
+      ]
+    },
+
+    {
+      "unit": "SS1. Paper 2",
+      "key": "ss1-paper-2",
+      "topics": [
+        { "topic": "Paper 2 Overview", "key": "paper-2-overview", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Section A: Overview", "key": "paper-2-section-a-overview", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Section B Overview", "key": "paper-2-section-b-overview", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 2: How to Answer Question 1", "key": "paper-2-how-to-answer-question-1", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2: Question 1 Example", "key": "paper-2-question-1-example", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 2: How to Answer Question 2", "key": "paper-2-how-to-answer-question-2", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 2 Skills: Summarising inferences", "key": "paper-2-question-2-skills-summarising-inferences", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 2: Mark Scheme", "key": "paper-2-question-2-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 2: Model Answer", "key": "paper-2-question-2-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 2: How to Answer Question 3", "key": "paper-2-how-to-answer-question-3", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 3 Skills: Language Analysis", "key": "paper-2-question-3-skills-language-analysis", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 3: Mark Scheme", "key": "paper-2-question-3-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 3: Model Answer", "key": "paper-2-question-3-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 2: How to Answer Question 4", "key": "paper-2-how-to-answer-question-4", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 4 Skills: Comparing Texts", "key": "paper-2-question-4-skills-comparing-texts", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 4: Mark Scheme", "key": "paper-2-question-4-mark-scheme", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 4: Model Answer", "key": "paper-2-question-4-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "Paper 2 Question 5: Format, Audience and Purpose", "key": "paper-2-question-5-format-audience-purpose", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Persuasive Language Techniques", "key": "paper-2-question-5-persuasive-language-techniques", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: SPaG", "key": "paper-2-question-5-spag", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Mark Scheme", "key": "paper-2-question-5-mark-scheme", "tier": [], "requiredPractical": false },
+
+        { "topic": "How to Write an Article for GCSE", "key": "paper-2-how-to-write-an-article", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Article Model Answer", "key": "paper-2-question-5-article-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "How to Write a Letter for GCSE", "key": "paper-2-how-to-write-a-letter", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Letter Model Answer", "key": "paper-2-question-5-letter-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "How to Write a Speech for GCSE", "key": "paper-2-how-to-write-a-speech", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Speech Model Answer", "key": "paper-2-question-5-speech-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "How to Write a Review for GCSE", "key": "paper-2-how-to-write-a-review", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Review Model Answer", "key": "paper-2-question-5-review-model-answer", "tier": [], "requiredPractical": false },
+
+        { "topic": "How to Write a Guide for GCSE", "key": "paper-2-how-to-write-a-guide", "tier": [], "requiredPractical": false },
+        { "topic": "Paper 2 Question 5: Guide Model Answer", "key": "paper-2-question-5-guide-model-answer", "tier": [], "requiredPractical": false }
+      ]
+    },
+
+    {
+      "unit": "SS1. Exam Skills",
+      "key": "ss1-exam-skills",
+      "topics": [
+        { "topic": "Mastering Spelling", "key": "exam-skills-mastering-spelling", "tier": [], "requiredPractical": false },
+        { "topic": "Mastering Punctuation", "key": "exam-skills-mastering-punctuation", "tier": [], "requiredPractical": false },
+        { "topic": "Mastering Sentences", "key": "exam-skills-mastering-sentences", "tier": [], "requiredPractical": false },
+        { "topic": "Mastering Word Classes", "key": "exam-skills-mastering-word-classes", "tier": [], "requiredPractical": false },
+
+        { "topic": "Exam Tips", "key": "exam-skills-exam-tips", "tier": [], "requiredPractical": false },
+        { "topic": "Using Quotes and Evidence in GCSE English Language", "key": "exam-skills-using-quotes-and-evidence", "tier": [], "requiredPractical": false },
+        { "topic": "How to Compare Texts in GCSE English Language", "key": "exam-skills-how-to-compare-texts", "tier": [], "requiredPractical": false },
+        { "topic": "Implicit Versus Explicit Meaning", "key": "exam-skills-implicit-versus-explicit-meaning", "tier": [], "requiredPractical": false },
+        { "topic": "How to Summarise in GCSE English Language", "key": "exam-skills-how-to-summarise", "tier": [], "requiredPractical": false },
+        { "topic": "How to Evaluate in GCSE English Language", "key": "exam-skills-how-to-evaluate", "tier": [], "requiredPractical": false },
+
+        { "topic": "How to Plan Your Creative Writing at GCSE", "key": "exam-skills-plan-creative-writing", "tier": [], "requiredPractical": false },
+        { "topic": "How to Structure Creative Writing at GCSE", "key": "exam-skills-structure-creative-writing", "tier": [], "requiredPractical": false },
+        { "topic": "How to Structure Persuasive Writing at GCSE", "key": "exam-skills-structure-persuasive-writing", "tier": [], "requiredPractical": false },
+        { "topic": "How to Engage the Reader in a Creative Writing Opening", "key": "exam-skills-engage-reader-creative-opening", "tier": [], "requiredPractical": false },
+        { "topic": "How to Create Setting in Creative Writing", "key": "exam-skills-create-setting", "tier": [], "requiredPractical": false },
+        { "topic": "Top Tips for Creating Characters in Creative Writing", "key": "exam-skills-creating-characters", "tier": [], "requiredPractical": false },
+        { "topic": "How to Write Dialogue in Creative Writing", "key": "exam-skills-write-dialogue", "tier": [], "requiredPractical": false },
+        { "topic": "How to Check and Proofread Your Writing at GCSE", "key": "exam-skills-proofread-writing", "tier": [], "requiredPractical": false },
+
+        { "topic": "Understanding Speaking and Listening at GCSE", "key": "exam-skills-understanding-speaking-listening", "tier": [], "requiredPractical": false },
+        { "topic": "Speaking and Listening Skills", "key": "exam-skills-speaking-and-listening-skills", "tier": [], "requiredPractical": false },
+        { "topic": "GCSE Speaking and Listening: Individual Presentation", "key": "exam-skills-speaking-listening-individual-presentation", "tier": [], "requiredPractical": false },
+        { "topic": "GCSE Speaking and Listening: Writing your Presentation", "key": "exam-skills-speaking-listening-writing-your-presentation", "tier": [], "requiredPractical": false }
+      ]
+    },
+
+    {
+      "unit": "SS1. Exams",
+      "key": "ss1-exams",
+      "topics": [
+        { "topic": "2026 Exams Changes", "key": "exams-2026-changes", "tier": [], "requiredPractical": false },
+        { "topic": "2027+ Exams: Check for updates", "key": "exams-2027-plus-check-updates", "tier": [], "requiredPractical": false }
+      ]
+    }
+  ]
+}

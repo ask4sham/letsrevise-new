@@ -7,22 +7,36 @@ import { getStudentMyWork, type MyWorkItem, type MyWorkResponse } from "../api/s
 
 type Tab = "worksheets" | "quizzes" | "assessments";
 
-const statusStyle = (rawStatus: string) => {
-  if (rawStatus === "In progress" || rawStatus === "IN_PROGRESS" || rawStatus === "in_progress") {
-    return { background: "#fef3c7", color: "#92400e", border: "1px solid #f59e0b" };
+/** PR-UX-STU-URGENCY-1: Status badge colours and labels */
+const getStatusDisplay = (item: MyWorkItem): { label: string; style: React.CSSProperties } => {
+  const inProgress =
+    item.rawStatus === "In progress" || item.rawStatus === "IN_PROGRESS" || item.rawStatus === "in_progress";
+  const awaiting =
+    item.rawStatus === "Awaiting release" || item.rawStatus === "SUBMITTED" || item.rawStatus === "submitted";
+  const marked = item.rawStatus === "Marked" || item.rawStatus === "MARKED";
+
+  if (marked) {
+    return { label: "Released", style: { background: "#d1fae5", color: "#065f46", border: "1px solid #10b981" } };
   }
-  if (rawStatus === "Awaiting release" || rawStatus === "SUBMITTED" || rawStatus === "submitted") {
-    return { background: "#dbeafe", color: "#1e40af", border: "1px solid #3b82f6" };
+  if (awaiting) {
+    return { label: "Awaiting release", style: { background: "#f3f4f6", color: "#4b5563", border: "1px solid #d1d5db" } };
   }
-  if (rawStatus === "Marked" || rawStatus === "MARKED") {
-    return { background: "#d1fae5", color: "#065f46", border: "1px solid #10b981" };
+  const dueSoon =
+    item.dueAt && new Date(item.dueAt).getTime() - Date.now() <= 48 * 60 * 60 * 1000 && new Date(item.dueAt).getTime() > Date.now();
+  if (inProgress && dueSoon) {
+    return { label: "Due soon", style: { background: "#fef3c7", color: "#92400e", border: "1px solid #f59e0b" } };
   }
-  return { background: "#f3f4f6", color: "#4b5563", border: "1px solid #d1d5db" };
+  if (inProgress) {
+    return { label: "In progress", style: { background: "#dbeafe", color: "#1e40af", border: "1px solid #3b82f6" } };
+  }
+  return { label: item.status, style: { background: "#f3f4f6", color: "#4b5563", border: "1px solid #d1d5db" } };
 };
 
 function ItemRow({ item }: { item: MyWorkItem }) {
-  const style = statusStyle(item.rawStatus);
-  const primaryLabel = item.rawStatus === "IN_PROGRESS" || item.rawStatus === "in_progress" ? "Continue" : "View";
+  const { label, style } = getStatusDisplay(item);
+  const inProgress =
+    item.rawStatus === "In progress" || item.rawStatus === "IN_PROGRESS" || item.rawStatus === "in_progress";
+  const primaryLabel = inProgress ? "Continue" : "View";
   const primaryLink =
     item.rawStatus === "IN_PROGRESS" || item.rawStatus === "in_progress"
       ? item.linkTo
@@ -31,7 +45,7 @@ function ItemRow({ item }: { item: MyWorkItem }) {
     <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
       <td style={{ padding: 12, fontWeight: 600 }}>{item.title}</td>
       <td style={{ padding: 12 }}>
-        <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, ...style }}>{item.status}</span>
+        <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, ...style }}>{label}</span>
       </td>
       <td style={{ padding: 12, color: "#6b7280" }}>
         {item.dueAt ? new Date(item.dueAt).toLocaleDateString() : "—"}
@@ -141,8 +155,30 @@ export default function StudentMyWorkPage() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 24, color: "#6b7280", textAlign: "center" }}>
-                    No {tab} yet.
+                  <td colSpan={5} style={{ padding: 32, textAlign: "center" }}>
+                    <div style={{ color: "#6b7280", fontSize: 14, marginBottom: 16 }}>
+                      {tab === "worksheets" &&
+                        "Your teacher will assign these. You can also browse lessons to practise."}
+                      {tab === "quizzes" &&
+                        "Quizzes appear here once your teacher assigns them."}
+                      {tab === "assessments" &&
+                        "Assessments appear here once your teacher assigns them."}
+                    </div>
+                    <Link
+                      to="/browse-lessons"
+                      style={{
+                        display: "inline-block",
+                        padding: "10px 20px",
+                        background: "#2563eb",
+                        color: "white",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
+                    >
+                      Browse lessons
+                    </Link>
                   </td>
                 </tr>
               ) : (

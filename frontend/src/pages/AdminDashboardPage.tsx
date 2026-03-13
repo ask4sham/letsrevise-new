@@ -650,6 +650,34 @@ const AdminDashboardPage: React.FC = () => {
         >
           Question Banks →
         </Link>
+        <Link
+          to="/admin/taxonomy"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#ecfdf5",
+            color: "#047857",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Curriculum / Taxonomy →
+        </Link>
+        <Link
+          to="/admin/content-coverage"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#eff6ff",
+            color: "#1d4ed8",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Content Coverage →
+        </Link>
       </div>
       </div>
 

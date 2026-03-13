@@ -1,0 +1,45 @@
+/**
+ * PR-PRACTICE-LOOP-1 Frontend: Submit practice attempt (MCQ: selectedChoiceIndex; others: isCorrect).
+ */
+import api from "../services/api";
+
+export type SubmitPracticeAttemptPayload = {
+  teacherId: string;
+  specKey: string;
+  topicKey: string;
+  contentType: string;
+  contentId: string;
+  confidence?: number;
+  timeSpentSec?: number;
+} & (
+  | { contentType: "quiz_mcq"; selectedChoiceIndex: number }
+  | { contentType: string; isCorrect: boolean }
+);
+
+export type SubmitPracticeAttemptResponse = { ok: true };
+
+export async function submitPracticeAttempt(
+  payload: SubmitPracticeAttemptPayload
+): Promise<SubmitPracticeAttemptResponse> {
+  const body: Record<string, unknown> = {
+    teacherId: payload.teacherId,
+    specKey: payload.specKey,
+    topicKey: payload.topicKey,
+    contentType: payload.contentType,
+    contentId: payload.contentId,
+  };
+  if (payload.confidence != null) body.confidence = payload.confidence;
+  if (payload.timeSpentSec != null) body.timeSpentSec = payload.timeSpentSec;
+
+  if (payload.contentType === "quiz_mcq") {
+    body.selectedChoiceIndex = (payload as { selectedChoiceIndex: number }).selectedChoiceIndex;
+  } else {
+    body.isCorrect = (payload as { isCorrect: boolean }).isCorrect;
+  }
+
+  const res = await api.post<SubmitPracticeAttemptResponse>(
+    "/practice-attempts",
+    body
+  );
+  return res.data;
+}

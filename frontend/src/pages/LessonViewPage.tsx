@@ -1101,6 +1101,10 @@ const LessonViewPage: React.FC = () => {
   const previewLockRef = useRef(false);
   /** Stays true for ~400ms after preview entry so child components (AskAiPanel) keep suppressAutoScroll */
   const [previewEntrySuppressScroll, setPreviewEntrySuppressScroll] = useState(false);
+  /** Suppress AskAi scrollIntoView on mount/lesson change — prevents page landing in middle (root cause fix) */
+  const [suppressAskAiScrollOnMount, setSuppressAskAiScrollOnMount] = useState(true);
+  /** Skip #practice / #block-N scroll on initial mount — force top on first load */
+  const skipHashScrollOnMountRef = useRef(true);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -1195,6 +1199,33 @@ const LessonViewPage: React.FC = () => {
   const [attachedPapersSummaries, setAttachedPapersSummaries] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number }>>([]);
 
   const pageParam = useMemo(() => searchParams.get("page") || "", [searchParams]);
+
+  // Force scroll to top on mount and on lesson/page change (fix: page lands in middle/Quiz after refresh)
+  useEffect(() => {
+    skipHashScrollOnMountRef.current = true;
+    const prevRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    // Clear hash from URL to prevent browser from scrolling to #quiz, #practice, etc. on load
+    if (typeof window !== "undefined" && window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const t1 = setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 300);
+    const t2 = setTimeout(() => { skipHashScrollOnMountRef.current = false; }, 1000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.history.scrollRestoration = prevRestoration;
+    };
+  }, [id, pageParam]);
+
+  // Also scroll to top when lesson content finishes loading (catches late renders)
+  useEffect(() => {
+    if (!lesson) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const t = setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 100);
+    return () => clearTimeout(t);
+  }, [lesson?.id]);
 
   const hasStructuredPages = useMemo(
     () =>
@@ -1394,6 +1425,7 @@ const LessonViewPage: React.FC = () => {
       }
       return;
     }
+    if (skipHashScrollOnMountRef.current) return; // Disable on initial mount — force top on first load
     if (location.hash === "#practice") {
       if (process.env.NODE_ENV !== "production") {
         console.log("[LessonViewPage] auto-scroll trigger", { reason: "practice", hash: location.hash });
@@ -1713,6 +1745,7 @@ const LessonViewPage: React.FC = () => {
       }
       return;
     }
+    if (skipHashScrollOnMountRef.current) return; // Disable on initial mount — force top on first load
     const hash = location.hash || (typeof window !== "undefined" ? window.location.hash : "");
     const m = hash && /^#block-(\d+)$/.exec(hash);
     if (!m || !hasStructuredPages) return;
@@ -2388,6 +2421,23 @@ const LessonViewPage: React.FC = () => {
     };
   }, []);
 
+  /** Strip [Video: caption](url) from content — used only for description/top box and keyword parsing */
+  const stripVideoMarkdown = (content: string): string => {
+    if (!content || typeof content !== "string") return content;
+    return content.replace(/\[Video:[^\]]*\]\([^)]*\)/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+  };
+
+  /** Strip media from Description — top box is plain text only; video/images render in blocks */
+  const stripMediaFromDescription = (content = ""): string => {
+    return String(content)
+      .replace(/\[Video:[^\]]*\]\([^)]+\)/gi, "")
+      .replace(/!\[[^\]]*\]\([^)]+\)/gi, "")
+      .replace(/\/uploads\/videos\/[^\s)]+/gi, "")
+      .replace(/<video[\s\S]*?<\/video>/gi, "")
+      .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+      .trim();
+  };
+
   /** PR-UX-LESSON-4: Detect comma-separated keywords list for "Key words" callout. TODO: Long-term: migrate keywords blocks to structured type: keyWords. */
   const maybeParseKeywordsFromText = (blockText: string): string[] | null => {
     const t = String(blockText ?? "").trim();
@@ -2422,6 +2472,8 @@ const LessonViewPage: React.FC = () => {
       textAlign: "left",
       fontSize: BASE_FONT_SIZE,
     };
+
+    const cleanedText = stripVideoMarkdown(text);
 
     if (kind === "keyIdea") {
       return (
@@ -2515,7 +2567,7 @@ const LessonViewPage: React.FC = () => {
     }
 
     // PR-UX-LESSON-4: Key words callout — explicit keyWords block or text that looks like comma-separated keywords
-    const keywords = kind === "keyWords" || kind === "text" ? maybeParseKeywordsFromText(text) : null;
+    const keywords = kind === "keyWords" || kind === "text" ? maybeParseKeywordsFromText(cleanedText) : null;
     if (keywords && keywords.length > 0) {
       return (
         <div
@@ -2541,7 +2593,7 @@ const LessonViewPage: React.FC = () => {
 
     // ✅ TEXT BLOCK:
     // - Markdown supports images inline: ![caption](url)
-    // - Text is forced left-aligned (images can still be centered)
+    // - Video markdown [Video: caption](url) renders via custom link component
     return (
       <div
         key={idx}
@@ -2615,10 +2667,16 @@ const LessonViewPage: React.FC = () => {
 
   const renderHero = (hero?: LessonPageHero) => {
     const h = hero || { type: "none", src: "", caption: "" };
-    const src = normalizeHeroSrc(h);
+    const rawSrc = normalizeHeroSrc(h);
+    // Resolve to absolute URL so videos/images load from backend (/uploads, /visuals, /content)
+    const src = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? rawSrc) : "";
 
     // ✅ If there is no valid src, do NOT render the hero at all (prevents broken image icon)
     if (!h || h.type === "none" || !src) return null;
+
+    // ✅ Top title/topic page section must be text-only — do NOT render video/animation here.
+    // Video belongs only in the dedicated lower lesson block (block content with [Video:...](url)).
+    if (h.type === "video" || h.type === "animation") return null;
 
     // Page kicker/subtitle: hero caption — only render when SHOW_PAGE_KICKER is true (caption never renders otherwise)
     if (process.env.NODE_ENV !== "production" && h?.caption?.trim()) {
@@ -2642,19 +2700,6 @@ const LessonViewPage: React.FC = () => {
       fontSize: "0.95rem",
       textAlign: "center",
     };
-
-    if (h.type === "video" || h.type === "animation") {
-      return (
-        <div style={boxStyle}>
-          <video
-            controls
-            style={{ width: "100%", borderRadius: 12, background: "#000" }}
-            src={src}
-          />
-          {renderCaption ? <div style={captionStyle} data-testid="page-kicker">{h.caption}</div> : null}
-        </div>
-      );
-    }
 
     if (h.type === "image") {
       return (
@@ -3348,26 +3393,30 @@ const LessonViewPage: React.FC = () => {
                     {lesson.examBoardName ? ` · ${lesson.examBoardName}` : ""}
                   </div>
 
-                  {lesson?.description && (
-                    <div
-                      style={{
-                        marginTop: 12,
-                        borderRadius: 6,
-                        border: "1px solid #e5e7eb",
-                        background: "#f9fafb",
-                        padding: 12,
-                        fontSize: "0.875rem",
-                        color: "#1f2937",
-                      }}
-                    >
-                      <div style={{ fontWeight: 500, marginBottom: 4 }}>What you&apos;ll learn</div>
-                      <div style={{ whiteSpace: "pre-wrap" }}>
-                        {lesson.description.length > 400
-                          ? `${lesson.description.slice(0, 400)}…`
-                          : lesson.description}
+                  {lesson?.description && (() => {
+                    const cleanedDesc = stripMediaFromDescription(lesson.description);
+                    if (!cleanedDesc) return null;
+                    return (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          borderRadius: 6,
+                          border: "1px solid #e5e7eb",
+                          background: "#f9fafb",
+                          padding: 12,
+                          fontSize: "0.875rem",
+                          color: "#1f2937",
+                        }}
+                      >
+                        <div style={{ fontWeight: 500, marginBottom: 4 }}>What you&apos;ll learn</div>
+                        <div style={{ whiteSpace: "pre-wrap" }}>
+                          {cleanedDesc.length > 400
+                            ? `${cleanedDesc.slice(0, 400)}…`
+                            : cleanedDesc}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <h2
                     style={{
@@ -3640,7 +3689,7 @@ const LessonViewPage: React.FC = () => {
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
                     lessonId={id || undefined}
-                    suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll}
+                    suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
                 )}
                 {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
@@ -3649,7 +3698,7 @@ const LessonViewPage: React.FC = () => {
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
                     lessonId={id || undefined}
-                    suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll}
+                    suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
                 )}
                 {/* PR-038: Today's study plan — student only */}
@@ -4241,7 +4290,7 @@ const LessonViewPage: React.FC = () => {
             }}
           >
             <ReactMarkdown components={markdownComponents as any}>
-              {lesson.content || ""}
+              {stripVideoMarkdown(lesson.content || "")}
             </ReactMarkdown>
           </div>
         </div>
@@ -4385,6 +4434,7 @@ const LessonViewPage: React.FC = () => {
             specKey={specKey}
             topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
             lessonId={id || undefined}
+            suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
           />
         )}
         {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
@@ -4412,7 +4462,7 @@ const LessonViewPage: React.FC = () => {
               specKey={specKey}
               topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
               lessonId={id || undefined}
-              suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll}
+              suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
             />
           </>
         )}

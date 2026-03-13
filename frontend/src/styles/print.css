@@ -1,0 +1,36 @@
+/* PR-W3: Print-first worksheet output — hide builder UI, A4 layout */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .worksheet-builder-left,
+  .worksheet-builder-grid .worksheet-builder-left {
+    display: none !important;
+  }
+
+  .worksheet-builder-grid {
+    display: block !important;
+  }
+
+  .worksheet-builder-right,
+  .worksheet-page {
+    width: 100% !important;
+    max-width: 210mm;
+    margin: 0 auto;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .worksheet-question {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 12mm;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

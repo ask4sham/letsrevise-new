@@ -1,0 +1,65 @@
+{
+  "assets": [
+    {
+      "assetKey": "microscope",
+      "expectedFilename": "microscope.png",
+      "exists": true,
+      "prompt": "Clean GCSE biology diagram of a light microscope, flat educational style, white background, blue-grey palette, simple classroom illustration, no labels, no watermark"
+    },
+    {
+      "assetKey": "microscope-panel",
+      "expectedFilename": "microscope-panel.png",
+      "exists": false,
+      "prompt": "Educational biology panel showing microscope views and micrograph examples, clean GCSE style, white background, flat illustration, no watermark"
+    },
+    {
+      "assetKey": "magnification-formula",
+      "expectedFilename": "magnification-formula.png",
+      "exists": false,
+      "prompt": "Clean GCSE biology formula graphic showing Magnification = Image Size / Actual Size, educational style, white background, clear typography"
+    },
+    {
+      "assetKey": "iam-triangle",
+      "expectedFilename": "iam-triangle.png",
+      "exists": true,
+      "prompt": "Clean GCSE biology IAM triangle graphic showing I, A, and M in an equation triangle, flat educational style, white background"
+    },
+    {
+      "assetKey": "plant-cell",
+      "expectedFilename": "plant-cell.png",
+      "exists": true,
+      "prompt": "Clean GCSE biology plant cell diagram, flat educational style, white background, simple colored organelles, no watermark"
+    },
+    {
+      "assetKey": "ruler-plant-cell",
+      "expectedFilename": "ruler-plant-cell.png",
+      "exists": false,
+      "prompt": "Clean GCSE biology diagram of a plant cell beside a ruler for measurement, flat educational style, white background, no watermark"
+    },
+    {
+      "assetKey": "root-hair-cell",
+      "expectedFilename": "root-hair-cell.png",
+      "exists": true,
+      "prompt": "Clean GCSE biology root hair cell diagram, educational style, white background, flat illustration, no watermark"
+    },
+    {
+      "assetKey": "root-hair-ruler",
+      "expectedFilename": "root-hair-ruler.png",
+      "exists": false,
+      "prompt": "Clean GCSE biology diagram of a root hair cell with ruler measurement, flat educational style, white background, no watermark"
+    },
+    {
+      "assetKey": "generic-cell",
+      "expectedFilename": "generic-cell.png",
+      "exists": true,
+      "prompt": "Clean GCSE biology cell diagram, flat educational style, white background, simple classroom illustration, no watermark"
+    }
+  ],
+  "metadata": {
+    "title": "Microscopy - Magnification Calculations",
+    "subject": "Biology",
+    "topic": "Microscopy",
+    "sceneCount": 11,
+    "totalDurationSeconds": 112
+  }
+}

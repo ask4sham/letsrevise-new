@@ -12,4 +12,6 @@ require("./EnquiryCache");
 require("./TopicSummaryLog");
 require("./TopicSummaryCache");
 require("./StudentTopicProgress");
+require("./ContentNode");
+require("./ContentEdge");
 

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ops — Admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem; max-width: 960px; }
+    h1 { font-size: 1.25rem; }
+    section { margin: 1rem 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 0.25rem 0.5rem; text-align: left; }
+    th { background: #f5f5f5; }
+    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.85rem; }
+    .badge-L0 { background: #e0e0e0; }
+    .badge-L1 { background: #c8e6c9; }
+    .badge-L2 { background: #bbdefb; }
+    .badge-dry_run { background: #fff9c4; }
+    .badge-SUCCESS { color: #2e7d32; }
+    .badge-FAILED { color: #c62828; }
+    .badge-DRY_RUN { color: #f57f17; }
+    .badge-SENT { color: #2e7d32; }
+    .badge-SKIPPED { color: #757575; }
+    button { margin: 0.25rem; padding: 0.35rem 0.75rem; cursor: pointer; }
+    input[type="text"] { width: 20rem; padding: 0.25rem; }
+    .token-bar { margin-bottom: 1rem; }
+    .error { color: #c62828; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .badge-env { background: #e3f2fd; color: #1565c0; }
+  </style>
+</head>
+<body>
+  <div class="header-row">
+    <h1>Ops — Admin panel</h1>
+    <span id="envBadge" class="badge badge-env" aria-label="Environment">—</span>
+  </div>
+  <div class="token-bar">
+    <label>Admin token: <input type="text" id="tokenInput" placeholder="Paste JWT (Bearer)" /></label>
+    <button id="saveToken">Save &amp; load</button>
+    <button id="refresh">Refresh</button>
+  </div>
+  <div id="error" class="error"></div>
+
+  <section>
+    <h2>Automation state</h2>
+    <div id="state">—</div>
+    <p>
+      <label>Level: <select id="level"><option value="L0">L0 Observe</option><option value="L1">L1 Safe</option><option value="L2">L2 Playbook</option></select></label>
+      <button id="setLevel">Set level</button>
+    </p>
+    <p>
+      <button id="killSwitchOn">Enable kill-switch</button>
+      <button id="killSwitchOff">Disable kill-switch</button>
+    </p>
+  </section>
+
+  <section>
+    <h2>Last decision</h2>
+    <pre id="decision">—</pre>
+  </section>
+
+  <section>
+    <h2>Open incidents</h2>
+    <div id="incidents">—</div>
+  </section>
+
+  <section>
+    <h2>Recent audits</h2>
+    <p>
+      <label>Filter: <select id="auditFilter"><option value="">All</option><option value="SUCCESS">SUCCESS</option><option value="FAILED">FAILED</option><option value="DRY_RUN">DRY_RUN</option></select></label>
+    </p>
+    <div id="audits">—</div>
+  </section>
+
+  <section>
+    <h2>Notification log</h2>
+    <p>
+      <label>Filter: <select id="notificationFilter"><option value="">All</option><option value="SENT">SENT</option><option value="SKIPPED">SKIPPED</option><option value="FAILED">FAILED</option></select></label>
+    </p>
+    <div id="notifications">—</div>
+  </section>
+
+  <script src="/static/admin-ops.js"></script>
+</body>
+</html>

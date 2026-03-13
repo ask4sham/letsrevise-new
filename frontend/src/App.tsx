@@ -55,6 +55,8 @@ import TeacherReteachPlansPage from "./pages/TeacherReteachPlansPage";
 import AdminMetricsPage from "./pages/AdminMetricsPage";
 import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
+import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
+import ContentCoveragePage from "./pages/ContentCoveragePage";
 
 // ✅ Settings page (new)
 import SettingsPage from "./pages/SettingsPage";
@@ -779,6 +781,24 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <AdminQuestionBanksPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/taxonomy"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminTaxonomyPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/content-coverage"
+            element={
+              <ProtectedRoute requireAdmin>
+                <ContentCoveragePage />
               </ProtectedRoute>
             }
           />

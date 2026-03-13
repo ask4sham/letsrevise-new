@@ -51,9 +51,10 @@ const ImageUploader: React.FC<Props> = ({
 
       const form = new FormData();
       form.append("file", file);
-      form.append("folder", folder);
+      const endpoint = isVideo ? "/uploads/video" : `/uploads/image?folder=${encodeURIComponent(folder)}`;
+      if (!isVideo) form.append("folder", folder);
 
-      const res = await api.post(`/uploads/image?folder=${encodeURIComponent(folder)}`, form);
+      const res = await api.post(endpoint, form);
 
       const url = res.data?.url as string | undefined;
       if (!url) {
@@ -83,7 +84,7 @@ const ImageUploader: React.FC<Props> = ({
       const reqUrl =
         e?.config?.url != null
           ? (e?.config?.baseURL || "") + e.config.url
-          : "/api/uploads/image";
+          : (isVideo ? "/api/uploads/video" : "/api/uploads/image");
       const status = e?.response?.status;
       const body =
         e?.response?.data != null

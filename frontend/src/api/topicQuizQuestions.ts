@@ -35,6 +35,10 @@ export type ListParams = {
   status?: "draft" | "published" | "all";
   mineOnly?: boolean;
   kind?: QuizKind;
+  /** Exact topicKey match only (no sibling/legacy fallback). */
+  exactMatch?: boolean;
+  /** For attach: show all published for topic (no owner filter). */
+  forAttach?: boolean;
 };
 
 export type BulkPreviewSummary = {
@@ -70,7 +74,7 @@ export type BulkPreviewResponse = {
 
 export async function listTopicQuizQuestions(
   topicKey: string,
-  opts: { specKey?: string; status?: ListParams["status"]; mineOnly?: boolean; kind?: QuizKind } = {}
+  opts: { specKey?: string; status?: ListParams["status"]; mineOnly?: boolean; kind?: QuizKind; exactMatch?: boolean; forAttach?: boolean } = {}
 ): Promise<TopicQuizQuestion[]> {
   const q = new URLSearchParams();
   q.set("topicKey", topicKey);
@@ -78,6 +82,8 @@ export async function listTopicQuizQuestions(
   if (opts.status) q.set("status", opts.status);
   if (opts.mineOnly) q.set("mineOnly", "1");
   if (opts.kind) q.set("kind", opts.kind);
+  if (opts.exactMatch) q.set("exactMatch", "1");
+  if (opts.forAttach) q.set("forAttach", "1");
   const res = await api.get<{ items: TopicQuizQuestion[] }>(`/topic-quiz-questions?${q.toString()}`);
   return res.data?.items ?? [];
 }
@@ -196,6 +202,19 @@ export async function generateAssessmentFromTopic(
     questionsCount: number;
     lesson: any;
   }>(`/lessons/${lessonId}/generate/assessment-from-topic`, { topicKey: topicKey ?? undefined });
+  return res.data!;
+}
+
+/** Attach selected Topic Quiz Bank questions to a lesson page (published-only, exact topicKey). */
+export async function attachPageQuizFromBank(
+  lessonId: string,
+  pageId: string,
+  questionIds: string[]
+): Promise<{ ok: boolean; addedCount: number; alreadyExisted: number; lesson: any }> {
+  const res = await api.post<{ ok: boolean; addedCount: number; alreadyExisted: number; lesson: any }>(
+    `/lessons/${lessonId}/attach-page-quiz-from-bank`,
+    { pageId, questionIds }
+  );
   return res.data!;
 }
 

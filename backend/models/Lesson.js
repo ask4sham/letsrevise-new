@@ -206,6 +206,12 @@ const LessonSchema = new mongoose.Schema(
     topic: { type: String, required: true, trim: true },
     /** Namespaced topic key from taxonomy (specKey:topicSlug) for practice/banks. Set by Create Lesson when user picks from taxonomy. */
     topicKey: { type: String, trim: true, default: null, index: true },
+    /** Spec key from taxonomy (e.g. aqa-gcse-biology). Required for flashcards/practice/bank. */
+    specKey: { type: String, trim: true, default: null, index: true },
+    /** Main topic/unit display (e.g. "Cell Biology"). For teacher-facing taxonomy display. */
+    mainTopic: { type: String, trim: true, default: null },
+    /** Sub-topic display (e.g. "Cell structure"). For teacher-facing taxonomy display. */
+    subTopic: { type: String, trim: true, default: null },
 
     // optional metadata
     tags: { type: [String], default: [] },

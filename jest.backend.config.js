@@ -11,6 +11,9 @@ module.exports = {
   testMatch: [
     "<rootDir>/backend/tests/**/*.test.js",
     "<rootDir>/backend/tests/**/*.integration.test.js",
+    "<rootDir>/backend/utils/contentCanonicalKey.test.js",
+    "<rootDir>/backend/services/contentCoverageService.test.js",
+    "<rootDir>/backend/services/contentGraphService.test.js",
   ],
 
   testPathIgnorePatterns: ["/node_modules/"],

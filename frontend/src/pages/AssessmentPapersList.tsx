@@ -1,4 +1,5 @@
 // frontend/src/pages/AssessmentPapersList.tsx
+// PR-AUTH-UI-2: use useCurrentUser for token and user (no direct localStorage auth reads).
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -11,6 +12,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import SubscriptionRequired from "../components/SubscriptionRequired";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface AssessmentPaper {
   _id: string;
@@ -45,15 +47,18 @@ const AssessmentPapersList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMode, setSelectedMode] = useState<string>("practice_set");
   const [userType, setUserType] = useState<string>("");
+  const { user, token } = useCurrentUser({ watchLocation: true });
 
   useEffect(() => {
+    setUserType(user?.userType || "");
+
     const fetchPapers = async () => {
       try {
         setLoading(true);
         const url = `http://localhost:5000/api/assessment-papers?kind=${encodeURIComponent(selectedMode)}`;
         const response = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token ?? ""}`,
           },
         });
 
@@ -77,19 +82,8 @@ const AssessmentPapersList: React.FC = () => {
       }
     };
 
-    // Get user type from localStorage
-    try {
-      const userData = localStorage.getItem("user");
-      if (userData) {
-        const user = JSON.parse(userData);
-        setUserType(user.userType || "");
-      }
-    } catch (err) {
-      console.error("Error reading user data:", err);
-    }
-
     fetchPapers();
-  }, [selectedMode]);
+  }, [selectedMode, token, user?.userType]);
 
   const isTeacher = userType === "teacher";
 

@@ -1,0 +1,28 @@
+{
+  "title": "Microscopy - Magnification Calculations",
+  "description": "Learn how to use a light microscope and calculate magnification. Key concepts: image size, real size, and the magnification triangle.",
+  "subject": "Biology",
+  "topic": "Microscopy",
+  "blocks": [
+    {
+      "type": "text",
+      "content": "### Using the Microscope\n\nA light microscope uses lenses to magnify small objects. You can see cells and their structures clearly."
+    },
+    {
+      "type": "text",
+      "content": "### The Magnification Formula\n\nMagnification = image size divided by real size. Remember this formula for your exam."
+    },
+    {
+      "type": "text",
+      "content": "### The IAM Triangle\n\nUse the triangle to remember: Image = Magnification × Actual size. Rearrange to find any unknown."
+    },
+    {
+      "type": "text",
+      "content": "### Cell Structures\n\nUnder the microscope you can see the cell membrane, nucleus, and cytoplasm in plant and animal cells."
+    },
+    {
+      "type": "text",
+      "content": "### Summary\n\nRemember: the microscope gives us magnification. Use the triangle for calculations. Cell biology relies on microscopy."
+    }
+  ]
+}

@@ -379,6 +379,9 @@ function findTopicBySpecAndKey(specKey, topicKey) {
 
 /**
  * Normalize a free-text topic to a key (lowercase, hyphenated, no punctuation).
+ * Note: For display names like "Animal and plant cells", this yields "animal-and-plant-cells"
+ * which may NOT match the taxonomy key "animal-plant-cells". Use topicDisplayToCanonicalKey
+ * when the input is a taxonomy display name.
  * @param {string} topic - Display name or free text.
  * @returns {string} Normalized key.
  */
@@ -391,6 +394,84 @@ function topicToKey(topic) {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/**
+ * Resolve a taxonomy display name (e.g. "Animal and plant cells") to its canonical key
+ * (e.g. "animal-plant-cells"). Use this when lesson.topic is from the topic picker.
+ * Falls back to topicToKey if no exact match.
+ * @param {string} displayName - Topic display name from taxonomy.
+ * @param {string} [specKey] - Spec key e.g. "aqa-gcse-biology". Defaults to Biology.
+ * @returns {string} Canonical topic key or empty string.
+ */
+function topicDisplayToCanonicalKey(displayName, specKey = "aqa-gcse-biology") {
+  if (!displayName || typeof displayName !== "string") return "";
+  const display = displayName.trim();
+  if (!display) return "";
+  const taxonomy = getTaxonomyBySpecKey(specKey);
+  if (!taxonomy || !Array.isArray(taxonomy.units)) return "";
+  const normalized = display.toLowerCase();
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.topic && String(t.topic).toLowerCase() === normalized);
+    if (found && found.key) return String(found.key).trim();
+  }
+  return "";
+}
+
+/**
+ * Get sibling topic keys and keywords for the same unit (for drift validation).
+ * Used to detect when generated content drifts into neighbouring sub-topics.
+ * @param {string} topicKey - e.g. "cell-structure"
+ * @param {string} specKey - e.g. "aqa-gcse-biology"
+ * @returns {{ siblingKeys: string[], keywords: string[] }} Sibling topic keys and keyword signals for deny-list
+ */
+function getSiblingTopicKeysAndKeywords(topicKey, specKey) {
+  if (!topicKey || !specKey) return { siblingKeys: [], keywords: [] };
+  const k = topicKey.trim().toLowerCase();
+  if (!k) return { siblingKeys: [], keywords: [] };
+
+  const taxonomy = getTaxonomyBySpecKey(specKey);
+  if (!taxonomy || !Array.isArray(taxonomy.units)) return { siblingKeys: [], keywords: [] };
+
+  let unitContaining = null;
+  const siblingKeys = [];
+  const keywords = [];
+
+  for (const u of taxonomy.units) {
+    const topics = Array.isArray(u.topics) ? u.topics : [];
+    const found = topics.find((t) => t.key === k);
+    if (found) {
+      unitContaining = u;
+      break;
+    }
+  }
+
+  if (!unitContaining) return { siblingKeys: [], keywords: [] };
+
+  const topics = Array.isArray(unitContaining.topics) ? unitContaining.topics : [];
+  for (const t of topics) {
+    if (t.key === k) continue; // exclude selected topic
+    siblingKeys.push(t.key);
+    if (t.topic) {
+      const words = String(t.topic).split(/\s+/).filter(Boolean);
+      keywords.push(...words.map((w) => w.toLowerCase()));
+    }
+    if (t.key) {
+      keywords.push(t.key.replace(/-/g, " "));
+      keywords.push(t.key);
+    }
+  }
+
+  const seen = new Set();
+  const deduped = keywords.filter((kw) => {
+    const n = kw.toLowerCase();
+    if (seen.has(n)) return false;
+    seen.add(n);
+    return n.length >= 3;
+  });
+
+  return { siblingKeys, keywords: deduped };
 }
 
 /**
@@ -442,6 +523,8 @@ module.exports = {
   findTopicBySpecAndKey,
   isValidTopicForSpec,
   topicToKey,
+  topicDisplayToCanonicalKey,
+  getSiblingTopicKeysAndKeywords,
   loadBiologyTaxonomy,
   loadChemistryTaxonomy,
   loadPhysicsTaxonomy,

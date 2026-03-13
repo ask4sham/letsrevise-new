@@ -1,6 +1,8 @@
 /**
  * Auto-attach content from topic banks (TopicQuizQuestion, TopicFlashcard, optional ExamQuestion).
  * Fill-only when empty; deterministic selection (seed = lessonId); published first, then draft.
+ * Graph-first: when resolving topic, try contentGraphService.getTopicGraph(specKey, topicKey) first.
+ * If graph has linked content, use those IDs; otherwise fall back to legacy topicKey query.
  * Do not rename models: TopicQuizQuestion, TopicFlashcard, FlashcardBank, ExamQuestion.
  */
 const Lesson = require("../models/Lesson");
@@ -8,6 +10,7 @@ const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const FlashcardBank = require("../models/FlashcardBank");
 const ExamQuestion = require("../models/ExamQuestion");
+const contentGraphService = require("./contentGraphService");
 const { topicToKey, topicDisplayToCanonicalKey } = require("../utils/topicTaxonomy");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 
@@ -70,6 +73,23 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
   const candidates = queryCandidates(specKey, topicOnly);
   const topicQuery = candidates.length ? { $in: candidates } : topicKey;
 
+  // Graph-first: try content graph for linked content IDs. Fall back to legacy topicQuery when empty/fails.
+  let graphFlashcardIds = [];
+  let graphQuizQuestionIds = [];
+  let graphExamQuestionIds = [];
+  try {
+    const graph = await contentGraphService.getTopicGraph(specKey, topicOnly);
+    if (graph?.linkedNodes?.length) {
+      for (const n of graph.linkedNodes) {
+        if (n.nodeType === "flashcard" && n.flashcardId) graphFlashcardIds.push(n.flashcardId);
+        if (n.nodeType === "quizQuestion" && n.quizQuestionId) graphQuizQuestionIds.push(n.quizQuestionId);
+        if (n.nodeType === "examQuestion" && n.examQuestionId) graphExamQuestionIds.push(n.examQuestionId);
+      }
+    }
+  } catch (_) {
+    // Graph unavailable: use legacy flow
+  }
+
   const attached = {
     flashcards: { count: 0, source: "none" },
     quiz: { mcqCount: 0, shortCount: 0, source: "none" },
@@ -80,39 +100,37 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
   const existingFlashcards = Array.isArray(lesson.flashcards) ? lesson.flashcards : [];
   if (existingFlashcards.length === 0) {
     let cards = [];
-    // 1) TopicFlashcard: owner first (published, then draft)
-    let published = await TopicFlashcard.find({
-      ownerId,
-      topicKey: topicQuery,
-      status: "published",
-    })
-      .lean();
-    let pool = published;
-    if (pool.length < FLASHCARD_LIMIT) {
-      const draft = await TopicFlashcard.find({
-        ownerId,
-        topicKey: topicQuery,
-        status: "draft",
-      })
-        .lean();
-      pool = [...published, ...draft];
-    }
-    // 2) Platform-wide fallback when owner has none (seeded/admin content)
-    if (pool.length === 0) {
-      published = await TopicFlashcard.find({
-        topicKey: topicQuery,
-        status: "published",
-      })
-        .lean();
-      if (published.length < FLASHCARD_LIMIT) {
-        const draftPlatform = await TopicFlashcard.find({
-          topicKey: topicQuery,
-          status: "draft",
-        })
-          .lean();
-        pool = [...published, ...draftPlatform];
-      } else {
-        pool = published;
+    let pool = [];
+    const fcBaseQuery = { isArchived: { $ne: true } };
+    const fcIdFilter = graphFlashcardIds.length ? { _id: { $in: graphFlashcardIds } } : { topicKey: topicQuery };
+    // 1) TopicFlashcard: graph-first when available, else topicQuery. Owner first (published, then draft)
+    if (graphFlashcardIds.length) {
+      let published = await TopicFlashcard.find({ ...fcBaseQuery, ...fcIdFilter, ownerId, status: "published" }).lean();
+      pool = published;
+      if (pool.length < FLASHCARD_LIMIT) {
+        const draft = await TopicFlashcard.find({ ...fcBaseQuery, ...fcIdFilter, ownerId, status: "draft" }).lean();
+        pool = [...published, ...draft];
+      }
+      if (pool.length === 0) {
+        published = await TopicFlashcard.find({ ...fcBaseQuery, ...fcIdFilter, status: "published" }).lean();
+        const draftPlatform = await TopicFlashcard.find({ ...fcBaseQuery, ...fcIdFilter, status: "draft" }).lean();
+        pool = published.length < FLASHCARD_LIMIT ? [...published, ...draftPlatform] : published;
+      }
+    } else {
+      let published = await TopicFlashcard.find({ ...fcBaseQuery, ownerId, topicKey: topicQuery, status: "published" }).lean();
+      pool = published;
+      if (pool.length < FLASHCARD_LIMIT) {
+        const draft = await TopicFlashcard.find({ ...fcBaseQuery, ownerId, topicKey: topicQuery, status: "draft" }).lean();
+        pool = [...published, ...draft];
+      }
+      if (pool.length === 0) {
+        published = await TopicFlashcard.find({ ...fcBaseQuery, topicKey: topicQuery, status: "published" }).lean();
+        if (published.length < FLASHCARD_LIMIT) {
+          const draftPlatform = await TopicFlashcard.find({ ...fcBaseQuery, topicKey: topicQuery, status: "draft" }).lean();
+          pool = [...published, ...draftPlatform];
+        } else {
+          pool = published;
+        }
       }
     }
     const selectedTopic = deterministicTake(pool, seed + "flash", FLASHCARD_LIMIT);
@@ -162,18 +180,20 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
   // --- LESSON QUIZ: only if empty ---
   const existingQuiz = (lesson.quiz && lesson.quiz.questions) || [];
   if (existingQuiz.length === 0) {
+    const qBaseQuery = { kind: "quiz", isArchived: { $ne: true } };
+    const qIdFilter = graphQuizQuestionIds.length ? { _id: { $in: graphQuizQuestionIds } } : { topicKey: topicQuery };
     let published = await TopicQuizQuestion.find({
+      ...qBaseQuery,
+      ...qIdFilter,
       ownerId,
-      topicKey: topicQuery,
-      kind: "quiz",
       status: "published",
     }).lean();
     let pool = published;
     if (pool.length < QUIZ_MCQ_TARGET + QUIZ_SHORT_TARGET) {
       const draft = await TopicQuizQuestion.find({
+        ...qBaseQuery,
+        ...qIdFilter,
         ownerId,
-        topicKey: topicQuery,
-        kind: "quiz",
         status: "draft",
       }).lean();
       pool = [...published, ...draft];
@@ -181,14 +201,14 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
     // Platform-wide fallback when owner has none
     if (pool.length === 0) {
       published = await TopicQuizQuestion.find({
-        topicKey: topicQuery,
-        kind: "quiz",
+        ...qBaseQuery,
+        ...qIdFilter,
         status: "published",
       }).lean();
       if (published.length < QUIZ_MCQ_TARGET + QUIZ_SHORT_TARGET) {
         const draftPlatform = await TopicQuizQuestion.find({
-          topicKey: topicQuery,
-          kind: "quiz",
+          ...qBaseQuery,
+          ...qIdFilter,
           status: "draft",
         }).lean();
         pool = [...published, ...draftPlatform];
@@ -249,8 +269,11 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
     const existingIds = new Set(
       (lesson.examQuestions || []).map((e) => String(e.questionId))
     );
+    const eqBaseQuery = graphExamQuestionIds.length
+      ? { _id: { $in: graphExamQuestionIds } }
+      : { topicKey: topicQuery };
     const eqQuery = {
-      topicKey: topicQuery,
+      ...eqBaseQuery,
       status: "published",
     };
     if (lesson.subject) eqQuery.subject = lesson.subject;

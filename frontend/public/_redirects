@@ -1,1 +1,3 @@
+# Serve /docs/* as static files (e.g. PDF); do not SPA fallback
+/docs/*  /docs/:splat  200
 /*    /index.html   200

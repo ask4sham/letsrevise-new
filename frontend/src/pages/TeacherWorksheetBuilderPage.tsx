@@ -18,6 +18,7 @@ import {
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
 
 type ExamQuestion = {
@@ -123,14 +124,8 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestWorksheetRef = useRef<Worksheet | null>(null);
 
-  const isAdmin = React.useMemo(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return (u?.userType || u?.type || "").toString().toLowerCase() === "admin";
-    } catch {
-      return false;
-    }
-  }, []);
+  const { user } = useCurrentUser({ watchLocation: true });
+  const isAdmin = (user?.userType || user?.type || "").toString().toLowerCase() === "admin";
   useEffect(() => {
     latestWorksheetRef.current = worksheet;
   }, [worksheet]);

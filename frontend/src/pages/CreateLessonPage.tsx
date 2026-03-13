@@ -624,11 +624,13 @@ const CreateLessonPage: React.FC = () => {
 
       const form = new FormData();
       form.append("file", file);
-      // Use same endpoint as Edit Lesson (POST /api/uploads/image) so upload works without /lesson-media route
-      const res = await api.post(
-        `/uploads/image?folder=${encodeURIComponent(folder)}`,
-        form
-      );
+      const isVideo = file.type.startsWith("video/");
+      const endpoint = isVideo
+        ? "/uploads/video"
+        : `/api/uploads/image?folder=${encodeURIComponent(folder)}`;
+      if (!isVideo) form.append("folder", folder);
+
+      const res = await api.post(endpoint, form);
       const publicUrl = res.data?.url;
       if (!publicUrl) {
         alert("Upload succeeded but no URL returned.");
@@ -774,7 +776,12 @@ const CreateLessonPage: React.FC = () => {
         shamCoinPrice: formData.shamCoinPrice,
         pages: sanitizedPages,
       };
-      if (formData.topicKey.trim()) payload.topicKey = formData.topicKey.trim();
+      if (formData.topicKey.trim()) {
+        payload.topicKey = formData.topicKey.trim();
+        if (topicSelection.specKey) payload.specKey = topicSelection.specKey;
+        if (topicSelection.mainTopicTitle) payload.mainTopic = topicSelection.mainTopicTitle;
+        if (topicSelection.topic) payload.subTopic = topicSelection.topic;
+      }
 
       if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
       payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;

@@ -1,14 +1,14 @@
 import React from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const SubjectOptionsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isLoggedIn } = useCurrentUser({ watchLocation: true });
 
   const stage = (searchParams.get("stage") || "").toLowerCase();
   const subject = searchParams.get("subject") || "";
-
-  const isLoggedIn = !!localStorage.getItem("token");
 
   const goLoginThenReturn = () => {
     // Save where user wanted to go

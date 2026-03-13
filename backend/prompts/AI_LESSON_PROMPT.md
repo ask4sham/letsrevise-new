@@ -26,17 +26,23 @@ Create a complete lesson draft for:
 - Fields: `prompt` (question text), `questionType` ("mcq" or "short"), `options` (array of 4 strings for mcq), `correctAnswer`, `explanation` (optional).
 - Foundation: mostly mcq (simple). Higher: mix mcq + short.
 
-## PAGE PLAN (use this order)
+## SINGLE-PAGE DRAFT (REQUIRED)
 
-1. Big picture + key definitions + **1 checkpoint**
-2. Core process/idea with an exam tip + **1 checkpoint**
-3. Worked example or applied context (AQA style) + **1 checkpoint**
-4. Practice + common mistakes + **1 checkpoint**
-5. (Higher only) Stretch + exam-style challenge + **1 checkpoint**
+Create a **single-page** lesson draft. Do NOT create multiple pages. Put all content in blocks within one page.
+
+Use section types as blocks within the page:
+- **text** — overview, explanations, comparisons
+- **keyIdea** — core concepts, key definitions
+- **examTip** — exam-style tips
+- **commonMistake** — misconceptions to avoid
+- **stretch** (Higher only) — deeper knowledge
+- **checkpoint** — at least one per page
+
+Do NOT create separate pages for: Core Concept 1, Core Concept 2, Comparison, Check Understanding, Exam Tips, Stretch.
 
 ## OUTPUT FORMAT (STRICT JSON ONLY)
 
-Return a single JSON object. Use **content** for text blocks. Use **checkpoint blocks** (not only page-level checkpoint) so each page has at least one block with `type: "checkpoint"`.
+Return a single JSON object with exactly ONE page. All content goes in `blocks[]` on that page.
 
 ```json
 {
@@ -48,8 +54,8 @@ Return a single JSON object. Use **content** for text blocks. Use **checkpoint b
   "tier": "string (foundation or higher)",
   "pages": [
     {
-      "title": "string",
-      "order": number,
+      "title": "Page 1",
+      "order": 1,
       "pageType": "string",
       "blocks": [
         { "type": "text", "content": "string" },
@@ -71,8 +77,8 @@ Return a single JSON object. Use **content** for text blocks. Use **checkpoint b
 }
 ```
 
-- **Block types:** text | keyIdea | examTip | commonMistake | stretch (Higher only) | **checkpoint**
-- **Minimum 1 checkpoint block per page** in `blocks[]`. For mcq, provide exactly 4 options; correctAnswer must match one option exactly.
-- If tier is "higher", include at least one block with type "stretch" per page where appropriate.
+- **Exactly 1 page.** Block types: text | keyIdea | examTip | commonMistake | stretch (Higher only) | **checkpoint**
+- **Minimum 1 checkpoint block** in `blocks[]`. For mcq, provide exactly 4 options; correctAnswer must match one option exactly.
+- If tier is "higher", include at least one block with type "stretch".
 
 If you are unsure about exact spec wording, write generally but accurately for AQA GCSE Biology.

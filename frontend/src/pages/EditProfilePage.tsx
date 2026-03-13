@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePut } from "../hooks/useApi";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Toast from "../components/Toast";
 
@@ -16,6 +17,7 @@ interface LocalUser {
 
 const EditProfilePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user: currentUser, refresh } = useCurrentUser({ watchLocation: true });
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -30,13 +32,10 @@ const EditProfilePage: React.FC = () => {
   const { put, loading, error } = usePut("/users/profile", {
     onSuccess: (data: any) => {
       try {
-        const existingStr = localStorage.getItem("user");
-        const existing = existingStr ? JSON.parse(existingStr) : {};
-
         const updatedUserFromApi = data?.user || data;
-        const updated = { ...existing, ...updatedUserFromApi };
-
+        const updated = { ...currentUser, ...updatedUserFromApi };
         localStorage.setItem("user", JSON.stringify(updated));
+        refresh();
       } catch (e) {
         console.error("Failed to update user in localStorage:", e);
       }
@@ -60,25 +59,17 @@ const EditProfilePage: React.FC = () => {
   });
 
   useEffect(() => {
-    const userStr =
-      typeof window !== "undefined" ? localStorage.getItem("user") : null;
-    if (!userStr) {
+    if (!currentUser) {
       navigate("/login");
       return;
     }
-
-    try {
-      const user: LocalUser = JSON.parse(userStr);
-      setForm({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        schoolName: user.schoolName || "",
-      });
-    } catch (e) {
-      console.error("Failed to parse user for EditProfilePage:", e);
-      navigate("/login");
-    }
-  }, [navigate]);
+    const user = currentUser as LocalUser;
+    setForm({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      schoolName: user.schoolName || "",
+    });
+  }, [navigate, currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

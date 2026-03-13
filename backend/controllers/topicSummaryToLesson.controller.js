@@ -167,6 +167,7 @@ async function postTopicSummaryToLesson(req, res) {
 
     const pages = buildPagesFromSummary(log, strategy, includeCheckpoint);
 
+    const derivedSpecKey = (topicKey && topicKey.includes(":")) ? topicKey.slice(0, topicKey.indexOf(":")) : (specKey || null);
     const lesson = new Lesson({
       title,
       description,
@@ -177,6 +178,8 @@ async function postTopicSummaryToLesson(req, res) {
       level,
       topic: topicDisplay,
       topicKey: topicKey || null,
+      specKey: derivedSpecKey,
+      subTopic: topicDisplay,
       board: "AQA",
       status: "draft",
       isPublished: false,

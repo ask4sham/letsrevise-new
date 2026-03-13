@@ -1,13 +1,14 @@
 import React from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import SEO from "../components/SEO";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { isLoggedIn } = useCurrentUser({ watchLocation: true });
 
   const stage = (searchParams.get("stage") || "").toLowerCase();
-  const isLoggedIn = localStorage.getItem("token");
 
   const EXPLORE_URL = "/explore";
 

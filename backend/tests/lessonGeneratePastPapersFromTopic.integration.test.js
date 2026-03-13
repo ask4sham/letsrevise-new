@@ -103,6 +103,49 @@ describe("Generate Past Papers from Topic Bank (PR-PP2)", () => {
     expect(getRes.body.pastPapers[0].url).toBe("https://example.com/pub.pdf");
   });
 
+  test("AQA URL in bank -> lesson gets officialSource and officialHost", async () => {
+    const topicKey = "respiration";
+    const bulkRes = await request(app)
+      .post("/api/topic-past-papers/bulk")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        topicKey,
+        items: [{ title: "AQA Official", url: "https://www.aqa.org.uk/resources/science/gcse/biology/assess/paper1.pdf" }],
+      });
+    expect(bulkRes.status).toBe(200);
+    await request(app)
+      .post(`/api/topic-past-papers/${bulkRes.body.createdIds[0]}/publish`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+
+    const lesson = await Lesson.create({
+      title: "AQA PP lesson",
+      description: "Test",
+      content: "Content",
+      teacherId,
+      teacherName: "PPGen Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+      topic: "Respiration",
+      topicKey,
+      status: "draft",
+      pages: [{ pageId: "p1", title: "Page 1", order: 0, blocks: [] }],
+      pastPapers: [],
+    });
+
+    const genRes = await request(app)
+      .post(`/api/lessons/${lesson._id}/generate/past-papers-from-topic`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect(genRes.status).toBe(200);
+    expect(genRes.body.pastPapersCount).toBe(1);
+
+    const getRes = await request(app)
+      .get(`/api/lessons/${lesson._id}`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect(getRes.body.pastPapers[0].officialSource).toBe(true);
+    expect(getRes.body.pastPapers[0].officialHost).toBe("aqa.org.uk");
+  });
+
   test("draft-only bank -> 0 added", async () => {
     const topicKey = "osmosis";
     const bulkRes = await request(app)
@@ -219,7 +262,7 @@ describe("Generate Past Papers from Topic Bank (PR-PP2)", () => {
     expect(genRes.body.msg).toMatch(/topicKey|topic/);
   });
 
-  test("teacher B (not owner) -> 403", async () => {
+  test("teacher B (not owner) -> 404", async () => {
     const topicKey = "microscopy";
     const lesson = await Lesson.create({
       title: "Owner PP lesson",
@@ -240,6 +283,6 @@ describe("Generate Past Papers from Topic Bank (PR-PP2)", () => {
     const genRes = await request(app)
       .post(`/api/lessons/${lesson._id}/generate/past-papers-from-topic`)
       .set("Authorization", `Bearer ${otherTeacherToken}`);
-    expect(genRes.status).toBe(403);
+    expect(genRes.status).toBe(404);
   });
 });

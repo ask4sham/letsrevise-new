@@ -4,8 +4,8 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
-const { isValidTopicForSpec } = require("../utils/topicTaxonomy");
-const { buildTopicKey, parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomyService");
 
 function isTeacher(req) {
   return req.user && req.user.userType === "teacher";
@@ -15,21 +15,6 @@ function isTeacherOrAdmin(req) {
   if (!req.user) return false;
   const t = (req.user.userType || req.user.role || "").toString().toLowerCase();
   return t === "teacher" || t === "admin" || req.user.isAdmin === true;
-}
-
-function resolveStoredTopicKey(specKeyFromReq, topicKeyFromReq) {
-  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") return { error: "topicKey is required" };
-  const trimmed = topicKeyFromReq.trim();
-  if (!trimmed) return { error: "topicKey is required" };
-  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
-  const { specKey: parsedSpec, topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
-  if (isNamespaced && parsedSpec && rawTopic) {
-    if (!isValidTopicForSpec(parsedSpec, rawTopic)) return { error: `Invalid topicKey for spec ${parsedSpec}` };
-    return { storedKey: trimmed };
-  }
-  const topicOnly = rawTopic || trimmed;
-  if (!isValidTopicForSpec(specKey, topicOnly)) return { error: `Invalid topicKey for spec ${specKey}` };
-  return { storedKey: buildTopicKey(specKey, topicOnly) };
 }
 
 /** Return question object with topicKey normalized to short form (topic slug only) for API responses. */
@@ -47,7 +32,7 @@ router.post("/", auth, async (req, res) => {
   try {
     const specKeyBody = req.body.specKey;
     if (req.body.topicKey != null && String(req.body.topicKey).trim() !== "") {
-      const resolved = resolveStoredTopicKey(specKeyBody, req.body.topicKey);
+      const resolved = await resolveStoredTopicKeyWithAdmin(specKeyBody, req.body.topicKey);
       if (resolved.error) {
         return res.status(400).json({ success: false, msg: resolved.error, error: resolved.error });
       }
@@ -228,7 +213,7 @@ router.put("/:id", auth, async (req, res) => {
     }
     if (req.body.topicKey != null) {
       if (req.body.topicKey && String(req.body.topicKey).trim() !== "") {
-        const resolved = resolveStoredTopicKey(req.body.specKey, req.body.topicKey);
+        const resolved = await resolveStoredTopicKeyWithAdmin(req.body.specKey, req.body.topicKey);
         if (resolved.error) {
           return res.status(400).json({ success: false, msg: resolved.error, error: resolved.error });
         }

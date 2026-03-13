@@ -1,0 +1,25 @@
+---
+description: LOCKED - Video upload path must not be changed
+globs: backend/routes/uploads.js,backend/app.js,backend/server.js
+alwaysApply: false
+---
+
+# Video upload path — LOCKED
+
+## Canonical path (do not change)
+
+All video uploads **must** go to this single path:
+
+- **Storage:** `backend/public/visuals/biology/aqa-gcse/cell-biology/cell-structure`
+- **Public URL:** `/visuals/biology/aqa-gcse/cell-biology/cell-structure/{filename}`
+
+## Rules
+
+1. **Do NOT** add new video upload destinations or routes.
+2. **Do NOT** change `VIDEOS_DIR` or `VIDEO_PUBLIC_URL_PREFIX` in `backend/routes/uploads.js`.
+3. **Do NOT** add folder/query params to the video upload endpoint — videos always go to the locked path.
+4. The fallback in `server.js` and `app.js` for old `/uploads/videos/` URLs maps to this same path — keep that fallback in sync.
+
+## If you need to change this
+
+This path was explicitly locked. Any change requires product/team approval.

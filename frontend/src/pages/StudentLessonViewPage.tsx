@@ -1,6 +1,8 @@
+// PR-AUTH-UI-3: use useCurrentUser (no direct localStorage auth read).
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type ExamBoardRow = { name: string };
 
@@ -57,7 +59,7 @@ const StudentDashboard: React.FC = () => {
 
   const [lessons, setLessons] = useState<StudentLessonCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user } = useCurrentUser({ watchLocation: true });
 
   const [filters, setFilters] = useState({
     subject: "",
@@ -68,22 +70,9 @@ const StudentDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchUserData();
     fetchPublishedLessonsFromSupabase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const fetchUserData = () => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-      } catch (err) {
-        console.error("Error parsing user data:", err);
-      }
-    }
-  };
 
   const fetchPublishedLessonsFromSupabase = async () => {
     try {

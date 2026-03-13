@@ -31,6 +31,7 @@ import {
 } from "../types/lessonBlocks";
 import Toast from "../components/Toast";
 import { listReports, updateReportStatus, REPORT_PRIORITY, type LessonIssueReport } from "../api/lessonIssues";
+import { fetchLessonGraph, fetchTopicCoverage, rebuildLessonGraph } from "../api/contentGraph";
 
 interface LessonPageBlock {
   type: LessonBlockType;
@@ -437,6 +438,13 @@ const EditLessonPage: React.FC = () => {
   /** AI diagram generation: block key (pageId-blockIndex) when loading */
   const [generateDiagramLoading, setGenerateDiagramLoading] = useState<string | null>(null);
   const [generateDiagramError, setGenerateDiagramError] = useState<string | null>(null);
+  /** Content graph: lesson graph + topic coverage for linked content counts */
+  const [lessonGraph, setLessonGraph] = useState<{ lessonNode: { _id: string } | null; topicNodes: unknown[] } | null>(null);
+  const [topicCoverage, setTopicCoverage] = useState<{ flashcardCount: number; quizCount: number; examQuestionCount: number } | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphError, setGraphError] = useState<string | null>(null);
+  const [graphRebuilding, setGraphRebuilding] = useState(false);
+  const [graphRebuildToast, setGraphRebuildToast] = useState<string | null>(null);
 
   // State for CSV import
   const [csvImportData, setCsvImportData] = useState<{
@@ -505,6 +513,18 @@ const EditLessonPage: React.FC = () => {
     [searchParams]
   );
 
+  // Force scroll to top on mount and on lesson/page change (fix: page lands in middle after refresh)
+  useEffect(() => {
+    const prevRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const t = setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 300);
+    return () => {
+      clearTimeout(t);
+      window.history.scrollRestoration = prevRestoration;
+    };
+  }, [id, pageParam]);
+
   const hasStructuredPages = useMemo(
     () =>
       Boolean(
@@ -570,6 +590,57 @@ const EditLessonPage: React.FC = () => {
   /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — uses taxonomy resolve when lesson.topicKey missing */
   const topicKeyForBank = useResolvedTopicKeyForBank(lesson);
 
+  /** Fetch lesson graph + topic coverage when lesson has topicKey/specKey */
+  useEffect(() => {
+    if (!id || !topicKeyForBank) {
+      setLessonGraph(null);
+      setTopicCoverage(null);
+      setGraphError(null);
+      setGraphLoading(false);
+      return;
+    }
+    const specKey = (lesson as { specKey?: string })?.specKey || topicKeyForBank.split(":")[0];
+    const topicKey = topicKeyForBank.includes(":") ? topicKeyForBank.split(":")[1] || topicKeyForBank : topicKeyForBank;
+    setGraphLoading(true);
+    setGraphError(null);
+    Promise.all([
+      fetchLessonGraph(id).catch(() => null),
+      fetchTopicCoverage(specKey, topicKey).catch(() => null),
+    ])
+      .then(([graph, coverage]) => {
+        setLessonGraph(graph);
+        setTopicCoverage(coverage ? { flashcardCount: coverage.flashcardCount, quizCount: coverage.quizCount, examQuestionCount: coverage.examQuestionCount } : null);
+        setGraphError(null);
+      })
+      .catch(() => {
+        setGraphError(null);
+      })
+      .finally(() => setGraphLoading(false));
+  }, [id, topicKeyForBank, lesson]);
+
+  const handleRebuildLessonGraph = async () => {
+    if (!id || !topicKeyForBank) return;
+    setGraphRebuilding(true);
+    try {
+      await rebuildLessonGraph(id);
+      const specKey = (lesson as { specKey?: string })?.specKey || topicKeyForBank.split(":")[0];
+      const topicKey = topicKeyForBank.includes(":") ? topicKeyForBank.split(":")[1] || topicKeyForBank : topicKeyForBank;
+      const [graph, coverage] = await Promise.all([
+        fetchLessonGraph(id).catch(() => null),
+        fetchTopicCoverage(specKey, topicKey).catch(() => null),
+      ]);
+      setLessonGraph(graph);
+      setTopicCoverage(coverage ? { flashcardCount: coverage.flashcardCount, quizCount: coverage.quizCount, examQuestionCount: coverage.examQuestionCount } : null);
+      setGraphError(null);
+      setGraphRebuildToast("Graph updated");
+      setTimeout(() => setGraphRebuildToast(null), 2500);
+    } catch {
+      setGraphError(null);
+    } finally {
+      setGraphRebuilding(false);
+    }
+  };
+
   /** SS1 responsive layout: wide (3 col) / medium (2 col, preview below) / narrow (1 col stack) */
   const [layoutBreakpoint, setLayoutBreakpoint] = useState<"wide" | "medium" | "narrow">("wide");
   useEffect(() => {
@@ -620,11 +691,12 @@ const EditLessonPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [lesson?.assessmentPaperIds]);
 
-  useEffect(() => {
-    if (lesson?.createdFromTemplate && titleRef.current) {
-      titleRef.current.focus();
-    }
-  }, [lesson?.createdFromTemplate]);
+  // Disabled on initial mount — focus caused mid-page scroll; force top on first load instead
+  // useEffect(() => {
+  //   if (lesson?.createdFromTemplate && titleRef.current) {
+  //     titleRef.current.focus();
+  //   }
+  // }, [lesson?.createdFromTemplate]);
 
   useEffect(() => {
     if (!diagramPickerTarget) {
@@ -1985,12 +2057,12 @@ const EditLessonPage: React.FC = () => {
 
       const form = new FormData();
       form.append("file", file);
-      const folder = `lesson-media/lesson_${safeStr(
-        lesson?.id,
-        "unknown_lesson"
-      )}/page_${pageId}/block_${blockIndex}`;
+      const isVideo = file.type.startsWith("video/");
+      const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}`;
+      const endpoint = isVideo ? "/uploads/video" : `/uploads/image?folder=${encodeURIComponent(folder)}`;
+      if (!isVideo) form.append("folder", folder);
 
-      const res = await api.post(`/uploads/image?folder=${encodeURIComponent(folder)}`, form);
+      const res = await api.post(endpoint, form);
 
       const url = res.data?.url as string | undefined;
       if (!url) {
@@ -2027,7 +2099,7 @@ const EditLessonPage: React.FC = () => {
       const reqUrl =
         e?.config?.url != null
           ? (e?.config?.baseURL || "") + e.config.url
-          : "/api/uploads/image";
+          : (file.type.startsWith("video/") ? "/api/uploads/video" : "/api/uploads/image");
       const status = e?.response?.status;
       const body =
         e?.response?.data != null
@@ -2373,11 +2445,35 @@ const EditLessonPage: React.FC = () => {
         />
       );
     },
-    a: ({ ...props }: any) => (
-      <a {...props} target="_blank" rel="noopener noreferrer">
-        {props.children}
-      </a>
-    ),
+    a: ({ ...props }: any) => {
+      const href = safeStr(props.href, "");
+      const childStr = typeof props.children === "string"
+        ? props.children
+        : (Array.isArray(props.children) && typeof props.children[0] === "string" ? props.children[0] : "");
+      const isVideoLink = (childStr && String(childStr).startsWith("Video:")) && href;
+      if (isVideoLink) {
+        const srcAbs = href.startsWith("http") ? href : (makeAbsoluteAssetUrl(href) ?? href);
+        return (
+          <div style={{ margin: "12px 0", textAlign: "center" }}>
+            <video
+              controls
+              src={srcAbs}
+              style={{ width: "100%", maxWidth: 720, borderRadius: 12, background: "#000" }}
+            />
+            {childStr !== "Video:" && (
+              <div style={{ marginTop: 6, fontSize: "0.9rem", color: "#6b7280" }}>
+                {childStr.replace(/^Video:\s*/, "")}
+              </div>
+            )}
+          </div>
+        );
+      }
+      return (
+        <a {...props} target="_blank" rel="noopener noreferrer">
+          {props.children}
+        </a>
+      );
+    },
   };
 
   if (loading) {
@@ -2443,6 +2539,14 @@ const EditLessonPage: React.FC = () => {
           type="success"
           duration={4000}
           onClose={() => setAttachPageQuizToast(null)}
+        />
+      )}
+      {graphRebuildToast && (
+        <Toast
+          message={graphRebuildToast}
+          type="success"
+          duration={2500}
+          onClose={() => setGraphRebuildToast(null)}
         />
       )}
     <div
@@ -2925,6 +3029,7 @@ const EditLessonPage: React.FC = () => {
                   </label>
 
                   {topicKeyForBank ? (
+                    <>
                     <div style={{ gridColumn: "1 / -1", padding: "10px 12px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #86efac", fontSize: 13 }}>
                       <div style={{ fontWeight: 700, marginBottom: 6, color: "#166534" }}>Syllabus mapping</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", color: "#15803d" }}>
@@ -2934,6 +3039,34 @@ const EditLessonPage: React.FC = () => {
                         <span><strong>Sub-topic:</strong> {(lesson as { subTopic?: string }).subTopic || lesson.topic || "—"}</span>
                       </div>
                     </div>
+                    {/* Content graph: linked topic counts + health */}
+                    {graphLoading && (
+                      <div style={{ gridColumn: "1 / -1", padding: "8px 12px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: 12, color: "#64748b" }}>
+                        Loading content graph…
+                      </div>
+                    )}
+                    {!graphLoading && (graphError || lessonGraph || topicCoverage) && (
+                      <div style={{ gridColumn: "1 / -1", padding: "8px 12px", borderRadius: 8, background: graphError || (lessonGraph && !lessonGraph.lessonNode) ? "#fef2f2" : "#f0f9ff", border: `1px solid ${graphError ? "#fecaca" : "#bae6fd"}`, fontSize: 12, color: graphError ? "#b91c1c" : "#0369a1", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                        <span>
+                          {graphError ? (
+                            <>Content graph: {graphError}. Unresolved mapping or API error.</>
+                          ) : lessonGraph && !lessonGraph.lessonNode ? (
+                            <>Lesson not in content graph. Run rebuild to link.</>
+                          ) : topicCoverage ? (
+                            <>Topic has {topicCoverage.flashcardCount} flashcards, {topicCoverage.quizCount} quizzes, {topicCoverage.examQuestionCount} exam questions linked.</>
+                          ) : null}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRebuildLessonGraph}
+                          disabled={graphRebuilding}
+                          style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", borderRadius: 6, cursor: graphRebuilding ? "not-allowed" : "pointer" }}
+                        >
+                          {graphRebuilding ? "Rebuilding…" : "Rebuild Graph"}
+                        </button>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div style={{ gridColumn: "1 / -1", padding: "10px 12px", borderRadius: 10, background: "#fef3c7", border: "1px solid #fcd34d", fontSize: 13, color: "#92400e" }}>
                       <strong>This lesson needs a syllabus topic.</strong> Set Subject, Level, and Topic to match a taxonomy sub-topic (e.g. "Cell structure" for AQA GCSE Biology). Flashcards, practice, and bank import require a valid mapping.

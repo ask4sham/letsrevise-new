@@ -1,6 +1,8 @@
+// PR-AUTH-UI-3: use useCurrentUser for token.
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type QuizQuestion = {
   questionText: string;
@@ -140,11 +142,6 @@ const CreateQuizPage: React.FC = () => {
           explanation: q.explanation?.trim() || undefined,
         };
       });
-
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("token")
-          : null;
 
       await axios.post(
         "http://localhost:5000/api/quizzes",

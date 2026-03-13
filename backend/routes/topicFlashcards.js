@@ -8,8 +8,8 @@ const mongoose = require("mongoose");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const auth = require("../middleware/auth");
 const requireAdmin = require("../middleware/requireAdmin");
-const { isValidTopicForSpec } = require("../utils/topicTaxonomy");
-const { buildTopicKey, parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomyService");
 const { fingerprint, dedupeIncoming } = require("../utils/flashcardDedupe");
 const { parseValidateDedupe, validateBulkItems, MAX_ITEMS } = require("../utils/parseBulkFlashcards");
 
@@ -21,34 +21,6 @@ function isTeacherOrAdmin(req) {
 
 function getOwnerId(req) {
   return req.user._id || req.user.userId || req.user.id;
-}
-
-/**
- * PR-CHEM-3: Resolve request topicKey + specKey to stored namespaced key. Validates against taxonomy.
- * @returns {{ storedKey: string } | { error: string }}
- */
-function resolveStoredTopicKey(specKeyFromReq, topicKeyFromReq) {
-  if (!topicKeyFromReq || typeof topicKeyFromReq !== "string") {
-    return { error: "topicKey is required" };
-  }
-  const trimmed = topicKeyFromReq.trim();
-  if (!trimmed) return { error: "topicKey is required" };
-
-  const specKey = (specKeyFromReq && String(specKeyFromReq).trim()) || DEFAULT_SPEC_LEGACY;
-  const { specKey: parsedSpec, topicKey: rawTopic, isNamespaced } = parseTopicKey(trimmed);
-
-  if (isNamespaced && parsedSpec && rawTopic) {
-    if (!isValidTopicForSpec(parsedSpec, rawTopic)) {
-      return { error: `Invalid topicKey for spec ${parsedSpec}` };
-    }
-    return { storedKey: trimmed };
-  }
-
-  const topicOnly = rawTopic || trimmed;
-  if (!isValidTopicForSpec(specKey, topicOnly)) {
-    return { error: `Invalid topicKey for spec ${specKey}` };
-  }
-  return { storedKey: buildTopicKey(specKey, topicOnly) };
 }
 
 /** Return short (topic-only) topicKey for API responses. */
@@ -115,7 +87,7 @@ router.post("/", auth, async (req, res) => {
     if (!topicKey || typeof front !== "string" || typeof back !== "string") {
       return res.status(400).json({ error: "topicKey, front, and back are required" });
     }
-    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    const resolved = await resolveStoredTopicKeyWithAdmin(specKeyBody, topicKey);
     if (resolved.error) return res.status(400).json({ error: resolved.error });
     const storedTopicKey = resolved.storedKey;
     front = String(front).trim();
@@ -153,7 +125,7 @@ router.post("/bulk/preview", auth, async (req, res) => {
   try {
     const ownerId = getOwnerId(req);
     const { topicKey, specKey: specKeyBody, format, text, csvBase64, filename, csvOptions, dedupeMode } = req.body;
-    const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+    const resolved = await resolveStoredTopicKeyWithAdmin(specKeyBody, topicKey);
     if (resolved.error) return res.status(400).json({ error: resolved.error });
     const validKey = resolved.storedKey;
 
@@ -269,7 +241,7 @@ router.post("/bulk", auth, async (req, res) => {
 
     // Path 1: format + text (parse server-side, same as preview then insert)
     if (raw.format && raw.text && typeof raw.text === "string" && !items) {
-      const resolved = resolveStoredTopicKey(raw.specKey, raw.topicKey);
+      const resolved = await resolveStoredTopicKeyWithAdmin(raw.specKey, raw.topicKey);
       if (resolved.error) return res.status(400).json({ error: resolved.error });
       storedTopicKey = resolved.storedKey;
       topicKey = raw.topicKey;
@@ -303,7 +275,7 @@ router.post("/bulk", auth, async (req, res) => {
       const { topicKey: tk, specKey: specKeyBodyFromRaw, topic, dedupeMode } = raw;
       topicKey = tk;
       specKeyBody = specKeyBodyFromRaw;
-      const resolved = resolveStoredTopicKey(specKeyBody, topicKey);
+      const resolved = await resolveStoredTopicKeyWithAdmin(specKeyBody, topicKey);
       if (resolved.error) return res.status(400).json({ error: resolved.error });
       storedTopicKey = resolved.storedKey;
       topicStr = topic != null ? String(topic).trim() : "";
@@ -498,7 +470,7 @@ router.post("/:id/reassign", auth, requireAdmin, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
     const card = await TopicFlashcard.findById(id);
     if (!card) return res.status(404).json({ error: "Flashcard not found" });
-    const resolved = resolveStoredTopicKey(specKeyBody, newTopicKey.trim());
+    const resolved = await resolveStoredTopicKeyWithAdmin(specKeyBody, newTopicKey.trim());
     if (resolved.error) return res.status(400).json({ error: resolved.error });
     card.topicKey = resolved.storedKey;
     if (topicDisplay != null && typeof topicDisplay === "string") card.topic = topicDisplay.trim();

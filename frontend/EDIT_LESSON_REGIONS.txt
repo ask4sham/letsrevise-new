@@ -1,0 +1,30 @@
+Exact regions from EditLessonPage.tsx (run "Get-Content" locally if you need fresh output)
+================================================================================
+
+--- Lines 2600-2720 (<main> opening area / center column start) ---
+2600  (from left rail: Past paper card)
+...
+2625  </div>
+2626  </div>
+2627  {/* CENTER: Lesson details + Description + Editing blocks */}
+2628  <div data-col="center" style={{ minWidth: 0 }} role="main">
+2629  <div style={{ background: "white", ... }}>
+2630  ...
+2642  Lesson details
+2643  ...
+2720  (grid labels: Title, Exam board, Subject, Level, Topic, Duration, Description)
+
+--- Lines 2950-3090 (Babel error area) ---
+2950  (checkpoint block editor: Delete button, then)
+2952  {isCheckpoint && cp ? (
+2953  <div> ... Prompt, Question type, Correct answer / Options ...
+3090  (still inside checkpoint block / block type switch)
+
+Current structure in this file:
+- Line 2274: <main style={{ padding: 16 }}>   (top-level wrapper)
+- Line 2628: <div data-col="center" ...>      (center column; no <main> here)
+- Line 5927: </main>
+
+To regenerate with PowerShell from repo root:
+  (Get-Content .\frontend\src\pages\EditLessonPage.tsx | Select-Object -Skip 2599 -First 120) | ForEach-Object -Begin { $i=2600 } -Process { "$i`t$_"; $i++ }
+  (Get-Content .\frontend\src\pages\EditLessonPage.tsx | Select-Object -Skip 2949 -First 140) | ForEach-Object -Begin { $i=2950 } -Process { "$i`t$_"; $i++ }

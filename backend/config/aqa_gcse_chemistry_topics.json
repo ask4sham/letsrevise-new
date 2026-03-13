@@ -1,0 +1,90 @@
+{
+  "subject": "Chemistry",
+  "examBoard": "AQA",
+  "level": "GCSE",
+  "specKey": "aqa-gcse-chemistry",
+  "units": [
+    {
+      "unit": "Atomic Structure & the Periodic Table",
+      "topics": [
+        { "topic": "Simple Model of the Atom", "key": "simple-model-of-the-atom", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "The Periodic Table", "key": "the-periodic-table", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Properties of Transition Metals", "key": "properties-of-transition-metals", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Bonds, Structure & Properties of Matter",
+      "topics": [
+        { "topic": "Ionic, Covalent & Metallic Bond", "key": "ionic-covalent-metallic-bond", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Bonding & Substance Properties", "key": "bonding-substance-properties", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Structure & Bonding of Carbon", "key": "structure-bonding-of-carbon", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Bulk & Surface Properties", "key": "bulk-surface-properties", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Quantitative Chemistry",
+      "topics": [
+        { "topic": "Measurement, Mass & Equations", "key": "measurement-mass-equations", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Calculating Mass of Substances", "key": "calculating-mass-of-substances", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Yield & Atom Economy", "key": "yield-atom-economy", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Concentration of Solutions", "key": "concentration-of-solutions", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Amount of Substance & Gas Volume", "key": "amount-of-substance-gas-volume", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Chemical Changes",
+      "topics": [
+        { "topic": "Reactivity of Metals", "key": "reactivity-of-metals", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Reactions of Acids", "key": "reactions-of-acids", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Electrolysis", "key": "electrolysis", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Energy Changes",
+      "topics": [
+        { "topic": "Exothermic & Endothermic Reactions", "key": "exothermic-endothermic-reactions", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Chemical Cells & Fuel Cells", "key": "chemical-cells-fuel-cells", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Chemical Change: Rate & Extent",
+      "topics": [
+        { "topic": "Rate of Reaction", "key": "rate-of-reaction", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Reversibility & Equilibrium", "key": "reversibility-equilibrium", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Organic Chemistry",
+      "topics": [
+        { "topic": "Hydrocarbons: Fuel & Feedstock", "key": "hydrocarbons-fuel-feedstock", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Reactions of Alkenes & Alcohols", "key": "reactions-of-alkenes-alcohols", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Synthetic & Natural Polymers", "key": "synthetic-natural-polymers", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Chemical Analysis",
+      "topics": [
+        { "topic": "Purity, Formulations & Chromatography", "key": "purity-formulations-chromatography", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Identification of Common Gases", "key": "identification-of-common-gases", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Methods of Identifying Ions", "key": "methods-of-identifying-ions", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Chemistry of the Atmosphere",
+      "topics": [
+        { "topic": "Formation of Earth's Atmosphere", "key": "formation-of-earths-atmosphere", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "CO2 & CH4 as Greenhouse Gases", "key": "co2-ch4-as-greenhouse-gases", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Causes of Atmospheric Pollution", "key": "causes-of-atmospheric-pollution", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    },
+    {
+      "unit": "Using Resources",
+      "topics": [
+        { "topic": "Global Reserves & Potable Water", "key": "global-reserves-potable-water", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Life Cycle Analysis & Recycling", "key": "life-cycle-analysis-recycling", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Using Materials", "key": "using-materials", "tier": ["foundation", "higher"], "requiredPractical": false },
+        { "topic": "Haber Process & NPK Fertilisers", "key": "haber-process-npk-fertilisers", "tier": ["foundation", "higher"], "requiredPractical": false }
+      ]
+    }
+  ]
+}

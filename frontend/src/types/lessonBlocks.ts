@@ -14,6 +14,7 @@ export type LessonBlockType =
   | "misconceptions"
   | "deeperKnowledge"
   | "checkpoint"
+  | "pageQuiz"
   | "diagram";
 
 /** Legacy block type strings that may come from the API. */
@@ -99,6 +100,14 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(59,130,246,0.06)",
     },
   },
+  pageQuiz: {
+    label: "Page Quiz",
+    icon: "📋",
+    style: {
+      border: "1px solid rgba(245,158,11,0.35)",
+      background: "rgba(245,158,11,0.06)",
+    },
+  },
   diagram: {
     label: "Diagram",
     icon: "🖼",
@@ -154,6 +163,8 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "stretch";
     case "checkpoint":
       return "checkpoint";
+    case "pageQuiz":
+      return "pageQuiz";
     case "diagram":
       return "diagram";
     case "text":
@@ -237,6 +248,8 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(139,92,246,0.35)", background: "rgba(139,92,246,0.06)" };
     case "checkpoint":
       return { ...base, border: "2px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.06)" };
+    case "pageQuiz":
+      return { ...base, border: "2px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.06)" };
     case "diagram":
       return { ...base, border: "2px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.06)" };
     case "text":

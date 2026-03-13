@@ -38,9 +38,13 @@ app.use(cors({
 app.use(bodyLimit);
 
 // JSON body parser: strip BOM (PowerShell ConvertTo-Json can emit it) then parse
+// Skip for multipart (let multer handle) — otherwise express.json() consumes/fails on upload body
 const JSON_LIMIT = "2mb";
 app.use((req, res, next) => {
-  const contentType = req.headers["content-type"] || "";
+  const contentType = (req.headers["content-type"] || "").toLowerCase();
+  if (contentType.includes("multipart/form-data")) {
+    return next();
+  }
   if (!contentType.includes("application/json")) {
     return express.json({ limit: JSON_LIMIT })(req, res, next);
   }
@@ -74,12 +78,28 @@ app.use((req, res, next) => {
 
 // PR-BULK-INGEST-3: Serve uploaded files (local storage)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Fallback: old /uploads/videos/xxx URLs → serve from visuals (e.g. 1773270742541-magnification.mp4 → magnification.mp4)
+const videosFallbackPath = path.join(__dirname, "public", "visuals", "biology", "aqa-gcse", "cell-biology", "cell-structure");
+app.use("/uploads", (req, res, next) => {
+  if (req.method !== "GET" || !req.path.startsWith("/videos/")) return next();
+  const filename = req.path.replace(/^\/videos\//, "");
+  const baseMatch = filename.match(/^\d+-(.+)\.(mp4|webm|mov)$/i);
+  const baseFilename = baseMatch ? `${baseMatch[1]}.${baseMatch[2]}` : filename;
+  const fallbackFile = path.join(videosFallbackPath, baseFilename);
+  if (fs.existsSync(fallbackFile)) {
+    return res.sendFile(fallbackFile);
+  }
+  next();
+});
 
 // PR-BULK-INGEST-3: Admin media upload (store + reference + dedupe)
 app.use("/api/admin/media", require("./routes/adminMedia"));
 
-// Uploads: image + lesson-media (CreateLessonPage) — must be registered so proxy gets 200
-app.use("/api/uploads", require("./routes/uploads"));
+// Uploads: direct routes first (exact match), then router
+const uploadsRouter = require("./routes/uploads");
+app.get("/api/uploads/__ping", (req, res) => res.json({ ok: true, route: "uploads", hasVideo: true }));
+app.post("/api/uploads/video", uploadsRouter.videoUploadRoute);
+app.use("/api/uploads", uploadsRouter);
 
 // ✅ Register routes that are needed for tests (add any others as needed)
 app.use("/api/assessment-papers", require("./routes/assessmentPapers"));
@@ -108,6 +128,7 @@ app.use("/api/taxonomy", require("./routes/taxonomy"));
 app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));
 app.use("/api/admin/student-teacher-links", require("./routes/adminStudentTeacherLinks"));
 app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
+app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));
 
 // PR10: Biology readiness report (teacher/admin)
 app.use("/api/reports", require("./routes/reports"));
@@ -169,6 +190,9 @@ app.use("/api/feature-flags", require("./routes/featureFlags"));
 
 // PR-009: Coverage engine (teacher + admin)
 app.use("/api/coverage", require("./routes/coverage.routes"));
+
+// Content Graph Layer — topic/lesson graph, coverage, rebuild
+app.use("/api/content-graph", require("./routes/contentGraph"));
 
 // PR-014: Content starter pack generator (teacher + admin, rate limited)
 app.use("/api/generate", require("./routes/contentGeneration.routes"));

@@ -1,17 +1,17 @@
 // frontend/src/pages/BrowseLessons.tsx
-
+// PR-AUTH-UI-2: use useCurrentUser (no direct localStorage auth reads).
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
   process.env.REACT_APP_API_URL ||
   "";
 
-async function fetchLessonsByIds(ids: string[]) {
-  const token = localStorage.getItem("token");
+async function fetchLessonsByIds(ids: string[], token: string | null) {
   const res = await fetch(`${API_BASE}/api/lessons/by-ids`, {
     method: "POST",
     headers: {
@@ -79,7 +79,7 @@ const BrowseLessons: React.FC = () => {
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user, token, refresh } = useCurrentUser({ watchLocation: true });
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
     Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null; shamCoinPrice: number }>
   >({});
@@ -92,19 +92,9 @@ const BrowseLessons: React.FC = () => {
     search: "",
   });
 
-  // Determine user type from localStorage
-  const userType = useMemo(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return String(u?.userType || u?.type || "").toLowerCase();
-    } catch {
-      return "";
-    }
-  }, []);
-
+  const userType = (user?.userType || user?.type || "").toString().toLowerCase();
   const isStudent = userType === "student";
 
-  // Student's stage/level for gating
   const studentStageKey = useMemo(() => {
     const lsStage = localStorage.getItem("selectedStage") || "";
     if (lsStage) {
@@ -115,20 +105,14 @@ const BrowseLessons: React.FC = () => {
         return "a-level";
       return normalized;
     }
-
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      const stageFromUser = u?.stage || u?.level || u?.selectedStage || "";
-      const normalized = String(stageFromUser).toLowerCase();
-      if (normalized.includes("ks3")) return "ks3";
-      if (normalized.includes("gcse")) return "gcse";
-      if (normalized.includes("a-level") || normalized.includes("alevel") || normalized.includes("a level"))
-        return "a-level";
-      return normalized;
-    } catch {
-      return "";
-    }
-  }, []);
+    const stageFromUser = user?.stage || user?.level || (user as any)?.selectedStage || "";
+    const normalized = String(stageFromUser).toLowerCase();
+    if (normalized.includes("ks3")) return "ks3";
+    if (normalized.includes("gcse")) return "gcse";
+    if (normalized.includes("a-level") || normalized.includes("alevel") || normalized.includes("a level"))
+      return "a-level";
+    return normalized;
+  }, [user?.stage, user?.level, (user as any)?.selectedStage]);
 
   const stageLabel = useMemo(() => {
     if (studentStageKey === "ks3") return "KS3";
@@ -138,8 +122,8 @@ const BrowseLessons: React.FC = () => {
   }, [studentStageKey]);
 
   useEffect(() => {
-    fetchUserData();
     loadPublishedLessons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -155,7 +139,7 @@ const BrowseLessons: React.FC = () => {
     }
     (async () => {
       try {
-        const data = await fetchLessonsByIds(ids);
+        const data = await fetchLessonsByIds(ids, token);
         setPurchasedLessonMap(
           (data.lessons || []).reduce((acc: Record<string, any>, l: any) => {
             const id = String(l._id ?? l.id ?? "");
@@ -167,30 +151,17 @@ const BrowseLessons: React.FC = () => {
         setPurchasedLessonMap({});
       }
     })();
-  }, [user?.purchasedLessons]);
-
-  const fetchUserData = () => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-      } catch (err) {
-        console.error("Error parsing user data:", err);
-      }
-    }
-  };
+  }, [user?.purchasedLessons, token]);
 
   const loadPublishedLessons = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
 
       // If student, pass level to backend for gating
       const levelParam = isStudent && studentStageKey ? getLevelFromStageKey(studentStageKey) : "";
 
       const res = await axios.get(`${API_BASE}/api/lessons`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         params: levelParam ? { level: levelParam } : undefined,
       });
 
@@ -363,7 +334,6 @@ const BrowseLessons: React.FC = () => {
 
   const handlePurchase = async (lessonId: string) => {
     try {
-      const token = localStorage.getItem("token");
       if (!token) {
         alert("Please log in to purchase lessons");
         navigate("/login");
@@ -380,7 +350,7 @@ const BrowseLessons: React.FC = () => {
 
       if (response.status === 200 || response.status === 201) {
         alert("Lesson purchased successfully!");
-        fetchUserData(); // Refresh user data to update coins and purchased lessons
+        refresh();
         loadPublishedLessons(); // Refresh lessons list
       }
     } catch (error: any) {

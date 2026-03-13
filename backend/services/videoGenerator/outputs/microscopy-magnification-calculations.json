@@ -1,0 +1,162 @@
+{
+  "template": "microscopy-magnification",
+  "renderSpec": {
+    "engine": "manim",
+    "version": "placeholder",
+    "outputBasename": "microscopy-magnification-calculations",
+    "totalDurationSeconds": 112,
+    "sceneCount": 11,
+    "assets": [
+      "microscope",
+      "microscope-panel",
+      "magnification-formula",
+      "iam-triangle",
+      "plant-cell",
+      "ruler-plant-cell",
+      "root-hair-cell",
+      "root-hair-ruler"
+    ],
+    "scenes": [
+      {
+        "id": "scene_1_title",
+        "kind": "intro",
+        "title": "Magnification Calculations",
+        "narration": "Magnification Calculations. Learn how to use a light microscope and calculate magnification from image and actual sizes.",
+        "start": 0,
+        "end": 6,
+        "duration": 6,
+        "layout": "full-text",
+        "assetKey": "none",
+        "animationHint": "fade-in-title"
+      },
+      {
+        "id": "scene_2_intro",
+        "kind": "explainer",
+        "title": "Cells and Microscopes",
+        "narration": "Cells and Microscopes.\n\nLight microscopes use lenses to magnify small objects. You can see cells, tissues, and their structures clearly.",
+        "start": 6,
+        "end": 18,
+        "duration": 12,
+        "layout": "split-left-text-right-image",
+        "assetKey": "microscope",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_3_micrograph",
+        "kind": "explainer",
+        "title": "Microscope Views",
+        "narration": "Microscope Views.\n\nWhen you look through the eyepiece you see a micrograph—the magnified image. Different specimens show different cell types.",
+        "start": 18,
+        "end": 32,
+        "duration": 14,
+        "layout": "split-left-text-right-image",
+        "assetKey": "microscope-panel",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_4_formula",
+        "kind": "explainer",
+        "title": "The Magnification Formula",
+        "narration": "The Magnification Formula.\n\nMagnification equals image size divided by actual size. Remember this for your exam.",
+        "start": 32,
+        "end": 40,
+        "duration": 8,
+        "layout": "formula-center",
+        "assetKey": "magnification-formula",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_5_triangle",
+        "kind": "explainer",
+        "title": "The IAM Triangle",
+        "narration": "The IAM Triangle.\n\nUse the triangle to remember: Image = Magnification × Actual size. Cover the one you want to find.",
+        "start": 40,
+        "end": 52,
+        "duration": 12,
+        "layout": "triangle-center",
+        "assetKey": "iam-triangle",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_6_worked_setup",
+        "kind": "explainer",
+        "title": "Worked Example: Plant Cell",
+        "narration": "Worked Example: Plant Cell.\n\nA plant cell is magnified. The image is 12 mm wide. The actual cell is 0.03 mm. Find the magnification.",
+        "start": 52,
+        "end": 62,
+        "duration": 10,
+        "layout": "split-left-text-right-image",
+        "assetKey": "plant-cell",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_7_worked_ruler",
+        "kind": "explainer",
+        "title": "Measuring the Image",
+        "narration": "Measuring the Image.\n\nUse a ruler to measure the image size on the photograph or screen. Convert to millimetres for the formula.",
+        "start": 62,
+        "end": 74,
+        "duration": 12,
+        "layout": "split-left-text-right-image",
+        "assetKey": "ruler-plant-cell",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_8_worked_answer",
+        "kind": "explainer",
+        "title": "Worked Example Answer",
+        "narration": "Worked Example Answer.\n\nMagnification = 12 mm ÷ 0.03 mm = 400×. Always give your answer as a number with × or 'times'.",
+        "start": 74,
+        "end": 82,
+        "duration": 8,
+        "layout": "formula-center",
+        "assetKey": "magnification-formula",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_9_exam_question",
+        "kind": "explainer",
+        "title": "Exam-Style Question",
+        "narration": "Exam-Style Question.\n\nA root hair cell image measures 8 mm. The actual cell is 0.04 mm long. Calculate the magnification.",
+        "start": 82,
+        "end": 92,
+        "duration": 10,
+        "layout": "split-left-text-right-image",
+        "assetKey": "root-hair-cell",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_10_exam_answer",
+        "kind": "explainer",
+        "title": "Exam-Style Answer",
+        "narration": "Exam-Style Answer.\n\nMagnification = 8 ÷ 0.04 = 200×. Check units: both in mm, so they cancel. Always show your working.",
+        "start": 92,
+        "end": 104,
+        "duration": 12,
+        "layout": "split-left-text-right-image",
+        "assetKey": "root-hair-ruler",
+        "animationHint": "fade-sequence"
+      },
+      {
+        "id": "scene_11_summary",
+        "kind": "summary",
+        "title": "Summary",
+        "narration": "Summary.\n\nRemember: magnification = image size ÷ actual size. Use the IAM triangle to rearrange. Show units and working in your answers.",
+        "start": 104,
+        "end": 112,
+        "duration": 8,
+        "layout": "full-text",
+        "assetKey": "iam-triangle",
+        "animationHint": "checklist-recap"
+      }
+    ]
+  },
+  "videoPath": null,
+  "metadata": {
+    "title": "Microscopy - Magnification Calculations",
+    "subject": "Biology",
+    "topic": "Microscopy",
+    "sceneCount": 11,
+    "totalDurationSeconds": 112
+  }
+}

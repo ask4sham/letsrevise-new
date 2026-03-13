@@ -30,6 +30,7 @@ import { PastPaperDetailPanel } from "../components/pastPapers/PastPaperDetailPa
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
 
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
@@ -72,6 +73,7 @@ function extractUrlsFromImportText(format: "json" | "csv", text: string): string
 }
 
 const TeacherPastPapersBankPage: React.FC = () => {
+  const { token } = useCurrentUser({ watchLocation: true });
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
   const [selectedUnit, setSelectedUnit] = useState<string>("");
@@ -153,7 +155,6 @@ const TeacherPastPapersBankPage: React.FC = () => {
   }, [topicKey, specKey, statusFilter, yearFilter, seriesFilter, tierFilter, paperFilter]);
 
   const fetchMine = async () => {
-    const token = localStorage.getItem("token");
     if (!token) {
       setPastPapersMine([]);
       setPastPapersMineLoading(false);
@@ -182,7 +183,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === "mine") fetchMine();
-  }, [activeTab, specKey, yearFilter, seriesFilter, tierFilter, qSearch]);
+  }, [activeTab, specKey, yearFilter, seriesFilter, tierFilter, qSearch, token]);
 
   useEffect(() => {
     if (examBoard === "AQA" && activeTab === "upload") setActiveTab("list");
@@ -414,9 +415,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
           handleUpload();
         }}
       />
-      {selectedPaper && (() => {
-        const token = localStorage.getItem("token");
-        return token ? (
+      {selectedPaper && token ? (
           <PastPaperDetailPanel
             paper={selectedPaper}
             onClose={() => setSelectedPaper(null)}
@@ -424,8 +423,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
             specKey={specKey}
             taxonomy={taxonomy ?? null}
           />
-        ) : null;
-      })()}
+        ) : null}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
         <Link to="/teacher-dashboard" style={{ color: "#2563eb", fontWeight: 600 }}>
           ← Dashboard
@@ -570,10 +568,10 @@ const TeacherPastPapersBankPage: React.FC = () => {
             />
           </div>
           {pastPapersMineLoading && <p>Loading…</p>}
-          {!pastPapersMineLoading && !localStorage.getItem("token") && (
+          {!pastPapersMineLoading && !token && (
             <p style={{ color: "#6b7280" }}>Sign in to view your past papers.</p>
           )}
-          {!pastPapersMineLoading && localStorage.getItem("token") && pastPapersMine.length === 0 && (
+          {!pastPapersMineLoading && token && pastPapersMine.length === 0 && (
             <p style={{ color: "#6b7280" }}>
               {qSearch || yearFilter || seriesFilter || tierFilter
                 ? "No resources match the current filters."

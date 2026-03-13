@@ -33,160 +33,38 @@ function isStudent(user) {
 }
 
 /* =========================================
-   FUZZY MATCHING HELPER FUNCTIONS
+   SHORT-ANSWER MARKING (negation-aware, PR-TRUST)
+   Uses shared utils/shortAnswerMarking.js
    ========================================= */
 
-function normaliseShortText(s = "") {
-  return s
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")  // remove punctuation
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const { markShortAnswer } = require("../utils/shortAnswerMarking");
 
-// very small typo tolerance: 1 edit distance
-function levenshtein(a, b) {
-  if (a === b) return 0;
-  const m = a.length, n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,
-        dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + cost
-      );
+/**
+ * Mark short answer; returns { correct, feedback? }.
+ * feedback is set when contradiction or other clear reason (for display).
+ */
+function markShortAnswerForAttempt(userText, correctAnswer) {
+  const acceptable = Array.isArray(correctAnswer)
+    ? correctAnswer.filter((a) => a != null && String(a).trim())
+    : (correctAnswer != null && String(correctAnswer).trim() ? [String(correctAnswer).trim()] : []);
+  const result = markShortAnswer(userText, acceptable, { overlapThreshold: 0.45, requireConceptMatch: true });
+
+  let feedback = null;
+  if (!result.correct && result.reason === "contradiction") {
+    feedback = "Your answer contradicts the key marking point.";
+    if (result.negatedConcept) {
+      feedback += ` The expected idea includes "${result.negatedConcept}" in a positive sense.`;
     }
-  }
-  return dp[m][n];
-}
-
-function tokenise(s) {
-  const stop = new Set([
-    "a","an","the","and","or","but",
-    "is","are","was","were","be","been","being",
-    "have","has","had","do","does","did",
-    "of","to","in","on","for","with",
-    "cells","cell"
-    // "not", "no", and "without" REMOVED from stopwords - they are important for negation detection
-  ]);
-
-  return normaliseShortText(s)
-    .split(" ")
-    .filter(Boolean)
-    .filter(t => t.length > 1)      // drop 1-letter junk
-    .filter(t => !stop.has(t));     // drop filler words
-}
-
-function fuzzyHasToken(userTokens, targetToken) {
-  // exact OR very close spelling (<=1 edit)
-  return userTokens.some(t => t === targetToken || levenshtein(t, targetToken) <= 1);
-}
-
-function hasNegationNear(words, idx, window = 3) {
-  const start = Math.max(0, idx - window);
-  const end = Math.min(words.length - 1, idx + window);
-  const neg = new Set([
-    "no", "not", 
-    "dont", "don't", 
-    "doesnt", "doesn't", "didnt", "didn't",
-    "cant", "can't", "cannot",
-    "wont", "won't",
-    "without", "lack", "lacks"
-  ]);
-  for (let i = start; i <= end; i++) {
-    if (neg.has(words[i])) return true;
-  }
-  return false;
-}
-
-function anyFuzzyIndex(words, targets) {
-  // return first index where word ~ any target, else -1
-  for (let i = 0; i < words.length; i++) {
-    for (const t of targets) {
-      if (words[i] === t || levenshtein(words[i], t) <= 1) return i;
-    }
-  }
-  return -1;
-}
-
-function isShortAnswerCorrect(userText, correctText) {
-  const uTokens = tokenise(userText);
-  const cTokens = tokenise(correctText);
-
-  if (uTokens.length === 0) return false;
-
-  // --- 1) Keep your existing overlap idea (typo-tolerant) ---
-  let hit = 0;
-  const cSet = new Set(cTokens);
-  for (const ct of cSet) {
-    if (fuzzyHasToken(uTokens, ct)) hit++;
-  }
-  const overlap = hit / Math.max(1, cSet.size);
-
-  // If overlap is very low, definitely wrong
-  if (overlap < 0.45) return false;
-
-  // --- 2) Minimal "meaning" guard for common biology definition pattern ---
-  // If model answer mentions BOTH eukaryotic + prokaryotic + nucleus,
-  // require that student assigns the negation to the correct one.
-  const cHasEuk = cTokens.includes("eukaryotic") || cTokens.includes("eukaryote");
-  const cHasPro = cTokens.includes("prokaryotic") || cTokens.includes("prokaryote");
-  const cHasNucleus = cTokens.includes("nucleus") || cTokens.includes("nuclei");
-
-  if (cHasEuk && cHasPro && cHasNucleus) {
-    // Find where "eukaryotic" and "prokaryotic" appear in student answer
-    const eIdx = anyFuzzyIndex(uTokens, ["eukaryotic", "eukaryote"]);
-    const pIdx = anyFuzzyIndex(uTokens, ["prokaryotic", "prokaryote", "prokaryotics", "prokaryotes"]);
-    const nIdx = anyFuzzyIndex(uTokens, ["nucleus", "nuclei"]);
-
-    // Must mention all three somewhere
-    if (eIdx === -1 || pIdx === -1 || nIdx === -1) return false;
-
-    // Decide expected truth from model answer:
-    // "eukaryotic ... nucleus" (no negation near nucleus) AND
-    // "prokaryotic ... not/no/without ... nucleus" (negation near nucleus)
-    // We'll infer expected by checking negation near "nucleus" in the model answer too.
-    const cWords = cTokens;
-    const cNIdx = anyFuzzyIndex(cWords, ["nucleus", "nuclei"]);
-    const modelNegNearNucleus = cNIdx !== -1 ? hasNegationNear(cWords, cNIdx, 4) : false;
-
-    // For this specific canonical question, model is usually:
-    // eukaryotic HAVE nucleus, prokaryotic DO NOT.
-    // If modelNegNearNucleus is true, still treat it as "prokaryotic no nucleus" pattern.
-    // Student must have: prokaryotic negated somewhere near nucleus, and eukaryotic not negated.
-    const studentNegNearNucleus = hasNegationNear(uTokens, nIdx, 4);
-
-    // If student negates nucleus but doesn't clearly separate subjects,
-    // we use proximity: look for negation near eukaryotic and prokaryotic separately.
-    // Find a negation token position in the student answer
-    const negIdx = anyFuzzyIndex(uTokens, [
-      "not", "no", "without",
-      "dont", "don't", 
-      "doesnt", "doesn't", "didnt", "didn't",
-      "cant", "can't", "cannot",
-      "wont", "won't",
-      "lack", "lacks"
-    ]);
-
-    // If there is negation, it must be closer to "prokaryotic" than "eukaryotic"
-    // (prevents the window-based false negative you're seeing)
-    if (negIdx !== -1) {
-      const dPro = Math.abs(negIdx - pIdx);
-      const dEuk = Math.abs(negIdx - eIdx);
-      if (dEuk < dPro) return false; // negation attached to eukaryotic => reversed
-    }
-
-    // Still require that prokaryotic is the one negated (or negation is near nucleus)
-    const negNearPro = hasNegationNear(uTokens, pIdx, 6);
-    if (!negNearPro && !studentNegNearNucleus) return false;
+  } else if (!result.correct && result.reason === "no_concept_match") {
+    feedback = "Your answer does not include the key concept(s) required.";
   }
 
-  // --- 3) Final accept rule ---
-  return overlap >= 0.6;
+  return { correct: result.correct, feedback };
+}
+
+/** Backward-compat boolean wrapper for submit logic */
+function isShortAnswerCorrect(userText, correctAnswer) {
+  return markShortAnswerForAttempt(userText, correctAnswer).correct;
 }
 
 /* =========================================
@@ -1017,16 +895,15 @@ router.get("/:id/results", auth, requireActiveSubscription, async (req, res) => 
       const itemIdStr = String(itemDoc._id); // actual AssessmentItem _id
       const answer = answerMap.get(itemIdStr);
 
-      // Short answer result shape
+      // Short answer result shape (negation-aware marking, PR-TRUST)
       if (itemDoc.type === "short") {
         const userText = answer?.textAnswer ?? null;
-        
-        // ✅ FUZZY MATCHING (changed from exact match)
+        const marked = markShortAnswerForAttempt(userText || "", itemDoc.correctAnswer);
         const isCorrect =
           userText !== null &&
           userText !== undefined &&
           String(userText).trim() !== "" &&
-          isShortAnswerCorrect(userText, itemDoc.correctAnswer);
+          marked.correct;
 
         return {
           _id: wrapper._id,
@@ -1034,11 +911,12 @@ router.get("/:id/results", auth, requireActiveSubscription, async (req, res) => 
           title: itemDoc.title || `Question ${index + 1}`,
           question: itemDoc.question,
           type: itemDoc.type,
-          options: [], // short answers have no options
+          options: [],
           marks: itemDoc.marks || 1,
-          correctAnswer: itemDoc.correctAnswer, // Added correctAnswer field
-          correctIndex: -1, // not applicable
+          correctAnswer: itemDoc.correctAnswer,
+          correctIndex: -1,
           explanation: itemDoc.explanation,
+          markingFeedback: marked.feedback || undefined,
           userAnswer: answer
             ? {
                 textAnswer: answer.textAnswer ?? null,

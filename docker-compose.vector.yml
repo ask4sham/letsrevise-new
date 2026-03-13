@@ -1,0 +1,18 @@
+# PR-003: Local pgvector for AI Tutor embeddings.
+# Port 5433 to avoid conflict with system Postgres on 5432.
+# Usage: docker compose -f docker-compose.vector.yml up -d
+services:
+  vector-db:
+    image: pgvector/pgvector:pg16
+    container_name: letsrevise-vector-db
+    environment:
+      POSTGRES_USER: letsrevise_user
+      POSTGRES_PASSWORD: letsrevise_pass
+      POSTGRES_DB: letsrevise
+    ports:
+      - "5433:5432"
+    volumes:
+      - letsrevise_vector_pgdata:/var/lib/postgresql/data
+
+volumes:
+  letsrevise_vector_pgdata:

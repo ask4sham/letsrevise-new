@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface SubscriptionRequiredProps {
   message?: string;
@@ -11,23 +12,18 @@ const SubscriptionRequired: React.FC<SubscriptionRequiredProps> = ({
   compact = false,
 }) => {
   const navigate = useNavigate();
+  const { user } = useCurrentUser({ watchLocation: true });
 
   let isTrialExpired = false;
-  try {
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      const plan = parsed?.subscriptionV2?.plan;
-      const expiresAt = parsed?.subscriptionV2?.expiresAt;
-      if (plan === "trial" && expiresAt) {
-        const expiresAtTime = new Date(expiresAt).getTime();
-        if (!Number.isNaN(expiresAtTime) && expiresAtTime <= Date.now()) {
-          isTrialExpired = true;
-        }
+  if (user?.subscriptionV2) {
+    const plan = user.subscriptionV2?.plan;
+    const expiresAt = user.subscriptionV2?.expiresAt;
+    if (plan === "trial" && expiresAt) {
+      const expiresAtTime = new Date(expiresAt).getTime();
+      if (!Number.isNaN(expiresAtTime) && expiresAtTime <= Date.now()) {
+        isTrialExpired = true;
       }
     }
-  } catch {
-    // ignore parse errors; fall back to generic subscription messaging
   }
 
   const padding = compact ? "1rem" : "1.5rem";

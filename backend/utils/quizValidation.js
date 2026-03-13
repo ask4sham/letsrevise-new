@@ -42,4 +42,29 @@ function validateShortAnswer({ acceptableAnswers, matchMode }) {
   return { acceptableAnswers: answers.slice(0, 20), matchMode: mm };
 }
 
-module.exports = { validateMcq, validateShortAnswer };
+/**
+ * Validate question is ready for publishing. Returns { valid: boolean, errors: string[] }.
+ * MCQ: ≥2 options, correct answer selected. Short-answer: ≥1 model answer. Question text required.
+ */
+function validateQuestionForPublish(doc) {
+  const errors = [];
+  const text = String(doc.questionText ?? doc.question ?? "").trim();
+  if (!text) errors.push("Question text is required");
+
+  const isMcq = doc.type !== "short-answer";
+  if (isMcq) {
+    const choices = (doc.choices ?? []).map((c) => String(c ?? "").trim()).filter(Boolean);
+    if (choices.length < 2) errors.push("MCQ needs ≥2 options");
+    const idx = doc.correctIndex ?? 0;
+    if (choices.length >= 2 && (idx < 0 || idx >= choices.length)) {
+      errors.push("MCQ needs a valid correct answer selected");
+    }
+  } else {
+    const answers = (doc.acceptableAnswers ?? []).map((a) => String(a ?? "").trim()).filter(Boolean);
+    if (answers.length === 0) errors.push("Short answer needs at least one model answer");
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+module.exports = { validateMcq, validateShortAnswer, validateQuestionForPublish };
