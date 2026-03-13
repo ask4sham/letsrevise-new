@@ -75,3 +75,66 @@ export async function rebuildTopicGraph(specKey: string, topicKey: string): Prom
   const res = await api.post("/content-graph/rebuild/topic", { specKey, topicKey });
   return res.data;
 }
+
+/** Rebuild graph for all topics in a spec. POST /api/content-graph/rebuild/spec/:specKey */
+export async function rebuildSpecGraph(specKey: string): Promise<{
+  ok: boolean;
+  specKey: string;
+  topicsRebuilt: number;
+  lessonLinksCreated: number;
+  flashcardLinksCreated: number;
+}> {
+  const res = await api.post(`/content-graph/rebuild/spec/${encodeURIComponent(specKey)}`);
+  return res.data;
+}
+
+/** Topic gap analysis (Curriculum Gap Detection) */
+export type TopicGap = {
+  specKey: string;
+  topicKey: string;
+  topicTitle: string;
+  unit?: string;
+  unitKey?: string;
+  counts: { lessons: number; flashcards: number; quizzes: number; examQuestions: number; openIssues: number };
+  coverageScore: number;
+  coverageStatus: "weak" | "partial" | "strong";
+  weakAreas: string[];
+  gapFlags: {
+    missingLesson: boolean;
+    lowFlashcards: boolean;
+    lowQuizzes: boolean;
+    lowExamQuestions: boolean;
+    highIssueRate: boolean;
+    unresolvedMappings: boolean;
+  };
+  priorityScore: number;
+  recommendations: string[];
+  suggestedActions: Array<{ type: string; label: string; reason: string }>;
+  summaryParagraph?: string;
+};
+
+export type SpecGapsResponse = {
+  specKey: string;
+  summary: {
+    totalTopics: number;
+    weakTopics: number;
+    partialTopics: number;
+    strongTopics: number;
+    highestPriorityCount: number;
+  };
+  gaps: TopicGap[];
+};
+
+/** Get spec-level gap analysis. GET /api/content-graph/gaps/:specKey */
+export async function fetchSpecGaps(specKey: string): Promise<SpecGapsResponse> {
+  const res = await api.get<SpecGapsResponse>(`/content-graph/gaps/${encodeURIComponent(specKey)}`);
+  return res.data;
+}
+
+/** Get single topic gap analysis. GET /api/content-graph/gaps/:specKey/:topicKey */
+export async function fetchTopicGap(specKey: string, topicKey: string): Promise<TopicGap> {
+  const res = await api.get<TopicGap>(
+    `/content-graph/gaps/${encodeURIComponent(specKey)}/${encodeURIComponent(topicKey)}`
+  );
+  return res.data;
+}

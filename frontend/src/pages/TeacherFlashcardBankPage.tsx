@@ -3,7 +3,7 @@
  * Route: /teacher/topic-banks/flashcards
  */
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   listTopicFlashcards,
   createTopicFlashcard,
@@ -39,6 +39,7 @@ function detectFlashcardFormat(text: string): "csv" | "newline" {
 
 const TeacherFlashcardBankPage: React.FC = () => {
   const { user } = useCurrentUser({ watchLocation: true });
+  const [searchParams] = useSearchParams();
   const isAdmin = !!(user?.userType === "admin" || (user as any)?.role === "admin" || (user as any)?.isAdmin);
 
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
@@ -79,6 +80,17 @@ const TeacherFlashcardBankPage: React.FC = () => {
     setSelectedUnit("");
     setTopicKey("");
   };
+
+  // Prefill from Gap Priorities: ?specKey=&topicKey= from generate_flashcards action
+  useEffect(() => {
+    const sk = searchParams.get("specKey");
+    const tk = searchParams.get("topicKey");
+    if (sk) {
+      setSpecKey(sk as SpecKey);
+      setStoredSpecKey(sk as SpecKey);
+    }
+    if (tk) setTopicKey(tk);
+  }, [searchParams]);
 
   const fetchFlashcards = async () => {
     if (!topicKey) {

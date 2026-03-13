@@ -3,7 +3,7 @@
  * Tabs: Flashcards | Quizzes | Exam questions. Lists all items with View/Edit/Delete/Move.
  */
 import React, { useEffect, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -91,12 +91,26 @@ export default function AdminQuestionBanksPage() {
     offset: 0,
   });
 
+  const [searchParams] = useSearchParams();
+
   useEffect(() => {
     if (user?.userType !== "admin") {
       navigate("/dashboard");
       return;
     }
   }, [user?.userType, navigate]);
+
+  // Prefill from URL (e.g. from Gap Priorities: ?tab=exam-questions&topicKey=X)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    const topicParam = searchParams.get("topicKey");
+    if (tabParam === "exam-questions" || tabParam === "quizzes" || tabParam === "flashcards") {
+      setActiveTab(tabParam);
+    }
+    if (topicParam) {
+      setFilters((f) => ({ ...f, topicKey: topicParam }));
+    }
+  }, [searchParams]);
 
   const fetchFlashcards = useCallback(async () => {
     setLoading(true);

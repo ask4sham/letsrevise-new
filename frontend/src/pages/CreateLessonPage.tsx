@@ -1,6 +1,6 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
@@ -277,6 +277,7 @@ function buildMarkdownForFile(url: string, file: File) {
 
 const CreateLessonPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, user } = useCurrentUser({ watchLocation: true });
   const isAdmin = Boolean(user?.isAdmin || user?.role === "admin" || user?.userType === "admin");
 
@@ -398,6 +399,44 @@ const CreateLessonPage: React.FC = () => {
       topicKey: value.topicKey,
     }));
   };
+
+  // Prefill from Gap Priorities: location.state { specKey, topicKey } from create_lesson action
+  const prefilledFromGapRef = useRef(false);
+  useEffect(() => {
+    if (prefilledFromGapRef.current || taxonomyLoading || !taxonomyOptions) return;
+    const state = location.state as { specKey?: string; topicKey?: string } | null;
+    const targetSpecKey = state?.specKey?.trim();
+    const targetTopicKey = (state?.topicKey ?? "").trim();
+    if (!targetSpecKey || !targetTopicKey) return;
+
+    for (const subj of taxonomyOptions.subjects ?? []) {
+      for (const spec of subj.specs ?? []) {
+        if (spec.specKey !== targetSpecKey) continue;
+        for (const main of spec.mainTopics ?? []) {
+          for (const sub of main.subTopics ?? []) {
+            const matches =
+              sub.topicKey === targetTopicKey ||
+              (!targetTopicKey.includes(":") &&
+                sub.topicSlug === targetTopicKey &&
+                sub.topicKey.startsWith(`${targetSpecKey}:`));
+            if (matches) {
+              prefilledFromGapRef.current = true;
+              const val: TopicSelectionValue = {
+                subject: subj.subject,
+                specKey: spec.specKey,
+                mainTopicTitle: main.title,
+                topicKey: sub.topicKey,
+                topic: sub.title,
+              };
+              handleTopicSelectionChange(val);
+              return;
+            }
+          }
+        }
+      }
+    }
+    prefilledFromGapRef.current = true;
+  }, [taxonomyLoading, taxonomyOptions, location.state]);
 
   const normalizeOrders = (arr: LessonPage[]) =>
     arr

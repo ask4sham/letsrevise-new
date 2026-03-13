@@ -7,7 +7,9 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const contentGraphService = require("../services/contentGraphService");
 const contentCoverageService = require("../services/contentCoverageService");
+const curriculumGapDetectionService = require("../services/curriculumGapDetectionService");
 const auth = require("../middleware/auth");
+const requireAdmin = require("../middleware/requireAdmin");
 
 function isValidObjectId(id) {
   return id && mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === String(id);
@@ -181,6 +183,133 @@ router.post("/rebuild/topic", auth, async (req, res) => {
   } catch (err) {
     console.error("[content-graph] rebuild/topic", err);
     res.status(500).json({ error: "Failed to rebuild topic graph" });
+  }
+});
+
+/**
+ * POST /api/content-graph/rebuild/spec/:specKey
+ * Rebuild graph for all topics in the spec.
+ * Returns { topicsRebuilt, lessonLinksCreated, flashcardLinksCreated }.
+ */
+router.post("/rebuild/spec/:specKey", auth, async (req, res) => {
+  try {
+    const { specKey } = req.params;
+    if (!specKey) return res.status(400).json({ error: "specKey required" });
+
+    const adminTaxonomyService = require("../services/adminTaxonomyService");
+    const { queryCandidates } = require("../utils/topicKey");
+    const Lesson = require("../models/Lesson");
+    const TopicFlashcard = require("../models/TopicFlashcard");
+    const TopicQuizQuestion = require("../models/TopicQuizQuestion");
+    const ExamQuestion = require("../models/ExamQuestion");
+
+    const taxonomy = await adminTaxonomyService.getMergedTaxonomyBySpecKey(specKey);
+    if (!taxonomy || !Array.isArray(taxonomy.units)) {
+      return res.status(404).json({ error: "Spec not found" });
+    }
+
+    const topicEntries = [];
+    for (const unit of taxonomy.units) {
+      for (const t of unit.topics || []) {
+        const key = t.key || t.topicKey;
+        if (!key) continue;
+        const topicKey = key.includes(":") ? key : `${specKey}:${key}`;
+        topicEntries.push({ topicKey });
+      }
+    }
+
+    let topicsRebuilt = 0;
+    let lessonLinksCreated = 0;
+    let flashcardLinksCreated = 0;
+
+    for (const { topicKey } of topicEntries) {
+      const topicOnly = (topicKey || "").split(":").pop() || topicKey;
+      const candidates = queryCandidates(specKey, topicOnly);
+
+      const topicNode = await contentGraphService.resolveTopicNode(specKey, topicOnly);
+      if (!topicNode) continue;
+
+      const lessons = await Lesson.find({ topicKey: { $in: candidates } }).lean();
+      const flashcards = await TopicFlashcard.find({
+        topicKey: { $in: candidates },
+        status: "published",
+        isArchived: { $ne: true },
+      }).lean();
+      const quizQuestions = await TopicQuizQuestion.find({
+        topicKey: { $in: candidates },
+        status: "published",
+        isArchived: { $ne: true },
+      }).lean();
+      const examQuestions = await ExamQuestion.find({
+        topicKey: { $in: candidates },
+        status: "published",
+      }).lean();
+
+      for (const l of lessons) await contentGraphService.linkLessonToTopic(l);
+      for (const fc of flashcards) await contentGraphService.linkFlashcardToTopic(fc);
+      for (const q of quizQuestions) await contentGraphService.linkQuizQuestionToTopic(q);
+      for (const eq of examQuestions) await contentGraphService.linkQuestionToTopic(eq);
+
+      topicsRebuilt += 1;
+      lessonLinksCreated += lessons.length;
+      flashcardLinksCreated += flashcards.length;
+    }
+
+    res.json({
+      ok: true,
+      specKey,
+      topicsRebuilt,
+      lessonLinksCreated,
+      flashcardLinksCreated,
+    });
+  } catch (err) {
+    console.error("[content-graph] rebuild/spec", err);
+    res.status(500).json({ error: "Failed to rebuild spec graph" });
+  }
+});
+
+/**
+ * GET /api/content-graph/gaps/:specKey
+ * Curriculum gap analysis for a spec. Admin only.
+ */
+router.get("/gaps/:specKey", auth, requireAdmin, async (req, res) => {
+  try {
+    const { specKey } = req.params;
+    const gaps = await curriculumGapDetectionService.detectTopicGaps(specKey);
+    const weakTopics = gaps.filter((g) => g.coverageStatus === "weak").length;
+    const partialTopics = gaps.filter((g) => g.coverageStatus === "partial").length;
+    const strongTopics = gaps.filter((g) => g.coverageStatus === "strong").length;
+    const highPriorityCount = gaps.filter((g) => (g.priorityScore ?? 0) > 0).length;
+    res.json({
+      specKey,
+      summary: {
+        totalTopics: gaps.length,
+        weakTopics,
+        partialTopics,
+        strongTopics,
+        highestPriorityCount: highPriorityCount,
+      },
+      gaps,
+    });
+  } catch (err) {
+    console.error("[content-graph] getSpecGaps", err);
+    res.status(500).json({ error: "Failed to get spec gaps" });
+  }
+});
+
+/**
+ * GET /api/content-graph/gaps/:specKey/:topicKey
+ * Single topic gap analysis. Admin only.
+ */
+router.get("/gaps/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+  try {
+    const { specKey, topicKey } = req.params;
+    const gap = await curriculumGapDetectionService.detectSingleTopicGap(specKey, topicKey);
+    if (!gap) return res.status(404).json({ error: "Topic not found" });
+    res.json(gap);
+  } catch (err) {
+    console.error("[content-graph] getTopicGap", err);
+    res.status(500).json({ error: "Failed to get topic gap" });
   }
 });
 
