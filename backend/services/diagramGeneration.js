@@ -7,7 +7,8 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-const UPLOADS_BASE = path.join(__dirname, "..", "uploads");
+const { FILE_STORAGE_PATH } = require("../config/paths");
+const UPLOADS_BASE = FILE_STORAGE_PATH;
 const AI_DIAGRAMS_FOLDER = "ai-diagrams";
 const IMAGE_MODEL = "dall-e-3";
 const IMAGE_SIZE = "1024x1024";

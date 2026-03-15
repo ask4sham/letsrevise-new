@@ -82,8 +82,11 @@ async function sendParentLinkEmail({ to, parentName, approveUrl, rejectUrl }) {
   });
 }
 
-// Debug route - test password matching
+// Debug route - test password matching. DISABLED in production.
 router.post("/debug-login", async (req, res) => {
+  if (process.env.NODE_ENV === "production" || (process.env.DEBUG_ENDPOINTS !== "1" && process.env.DEBUG_ENDPOINTS !== "true")) {
+    return res.status(404).json({ msg: "Not found" });
+  }
   console.log("\n🔍 DEBUG LOGIN REQUEST:", req.body);
 
   const { email, password } = req.body;
@@ -144,11 +147,9 @@ router.post("/debug-login", async (req, res) => {
     }
   } catch (error) {
     console.error("Debug error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Debug error: " + error.message,
-      stack: error.stack,
-    });
+    const payload = { success: false, message: "Debug error: " + error.message };
+    if (process.env.NODE_ENV !== "production") payload.stack = error?.stack;
+    return res.status(500).json(payload);
   }
 });
 

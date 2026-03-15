@@ -779,7 +779,7 @@ async function createLessonHandler(req, res) {
     return res.status(500).json({
       success: false,
       error: "Server error",
-      message: err.message,
+      ...(process.env.NODE_ENV !== "production" ? { message: err.message } : {}),
     });
   }
 }

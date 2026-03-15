@@ -12,7 +12,8 @@ const { sha256Buffer } = require("../utils/mediaHash");
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.join(__dirname, "..", "uploads");
+const { FILE_STORAGE_PATH } = require("../config/paths");
+const UPLOAD_DIR = FILE_STORAGE_PATH;
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const upload = multer({

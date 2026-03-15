@@ -18,7 +18,8 @@ if (
 }
 
 // Ensure uploads directory exists (diagram and other uploads)
-const uploadsDir = path.join(__dirname, "uploads");
+const { FILE_STORAGE_PATH } = require("./config/paths");
+const uploadsDir = FILE_STORAGE_PATH;
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   console.log("Created uploads directory:", uploadsDir);
@@ -75,7 +76,7 @@ app.use((req, res, next) => {
 });
 
 // PR-BULK-INGEST-3: Serve uploaded files (local storage)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(FILE_STORAGE_PATH));
 // Fallback: old /uploads/videos/xxx URLs → serve from visuals (e.g. 1773270742541-magnification.mp4 → magnification.mp4)
 const videosFallbackPath = path.join(__dirname, "public", "visuals", "biology", "aqa-gcse", "cell-biology", "cell-structure");
 app.use("/uploads", (req, res, next) => {

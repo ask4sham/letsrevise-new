@@ -5,7 +5,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const UPLOAD_DIR = process.env.FILE_UPLOAD_DIR || path.join(__dirname, "..", "uploads", "past-papers");
+const { FILE_STORAGE_PATH } = require("../config/paths");
+const UPLOAD_DIR = process.env.FILE_UPLOAD_DIR || path.join(FILE_STORAGE_PATH, "past-papers");
 const MAX_SIZE = Number(process.env.FILE_UPLOAD_MAX_MB) * 1024 * 1024 || 25 * 1024 * 1024; // 25MB default
 const ALLOWED_MIMES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 

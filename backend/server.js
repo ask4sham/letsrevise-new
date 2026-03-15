@@ -128,8 +128,9 @@ if (process.env.NODE_ENV !== "production") {
    STATIC FILES
 ============================================================ */
 
-// Serve uploads
-const uploadsRootPath = path.join(__dirname, "uploads");
+// Serve uploads (configurable via FILE_STORAGE_PATH)
+const { FILE_STORAGE_PATH } = require("./config/paths");
+const uploadsRootPath = FILE_STORAGE_PATH;
 const videosFallbackPath = path.join(__dirname, "public", "visuals", "biology", "aqa-gcse", "cell-biology", "cell-structure");
 if (fs.existsSync(uploadsRootPath)) {
   console.log("Uploads folder found, serving at /uploads ...", uploadsRootPath);
@@ -272,6 +273,16 @@ app.get("/api/_debug/info", (req, res) => {
 /* ============================================================
    API ROUTES
 ============================================================ */
+
+// General API rate limit (applies to all /api before route handlers)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_API_MAX || "300", 10),
+  message: { error: "Too many requests" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api", apiLimiter);
 
 // Uploads router (direct /__ping and /video are in app.js)
 app.use("/api/uploads", require("./routes/uploads"));

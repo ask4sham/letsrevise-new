@@ -7,8 +7,9 @@ const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-// Base folder where uploads live (served by app.js and server.js at /uploads)
-const UPLOADS_BASE = path.join(__dirname, "..", "uploads");
+// Base folder where uploads live (configurable via FILE_STORAGE_PATH)
+const { FILE_STORAGE_PATH } = require("../config/paths");
+const UPLOADS_BASE = FILE_STORAGE_PATH;
 
 /**
  * LOCKED: Canonical video upload path. All video uploads MUST go here.

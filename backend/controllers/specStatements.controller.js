@@ -1,8 +1,13 @@
 /**
  * PR-001: SpecStatement CRUD controller — admin-only.
+ * Extended: ingest endpoint for spec document ingestion.
  */
+const path = require("path");
+const fs = require("fs");
 const mongoose = require("mongoose");
 const SpecStatement = require("../models/SpecStatement");
+const { ingestSpecDocument } = require("../services/specDocumentIngestionService");
+const { FILE_STORAGE_PATH } = require("../config/paths");
 
 /**
  * GET list — filter by specKey, topicKey, examBoard, level
@@ -103,4 +108,72 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { list, create, update, remove };
+/**
+ * GET by specKey — returns stored SpecStatements for a spec
+ */
+async function listBySpec(req, res) {
+  try {
+    const { specKey } = req.params;
+    if (!specKey || !String(specKey).trim()) {
+      return res.status(400).json({ error: "specKey is required" });
+    }
+    const items = await SpecStatement.find({ specKey: String(specKey).trim() })
+      .sort({ topicKey: 1, statementCode: 1 })
+      .lean();
+    return res.json({ items });
+  } catch (err) {
+    console.error("SpecStatements listBySpec error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
+/**
+ * POST ingest — ingest spec document (file upload or filePath)
+ * Body (multipart): file, specKey, subject?, dryRun?
+ * Body (JSON): filePath, specKey, subject?, dryRun?
+ */
+async function ingest(req, res) {
+  try {
+    const specKey = req.body?.specKey || req.body.specKey;
+    const subject = req.body?.subject || req.body.subject;
+    const dryRun = req.body?.dryRun === true || req.body?.dryRun === "true";
+
+    if (!specKey || !String(specKey).trim()) {
+      return res.status(400).json({ error: "specKey is required" });
+    }
+
+    let filePath = req.body?.filePath || req.body.filePath;
+
+    if (req.file) {
+      filePath = req.file.path ? (path.isAbsolute(req.file.path) ? req.file.path : path.resolve(req.file.path)) : null;
+      if (!filePath && req.file.buffer) {
+        const uploadsDir = path.join(FILE_STORAGE_PATH, "spec-docs");
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        const ext = path.extname(req.file.originalname || "") || ".txt";
+        const absPath = path.join(uploadsDir, `ingest-${Date.now()}${ext}`);
+        fs.writeFileSync(absPath, req.file.buffer);
+        filePath = absPath;
+      }
+    }
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(400).json({
+        error: "filePath is required and must exist, or upload a file (multipart field: file)",
+      });
+    }
+
+    const result = await ingestSpecDocument({
+      filePath,
+      specKey: String(specKey).trim(),
+      subject: subject ? String(subject).trim() : undefined,
+      dryRun,
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("SpecStatements ingest error:", err);
+    return res.status(500).json({ error: err.message || "Ingestion failed" });
+  }
+}
+
+module.exports = { list, create, update, remove, listBySpec, ingest };
