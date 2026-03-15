@@ -5,13 +5,14 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    if (!process.env.MONGO_URI) {
-      console.log("MongoDB URI not set. Running in development mode without database.");
+    const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!uri) {
+      console.log("MongoDB URI not set (MONGODB_URI or MONGO_URI). Running in development mode without database.");
       return;
     }
 
     console.log("Connecting to MongoDB...");
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(uri);
     console.log(`MongoDB Connected: ${mongoose.connection.host}`);
 
     // Check if we can perform operations

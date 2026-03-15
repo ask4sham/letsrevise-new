@@ -28,11 +28,9 @@ const bodyLimit = require("./middleware/bodyLimit");
 const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
 const app = express();
 
-// ✅ CORS configuration to allow frontend origin
-app.use(cors({
-  origin: "http://localhost:3000",
-  credentials: true,
-}));
+// CORS: server.js overrides with full config; minimal here for app-load tests
+const corsOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:3000";
+app.use(cors({ origin: corsOrigin, credentials: true }));
 
 // PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
 app.use(bodyLimit);
@@ -126,6 +124,9 @@ app.use("/api/taxonomy", require("./routes/taxonomy"));
 
 // PR-BULK-INGEST-1: Admin bulk import (flashcards; validate + dedupe + dry-run)
 app.use("/api/admin/bulk-import", require("./routes/adminBulkImport"));
+
+// Phase 1: CSV import for flashcards and exam questions (teacher/admin)
+app.use("/api/import", require("./routes/importRoutes"));
 app.use("/api/admin/student-teacher-links", require("./routes/adminStudentTeacherLinks"));
 app.use("/api/admin/question-banks", require("./routes/adminQuestionBanks"));
 app.use("/api/admin/taxonomy", require("./routes/adminTaxonomy"));

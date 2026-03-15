@@ -10,6 +10,7 @@ const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { computeMcqCorrectness } = require("../services/computeMcqCorrectness");
 const { recordExamQuestionAttempt, recordQuizAttempt } = require("../services/learningEvidenceService");
+const { updateReviewStateAfterSession } = require("../services/adaptiveRevisionService");
 
 const CONTENT_TYPES = PracticeAttempt.CONTENT_TYPES || ["quiz_mcq", "quiz_short", "exam_question", "past_paper_question"];
 const MCQ_CONTENT_TYPE = "quiz_mcq";
@@ -165,6 +166,13 @@ router.post("/", auth, async (req, res) => {
           timeSpentSeconds: timeSpent,
         }).catch(() => {});
       }
+      updateReviewStateAfterSession({
+        userId: studentId,
+        specKey: specKey.trim(),
+        topicKey: String(topicKey).trim(),
+        wasSuccess: isCorrectValue,
+        wasHard: !isCorrectValue,
+      }).catch(() => {});
     }
 
     return res.status(200).json({ ok: true });

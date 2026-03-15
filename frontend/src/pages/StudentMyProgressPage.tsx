@@ -247,46 +247,107 @@ export default function StudentMyProgressPage() {
 
       {!loading && !error && hasAnyAttempts && (
         <>
+          {useCanonicalMastery && (dashboardData?.overdueTopics?.length ?? 0) > 0 && (
+            <section style={{ marginBottom: 24 }}>
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "1.15rem", color: "#b91c1c" }}>Overdue review</h2>
+              <div style={{ padding: 12, background: "#fef2f2", borderRadius: 10, border: "1px solid #fecaca" }}>
+                {dashboardData.overdueTopics.slice(0, 3).map((t) => {
+                  const action = getTopicRevisionAction({ masteryScore: t.masteryScore, topicKey: t.topicKey });
+                  return (
+                    <div key={t.topicKey} style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                      <span style={{ fontWeight: 600, color: "#991b1b" }}>{t.topicName}</span>
+                      <span style={{ fontSize: 12, color: "#b91c1c" }}>{t.reason}</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate(action.route)}
+                        style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, background: "#dc2626", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}
+                      >
+                        {action.label}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+          {useCanonicalMastery && (dashboardData?.dueToday?.length ?? 0) > 0 && (
+            <section style={{ marginBottom: 24 }}>
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "1.15rem", color: "#b45309" }}>Due today</h2>
+              <div style={{ padding: 12, background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a" }}>
+                {dashboardData.dueToday.slice(0, 3).map((t) => {
+                  const action = getTopicRevisionAction({ masteryScore: t.masteryScore, topicKey: t.topicKey });
+                  return (
+                    <div key={t.topicKey} style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                      <span style={{ fontWeight: 600, color: "#92400e" }}>{t.topicName}</span>
+                      <span style={{ fontSize: 12, color: "#b45309" }}>{t.reason}</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate(action.route)}
+                        style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, background: "#d97706", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}
+                      >
+                        {action.label}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
           {useCanonicalMastery && dashboardData?.studyPlan?.plan && dashboardData.studyPlan.plan.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ margin: "0 0 12px 0", fontSize: "1.25rem" }}>Recommended next</h2>
               <div
                 style={{
-                  padding: 16,
-                  background: "#f0fdf4",
-                  borderRadius: 12,
-                  border: "1px solid #bbf7d0",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                  gap: 16,
                 }}
               >
-                <p style={{ margin: "0 0 12px 0", fontSize: 14, color: "#166534" }}>
-                  Focus on these topics to improve your mastery:
-                </p>
-                <ul style={{ margin: 0, paddingLeft: 20, color: "#166534" }}>
-                  {dashboardData.studyPlan.plan.slice(0, 3).map((p) => (
-                    <li key={p.topicKey} style={{ marginBottom: 6 }}>
-                      <strong>{topicKeyToTitle(p.topicKey)}</strong> — {p.reason}
-                      <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {p.actions.slice(0, 2).map((a) => (
-                          <Link
-                            key={a.id}
-                            to={a.href}
-                            style={{
-                              padding: "4px 10px",
-                              fontSize: 12,
-                              fontWeight: 600,
-                              background: "#dcfce7",
-                              color: "#166534",
-                              borderRadius: 6,
-                              textDecoration: "none",
-                            }}
-                          >
-                            {a.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                {dashboardData.studyPlan.plan.slice(0, 3).map((p) => {
+                  const action = getTopicRevisionAction({
+                    masteryScore: p.masteryScore ?? null,
+                    topicKey: p.topicKey,
+                  });
+                  return (
+                    <div
+                      key={p.topicKey}
+                      style={{
+                        padding: 16,
+                        background: "#f0fdf4",
+                        borderRadius: 12,
+                        border: "1px solid #bbf7d0",
+                      }}
+                    >
+                      <strong style={{ display: "block", marginBottom: 4, color: "#166534" }}>
+                        {topicKeyToTitle(p.topicKey)}
+                      </strong>
+                      <p style={{ margin: "0 0 4px 0", fontSize: 13, color: "#166534" }}>
+                        Mastery: {p.masteryScore ?? 0}%
+                      </p>
+                      {p.reason && (
+                        <p style={{ margin: "0 0 12px 0", fontSize: 12, color: "#15803d", fontStyle: "italic" }}>
+                          {p.reason}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => navigate(action.route)}
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          background: "#22c55e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}

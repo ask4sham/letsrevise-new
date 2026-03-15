@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import api from "../services/api";
 
 type QuizStat = {
   quiz_id: string;
@@ -18,24 +19,8 @@ const QuizStatsPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const url = "http://localhost:5000/api/quizzes/stats/all";
-        console.log("[QuizStatsPage] Fetching:", url);
-
-        const res = await fetch(url);
-        const text = await res.text();
-        console.log("[QuizStatsPage] Raw response:", text);
-
-        let json: any;
-        try {
-          json = JSON.parse(text);
-        } catch {
-          throw new Error("Unexpected response from server (not valid JSON).");
-        }
-
-        if (!res.ok) {
-          throw new Error(json.error || "Failed to load quiz stats");
-        }
-
+        const res = await api.get("/quizzes/stats/all");
+        const json = res.data;
         setStats(json.stats || []);
       } catch (err: any) {
         console.error("Failed to load quiz stats:", err);

@@ -81,11 +81,16 @@ connectDB();
    CORS CONFIG
 ============================================================ */
 
+const extraOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:4173",
   "https://profound-gumdrop-4c8d83.netlify.app",
+  ...extraOrigins,
 ];
 
 const corsOptions = {
@@ -227,6 +232,18 @@ app.get("/api/health", (req, res) => {
     message: "LetsRevise API is running",
     commit: getCommit(),
   });
+});
+
+app.get("/api/ready", async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ status: "not ready", mongo: "disconnected" });
+    }
+    res.json({ status: "ready", mongo: "connected" });
+  } catch (e) {
+    res.status(503).json({ status: "not ready", error: (e && e.message) || "unknown" });
+  }
 });
 
 // Diagnostic: if this returns 200, server.js is running our code

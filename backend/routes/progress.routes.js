@@ -7,6 +7,7 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const { upsertStudentTopicProgressSignal } = require("../services/progress/studentTopicProgressService");
 const { recordFlashcardReview, recordLessonCompletion } = require("../services/learningEvidenceService");
+const { updateReviewStateAfterSession } = require("../services/adaptiveRevisionService");
 
 function isStudent(req) {
   const t = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
@@ -99,6 +100,16 @@ router.post("/flashcard-review", auth, (req, res) => {
       flashcardId: flashcardId || null,
       difficultyRating:
         difficultyRating != null && difficultyRating >= 1 && difficultyRating <= 5 ? Number(difficultyRating) : null,
+    }).catch(() => {});
+    const wasSuccess = difficultyRating != null && difficultyRating >= 3;
+    const wasHard = difficultyRating != null && difficultyRating <= 2;
+    updateReviewStateAfterSession({
+      userId,
+      specKey,
+      topicKey: req.body.topicKey || `${specKey}:${tk}`,
+      wasSuccess,
+      difficultyRating: difficultyRating != null && difficultyRating >= 1 && difficultyRating <= 5 ? Number(difficultyRating) : null,
+      wasHard,
     }).catch(() => {});
   }
 });

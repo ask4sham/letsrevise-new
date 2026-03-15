@@ -1,6 +1,6 @@
 // pages/AnalysisPage.tsx — PR-AUTH-UI-3: use useCurrentUser for token.
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api";
 import EarningsChart from "../components/charts/EarningsChart";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
@@ -25,12 +25,7 @@ const AnalysisPage: React.FC = () => {
 
   const fetchAnalysisData = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:5000/api/lessons/teacher/stats",
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
+      const response = await api.get("/lessons/teacher/stats");
 
       // Safely merge API data into defaults
       const data = response?.data || {};

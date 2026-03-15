@@ -1,7 +1,7 @@
 // PR-AUTH-UI-3: use useCurrentUser for token.
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type QuizQuestion = {
@@ -143,25 +143,16 @@ const CreateQuizPage: React.FC = () => {
         };
       });
 
-      await axios.post(
-        "http://localhost:5000/api/quizzes",
-        {
-          title: title.trim(),
-          description: description.trim() || null,
-          level,
-          subject, // already normalised (e.g. "maths")
-          exam_board: examBoard, // e.g. "aqa"
-          module: module.trim().toLowerCase(), // "algebra"
-          questions: cleanedQuestions,
-          is_published: true,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      await api.post("/quizzes", {
+        title: title.trim(),
+        description: description.trim() || null,
+        level,
+        subject, // already normalised (e.g. "maths")
+        exam_board: examBoard, // e.g. "aqa"
+        module: module.trim().toLowerCase(), // "algebra"
+        questions: cleanedQuestions,
+        is_published: true,
+      });
 
       setSuccessMessage("Quiz created successfully!");
       // Reset most of the form but keep metadata to allow another quiz quickly
