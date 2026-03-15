@@ -1,14 +1,24 @@
 /**
- * PR-STU-PROGRESS-1: Student "My Progress" — reflection (quizzes attempted, avg score, needs practice)
+ * PR-STU-PROGRESS-1: Student "My Progress" — reflection (quizzes attempted, avg score, needs practice).
+ * Phase 2: Extended with canonical mastery from LearningEvidenceEvent (GET /api/student/dashboard).
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   getStudentProgress,
   type SubjectProgress,
   type TopicProgress,
   type StudentProgressResponse,
 } from "../api/studentProgress";
+import {
+  getStudentDashboard,
+  type DashboardResponse,
+  type TopicEvidence,
+  type StudyPlanItem,
+} from "../api/studentDashboard";
+import { getTopicRevisionAction } from "../utils/topicRevisionAction";
+
+const DEFAULT_SPEC = "aqa-gcse-biology";
 
 const tableStyle: React.CSSProperties = {
   width: "100%",
@@ -59,19 +69,67 @@ function TopicStatusBadge({ topic }: { topic: TopicProgress }) {
   );
 }
 
+function topicKeyToTitle(topicKey: string): string {
+  const last = (topicKey || "").split(":").pop();
+  return last ? last.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : topicKey || "";
+}
+
+function DifficultyBadge({ level }: { level: string }) {
+  const l = (level || "unknown").toLowerCase();
+  const style =
+    l === "well_understood"
+      ? { background: "#d1fae5", color: "#065f46" }
+      : l === "moderate"
+      ? { background: "#fef3c7", color: "#92400e" }
+      : l === "difficult" || l === "very_difficult"
+      ? { background: "#fee2e2", color: "#991b1b" }
+      : { background: "#f3f4f6", color: "#6b7280" };
+  const label =
+    l === "well_understood"
+      ? "Well understood"
+      : l === "moderate"
+      ? "Moderate"
+      : l === "difficult"
+      ? "Difficult"
+      : l === "very_difficult"
+      ? "Very difficult"
+      : "—";
+  return (
+    <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, fontWeight: 500, ...style }}>
+      {label}
+    </span>
+  );
+}
+
 export default function StudentMyProgressPage() {
-  const [data, setData] = useState<StudentProgressResponse | null>(null);
+  const navigate = useNavigate();
+  const [progressData, setProgressData] = useState<StudentProgressResponse | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [useCanonicalMastery, setUseCanonicalMastery] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getStudentProgress();
-      setData(res);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || e?.message || "Failed to load");
+      const dash = await getStudentDashboard({ specKey: DEFAULT_SPEC, days: 14, limit: 6 });
+      if (dash?.ok && dash.specEvidence?.topics?.length !== undefined) {
+        setDashboardData(dash);
+        setUseCanonicalMastery(true);
+        setProgressData(null);
+      } else {
+        throw new Error("No spec evidence");
+      }
+    } catch {
+      try {
+        const res = await getStudentProgress();
+        setProgressData(res);
+        setDashboardData(null);
+        setUseCanonicalMastery(false);
+      } catch (e: any) {
+        setError(e?.response?.data?.error || e?.message || "Failed to load");
+      }
     } finally {
       setLoading(false);
     }
@@ -81,10 +139,61 @@ export default function StudentMyProgressPage() {
     load();
   }, [load]);
 
-  const hasAnyAttempts = (data?.subjects?.[0]?.quizzesAttempted ?? 0) > 0;
+  const studyPlanMap = React.useMemo(() => {
+    const map = new Map<string, StudyPlanItem>();
+    (dashboardData?.studyPlan?.plan ?? []).forEach((p) => {
+      const key = (p.topicKey || "").toLowerCase().replace(/^[^:]+:/, "");
+      map.set(key, p);
+    });
+    return map;
+  }, [dashboardData?.studyPlan?.plan]);
+
+  const hasCanonicalData = useCanonicalMastery && dashboardData?.specEvidence?.topics;
+  const hasLegacyData = progressData && (progressData.subjects?.[0]?.quizzesAttempted ?? 0) > 0;
+  const hasAnyAttempts = hasCanonicalData
+    ? (dashboardData!.specEvidence!.topics ?? []).some(
+        (t) => (t.quizStats?.attempts ?? 0) + (t.examStats?.attempts ?? 0) > 0
+      )
+    : hasLegacyData;
+
+  const canonicalTopics = React.useMemo(() => {
+    if (!dashboardData?.specEvidence?.topics) return [];
+    const topics = [...dashboardData.specEvidence.topics];
+    topics.sort((a, b) => {
+      const scoreA = a.derivedMetrics?.masteryScore ?? 101;
+      const scoreB = b.derivedMetrics?.masteryScore ?? 101;
+      if (scoreA !== scoreB) return scoreA - scoreB;
+      return (a.topicKey || "").localeCompare(b.topicKey || "");
+    });
+    return topics;
+  }, [dashboardData?.specEvidence?.topics]);
+
+  const canonicalOverall = React.useMemo(() => {
+    if (!dashboardData?.specEvidence?.topics) return null;
+    const topics = dashboardData.specEvidence.topics;
+    let totalQuiz = 0;
+    let totalQuizCorrect = 0;
+    let totalExam = 0;
+    let totalExamCorrect = 0;
+    for (const t of topics) {
+      totalQuiz += t.quizStats?.attempts ?? 0;
+      totalQuizCorrect += t.quizStats?.correct ?? 0;
+      totalExam += t.examStats?.attempts ?? 0;
+      totalExamCorrect += t.examStats?.correct ?? 0;
+    }
+    const totalAttempts = totalQuiz + totalExam;
+    const totalCorrect = totalQuizCorrect + totalExamCorrect;
+    const avg = totalAttempts > 0 ? totalCorrect / totalAttempts : null;
+    return {
+      subject: "Biology",
+      quizzesAttempted: totalAttempts,
+      averageScore: avg,
+      lastActivityAt: dashboardData.recentActivity?.[0]?.createdAt ?? null,
+    };
+  }, [dashboardData?.specEvidence?.topics, dashboardData?.recentActivity]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
+    <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
         <Link to="/student-dashboard" style={{ color: "#2563eb", textDecoration: "none", fontWeight: 600 }}>
           ← Back to Dashboard
@@ -138,6 +247,50 @@ export default function StudentMyProgressPage() {
 
       {!loading && !error && hasAnyAttempts && (
         <>
+          {useCanonicalMastery && dashboardData?.studyPlan?.plan && dashboardData.studyPlan.plan.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "1.25rem" }}>Recommended next</h2>
+              <div
+                style={{
+                  padding: 16,
+                  background: "#f0fdf4",
+                  borderRadius: 12,
+                  border: "1px solid #bbf7d0",
+                }}
+              >
+                <p style={{ margin: "0 0 12px 0", fontSize: 14, color: "#166534" }}>
+                  Focus on these topics to improve your mastery:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: 20, color: "#166534" }}>
+                  {dashboardData.studyPlan.plan.slice(0, 3).map((p) => (
+                    <li key={p.topicKey} style={{ marginBottom: 6 }}>
+                      <strong>{topicKeyToTitle(p.topicKey)}</strong> — {p.reason}
+                      <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {p.actions.slice(0, 2).map((a) => (
+                          <Link
+                            key={a.id}
+                            to={a.href}
+                            style={{
+                              padding: "4px 10px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: "#dcfce7",
+                              color: "#166534",
+                              borderRadius: 6,
+                              textDecoration: "none",
+                            }}
+                          >
+                            {a.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
+
           <section style={{ marginBottom: 32 }}>
             <h2 style={{ margin: "0 0 16px 0", fontSize: "1.25rem" }}>Overall</h2>
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
@@ -145,71 +298,218 @@ export default function StudentMyProgressPage() {
                 <thead>
                   <tr style={{ background: "#f9fafb" }}>
                     <th style={thTdStyle}>Subject</th>
-                    <th style={thTdStyle}>Quizzes attempted</th>
+                    <th style={thTdStyle}>Attempts</th>
                     <th style={thTdStyle}>Average score</th>
                     <th style={thTdStyle}>Last activity</th>
                     <th style={thTdStyle}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(data?.subjects ?? []).map((s: SubjectProgress, i: number) => (
-                    <tr key={i}>
-                      <td style={thTdStyle}>{s.subject}</td>
-                      <td style={thTdStyle}>{s.quizzesAttempted}</td>
+                  {useCanonicalMastery && canonicalOverall ? (
+                    <tr>
+                      <td style={thTdStyle}>{canonicalOverall.subject}</td>
+                      <td style={thTdStyle}>{canonicalOverall.quizzesAttempted}</td>
                       <td style={thTdStyle}>
-                        {s.averageScore != null ? `${(s.averageScore * 100).toFixed(0)}%` : "—"}
-                      </td>
-                      <td style={thTdStyle}>
-                        {s.lastActivityAt
-                          ? new Date(s.lastActivityAt).toLocaleDateString(undefined, { dateStyle: "medium", timeStyle: "short" })
+                        {canonicalOverall.averageScore != null
+                          ? `${(canonicalOverall.averageScore * 100).toFixed(0)}%`
                           : "—"}
                       </td>
                       <td style={thTdStyle}>
-                        <SubjectBadge averageScore={s.averageScore} />
+                        {canonicalOverall.lastActivityAt
+                          ? new Date(canonicalOverall.lastActivityAt).toLocaleDateString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </td>
+                      <td style={thTdStyle}>
+                        <SubjectBadge averageScore={canonicalOverall.averageScore} />
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    (progressData?.subjects ?? []).map((s: SubjectProgress, i: number) => (
+                      <tr key={i}>
+                        <td style={thTdStyle}>{s.subject}</td>
+                        <td style={thTdStyle}>{s.quizzesAttempted}</td>
+                        <td style={thTdStyle}>
+                          {s.averageScore != null ? `${(s.averageScore * 100).toFixed(0)}%` : "—"}
+                        </td>
+                        <td style={thTdStyle}>
+                          {s.lastActivityAt
+                            ? new Date(s.lastActivityAt).toLocaleDateString(undefined, {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              })
+                            : "—"}
+                        </td>
+                        <td style={thTdStyle}>
+                          <SubjectBadge averageScore={s.averageScore} />
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </section>
 
           <section>
-            <h2 style={{ margin: "0 0 16px 0", fontSize: "1.25rem" }}>By topic</h2>
+            <h2 style={{ margin: "0 0 16px 0", fontSize: "1.25rem" }}>
+              By topic {useCanonicalMastery && "(canonical mastery)"}
+            </h2>
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
               <table style={tableStyle}>
                 <thead>
                   <tr style={{ background: "#f9fafb" }}>
                     <th style={thTdStyle}>Topic</th>
-                    <th style={thTdStyle}>Attempted</th>
-                    <th style={thTdStyle}>Avg score</th>
+                    {useCanonicalMastery && <th style={thTdStyle}>Mastery</th>}
+                    {useCanonicalMastery && <th style={thTdStyle}>Difficulty</th>}
+                    <th style={thTdStyle}>{useCanonicalMastery ? "Attempts" : "Attempted"}</th>
+                    {!useCanonicalMastery && <th style={thTdStyle}>Avg score</th>}
                     <th style={thTdStyle}>Status</th>
                     <th style={thTdStyle}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(data?.topics ?? []).map((t: TopicProgress) => (
-                    <tr key={t.topicKey}>
-                      <td style={thTdStyle}>{t.topicName}</td>
-                      <td style={thTdStyle}>{t.attempted ? "Yes" : "No"}</td>
-                      <td style={thTdStyle}>
-                        {t.averageScore != null ? `${(t.averageScore * 100).toFixed(0)}%` : "—"}
-                      </td>
-                      <td style={thTdStyle}>
-                        <TopicStatusBadge topic={t} />
-                      </td>
-                      <td style={thTdStyle}>
-                        {(t.needsPractice || !t.attempted) && (
-                          <Link
-                            to={`/browse-lessons?topicKey=${encodeURIComponent(t.topicKey)}`}
-                            style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none", fontSize: 14 }}
-                          >
-                            Practise this topic
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {useCanonicalMastery && hasCanonicalData
+                    ? canonicalTopics.map((t: TopicEvidence) => {
+                        const quizAttempts = t.quizStats?.attempts ?? 0;
+                        const examAttempts = t.examStats?.attempts ?? 0;
+                        const totalAttempts = quizAttempts + examAttempts;
+                        const hasAttempts = totalAttempts > 0;
+                        const mastery = t.derivedMetrics?.masteryScore ?? null;
+                        const needsPractice = mastery !== null && mastery < 70;
+                        const topicSlug = (t.topicKey || "").split(":").pop()?.toLowerCase() ?? "";
+                        const planItem = studyPlanMap.get(topicSlug);
+                        return (
+                          <tr key={t.topicKey}>
+                            <td style={thTdStyle}>{topicKeyToTitle(t.topicKey)}</td>
+                            <td style={thTdStyle}>
+                              {mastery != null ? (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <div
+                                    style={{
+                                      flex: 1,
+                                      minWidth: 60,
+                                      height: 8,
+                                      background: "#e5e7eb",
+                                      borderRadius: 4,
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        width: `${Math.min(100, Math.max(0, mastery))}%`,
+                                        height: "100%",
+                                        background:
+                                          mastery < 40
+                                            ? "#ef4444"
+                                            : mastery < 70
+                                            ? "#f97316"
+                                            : mastery < 85
+                                            ? "#22c55e"
+                                            : "#3b82f6",
+                                        borderRadius: 4,
+                                      }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: 13, minWidth: 36 }}>{mastery}%</span>
+                                </div>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td style={thTdStyle}>
+                              <DifficultyBadge level={t.derivedMetrics?.difficultyLevel ?? "unknown"} />
+                            </td>
+                            <td style={thTdStyle}>
+                              {hasAttempts
+                                ? `Quiz: ${quizAttempts}, Exam: ${examAttempts}`
+                                : "—"}
+                            </td>
+                            <td style={thTdStyle}>
+                              {!hasAttempts ? (
+                                <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, background: "#f3f4f6", color: "#6b7280" }}>
+                                  Not started
+                                </span>
+                              ) : needsPractice ? (
+                                <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, background: "#fee2e2", color: "#991b1b", fontWeight: 600 }}>
+                                  Needs practice
+                                </span>
+                              ) : (
+                                <span style={{ padding: "4px 8px", borderRadius: 6, fontSize: 12, background: "#d1fae5", color: "#065f46", fontWeight: 600 }}>
+                                  On track
+                                </span>
+                              )}
+                            </td>
+                            <td style={thTdStyle}>
+                              {(() => {
+                                const action = getTopicRevisionAction({
+                                  masteryScore: mastery,
+                                  difficulty: t.derivedMetrics?.difficultyLevel,
+                                  attempts: totalAttempts,
+                                  topicKey: t.topicKey || "",
+                                });
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(action.route)}
+                                    style={{
+                                      padding: "6px 12px",
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      background: action.type === "review" ? "#e0e7ff" : "#2563eb",
+                                      color: action.type === "review" ? "#3730a3" : "white",
+                                      border: "none",
+                                      borderRadius: 6,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {action.label}
+                                  </button>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    : (progressData?.topics ?? []).map((t: TopicProgress) => {
+                        const legacyMastery = t.averageScore != null ? t.averageScore * 100 : 0;
+                        const legacyAction = getTopicRevisionAction({
+                          masteryScore: legacyMastery,
+                          topicKey: t.topicKey || "",
+                        });
+                        return (
+                          <tr key={t.topicKey}>
+                            <td style={thTdStyle}>{t.topicName}</td>
+                            <td style={thTdStyle}>{t.attempted ? "Yes" : "No"}</td>
+                            <td style={thTdStyle}>
+                              {t.averageScore != null ? `${(t.averageScore * 100).toFixed(0)}%` : "—"}
+                            </td>
+                            <td style={thTdStyle}>
+                              <TopicStatusBadge topic={t} />
+                            </td>
+                            <td style={thTdStyle}>
+                              <button
+                                type="button"
+                                onClick={() => navigate(legacyAction.route)}
+                                style={{
+                                  padding: "6px 12px",
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  background: legacyAction.type === "review" ? "#e0e7ff" : "#2563eb",
+                                  color: legacyAction.type === "review" ? "#3730a3" : "white",
+                                  border: "none",
+                                  borderRadius: 6,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {legacyAction.label}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                 </tbody>
               </table>
             </div>

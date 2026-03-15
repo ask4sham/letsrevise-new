@@ -6,6 +6,7 @@ import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
 import { getKnowledgeGap, type KnowledgeGapResponse } from "../api/studentKnowledgeGap";
+import { getStudentDashboard, type DashboardResponse } from "../api/studentDashboard";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API_BASE =
@@ -253,28 +254,40 @@ const BASE_SUBJECTS = [
   "PE",
 ] as const;
 
-/** Step 6: Your revision focus — fetches knowledge-gap summary and weak areas. */
-function RevisionFocusBlock() {
-  const [data, setData] = useState<KnowledgeGapResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+/** Step 6: Your revision focus — uses dashboardData when available, fallback to knowledge-gap. */
+function RevisionFocusBlock({
+  dashboardData,
+  dashboardLoading,
+}: {
+  dashboardData: DashboardResponse | null;
+  dashboardLoading: boolean;
+}) {
+  const [fallbackData, setFallbackData] = useState<KnowledgeGapResponse | null>(null);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
+
+  const data: KnowledgeGapResponse | null = dashboardData?.ok
+    ? {
+        summary: dashboardData.summary?.revisionFocus ?? "Keep practising to see personalised revision focus.",
+        weakAreas: (dashboardData.weakTopics ?? []).map((w) => ({
+          topicKey: w.topicKey,
+          topicName: w.topicName ?? w.topicKey,
+          attempted: w.total,
+          correct: w.correct,
+          total: w.total,
+          percentage: w.percentage,
+        })),
+      }
+    : fallbackData;
 
   useEffect(() => {
-    let cancelled = false;
-    getKnowledgeGap()
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err?.message || "Failed to load revision focus");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!dashboardLoading && !dashboardData?.ok && fallbackData === null && !fallbackError) {
+      getKnowledgeGap()
+        .then(setFallbackData)
+        .catch((err: any) => setFallbackError(err?.message || "Failed to load revision focus"));
+    }
+  }, [dashboardLoading, dashboardData?.ok, fallbackData, fallbackError]);
+
+  const loading = dashboardLoading && !fallbackData;
 
   if (loading) {
     return (
@@ -293,7 +306,7 @@ function RevisionFocusBlock() {
       </div>
     );
   }
-  if (error) return null;
+  if (fallbackError) return null;
 
   return (
     <div
@@ -336,7 +349,11 @@ const StudentDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { user, token } = useCurrentUser({ watchLocation: true });
 
-  // PR13.3: Recommended next (from misconception topics)
+  // Phase 2: Unified dashboard (summary, weakTopics, recentActivity, studyPlan, recommendations)
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+
+  // PR13.3: Recommended next (from misconception topics) — uses dashboard when available
   const [recLoading, setRecLoading] = useState(false);
   const [recError, setRecError] = useState<string | null>(null);
   const [recTopics, setRecTopics] = useState<Array<{ topicKey: string; topic?: string; score: number; wrong: number; highConfidenceWrong: number }>>([]);
@@ -381,27 +398,21 @@ const StudentDashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // PR13.3: Fetch recommended next (student-facing)
+  // Phase 2: Fetch unified dashboard (revision focus + recommendations + study plan)
   useEffect(() => {
     if (!token) {
-      setRecLessons([]);
-      setRecTopics([]);
+      setDashboardData(null);
+      setDashboardLoading(false);
       return;
     }
-    setRecLoading(true);
-    setRecError(null);
-    axios
-      .get(`${API_BASE}/api/reports/students/me/recommendations`, {
-        params: { days: 14, limit: 6 },
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        const data = res?.data;
-        if (data?.ok) {
-          setRecTopics(Array.isArray(data.topics) ? data.topics : []);
-          const raw = Array.isArray(data.lessons) ? data.lessons : [];
+    setDashboardLoading(true);
+    getStudentDashboard({ days: 14, limit: 6 })
+      .then((dash) => {
+        setDashboardData(dash);
+        if (dash?.ok && dash.recommendations) {
+          setRecTopics(dash.recommendations.topics ?? []);
           setRecLessons(
-            raw.map((l: any) => ({
+            (dash.recommendations.lessons ?? []).map((l: any) => ({
               id: String(l.id ?? l._id ?? ""),
               title: l.title ?? "Untitled",
               description: l.description ?? "",
@@ -428,12 +439,55 @@ const StudentDashboard: React.FC = () => {
         }
       })
       .catch(() => {
-        setRecError("Failed to load recommendations.");
-        setRecLessons([]);
-        setRecTopics([]);
+        setDashboardData(null);
+        setRecLoading(true);
+        // Fallback: fetch recommendations from legacy endpoint
+        axios
+          .get(`${API_BASE}/api/reports/students/me/recommendations`, {
+            params: { days: 14, limit: 6 },
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .then((res) => {
+            const data = res?.data;
+            if (data?.ok) {
+              setRecTopics(Array.isArray(data.topics) ? data.topics : []);
+              const raw = Array.isArray(data.lessons) ? data.lessons : [];
+              setRecLessons(
+                raw.map((l: any) => ({
+                  id: String(l.id ?? l._id ?? ""),
+                  title: l.title ?? "Untitled",
+                  description: l.description ?? "",
+                  subject: l.subject ?? "Not set",
+                  topic: l.topic ?? "Not set",
+                  level: normalizeLevelLabel(l.level ?? "Not set"),
+                  stage: l.level ?? "",
+                  years: null,
+                  teacherName: l.teacherName ?? "Teacher",
+                  teacherId: "",
+                  estimatedDuration: 0,
+                  shamCoinPrice: 0,
+                  views: 0,
+                  averageRating: 0,
+                  createdAt: "",
+                  examBoardName: normalizeBoardName(l.examBoard ?? l.board ?? ""),
+                  tier: "",
+                  isFreePreview: Boolean(l.isFreePreview),
+                  hasAccess: Boolean(l.hasAccess),
+                  locked: Boolean(l.locked),
+                  reason: l.reason,
+                }))
+              );
+            }
+          })
+          .catch(() => {
+            setRecError("Failed to load recommendations.");
+            setRecLessons([]);
+            setRecTopics([]);
+          })
+          .finally(() => setRecLoading(false));
       })
-      .finally(() => setRecLoading(false));
-  }, [user, token]);
+      .finally(() => setDashboardLoading(false));
+  }, [token]);
 
   // Batch-fetch lesson metadata for purchased lessons (no N+1)
   useEffect(() => {
@@ -1024,8 +1078,8 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Step 6: Your revision focus (knowledge gap) */}
-        <RevisionFocusBlock />
+        {/* Step 6: Your revision focus (knowledge gap) — uses unified dashboard */}
+        <RevisionFocusBlock dashboardData={dashboardData} dashboardLoading={dashboardLoading} />
 
         {/* Filters - PR-UX-STU-DASH-2.1: collapsible, collapsed by default */}
         <div

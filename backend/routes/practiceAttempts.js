@@ -9,6 +9,7 @@ const PracticeAttempt = require("../models/PracticeAttempt");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { computeMcqCorrectness } = require("../services/computeMcqCorrectness");
+const { recordExamQuestionAttempt, recordQuizAttempt } = require("../services/learningEvidenceService");
 
 const CONTENT_TYPES = PracticeAttempt.CONTENT_TYPES || ["quiz_mcq", "quiz_short", "exam_question", "past_paper_question"];
 const MCQ_CONTENT_TYPE = "quiz_mcq";
@@ -141,6 +142,31 @@ router.post("/", auth, async (req, res) => {
       confidence: confidenceNum,
       timeSpentSec: timeSpent,
     });
+
+    // Learning evidence: fire-and-forget for dashboard mastery
+    const topicOnly = (topicKey || "").includes(":") ? String(topicKey).split(":").pop() : String(topicKey).trim();
+    if (specKey && topicOnly) {
+      if (contentType === "exam_question" || contentType === "past_paper_question") {
+        recordExamQuestionAttempt({
+          userId: studentId,
+          specKey: specKey.trim(),
+          topicKey: topicOnly,
+          questionId: contentIdObj,
+          correct: isCorrectValue,
+          timeSpentSeconds: timeSpent,
+        }).catch(() => {});
+      } else if (contentType === "quiz_mcq" || contentType === "quiz_short") {
+        recordQuizAttempt({
+          userId: studentId,
+          specKey: specKey.trim(),
+          topicKey: topicOnly,
+          correct: isCorrectValue,
+          score: isCorrectValue ? 100 : 0,
+          timeSpentSeconds: timeSpent,
+        }).catch(() => {});
+      }
+    }
+
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Failed to save attempt" });

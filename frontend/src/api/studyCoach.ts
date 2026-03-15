@@ -40,6 +40,45 @@ export async function getStudyPlan(specKey: string): Promise<StudyPlanResponse> 
 /**
  * POST /api/progress/lesson-view — record lesson view (student only).
  */
-export async function postLessonView(specKey: string, topicKey: string): Promise<void> {
-  await api.post("/progress/lesson-view", { specKey, topicKey });
+export async function postLessonView(
+  specKey: string,
+  topicKey: string,
+  lessonId?: string
+): Promise<void> {
+  await api.post("/progress/lesson-view", { specKey, topicKey, lessonId });
+}
+
+/**
+ * POST /api/progress/lesson-completion — record lesson completion (student only).
+ */
+export async function postLessonCompletion(
+  specKey: string,
+  topicKey: string,
+  lessonId?: string,
+  timeSpentSeconds?: number
+): Promise<void> {
+  await api.post("/progress/lesson-completion", {
+    specKey,
+    topicKey,
+    lessonId,
+    timeSpentSeconds,
+  });
+}
+
+/**
+ * POST /api/progress/flashcard-review — record flashcard review (student only).
+ * Actionable revision flow: LearningEvidenceEvent flashcard_review.
+ */
+export async function postFlashcardReview(
+  specKey: string,
+  topicKey: string,
+  flashcardId?: string,
+  difficultyRating?: number
+): Promise<void> {
+  await api.post("/progress/flashcard-review", {
+    specKey,
+    topicKey,
+    flashcardId,
+    difficultyRating,
+  });
 }

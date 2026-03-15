@@ -57,6 +57,14 @@ import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
 import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
 import ContentCoveragePage from "./pages/ContentCoveragePage";
+import TopicCommandCenterPage from "./pages/TopicCommandCenterPage";
+import AutopilotApprovalPage from "./pages/AutopilotApprovalPage";
+import AutopilotRunsPage from "./pages/AutopilotRunsPage";
+import AutopilotOutcomesPage from "./pages/AutopilotOutcomesPage";
+import AutopilotFeedbackPage from "./pages/AutopilotFeedbackPage";
+import AutopilotExperimentsPage from "./pages/AutopilotExperimentsPage";
+import DraftLibraryPage from "./pages/DraftLibraryPage";
+import SpecStatementsPage from "./pages/SpecStatementsPage";
 
 // ✅ Settings page (new)
 import SettingsPage from "./pages/SettingsPage";
@@ -94,6 +102,9 @@ import StudentMyWorkPage from "./pages/StudentMyWorkPage";
 import StudentMyProgressPage from "./pages/StudentMyProgressPage";
 import StudentWorksheetAttemptViewPage from "./pages/StudentWorksheetAttemptViewPage";
 import StudentPracticePage from "./pages/StudentPracticePage";
+import FlashcardSessionPage from "./pages/FlashcardSessionPage";
+import QuizSessionPage from "./pages/QuizSessionPage";
+import ExamPracticePage from "./pages/ExamPracticePage";
 import QuickQuizPage from "./pages/QuickQuizPage";
 import StructureNotesPage from "./pages/StructureNotesPage";
 import TeacherTopicStatsPage from "./pages/TeacherTopicStatsPage";
@@ -102,6 +113,7 @@ import TeacherLinkStudentsPage from "./pages/TeacherLinkStudentsPage";
 import DocsViewerPage from "./pages/DocsViewerPage";
 import CoverageDashboardPage from "./pages/CoverageDashboardPage";
 import ContentIssuesPage from "./pages/ContentIssuesPage";
+import CsvImportPage from "./pages/CsvImportPage";
 
 import "./App.css";
 
@@ -441,6 +453,32 @@ function App() {
             }
           />
 
+          {/* Actionable Revision Flow: topic-based practice sessions */}
+          <Route
+            path="/practice/flashcards/:topicKey"
+            element={
+              <ProtectedRoute requireStudent>
+                <FlashcardSessionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/practice/quiz/:topicKey"
+            element={
+              <ProtectedRoute requireStudent>
+                <QuizSessionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/practice/exam/:topicKey"
+            element={
+              <ProtectedRoute requireStudent>
+                <ExamPracticePage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/student/quick-quiz"
             element={
@@ -759,6 +797,22 @@ function App() {
             }
           />
           <Route
+            path="/admin/csv-import"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <CsvImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/csv-import"
+            element={
+              <ProtectedRoute requireTeacherOrAdmin>
+                <CsvImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/lesson/:id"
             element={
               <ProtectedRoute requireAdmin>
@@ -799,6 +853,70 @@ function App() {
             element={
               <ProtectedRoute requireAdmin>
                 <ContentCoveragePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/topic/:specKey/:topicKey"
+            element={
+              <ProtectedRoute requireAdmin>
+                <TopicCommandCenterPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/autopilot-approval"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AutopilotApprovalPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/autopilot-runs"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AutopilotRunsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/autopilot-outcomes"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AutopilotOutcomesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/autopilot-experiments"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AutopilotExperimentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/draft-library"
+            element={
+              <ProtectedRoute requireAdmin>
+                <DraftLibraryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/spec-statements"
+            element={
+              <ProtectedRoute requireAdmin>
+                <SpecStatementsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/autopilot-feedback"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AutopilotFeedbackPage />
               </ProtectedRoute>
             }
           />

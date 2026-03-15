@@ -2,6 +2,7 @@
  * PR-EDGE-4: Student "My Work" dashboard — worksheets, quizzes, assessments.
  * PR-STU-PROGRESS-1: Student "My Progress" — reflection (quizzes attempted, average score, needs practice).
  * Step 6 LLM: GET /api/student/knowledge-gap — weak areas + LLM revision focus summary.
+ * Phase 2 consolidation: GET /api/student/dashboard — unified dashboard; GET /api/student/topic-evidence — per-student mastery.
  */
 const express = require("express");
 const router = express.Router();
@@ -16,12 +17,56 @@ const QuizAttempt = require("../models/QuizAttempt");
 const QuizAssignment = require("../models/QuizAssignment");
 const Lesson = require("../models/Lesson");
 const { getBiologyTopics, topicToKey } = require("../utils/topicTaxonomy");
+const studentDashboardService = require("../services/studentDashboardService");
+const studentTopicEvidenceService = require("../services/studentTopicEvidenceService");
+const StudentTeacherLink = require("../models/StudentTeacherLink");
+const TopicFlashcard = require("../models/TopicFlashcard");
+const { queryCandidates, buildTopicKey, parseTopicKey } = require("../utils/topicKey");
+const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 
 function isStudent(req) {
   if (!req.user) return false;
   const t = (req.user.userType || req.user.role || "").toString().toLowerCase();
   return t === "student";
 }
+
+// GET /api/student/dashboard — unified dashboard (summary, weakTopics, recentActivity, studyPlan, recommendations)
+router.get("/dashboard", auth, async (req, res) => {
+  if (!isStudent(req)) {
+    return res.status(403).json({ error: "Students only" });
+  }
+  try {
+    const userId = req.user._id || req.user.userId || req.user.id;
+    const specKey = (req.query?.specKey || "").trim() || "aqa-gcse-biology";
+    const days = parseInt(String(req.query.days || "14"), 10) || 14;
+    const limit = parseInt(String(req.query.limit || "6"), 10) || 6;
+    const data = await studentDashboardService.getDashboard(userId, { specKey, days, limit });
+    return res.json(data);
+  } catch (err) {
+    console.error("Student dashboard error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/student/topic-evidence?specKey=&topicKey= — per-student topic mastery (canonical source)
+router.get("/topic-evidence", auth, async (req, res) => {
+  if (!isStudent(req)) {
+    return res.status(403).json({ error: "Students only" });
+  }
+  try {
+    const userId = req.user._id || req.user.userId || req.user.id;
+    const specKey = (req.query?.specKey || "").trim();
+    const topicKey = (req.query?.topicKey || "").trim();
+    if (!specKey || !topicKey) {
+      return res.status(400).json({ error: "specKey and topicKey are required" });
+    }
+    const evidence = await studentTopicEvidenceService.getTopicLearningEvidence(specKey, topicKey, userId);
+    return res.json(evidence);
+  } catch (err) {
+    console.error("Student topic-evidence error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
 // GET /api/student/my-work — student only; returns worksheets, quizzes, assessments
 router.get("/my-work", auth, async (req, res) => {
@@ -402,6 +447,61 @@ router.get("/knowledge-gap", auth, async (req, res) => {
     return res.json({ summary, weakAreas });
   } catch (err) {
     console.error("Student knowledge-gap error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/student/content/topic-flashcards?topicKey=&specKey= — student-only, published flashcards from linked teachers
+router.get("/content/topic-flashcards", auth, async (req, res) => {
+  if (!isStudent(req)) {
+    return res.status(403).json({ error: "Students only" });
+  }
+  try {
+    const studentId = req.user._id || req.user.userId || req.user.id;
+    const specKey = (req.query?.specKey || "").trim() || "aqa-gcse-biology";
+    let topicKey = (req.query?.topicKey || "").trim();
+    if (!topicKey) {
+      return res.status(400).json({ error: "topicKey is required" });
+    }
+    if (!topicKey.includes(":")) {
+      topicKey = `${specKey}:${topicKey}`;
+    }
+    try {
+      assertValidSpecKey(specKey);
+      assertValidNamespacedTopicKey(specKey, topicKey);
+    } catch (e) {
+      return res.status(400).json({ error: e.message || "Invalid spec or topic" });
+    }
+
+    const links = await StudentTeacherLink.find({ studentId }).select("teacherId").lean();
+    const teacherIds = links.map((l) => l.teacherId).filter(Boolean);
+    if (teacherIds.length === 0) {
+      return res.json({ cards: [], topicKey, message: "Link to a teacher to access flashcards." });
+    }
+
+    const candidates = queryCandidates(specKey, parseTopicKey(topicKey).topicKey || topicKey);
+    const topicQuery = candidates.length ? { topicKey: { $in: candidates } } : { topicKey };
+
+    const cards = await TopicFlashcard.find({
+      ownerId: { $in: teacherIds },
+      ...topicQuery,
+      status: "published",
+      isArchived: { $ne: true },
+    })
+      .select("_id front back topicKey")
+      .limit(100)
+      .lean();
+
+    const out = cards.map((c, i) => ({
+      id: String(c._id),
+      front: c.front || "",
+      back: c.back || "",
+      tags: [c.topicKey].filter(Boolean),
+    }));
+
+    return res.json({ cards: out, topicKey });
+  } catch (err) {
+    console.error("Student topic-flashcards error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 });
