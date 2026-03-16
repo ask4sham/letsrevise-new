@@ -25,6 +25,7 @@ if (!fs.existsSync(uploadsDir)) {
   console.log("Created uploads directory:", uploadsDir);
 }
 const { cors, corsMiddleware, getCorsOptions, logCorsConfigAtStartup } = require("./config/cors");
+const { Sentry } = require("./config/sentry");
 const bodyLimit = require("./middleware/bodyLimit");
 const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
 const app = express();
@@ -33,6 +34,12 @@ const app = express();
 logCorsConfigAtStartup();
 app.options("*", (req, res, next) => cors(getCorsOptions())(req, res, next)); // Preflight: fresh options per request
 app.use(corsMiddleware);
+
+// Sentry: request context (must be early)
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
 
 // PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
 app.use(bodyLimit);
@@ -265,6 +272,11 @@ app.use((err, req, res, next) => {
 
   return next(err);
 });
+
+// Sentry: capture errors before sending response
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 // Global error guard (unhandled → 500; respects err.status when present)
 app.use((err, req, res, next) => {

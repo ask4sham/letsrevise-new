@@ -14,7 +14,9 @@ const LOCALHOST_ORIGINS = [
   "http://localhost:4173",
 ];
 
-const PRODUCTION_FRONTEND = "https://profound-gumdrop-4c8d83.netlify.app";
+// Fallback when CORS_ORIGIN/FRONTEND_URL not set. Use CORS_FALLBACK_ORIGIN env for custom domain.
+const PRODUCTION_FRONTEND =
+  process.env.CORS_FALLBACK_ORIGIN || "https://letsrevise.com";
 
 function isProduction() {
   return (

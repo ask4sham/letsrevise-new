@@ -66,6 +66,7 @@
   "author": "LetsRivise Team",
   "license": "ISC",
   "dependencies": {
+    "@sentry/node": "^10.43.0",
     "@supabase/supabase-js": "^2.88.0",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",

@@ -22,8 +22,9 @@ Use local backend only:
 - `REACT_APP_API_URL=http://localhost:5000`
 
 ### Production (Render)
-Use Render backend:
-- `REACT_APP_API_URL=https://letsrevise-new.onrender.com`
+Use Render backend (see docs/CUSTOM_DOMAIN_SETUP.md for custom domain):
+- Current: `REACT_APP_API_URL=https://letsrevise-new.onrender.com`
+- Custom domain: `REACT_APP_API_URL=https://api.letsrevise.com`
 
 ### Hard rule
 One frontend session must use one backend.

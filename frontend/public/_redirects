@@ -1,3 +1,4 @@
 # Serve /docs/* as static files (e.g. PDF); do not SPA fallback
 /docs/*  /docs/:splat  200
-/*    /index.html   200
+# SPA fallback: all other routes → index.html for React Router
+/* /index.html 200

@@ -6,6 +6,7 @@ import axios, {
   AxiosRequestConfig,
   InternalAxiosRequestConfig,
 } from "axios";
+import { captureException, captureMessage } from "../sentryClient";
 
 /**
  * Base URL rules:
@@ -153,7 +154,7 @@ api.interceptors.response.use(
     if (message === "Network Error" || (error.message && error.message === "Network Error")) {
       const hint = BASE_URL
         ? "Backend may be starting (Render cold start ~60s). Try again in a moment."
-        : "Set REACT_APP_API_BASE (e.g. https://letsrevise-new.onrender.com) and rebuild.";
+        : "Set REACT_APP_API_BASE (e.g. https://api.letsrevise.com) and rebuild.";
       message = `Cannot reach server. ${hint}`;
     }
 
@@ -162,6 +163,16 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
+    }
+
+    // Report server errors and network failures to Sentry (skip 401/404)
+    const status = error.response?.status;
+    if (status && status >= 500) {
+      captureException(error, {
+        extra: { url: error.config?.url, status, message },
+      });
+    } else if (message?.includes("Cannot reach server")) {
+      captureMessage(`API unreachable: ${message}`, "warning");
     }
 
     return Promise.reject({
