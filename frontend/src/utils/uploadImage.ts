@@ -8,7 +8,10 @@ export type UploadImageResult = {
 };
 
 const BACKEND_BASE =
-  process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+  (process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || "http://localhost:5000")
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api\/?$/, "");
 
 /**
  * Upload an image file to the backend uploads API.

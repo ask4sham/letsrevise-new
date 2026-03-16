@@ -7,6 +7,7 @@ import type {
   TableBlock,
   ImageBlock,
 } from "../../types/lesson";
+import { makeAbsoluteAssetUrl } from "../../utils/assetUrl";
 
 type Props = {
   lesson: Lesson;
@@ -22,24 +23,10 @@ const card: React.CSSProperties = {
 
 const muted: React.CSSProperties = { color: "#666" };
 
-// ✅ Backend base (so /uploads and /content load from backend, not frontend)
-const BACKEND_BASE =
-  (process.env.REACT_APP_BACKEND_URL || "http://localhost:5000").replace(/\/+$/, "");
-
-// ✅ Convert "/uploads/..." → "http://localhost:5000/uploads/..."
-function resolveAssetUrl(src: string) {
+/** Resolve lesson asset URLs to backend (uploads, visuals, content) — works in prod and dev */
+function resolveAssetUrl(src: string): string {
   if (!src) return src;
-
-  // already absolute
-  if (/^https?:\/\//i.test(src)) return src;
-
-  // force backend for these roots
-  if (src.startsWith("/uploads/") || src.startsWith("/content/")) {
-    return `${BACKEND_BASE}${src}`;
-  }
-
-  // leave other relative paths alone (e.g. "/logo.png" from frontend public)
-  return src;
+  return makeAbsoluteAssetUrl(src) ?? src;
 }
 
 const LessonRenderer: React.FC<Props> = ({ lesson }) => {
