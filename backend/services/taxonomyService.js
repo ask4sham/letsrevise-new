@@ -121,12 +121,37 @@ async function getCreateLessonOptionsMerged() {
     for (const unit of taxonomy.units || []) {
       const mainTitle = (unit.unit && String(unit.unit).trim()) || null;
       const subTopics = [];
+      const spec = taxonomy.specKey || specKey;
 
+      // Topics under sections: path = Main > Section > Topic
+      for (const sec of unit.sections || []) {
+        const sectionTitle = (sec.title && String(sec.title).trim()) || sec.slug;
+        for (const t of sec.topics || []) {
+          const leafTitle = (t.topic && String(t.topic).trim()) || null;
+          const topicSlug = (t.key && String(t.key).trim()) || null;
+          if (!leafTitle || !topicSlug) continue;
+          const pathParts = [mainTitle, sectionTitle, leafTitle].filter(Boolean);
+          subTopics.push({
+            title: leafTitle,
+            topicSlug,
+            topicKey: t.topicKey || `${spec}:${topicSlug}`,
+            path: pathParts.join(" > ") || leafTitle,
+          });
+        }
+      }
+
+      // Direct topics (under main, no section)
+      const inSection = new Set();
+      for (const sec of unit.sections || []) {
+        for (const t of sec.topics || []) {
+          if (t.key) inSection.add((t.key || "").toLowerCase());
+        }
+      }
       for (const t of unit.topics || []) {
-        const leafTitle = (t.topic && String(t.topic).trim()) || null;
         const topicSlug = (t.key && String(t.key).trim()) || null;
-        if (!leafTitle || !topicSlug) continue;
-        const spec = taxonomy.specKey || specKey;
+        if (!topicSlug || inSection.has(topicSlug.toLowerCase())) continue;
+        const leafTitle = (t.topic && String(t.topic).trim()) || null;
+        if (!leafTitle) continue;
         subTopics.push({
           title: leafTitle,
           topicSlug,

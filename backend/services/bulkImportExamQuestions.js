@@ -26,7 +26,7 @@ const ExamQuestion = require("../models/ExamQuestion");
  *   dryRun?: boolean
  * }
  */
-async function bulkImportExamQuestions({ specKey, items, dryRun = false, actorId = null }) {
+async function bulkImportExamQuestions({ specKey, items, dryRun = false, actorId = null, importMetadata = null }) {
   if (!specKey || typeof specKey !== "string") {
     throw new Error("specKey is required");
   }
@@ -150,6 +150,9 @@ async function bulkImportExamQuestions({ specKey, items, dryRun = false, actorId
             alt: a && typeof a.alt === "string" ? a.alt : null,
           }))
         : [],
+      ...(importMetadata && typeof importMetadata === "object"
+        ? { metadata: { ...importMetadata } }
+        : {}),
     };
 
     toInsert.push(doc);

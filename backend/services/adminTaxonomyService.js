@@ -1,7 +1,9 @@
 /**
  * Merge admin taxonomy additions with static config. Used by taxonomy routes and taxonomyService.
+ * Supports 4-level hierarchy: Main Topic → Section → Topic (leaf).
  */
 const AdminTaxonomyItem = require("../models/AdminTaxonomyItem");
+const AdminTopicPlacement = require("../models/AdminTopicPlacement");
 const { getTaxonomyBySpecKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
 const { buildTopicKey, parseTopicKey, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 
@@ -26,12 +28,20 @@ async function getMergedTaxonomyBySpecKey(specKey) {
   const staticTaxonomy = getTaxonomyBySpecKey(specKey);
   if (!staticTaxonomy) return null;
 
-  const adminItems = await AdminTaxonomyItem.find({ specKey }).sort({ sortOrder: 1, unitKey: 1, key: 1 }).lean();
+  const [adminItems, placements] = await Promise.all([
+    AdminTaxonomyItem.find({ specKey }).sort({ sortOrder: 1, unitKey: 1, key: 1 }).lean(),
+    AdminTopicPlacement.find({ specKey }).lean(),
+  ]);
 
-  const units = JSON.parse(JSON.stringify(staticTaxonomy.units || []));
+  const spec = staticTaxonomy.specKey || specKey;
 
   function getUnitKey(u) {
     return (u.unitKey || toSlug(u.unit || "")).toLowerCase();
+  }
+
+  const units = JSON.parse(JSON.stringify(staticTaxonomy.units || []));
+  for (const u of units) {
+    u.unitKey = u.unitKey || getUnitKey(u);
   }
   const unitKeys = new Set(units.map(getUnitKey));
 
@@ -46,8 +56,16 @@ async function getMergedTaxonomyBySpecKey(specKey) {
       unitKey: uk,
       topics: [],
       _admin: true,
+      _id: au._id,
     });
   }
+
+  // Sections (by parentUnitKey)
+  const sections = adminItems
+    .filter((i) => i.type === "section" && (i.parentUnitKey || i.parentId))
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const sectionById = new Map(sections.map((s) => [String(s._id), s]));
+  const placementsBySlug = new Map(placements.map((p) => [String(p.topicSlug).toLowerCase(), p]));
 
   // Add admin sub-topics
   const adminSubTopics = adminItems.filter((i) => i.type === "subTopic" && i.key);
@@ -61,7 +79,6 @@ async function getMergedTaxonomyBySpecKey(specKey) {
     if (!unit.topics) unit.topics = [];
     const existing = unit.topics.find((t) => (t.key || "").toLowerCase() === (st.key || "").toLowerCase());
     if (!existing) {
-      const spec = staticTaxonomy.specKey || specKey;
       unit.topics.push({
         topic: st.topic,
         key: st.key,
@@ -73,9 +90,89 @@ async function getMergedTaxonomyBySpecKey(specKey) {
     }
   }
 
+  // Build topic -> final location (unitKey, sectionId or null). Placement can move topic to different unit.
+  const topicToLocation = new Map(); // slug -> { unitKey, sectionId }
+  const allTopicObjects = new Map(); // slug -> topic object
+
+  for (const unit of units) {
+    const uk = getUnitKey(unit);
+    for (const t of unit.topics || []) {
+      const slug = (t.key || "").toLowerCase();
+      if (!allTopicObjects.has(slug)) allTopicObjects.set(slug, t);
+      const placement = placementsBySlug.get(slug);
+      const adminSt = adminSubTopics.find((st) => (st.key || "").toLowerCase() === slug);
+      const defaultSectionId = adminSt?.parentId ? String(adminSt.parentId) : null;
+      const effectiveSectionId = placement ? String(placement.sectionId) : defaultSectionId;
+      if (effectiveSectionId) {
+        const sect = sectionById.get(effectiveSectionId);
+        const targetUk = sect ? (sect.parentUnitKey || "").toLowerCase() : uk;
+        topicToLocation.set(slug, { unitKey: targetUk, sectionId: effectiveSectionId });
+      } else {
+        topicToLocation.set(slug, { unitKey: uk, sectionId: null });
+      }
+    }
+  }
+  for (const st of adminSubTopics) {
+    const slug = (st.key || "").toLowerCase();
+    if (allTopicObjects.has(slug)) continue;
+    allTopicObjects.set(slug, {
+      topic: st.topic,
+      key: st.key,
+      topicKey: st.topicKey || `${spec}:${st.key}`,
+      tier: st.tier || ["foundation", "higher"],
+      requiredPractical: !!st.requiredPractical,
+      _admin: true,
+    });
+    const uk = (st.unitKey || toSlug(st.unit)).toLowerCase();
+    const placement = placementsBySlug.get(slug);
+    const effectiveSectionId = placement ? String(placement.sectionId) : (st.parentId ? String(st.parentId) : null);
+    if (effectiveSectionId) {
+      const sect = sectionById.get(effectiveSectionId);
+      const targetUk = sect ? (sect.parentUnitKey || "").toLowerCase() : uk;
+      topicToLocation.set(slug, { unitKey: targetUk, sectionId: effectiveSectionId });
+    } else {
+      topicToLocation.set(slug, { unitKey: uk, sectionId: null });
+    }
+  }
+
+  // Build sections per unit and partition topics by final location
+  for (const unit of units) {
+    const uk = getUnitKey(unit);
+    const unitSections = sections.filter(
+      (s) => (s.parentUnitKey || "").toLowerCase() === uk || (s.parentId && units.some((u) => u._id && String(u._id) === String(s.parentId)))
+    );
+    const topicsUnderSection = new Map();
+    const directTopics = [];
+
+    for (const [slug, loc] of topicToLocation) {
+      if (loc.unitKey !== uk) continue;
+      const t = allTopicObjects.get(slug);
+      if (!t) continue;
+      if (loc.sectionId) {
+        if (!topicsUnderSection.has(loc.sectionId)) topicsUnderSection.set(loc.sectionId, []);
+        topicsUnderSection.get(loc.sectionId).push(t);
+      } else {
+        directTopics.push(t);
+      }
+    }
+
+    unit.sections = unitSections.map((s) => ({
+      _id: s._id,
+      title: s.title || s.slug,
+      slug: s.slug,
+      topics: topicsUnderSection.get(String(s._id)) || [],
+    }));
+
+    unit.topics = [];
+    for (const sec of unit.sections) {
+      for (const t of sec.topics) unit.topics.push(t);
+    }
+    for (const t of directTopics) unit.topics.push(t);
+  }
+
   return {
     ...staticTaxonomy,
-    specKey: staticTaxonomy.specKey || specKey,
+    specKey: spec,
     units,
   };
 }
@@ -164,6 +261,37 @@ async function resolveStoredTopicKeyWithAdmin(specKeyFromReq, topicKeyFromReq) {
   return { storedKey: buildTopicKey(specKey, topicOnly) };
 }
 
+/**
+ * Get linked content counts for a topic. Used to block delete when content exists.
+ * @param {string} specKey
+ * @param {string} topicKeyOrSlug - Full topicKey (spec:slug) or slug only
+ * @returns {Promise<{ lessons: number, flashcards: number, quizzes: number, examQuestions: number }>}
+ */
+async function getLinkedContentCounts(specKey, topicKeyOrSlug) {
+  const { queryCandidates } = require("../utils/topicKey");
+  const topicOnly =
+    topicKeyOrSlug && typeof topicKeyOrSlug === "string" && topicKeyOrSlug.includes(":")
+      ? topicKeyOrSlug.split(":").pop()
+      : (topicKeyOrSlug || "").trim();
+  if (!topicOnly) return { lessons: 0, flashcards: 0, quizzes: 0, examQuestions: 0 };
+
+  const candidates = queryCandidates(specKey || "", topicOnly);
+
+  const Lesson = require("../models/Lesson");
+  const TopicFlashcard = require("../models/TopicFlashcard");
+  const TopicQuizQuestion = require("../models/TopicQuizQuestion");
+  const ExamQuestion = require("../models/ExamQuestion");
+
+  const [lessons, flashcards, quizzes, examQuestions] = await Promise.all([
+    Lesson.countDocuments({ topicKey: { $in: candidates } }),
+    TopicFlashcard.countDocuments({ topicKey: { $in: candidates } }),
+    TopicQuizQuestion.countDocuments({ topicKey: { $in: candidates } }),
+    ExamQuestion.countDocuments({ topicKey: { $in: candidates } }),
+  ]);
+
+  return { lessons, flashcards, quizzes, examQuestions };
+}
+
 /** Sync check with pre-fetched admin items */
 function isValidTopicForSpecWithItems(specKey, topicKey, adminItems = []) {
   const { topicKey: raw } = require("../utils/topicKey").parseTopicKey(topicKey || "");
@@ -188,4 +316,5 @@ module.exports = {
   isValidTopicForSpecWithItems,
   resolveStoredTopicKeyWithAdmin,
   toSlug,
+  getLinkedContentCounts,
 };

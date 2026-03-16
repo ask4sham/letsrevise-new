@@ -25,7 +25,7 @@ const TopicFlashcard = require("../models/TopicFlashcard");
  *   dryRun?: boolean
  * }
  */
-async function bulkImportFlashcards({ specKey, items, dryRun = false, actorId = null }) {
+async function bulkImportFlashcards({ specKey, items, dryRun = false, actorId = null, importMetadata = null }) {
   if (!specKey || typeof specKey !== "string") {
     throw new Error("specKey is required");
   }
@@ -120,6 +120,9 @@ async function bulkImportFlashcards({ specKey, items, dryRun = false, actorId = 
       status: "draft",
       fingerprint: p.fingerprint,
       assets,
+      ...(importMetadata && typeof importMetadata === "object"
+        ? { metadata: { ...importMetadata } }
+        : {}),
     };
 
     toInsert.push(doc);

@@ -85,8 +85,11 @@ async function retrieveContext(specKey, topicKey, statements) {
 
 /**
  * Generate starter pack. Returns parsed JSON or throws.
+ * @param {Object} opts
+ * @param {string} [opts.sourceType] - When "spec_statements_only", uses ONLY SpecStatements (no KnowledgeDocument context).
+ *   Copyright-safe: no external/crawled content. For draft library generation.
  */
-async function runStarterPackGeneration({ specKey, topicKey, statementCodes, tier, seed, user }) {
+async function runStarterPackGeneration({ specKey, topicKey, statementCodes, tier, seed, user, sourceType }) {
   const normalized = normalizeSpecKey(specKey);
   const codes = statementCodes && statementCodes.length > 0
     ? statementCodes
@@ -97,7 +100,9 @@ async function runStarterPackGeneration({ specKey, topicKey, statementCodes, tie
     throw new Error("No spec statements found for this topic. Add SpecStatements first.");
   }
 
-  const contextChunks = await retrieveContext(normalized, topicKey, statements);
+  const contextChunks = sourceType === "spec_statements_only"
+    ? []
+    : await retrieveContext(normalized, topicKey, statements);
   const effectiveCodes = codes.length > 0 ? codes : statements.map((s) => s.statementCode).filter(Boolean);
 
   const pack = await generateStarterPack({

@@ -1521,7 +1521,7 @@ const LessonViewPage: React.FC = () => {
     const sessionKey = `${id}:${specKey}:${tk}`;
     if (lessonViewProgressLoggedRef.current === sessionKey) return;
     lessonViewProgressLoggedRef.current = sessionKey;
-    postLessonView(specKey, tk).catch(() => {});
+    postLessonView(specKey, tk, id).catch(() => {});
   }, [id, specKey, topicKeyForBank, lesson, user?.userType]);
 
   // PR3b + PR-PRACTICE-1: Fetch practice questions with limit, seed, source

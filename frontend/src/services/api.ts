@@ -19,7 +19,8 @@ import axios, {
  * to prevent `/api/api` bugs.
  */
 
-// In development, always use relative /api so CRA proxy forwards to backend (no env/CORS issues).
+// When REACT_APP_API_BASE is set, use it (Docker, staging, prod).
+// When unset on localhost, use "" so CRA proxy forwards /api/* to backend.
 const isDev =
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
@@ -31,7 +32,7 @@ const rawFromEnv = (
 ).trim();
 
 const baseURL =
-  isDev ? "" : rawFromEnv || "http://localhost:5000"; // dev → proxy; prod → env or default
+  rawFromEnv || (isDev ? "" : "http://localhost:5000");
 const RAW_API_BASE = baseURL;
 
 // Normalize host (remove trailing slashes AND trailing /api)
@@ -89,7 +90,8 @@ const BASE_URL = baseURL === "" ? "" : `${API_HOST}/api`;
 // Create axios instance with correct base URL
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 120000, // 120 seconds for AI calls
+  timeout: 120000, // 120 seconds for AI calls (covers Render cold start ~60s)
+  withCredentials: false, // Avoid CORS preflight issues; backend still works without
   headers: {
     "Content-Type": "application/json",
   },
@@ -149,8 +151,10 @@ api.interceptors.response.use(
       "Something went wrong";
     // Axios "Network Error" = request never reached server (backend down, wrong URL, CORS, etc.)
     if (message === "Network Error" || (error.message && error.message === "Network Error")) {
-      message =
-        "Cannot reach server. Check that the backend is running and REACT_APP_API_BASE points to it (e.g. http://localhost:5000).";
+      const hint = BASE_URL
+        ? "Backend may be starting (Render cold start ~60s). Try again in a moment."
+        : "Set REACT_APP_API_BASE (e.g. https://letsrevise-new.onrender.com) and rebuild.";
+      message = `Cannot reach server. ${hint}`;
     }
 
     if (error.response?.status === 401) {

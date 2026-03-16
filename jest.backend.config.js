@@ -14,6 +14,7 @@ module.exports = {
     "<rootDir>/backend/utils/contentCanonicalKey.test.js",
     "<rootDir>/backend/services/contentCoverageService.test.js",
     "<rootDir>/backend/services/contentGraphService.test.js",
+    "<rootDir>/backend/services/curriculumGapDetectionService.test.js",
   ],
 
   testPathIgnorePatterns: ["/node_modules/"],

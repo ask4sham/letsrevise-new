@@ -11,6 +11,8 @@ const QuizAttempt = require("../models/QuizAttempt");
 const QuizAssignment = require("../models/QuizAssignment");
 const Lesson = require("../models/Lesson");
 const { getJwtSecret } = require("../utils/jwtSecret");
+const { parseTopicKey } = require("../utils/topicKey");
+const { recordQuizAttempt } = require("../services/learningEvidenceService");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -141,6 +143,27 @@ router.post("/:attemptId/submit", async (req, res) => {
     );
     const updated = await QuizAttempt.findById(attempt._id).lean();
     const payload = { ...updated, score: updated.score, maxScore: updated.maxScore, status: "SUBMITTED" };
+
+    // Learning evidence: fire-and-forget, never break student flow
+    const specKey = lesson.specKey || (lesson.topicKey && parseTopicKey(lesson.topicKey).specKey);
+    const topicOnly = lesson.topicKey ? parseTopicKey(lesson.topicKey).topicKey || lesson.topicKey : null;
+    if (specKey && topicOnly && attempt.studentId) {
+      const timeSpent =
+        attempt.createdAt && updated.submittedAt
+          ? Math.round((new Date(updated.submittedAt) - new Date(attempt.createdAt)) / 1000)
+          : null;
+      recordQuizAttempt({
+        userId: attempt.studentId,
+        specKey,
+        topicKey: topicOnly,
+        lessonId: assignment.lessonId,
+        quizId: null,
+        correct: maxScore > 0 && score === maxScore,
+        score: maxScore > 0 ? Math.round((score / maxScore) * 100) : null,
+        timeSpentSeconds: timeSpent,
+      }).catch(() => {});
+    }
+
     if (!updated.isReleased) {
       return res.json({ ok: true, attempt: sanitizeAttemptForStudent(payload) });
     }

@@ -1,5 +1,8 @@
 {
   "scripts": {
+    "start": "npm start --prefix backend",
+    "start:backend": "npm start --prefix backend",
+    "start:frontend": "npm start --prefix frontend",
     "test": "jest --runInBand --forceExit",
     "test:backend": "jest -c jest.backend.config.js --runInBand",
     "test:backend:list": "jest -c jest.backend.config.js --listTests",

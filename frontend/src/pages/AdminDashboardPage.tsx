@@ -595,6 +595,20 @@ const AdminDashboardPage: React.FC = () => {
           Bulk import →
         </Link>
         <Link
+          to="/admin/csv-import"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#f5f0ff",
+            color: "#5b21b6",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          CSV import →
+        </Link>
+        <Link
           to="/admin/metrics"
           style={{
             padding: "0.5rem 1rem",
@@ -665,6 +679,20 @@ const AdminDashboardPage: React.FC = () => {
           Curriculum / Taxonomy →
         </Link>
         <Link
+          to="/admin/spec-statements"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fef3c7",
+            color: "#92400e",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Spec Statements →
+        </Link>
+        <Link
           to="/admin/content-coverage"
           style={{
             padding: "0.5rem 1rem",
@@ -677,6 +705,90 @@ const AdminDashboardPage: React.FC = () => {
           }}
         >
           Content Coverage →
+        </Link>
+        <Link
+          to="/admin/autopilot-approval"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fef3c7",
+            color: "#92400e",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Autopilot Approval →
+        </Link>
+        <Link
+          to="/admin/autopilot-runs"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#e0f2fe",
+            color: "#0369a1",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Autopilot Runs →
+        </Link>
+        <Link
+          to="/admin/autopilot-outcomes"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#dcfce7",
+            color: "#15803d",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Autopilot Outcomes →
+        </Link>
+        <Link
+          to="/admin/autopilot-feedback"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fce7f3",
+            color: "#9d174d",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Autopilot Feedback →
+        </Link>
+        <Link
+          to="/admin/autopilot-experiments"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#e0e7ff",
+            color: "#3730a3",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Autopilot Experiments →
+        </Link>
+        <Link
+          to="/admin/draft-library"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fef3c7",
+            color: "#92400e",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Draft Library →
         </Link>
       </div>
       </div>

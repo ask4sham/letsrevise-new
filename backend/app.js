@@ -24,14 +24,15 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   console.log("Created uploads directory:", uploadsDir);
 }
-const cors = require("cors");
+const { cors, corsMiddleware, getCorsOptions, logCorsConfigAtStartup } = require("./config/cors");
 const bodyLimit = require("./middleware/bodyLimit");
 const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
 const app = express();
 
-// CORS: server.js overrides with full config; minimal here for app-load tests
-const corsOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "http://localhost:3000";
-app.use(cors({ origin: corsOrigin, credentials: true }));
+// CORS: must run first; uses CORS_ORIGIN/FRONTEND_URL in production
+logCorsConfigAtStartup();
+app.options("*", (req, res, next) => cors(getCorsOptions())(req, res, next)); // Preflight: fresh options per request
+app.use(corsMiddleware);
 
 // PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
 app.use(bodyLimit);

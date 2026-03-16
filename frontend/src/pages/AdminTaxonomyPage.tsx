@@ -6,6 +6,14 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import {
+  renameMainTopic,
+  renameSubTopic,
+  deleteMainTopic,
+  deleteSubTopic,
+  deleteSection,
+  moveSubTopic,
+} from "../api/adminTaxonomy";
 
 interface SubTopic {
   topic: string;
@@ -14,9 +22,19 @@ interface SubTopic {
   _admin?: boolean;
 }
 
+interface Section {
+  _id: string;
+  title: string;
+  slug: string;
+  topics: SubTopic[];
+}
+
 interface MainTopic {
   unit: string;
   unitKey: string;
+  _id?: string;
+  sections?: Section[];
+  directTopics?: SubTopic[];
   subTopics: SubTopic[];
   _admin?: boolean;
 }
@@ -55,7 +73,20 @@ export default function AdminTaxonomyPage() {
 
   const [addUnitModal, setAddUnitModal] = useState(false);
   const [addSubtopicModal, setAddSubtopicModal] = useState(false);
+  const [addSectionModal, setAddSectionModal] = useState(false);
   const [editModal, setEditModal] = useState<{ _id: string; type: string; unit?: string; topic?: string } | null>(null);
+  const [moveModal, setMoveModal] = useState<{ item: { _id: string; topic?: string; unitKey: string; specKey: string }; currentUnit: string } | null>(null);
+  const [moveToSectionModal, setMoveToSectionModal] = useState<{
+    topic: SubTopic;
+    specKey: string;
+    unitKey: string;
+    unitLabel: string;
+    /** Destination: "direct:unitKey" or "section:sectionId" */
+    destination: string;
+    adminItemId?: string;
+  } | null>(null);
+  const [moveTargetId, setMoveTargetId] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string; type: "unit" | "subTopic" | "section" } | null>(null);
 
   const [formSpecKey, setFormSpecKey] = useState("");
   const [formUnit, setFormUnit] = useState("");
@@ -142,16 +173,89 @@ export default function AdminTaxonomyPage() {
     }
   };
 
+  const handleAddSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = formSubTopicTitle.trim();
+    if (!title || !formSpecKey || !formUnitKey) return;
+    setFormSaving(true);
+    setMessage(null);
+    try {
+      await api.post("/admin/taxonomy/section", {
+        specKey: formSpecKey,
+        parentUnitKey: formUnitKey,
+        title,
+      });
+      setMessage({ type: "success", text: `Section "${title}" added.` });
+      setAddSectionModal(false);
+      setFormSubTopicTitle("");
+      setFormUnit("");
+      setFormUnitKey("");
+      setFormSpecKey("");
+      fetchData();
+    } catch (err: any) {
+      setMessage({ type: "error", text: err?.response?.data?.error || err?.message || "Failed" });
+    } finally {
+      setFormSaving(false);
+    }
+  };
+
+  const handleMoveToSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!moveToSectionModal) return;
+    setFormSaving(true);
+    setMessage(null);
+    try {
+      const dest = moveToSectionModal.destination || "";
+      const isDirect = dest.startsWith("direct:");
+      const targetUnitKey = isDirect ? dest.slice(7) : "";
+      const sectionId = dest.startsWith("section:") ? dest.slice(8) : null;
+
+      if (moveToSectionModal.adminItemId) {
+        if (sectionId) {
+          await api.post(`/admin/taxonomy/sub-topic/${moveToSectionModal.adminItemId}/move`, {
+            targetSectionId: sectionId,
+          });
+        } else {
+          await api.post(`/admin/taxonomy/sub-topic/${moveToSectionModal.adminItemId}/move`, {
+            targetUnitKey: targetUnitKey || undefined,
+          });
+        }
+      } else {
+        if (sectionId) {
+          await api.post("/admin/taxonomy/topic-placement", {
+            specKey: moveToSectionModal.specKey,
+            topicSlug: moveToSectionModal.topic.key?.toLowerCase(),
+            sectionId,
+          });
+        } else {
+          await api.post("/admin/taxonomy/topic-placement", {
+            specKey: moveToSectionModal.specKey,
+            topicSlug: moveToSectionModal.topic.key?.toLowerCase(),
+            sectionId: null,
+          });
+        }
+      }
+      setMessage({ type: "success", text: "Topic moved." });
+      setMoveToSectionModal(null);
+      fetchData();
+    } catch (err: any) {
+      setMessage({ type: "error", text: err?.response?.data?.error || err?.message || "Failed" });
+    } finally {
+      setFormSaving(false);
+    }
+  };
+
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editModal) return;
     setFormSaving(true);
     setMessage(null);
     try {
-      await api.put(`/admin/taxonomy/items/${editModal._id}`, {
-        unit: editModal.type === "unit" ? formUnit : undefined,
-        subTopicTitle: editModal.type === "subTopic" ? formSubTopicTitle : undefined,
-      });
+      if (editModal.type === "unit") {
+        await renameMainTopic(editModal._id, { title: formUnit.trim() });
+      } else {
+        await renameSubTopic(editModal._id, { title: formSubTopicTitle.trim() });
+      }
       setMessage({ type: "success", text: "Updated." });
       setEditModal(null);
       fetchData();
@@ -162,14 +266,38 @@ export default function AdminTaxonomyPage() {
     }
   };
 
-  const handleDelete = async (id: string, label: string) => {
-    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
+  const handleDelete = async (id: string, label: string, type: "unit" | "subTopic" | "section") => {
+    if (!window.confirm(`Delete "${label}"?${type === "section" ? " Topics under it will revert to direct under main topic." : " This cannot be undone."}`)) return;
     try {
-      await api.delete(`/admin/taxonomy/items/${id}`);
+      if (type === "unit") await deleteMainTopic(id);
+      else if (type === "section") await deleteSection(id);
+      else await deleteSubTopic(id);
       setMessage({ type: "success", text: "Deleted." });
       fetchData();
     } catch (e: any) {
+      const data = e?.response?.data;
+      const msg = data?.error || e?.message || "Failed";
+      const counts = data?.linkedCounts as { lessons?: number; flashcards?: number; quizzes?: number; examQuestions?: number } | undefined;
+      const extra = counts ? ` (${[counts.lessons && `${counts.lessons} lessons`, counts.flashcards && `${counts.flashcards} flashcards`, counts.quizzes && `${counts.quizzes} quizzes`, counts.examQuestions && `${counts.examQuestions} exam questions`].filter(Boolean).join(", ")})` : "";
+      setMessage({ type: "error", text: msg + extra });
+    }
+  };
+
+  const handleMove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!moveModal || !moveTargetId.trim()) return;
+    setFormSaving(true);
+    setMessage(null);
+    try {
+      await moveSubTopic(moveModal.item._id, moveTargetId.trim());
+      setMessage({ type: "success", text: "Sub-topic moved." });
+      setMoveModal(null);
+      setMoveTargetId("");
+      fetchData();
+    } catch (e: any) {
       setMessage({ type: "error", text: e?.response?.data?.error || e?.message || "Failed" });
+    } finally {
+      setFormSaving(false);
     }
   };
 
@@ -181,11 +309,33 @@ export default function AdminTaxonomyPage() {
     setAddSubtopicModal(true);
   };
 
+  const openAddSection = (specKey: string, unit: string, unitKey: string) => {
+    setFormSpecKey(specKey);
+    setFormUnit(unit);
+    setFormUnitKey(unitKey);
+    setFormSubTopicTitle("");
+    setAddSectionModal(true);
+  };
+
+  const openMoveToSection = (topic: SubTopic, specKey: string, unitKey: string, unitLabel: string, adminItemId?: string) => {
+    const currentUk = (unitKey || "").trim().toLowerCase();
+    setMoveToSectionModal({ topic, specKey, unitKey, unitLabel, destination: `direct:${currentUk}`, adminItemId });
+  };
+
   const openEdit = (item: { _id: string; type: string; unit?: string; topic?: string }) => {
     setEditModal(item);
     setFormUnit(item.unit || "");
     setFormSubTopicTitle(item.topic || "");
   };
+
+  const openMove = (item: { _id: string; topic?: string; unitKey: string; specKey: string }, currentUnit: string) => {
+    setMoveModal({ item, currentUnit });
+    setMoveTargetId("");
+  };
+
+  const moveTargetOptions = moveModal
+    ? adminItems.filter((i) => i.type === "unit" && i.specKey === moveModal.item.specKey && i.unitKey !== moveModal.item.unitKey)
+    : [];
 
   if (user?.userType !== "admin") return null;
 
@@ -253,6 +403,13 @@ export default function AdminTaxonomyPage() {
                         {mt._admin && <span style={{ fontSize: 11, padding: "2px 6px", background: "#ede9fe", color: "#5b21b6", borderRadius: 4 }}>admin</span>}
                         <button
                           type="button"
+                          onClick={() => { setFormSpecKey(spec.specKey); setFormUnitKey(mt.unitKey); setFormUnit(mt.unit); setFormSubTopicTitle(""); setAddSectionModal(true); }}
+                          style={{ fontSize: 12, padding: "2px 8px", color: "#0369a1", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                        >
+                          + Section
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => openAddSubtopic(spec.specKey, mt.unit, mt.unitKey)}
                           style={{ fontSize: 12, padding: "2px 8px", color: "#059669", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
                         >
@@ -263,30 +420,54 @@ export default function AdminTaxonomyPage() {
                           return item ? (
                             <>
                               <button type="button" onClick={() => openEdit(item)} style={{ fontSize: 12, padding: "2px 8px", color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
-                              <button type="button" onClick={() => handleDelete(item._id, mt.unit)} style={{ fontSize: 12, padding: "2px 8px", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
+                              <button type="button" onClick={() => handleDelete(item._id, mt.unit, "unit")} style={{ fontSize: 12, padding: "2px 8px", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
                             </>
                           ) : null;
                         })()}
                       </div>
-                      <ul style={{ margin: 0, paddingLeft: "1.25rem", listStyle: "disc" }}>
-                        {mt.subTopics.map((st) => (
-                          <li key={st.key} style={{ padding: "2px 0", display: "flex", alignItems: "center", gap: 8 }}>
-                            <span>{st.topic}</span>
-                            <span style={{ fontSize: 12, color: "#9ca3af" }}>({st.topicKey})</span>
-                            {st._admin && (
-                              <>
-                                <span style={{ fontSize: 10, padding: "1px 4px", background: "#ede9fe", color: "#5b21b6", borderRadius: 2 }}>admin</span>
-                                {(() => {
-                                  const item = adminItems.find((i) => i.type === "subTopic" && i.key === st.key && i.specKey === spec.specKey && i.unitKey === mt.unitKey);
+                      {(mt.sections || []).map((sec) => (
+                        <div key={sec._id} style={{ paddingLeft: "1rem", marginBottom: "0.25rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, fontSize: 13, color: "#0369a1", marginBottom: 2 }}>
+                            <span>§ {sec.title}</span>
+                            <button type="button" onClick={() => handleDelete(sec._id, sec.title, "section")} style={{ fontSize: 11, padding: "2px 6px", color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
+                          </div>
+                          <ul style={{ margin: 0, paddingLeft: "1rem", listStyle: "disc" }}>
+                            {sec.topics.map((st) => (
+                              <li key={st.key} style={{ padding: "2px 0", display: "flex", alignItems: "center", gap: 8 }}>
+                                <span>{st.topic}</span>
+                                <span style={{ fontSize: 12, color: "#9ca3af" }}>({st.topicKey})</span>
+                                {!st._admin && <span style={{ fontSize: 10, color: "#9ca3af" }} title="Static topic: Move only">static</span>}
+                                <button type="button" onClick={() => openMoveToSection(st, spec.specKey, mt.unitKey, mt.unit, adminItems.find((i) => i.type === "subTopic" && (i.key || "").toLowerCase() === (st.key || "").toLowerCase() && i.specKey === spec.specKey && (i.unitKey || "").toLowerCase() === (mt.unitKey || "").toLowerCase())?._id)} style={{ fontSize: 11, color: "#059669", background: "none", border: "none", cursor: "pointer" }}>Move</button>
+                                {st._admin && (() => {
+                                  const item = adminItems.find((i) => i.type === "subTopic" && (i.key || "").toLowerCase() === (st.key || "").toLowerCase() && i.specKey === spec.specKey && (i.unitKey || "").toLowerCase() === (mt.unitKey || "").toLowerCase());
                                   return item ? (
                                     <>
                                       <button type="button" onClick={() => openEdit(item)} style={{ fontSize: 11, color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
-                                      <button type="button" onClick={() => handleDelete(item._id, st.topic)} style={{ fontSize: 11, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
+                                      <button type="button" onClick={() => handleDelete(item._id, st.topic, "subTopic")} style={{ fontSize: 11, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
                                     </>
                                   ) : null;
                                 })()}
-                              </>
-                            )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                      <ul style={{ margin: 0, paddingLeft: "1.25rem", listStyle: "disc" }}>
+                        {(mt.directTopics || mt.subTopics || []).map((st) => (
+                          <li key={st.key} style={{ padding: "2px 0", display: "flex", alignItems: "center", gap: 8 }}>
+                            <span>{st.topic}</span>
+                            <span style={{ fontSize: 12, color: "#9ca3af" }}>({st.topicKey})</span>
+                            {!st._admin && <span style={{ fontSize: 10, color: "#9ca3af" }} title="Static topic: Move only">static</span>}
+                            <button type="button" onClick={() => openMoveToSection(st, spec.specKey, mt.unitKey, mt.unit, adminItems.find((i) => i.type === "subTopic" && (i.key || "").toLowerCase() === (st.key || "").toLowerCase() && i.specKey === spec.specKey && (i.unitKey || "").toLowerCase() === (mt.unitKey || "").toLowerCase())?._id)} style={{ fontSize: 11, color: "#059669", background: "none", border: "none", cursor: "pointer" }}>Move</button>
+                            {st._admin && (() => {
+                              const item = adminItems.find((i) => i.type === "subTopic" && (i.key || "").toLowerCase() === (st.key || "").toLowerCase() && i.specKey === spec.specKey && (i.unitKey || "").toLowerCase() === (mt.unitKey || "").toLowerCase());
+                              return item ? (
+                                <>
+                                  <button type="button" onClick={() => openEdit(item)} style={{ fontSize: 11, color: "#2563eb", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
+                                  <button type="button" onClick={() => handleDelete(item._id, st.topic, "subTopic")} style={{ fontSize: 11, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
+                                </>
+                              ) : null;
+                            })()}
                           </li>
                         ))}
                       </ul>
@@ -322,6 +503,26 @@ export default function AdminTaxonomyPage() {
               <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                 <button type="button" onClick={() => setAddUnitModal(false)} style={{ padding: "0.5rem 1rem", background: "#f3f4f6", border: "none", borderRadius: 6, cursor: "pointer" }}>Cancel</button>
                 <button type="submit" disabled={formSaving} style={{ padding: "0.5rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, cursor: formSaving ? "not-allowed" : "pointer" }}>{formSaving ? "Adding…" : "Add"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Section modal */}
+      {addSectionModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "#fff", padding: "1.5rem 2rem", borderRadius: 12, maxWidth: 400, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 1rem" }}>Add Section</h3>
+            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: "1rem" }}>Under: {formUnit}</p>
+            <form onSubmit={handleAddSection}>
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Section title</label>
+                <input type="text" value={formSubTopicTitle} onChange={(e) => setFormSubTopicTitle(e.target.value)} placeholder="e.g. Cell Division" required style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db" }} />
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setAddSectionModal(false)} style={{ padding: "0.5rem 1rem", background: "#f3f4f6", border: "none", borderRadius: 6, cursor: "pointer" }}>Cancel</button>
+                <button type="submit" disabled={formSaving} style={{ padding: "0.5rem 1rem", background: "#0369a1", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, cursor: formSaving ? "not-allowed" : "pointer" }}>{formSaving ? "Adding…" : "Add"}</button>
               </div>
             </form>
           </div>
@@ -369,6 +570,50 @@ export default function AdminTaxonomyPage() {
           </div>
         </div>
       )}
+
+      {/* Move Topic modal — destinations grouped by main topic */}
+      {moveToSectionModal && (() => {
+        const spec = hierarchy.flatMap((s) => s.specs || []).find((sp) => sp.specKey === moveToSectionModal.specKey);
+        const currentUk = (moveToSectionModal.unitKey || "").trim().toLowerCase();
+        const isStaticTopic = !moveToSectionModal.adminItemId;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+            <div style={{ background: "#fff", padding: "1.5rem 2rem", borderRadius: 12, maxWidth: 420, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+              <h3 style={{ margin: "0 0 1rem" }}>Move Topic</h3>
+              <p style={{ fontSize: 14, color: "#6b7280", marginBottom: "1rem" }}>Move &quot;{moveToSectionModal.topic.topic}&quot; to:</p>
+              <form onSubmit={handleMoveToSection}>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Destination</label>
+                  <select
+                    value={moveToSectionModal.destination}
+                    onChange={(e) => setMoveToSectionModal((p) => (p ? { ...p, destination: e.target.value } : null))}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db" }}
+                  >
+                    {(spec?.mainTopics || []).map((mt) => {
+                      const uk = (mt.unitKey || toSlug(mt.unit || "")).toLowerCase();
+                      const showDirect = isStaticTopic ? uk === currentUk : true;
+                      return (
+                        <optgroup key={mt.unitKey} label={mt.unit}>
+                          {showDirect && (
+                            <option value={`direct:${uk}`}>Direct under main topic</option>
+                          )}
+                          {(mt.sections || []).map((sec) => (
+                            <option key={sec._id} value={`section:${sec._id}`}>{sec.title || sec.slug}</option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                  <button type="button" onClick={() => setMoveToSectionModal(null)} style={{ padding: "0.5rem 1rem", background: "#f3f4f6", border: "none", borderRadius: 6, cursor: "pointer" }}>Cancel</button>
+                  <button type="submit" disabled={formSaving} style={{ padding: "0.5rem 1rem", background: "#059669", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, cursor: formSaving ? "not-allowed" : "pointer" }}>{formSaving ? "Moving…" : "Move"}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Edit modal */}
       {editModal && (
