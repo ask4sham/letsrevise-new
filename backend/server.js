@@ -8,15 +8,23 @@ const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 // ✅ Load .env first
 dotenv.config();
 
-try {
-  const { initSentry } = require("./config/sentry");
-  if (initSentry()) {
-    console.log("  Sentry: enabled");
-  } else {
-    console.log("  Sentry: disabled (SENTRY_DSN not set)");
+// Sentry: optional — do not crash if config/sentry.js is missing (e.g. before first deploy)
+const path = require("path");
+const fs = require("fs");
+const sentryPath = path.join(__dirname, "config", "sentry.js");
+if (fs.existsSync(sentryPath)) {
+  try {
+    const { initSentry } = require("./config/sentry");
+    if (initSentry()) {
+      console.log("  Sentry: enabled");
+    } else {
+      console.log("  Sentry: disabled (SENTRY_DSN not set)");
+    }
+  } catch (err) {
+    console.warn("[Sentry] Not initialized:", err.message);
   }
-} catch (err) {
-  console.warn("[Sentry] Not initialized:", err.message);
+} else {
+  console.warn("[Sentry] config/sentry.js not found — skipping");
 }
 
 console.log("\n>>> BACKEND STARTING", new Date().toISOString(), "<<<\n");
@@ -28,8 +36,6 @@ console.log("  JWT_SECRET_KEY length:", process.env.JWT_SECRET_KEY ? process.env
 console.log("  JWT_SECRET exists:", !!process.env.JWT_SECRET);
 console.log("  JWT_SECRET length:", process.env.JWT_SECRET ? process.env.JWT_SECRET.length : "N/A");
 
-const path = require("path");
-const fs = require("fs");
 const connectDB = require("./config/database");
 
 // Import the app from app.js instead of creating new express app

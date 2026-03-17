@@ -25,12 +25,14 @@ if (!fs.existsSync(uploadsDir)) {
   console.log("Created uploads directory:", uploadsDir);
 }
 const { cors, corsMiddleware, getCorsOptions, logCorsConfigAtStartup } = require("./config/cors");
-let Sentry;
-try {
-  Sentry = require("./config/sentry").Sentry;
-} catch (err) {
-  console.warn("[Sentry] Not initialized:", err.message);
-  Sentry = null;
+let Sentry = null;
+const sentryPath = path.join(__dirname, "config", "sentry.js");
+if (fs.existsSync(sentryPath)) {
+  try {
+    Sentry = require("./config/sentry").Sentry;
+  } catch (err) {
+    console.warn("[Sentry] Not initialized:", err.message);
+  }
 }
 const bodyLimit = require("./middleware/bodyLimit");
 const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
