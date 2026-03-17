@@ -8,11 +8,15 @@ const crypto = require("crypto"); // ✅ for safe JWT_SECRET fingerprint
 // ✅ Load .env first
 dotenv.config();
 
-const { initSentry } = require("./config/sentry");
-if (initSentry()) {
-  console.log("  Sentry: enabled");
-} else {
-  console.log("  Sentry: disabled (SENTRY_DSN not set)");
+try {
+  const { initSentry } = require("./config/sentry");
+  if (initSentry()) {
+    console.log("  Sentry: enabled");
+  } else {
+    console.log("  Sentry: disabled (SENTRY_DSN not set)");
+  }
+} catch (err) {
+  console.warn("[Sentry] Not initialized:", err.message);
 }
 
 console.log("\n>>> BACKEND STARTING", new Date().toISOString(), "<<<\n");

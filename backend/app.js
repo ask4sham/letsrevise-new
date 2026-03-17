@@ -25,7 +25,13 @@ if (!fs.existsSync(uploadsDir)) {
   console.log("Created uploads directory:", uploadsDir);
 }
 const { cors, corsMiddleware, getCorsOptions, logCorsConfigAtStartup } = require("./config/cors");
-const { Sentry } = require("./config/sentry");
+let Sentry;
+try {
+  Sentry = require("./config/sentry").Sentry;
+} catch (err) {
+  console.warn("[Sentry] Not initialized:", err.message);
+  Sentry = null;
+}
 const bodyLimit = require("./middleware/bodyLimit");
 const { createBulkLimiter, createUploadLimiter, createAttemptLimiter } = require("./middleware/rateLimitBulk");
 const app = express();
@@ -36,7 +42,7 @@ app.options("*", (req, res, next) => cors(getCorsOptions())(req, res, next)); //
 app.use(corsMiddleware);
 
 // Sentry: request context (must be early)
-if (process.env.SENTRY_DSN) {
+if (Sentry && process.env.SENTRY_DSN) {
   app.use(Sentry.Handlers.requestHandler());
   app.use(Sentry.Handlers.tracingHandler());
 }
@@ -277,7 +283,7 @@ app.use((err, req, res, next) => {
 });
 
 // Sentry: capture errors before sending response
-if (process.env.SENTRY_DSN) {
+if (Sentry && process.env.SENTRY_DSN) {
   app.use(Sentry.Handlers.errorHandler());
 }
 
