@@ -55,7 +55,9 @@
     "vector:logs": "docker logs -f letsrevise-vector-db",
     "vector:migrate": "node scripts/runVectorMigrations.js",
     "vector:reset": "docker compose -f ../docker-compose.vector.yml down -v",
-    "worker:knowledge-refresh": "node workers/knowledgeRefreshWorker.js"
+    "worker:knowledge-refresh": "node workers/knowledgeRefreshWorker.js",
+    "migrate:legacy-image-urls": "node scripts/migrate-legacy-image-urls.js",
+    "migrate:legacy-image-urls:apply": "node scripts/migrate-legacy-image-urls.js --apply"
   },
   "keywords": [
     "education",
