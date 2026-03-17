@@ -43,11 +43,7 @@ logCorsConfigAtStartup();
 app.options("*", (req, res, next) => cors(getCorsOptions())(req, res, next)); // Preflight: fresh options per request
 app.use(corsMiddleware);
 
-// Sentry: request context (must be early)
-if (Sentry && process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.tracingHandler());
-}
+// Sentry v10: automatic instrumentation — no manual requestHandler/tracingHandler needed
 
 // PR-HARD-2: Reject oversized bulk/upload payloads before parsing (413)
 app.use(bodyLimit);
@@ -284,10 +280,7 @@ app.use((err, req, res, next) => {
   return next(err);
 });
 
-// Sentry: capture errors before sending response
-if (Sentry && process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.errorHandler());
-}
+// Sentry v10: setupExpressErrorHandler is called in server.js after all routes
 
 // Global error guard (unhandled → 500; respects err.status when present)
 app.use((err, req, res, next) => {

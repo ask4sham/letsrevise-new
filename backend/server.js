@@ -441,6 +441,21 @@ app.get("/", (req, res) => {
 });
 
 /* ============================================================
+   SENTRY ERROR HANDLER (must be after all routes)
+============================================================ */
+if (fs.existsSync(sentryPath)) {
+  try {
+    const { Sentry } = require("./config/sentry");
+    if (Sentry && process.env.SENTRY_DSN) {
+      Sentry.setupExpressErrorHandler(app);
+      console.log("[Sentry] Express error handler registered");
+    }
+  } catch (err) {
+    console.warn("[Sentry] setupExpressErrorHandler skipped:", err.message);
+  }
+}
+
+/* ============================================================
    START SERVER
 ============================================================ */
 
