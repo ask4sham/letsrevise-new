@@ -51,7 +51,7 @@ BACKEND_PUBLIC_URL=http://localhost:5000 node backend/scripts/migrate-legacy-ima
 node backend/scripts/migrate-legacy-image-urls.js
 ```
 
-Or from project root:
+Or from backend directory:
 
 ```bash
 cd backend && npm run migrate:legacy-image-urls
@@ -67,6 +67,22 @@ Or:
 
 ```bash
 cd backend && npm run migrate:legacy-image-urls:apply
+```
+
+### Running in Render shell (production)
+
+Render sets `MONGO_URI` automatically in the shell. No local `.env` changes needed.
+
+**Dry run:**
+```bash
+cd /opt/render/project/src/backend
+node scripts/migrate-legacy-image-urls.js
+```
+
+**Apply migration:**
+```bash
+cd /opt/render/project/src/backend
+node scripts/migrate-legacy-image-urls.js --apply
 ```
 
 ## Before / After
@@ -92,3 +108,16 @@ cd backend && npm run migrate:legacy-image-urls:apply
 ## Script Location
 
 `backend/scripts/migrate-legacy-image-urls.js`
+
+## Troubleshooting: Script Missing in Render Shell
+
+If `migrate-legacy-image-urls.js` is missing in Render Shell:
+
+1. **Verify Render Root Directory** is set to `backend` (Dashboard → Service → Settings → Build & Deploy).
+2. **Redeploy** after the Dockerfile fix (explicit `COPY scripts`) is merged.
+3. **Verify after redeploy:**
+   ```bash
+   cd /opt/render/project/src/backend
+   ls scripts | grep migrate
+   ```
+   Expected: `migrate-legacy-image-urls.js`
