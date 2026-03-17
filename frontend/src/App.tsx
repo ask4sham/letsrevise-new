@@ -114,6 +114,7 @@ import DocsViewerPage from "./pages/DocsViewerPage";
 import CoverageDashboardPage from "./pages/CoverageDashboardPage";
 import ContentIssuesPage from "./pages/ContentIssuesPage";
 import CsvImportPage from "./pages/CsvImportPage";
+import MonitoringVerificationPage from "./pages/MonitoringVerificationPage";
 
 import "./App.css";
 
@@ -633,6 +634,9 @@ function App() {
           />
 
           <Route path="/docs/view" element={<DocsViewerPage />} />
+
+          {/* Hidden monitoring verification — not linked from nav */}
+          <Route path="/monitoring" element={<MonitoringVerificationPage />} />
 
           <Route
             path="/teacher/exam-question-bank"

@@ -253,6 +253,9 @@ app.use("/api/student", require("./routes/student"));
 app.use("/api/quiz-assignments", require("./routes/quizAssignments"));
 app.use("/api/quiz-attempts", require("./routes/quizAttempts"));
 
+// Production monitoring verification (404 unless NODE_ENV=production + x-monitoring-test: true)
+app.use("/api/monitoring", require("./routes/monitoring"));
+
 // PR-W2.3: dev seed (ENABLE_DEV_TOOLS=1; 404 when disabled)
 app.use("/api/dev", require("./routes/devTools"));
 

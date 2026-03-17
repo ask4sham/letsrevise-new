@@ -1,6 +1,6 @@
 /**
  * Optional Sentry reporting. Uses require() so the app compiles even when
- * @sentry/react cannot be resolved (e.g. in some CI environments).
+ * @sentry/browser cannot be resolved (e.g. in some CI environments).
  */
 type CaptureExceptionFn = (error: unknown, context?: { extra?: Record<string, unknown> }) => void;
 type CaptureMessageFn = (message: string, level?: string) => void;

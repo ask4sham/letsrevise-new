@@ -1,7 +1,7 @@
 /** @module EditLessonPage */
 import React, { useMemo, useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api/topicFlashcards";
@@ -2422,7 +2422,12 @@ const EditLessonPage: React.FC = () => {
 
   const markdownComponents = {
     img: ({ ...props }: any) => {
-      const rawSrc = safeStr(props.src, "");
+      let rawSrc = safeStr(props.src, "");
+      try {
+        if (rawSrc && rawSrc.includes("%")) rawSrc = decodeURIComponent(rawSrc);
+      } catch {
+        /* keep rawSrc as-is */
+      }
       const srcAbs = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? "") : "";
 
       return (
@@ -4748,7 +4753,20 @@ const EditLessonPage: React.FC = () => {
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
                         <div className="lesson-content" style={getBlockStyle(blockType)}>
-                          <ReactMarkdown components={markdownComponents as any}>
+                          <ReactMarkdown
+                            components={markdownComponents as any}
+                            urlTransform={(url: string) => {
+                              try {
+                                const decoded = url?.includes("%") ? decodeURIComponent(url) : (url ?? "");
+                                if (decoded.startsWith("/uploads/") || decoded.startsWith("/visuals/") || decoded.startsWith("/content/")) {
+                                  return makeAbsoluteAssetUrl(decoded) ?? decoded;
+                                }
+                                return defaultUrlTransform(url ?? "");
+                              } catch {
+                                return defaultUrlTransform(url ?? "");
+                              }
+                            }}
+                          >
                             {safeStr(b.content, "")}
                           </ReactMarkdown>
                         </div>
