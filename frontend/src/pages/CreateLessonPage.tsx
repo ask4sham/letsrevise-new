@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
+import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
@@ -675,8 +676,8 @@ const CreateLessonPage: React.FC = () => {
         alert("Upload succeeded but no URL returned.");
         return;
       }
-
-      const insert = buildMarkdownForFile(publicUrl, file);
+      const absoluteUrl = toAbsoluteAssetUrl(publicUrl);
+      const insert = buildMarkdownForFile(absoluteUrl, file);
       const textarea = blockTextareasRef.current[key];
       const current = getCurrentValue();
 

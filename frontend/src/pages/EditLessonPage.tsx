@@ -5,7 +5,8 @@ import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api/topicFlashcards";
-import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
@@ -2069,8 +2070,8 @@ const EditLessonPage: React.FC = () => {
         alert("Upload succeeded but no URL returned.");
         return;
       }
-
-      const insert = buildMarkdownForFile(url, file);
+      const absoluteUrl = toAbsoluteAssetUrl(url);
+      const insert = buildMarkdownForFile(absoluteUrl, file);
       const textarea = blockTextareasRef.current[key];
       const current = getCurrentValue();
 
@@ -2422,18 +2423,19 @@ const EditLessonPage: React.FC = () => {
 
   const markdownComponents = {
     img: ({ ...props }: any) => {
-      let rawSrc = safeStr(props.src, "");
+      const rawSrc = safeStr(props.src, "");
+      let decoded = rawSrc;
       try {
-        if (rawSrc && rawSrc.includes("%")) rawSrc = decodeURIComponent(rawSrc);
+        if (rawSrc && rawSrc.includes("%")) decoded = decodeURIComponent(rawSrc);
       } catch {
-        /* keep rawSrc as-is */
+        /* keep decoded as rawSrc */
       }
-      const srcAbs = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? "") : "";
-
+      const srcAbs = decoded ? (makeAbsoluteAssetUrl(decoded) ?? "") : "";
+      const finalSrc = srcAbs || decoded || rawSrc;
       return (
         <img
           {...props}
-          src={srcAbs || rawSrc}
+          src={finalSrc}
           style={{
             maxWidth: "100%",
             height: "auto",
@@ -4758,16 +4760,19 @@ const EditLessonPage: React.FC = () => {
                             urlTransform={(url: string) => {
                               try {
                                 const decoded = url?.includes("%") ? decodeURIComponent(url) : (url ?? "");
+                                let transformed: string;
                                 if (decoded.startsWith("/uploads/") || decoded.startsWith("/visuals/") || decoded.startsWith("/content/")) {
-                                  return makeAbsoluteAssetUrl(decoded) ?? decoded;
+                                  transformed = makeAbsoluteAssetUrl(decoded) ?? decoded;
+                                } else {
+                                  transformed = defaultUrlTransform(url ?? "");
                                 }
-                                return defaultUrlTransform(url ?? "");
+                                return transformed;
                               } catch {
                                 return defaultUrlTransform(url ?? "");
                               }
                             }}
                           >
-                            {safeStr(b.content, "")}
+                            {preprocessMarkdownAssetUrls(safeStr(b.content, ""))}
                           </ReactMarkdown>
                         </div>
                       </div>

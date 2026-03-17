@@ -1,6 +1,7 @@
 // /frontend/src/components/lesson/ImageUploader.tsx
 import React from "react";
 import api from "../../services/api";
+import { toAbsoluteAssetUrl } from "../../services/mediaUrl";
 
 type Props = {
   folder?: string; // e.g. "images/gcse"
@@ -60,22 +61,23 @@ const ImageUploader: React.FC<Props> = ({
       if (!url) {
         throw new Error("Upload succeeded but no URL returned.");
       }
+      const absoluteUrl = toAbsoluteAssetUrl(url);
 
-      // ✅ Build markdown snippet to auto-insert (image or video)
+      // ✅ Build markdown snippet to auto-insert (image or video) — use absolute URL
       const markdown = isVideo
-        ? `\n\n[Video: ${altText}](${url})\n\n`
-        : `\n\n![${altText}](${url})\n\n`;
+        ? `\n\n[Video: ${altText}](${absoluteUrl})\n\n`
+        : `\n\n![${altText}](${absoluteUrl})\n\n`;
 
       setStatus("Uploaded ✅");
 
       // ✅ New callback (auto-insert)
       if (onInserted) {
-        onInserted(markdown, url);
+        onInserted(markdown, absoluteUrl);
       }
 
       // ✅ Backwards-compatible callback
       if (onUploaded) {
-        onUploaded(url);
+        onUploaded(absoluteUrl);
       }
 
       setFile(null);
