@@ -1,0 +1,29 @@
+# Netlify build config for LetsRevise frontend
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "build"
+
+# Proxy API and static assets to Render backend — avoids CORS, uploads and images work same-origin
+[[redirects]]
+  from = "/api/*"
+  to = "https://letsrevise-new.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://letsrevise-new.onrender.com/uploads/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/visuals/*"
+  to = "https://letsrevise-new.onrender.com/visuals/:splat"
+  status = 200
+  force = true
+
+# REQUIRED: Set REACT_APP_API_BASE to your Netlify site URL (e.g. https://profound-gumdrop-4c8d83.netlify.app)
+# so API calls go same-origin and get proxied to Render. Or leave unset — we use window.location.origin when not localhost.

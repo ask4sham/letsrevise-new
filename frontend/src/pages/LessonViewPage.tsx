@@ -17,7 +17,7 @@ import { copyBankToLesson } from "../api/flashcardBank";
 import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
-import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
@@ -2491,7 +2491,7 @@ const LessonViewPage: React.FC = () => {
           </div>
           <div className="lesson-content">
             <ReactMarkdown components={markdownComponents as any}>
-              {text}
+              {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
         </div>
@@ -2513,7 +2513,7 @@ const LessonViewPage: React.FC = () => {
           </div>
           <div className="lesson-content">
             <ReactMarkdown components={markdownComponents as any}>
-              {text}
+              {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
         </div>
@@ -2535,7 +2535,7 @@ const LessonViewPage: React.FC = () => {
           </div>
           <div className="lesson-content">
             <ReactMarkdown components={markdownComponents as any}>
-              {text}
+              {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
         </div>
@@ -2559,7 +2559,7 @@ const LessonViewPage: React.FC = () => {
           </div>
           <div className="lesson-content">
             <ReactMarkdown components={markdownComponents as any}>
-              {text}
+              {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
         </div>
@@ -2607,7 +2607,7 @@ const LessonViewPage: React.FC = () => {
         }}
       >
         <ReactMarkdown components={markdownComponents as any}>
-          {text}
+          {preprocessMarkdownAssetUrls(text)}
         </ReactMarkdown>
       </div>
     );

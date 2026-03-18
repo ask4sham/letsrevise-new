@@ -52,7 +52,7 @@ const ImageUploader: React.FC<Props> = ({
 
       const form = new FormData();
       form.append("file", file);
-      const endpoint = isVideo ? "/uploads/video" : `/uploads/image?folder=${encodeURIComponent(folder)}`;
+      const endpoint = isVideo ? "uploads/video" : `uploads/image?folder=${encodeURIComponent(folder)}`;
       if (!isVideo) form.append("folder", folder);
 
       const res = await api.post(endpoint, form);
@@ -83,21 +83,13 @@ const ImageUploader: React.FC<Props> = ({
       setFile(null);
     } catch (e: any) {
       setStatus("");
-      const reqUrl =
-        e?.config?.url != null
-          ? (e?.config?.baseURL || "") + e.config.url
-          : (isVideo ? "/api/uploads/video" : "/api/uploads/image");
-      const status = e?.response?.status;
-      const body =
-        e?.response?.data != null
-          ? (typeof e.response.data === "object"
-              ? (e.response.data?.error || e.response.data?.message || JSON.stringify(e.response.data))
-              : String(e.response.data))
-          : e?.message || "No response";
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
       setError(
-        status != null
-          ? `Upload failed. Request: POST ${reqUrl}. Response: ${status} — ${body}`
-          : `Upload failed. Request: POST ${reqUrl}. ${body}`
+        typeof raw === "string" && raw ? raw : e?.message || "Upload failed"
       );
     }
   };

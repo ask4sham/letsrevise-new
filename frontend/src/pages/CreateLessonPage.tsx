@@ -665,10 +665,11 @@ const CreateLessonPage: React.FC = () => {
       const form = new FormData();
       form.append("file", file);
       const isVideo = file.type.startsWith("video/");
-      const endpoint = isVideo
-        ? "/uploads/video"
-        : `/api/uploads/image?folder=${encodeURIComponent(folder)}`;
       if (!isVideo) form.append("folder", folder);
+
+      const endpoint = isVideo
+        ? "uploads/video"
+        : `uploads/image?folder=${encodeURIComponent(folder)}`;
 
       const res = await api.post(endpoint, form);
       const publicUrl = res.data?.url;

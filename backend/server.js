@@ -149,6 +149,27 @@ if (fs.existsSync(uploadsRootPath)) {
     }
     next();
   });
+  // Fallback: when running locally, proxy missing uploads from production Render (old lessons)
+  if (process.env.RENDER !== "true") {
+    const https = require("https");
+    const RENDER_UPLOADS = process.env.BACKEND_PUBLIC_URL || "https://letsrevise-new.onrender.com";
+    app.use("/uploads", (req, res, next) => {
+      if (req.method !== "GET") return next();
+      const upstream = `${RENDER_UPLOADS}${req.originalUrl}`;
+      https
+        .get(upstream, (upRes) => {
+          if (upRes.statusCode !== 200) {
+            res.status(upRes.statusCode);
+            return res.end();
+          }
+          res.setHeader("Content-Type", upRes.headers["content-type"] || "application/octet-stream");
+          res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          upRes.pipe(res);
+        })
+        .on("error", () => next());
+    });
+  }
 } else {
   console.log("Uploads folder not found at:", uploadsRootPath);
 }
@@ -224,6 +245,15 @@ app.get("/api/health", (req, res) => {
     message: "LetsRevise API is running",
     commit: getCommit(),
   });
+});
+
+// Public config for frontend (asset URLs, etc.). No auth required.
+const ASSET_BASE_URL = (process.env.BACKEND_PUBLIC_URL || "https://letsrevise-new.onrender.com")
+  .trim()
+  .replace(/\/+$/, "")
+  .replace(/\/api\/?$/, "");
+app.get("/api/config", (req, res) => {
+  res.json({ assetBaseUrl: ASSET_BASE_URL });
 });
 
 app.get("/api/ready", async (req, res) => {

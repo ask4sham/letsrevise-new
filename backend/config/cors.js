@@ -18,6 +18,12 @@ const LOCALHOST_ORIGINS = [
 const PRODUCTION_FRONTEND =
   process.env.CORS_FALLBACK_ORIGIN || "https://letsrevise.com";
 
+// Netlify preview/production URLs — allow so uploads work when frontend hits Render directly
+const NETLIFY_ORIGINS = [
+  "https://profound-gumdrop-4c8d83.netlify.app",
+  "https://letsrevise.netlify.app",
+];
+
 function isProduction() {
   return (
     process.env.NODE_ENV === "production" ||
@@ -33,8 +39,12 @@ function getAllowedOrigins() {
     .filter(Boolean);
 
   if (prod) {
-    // Production: ONLY env vars + hardcoded fallback. No localhost.
-    const origins = [PRODUCTION_FRONTEND, ...fromEnv].filter(Boolean);
+    // Production: env vars + Netlify URLs + fallback. No localhost.
+    const origins = [
+      PRODUCTION_FRONTEND,
+      ...NETLIFY_ORIGINS,
+      ...fromEnv,
+    ].filter(Boolean);
     return [...new Set(origins)];
   }
 
@@ -47,32 +57,19 @@ function getCorsOptions() {
   const allowedOrigins = getAllowedOrigins();
   const prod = isProduction();
 
-  // Production: use static origin from env — NEVER localhost
-  let productionOrigin = (
-    process.env.CORS_ORIGIN ||
-    process.env.FRONTEND_URL ||
-    ""
-  ).trim().split(",")[0] || PRODUCTION_FRONTEND;
-
-  // Safeguard: reject localhost in production (env may be misconfigured)
-  if (prod && /localhost|127\.0\.0\.1/i.test(productionOrigin)) {
-    console.warn("[CORS] Production origin contained localhost, using Netlify URL:", productionOrigin);
-    productionOrigin = PRODUCTION_FRONTEND;
-  }
-
   if (prod && allowedOrigins.length === 0) {
     console.error("[CORS] Production: CORS_ORIGIN or FRONTEND_URL must be set on Render.");
   }
 
+  const originCallback = (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, origin);
+    console.log("❌ CORS blocked origin:", origin);
+    return callback(new Error("Not allowed by CORS"));
+  };
+
   return {
-    origin: prod
-      ? productionOrigin
-      : (origin, callback) => {
-          if (!origin) return callback(null, true);
-          if (allowedOrigins.includes(origin)) return callback(null, origin);
-          console.log("❌ CORS blocked origin:", origin);
-          return callback(new Error("Not allowed by CORS"));
-        },
+    origin: originCallback,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Auth-Token", "Accept", "Accept-Language"],
@@ -84,21 +81,10 @@ function getCorsOptions() {
 function logCorsConfigAtStartup() {
   const origins = getAllowedOrigins();
   const prod = isProduction();
-  let productionOrigin = (
-    process.env.CORS_ORIGIN ||
-    process.env.FRONTEND_URL ||
-    ""
-  ).trim().split(",")[0] || PRODUCTION_FRONTEND;
-  if (prod && /localhost|127\.0\.0\.1/i.test(productionOrigin)) {
-    productionOrigin = PRODUCTION_FRONTEND;
-  }
 
   console.log("[CORS] Resolved config at startup:");
   console.log("  isProduction:", prod);
   console.log("  allowedOrigins:", origins.join(", ") || "(none)");
-  if (prod) {
-    console.log("  productionOrigin (Access-Control-Allow-Origin):", productionOrigin);
-  }
   console.log("  CORS_ORIGIN:", process.env.CORS_ORIGIN || "(not set)");
   console.log("  FRONTEND_URL:", process.env.FRONTEND_URL || "(not set)");
 }

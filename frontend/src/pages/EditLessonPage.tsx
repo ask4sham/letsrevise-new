@@ -2060,7 +2060,7 @@ const EditLessonPage: React.FC = () => {
       form.append("file", file);
       const isVideo = file.type.startsWith("video/");
       const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}`;
-      const endpoint = isVideo ? "/uploads/video" : `/uploads/image?folder=${encodeURIComponent(folder)}`;
+      const endpoint = isVideo ? "uploads/video" : `uploads/image?folder=${encodeURIComponent(folder)}`;
       if (!isVideo) form.append("folder", folder);
 
       const res = await api.post(endpoint, form);
@@ -2097,22 +2097,14 @@ const EditLessonPage: React.FC = () => {
       setTimeout(() => setUploadMsg(""), 2000);
     } catch (e: any) {
       console.error(e);
-      const reqUrl =
-        e?.config?.url != null
-          ? (e?.config?.baseURL || "") + e.config.url
-          : (file.type.startsWith("video/") ? "/api/uploads/video" : "/api/uploads/image");
-      const status = e?.response?.status;
-      const body =
-        e?.response?.data != null
-          ? (typeof e.response.data === "object"
-              ? (e.response.data?.error || e.response.data?.message || JSON.stringify(e.response.data))
-              : String(e.response.data))
-          : e?.message || "No response";
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
       const msg =
-        status != null
-          ? `Upload failed. Request: POST ${reqUrl}. Response: ${status} — ${body}`
-          : `Upload failed. Request: POST ${reqUrl}. ${body}`;
-      alert(msg);
+        typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
     } finally {
       setUploadingKey("");
     }

@@ -20,3 +20,10 @@ export function toAbsoluteAssetUrl(path: string | null | undefined): string {
   const abs = makeAbsoluteAssetUrl(path);
   return abs ?? path;
 }
+
+/** Base URL for upload API. Production always uses Render; local dev uses getAssetBaseUrl. */
+export function getUploadBaseUrl(): string {
+  if (typeof window === "undefined") return "https://letsrevise-new.onrender.com";
+  const isLocal = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+  return isLocal ? (getAssetBaseUrl() || "http://localhost:5000") : "https://letsrevise-new.onrender.com";
+}
