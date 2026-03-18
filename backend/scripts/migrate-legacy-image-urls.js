@@ -1,17 +1,33 @@
 /**
  * One-off migration: convert legacy relative markdown asset URLs to absolute backend URLs.
  *
- * Touches: Lesson (content, pages[].blocks[].content, pages[].blocks[].imageUrl, pages[].hero.src)
- *          Template (pages[].blocks[].content)
+ * Touches:
+ *   Lesson: content, uploadedImages[], pages[].hero.src, pages[].blocks[].content,
+ *           pages[].blocks[].imageUrl, pages[].blocks[].source,
+ *           flashcards[].front, flashcards[].back,
+ *           quiz.questions[].question, quiz.questions[].explanation,
+ *           assessment.questions[].question, assessment.questions[].explanation
+ *   Template: pages[].blocks[].content
  *
- * Safe paths: /uploads/, /visuals/, /content/
+ * Safe paths: /uploads/, /visuals/, /content/ (and variants without leading slash)
  * Rejects: javascript:, data:, vbscript:
+ * Idempotent: already-absolute URLs (http/https) are left unchanged.
  *
  * Dry run:  node scripts/migrate-legacy-image-urls.js
  * Write:    node scripts/migrate-legacy-image-urls.js --apply
  *
  * Env: MONGO_URI or MONGODB_URI (required; Render sets MONGO_URI)
  *      BACKEND_PUBLIC_URL (default https://letsrevise-new.onrender.com)
+ *
+ * Verify no legacy paths remain (MongoDB shell):
+ *   db.lessons.find({ $or: [
+ *     { content: /\]\(\s*\/?(uploads|visuals|content)\// },
+ *     { uploadedImages: /^\/(uploads|visuals|content)\// },
+ *     { "pages.blocks.content": /\]\(\s*\/?(uploads|visuals|content)\// },
+ *     { "pages.blocks.imageUrl": /^\/(uploads|visuals|content)\// },
+ *     { "pages.hero.src": /^\/(uploads|visuals|content)\// }
+ *   ] }).count()
+ *   Expect 0 after successful migration.
  */
 // Load .env only if URI not already set (e.g. from Render shell)
 if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
@@ -25,7 +41,7 @@ const DEFAULT_BACKEND_URL =
     .replace(/\/+$/, "")
     .replace(/\/api\/?$/, "");
 
-/** Mask credentials: mongodb+srv://user:pass@host/db -> host; localhost -> localhost:27017 */
+/** Mask credentials: mongodb+srv://user:pass@host/db -> host */
 function maskMongoUri(uri) {
   if (!uri || typeof uri !== "string") return "(none)";
   const atMatch = uri.match(/@([^/]+)/);
@@ -43,6 +59,7 @@ function isUnsafeUrl(url) {
   return u.startsWith("javascript:") || u.startsWith("data:") || u.startsWith("vbscript:");
 }
 
+/** Returns true only for legacy relative asset paths. Already-absolute URLs return false. */
 function isRelativeAssetPath(url) {
   if (!url || typeof url !== "string") return false;
   const u = url.trim();
@@ -55,7 +72,6 @@ function toAbsoluteUrl(url) {
   const u = url.trim();
   if (isUnsafeUrl(u)) return url;
   if (!isRelativeAssetPath(u)) return url;
-  if (u.startsWith("http://") || u.startsWith("https://")) return url;
   const path = u.startsWith("/") ? u : `/${u}`;
   const normalized = path.startsWith("/api/") ? path.slice(4) : path;
   return `${DEFAULT_BACKEND_URL}${normalized}`;
@@ -63,6 +79,7 @@ function toAbsoluteUrl(url) {
 
 /**
  * Transform markdown: ![alt](/uploads/...) -> ![alt](https://...)
+ * Idempotent: absolute URLs are left unchanged.
  */
 function transformMarkdownImageUrls(markdown) {
   if (!markdown || typeof markdown !== "string") return { transformed: markdown, changed: false, count: 0 };
@@ -89,7 +106,8 @@ function transformMarkdownImageUrls(markdown) {
 }
 
 /**
- * Transform a bare URL field (imageUrl, hero.src)
+ * Transform a bare URL field (imageUrl, hero.src, uploadedImages entry, block.source)
+ * Idempotent: absolute URLs are left unchanged.
  */
 function transformBareUrl(url) {
   if (!url || typeof url !== "string") return { transformed: url, changed: false, count: 0 };
@@ -110,6 +128,7 @@ async function run() {
     process.exit(1);
   }
 
+  console.log("=== Legacy Image URL Migration ===");
   console.log("BACKEND_PUBLIC_URL:", DEFAULT_BACKEND_URL);
   console.log("MongoDB host:", maskMongoUri(uri));
   if (apply) {
@@ -126,25 +145,51 @@ async function run() {
   const Lesson = require("../models/Lesson");
   const Template = require("../models/Template");
 
+  let totalScanned = 0;
   let totalWouldUpdate = 0;
   let totalUpdated = 0;
+  let totalSkipped = 0;
   let urlsRewritten = 0;
+  const matchedUrls = [];
 
   // --- Lessons ---
-  const lessons = await Lesson.find({}).lean();
+  const lessons = await Lesson.find({});
+  totalScanned += lessons.length;
+  let lessonsUpdatedCount = 0;
   const lessonUpdates = [];
 
   for (const lesson of lessons) {
-    const updates = {};
     let docChanged = false;
+    let urlCount = 0;
 
     // Legacy content
     if (lesson.content) {
       const { transformed, changed, count } = transformMarkdownImageUrls(lesson.content);
       if (changed) {
-        updates.content = transformed;
+        lesson.content = transformed;
+        lesson.markModified("content");
         docChanged = true;
-        urlsRewritten += count;
+        urlCount += count;
+      }
+    }
+
+    // uploadedImages array
+    if (lesson.uploadedImages && Array.isArray(lesson.uploadedImages)) {
+      let arrChanged = false;
+      const newArr = lesson.uploadedImages.map((entry) => {
+        const { transformed, changed, count } = transformBareUrl(entry);
+        if (changed) {
+          arrChanged = true;
+          urlCount += count;
+          if (matchedUrls.length < 20) matchedUrls.push({ type: "uploadedImages", from: entry, to: transformed });
+          return transformed;
+        }
+        return entry;
+      });
+      if (arrChanged) {
+        lesson.uploadedImages = newArr;
+        lesson.markModified("uploadedImages");
+        docChanged = true;
       }
     }
 
@@ -160,7 +205,8 @@ async function run() {
           if (changed) {
             newPage.hero = { ...page.hero, src: transformed };
             pagesChanged = true;
-            urlsRewritten += count;
+            urlCount += count;
+            if (matchedUrls.length < 20) matchedUrls.push({ type: "hero.src", from: page.hero.src, to: transformed });
           }
         }
 
@@ -174,7 +220,7 @@ async function run() {
               if (changed) {
                 newBlock.content = transformed;
                 pagesChanged = true;
-                urlsRewritten += count;
+                urlCount += count;
               }
             }
 
@@ -183,7 +229,17 @@ async function run() {
               if (changed) {
                 newBlock.imageUrl = transformed;
                 pagesChanged = true;
-                urlsRewritten += count;
+                urlCount += count;
+                if (matchedUrls.length < 20) matchedUrls.push({ type: "block.imageUrl", from: block.imageUrl, to: transformed });
+              }
+            }
+
+            if (block.source) {
+              const { transformed, changed, count } = transformBareUrl(block.source);
+              if (changed) {
+                newBlock.source = transformed;
+                pagesChanged = true;
+                urlCount += count;
               }
             }
 
@@ -195,40 +251,133 @@ async function run() {
       });
 
       if (pagesChanged) {
-        updates.pages = newPages;
+        lesson.pages = [...newPages];
+        lesson.markModified("pages");
+        docChanged = true;
+      }
+    }
+
+    // Flashcards
+    if (lesson.flashcards && Array.isArray(lesson.flashcards)) {
+      let fcChanged = false;
+      const newFc = lesson.flashcards.map((fc) => {
+        const n = { ...fc };
+        if (fc.front) {
+          const { transformed, changed, count } = transformMarkdownImageUrls(fc.front);
+          if (changed) {
+            n.front = transformed;
+            fcChanged = true;
+            urlCount += count;
+          }
+        }
+        if (fc.back) {
+          const { transformed, changed, count } = transformMarkdownImageUrls(fc.back);
+          if (changed) {
+            n.back = transformed;
+            fcChanged = true;
+            urlCount += count;
+          }
+        }
+        return n;
+      });
+      if (fcChanged) {
+        lesson.flashcards = newFc;
+        lesson.markModified("flashcards");
+        docChanged = true;
+      }
+    }
+
+    // Quiz questions
+    if (lesson.quiz && lesson.quiz.questions && Array.isArray(lesson.quiz.questions)) {
+      let qChanged = false;
+      const newQuestions = lesson.quiz.questions.map((q) => {
+        const n = { ...q };
+        if (q.question) {
+          const { transformed, changed, count } = transformMarkdownImageUrls(q.question);
+          if (changed) {
+            n.question = transformed;
+            qChanged = true;
+            urlCount += count;
+          }
+        }
+        if (q.explanation) {
+          const { transformed, changed, count } = transformMarkdownImageUrls(q.explanation);
+          if (changed) {
+            n.explanation = transformed;
+            qChanged = true;
+            urlCount += count;
+          }
+        }
+        return n;
+      });
+      if (qChanged) {
+        lesson.quiz.questions = newQuestions;
+        lesson.markModified("quiz");
+        docChanged = true;
+      }
+    }
+
+    // Assessment questions
+    if (lesson.assessment && lesson.assessment.questions && Array.isArray(lesson.assessment.questions)) {
+      let aChanged = false;
+      const newQuestions = lesson.assessment.questions.map((q) => {
+        const n = { ...q };
+        if (q.question) {
+          const { transformed, changed, count } = transformMarkdownImageUrls(q.question);
+          if (changed) {
+            n.question = transformed;
+            aChanged = true;
+            urlCount += count;
+          }
+        }
+        if (q.explanation) {
+          const { transformed, changed, count } = transformMarkdownImageUrls(q.explanation);
+          if (changed) {
+            n.explanation = transformed;
+            aChanged = true;
+            urlCount += count;
+          }
+        }
+        return n;
+      });
+      if (aChanged) {
+        lesson.assessment.questions = newQuestions;
+        lesson.markModified("assessment");
         docChanged = true;
       }
     }
 
     if (docChanged) {
       totalWouldUpdate += 1;
-      lessonUpdates.push({ id: lesson._id, title: lesson.title, updates });
+      urlsRewritten += urlCount;
+      lessonUpdates.push({ id: lesson._id, title: lesson.title, urlCount });
+      if (apply) {
+        await lesson.save();
+        lessonsUpdatedCount += 1;
+        if (lessonsUpdatedCount <= 10) {
+          console.log(`  [lesson] ${lesson._id} "${lesson.title}" (${urlCount} URL(s))`);
+        }
+      }
+    } else {
+      totalSkipped += 1;
     }
   }
 
-  console.log(`[lessons] ${lessonUpdates.length} lesson(s) would be updated.`);
-  if (lessonUpdates.length > 0 && lessonUpdates.length <= 5) {
-    lessonUpdates.forEach((u) => console.log(`  - ${u.id} "${u.title}"`));
-  } else if (lessonUpdates.length > 5) {
-    lessonUpdates.slice(0, 3).forEach((u) => console.log(`  - ${u.id} "${u.title}"`));
-    console.log(`  ... and ${lessonUpdates.length - 3} more`);
-  }
-
-  if (apply && lessonUpdates.length > 0) {
-    for (const { id, updates } of lessonUpdates) {
-      await Lesson.updateOne({ _id: id }, { $set: updates });
-      totalUpdated += 1;
-    }
-    console.log(`[lessons] Updated ${totalUpdated} document(s).`);
+  console.log(`[lessons] Scanned: ${lessons.length}, would update: ${lessonUpdates.length}, skipped: ${lessons.length - lessonUpdates.length}`);
+  if (apply && lessonsUpdatedCount > 0) {
+    console.log(`[lessons] Updated ${lessonsUpdatedCount} document(s).`);
   }
 
   // --- Templates ---
-  const templates = await Template.find({}).lean();
+  const templates = await Template.find({});
+  totalScanned += templates.length;
+  let templatesUpdatedCount = 0;
+  let templateWouldUpdate = 0;
   const templateUpdates = [];
 
   for (const template of templates) {
-    const updates = {};
     let docChanged = false;
+    let urlCount = 0;
 
     if (template.pages && Array.isArray(template.pages)) {
       const newPages = template.pages.map((page) => {
@@ -243,7 +392,7 @@ async function run() {
               if (changed) {
                 newBlock.content = transformed;
                 pageChanged = true;
-                urlsRewritten += count;
+                urlCount += count;
               }
             }
             return newBlock;
@@ -255,46 +404,65 @@ async function run() {
 
       const pagesChanged = JSON.stringify(newPages) !== JSON.stringify(template.pages);
       if (pagesChanged) {
-        updates.pages = newPages;
+        template.pages = [...newPages];
+        template.markModified("pages");
         docChanged = true;
       }
     }
 
     if (docChanged) {
       totalWouldUpdate += 1;
-      templateUpdates.push({ id: template._id, name: template.name, updates });
+      templateWouldUpdate += 1;
+      urlsRewritten += urlCount;
+      templateUpdates.push({ id: template._id, name: template.name, urlCount });
+      if (apply) {
+        await template.save();
+        templatesUpdatedCount += 1;
+        if (templatesUpdatedCount <= 10) {
+          console.log(`  [template] ${template._id} "${template.name}" (${urlCount} URL(s))`);
+        }
+      }
+    } else {
+      totalSkipped += 1;
     }
   }
 
-  console.log(`[templates] ${templateUpdates.length} template(s) would be updated.`);
-  if (templateUpdates.length > 0 && templateUpdates.length <= 5) {
-    templateUpdates.forEach((u) => console.log(`  - ${u.id} "${u.name}"`));
+  console.log(`[templates] Scanned: ${templates.length}, would update: ${templateWouldUpdate}, skipped: ${templates.length - templateWouldUpdate}`);
+  if (templateWouldUpdate > 0 && templateUpdates.length <= 5) {
+    templateUpdates.forEach((u) => console.log(`  - ${u.id} "${u.name}" (${u.urlCount} URL(s))`));
   } else if (templateUpdates.length > 5) {
-    templateUpdates.slice(0, 3).forEach((u) => console.log(`  - ${u.id} "${u.name}"`));
+    templateUpdates.slice(0, 3).forEach((u) => console.log(`  - ${u.id} "${u.name}" (${u.urlCount} URL(s))`));
     console.log(`  ... and ${templateUpdates.length - 3} more`);
   }
+  if (apply && templatesUpdatedCount > 0) {
+    console.log(`[templates] Updated ${templatesUpdatedCount} document(s).`);
+  }
 
-  if (apply && templateUpdates.length > 0) {
-    for (const { id, updates } of templateUpdates) {
-      await Template.updateOne({ _id: id }, { $set: updates });
-      totalUpdated += 1;
-    }
-    console.log(`[templates] Updated ${templateUpdates.length} document(s).`);
+  // --- Matched URLs sample ---
+  if (matchedUrls.length > 0) {
+    console.log("");
+    console.log("--- Sample matched URLs (first 10) ---");
+    matchedUrls.slice(0, 10).forEach((m, i) => {
+      console.log(`  ${i + 1}. [${m.type}] ${m.from} -> ${m.to}`);
+    });
   }
 
   console.log("");
   console.log("--- Summary ---");
+  console.log(`Documents scanned: ${totalScanned} (${lessons.length} lessons, ${templates.length} templates)`);
+  console.log(`Documents skipped (no legacy URLs): ${totalSkipped}`);
   if (!apply) {
     console.log(`Documents that would be updated: ${totalWouldUpdate}`);
     console.log(`URLs that would be rewritten: ${urlsRewritten}`);
     console.log("Run with --apply to perform updates.");
   } else {
-    console.log(`Lessons updated: ${lessonUpdates.length}`);
-    console.log(`Templates updated: ${templateUpdates.length}`);
+    console.log(`Lessons updated: ${lessonsUpdatedCount}`);
+    console.log(`Templates updated: ${templatesUpdatedCount}`);
     console.log(`URLs rewritten: ${urlsRewritten}`);
   }
 
   await mongoose.disconnect();
+  console.log("");
   console.log("Disconnected.");
 }
 
