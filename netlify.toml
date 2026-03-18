@@ -25,5 +25,5 @@
   status = 200
   force = true
 
-# REQUIRED: Set REACT_APP_API_BASE to your Netlify site URL (e.g. https://profound-gumdrop-4c8d83.netlify.app)
-# so API calls go same-origin and get proxied to Render. Or leave unset — we use window.location.origin when not localhost.
+# REACT_APP_API_BASE: Set to backend URL (https://letsrevise-new.onrender.com) for non-proxy builds.
+# On Netlify, api.ts uses same-origin so /api/* is proxied. Upload URLs are always built from backend (Render), never Netlify.

@@ -1,4 +1,5 @@
 // /frontend/src/api/uploads.ts
+import { getUploadBaseUrl } from "../services/mediaUrl";
 
 export type UploadImageResult = {
   ok: boolean;
@@ -38,10 +39,10 @@ export async function uploadImage(
 
   const okData = data as UploadImageResult;
 
-  // Convert "/uploads/..." to a full URL for the browser
+  // Convert "/uploads/..." to full URL. ALWAYS use backend (Render), never Netlify.
   const publicUrl = okData.url.startsWith("http")
     ? okData.url
-    : `${API_BASE}${okData.url}`;
+    : `${getUploadBaseUrl()}${okData.url.startsWith("/") ? okData.url : `/${okData.url}`}`;
 
   return { publicUrl, raw: okData };
 }

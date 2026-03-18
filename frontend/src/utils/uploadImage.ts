@@ -1,4 +1,5 @@
 // /frontend/src/utils/uploadImage.ts
+import { getUploadBaseUrl } from "../services/mediaUrl";
 
 export type UploadImageResult = {
   ok: boolean;
@@ -45,9 +46,12 @@ export async function uploadImage(
 
 /**
  * Converts a returned "/uploads/..." path into a full URL.
+ * ALWAYS uses backend (Render), never Netlify.
  */
 export function toPublicUrl(uploadPath: string): string {
   if (!uploadPath) return "";
   if (uploadPath.startsWith("http")) return uploadPath;
-  return `${BACKEND_BASE}${uploadPath}`;
+  const base = getUploadBaseUrl();
+  const path = uploadPath.startsWith("/") ? uploadPath : `/${uploadPath}`;
+  return `${base}${path}`;
 }

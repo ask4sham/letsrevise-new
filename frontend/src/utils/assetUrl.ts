@@ -14,6 +14,9 @@ export function getAssetBaseUrl(): string {
  * Resolve relative asset URLs to absolute. Same-origin in prod so images go through Netlify proxy.
  * Rewrites absolute Render URLs to same-origin when on frontend domain (avoids CORS).
  */
+/** Netlify does not serve /uploads; backend does. Rewrite Netlify+uploads to backend. */
+const NETLIFY_PATTERN = /^https?:\/\/[^/]+\.netlify\.app(\/.*)/i;
+
 export function makeAbsoluteAssetUrl(url?: string | null): string | null {
   if (!url) return null;
   const u = url.trim().toLowerCase();
@@ -23,6 +26,11 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
 
   if (url.startsWith("http://") || url.startsWith("https://")) {
     const urlLower = url.trim().toLowerCase();
+    // Safety: Netlify + /uploads|/visuals|/content → backend (Netlify does not serve these)
+    if (urlLower.includes("netlify.app") && (urlLower.includes("/uploads/") || urlLower.includes("/visuals/") || urlLower.includes("/content/"))) {
+      const match = url.trim().match(NETLIFY_PATTERN);
+      if (match) return `${RENDER_BACKEND}${match[1]}`;
+    }
     const backends = [RENDER_BACKEND, "https://api.letsrevise.com"];
     for (const backend of backends) {
       const bl = backend.toLowerCase();

@@ -14,9 +14,16 @@ export { getAssetBaseUrl };
 /**
  * Convert a relative asset path to an absolute URL.
  * Use at upload-insert time so markdown stores canonical URLs.
+ * ALWAYS uses backend URL (Render) for /uploads, /visuals, /content — never Netlify.
+ * Netlify does not serve uploaded files; backend does.
  */
 export function toAbsoluteAssetUrl(path: string | null | undefined): string {
   if (!path) return "";
+  const p = path.startsWith("/") ? path : `/${path}`;
+  if (p.startsWith("/uploads/") || p.startsWith("/visuals/") || p.startsWith("/content/")) {
+    const base = getUploadBaseUrl();
+    return `${base}${p}`;
+  }
   const abs = makeAbsoluteAssetUrl(path);
   return abs ?? path;
 }
