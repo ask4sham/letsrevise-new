@@ -50,6 +50,7 @@ const LoginPage: React.FC = () => {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [backendStatus, setBackendStatus] = useState("");
 
   // Show a clear "you're already logged in" state (prevents confusion)
@@ -390,22 +391,41 @@ const LoginPage: React.FC = () => {
               >
                 Password
               </label>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "6px",
-                  fontSize: "1rem",
-                }}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    padding: "12px 44px 12px 12px",
+                    border: "2px solid #e2e8f0",
+                    borderRadius: "6px",
+                    fontSize: "1rem",
+                  }}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: "1rem",
+                  }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  👁
+                </button>
+              </div>
             </div>
 
             <button
