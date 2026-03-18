@@ -4744,27 +4744,25 @@ const EditLessonPage: React.FC = () => {
                     })
                     .map((b, idx) => {
                     const blockType = normalizeBlockType(b?.type);
+                    const blockContent = safeStr(b.content, "");
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
                         <div className="lesson-content" style={getBlockStyle(blockType)}>
                           <ReactMarkdown
+                            key={`preview-md-${currentPage!.pageId}-${idx}-${blockContent.length}`}
                             components={markdownComponents as any}
                             urlTransform={(url: string) => {
                               try {
                                 const decoded = url?.includes("%") ? decodeURIComponent(url) : (url ?? "");
-                                let transformed: string;
-                                if (decoded.startsWith("/uploads/") || decoded.startsWith("/visuals/") || decoded.startsWith("/content/")) {
-                                  transformed = makeAbsoluteAssetUrl(decoded) ?? decoded;
-                                } else {
-                                  transformed = defaultUrlTransform(url ?? "");
-                                }
-                                return transformed;
+                                const abs = makeAbsoluteAssetUrl(decoded);
+                                if (abs) return abs;
+                                return defaultUrlTransform(url ?? "");
                               } catch {
                                 return defaultUrlTransform(url ?? "");
                               }
                             }}
                           >
-                            {preprocessMarkdownAssetUrls(safeStr(b.content, ""))}
+                            {preprocessMarkdownAssetUrls(blockContent)}
                           </ReactMarkdown>
                         </div>
                       </div>

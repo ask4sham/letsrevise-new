@@ -11,11 +11,13 @@ export function getAssetBaseUrl(): string {
 }
 
 /**
- * Resolve relative asset URLs to absolute. Same-origin in prod so images go through Netlify proxy.
- * Rewrites absolute Render URLs to same-origin when on frontend domain (avoids CORS).
+ * Resolve relative asset URLs to absolute.
+ * - Relative /uploads, /visuals, /content: use getAssetBaseUrl (localhost proxy or same-origin).
+ * - Absolute backend URLs (Render, api.letsrevise.com): return as-is — backend serves them; img loads cross-origin.
+ * - Netlify+uploads: rewrite to backend (Netlify does not serve uploads).
  */
-/** Netlify does not serve /uploads; backend does. Rewrite Netlify+uploads to backend. */
 const NETLIFY_PATTERN = /^https?:\/\/[^/]+\.netlify\.app(\/.*)/i;
+const BACKENDS = [RENDER_BACKEND, "https://api.letsrevise.com"] as const;
 
 export function makeAbsoluteAssetUrl(url?: string | null): string | null {
   if (!url) return null;
@@ -31,12 +33,11 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
       const match = url.trim().match(NETLIFY_PATTERN);
       if (match) return `${RENDER_BACKEND}${match[1]}`;
     }
-    const backends = [RENDER_BACKEND, "https://api.letsrevise.com"];
-    for (const backend of backends) {
+    // Backend URLs: return as-is. Backend serves assets; img loads cross-origin. Do NOT rewrite to Netlify.
+    for (const backend of BACKENDS) {
       const bl = backend.toLowerCase();
       if (urlLower.startsWith(bl + "/uploads/") || urlLower.startsWith(bl + "/visuals/") || urlLower.startsWith(bl + "/content/")) {
-        const path = url.trim().slice(backend.length);
-        return `${base}${path}`;
+        return url.trim();
       }
     }
     return url;
@@ -45,7 +46,12 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
   const path = url.startsWith("/") ? url : `/${url}`;
   const normalized = path.startsWith("/api/") ? path.slice(4) : path;
 
-  return `${base}${normalized}`;
+  // /uploads, /visuals, /content: use backend when on Netlify (Netlify does not serve these)
+  const isAssetPath = normalized.startsWith("/uploads/") || normalized.startsWith("/visuals/") || normalized.startsWith("/content/");
+  const isNetlify = typeof window !== "undefined" && /\.netlify\.app$/i.test(window.location.hostname);
+  const assetBase = isAssetPath && isNetlify ? RENDER_BACKEND : base;
+
+  return `${assetBase}${normalized}`;
 }
 
 /** Safe prefixes for asset paths we transform — never allow javascript:, data:, etc. */
