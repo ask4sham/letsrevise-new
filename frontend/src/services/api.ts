@@ -22,9 +22,18 @@ import { captureException, captureMessage } from "../sentryClient";
 
 // When REACT_APP_API_BASE is set, use it (Docker, staging, prod).
 // When unset on localhost, use "" so CRA proxy forwards /api/* to backend.
+// When on Netlify: ALWAYS use same-origin so netlify.toml proxy forwards /api/* to Render (avoids CORS + multipart issues).
+// When on other production without env, use same-origin.
 const isDev =
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+// Frontend-hosted domains: use same-origin /api (Netlify/custom proxy to backend)
+const isSameOriginProxy =
+  typeof window !== "undefined" &&
+  (/\.netlify\.app$/i.test(window.location.hostname) ||
+   window.location.hostname === "letsrevise.com" ||
+   window.location.hostname === "www.letsrevise.com");
 
 const rawFromEnv = (
   process.env.REACT_APP_API_BASE ||
@@ -32,8 +41,12 @@ const rawFromEnv = (
   ""
 ).trim();
 
+// On Netlify or custom domain, use same-origin so proxy works (uploads, CORS, cold start)
 const baseURL =
-  rawFromEnv || (isDev ? "" : "http://localhost:5000");
+  isSameOriginProxy
+    ? ""
+    : rawFromEnv ||
+      (isDev ? "" : (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000"));
 const RAW_API_BASE = baseURL;
 
 // Normalize host (remove trailing slashes AND trailing /api)
@@ -45,6 +58,11 @@ function normalizeApiHost(raw: string) {
 const API_HOST = normalizeApiHost(RAW_API_BASE);
 // In dev with proxy: baseURL "" so requests are same-origin; we'll send full path /api/... in interceptor.
 const BASE_URL = baseURL === "" ? "" : `${API_HOST}/api`;
+
+/** Backend host root (no /api). Used by assetUrl for image URLs. Same source of truth as API. */
+export function getApiHost(): string {
+  return API_HOST;
+}
 
 // ---- Guardrail logging + warnings (prevents silent drift) ----
 (function logApiTargetOnce() {

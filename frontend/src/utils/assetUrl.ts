@@ -1,42 +1,48 @@
+const RENDER_BACKEND = "https://letsrevise-new.onrender.com";
+
 /**
  * Get the asset base URL (API host root, no /api).
- * Local dev: http://localhost:5000
- * Production: REACT_APP_API_BASE (e.g. https://letsrevise-new.onrender.com)
+ * Local dev: same-origin so CRA setupProxy forwards /uploads, /visuals, /content to backend.
+ * Production: same-origin so Netlify proxy forwards to Render.
  */
 export function getAssetBaseUrl(): string {
-  const raw =
-    (process.env.REACT_APP_API_HOST || "").trim() ||
-    (process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || "").trim();
-  return (
-    raw
-      .replace(/\/+$/, "")
-      .replace(/\/api\/?$/, "") ||
-    (typeof window !== "undefined"
-      ? window.location.origin.replace(/:3000$/, ":5000").replace(/:5173$/, ":5000")
-      : "http://localhost:5000")
-  );
+  if (typeof window === "undefined") return RENDER_BACKEND;
+  return window.location.origin;
 }
 
 /**
- * Resolve relative asset URLs (e.g. /uploads/..., /visuals/..., /content/...) to absolute backend URLs.
- * Assets are served from API host root, NOT under /api — so we must never produce .../api/uploads/...
- * In production (Netlify), REACT_APP_API_BASE must be set so images load from the backend (Render).
+ * Resolve relative asset URLs to absolute. Same-origin in prod so images go through Netlify proxy.
+ * Rewrites absolute Render URLs to same-origin when on frontend domain (avoids CORS).
  */
 export function makeAbsoluteAssetUrl(url?: string | null): string | null {
   if (!url) return null;
   const u = url.trim().toLowerCase();
   if (u.startsWith("javascript:") || u.startsWith("data:") || u.startsWith("vbscript:")) return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
 
-  const apiHost = getAssetBaseUrl();
+  const base = getAssetBaseUrl();
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    const urlLower = url.trim().toLowerCase();
+    const backends = [RENDER_BACKEND, "https://api.letsrevise.com"];
+    for (const backend of backends) {
+      const bl = backend.toLowerCase();
+      if (urlLower.startsWith(bl + "/uploads/") || urlLower.startsWith(bl + "/visuals/") || urlLower.startsWith(bl + "/content/")) {
+        const path = url.trim().slice(backend.length);
+        return `${base}${path}`;
+      }
+    }
+    return url;
+  }
+
   const path = url.startsWith("/") ? url : `/${url}`;
   const normalized = path.startsWith("/api/") ? path.slice(4) : path;
 
-  return `${apiHost}${normalized}`;
+  return `${base}${normalized}`;
 }
 
 /** Safe prefixes for asset paths we transform — never allow javascript:, data:, etc. */
 const ASSET_PREFIXES = ["/uploads/", "/visuals/", "/content/", "uploads/", "visuals/", "content/"];
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
 function isSafeAssetPath(url: string): boolean {
   const u = (url || "").trim().toLowerCase();
@@ -44,14 +50,30 @@ function isSafeAssetPath(url: string): boolean {
   return ASSET_PREFIXES.some((p) => u.startsWith(p));
 }
 
+function isImageAssetUrl(url: string): boolean {
+  const u = (url || "").trim();
+  if (isSafeAssetPath(u)) return true;
+  const lower = u.toLowerCase();
+  if (lower.startsWith("http") && (ASSET_PREFIXES.some((p) => lower.includes(p)) || IMAGE_EXTENSIONS.some((e) => lower.includes(e)))) return true;
+  return IMAGE_EXTENSIONS.some((e) => lower.endsWith(e) || lower.includes(e + "?"));
+}
+
 /**
  * Preprocess markdown to resolve relative asset image URLs to absolute backend URLs.
- * Used for legacy content; new uploads store absolute URLs via mediaUrl.toAbsoluteAssetUrl.
- * Safe: only transforms known asset paths, rejects javascript:/data: etc.
+ * Also fixes legacy content that used link syntax [alt](url) instead of image syntax ![alt](url)
+ * for asset URLs — those would render as links, not images.
  */
 export function preprocessMarkdownAssetUrls(markdown: string): string {
   if (!markdown || typeof markdown !== "string") return markdown;
-  return markdown.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+  // Fix link syntax used for images: [alt](assetUrl) -> ![alt](assetUrl) when url is an image asset
+  let out = markdown.replace(/(?<!!)\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+    const u = (url || "").trim();
+    if (!isImageAssetUrl(u)) return `[${alt}](${url})`;
+    if (String(alt || "").trim().toLowerCase().startsWith("video:")) return `[${alt}](${url})`;
+    return `![${alt}](${url})`;
+  });
+  // Resolve relative asset URLs to absolute
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
     const u = (url || "").trim();
     if (!isSafeAssetPath(u)) return `![${alt}](${url})`;
     let decoded = u;
@@ -64,4 +86,5 @@ export function preprocessMarkdownAssetUrls(markdown: string): string {
     if (abs) return `![${alt}](${abs})`;
     return `![${alt}](${url})`;
   });
+  return out;
 }
