@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
 
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
     email: "",
@@ -28,7 +30,7 @@ const RegisterForm: React.FC = () => {
     setMessage("");
 
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/register", formData);
+      const response = await axios.post(`${API_BASE}/api/auth/register`, formData);
       setMessage(`✅ ${response.data.message}`);
       console.log("Registration successful:", response.data);
     } catch (error: any) {

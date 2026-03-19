@@ -82,6 +82,37 @@ async function sendParentLinkEmail({ to, parentName, approveUrl, rejectUrl }) {
   });
 }
 
+/** Email verification: send verification link to new user. Uses Resend; logs only if not configured. */
+async function sendVerificationEmail({ to, firstName, verifyUrl }) {
+  const displayName = (firstName || "there").trim() || "there";
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    console.log("📧 Verification email (DEV LOG ONLY):", { to, verifyUrl });
+    return;
+  }
+  const { Resend } = require("resend");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const subject = "Verify your LetsRevise account";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>Verify your email</h2>
+      <p>Hi ${displayName},</p>
+      <p>Thanks for signing up for LetsRevise. Please verify your email by clicking the link below:</p>
+      <p>
+        <a href="${verifyUrl}" style="padding:10px 14px;background:#2563eb;color:white;border-radius:6px;text-decoration:none;">
+          Verify my email
+        </a>
+      </p>
+      <p>This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+    </div>
+  `;
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
+    to,
+    subject,
+    html,
+  });
+}
+
 // Debug route - test password matching. DISABLED in production.
 router.post("/debug-login", async (req, res) => {
   if (process.env.NODE_ENV === "production" || (process.env.DEBUG_ENDPOINTS !== "1" && process.env.DEBUG_ENDPOINTS !== "true")) {
@@ -281,8 +312,22 @@ router.post(
         }
       }
 
+      // Email verification token (24h expiry)
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      user.emailVerificationToken = verificationToken;
+      user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
       await user.save();
       console.log(`✅ User registered: ${normalizedEmail} as ${normalizedType}`);
+
+      // Send verification email
+      const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
+      const verifyUrl = `${baseUrl}/#/verify-email?token=${encodeURIComponent(verificationToken)}`;
+      await sendVerificationEmail({
+        to: normalizedEmail,
+        firstName: user.firstName,
+        verifyUrl,
+      });
 
       /**
        * ✅ Parent-link approval flow (NEW)
@@ -319,7 +364,7 @@ router.post(
           studentId: studentId.toString(),
         });
 
-        const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000S0").trim();
+        const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
         const approveUrl = `${baseUrl}/parent-link/approve?token=${encodeURIComponent(token)}`;
         const rejectUrl = `${baseUrl}/parent-link/reject?token=${encodeURIComponent(token)}`;
 
@@ -372,7 +417,7 @@ router.post(
         console.log(`✅ Registration complete, token generated for ${normalizedEmail}`);
 
         return res.status(201).json({
-          msg: "User registered successfully. Please check your email to verify your account.",
+          msg: "Account created. Check your email to verify your account, then sign in.",
           token,
           user: {
             id: user._id.toString(),
@@ -407,6 +452,42 @@ router.post(
     }
   }
 );
+
+// @route   GET api/auth/verify-email?token=...
+// @desc    Verify email using token sent on signup
+// @access  Public
+router.get("/verify-email", async (req, res) => {
+  const token = (req.query.token || "").toString().trim();
+  if (!token) {
+    return res.status(400).json({ ok: false, msg: "Missing verification token" });
+  }
+
+  try {
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      const expired = await User.findOne({ emailVerificationToken: token });
+      if (expired) {
+        return res.status(400).json({ ok: false, msg: "Verification link has expired. Please request a new one." });
+      }
+      return res.status(400).json({ ok: false, msg: "Invalid verification token" });
+    }
+
+    user.verificationStatus = "verified";
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    console.log(`✅ Email verified: ${user.email}`);
+    return res.json({ ok: true, msg: "Email verified. You can now sign in." });
+  } catch (err) {
+    console.error("Verify email error:", err);
+    return res.status(500).json({ ok: false, msg: "Server error" });
+  }
+});
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token

@@ -109,7 +109,7 @@ const RegisterPage: React.FC = () => {
       const backendMsg =
         response.data?.message ||
         response.data?.msg ||
-        "Registration successful! Please check your email to verify your account.";
+        "Check your email to verify your account, then sign in.";
 
       // ✅ store selectedStage locally for your current browse gating
       if (userType === "student") {

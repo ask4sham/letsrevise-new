@@ -65,6 +65,10 @@ const userSchema = new mongoose.Schema(
       enum: ["pending", "verified", "rejected"],
     },
 
+    /** Email verification: token sent on signup, cleared when verified. */
+    emailVerificationToken: { type: String, default: null },
+    emailVerificationExpires: { type: Date, default: null },
+
     shamCoins: {
       type: Number,
       default: 100,
