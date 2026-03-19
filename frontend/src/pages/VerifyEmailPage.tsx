@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-
-const getApiBase = () => {
-  const b = (process.env.REACT_APP_API_BASE || "").trim();
-  if (b) return b.replace(/\/+$/, "").replace(/\/api\/?$/, "");
-  if (typeof window !== "undefined") return window.location.origin;
-  return "http://localhost:5000";
-};
+import api from "../services/api";
 
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -14,6 +8,9 @@ const VerifyEmailPage: React.FC = () => {
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendStatus, setResendStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [resendMsg, setResendMsg] = useState("");
 
   useEffect(() => {
     if (!token.trim()) {
@@ -24,21 +21,20 @@ const VerifyEmailPage: React.FC = () => {
 
     const verify = async () => {
       try {
-        const base = getApiBase();
-        const url = `${base}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
-        const res = await fetch(url);
-        const data = await res.json().catch(() => ({}));
+        const res = await api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+        const data = res?.data ?? {};
 
-        if (res.ok && data.ok) {
+        if (data.ok) {
           setStatus("success");
           setMessage(data.msg || "Email verified. You can now sign in.");
         } else {
           setStatus("error");
           setMessage(data.msg || "Verification failed. The link may have expired.");
         }
-      } catch {
+      } catch (err: any) {
         setStatus("error");
-        setMessage("Could not connect to the server. Please try again.");
+        const msg = err?.data?.msg || err?.response?.data?.msg || err?.message;
+        setMessage(msg || "Could not connect to the server. Please try again.");
       }
     };
 
@@ -103,6 +99,63 @@ const VerifyEmailPage: React.FC = () => {
             <p style={{ color: "#dc2626", marginBottom: 24, fontWeight: 600 }}>
               {message}
             </p>
+            {resendStatus === "sent" ? (
+              <p style={{ color: "#059669", marginBottom: 16 }}>{resendMsg}</p>
+            ) : (
+              <div style={{ marginBottom: 24, textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: 8, fontSize: 14, color: "#374151" }}>
+                  Request a new verification link
+                </label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input
+                    type="email"
+                    placeholder="Your email"
+                    value={resendEmail}
+                    onChange={(e) => setResendEmail(e.target.value)}
+                    style={{
+                      flex: 1,
+                      minWidth: 180,
+                      padding: "10px 12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 8,
+                      fontSize: 14,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={resendStatus === "loading" || !resendEmail.trim()}
+                    onClick={async () => {
+                      setResendStatus("loading");
+                      setResendMsg("");
+                      try {
+                        const res = await api.post("/auth/resend-verification", { email: resendEmail.trim() });
+                        const data = res?.data ?? {};
+                        setResendStatus("sent");
+                        setResendMsg(data.msg || "A new verification email has been sent.");
+                      } catch (e: any) {
+                        setResendStatus("error");
+                        setResendMsg(e?.data?.msg || e?.message || "Failed to send. Please try again.");
+                      }
+                    }}
+                    style={{
+                      padding: "10px 12px",
+                      background: "#2563eb",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: resendStatus === "loading" ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {resendStatus === "loading" ? "Sending..." : "Resend"}
+                  </button>
+                </div>
+                {resendStatus === "error" && (
+                  <p style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{resendMsg}</p>
+                )}
+              </div>
+            )}
             <Link
               to="/login"
               style={{

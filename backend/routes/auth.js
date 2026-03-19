@@ -489,6 +489,44 @@ router.get("/verify-email", async (req, res) => {
   }
 });
 
+// @route   POST api/auth/resend-verification
+// @desc    Resend verification email for unverified users
+// @access  Public (rate-limited by authLimiter)
+router.post("/resend-verification", [check("email", "Valid email is required").isEmail()], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ msg: "Valid email is required" });
+  }
+  const email = normEmail(req.body.email);
+
+  try {
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, "i") });
+    if (!user) {
+      // Don't reveal whether user exists
+      return res.json({ ok: true, msg: "If an unverified account exists, a new verification email has been sent." });
+    }
+    const status = (user.verificationStatus || "pending").toString().toLowerCase();
+    if (status === "verified") {
+      return res.json({ ok: true, msg: "This account is already verified. You can sign in." });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
+    const verifyUrl = `${baseUrl}/#/verify-email?token=${encodeURIComponent(verificationToken)}`;
+    await sendVerificationEmail({ to: user.email, firstName: user.firstName, verifyUrl });
+
+    console.log(`📧 Resent verification email to ${user.email}`);
+    return res.json({ ok: true, msg: "A new verification email has been sent. Check your inbox." });
+  } catch (err) {
+    console.error("Resend verification error:", err);
+    return res.status(500).json({ ok: false, msg: "Server error" });
+  }
+});
+
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
@@ -516,6 +554,16 @@ router.post(
       if (!user) {
         console.log(`❌ User not found: ${normalizedEmail}`);
         return res.status(400).json({ msg: "Invalid credentials" });
+      }
+
+      // Block login for unverified users (admins are typically verified via seed/admin)
+      const status = (user.verificationStatus || "pending").toString().toLowerCase();
+      if (status !== "verified") {
+        console.log(`❌ Login blocked: ${normalizedEmail} verificationStatus=${status}`);
+        return res.status(403).json({
+          msg: "Please verify your email before signing in. Check your inbox for the verification link.",
+          code: "EMAIL_NOT_VERIFIED",
+        });
       }
 
       console.log(`✅ User found: ${user.email} (${user.userType})`);
