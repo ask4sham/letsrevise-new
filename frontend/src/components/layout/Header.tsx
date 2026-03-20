@@ -49,14 +49,13 @@ const Header: React.FC = () => {
 
   return (
     <header
-      style={{
+        style={{
         background: "white",
         boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
         padding: "0 20px",
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        overflowX: "hidden",
       }}
     >
       {trialDaysRemaining !== null && (
@@ -74,6 +73,8 @@ const Header: React.FC = () => {
           justifyContent: "space-between",
           alignItems: "center",
           height: "70px",
+          position: "relative",
+          zIndex: 1001,
         }}
       >
         {/* Logo */}
@@ -343,7 +344,10 @@ const Header: React.FC = () => {
                 {/* User Profile Dropdown (keep, but hide Settings for parent) */}
                 <li style={{ position: "relative" }}>
                   <button
-                    onClick={() => setShowDropdown(!showDropdown)}
+                    onClick={() => {
+                      console.log("[Header] avatar clicked, showDropdown:", !showDropdown);
+                      setShowDropdown(!showDropdown);
+                    }}
                     style={{
                       background:
                         "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -637,16 +641,17 @@ const Header: React.FC = () => {
         </>
       )}
 
-      {/* Close dropdown when clicking outside */}
+      {/* Close dropdown when clicking outside — backdrop must sit below nav (z 1001) */}
       {showDropdown && (
         <div
+          role="presentation"
           style={{
             position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: 1000,
+            zIndex: 999,
           }}
           onClick={() => setShowDropdown(false)}
         />
