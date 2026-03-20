@@ -32,18 +32,20 @@ SUPABASE_MEDIA_BUCKET=lesson-media
 
 ## 4. Path Structure
 
-Files are stored under:
+Object keys in the bucket (no duplicate bucket name):
 
 ```
-lesson-media/lesson_<lessonId>/page_<pageId>/block_<blockIndex>/<filename>
+lesson_<lessonId>/page_<pageId>/block_<blockIndex>/<filename>
 ```
 
-Example: `lesson-media/lesson_69abc123/page_p_xyz/block_1/cell-mitosis-1234567890.png`
+Example: `lesson_69abc123/page_p_xyz/block_1/cell-mitosis-1234567890.png`
+
+The frontend sends folder `lesson-media/lesson_xxx/...`; the backend strips the leading `lesson-media/` so the object key does not duplicate the bucket name.
 
 ## 5. Example Returned URL
 
 ```
-https://your-project.supabase.co/storage/v1/object/public/lesson-media/lesson-media/lesson_69abc123/page_p_xyz/block_1/image-1234567890.png
+https://your-project.supabase.co/storage/v1/object/public/lesson-media/lesson_69abc123/page_p_xyz/block_1/image.png
 ```
 
 ## 6. Verify
