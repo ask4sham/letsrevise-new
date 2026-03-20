@@ -9,9 +9,6 @@ const { uploadToSupabase, isSupabaseStorageEnabled } = require("../services/supa
 
 const router = express.Router();
 
-/** true when any cloud storage is configured (Supabase or R2) */
-const isCloudStorageEnabled = () => isSupabaseStorageEnabled() || isR2Enabled();
-
 // Base folder where uploads live (configurable via FILE_STORAGE_PATH)
 const { FILE_STORAGE_PATH } = require("../config/paths");
 const UPLOADS_BASE = FILE_STORAGE_PATH;
@@ -81,8 +78,8 @@ const diskStorage = multer.diskStorage({
 
 const memoryStorage = multer.memoryStorage();
 
-// When cloud storage (Supabase or R2) enabled: use memory so we can upload buffer
-const storage = isCloudStorageEnabled() ? memoryStorage : diskStorage;
+// Always use memory for image uploads so we can try Supabase/R2 first; fallback writes buffer to disk
+const storage = memoryStorage;
 
 /** Set upload folder/filename for memory uploads — multer memoryStorage doesn't set these */
 function setUploadMeta(req, res, next) {
@@ -303,8 +300,10 @@ router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => 
     const safeFolder = req._uploadSafeFolder || "images";
     const filename = req.file.filename || makeFilename(req.file);
 
-    if (req.file.buffer && isCloudStorageEnabled()) {
+    if (req.file.buffer) {
       const storagePath = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+      const provider = isSupabaseStorageEnabled() ? "Supabase" : isR2Enabled() ? "R2" : "local";
+      console.log("[uploads] Upload provider:", provider);
 
       if (isSupabaseStorageEnabled()) {
         const supabaseUrl = await uploadToSupabase(
@@ -393,7 +392,7 @@ router.post(
       const safeFolder = req._uploadSafeFolder || "lesson-media";
       const filename = req.file.filename || makeFilename(req.file);
 
-      if (req.file.buffer && isCloudStorageEnabled()) {
+      if (req.file.buffer) {
         const storagePath = `${safeFolder}/${filename}`.replace(/\\/g, "/");
 
         if (isSupabaseStorageEnabled()) {
@@ -457,7 +456,7 @@ router.post(
       const safeFolder = req._uploadSafeFolder || "lesson-images";
       const filename = req.file.filename || makeFilename(req.file);
 
-      if (req.file.buffer && isCloudStorageEnabled()) {
+      if (req.file.buffer) {
         const storagePath = `${safeFolder}/${filename}`.replace(/\\/g, "/");
 
         if (isSupabaseStorageEnabled()) {

@@ -5,12 +5,7 @@
  * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY), SUPABASE_MEDIA_BUCKET
  * When configured, uploads go to Supabase Storage and return public URL.
  */
-let supabaseAdmin;
-try {
-  ({ supabaseAdmin } = require("../routes/supabaseAdmin"));
-} catch {
-  supabaseAdmin = null;
-}
+const { supabaseAdmin } = require("../routes/supabaseAdmin");
 
 const BUCKET = process.env.SUPABASE_MEDIA_BUCKET || "lesson-media";
 
@@ -18,7 +13,7 @@ function isSupabaseStorageEnabled() {
   const url = process.env.SUPABASE_URL;
   const key =
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-  return !!(url && key && supabaseAdmin?.storage);
+  return !!(url && key && supabaseAdmin && typeof supabaseAdmin.storage?.from === "function");
 }
 
 /**
@@ -61,14 +56,16 @@ async function uploadToSupabase(buffer, storagePath, contentType) {
       });
 
     if (error) {
-      console.error("[supabase-storage] Upload error:", error.message);
+      console.error("[supabase-storage] Upload error:", error.message, "| bucket:", BUCKET, "| key:", objectKey);
       return null;
     }
 
     const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(objectKey);
-    return data?.publicUrl || null;
+    const url = data?.publicUrl || null;
+    if (url) console.log("[supabase-storage] Upload OK:", url.slice(0, 80) + "...");
+    return url;
   } catch (err) {
-    console.error("[supabase-storage] Error:", err.message);
+    console.error("[supabase-storage] Error:", err.message, err.stack);
     return null;
   }
 }

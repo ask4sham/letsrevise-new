@@ -108,7 +108,12 @@ app.use("/api/admin/media", require("./routes/adminMedia"));
 
 // Uploads: direct routes first (exact match), then router
 const uploadsRouter = require("./routes/uploads");
-app.get("/api/uploads/__ping", (req, res) => res.json({ ok: true, route: "uploads", hasVideo: true }));
+const { isSupabaseStorageEnabled } = require("./services/supabaseStorage");
+const { isR2Enabled } = require("./services/r2Storage");
+const uploadStorageType = isSupabaseStorageEnabled() ? "supabase" : isR2Enabled() ? "r2" : "local";
+app.get("/api/uploads/__ping", (req, res) =>
+  res.json({ ok: true, route: "uploads", hasVideo: true, storage: uploadStorageType })
+);
 app.post("/api/uploads/video", uploadsRouter.videoUploadRoute);
 app.use("/api/uploads", uploadsRouter);
 
