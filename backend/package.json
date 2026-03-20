@@ -59,7 +59,8 @@
     "migrate:legacy-image-urls": "node scripts/migrate-legacy-image-urls.js",
     "migrate:legacy-image-urls:apply": "node scripts/migrate-legacy-image-urls.js --apply",
     "migrate:uploads-to-supabase": "node scripts/migrate-uploads-to-supabase.js",
-    "migrate:uploads-to-supabase:apply": "node scripts/migrate-uploads-to-supabase.js --apply"
+    "migrate:uploads-to-supabase:apply": "node scripts/migrate-uploads-to-supabase.js --apply",
+    "audit:lesson-images": "node scripts/audit-lesson-images.js"
   },
   "keywords": [
     "education",
