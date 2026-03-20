@@ -1,11 +1,11 @@
 // /frontend/src/pages/LoginPage.tsx
 // PR-AUTH-UI-2: use useCurrentUser for existing-login state; call refresh() after setItem/removeItem.
 import React, { useEffect, useMemo, useState } from "react";
-
-const MOBILE_BREAKPOINT = 768;
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+
+const MOBILE_BREAKPOINT = 768;
 
 /**
  * ✅ Dev-only helpers (hide in production)

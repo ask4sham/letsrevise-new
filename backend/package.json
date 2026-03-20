@@ -57,7 +57,9 @@
     "vector:reset": "docker compose -f ../docker-compose.vector.yml down -v",
     "worker:knowledge-refresh": "node workers/knowledgeRefreshWorker.js",
     "migrate:legacy-image-urls": "node scripts/migrate-legacy-image-urls.js",
-    "migrate:legacy-image-urls:apply": "node scripts/migrate-legacy-image-urls.js --apply"
+    "migrate:legacy-image-urls:apply": "node scripts/migrate-legacy-image-urls.js --apply",
+    "migrate:uploads-to-supabase": "node scripts/migrate-uploads-to-supabase.js",
+    "migrate:uploads-to-supabase:apply": "node scripts/migrate-uploads-to-supabase.js --apply"
   },
   "keywords": [
     "education",
