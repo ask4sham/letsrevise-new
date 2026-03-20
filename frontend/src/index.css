@@ -48,9 +48,8 @@ code {
   height: auto;
 }
 
-/* Prevent horizontal overflow: tables/code scroll, long words wrap */
+/* Long words wrap; avoid overflow-x on container (was collapsing images on desktop) */
 .lesson-content {
-  overflow-x: auto;
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
