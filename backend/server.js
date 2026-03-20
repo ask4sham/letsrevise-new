@@ -307,8 +307,10 @@ app.use("/api", apiLimiter);
 
 // Uploads router (direct /__ping and /video are in app.js)
 app.use("/api/uploads", require("./routes/uploads"));
+const { isSupabaseStorageEnabled } = require("./services/supabaseStorage");
 const { isR2Enabled } = require("./services/r2Storage");
-console.log("[server] Uploads mounted at /api/uploads", isR2Enabled() ? "(R2 storage)" : "(local)");
+const storageLabel = isSupabaseStorageEnabled() ? "Supabase" : isR2Enabled() ? "R2" : "local";
+console.log("[server] Uploads mounted at /api/uploads", `(${storageLabel})`);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

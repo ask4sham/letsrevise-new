@@ -40,6 +40,10 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
         return url.trim();
       }
     }
+    // Supabase Storage: pass through full URLs unchanged
+    if (urlLower.includes("supabase.co/storage/") || urlLower.includes("supabase.in/storage/")) {
+      return url.trim();
+    }
     // R2 / cloud storage: pass through full URLs unchanged (persistent across deploys)
     if (urlLower.includes(".r2.dev") || urlLower.includes("r2.cloudflarestorage.com")) {
       return url.trim();

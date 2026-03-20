@@ -5,8 +5,12 @@ const fs = require("fs");
 const multer = require("multer");
 const auth = require("../middleware/auth");
 const { uploadToR2, isR2Enabled } = require("../services/r2Storage");
+const { uploadToSupabase, isSupabaseStorageEnabled } = require("../services/supabaseStorage");
 
 const router = express.Router();
+
+/** true when any cloud storage is configured (Supabase or R2) */
+const isCloudStorageEnabled = () => isSupabaseStorageEnabled() || isR2Enabled();
 
 // Base folder where uploads live (configurable via FILE_STORAGE_PATH)
 const { FILE_STORAGE_PATH } = require("../config/paths");
@@ -77,10 +81,10 @@ const diskStorage = multer.diskStorage({
 
 const memoryStorage = multer.memoryStorage();
 
-// When R2 enabled: use memory so we can upload buffer to R2
-const storage = isR2Enabled() ? memoryStorage : diskStorage;
+// When cloud storage (Supabase or R2) enabled: use memory so we can upload buffer
+const storage = isCloudStorageEnabled() ? memoryStorage : diskStorage;
 
-/** Set upload folder/filename for R2 (memory) uploads — multer memoryStorage doesn't set these */
+/** Set upload folder/filename for memory uploads — multer memoryStorage doesn't set these */
 function setUploadMeta(req, res, next) {
   const folderValue = req.query?.folder || req.body?.folder || "images";
   const safe = (folderValue || "images")
@@ -197,21 +201,31 @@ const uploadLessonMedia = multer({
 
 // Ping endpoint
 router.get("/", (req, res) => {
+  const storageType = isSupabaseStorageEnabled()
+    ? "supabase"
+    : isR2Enabled()
+      ? "r2"
+      : "local";
   res.json({
     ok: true,
     message:
       "Uploads API ready. POST /api/uploads/image (images) or POST /api/uploads/video (videos)",
-    storage: isR2Enabled() ? "r2" : "local",
+    storage: storageType,
   });
 });
 
 // Debug: verify router is mounted — GET /api/uploads/__ping
 router.get("/__ping", (req, res) => {
+  const storageType = isSupabaseStorageEnabled()
+    ? "supabase"
+    : isR2Enabled()
+      ? "r2"
+      : "local";
   res.json({
     ok: true,
     route: "uploads",
     hasVideo: true,
-    storage: isR2Enabled() ? "r2" : "local",
+    storage: storageType,
   });
 });
 
@@ -289,26 +303,57 @@ router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => 
     const safeFolder = req._uploadSafeFolder || "images";
     const filename = req.file.filename || makeFilename(req.file);
 
-    if (isR2Enabled() && req.file.buffer) {
-      const key = `${safeFolder}/${filename}`.replace(/\\/g, "/");
-      const r2Url = await uploadToR2(
-        req.file.buffer,
-        key,
-        req.file.mimetype || "image/png"
-      );
-      if (r2Url) {
-        return res.json({
-          ok: true,
-          url: r2Url,
-          filename,
-          folder: safeFolder,
-          storage: "r2",
-        });
+    if (req.file.buffer && isCloudStorageEnabled()) {
+      const storagePath = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+
+      if (isSupabaseStorageEnabled()) {
+        const supabaseUrl = await uploadToSupabase(
+          req.file.buffer,
+          storagePath,
+          req.file.mimetype || "image/png"
+        );
+        if (supabaseUrl) {
+          return res.json({
+            ok: true,
+            url: supabaseUrl,
+            filename,
+            folder: safeFolder,
+            storage: "supabase",
+          });
+        }
+        console.warn("[uploads] Supabase upload failed, trying fallback");
       }
-      console.warn("[uploads] R2 upload failed, falling back to local");
+
+      if (isR2Enabled()) {
+        const r2Url = await uploadToR2(
+          req.file.buffer,
+          storagePath,
+          req.file.mimetype || "image/png"
+        );
+        if (r2Url) {
+          return res.json({
+            ok: true,
+            url: r2Url,
+            filename,
+            folder: safeFolder,
+            storage: "r2",
+          });
+        }
+        console.warn("[uploads] R2 upload failed, falling back to local");
+      }
+
+      // Cloud enabled but both failed: write buffer to disk as fallback
+      try {
+        const { abs } = sanitizeFolder(safeFolder);
+        const destPath = path.join(abs, filename);
+        fs.writeFileSync(destPath, req.file.buffer);
+      } catch (writeErr) {
+        console.error("[uploads] Fallback disk write failed:", writeErr.message);
+        return res.status(500).json({ error: "Upload failed. Storage unavailable." });
+      }
     }
 
-    // Local disk (or R2 fallback)
+    // Local disk (or cloud fallback)
     const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
     return res.json({
       ok: true,
@@ -348,11 +393,33 @@ router.post(
       const safeFolder = req._uploadSafeFolder || "lesson-media";
       const filename = req.file.filename || makeFilename(req.file);
 
-      if (isR2Enabled() && req.file.buffer) {
-        const key = `${safeFolder}/${filename}`.replace(/\\/g, "/");
-        const r2Url = await uploadToR2(req.file.buffer, key, req.file.mimetype || "image/png");
-        if (r2Url) {
-          return res.json({ ok: true, url: r2Url, filename, folder: safeFolder, storage: "r2" });
+      if (req.file.buffer && isCloudStorageEnabled()) {
+        const storagePath = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+
+        if (isSupabaseStorageEnabled()) {
+          const supabaseUrl = await uploadToSupabase(
+            req.file.buffer,
+            storagePath,
+            req.file.mimetype || "image/png"
+          );
+          if (supabaseUrl) {
+            return res.json({ ok: true, url: supabaseUrl, filename, folder: safeFolder, storage: "supabase" });
+          }
+        }
+
+        if (isR2Enabled()) {
+          const r2Url = await uploadToR2(req.file.buffer, storagePath, req.file.mimetype || "image/png");
+          if (r2Url) {
+            return res.json({ ok: true, url: r2Url, filename, folder: safeFolder, storage: "r2" });
+          }
+        }
+
+        try {
+          const { abs } = sanitizeFolder(safeFolder);
+          fs.writeFileSync(path.join(abs, filename), req.file.buffer);
+        } catch (writeErr) {
+          console.error("[uploads] Lesson-media fallback write failed:", writeErr.message);
+          return res.status(500).json({ error: "Upload failed. Storage unavailable." });
         }
       }
 
@@ -390,11 +457,33 @@ router.post(
       const safeFolder = req._uploadSafeFolder || "lesson-images";
       const filename = req.file.filename || makeFilename(req.file);
 
-      if (isR2Enabled() && req.file.buffer) {
-        const key = `${safeFolder}/${filename}`.replace(/\\/g, "/");
-        const r2Url = await uploadToR2(req.file.buffer, key, req.file.mimetype || "image/png");
-        if (r2Url) {
-          return res.json({ ok: true, url: r2Url, filename, folder: safeFolder, storage: "r2" });
+      if (req.file.buffer && isCloudStorageEnabled()) {
+        const storagePath = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+
+        if (isSupabaseStorageEnabled()) {
+          const supabaseUrl = await uploadToSupabase(
+            req.file.buffer,
+            storagePath,
+            req.file.mimetype || "image/png"
+          );
+          if (supabaseUrl) {
+            return res.json({ ok: true, url: supabaseUrl, filename, folder: safeFolder, storage: "supabase" });
+          }
+        }
+
+        if (isR2Enabled()) {
+          const r2Url = await uploadToR2(req.file.buffer, storagePath, req.file.mimetype || "image/png");
+          if (r2Url) {
+            return res.json({ ok: true, url: r2Url, filename, folder: safeFolder, storage: "r2" });
+          }
+        }
+
+        try {
+          const { abs } = sanitizeFolder(safeFolder);
+          fs.writeFileSync(path.join(abs, filename), req.file.buffer);
+        } catch (writeErr) {
+          console.error("[uploads] Lesson-image fallback write failed:", writeErr.message);
+          return res.status(500).json({ error: "Upload failed. Storage unavailable." });
         }
       }
 
