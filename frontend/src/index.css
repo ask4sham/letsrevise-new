@@ -40,12 +40,25 @@ code {
   width: 44px;
 }
 
-/* Lesson content images: centered, responsive */
+/* Lesson content: responsive images, tables, code */
 .lesson-content img {
   display: block;
   margin: 20px auto;
   max-width: 100%;
   height: auto;
+}
+
+/* Prevent horizontal overflow: tables/code scroll, long words wrap */
+.lesson-content {
+  overflow-x: auto;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.lesson-content pre,
+.lesson-content code {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* PR-UX-DASH-TEACH-2: Teacher dashboard 3-column layout stacks on mobile */

@@ -436,13 +436,13 @@ function DiagramBlockContent({
 
   return (
     <div style={boxStyle}>
-      <div style={{ position: "relative", display: "inline-block", maxWidth: 720, width: "100%" }}>
+      <div style={{ position: "relative", display: "block", maxWidth: "100%", width: "100%" }}>
         <img
           src={src}
           alt={caption || "Diagram"}
           style={{
             width: "100%",
-            maxWidth: 720,
+            maxWidth: "100%",
             height: "auto",
             borderRadius: 12,
             display: "block",
@@ -1125,10 +1125,11 @@ const LessonViewPage: React.FC = () => {
   const flashcardsViewerRef = useRef<HTMLDivElement>(null);
 
   /** Mobile/tablet: stack layout below 768px; preserve 3-column desktop above */
-  const [layoutStacked, setLayoutStacked] = useState(false);
+  const [layoutStacked, setLayoutStacked] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth < 768
+  );
   useEffect(() => {
     const check = () => setLayoutStacked(window.innerWidth < 768);
-    check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
@@ -2411,7 +2412,7 @@ const LessonViewPage: React.FC = () => {
               <video
                 controls
                 src={srcAbs}
-                style={{ width: "100%", maxWidth: 720, borderRadius: 12, background: "#000" }}
+                style={{ width: "100%", maxWidth: "100%", borderRadius: 12, background: "#000" }}
               />
               {childStr !== "Video:" && (
                 <div style={{ marginTop: 6, fontSize: "0.9rem", color: "#6b7280" }}>
@@ -2644,7 +2645,7 @@ const LessonViewPage: React.FC = () => {
           <img
             src={src}
             alt={block.alt ?? (caption || "Diagram")}
-            style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12 }}
+            style={{ width: "100%", maxWidth: "100%", height: "auto", borderRadius: 12 }}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
@@ -3117,8 +3118,9 @@ const LessonViewPage: React.FC = () => {
         style={{
           minHeight: "100vh",
           background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-          padding: "18px",
+          padding: layoutStacked ? "12px" : "18px",
           fontSize: BASE_FONT_SIZE,
+          overflowX: "hidden",
         }}
       >
         {aiToast && (
@@ -3128,7 +3130,7 @@ const LessonViewPage: React.FC = () => {
             onClose={() => setAiToast(null)}
           />
         )}
-        <div style={{ maxWidth: 1750, margin: "0 auto" }}>
+        <div style={{ maxWidth: 1750, margin: "0 auto", minWidth: 0 }}>
           {/* ✅ PROOF PANEL REMOVED FROM HERE */}
 
           <div style={{ marginBottom: 12 }}>
@@ -3245,8 +3247,9 @@ const LessonViewPage: React.FC = () => {
             style={{
               display: "grid",
               gridTemplateColumns: layoutStacked ? "1fr" : "260px minmax(0, 1fr) 280px",
-              gap: 18,
+              gap: layoutStacked ? 16 : 18,
               alignItems: "start",
+              minWidth: 0,
             }}
           >
             {/* LEFT SIDEBAR */}
@@ -3257,11 +3260,12 @@ const LessonViewPage: React.FC = () => {
                 alignSelf: "start",
                 background: "white",
                 borderRadius: 14,
-                padding: 14,
+                padding: layoutStacked ? 12 : 14,
                 boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
                 border: "2px solid rgba(59,130,246,0.35)",
                 textAlign: "left",
                 order: layoutStacked ? 2 : undefined,
+                minWidth: layoutStacked ? 0 : undefined,
               }}
             >
               <div
@@ -3361,14 +3365,16 @@ const LessonViewPage: React.FC = () => {
             </aside>
 
             {/* MAIN CONTENT CARD */}
-            <main style={{ order: layoutStacked ? 1 : undefined }}>
+            <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0 }}>
               <div
                 style={{
                   background: "white",
                   borderRadius: 16,
-                  padding: "28px",
-                  maxWidth: 1100,
+                  padding: layoutStacked ? "16px" : "28px",
+                  maxWidth: layoutStacked ? "100%" : 1100,
+                  width: "100%",
                   margin: "0 auto",
+                  boxSizing: "border-box",
                   boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
                   border: "3px solid rgba(59,130,246,0.45)",
                   textAlign: "left",
@@ -3383,7 +3389,7 @@ const LessonViewPage: React.FC = () => {
                       margin: 0,
                       color: "#111827",
                       textAlign: "left",
-                      fontSize: "2.4rem",
+                      fontSize: layoutStacked ? "1.75rem" : "2.4rem",
                       fontWeight: 950 as any,
                       lineHeight: 1.15,
                       letterSpacing: "-0.02em",
@@ -3433,7 +3439,7 @@ const LessonViewPage: React.FC = () => {
                       margin: "16px 0 0",
                       color: "#111827",
                       textAlign: "left",
-                      fontSize: "2.0rem",
+                      fontSize: layoutStacked ? "1.4rem" : "2.0rem",
                       fontWeight: 900,
                       lineHeight: 1.2,
                     }}
@@ -4185,8 +4191,10 @@ const LessonViewPage: React.FC = () => {
       style={{
         maxWidth: "1000px",
         margin: "0 auto",
-        padding: "20px",
+        padding: layoutStacked ? "12px" : "20px",
         fontSize: BASE_FONT_SIZE,
+        overflowX: "hidden",
+        minWidth: 0,
       }}
     >
       {aiToast && (
