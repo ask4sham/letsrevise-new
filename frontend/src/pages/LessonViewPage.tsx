@@ -1123,6 +1123,15 @@ const LessonViewPage: React.FC = () => {
   // PR-FE-FLASHCARDS-COLLAPSE-1: flashcards section collapsed by default, expand on click
   const [showFlashcards, setShowFlashcards] = useState(false);
   const flashcardsViewerRef = useRef<HTMLDivElement>(null);
+
+  /** Mobile/tablet: stack layout below 768px; preserve 3-column desktop above */
+  const [layoutStacked, setLayoutStacked] = useState(false);
+  useEffect(() => {
+    const check = () => setLayoutStacked(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   useEffect(() => {
     if (previewLockRef.current) {
       if (process.env.NODE_ENV !== "production") {
@@ -3235,7 +3244,7 @@ const LessonViewPage: React.FC = () => {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "260px minmax(0, 1fr) 280px",
+              gridTemplateColumns: layoutStacked ? "1fr" : "260px minmax(0, 1fr) 280px",
               gap: 18,
               alignItems: "start",
             }}
@@ -3243,8 +3252,8 @@ const LessonViewPage: React.FC = () => {
             {/* LEFT SIDEBAR */}
             <aside
               style={{
-                position: "sticky",
-                top: 16,
+                position: layoutStacked ? undefined : "sticky",
+                top: layoutStacked ? undefined : 16,
                 alignSelf: "start",
                 background: "white",
                 borderRadius: 14,
@@ -3252,6 +3261,7 @@ const LessonViewPage: React.FC = () => {
                 boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
                 border: "2px solid rgba(59,130,246,0.35)",
                 textAlign: "left",
+                order: layoutStacked ? 2 : undefined,
               }}
             >
               <div
@@ -3351,7 +3361,7 @@ const LessonViewPage: React.FC = () => {
             </aside>
 
             {/* MAIN CONTENT CARD */}
-            <main>
+            <main style={{ order: layoutStacked ? 1 : undefined }}>
               <div
                 style={{
                   background: "white",
@@ -4086,12 +4096,13 @@ const LessonViewPage: React.FC = () => {
             {/* RIGHT RAIL */}
             <aside
               style={{
-                position: "sticky",
-                top: 16,
+                position: layoutStacked ? undefined : "sticky",
+                top: layoutStacked ? undefined : 16,
                 alignSelf: "start",
                 display: "flex",
                 flexDirection: "column",
                 gap: 12,
+                order: layoutStacked ? 3 : undefined,
               }}
             >
               <div

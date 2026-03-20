@@ -5,15 +5,27 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getTrialDaysRemaining } from "../../utils/trial";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
+const MOBILE_BREAKPOINT = 768;
+
 const Header: React.FC = () => {
   const { user, isLoggedIn, refresh } = useCurrentUser({ watchLocation: true });
   const [showDropdown, setShowDropdown] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Close dropdown when navigating
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Close dropdown and mobile menu when navigating
   useEffect(() => {
     setShowDropdown(false);
+    setMobileMenuOpen(false);
   }, [location.pathname, location.search, location.hash]);
 
   const handleLogout = () => {
@@ -44,6 +56,7 @@ const Header: React.FC = () => {
         position: "sticky",
         top: 0,
         zIndex: 1000,
+        overflowX: "hidden",
       }}
     >
       {trialDaysRemaining !== null && (
@@ -115,8 +128,40 @@ const Header: React.FC = () => {
           </div>
         </Link>
 
-        {/* Navigation */}
-        <nav>
+        {/* Hamburger (mobile only) */}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 44,
+              minWidth: 44,
+              height: 44,
+              minHeight: 44,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              borderRadius: 8,
+              fontSize: "1.5rem",
+              color: "#333",
+            }}
+          >
+            {mobileMenuOpen ? "✕" : "☰"}
+          </button>
+        )}
+
+        {/* Desktop Navigation (hidden on mobile) */}
+        <nav
+          style={{
+            display: isMobile ? "none" : "block",
+          }}
+        >
           <ul
             style={{
               display: "flex",
@@ -510,6 +555,87 @@ const Header: React.FC = () => {
           </ul>
         </nav>
       </div>
+
+      {/* Mobile menu backdrop + panel */}
+      {isMobile && mobileMenuOpen && (
+        <>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Close menu"
+            onClick={() => setMobileMenuOpen(false)}
+            onKeyDown={(e) => e.key === "Escape" && setMobileMenuOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.3)",
+              zIndex: 1000,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            background: "white",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            zIndex: 1001,
+            maxHeight: "calc(100vh - 80px)",
+            overflowY: "auto",
+            padding: "16px 20px",
+          }}
+        >
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+            {isLoggedIn ? (
+              <>
+                <li>
+                  <Link to={dashboardLink} style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Dashboard</Link>
+                </li>
+                {!isParent && user?.userType === "student" && (
+                  <>
+                    <li><Link to="/student/my-work" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>My Work</Link></li>
+                    <li><Link to="/student/my-progress" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>My Progress</Link></li>
+                    <li><Link to="/student/practice" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Practice</Link></li>
+                    <li><Link to="/lessons" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Browse Lessons</Link></li>
+                  </>
+                )}
+                {!isParent && user?.userType === "teacher" && (
+                  <>
+                    <li><Link to="/create-lesson" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Create Lesson</Link></li>
+                    <li><Link to="/payouts" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Payouts</Link></li>
+                  </>
+                )}
+                {!isParent && user?.userType === "admin" && (
+                  <li><Link to="/admin" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Admin Dashboard</Link></li>
+                )}
+                {!isParent && (
+                  <li><Link to="/subscription" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Subscription</Link></li>
+                )}
+                <li>
+                  <Link to="/profile" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>👤 My Profile</Link>
+                </li>
+                {!isParent && (
+                  <li><Link to="/settings" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>⚙️ Settings</Link></li>
+                )}
+                <li>
+                  <button onClick={handleLogout} style={{ width: "100%", display: "block", padding: "14px 16px", background: "none", border: "none", color: "#dc3545", textAlign: "left", cursor: "pointer", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>🚪 Logout</button>
+                </li>
+              </>
+            ) : (
+              <>
+                <li><Link to="/" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Home</Link></li>
+                <li><Link to="/about" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>About</Link></li>
+                <li><Link to="/lessons" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Lessons</Link></li>
+                <li><Link to="/pricing" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Pricing</Link></li>
+                <li><Link to="/login" style={{ display: "block", padding: "14px 16px", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box", textAlign: "center" }}>Login</Link></li>
+                <li><Link to="/register" style={{ display: "block", padding: "14px 16px", background: "white", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", border: "2px solid #667eea", minHeight: 44, boxSizing: "border-box", textAlign: "center" }}>Sign Up</Link></li>
+              </>
+            )}
+          </ul>
+        </div>
+        </>
+      )}
 
       {/* Close dropdown when clicking outside */}
       {showDropdown && (

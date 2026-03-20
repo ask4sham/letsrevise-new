@@ -331,7 +331,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  style={inputStyle}
+                  style={inputWithEyeStyle}
                   placeholder="Enter password"
                 />
                 <button
@@ -354,7 +354,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={inputStyle}
+                  style={inputWithEyeStyle}
                   placeholder="Re-enter password"
                 />
                 <button
@@ -373,7 +373,8 @@ const RegisterPage: React.FC = () => {
               disabled={loading}
               style={{
                 width: "100%",
-                padding: "14px",
+                padding: "14px 16px",
+                minHeight: 44,
                 background: loading ? "#999" : "#007bff",
                 color: "white",
                 border: "none",
@@ -414,15 +415,28 @@ const inputStyle: React.CSSProperties = {
   fontSize: "1rem",
 };
 
+const inputWithEyeStyle: React.CSSProperties = {
+  ...inputStyle,
+  paddingRight: 44,
+};
+
 const eyeButtonStyle: React.CSSProperties = {
   position: "absolute",
-  right: 10,
+  right: 0,
   top: "50%",
   transform: "translateY(-50%)",
+  width: 44,
+  minWidth: 44,
+  height: 44,
+  minHeight: 44,
+  padding: 0,
   border: "none",
   background: "transparent",
   cursor: "pointer",
   fontSize: "1rem",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 export default RegisterPage;

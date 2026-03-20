@@ -1,6 +1,8 @@
 // /frontend/src/pages/LoginPage.tsx
 // PR-AUTH-UI-2: use useCurrentUser for existing-login state; call refresh() after setItem/removeItem.
 import React, { useEffect, useMemo, useState } from "react";
+
+const MOBILE_BREAKPOINT = 768;
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -52,6 +54,13 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [backendStatus, setBackendStatus] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // Show a clear "you're already logged in" state (prevents confusion)
   const [existingUserEmail, setExistingUserEmail] = useState<string | null>(null);
@@ -191,8 +200,10 @@ const LoginPage: React.FC = () => {
     const c = ROLE_COLORS[role];
 
     return {
-      flex: 1,
-      padding: "10px 12px",
+      flex: isMobile ? "1 1 45%" : 1,
+      minWidth: isMobile ? undefined : 0,
+      padding: "12px 14px",
+      minHeight: 44,
       borderRadius: "8px",
       border: isActive ? `2px solid ${c.border}` : `1px solid ${c.border}`,
       background: isActive ? c.bgActive : "#fff",
@@ -268,13 +279,15 @@ const LoginPage: React.FC = () => {
               }}
             >
               You’re already logged in as <b>{existingUserEmail}</b>.
-              <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
+              <div style={{ marginTop: "10px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <button
                   type="button"
                   onClick={() => redirectAfterLogin(currentUser?.userType)}
                   style={{
                     flex: 1,
-                    padding: "10px",
+                    minWidth: 120,
+                    padding: "12px 16px",
+                    minHeight: 44,
                     background: "#0d6efd",
                     color: "white",
                     border: "none",
@@ -289,7 +302,9 @@ const LoginPage: React.FC = () => {
                   onClick={hardLogout}
                   style={{
                     flex: 1,
-                    padding: "10px",
+                    minWidth: 120,
+                    padding: "12px 16px",
+                    minHeight: 44,
                     background: "#dc3545",
                     color: "white",
                     border: "none",
@@ -303,8 +318,8 @@ const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Role tabs: Student / Teacher / Parent / Admin */}
-          <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
+          {/* Role tabs: Student / Teacher / Parent / Admin (wrap on mobile) */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
             <button
               type="button"
               style={tabStyle("student")}
@@ -413,13 +428,21 @@ const LoginPage: React.FC = () => {
                   onClick={() => setShowPassword((prev) => !prev)}
                   style={{
                     position: "absolute",
-                    right: 10,
+                    right: 0,
                     top: "50%",
                     transform: "translateY(-50%)",
+                    width: 44,
+                    minWidth: 44,
+                    height: 44,
+                    minHeight: 44,
+                    padding: 0,
                     border: "none",
                     background: "transparent",
                     cursor: "pointer",
                     fontSize: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -433,7 +456,8 @@ const LoginPage: React.FC = () => {
               disabled={loading}
               style={{
                 width: "100%",
-                padding: "14px",
+                padding: "14px 16px",
+                minHeight: 44,
                 background: loading ? "#999" : "#007bff",
                 color: "white",
                 border: "none",
