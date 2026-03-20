@@ -33,12 +33,16 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
       const match = url.trim().match(NETLIFY_PATTERN);
       if (match) return `${RENDER_BACKEND}${match[1]}`;
     }
-    // Backend URLs: return as-is. Backend serves assets; img loads cross-origin. Do NOT rewrite to Netlify.
+    // Backend URLs: return as-is
     for (const backend of BACKENDS) {
       const bl = backend.toLowerCase();
       if (urlLower.startsWith(bl + "/uploads/") || urlLower.startsWith(bl + "/visuals/") || urlLower.startsWith(bl + "/content/")) {
         return url.trim();
       }
+    }
+    // R2 / cloud storage: pass through full URLs unchanged (persistent across deploys)
+    if (urlLower.includes(".r2.dev") || urlLower.includes("r2.cloudflarestorage.com")) {
+      return url.trim();
     }
     return url;
   }

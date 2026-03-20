@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const auth = require("../middleware/auth");
+const { uploadToR2, isR2Enabled } = require("../services/r2Storage");
 
 const router = express.Router();
 
@@ -46,7 +47,19 @@ function sanitizeFolder(folderValue) {
   return { safe, abs };
 }
 
-const storage = multer.diskStorage({
+function makeFilename(file) {
+  const ext = path.extname(file.originalname || "").toLowerCase() || ".png";
+  const base = path
+    .basename(file.originalname || "upload", ext)
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const stamp = Date.now();
+  return `${base || "file"}-${stamp}${ext}`;
+}
+
+const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     try {
       const folderValue = req.query?.folder || req.body?.folder || "images";
@@ -58,17 +71,29 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".png";
-    const base = path
-      .basename(file.originalname || "upload", ext)
-      .toLowerCase()
-      .replace(/[^a-z0-9-_]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    const stamp = Date.now();
-    cb(null, `${base || "file"}-${stamp}${ext}`);
+    cb(null, makeFilename(file));
   },
 });
+
+const memoryStorage = multer.memoryStorage();
+
+// When R2 enabled: use memory so we can upload buffer to R2
+const storage = isR2Enabled() ? memoryStorage : diskStorage;
+
+/** Set upload folder/filename for R2 (memory) uploads — multer memoryStorage doesn't set these */
+function setUploadMeta(req, res, next) {
+  const folderValue = req.query?.folder || req.body?.folder || "images";
+  const safe = (folderValue || "images")
+    .toString()
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\.\./g, "");
+  req._uploadSafeFolder = safe;
+  if (req.file && !req.file.filename) {
+    req.file.filename = makeFilename(req.file);
+  }
+  next();
+}
 
 // ---------- IMAGE UPLOAD (images only)
 const imageMimeTypes = [
@@ -176,12 +201,18 @@ router.get("/", (req, res) => {
     ok: true,
     message:
       "Uploads API ready. POST /api/uploads/image (images) or POST /api/uploads/video (videos)",
+    storage: isR2Enabled() ? "r2" : "local",
   });
 });
 
 // Debug: verify router is mounted — GET /api/uploads/__ping
 router.get("/__ping", (req, res) => {
-  res.json({ ok: true, route: "uploads", hasVideo: true });
+  res.json({
+    ok: true,
+    route: "uploads",
+    hasVideo: true,
+    storage: isR2Enabled() ? "r2" : "local",
+  });
 });
 
 /**
@@ -244,8 +275,10 @@ router.post("/video", videoUploadRoute);
 /**
  * POST /api/uploads/image — Images only (png/jpg/jpeg/webp/gif).
  * Field name: file. Optional querystring: ?folder=images/gcse
+ * When R2 configured: uploads to R2, returns full public URL (https://...r2.dev/...).
+ * Otherwise: saves to local disk, returns /uploads/... path.
  */
-router.post("/image", upload.single("file"), (req, res) => {
+router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => {
   try {
     if (!req.file) {
       return res
@@ -253,17 +286,34 @@ router.post("/image", upload.single("file"), (req, res) => {
         .json({ error: "No file uploaded. Use form field name: file" });
     }
 
-    // ✅ Use folder chosen during destination (always correct)
     const safeFolder = req._uploadSafeFolder || "images";
-    const publicUrl = `/uploads/${safeFolder}/${req.file.filename}`.replace(
-      /\\/g,
-      "/"
-    );
+    const filename = req.file.filename || makeFilename(req.file);
 
+    if (isR2Enabled() && req.file.buffer) {
+      const key = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+      const r2Url = await uploadToR2(
+        req.file.buffer,
+        key,
+        req.file.mimetype || "image/png"
+      );
+      if (r2Url) {
+        return res.json({
+          ok: true,
+          url: r2Url,
+          filename,
+          folder: safeFolder,
+          storage: "r2",
+        });
+      }
+      console.warn("[uploads] R2 upload failed, falling back to local");
+    }
+
+    // Local disk (or R2 fallback)
+    const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
     return res.json({
       ok: true,
       url: publicUrl,
-      filename: req.file.filename,
+      filename,
       folder: safeFolder,
     });
   } catch (e) {
@@ -276,8 +326,7 @@ router.post("/image", upload.single("file"), (req, res) => {
 
 /**
  * POST /api/uploads/lesson-media — CreateLessonPage (and draft) image/video upload.
- * Auth required. Stores under uploads/lesson-media/... (folder from query).
- * Use when Supabase is unreachable (e.g. ERR_NAME_NOT_RESOLVED); same-origin request to backend.
+ * Auth required. When R2 configured: returns full R2 URL. Otherwise: /uploads/lesson-media/...
  */
 router.post(
   "/lesson-media",
@@ -290,14 +339,25 @@ router.post(
     next();
   },
   uploadLessonMedia.single("file"),
-  (req, res) => {
+  setUploadMeta,
+  async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded. Use form field name: file" });
       }
       const safeFolder = req._uploadSafeFolder || "lesson-media";
-      const publicUrl = `/uploads/${safeFolder}/${req.file.filename}`.replace(/\\/g, "/");
-      return res.json({ ok: true, url: publicUrl, filename: req.file.filename, folder: safeFolder });
+      const filename = req.file.filename || makeFilename(req.file);
+
+      if (isR2Enabled() && req.file.buffer) {
+        const key = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+        const r2Url = await uploadToR2(req.file.buffer, key, req.file.mimetype || "image/png");
+        if (r2Url) {
+          return res.json({ ok: true, url: r2Url, filename, folder: safeFolder, storage: "r2" });
+        }
+      }
+
+      const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
+      return res.json({ ok: true, url: publicUrl, filename, folder: safeFolder });
     } catch (e) {
       console.error("Lesson-media upload error:", e);
       return res.status(500).json({ error: "Upload failed", details: e?.message || String(e) });
@@ -306,26 +366,20 @@ router.post(
 );
 
 /**
- * ✅ NEW: Lesson image upload endpoint for CreateLessonPage
- *
- * Frontend calls:
- *   POST /api/uploads/lesson-image
- *   field name: "image"
- *
- * We default folder to "lesson-images" so files go under:
- *   /uploads/lesson-images/...
+ * POST /api/uploads/lesson-image — CreateLessonPage, field name: "image"
+ * When R2 configured: returns full R2 URL. Otherwise: /uploads/lesson-images/...
  */
 router.post(
   "/lesson-image",
   (req, res, next) => {
-    // If caller didn't specify folder, default to "lesson-images"
     if (!req.query.folder && !req.body?.folder) {
       req.query.folder = "lesson-images";
     }
     next();
   },
   upload.single("image"),
-  (req, res) => {
+  setUploadMeta,
+  async (req, res) => {
     try {
       if (!req.file) {
         return res
@@ -334,17 +388,18 @@ router.post(
       }
 
       const safeFolder = req._uploadSafeFolder || "lesson-images";
-      const publicUrl = `/uploads/${safeFolder}/${req.file.filename}`.replace(
-        /\\/g,
-        "/"
-      );
+      const filename = req.file.filename || makeFilename(req.file);
 
-      return res.json({
-        ok: true,
-        url: publicUrl,
-        filename: req.file.filename,
-        folder: safeFolder,
-      });
+      if (isR2Enabled() && req.file.buffer) {
+        const key = `${safeFolder}/${filename}`.replace(/\\/g, "/");
+        const r2Url = await uploadToR2(req.file.buffer, key, req.file.mimetype || "image/png");
+        if (r2Url) {
+          return res.json({ ok: true, url: r2Url, filename, folder: safeFolder, storage: "r2" });
+        }
+      }
+
+      const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
+      return res.json({ ok: true, url: publicUrl, filename, folder: safeFolder });
     } catch (e) {
       console.error("Lesson-image upload handler error:", e);
       return res.status(500).json({

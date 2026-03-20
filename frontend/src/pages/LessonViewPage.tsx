@@ -1,7 +1,7 @@
 // frontend/src/pages/LessonViewPage.tsx
 import React, { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import api, { getVisual, getVisualById } from "../services/api";
@@ -2437,6 +2437,18 @@ const LessonViewPage: React.FC = () => {
     return content.replace(/\[Video:[^\]]*\]\([^)]*\)/gi, "").replace(/\n{3,}/g, "\n\n").trim();
   };
 
+  /** Ensure asset URLs pass through ReactMarkdown urlTransform (v10 sanitizes by default) */
+  const urlTransform = useCallback((url: string) => {
+    try {
+      const decoded = url?.includes("%") ? decodeURIComponent(url) : (url ?? "");
+      const abs = makeAbsoluteAssetUrl(decoded);
+      if (abs) return abs;
+      return defaultUrlTransform(url ?? "");
+    } catch {
+      return defaultUrlTransform(url ?? "");
+    }
+  }, []);
+
   /** Strip media from Description — top box is plain text only; video/images render in blocks */
   const stripMediaFromDescription = (content = ""): string => {
     return String(content)
@@ -2500,7 +2512,7 @@ const LessonViewPage: React.FC = () => {
             🔑 Key Idea(s)
           </div>
           <div className="lesson-content">
-            <ReactMarkdown components={markdownComponents as any}>
+            <ReactMarkdown components={markdownComponents as any} urlTransform={urlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
@@ -2522,7 +2534,7 @@ const LessonViewPage: React.FC = () => {
             🧠 Exam insight
           </div>
           <div className="lesson-content">
-            <ReactMarkdown components={markdownComponents as any}>
+            <ReactMarkdown components={markdownComponents as any} urlTransform={urlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
@@ -2544,7 +2556,7 @@ const LessonViewPage: React.FC = () => {
             ⚠️ Common mistake(s)
           </div>
           <div className="lesson-content">
-            <ReactMarkdown components={markdownComponents as any}>
+            <ReactMarkdown components={markdownComponents as any} urlTransform={urlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
@@ -2568,7 +2580,7 @@ const LessonViewPage: React.FC = () => {
             🔍 Deeper knowledge (stretch)
           </div>
           <div className="lesson-content">
-            <ReactMarkdown components={markdownComponents as any}>
+            <ReactMarkdown components={markdownComponents as any} urlTransform={urlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </ReactMarkdown>
           </div>
@@ -2616,7 +2628,7 @@ const LessonViewPage: React.FC = () => {
           boxShadow: "0 0 0 2px rgba(0,0,0,0.03)",
         }}
       >
-        <ReactMarkdown components={markdownComponents as any}>
+        <ReactMarkdown components={markdownComponents as any} urlTransform={urlTransform}>
           {preprocessMarkdownAssetUrls(text)}
         </ReactMarkdown>
       </div>
@@ -4308,8 +4320,8 @@ const LessonViewPage: React.FC = () => {
               fontSize: BASE_FONT_SIZE,
             }}
           >
-            <ReactMarkdown components={markdownComponents as any}>
-              {stripVideoMarkdown(lesson.content || "")}
+            <ReactMarkdown components={markdownComponents as any} urlTransform={urlTransform}>
+              {preprocessMarkdownAssetUrls(stripVideoMarkdown(lesson.content || ""))}
             </ReactMarkdown>
           </div>
         </div>

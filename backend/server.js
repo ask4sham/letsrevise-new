@@ -307,7 +307,8 @@ app.use("/api", apiLimiter);
 
 // Uploads router (direct /__ping and /video are in app.js)
 app.use("/api/uploads", require("./routes/uploads"));
-console.log("[server] Uploads mounted at /api/uploads");
+const { isR2Enabled } = require("./services/r2Storage");
+console.log("[server] Uploads mounted at /api/uploads", isR2Enabled() ? "(R2 storage)" : "(local)");
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
