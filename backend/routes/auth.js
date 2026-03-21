@@ -1,12 +1,29 @@
 // /backend/routes/auth.js
 const express = require("express");
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
 const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { msg: "Too many reset requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { msg: "Too many reset attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ✅ SINGLE SOURCE OF TRUTH for JWT secret (trimmed / normalized)
 const { getJwtSecret } = require("../utils/jwtSecret");
@@ -74,6 +91,37 @@ async function sendParentLinkEmail({ to, parentName, approveUrl, rejectUrl }) {
     </div>
   `;
 
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
+    to,
+    subject,
+    html,
+  });
+}
+
+/** Password reset: send reset link. Uses Resend; logs only if not configured. */
+async function sendPasswordResetEmail({ to, firstName, resetUrl, expiresInHours }) {
+  const displayName = (firstName || "there").trim() || "there";
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    console.log("📧 Password reset email (DEV LOG ONLY):", { to, resetUrl });
+    return;
+  }
+  const { Resend } = require("resend");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const subject = "Reset your LetsRevise password";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>Reset your password</h2>
+      <p>Hi ${displayName},</p>
+      <p>You requested a password reset for your LetsRevise account. Click the link below to set a new password:</p>
+      <p>
+        <a href="${resetUrl}" style="padding:10px 14px;background:#2563eb;color:white;border-radius:6px;text-decoration:none;">
+          Reset my password
+        </a>
+      </p>
+      <p>This link expires in ${expiresInHours} hour${expiresInHours !== 1 ? "s" : ""}. If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL,
     to,
@@ -526,6 +574,103 @@ router.post("/resend-verification", [check("email", "Valid email is required").i
     return res.status(500).json({ ok: false, msg: "Server error" });
   }
 });
+
+// @route   POST api/auth/forgot-password
+// @desc    Request password reset email (always returns generic success)
+// @access  Public (rate-limited)
+const PASSWORD_RESET_EXPIRY_HOURS = 1;
+router.post(
+  "/forgot-password",
+  forgotPasswordLimiter,
+  [check("email", "Valid email is required").isEmail()],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ msg: "Valid email is required" });
+    }
+    const email = normEmail(req.body.email);
+
+    const genericSuccess = {
+      ok: true,
+      msg: "If an account exists with that email, you will receive a password reset link shortly.",
+    };
+
+    try {
+      const user = await User.findOne({ email: new RegExp(`^${email}$`, "i") });
+      if (!user) {
+        return res.json(genericSuccess);
+      }
+
+      const token = crypto.randomBytes(32).toString("hex");
+      user.passwordResetToken = token;
+      user.passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_EXPIRY_HOURS * 60 * 60 * 1000);
+      await user.save();
+
+      const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
+      const resetUrl = `${baseUrl}/#/reset-password?token=${encodeURIComponent(token)}`;
+      await sendPasswordResetEmail({
+        to: user.email,
+        firstName: user.firstName,
+        resetUrl,
+        expiresInHours: PASSWORD_RESET_EXPIRY_HOURS,
+      });
+
+      console.log(`📧 Password reset email sent to ${user.email}`);
+      return res.json(genericSuccess);
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      return res.json(genericSuccess);
+    }
+  }
+);
+
+// @route   POST api/auth/reset-password
+// @desc    Reset password using token (single-use, expires)
+// @access  Public (rate-limited)
+router.post(
+  "/reset-password",
+  resetPasswordLimiter,
+  [
+    check("token", "Reset token is required").notEmpty(),
+    check("password", "Password must be at least 6 characters").isLength({ min: 6 }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const msg = errors.array().map((e) => e.msg).join("; ");
+      return res.status(400).json({ msg });
+    }
+    const { token, password } = req.body;
+    const trimmedToken = (token || "").toString().trim();
+
+    try {
+      const user = await User.findOne({
+        passwordResetToken: trimmedToken,
+        passwordResetExpires: { $gt: new Date() },
+      });
+
+      if (!user) {
+        const expired = await User.findOne({ passwordResetToken: trimmedToken });
+        if (expired) {
+          return res.status(400).json({ msg: "Reset link has expired. Please request a new one." });
+        }
+        return res.status(400).json({ msg: "Invalid or expired reset link. Please request a new one." });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      user.password = hashedPassword;
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+
+      console.log(`✅ Password reset successful for ${user.email}`);
+      return res.json({ ok: true, msg: "Password reset successfully. You can now sign in." });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      return res.status(500).json({ msg: "Server error" });
+    }
+  }
+);
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token

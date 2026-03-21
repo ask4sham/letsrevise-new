@@ -40,7 +40,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const roleFromQuery = useQueryRole();
 
-  const [activeRole, setActiveRole] = useState<Role>(roleFromQuery || "student");
+  const [activeRole, setActiveRole] = useState<PublicRole>(roleFromQuery || "student");
 
   const [formData, setFormData] = useState({
     email: "",
@@ -381,16 +381,26 @@ const LoginPage: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: "30px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Password
-              </label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <label
+                  style={{
+                    fontWeight: "bold",
+                    color: "#333",
+                  }}
+                >
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  style={{
+                    fontSize: "0.9rem",
+                    color: "#2563eb",
+                    textDecoration: "none",
+                  }}
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div style={{ position: "relative" }}>
                 <input
                   type={showPassword ? "text" : "password"}

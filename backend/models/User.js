@@ -69,6 +69,10 @@ const userSchema = new mongoose.Schema(
     emailVerificationToken: { type: String, default: null },
     emailVerificationExpires: { type: Date, default: null },
 
+    /** Password reset: token sent on forgot-password, cleared after successful reset. */
+    passwordResetToken: { type: String, default: null },
+    passwordResetExpires: { type: Date, default: null },
+
     shamCoins: {
       type: Number,
       default: 100,
