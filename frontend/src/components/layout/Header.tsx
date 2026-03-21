@@ -1,6 +1,7 @@
 // /frontend/src/components/layout/Header.tsx
 // PR-AUTH-UI-1: use shared useCurrentUser hook (single source of truth for auth).
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getTrialDaysRemaining } from "../../utils/trial";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
@@ -10,8 +11,10 @@ const MOBILE_BREAKPOINT = 768;
 const Header: React.FC = () => {
   const { user, isLoggedIn, refresh } = useCurrentUser({ watchLocation: true });
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const avatarRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -344,9 +347,14 @@ const Header: React.FC = () => {
                 {/* User Profile Dropdown (keep, but hide Settings for parent) */}
                 <li style={{ position: "relative" }}>
                   <button
+                    ref={avatarRef}
+                    type="button"
                     onClick={() => {
-                      console.log("[Header] avatar clicked, showDropdown:", !showDropdown);
-                      setShowDropdown(!showDropdown);
+                      if (!showDropdown && avatarRef.current) {
+                        const rect = avatarRef.current.getBoundingClientRect();
+                        setDropdownPosition({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                      }
+                      setShowDropdown((prev) => !prev);
                     }}
                     style={{
                       background:
@@ -368,19 +376,23 @@ const Header: React.FC = () => {
                     {getUserInitials()}
                   </button>
 
-                  {showDropdown && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "50px",
-                        right: 0,
-                        background: "white",
-                        boxShadow: "0 5px 20px rgba(0,0,0,0.15)",
-                        borderRadius: "8px",
-                        minWidth: "200px",
-                        zIndex: 1001,
-                      }}
-                    >
+                  {showDropdown &&
+                    createPortal(
+                      <div
+                        role="menu"
+                        aria-label="User menu"
+                        style={{
+                          position: "fixed",
+                          top: dropdownPosition.top,
+                          right: dropdownPosition.right,
+                          left: "auto",
+                          background: "white",
+                          boxShadow: "0 5px 20px rgba(0,0,0,0.15)",
+                          borderRadius: "8px",
+                          minWidth: "200px",
+                          zIndex: 10002,
+                        }}
+                      >
                       <div
                         style={{
                           padding: "20px",
@@ -446,6 +458,7 @@ const Header: React.FC = () => {
                         )}
 
                         <button
+                          type="button"
                           onClick={handleLogout}
                           style={{
                             width: "100%",
@@ -462,8 +475,9 @@ const Header: React.FC = () => {
                           🚪 Logout
                         </button>
                       </div>
-                    </div>
-                  )}
+                    </div>,
+                      document.body
+                    )}
                 </li>
               </>
             ) : (
@@ -641,17 +655,14 @@ const Header: React.FC = () => {
         </>
       )}
 
-      {/* Close dropdown when clicking outside — backdrop must sit below nav (z 1001) */}
+      {/* Close dropdown when clicking outside — backdrop below portal dropdown (z 10001) */}
       {showDropdown && (
         <div
           role="presentation"
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 999,
+            inset: 0,
+            zIndex: 10001,
           }}
           onClick={() => setShowDropdown(false)}
         />

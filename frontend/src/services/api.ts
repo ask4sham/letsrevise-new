@@ -177,10 +177,10 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      // Preserve existing behaviour
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      // HashRouter: use /#/login so SPA handles route; /login alone would 404 on Netlify
+      window.location.href = "/#/login";
     }
 
     // Report server errors and network failures to Sentry (skip 401/404)

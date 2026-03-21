@@ -25,5 +25,12 @@
   status = 200
   force = true
 
+# SPA fallback: serve index.html for client-side routes (HashRouter uses /#/path)
+# Must be last so /api/*, /uploads/*, /visuals/* take precedence
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 # REACT_APP_API_BASE: Set to backend URL (https://letsrevise-new.onrender.com) for non-proxy builds.
 # On Netlify, api.ts uses same-origin so /api/* is proxied. Upload URLs are always built from backend (Render), never Netlify.
