@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { setAuth, clearAuth } from "../utils/authStorage";
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -95,9 +96,7 @@ const LoginPage: React.FC = () => {
   };
 
   const hardLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("postLoginRedirect");
+    clearAuth();
     setExistingUserEmail(null);
     setFormData({ email: "", password: "" });
     setError("");
@@ -136,10 +135,9 @@ const LoginPage: React.FC = () => {
         (response as any)?.data?.token ||
         (response as any)?.data?.jwt ||
         (response as any)?.data?.accessToken;
-
-      if (token) localStorage.setItem("token", token);
-      if ((response as any)?.data?.user) {
-        localStorage.setItem("user", JSON.stringify((response as any).data.user));
+      const userData = (response as any)?.data?.user;
+      if (token && userData) {
+        setAuth(token, userData);
       }
       refresh();
 

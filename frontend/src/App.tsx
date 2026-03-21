@@ -3,6 +3,7 @@
 import React, { ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useCurrentUser } from "./hooks/useCurrentUser";
+import { clearAuth as clearAuthStorage } from "./utils/authStorage";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import HomePage from "./pages/HomePage";
@@ -124,16 +125,6 @@ import "./App.css";
 ========================= */
 
 type UserType = "student" | "teacher" | "parent" | "admin";
-
-function clearAuthStorage() {
-  try {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("postLoginRedirect");
-  } catch {
-    // ignore
-  }
-}
 
 /* =========================
    ProtectedRoute (SYNC, NO STATE)

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import { clearAuth, updateUser } from '../utils/authStorage';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -35,11 +36,11 @@ const Dashboard: React.FC = () => {
       }
 
       setUser(profile);
-      localStorage.setItem('user', JSON.stringify(profile));
+      updateUser(profile);
       refresh();
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      localStorage.removeItem('token');
+      clearAuth();
       refresh();
       navigate('/login');
     } finally {

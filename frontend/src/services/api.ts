@@ -7,6 +7,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import { captureException, captureMessage } from "../sentryClient";
+import { clearAuth } from "../utils/authStorage";
 
 /**
  * Base URL rules:
@@ -177,8 +178,7 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      clearAuth();
       // HashRouter: use /#/login so SPA handles route; /login alone would 404 on Netlify
       window.location.href = "/#/login";
     }

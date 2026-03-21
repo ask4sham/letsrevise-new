@@ -33,6 +33,7 @@ import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import { recordMastery, getMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
+import { updateUser } from "../utils/authStorage";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
 import { hasFullLessonAccess as computeFullLessonAccess } from "../utils/lessonAccess";
@@ -2178,7 +2179,7 @@ const LessonViewPage: React.FC = () => {
           (response.data as any).purchasedLessons || user.purchasedLessons,
       };
 
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      updateUser(updatedUser);
       refresh();
 
       alert(
@@ -2204,9 +2205,7 @@ const LessonViewPage: React.FC = () => {
       const data = (res as any)?.data;
       if (data?.shamCoins !== undefined && data?.purchasedLessons) {
         const updatedUser = { ...user, shamCoins: data.shamCoins, purchasedLessons: data.purchasedLessons };
-        try {
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-        } catch (_) {}
+        updateUser(updatedUser);
         refresh();
       }
       setUnlockError(null);

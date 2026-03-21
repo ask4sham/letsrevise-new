@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { updateUser } from '../../utils/authStorage';
 
 interface Lesson {
   _id: string;
@@ -76,7 +77,7 @@ const EnhancedLessonView: React.FC = () => {
       if (response.data.success) {
         alert('Lesson purchased successfully!');
         if (response.data.user) {
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+          updateUser(response.data.user);
           refresh();
         }
       }

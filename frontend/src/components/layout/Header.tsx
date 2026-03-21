@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getTrialDaysRemaining } from "../../utils/trial";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { clearAuth } from "../../utils/authStorage";
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -52,9 +53,10 @@ const Header: React.FC = () => {
   }, [showDropdown]);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("postLoginRedirect");
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[auth] Logout: clearing localStorage");
+    }
+    clearAuth();
     refresh();
     setShowDropdown(false);
     navigate("/", { replace: true });

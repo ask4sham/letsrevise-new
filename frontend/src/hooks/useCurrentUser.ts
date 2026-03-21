@@ -1,12 +1,13 @@
 /**
  * PR-AUTH-UI-1: Single source of truth for current user + token from localStorage.
- * Use this instead of duplicating localStorage.getItem("user") / getItem("token") across components.
+ * Uses authStorage — never writes except via validation clear.
  *
  * Token validation: When token+user exist, we validate via GET /api/users/me. If 401 (expired/invalid),
  * we clear localStorage so the user sees the public home page instead of "stuck" logged-in UI.
  */
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
+import { readAuth as readAuthStorage, clearAuth } from "../utils/authStorage";
 
 export interface CurrentUser {
   _id: string;
@@ -26,20 +27,8 @@ export interface CurrentUser {
 }
 
 function readAuth(): { token: string | null; user: CurrentUser | null } {
-  const token = localStorage.getItem("token");
-  const rawUser = localStorage.getItem("user");
-  if (!token || !rawUser) return { token: null, user: null };
-  try {
-    const user = JSON.parse(rawUser) as CurrentUser;
-    return { token, user };
-  } catch {
-    return { token: null, user: null };
-  }
-}
-
-function clearAuth() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+  const { token, user } = readAuthStorage();
+  return { token, user: user as CurrentUser | null };
 }
 
 export interface UseCurrentUserOptions {
@@ -77,6 +66,9 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
         if (res.status === 401) {
           clearAuth();
           setState({ token: null, user: null });
+          if (process.env.NODE_ENV !== "production") {
+            console.info("[auth] Token invalid (401), cleared localStorage");
+          }
         }
       })
       .catch(() => {

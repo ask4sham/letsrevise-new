@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePut } from "../hooks/useApi";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { updateUser } from "../utils/authStorage";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Toast from "../components/Toast";
 
@@ -34,7 +35,7 @@ const EditProfilePage: React.FC = () => {
       try {
         const updatedUserFromApi = data?.user || data;
         const updated = { ...currentUser, ...updatedUserFromApi };
-        localStorage.setItem("user", JSON.stringify(updated));
+        updateUser(updated);
         refresh();
       } catch (e) {
         console.error("Failed to update user in localStorage:", e);
