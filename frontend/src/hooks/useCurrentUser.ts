@@ -1,6 +1,9 @@
 /**
  * PR-AUTH-UI-1: Single source of truth for current user + token from localStorage.
  * Use this instead of duplicating localStorage.getItem("user") / getItem("token") across components.
+ *
+ * Token validation: When token+user exist, we validate via GET /api/users/me. If 401 (expired/invalid),
+ * we clear localStorage so the user sees the public home page instead of "stuck" logged-in UI.
  */
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
@@ -34,6 +37,11 @@ function readAuth(): { token: string | null; user: CurrentUser | null } {
   }
 }
 
+function clearAuth() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+}
+
 export interface UseCurrentUserOptions {
   /** Re-read from localStorage when route (pathname/search/hash) changes. Default true. */
   watchLocation?: boolean;
@@ -52,6 +60,31 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Validate token when we have one — clears stale auth so user sees public home
+  useEffect(() => {
+    const { token } = readAuth();
+    if (!token) return;
+    const url =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/api/users/me`
+        : "";
+    if (!url) return;
+    let cancelled = false;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === 401) {
+          clearAuth();
+          setState({ token: null, user: null });
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Network error: keep current state (avoid clearing on transient failures)
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Cross-tab: when another tab updates storage
   useEffect(() => {

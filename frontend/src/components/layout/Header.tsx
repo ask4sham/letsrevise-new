@@ -31,12 +31,33 @@ const Header: React.FC = () => {
     setMobileMenuOpen(false);
   }, [location.pathname, location.search, location.hash]);
 
+  // Click-outside: use mousedown on next tick so the open-click doesn't trigger close
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showDropdown) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (avatarRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setShowDropdown(false);
+    };
+    const t = setTimeout(
+      () => document.addEventListener("mousedown", handleOutside),
+      10
+    );
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("mousedown", handleOutside);
+    };
+  }, [showDropdown]);
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("postLoginRedirect");
     refresh();
     setShowDropdown(false);
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
   const getUserInitials = () => {
@@ -344,7 +365,26 @@ const Header: React.FC = () => {
                   </li>
                 )}
 
-                {/* User Profile Dropdown (keep, but hide Settings for parent) */}
+                {/* Fallback Logout — always visible so user can sign out if dropdown fails */}
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    style={{
+                      color: "#dc3545",
+                      background: "none",
+                      border: "none",
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontSize: "0.9rem",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Logout
+                  </button>
+                </li>
+
+                {/* User Profile Dropdown (avatar) */}
                 <li style={{ position: "relative" }}>
                   <button
                     ref={avatarRef}
@@ -379,6 +419,7 @@ const Header: React.FC = () => {
                   {showDropdown &&
                     createPortal(
                       <div
+                        ref={dropdownRef}
                         role="menu"
                         aria-label="User menu"
                         style={{
@@ -655,16 +696,17 @@ const Header: React.FC = () => {
         </>
       )}
 
-      {/* Close dropdown when clicking outside — backdrop below portal dropdown (z 10001) */}
+      {/* Backdrop: dims background; close handled by document mousedown listener */}
       {showDropdown && (
         <div
           role="presentation"
+          aria-hidden="true"
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 10001,
+            pointerEvents: "none",
           }}
-          onClick={() => setShowDropdown(false)}
         />
       )}
     </header>
