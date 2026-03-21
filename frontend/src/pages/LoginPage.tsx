@@ -18,25 +18,21 @@ const MOBILE_BREAKPOINT = 768;
  */
 const SHOW_TEST_HELPERS = String(process.env.REACT_APP_SHOW_TEST_HELPERS) === "true";
 
-type Role = "student" | "teacher" | "parent" | "admin";
+/** Public roles only — Admin is site-owner reserved, not shown in public UI */
+type PublicRole = "student" | "teacher" | "parent";
 
-/**
- * ✅ Role colours (UI only)
- * Student = blue, Teacher = orange, Parent = teal, Admin = purple
- */
-const ROLE_COLORS: Record<Role, { border: string; bgActive: string }> = {
+const ROLE_COLORS: Record<PublicRole, { border: string; bgActive: string }> = {
   student: { border: "#0d6efd", bgActive: "#e7f1ff" },
   teacher: { border: "#fd7e14", bgActive: "#fff4e6" },
   parent: { border: "#17a2b8", bgActive: "#e6f7f9" },
-  admin: { border: "#6f42c1", bgActive: "#f2e9ff" },
 };
 
-function useQueryRole(): Role | null {
+function useQueryRole(): PublicRole | null {
   const { search } = useLocation();
   return useMemo(() => {
-    const role = new URLSearchParams(search).get("role") as Role | null;
+    const role = new URLSearchParams(search).get("role") as string | null;
     if (!role) return null;
-    return ["student", "teacher", "parent", "admin"].includes(role) ? role : null;
+    return ["student", "teacher", "parent"].includes(role) ? (role as PublicRole) : null;
   }, [search]);
 }
 
@@ -164,7 +160,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleFill = (role: Role) => {
+  const handleFill = (role: PublicRole) => {
     setActiveRole(role);
 
     const credentials =
@@ -172,15 +168,13 @@ const LoginPage: React.FC = () => {
         ? { email: "teacher@example.com", password: "Password123" }
         : role === "parent"
         ? { email: "parent@example.com", password: "Password123" }
-        : role === "admin"
-        ? { email: "admin@example.com", password: "Password123" }
         : { email: "student@example.com", password: "Password123" };
 
     setFormData(credentials);
     setError("");
   };
 
-  const handleAutoLogin = async (role: Role) => {
+  const handleAutoLogin = async (role: PublicRole) => {
     handleFill(role);
     setTimeout(() => {
       const fakeEvent = { preventDefault: () => {} } as any;
@@ -193,7 +187,7 @@ const LoginPage: React.FC = () => {
    * - Inactive tabs: coloured border + coloured text
    * - Active tab: stronger coloured border + light coloured background
    */
-  const tabStyle = (role: Role): React.CSSProperties => {
+  const tabStyle = (role: PublicRole): React.CSSProperties => {
     const isActive = role === activeRole;
     const c = ROLE_COLORS[role];
 
@@ -316,7 +310,7 @@ const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Role tabs: Student / Teacher / Parent / Admin (wrap on mobile) */}
+          {/* Role tabs: Student / Teacher / Parent (Admin reserved, not public) */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
             <button
               type="button"
@@ -338,13 +332,6 @@ const LoginPage: React.FC = () => {
               onClick={() => setActiveRole("parent")}
             >
               Parent
-            </button>
-            <button
-              type="button"
-              style={tabStyle("admin")}
-              onClick={() => setActiveRole("admin")}
-            >
-              Admin
             </button>
           </div>
 
@@ -542,40 +529,23 @@ const LoginPage: React.FC = () => {
                 </button>
               </div>
 
-              <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
-                <button
-                  type="button"
-                  onClick={() => handleFill("parent")}
-                  style={{
-                    flex: 1,
-                    padding: "10px",
-                    background: "#17a2b8",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  Fill Test Parent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFill("admin")}
-                  style={{
-                    flex: 1,
-                    padding: "10px",
-                    background: "#6f42c1",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  Fill Test Admin
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleFill("parent")}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "#17a2b8",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                  marginTop: "15px",
+                }}
+              >
+                Fill Test Parent
+              </button>
             </>
           )}
 
@@ -591,8 +561,7 @@ const LoginPage: React.FC = () => {
             {SHOW_TEST_HELPERS && (
               <p style={{ marginTop: "10px", fontSize: "0.8rem", color: "#888" }}>
                 Test accounts: student@example.com / Password123 (Student) or teacher@example.com /
-                Password123 (Teacher) or parent@example.com / Password123 (Parent) or admin@example.com /
-                Password123 (Admin)
+                Password123 (Teacher) or parent@example.com / Password123 (Parent)
               </p>
             )}
           </div>
