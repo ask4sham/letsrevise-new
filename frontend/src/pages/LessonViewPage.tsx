@@ -1129,11 +1129,15 @@ const LessonViewPage: React.FC = () => {
   const [layoutStacked, setLayoutStacked] = useState(() =>
     typeof window !== "undefined" && window.innerWidth < 768
   );
+  const [showMobilePagesDrawer, setShowMobilePagesDrawer] = useState(false);
   useEffect(() => {
     const check = () => setLayoutStacked(window.innerWidth < 768);
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  /** Sticky top offset to clear header (approx 70px + trial banner + padding) */
+  const STICKY_TOP = 88;
   useEffect(() => {
     if (previewLockRef.current) {
       if (process.env.NODE_ENV !== "production") {
@@ -3267,7 +3271,7 @@ const LessonViewPage: React.FC = () => {
             <aside
               style={{
                 position: layoutStacked ? undefined : "sticky",
-                top: layoutStacked ? undefined : 16,
+                top: layoutStacked ? undefined : STICKY_TOP,
                 alignSelf: "start",
                 background: "white",
                 borderRadius: 14,
@@ -4114,7 +4118,7 @@ const LessonViewPage: React.FC = () => {
             <aside
               style={{
                 position: layoutStacked ? undefined : "sticky",
-                top: layoutStacked ? undefined : 16,
+                top: layoutStacked ? undefined : STICKY_TOP,
                 alignSelf: "start",
                 display: "flex",
                 flexDirection: "column",
@@ -4141,6 +4145,136 @@ const LessonViewPage: React.FC = () => {
               </div>
             </aside>
           </div>
+
+          {/* Mobile: compact sticky progress/navigation bar */}
+          {layoutStacked && orderedPages.length > 0 && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 1000,
+                  background: "white",
+                  borderTop: "2px solid rgba(59,130,246,0.35)",
+                  boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>
+                  Page {currentPageIndex + 1} of {orderedPages.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowMobilePagesDrawer(true)}
+                  style={{
+                    padding: "10px 16px",
+                    background: "#eef2ff",
+                    border: "2px solid rgba(59,130,246,0.35)",
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    color: "#3730a3",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  Pages
+                </button>
+              </div>
+              {/* Spacer so content isn't hidden behind fixed bar */}
+              <div style={{ height: 60 }} />
+            </>
+          )}
+
+          {/* Mobile: Pages drawer (sheet) */}
+          {layoutStacked && showMobilePagesDrawer && orderedPages.length > 0 && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Lesson pages"
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1100,
+                background: "rgba(0,0,0,0.4)",
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+              }}
+              onClick={() => setShowMobilePagesDrawer(false)}
+            >
+              <div
+                style={{
+                  background: "white",
+                  width: "100%",
+                  maxHeight: "70vh",
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  boxShadow: "0 -8px 24px rgba(0,0,0,0.15)",
+                  padding: "20px 16px 32px",
+                  overflowY: "auto",
+                  flexShrink: 0,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#111827" }}>Lesson pages</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowMobilePagesDrawer(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: 24,
+                      cursor: "pointer",
+                      color: "#6b7280",
+                      padding: 4,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {orderedPages.map((p, idx) => {
+                    const isCurrent = idx === currentPageIndex;
+                    const isCompleted = idx < currentPageIndex;
+                    const icon = isCurrent ? "→" : isCompleted ? "✔" : "○";
+                    return (
+                      <button
+                        key={p.pageId || idx}
+                        onClick={() => {
+                          goToPage(p);
+                          setShowMobilePagesDrawer(false);
+                        }}
+                        style={{
+                          textAlign: "left",
+                          padding: "14px 16px",
+                          borderRadius: 10,
+                          border: "2px solid rgba(59,130,246,0.25)",
+                          background: isCurrent ? "#eef2ff" : "white",
+                          cursor: "pointer",
+                          color: "#111827",
+                          fontWeight: isCurrent ? 800 : 600,
+                          display: "flex",
+                          gap: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        <span style={{ width: 24, textAlign: "center", fontSize: 16 }}>{icon}</span>
+                        <span style={{ flex: 1 }}>{p.title || `Page ${p.order}`}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Report Issue — bottom of each lesson page (students + teachers) */}
           {user && id && (
             <div className="report-issue-container" style={{ paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
