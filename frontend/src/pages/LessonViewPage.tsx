@@ -3130,6 +3130,7 @@ const LessonViewPage: React.FC = () => {
 
     return (
       <div
+        data-lesson-view="structured"
         style={{
           minHeight: "100vh",
           background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
@@ -3137,6 +3138,7 @@ const LessonViewPage: React.FC = () => {
           paddingBottom: layoutStacked && orderedPages.length > 0 ? 80 : undefined,
           fontSize: BASE_FONT_SIZE,
           minWidth: 0,
+          overflow: "visible" as const,
         }}
       >
         {aiToast && (
@@ -3146,7 +3148,7 @@ const LessonViewPage: React.FC = () => {
             onClose={() => setAiToast(null)}
           />
         )}
-        <div style={{ maxWidth: 1750, margin: "0 auto", minWidth: 0 }}>
+        <div style={{ maxWidth: 1750, margin: "0 auto", minWidth: 0, overflow: "visible" as const }}>
           {/* ✅ PROOF PANEL REMOVED FROM HERE */}
 
           <div style={{ marginBottom: 12 }}>
@@ -3265,7 +3267,9 @@ const LessonViewPage: React.FC = () => {
               gridTemplateColumns: layoutStacked ? "1fr" : "260px minmax(0, 1fr) 280px",
               gap: layoutStacked ? 16 : 18,
               alignItems: "start",
+              alignContent: "start",
               minWidth: 0,
+              overflow: "visible" as const,
             }}
           >
             {/* LEFT SIDEBAR — hidden on mobile; compact bar + drawer used instead */}
