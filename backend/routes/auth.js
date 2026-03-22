@@ -131,6 +131,35 @@ async function sendPasswordResetEmail({ to, firstName, resetUrl, expiresInHours 
   });
 }
 
+/** Email change verification: send confirmation link to new address. Uses Resend; logs only if not configured. */
+async function sendEmailChangeVerification({ to, confirmUrl, expiresInHours }) {
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    console.log("📧 Email change verification (DEV LOG ONLY):", { to, confirmUrl });
+    return;
+  }
+  const { Resend } = require("resend");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const subject = "Confirm your new email address";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>Confirm your new email</h2>
+      <p>You requested to change your LetsRevise account email. Click the link below to complete the change:</p>
+      <p>
+        <a href="${confirmUrl}" style="padding:10px 14px;background:#2563eb;color:white;border-radius:6px;text-decoration:none;">
+          Confirm new email
+        </a>
+      </p>
+      <p>This link expires in ${expiresInHours} hour${expiresInHours !== 1 ? "s" : ""}. If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
+  await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
+    to,
+    subject,
+    html,
+  });
+}
+
 /** Email verification: send verification link to new user. Uses Resend; logs only if not configured. */
 async function sendVerificationEmail({ to, firstName, verifyUrl }) {
   const displayName = (firstName || "there").trim() || "there";
@@ -850,7 +879,7 @@ router.put(
 );
 
 // @route   PUT api/auth/me/email
-// @desc    Change email (authenticated, requires current password)
+// @desc    Change email (authenticated, requires current password). Admin: immediate. Non-admin: requires reverification.
 // @access  Private
 router.put(
   "/me/email",
@@ -883,20 +912,47 @@ router.put(
         return res.status(400).json({ msg: "That email is already in use" });
       }
 
-      user.email = normalizedNew;
+      const isAdmin = (user.userType || "").toString().toLowerCase() === "admin";
+
+      if (isAdmin) {
+        // Admin: immediate email change (no reverification)
+        user.email = normalizedNew;
+        user.pendingNewEmail = undefined;
+        user.emailChangeToken = undefined;
+        user.emailChangeExpires = undefined;
+        await user.save();
+        console.log(`✅ Email changed for admin ${userId} to ${normalizedNew}`);
+        return res.json({
+          ok: true,
+          msg: "Email updated successfully.",
+          user: {
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            userType: user.userType,
+          },
+        });
+      }
+
+      // Non-admin: store pending, send verification email
+      const emailChangeToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+      user.pendingNewEmail = normalizedNew;
+      user.emailChangeToken = emailChangeToken;
+      user.emailChangeExpires = expiresAt;
       await user.save();
 
-      console.log(`✅ Email changed for user ${userId} to ${normalizedNew}`);
+      const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
+      const confirmUrl = `${baseUrl}/api/auth/confirm-email-change?token=${encodeURIComponent(emailChangeToken)}`;
+      await sendEmailChangeVerification({ to: normalizedNew, confirmUrl, expiresInHours: 24 });
+
+      console.log(`📧 Email change verification sent for user ${userId} → ${normalizedNew}`);
       return res.json({
         ok: true,
-        msg: "Email updated successfully.",
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          userType: user.userType,
-        },
+        msg: "Check your new email to complete the change.",
+        requiresVerification: true,
       });
     } catch (err) {
       console.error("Change email error:", err);
@@ -904,6 +960,39 @@ router.put(
     }
   }
 );
+
+// @route   GET api/auth/confirm-email-change
+// @desc    Confirm email change (token from verification email). No auth required.
+// @access  Public
+router.get("/confirm-email-change", async (req, res) => {
+  const token = (req.query.token || "").toString().trim();
+  if (!token) {
+    return res.redirect("/#/confirm-email-change?error=missing");
+  }
+  try {
+    const user = await User.findOne({
+      emailChangeToken: token,
+      emailChangeExpires: { $gt: new Date() },
+    });
+    if (!user) {
+      return res.redirect("/#/confirm-email-change?error=invalid");
+    }
+    const newEmail = user.pendingNewEmail;
+    if (!newEmail) {
+      return res.redirect("/#/confirm-email-change?error=invalid");
+    }
+    user.email = newEmail;
+    user.pendingNewEmail = undefined;
+    user.emailChangeToken = undefined;
+    user.emailChangeExpires = undefined;
+    await user.save();
+    console.log(`✅ Email change confirmed for user ${user._id} → ${newEmail}`);
+    return res.redirect("/#/confirm-email-change?success=1");
+  } catch (err) {
+    console.error("Confirm email change error:", err);
+    return res.redirect("/#/confirm-email-change?error=server");
+  }
+});
 
 // @route   GET api/auth/user
 // @desc    Get user data

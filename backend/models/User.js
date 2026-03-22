@@ -80,6 +80,11 @@ const userSchema = new mongoose.Schema(
     passwordResetToken: { type: String, default: null },
     passwordResetExpires: { type: Date, default: null },
 
+    /** Email change (non-admin): pending new email, token, expiry. Cleared when confirmed. */
+    pendingNewEmail: { type: String, default: null },
+    emailChangeToken: { type: String, default: null },
+    emailChangeExpires: { type: Date, default: null },
+
     shamCoins: {
       type: Number,
       default: 100,

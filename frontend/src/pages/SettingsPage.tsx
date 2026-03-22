@@ -15,6 +15,13 @@ const SettingsPage: React.FC = () => {
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
   const [emailForm, setEmailForm] = useState({ currentPassword: "", newEmail: "" });
   const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState<{ msg: string; valid: boolean }>({ msg: "", valid: false });
+  const [capsLockOn, setCapsLockOn] = useState(false);
+
+  const passwordsMatch = pwForm.newPassword === pwForm.confirm;
 
   return (
     <div
@@ -115,6 +122,7 @@ const SettingsPage: React.FC = () => {
                 await api.put("/auth/me/password", { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
                 setPwMsg({ type: "success", text: "Password updated successfully." });
                 setPwForm({ currentPassword: "", newPassword: "", confirm: "" });
+                setPasswordStrength({ msg: "", valid: false });
               } catch (err: unknown) {
                 const ax = err as { response?: { data?: { msg?: string } } };
                 setPwMsg({ type: "error", text: ax?.response?.data?.msg || "Failed to update password." });
@@ -124,33 +132,70 @@ const SettingsPage: React.FC = () => {
             }}
             style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: 400 }}
           >
-            <input
-              type="password"
-              placeholder="Current password"
-              value={pwForm.currentPassword}
-              onChange={(e) => setPwForm((p) => ({ ...p, currentPassword: e.target.value }))}
-              required
-              style={{ padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8 }}
-            />
-            <input
-              type="password"
-              placeholder="New password"
-              value={pwForm.newPassword}
-              onChange={(e) => setPwForm((p) => ({ ...p, newPassword: e.target.value }))}
-              required
-              minLength={8}
-              style={{ padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8 }}
-            />
-            <input
-              type="password"
-              placeholder="Confirm new password"
-              value={pwForm.confirm}
-              onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
-              required
-              minLength={8}
-              style={{ padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8 }}
-            />
-            <button type="submit" disabled={pwLoading} style={{ padding: "10px 16px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: pwLoading ? "not-allowed" : "pointer" }}>
+            {capsLockOn && (
+              <p style={{ color: "orange", fontSize: 12, margin: 0 }}>Caps Lock is ON</p>
+            )}
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPwCurrent ? "text" : "password"}
+                placeholder="Current password"
+                value={pwForm.currentPassword}
+                onChange={(e) => setPwForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+                required
+                style={{ padding: "10px 12px", paddingRight: 40, border: "1px solid #d1d5db", borderRadius: 8, width: "100%", boxSizing: "border-box" }}
+              />
+              <button type="button" onClick={() => setShowPwCurrent((p) => !p)} aria-label={showPwCurrent ? "Hide password" : "Show password"} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "1rem" }}>{showPwCurrent ? "🙈" : "👁"}</button>
+            </div>
+            <div>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPwNew ? "text" : "password"}
+                  placeholder="New password"
+                  value={pwForm.newPassword}
+                  onChange={(e) => {
+                    const newPassword = e.target.value;
+                    setPwForm((p) => ({ ...p, newPassword }));
+                    const result = validatePasswordStrength(newPassword);
+                    setPasswordStrength({
+                      msg: result.valid ? "Password meets requirements" : (result.msg || ""),
+                      valid: result.valid,
+                    });
+                  }}
+                  onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+                  required
+                  minLength={8}
+                  style={{ padding: "10px 12px", paddingRight: 40, border: "1px solid #d1d5db", borderRadius: 8, width: "100%", boxSizing: "border-box" }}
+                />
+                <button type="button" onClick={() => setShowPwNew((p) => !p)} aria-label={showPwNew ? "Hide password" : "Show password"} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "1rem" }}>{showPwNew ? "🙈" : "👁"}</button>
+              </div>
+              {passwordStrength.msg && (
+                <p style={{ fontSize: 12, color: passwordStrength.valid ? "#059669" : "#dc2626", marginTop: 4, marginBottom: 0 }}>
+                  {passwordStrength.msg}
+                </p>
+              )}
+            </div>
+            <div>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPwConfirm ? "text" : "password"}
+                  placeholder="Confirm new password"
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
+                  onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+                  required
+                  minLength={8}
+                  style={{ padding: "10px 12px", paddingRight: 40, border: "1px solid #d1d5db", borderRadius: 8, width: "100%", boxSizing: "border-box" }}
+                />
+                <button type="button" onClick={() => setShowPwConfirm((p) => !p)} aria-label={showPwConfirm ? "Hide password" : "Show password"} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "1rem" }}>{showPwConfirm ? "🙈" : "👁"}</button>
+              </div>
+              {pwForm.confirm && (
+                <p style={{ fontSize: 12, color: passwordsMatch ? "#059669" : "#dc2626", marginTop: 4, marginBottom: 0 }}>
+                  {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                </p>
+              )}
+            </div>
+            <button type="submit" disabled={pwLoading || !passwordsMatch} style={{ padding: "10px 16px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: pwLoading || !passwordsMatch ? "not-allowed" : "pointer" }}>
               {pwLoading ? "Updating..." : "Update password"}
             </button>
           </form>
@@ -197,12 +242,16 @@ const SettingsPage: React.FC = () => {
             }}
             style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: 400 }}
           >
+            {capsLockOn && (
+              <p style={{ color: "orange", fontSize: 12, margin: 0 }}>Caps Lock is ON</p>
+            )}
             <div style={{ position: "relative" }}>
               <input
                 type={showEmailPassword ? "text" : "password"}
                 placeholder="Current password"
                 value={emailForm.currentPassword}
                 onChange={(e) => setEmailForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
                 required
                 style={{ padding: "10px 12px", paddingRight: 40, border: "1px solid #d1d5db", borderRadius: 8, width: "100%", boxSizing: "border-box" }}
               />

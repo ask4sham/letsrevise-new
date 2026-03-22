@@ -12,6 +12,7 @@ import RegisterPage from "./pages/RegisterPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ConfirmEmailChangePage from "./pages/ConfirmEmailChangePage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminAuditLogPage from "./pages/AdminAuditLogPage";
 import Dashboard from "./pages/Dashboard";
@@ -267,6 +268,7 @@ function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/confirm-email-change" element={<ConfirmEmailChangePage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
 
           <Route
