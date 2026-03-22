@@ -93,10 +93,22 @@ code {
 }
 
 @media (max-width: 768px) {
-  /* Allow horizontal scroll for wide content (tables, code) while text wraps */
+  /* Mobile: constrain width, wrap text; tables/pre scroll within their blocks */
   .lesson-content {
+    width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  /* Wide content (tables, code) scrolls horizontally; container doesn't expand */
+  .lesson-content pre,
+  .lesson-content table {
+    max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  .lesson-content table {
+    display: block;
   }
 }
 

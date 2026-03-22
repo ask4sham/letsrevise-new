@@ -3134,8 +3134,9 @@ const LessonViewPage: React.FC = () => {
           minHeight: "100vh",
           background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
           padding: layoutStacked ? "12px" : "18px",
+          paddingBottom: layoutStacked && orderedPages.length > 0 ? 80 : undefined,
           fontSize: BASE_FONT_SIZE,
-          overflowX: "hidden",
+          minWidth: 0,
         }}
       >
         {aiToast && (
@@ -3267,20 +3268,22 @@ const LessonViewPage: React.FC = () => {
               minWidth: 0,
             }}
           >
-            {/* LEFT SIDEBAR */}
+            {/* LEFT SIDEBAR — hidden on mobile; compact bar + drawer used instead */}
+            {!layoutStacked && (
             <aside
               style={{
-                position: layoutStacked ? undefined : "sticky",
-                top: layoutStacked ? undefined : STICKY_TOP,
+                position: "sticky",
+                top: STICKY_TOP,
                 alignSelf: "start",
                 background: "white",
                 borderRadius: 14,
-                padding: layoutStacked ? 12 : 14,
+                padding: 14,
                 boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
                 border: "2px solid rgba(59,130,246,0.35)",
                 textAlign: "left",
-                order: layoutStacked ? 2 : undefined,
-                minWidth: layoutStacked ? 0 : undefined,
+                minWidth: 0,
+                maxHeight: `calc(100vh - ${STICKY_TOP + 24}px)`,
+                overflowY: "auto",
               }}
             >
               <div
@@ -3378,9 +3381,10 @@ const LessonViewPage: React.FC = () => {
                 </div>
               </div>
             </aside>
+            )}
 
             {/* MAIN CONTENT CARD */}
-            <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0 }}>
+            <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0, width: "100%" }}>
               <div
                 style={{
                   background: "white",
@@ -3388,6 +3392,7 @@ const LessonViewPage: React.FC = () => {
                   padding: layoutStacked ? "16px" : "28px",
                   maxWidth: layoutStacked ? "100%" : 1100,
                   width: "100%",
+                  minWidth: 0,
                   margin: "0 auto",
                   boxSizing: "border-box",
                   boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
@@ -4114,16 +4119,18 @@ const LessonViewPage: React.FC = () => {
               </div>
             </main>
 
-            {/* RIGHT RAIL */}
+            {/* RIGHT RAIL — hidden on mobile; compact bar shows progress */}
+            {!layoutStacked && (
             <aside
               style={{
-                position: layoutStacked ? undefined : "sticky",
-                top: layoutStacked ? undefined : STICKY_TOP,
+                position: "sticky",
+                top: STICKY_TOP,
                 alignSelf: "start",
                 display: "flex",
                 flexDirection: "column",
                 gap: 12,
-                order: layoutStacked ? 3 : undefined,
+                maxHeight: `calc(100vh - ${STICKY_TOP + 24}px)`,
+                overflowY: "auto",
               }}
             >
               <div
@@ -4144,51 +4151,48 @@ const LessonViewPage: React.FC = () => {
                 </div>
               </div>
             </aside>
+            )}
           </div>
 
-          {/* Mobile: compact sticky progress/navigation bar */}
+          {/* Mobile: compact sticky progress/navigation bar — always visible when scrolling */}
           {layoutStacked && orderedPages.length > 0 && (
-            <>
-              <div
+            <div
+              style={{
+                position: "fixed",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+                background: "white",
+                borderTop: "2px solid rgba(59,130,246,0.35)",
+                boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
+                padding: "14px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>
+                Page {currentPageIndex + 1} of {orderedPages.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowMobilePagesDrawer(true)}
                 style={{
-                  position: "fixed",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 1000,
-                  background: "white",
-                  borderTop: "2px solid rgba(59,130,246,0.35)",
-                  boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
-                  padding: "12px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
+                  padding: "10px 18px",
+                  background: "#eef2ff",
+                  border: "2px solid rgba(59,130,246,0.35)",
+                  borderRadius: 10,
+                  fontWeight: 700,
+                  color: "#3730a3",
+                  cursor: "pointer",
+                  fontSize: 14,
                 }}
               >
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>
-                  Page {currentPageIndex + 1} of {orderedPages.length}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowMobilePagesDrawer(true)}
-                  style={{
-                    padding: "10px 16px",
-                    background: "#eef2ff",
-                    border: "2px solid rgba(59,130,246,0.35)",
-                    borderRadius: 10,
-                    fontWeight: 700,
-                    color: "#3730a3",
-                    cursor: "pointer",
-                    fontSize: 14,
-                  }}
-                >
-                  Pages
-                </button>
-              </div>
-              {/* Spacer so content isn't hidden behind fixed bar */}
-              <div style={{ height: 60 }} />
-            </>
+                Pages
+              </button>
+            </div>
           )}
 
           {/* Mobile: Pages drawer (sheet) */}
