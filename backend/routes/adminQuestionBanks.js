@@ -10,16 +10,9 @@ const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
 
-function checkAdmin(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
-  const t = (req.user.userType || req.user.role || "").toString().toLowerCase();
-  if (t !== "admin" && !req.user.isAdmin) {
-    return res.status(403).json({ error: "Admin only" });
-  }
-  next();
-}
+const requireContentManager = require("../middleware/requireContentManager");
 
-router.use(auth, checkAdmin);
+router.use(auth, requireContentManager);
 
 /** GET /api/admin/question-banks/flashcards — list all topic flashcards (admin only). Optional: topicKey, status, ownerId, limit, offset */
 router.get("/flashcards", async (req, res) => {

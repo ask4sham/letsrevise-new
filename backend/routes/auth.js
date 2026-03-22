@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
+const { validatePasswordStrength } = require("../utils/passwordStrength");
 
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -239,13 +240,18 @@ router.post(
   "/register",
   [
     check("email", "Please include a valid email").isEmail(),
-    check("password", "Please enter a password with 6 or more characters").isLength({ min: 6 }),
+    check("password", "Password is required").notEmpty(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.log("Validation errors:", errors.array());
       return res.status(400).json({ errors: errors.array() });
+    }
+
+    const pwCheck = validatePasswordStrength(req.body.password);
+    if (!pwCheck.valid) {
+      return res.status(400).json({ errors: [{ msg: pwCheck.msg }] });
     }
 
     const {
@@ -632,13 +638,17 @@ router.post(
   resetPasswordLimiter,
   [
     check("token", "Reset token is required").notEmpty(),
-    check("password", "Password must be at least 6 characters").isLength({ min: 6 }),
+    check("password", "Password is required").notEmpty(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const msg = errors.array().map((e) => e.msg).join("; ");
       return res.status(400).json({ msg });
+    }
+    const pwCheck = validatePasswordStrength(req.body.password);
+    if (!pwCheck.valid) {
+      return res.status(400).json({ msg: pwCheck.msg });
     }
     const { token, password } = req.body;
     const trimmedToken = (token || "").toString().trim();
@@ -769,6 +779,7 @@ router.post(
             referralCode: user.referralCode,
             schoolName: user.schoolName || null,
             verificationStatus: user.verificationStatus || "pending",
+            staffRole: user.staffRole || null,
 
             // ✅ NEW (non-breaking): reliable gating for lessons
             yearGroup: user.yearGroup ?? null,
@@ -780,6 +791,116 @@ router.post(
       console.error("❌ Login error:", err.message);
       console.error("Error stack:", err.stack);
       res.status(500).send("Server error");
+    }
+  }
+);
+
+// @route   PUT api/auth/me/password
+// @desc    Change password (authenticated, requires current password)
+// @access  Private
+const auth = require("../middleware/auth");
+const changePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { msg: "Too many password change attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.put(
+  "/me/password",
+  auth,
+  changePasswordLimiter,
+  [
+    check("currentPassword", "Current password is required").notEmpty(),
+    check("newPassword", "New password is required").notEmpty(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const msg = errors.array().map((e) => e.msg).join("; ");
+      return res.status(400).json({ msg });
+    }
+    const pwCheck = validatePasswordStrength(req.body.newPassword);
+    if (!pwCheck.valid) {
+      return res.status(400).json({ msg: pwCheck.msg });
+    }
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user?._id || req.user?.id;
+
+    try {
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ msg: "User not found" });
+
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) {
+        return res.status(400).json({ msg: "Current password is incorrect" });
+      }
+
+      user.password = await bcrypt.hash(newPassword, 12);
+      await user.save();
+
+      console.log(`✅ Password changed for ${user.email}`);
+      return res.json({ ok: true, msg: "Password updated successfully." });
+    } catch (err) {
+      console.error("Change password error:", err);
+      return res.status(500).json({ msg: "Server error" });
+    }
+  }
+);
+
+// @route   PUT api/auth/me/email
+// @desc    Change email (authenticated, requires current password)
+// @access  Private
+router.put(
+  "/me/email",
+  auth,
+  [
+    check("currentPassword", "Current password is required").notEmpty(),
+    check("newEmail", "Valid new email is required").isEmail(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const msg = errors.array().map((e) => e.msg).join("; ");
+      return res.status(400).json({ msg });
+    }
+    const { currentPassword, newEmail } = req.body;
+    const userId = req.user?._id || req.user?.id;
+    const normalizedNew = normEmail(newEmail);
+
+    try {
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ msg: "User not found" });
+
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) {
+        return res.status(400).json({ msg: "Current password is incorrect" });
+      }
+
+      const existing = await User.findOne({ email: new RegExp(`^${normalizedNew}$`, "i") });
+      if (existing && String(existing._id) !== String(userId)) {
+        return res.status(400).json({ msg: "That email is already in use" });
+      }
+
+      user.email = normalizedNew;
+      await user.save();
+
+      console.log(`✅ Email changed for user ${userId} to ${normalizedNew}`);
+      return res.json({
+        ok: true,
+        msg: "Email updated successfully.",
+        user: {
+          id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          userType: user.userType,
+        },
+      });
+    } catch (err) {
+      console.error("Change email error:", err);
+      return res.status(500).json({ msg: "Server error" });
     }
   }
 );

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import { validatePasswordStrength } from "../utils/passwordStrength";
 
 const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -19,9 +20,10 @@ const ResetPasswordPage: React.FC = () => {
       setMessage("Reset link is invalid or missing. Please request a new one.");
       return;
     }
-    if (password.length < 6) {
+    const pwCheck = validatePasswordStrength(password);
+    if (!pwCheck.valid) {
       setStatus("error");
-      setMessage("Password must be at least 6 characters.");
+      setMessage(pwCheck.msg || "Password does not meet strength requirements.");
       return;
     }
     if (password !== confirmPassword) {
@@ -123,7 +125,7 @@ const ResetPasswordPage: React.FC = () => {
           Reset password
         </h1>
         <p style={{ color: "#6b7280", marginBottom: 24, fontSize: 14 }}>
-          Enter your new password. It must be at least 6 characters.
+          Enter your new password. At least 8 characters, with one uppercase letter, one lowercase letter, and one number.
         </p>
 
         {status === "success" && (
@@ -184,9 +186,9 @@ const ResetPasswordPage: React.FC = () => {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters, uppercase, lowercase, number"
                 required
-                minLength={6}
+                minLength={8}
                 disabled={status === "loading"}
                 style={{
                   width: "100%",
@@ -230,7 +232,7 @@ const ResetPasswordPage: React.FC = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repeat your password"
               required
-              minLength={6}
+              minLength={8}
               disabled={status === "loading"}
               style={{
                 width: "100%",

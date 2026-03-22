@@ -327,8 +327,8 @@ const Header: React.FC = () => {
                   </>
                 )}
 
-                {/* ✅ ADMIN LINK (hide from parent) */}
-                {!isParent && user?.userType === "admin" && (
+                {/* ✅ ADMIN LINK (hide from parent) — admin or content_manager */}
+                {!isParent && (user?.userType === "admin" || user?.staffRole === "content_manager") && (
                   <li>
                     <Link
                       to="/admin"
@@ -482,23 +482,20 @@ const Header: React.FC = () => {
                           👤 My Profile
                         </Link>
 
-                        {/* ✅ Settings hidden for parent */}
-                        {!isParent && (
-                          <Link
-                            to="/settings"
-                            style={{
-                              display: "block",
-                              padding: "10px 20px",
-                              color: "#333",
-                              textDecoration: "none",
-                              fontSize: "0.875rem",
-                              transition: "all 0.3s ease",
-                            }}
-                            onClick={() => setShowDropdown(false)}
-                          >
-                            ⚙️ Settings
-                          </Link>
-                        )}
+                        <Link
+                          to="/settings"
+                          style={{
+                            display: "block",
+                            padding: "10px 20px",
+                            color: "#333",
+                            textDecoration: "none",
+                            fontSize: "0.875rem",
+                            transition: "all 0.3s ease",
+                          }}
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          ⚙️ Settings
+                        </Link>
 
                         <button
                           type="button"
@@ -667,7 +664,7 @@ const Header: React.FC = () => {
                     <li><Link to="/payouts" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Payouts</Link></li>
                   </>
                 )}
-                {!isParent && user?.userType === "admin" && (
+                {!isParent && (user?.userType === "admin" || user?.staffRole === "content_manager") && (
                   <li><Link to="/admin" style={{ display: "block", padding: "14px 16px", color: "#667eea", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>Admin Dashboard</Link></li>
                 )}
                 {!isParent && (
@@ -676,9 +673,9 @@ const Header: React.FC = () => {
                 <li>
                   <Link to="/profile" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>👤 My Profile</Link>
                 </li>
-                {!isParent && (
-                  <li><Link to="/settings" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>⚙️ Settings</Link></li>
-                )}
+                <li>
+                  <Link to="/settings" style={{ display: "block", padding: "14px 16px", color: "#333", textDecoration: "none", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>⚙️ Settings</Link>
+                </li>
                 <li>
                   <button onClick={handleLogout} style={{ width: "100%", display: "block", padding: "14px 16px", background: "none", border: "none", color: "#dc3545", textAlign: "left", cursor: "pointer", fontWeight: "500", fontSize: "1rem", borderRadius: "8px", minHeight: 44, boxSizing: "border-box" }}>🚪 Logout</button>
                 </li>

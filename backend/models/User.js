@@ -35,6 +35,13 @@ const userSchema = new mongoose.Schema(
       required: true,
       enum: ["teacher", "student", "parent", "admin"],
     },
+
+    /** Limited staff role: content_manager can access lessons/taxonomy/content, not users/finance/ops. */
+    staffRole: {
+      type: String,
+      enum: ["content_manager"],
+      default: null,
+    },
     firstName: {
       type: String,
       required: true,

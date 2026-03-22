@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { validatePasswordStrength, PASSWORD_GUIDANCE } from "../utils/passwordStrength";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -65,6 +66,12 @@ const RegisterPage: React.FC = () => {
 
     if (password !== confirmPassword) {
       setMessage("❌ Passwords do not match. Please re-enter them.");
+      return;
+    }
+
+    const pwCheck = validatePasswordStrength(password);
+    if (!pwCheck.valid) {
+      setMessage(`❌ ${pwCheck.msg}`);
       return;
     }
 
@@ -325,10 +332,12 @@ const RegisterPage: React.FC = () => {
             {/* Password */}
             <div style={{ marginBottom: "16px" }}>
               <label style={labelStyle}>Password</label>
+              <p style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: "6px" }}>{PASSWORD_GUIDANCE}</p>
               <div style={{ position: "relative" }}>
                 <input
                   type={showPassword ? "text" : "password"}
                   required
+                  minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={inputWithEyeStyle}

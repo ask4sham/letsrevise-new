@@ -46,6 +46,7 @@ interface User {
   firstName: string;
   lastName: string;
   userType: string;
+  staffRole?: string | null;
   verificationStatus: string;
   shamCoins: number;
   subscription: string;
@@ -154,14 +155,24 @@ const AdminDashboardPage: React.FC = () => {
     dateTo: "",
   });
 
+  const isAdmin = user?.userType === "admin";
+  const isContentManager = (user as { staffRole?: string })?.staffRole === "content_manager";
+
   useEffect(() => {
-    if (user?.userType !== "admin") {
+    if (!isAdmin && !isContentManager) {
       navigate("/dashboard");
       return;
     }
-    fetchDashboardStats();
+    if (isAdmin) fetchDashboardStats();
+    else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.userType, navigate]);
+  }, [user?.userType, (user as { staffRole?: string })?.staffRole, navigate]);
+
+  useEffect(() => {
+    if (isContentManager && (activeTab === "users" || activeTab === "transactions")) {
+      setActiveTab("dashboard");
+    }
+  }, [isContentManager, activeTab]);
 
   useEffect(() => {
     if (activeTab === "users") fetchUsers();
@@ -352,6 +363,22 @@ const AdminDashboardPage: React.FC = () => {
     } catch (error) {
       console.error("Error updating role:", error);
       setMessage({ type: "error", text: "Failed to update user role" });
+    }
+  };
+
+  const handleUpdateStaffRole = async (userId: string, staffRole: string | null) => {
+    try {
+      const res = await api.put(`/admin/users/${userId}/staff-role`, { staffRole });
+      const data = res.data;
+      if (data?.success) {
+        setMessage({ type: "success", text: data.msg });
+        fetchUsers();
+      } else {
+        setMessage({ type: "error", text: data?.msg || "Failed to update staff role" });
+      }
+    } catch (error) {
+      console.error("Error updating staff role:", error);
+      setMessage({ type: "error", text: "Failed to update staff role" });
     }
   };
 
@@ -608,6 +635,8 @@ const AdminDashboardPage: React.FC = () => {
         >
           CSV import →
         </Link>
+        {isAdmin && (
+        <>
         <Link
           to="/admin/metrics"
           style={{
@@ -622,6 +651,22 @@ const AdminDashboardPage: React.FC = () => {
         >
           Paywall metrics →
         </Link>
+        <Link
+          to="/admin/audit-log"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#fef3c7",
+            color: "#92400e",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+          }}
+        >
+          Audit log →
+        </Link>
+        </>
+        )}
         <Link
           to="/coverage"
           style={{
@@ -829,24 +874,42 @@ const AdminDashboardPage: React.FC = () => {
         <button onClick={() => setActiveTab("dashboard")} style={safeTabButtonStyle("dashboard")}>
           Dashboard
         </button>
-        <button onClick={() => setActiveTab("users")} style={safeTabButtonStyle("users")}>
-          Users
-        </button>
+        {isAdmin && (
+          <button onClick={() => setActiveTab("users")} style={safeTabButtonStyle("users")}>
+            Users
+          </button>
+        )}
         <button onClick={() => setActiveTab("lessons")} style={safeTabButtonStyle("lessons")}>
           Lessons
         </button>
         <button onClick={() => setActiveTab("templates")} style={safeTabButtonStyle("templates")}>
           Templates
         </button>
+        {isAdmin && (
         <button
           onClick={() => setActiveTab("transactions")}
           style={safeTabButtonStyle("transactions")}
         >
           Transactions
         </button>
+        )}
       </div>
 
       {/* Dashboard Tab */}
+      {activeTab === "dashboard" && !stats && isContentManager && (
+        <div style={{ padding: "2rem", background: "#f9fafb", borderRadius: 8 }}>
+          <h3 style={{ marginTop: 0 }}>Content Manager</h3>
+          <p style={{ color: "#666", marginBottom: "1.5rem" }}>
+            Use the links above to manage lessons, taxonomy, content coverage, and autopilot approvals.
+          </p>
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            <button type="button" onClick={() => setActiveTab("lessons")} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 600, cursor: "pointer" }}>Lessons →</button>
+            <Link to="/admin/taxonomy" style={{ color: "#2563eb", fontWeight: 600 }}>Taxonomy →</Link>
+            <Link to="/admin/content-coverage" style={{ color: "#2563eb", fontWeight: 600 }}>Content Coverage →</Link>
+            <Link to="/admin/autopilot-approval" style={{ color: "#2563eb", fontWeight: 600 }}>Autopilot Approval →</Link>
+          </div>
+        </div>
+      )}
       {activeTab === "dashboard" && stats && (
         <div>
           <div

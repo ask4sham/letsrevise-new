@@ -12,6 +12,8 @@ import RegisterPage from "./pages/RegisterPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminAuditLogPage from "./pages/AdminAuditLogPage";
 import Dashboard from "./pages/Dashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -141,6 +143,9 @@ interface ProtectedRouteProps {
 
   // ✅ NEW: allows either teacher OR admin (needed for /edit-lesson/:id)
   requireTeacherOrAdmin?: boolean;
+
+  // ✅ Admin OR content_manager (for lesson/taxonomy/content routes)
+  requireAdminOrContentManager?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -150,6 +155,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdmin = false,
   requireParent = false,
   requireTeacherOrAdmin = false,
+  requireAdminOrContentManager = false,
 }) => {
   const { token, user, refresh } = useCurrentUser({ watchLocation: true });
   const auth = token && user ? { token, user } : null;
@@ -161,6 +167,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   const userType = user?.userType as UserType | undefined;
+  const staffRole = (user as { staffRole?: string })?.staffRole;
 
   // If userType is missing/invalid, treat as logged out
   if (!userType || !["student", "teacher", "parent", "admin"].includes(userType)) {
@@ -171,6 +178,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // ✅ Combined gate (teacher OR admin)
   if (requireTeacherOrAdmin && userType !== "teacher" && userType !== "admin") {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // ✅ Admin OR content_manager (for content routes)
+  if (requireAdminOrContentManager) {
+    const isAdmin = userType === "admin";
+    const isContentManager = staffRole === "content_manager";
+    if (!isAdmin && !isContentManager) return <Navigate to="/dashboard" replace />;
+    return <>{children}</>;
   }
 
   // Role gates
@@ -202,6 +217,7 @@ const RoleBasedRedirect: React.FC = () => {
   if (userType === "student") return <Navigate to="/student-dashboard" replace />;
   if (userType === "parent") return <Navigate to="/parent-dashboard" replace />;
   if (userType === "admin") return <Navigate to="/admin" replace />;
+  if ((user as { staffRole?: string })?.staffRole === "content_manager") return <Navigate to="/admin" replace />;
 
   return <Dashboard />;
 };
@@ -251,6 +267,7 @@ function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/admin-login" element={<AdminLoginPage />} />
 
           <Route
             path="/dashboard"
@@ -761,11 +778,11 @@ function App() {
             element={<Navigate to="/assessments/papers" replace />}
           />
 
-          {/* ✅ Admin Dashboard (canonical) */}
+          {/* ✅ Admin Dashboard (canonical) — admin or content_manager */}
           <Route
             path="/admin"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AdminDashboardPage />
               </ProtectedRoute>
             }
@@ -775,7 +792,7 @@ function App() {
           <Route
             path="/admin-dashboard"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AdminDashboardPage />
               </ProtectedRoute>
             }
@@ -790,9 +807,17 @@ function App() {
             }
           />
           <Route
-            path="/admin/ingest"
+            path="/admin/audit-log"
             element={
               <ProtectedRoute requireAdmin>
+                <AdminAuditLogPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ingest"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
                 <AdminIngestPage />
               </ProtectedRoute>
             }
@@ -816,7 +841,7 @@ function App() {
           <Route
             path="/admin/lesson/:id"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AdminLessonViewPage />
               </ProtectedRoute>
             }
@@ -825,7 +850,7 @@ function App() {
           <Route
             path="/admin/content-issues"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <ContentIssuesPage />
               </ProtectedRoute>
             }
@@ -834,7 +859,7 @@ function App() {
           <Route
             path="/admin/question-banks"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AdminQuestionBanksPage />
               </ProtectedRoute>
             }
@@ -843,7 +868,7 @@ function App() {
           <Route
             path="/admin/taxonomy"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AdminTaxonomyPage />
               </ProtectedRoute>
             }
@@ -852,7 +877,7 @@ function App() {
           <Route
             path="/admin/content-coverage"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <ContentCoveragePage />
               </ProtectedRoute>
             }
@@ -868,7 +893,7 @@ function App() {
           <Route
             path="/admin/autopilot-approval"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AutopilotApprovalPage />
               </ProtectedRoute>
             }
@@ -876,7 +901,7 @@ function App() {
           <Route
             path="/admin/autopilot-runs"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AutopilotRunsPage />
               </ProtectedRoute>
             }
@@ -884,7 +909,7 @@ function App() {
           <Route
             path="/admin/autopilot-outcomes"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AutopilotOutcomesPage />
               </ProtectedRoute>
             }
@@ -892,7 +917,7 @@ function App() {
           <Route
             path="/admin/autopilot-experiments"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AutopilotExperimentsPage />
               </ProtectedRoute>
             }
@@ -900,7 +925,7 @@ function App() {
           <Route
             path="/admin/draft-library"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <DraftLibraryPage />
               </ProtectedRoute>
             }
@@ -908,7 +933,7 @@ function App() {
           <Route
             path="/admin/spec-statements"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <SpecStatementsPage />
               </ProtectedRoute>
             }
@@ -916,7 +941,7 @@ function App() {
           <Route
             path="/admin/autopilot-feedback"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireAdminOrContentManager>
                 <AutopilotFeedbackPage />
               </ProtectedRoute>
             }

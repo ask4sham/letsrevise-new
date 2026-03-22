@@ -9,7 +9,7 @@ const express = require("express");
 const multer = require("multer");
 const router = express.Router();
 const auth = require("../middleware/auth");
-const requireAdmin = require("../middleware/requireAdmin");
+const requireContentManager = require("../middleware/requireContentManager");
 const { list, create, update, remove, listBySpec, ingest } = require("../controllers/specStatements.controller");
 
 const { FILE_STORAGE_PATH } = require("../config/paths");
@@ -32,11 +32,11 @@ const uploadSpecDoc = multer({
   },
 });
 
-router.get("/", auth, requireAdmin, list);
-router.get("/:specKey", auth, requireAdmin, listBySpec);
-router.post("/", auth, requireAdmin, create);
-router.post("/ingest", auth, requireAdmin, uploadSpecDoc.single("file"), ingest);
-router.put("/:id", auth, requireAdmin, update);
-router.delete("/:id", auth, requireAdmin, remove);
+router.get("/", auth, requireContentManager, list);
+router.get("/:specKey", auth, requireContentManager, listBySpec);
+router.post("/", auth, requireContentManager, create);
+router.post("/ingest", auth, requireContentManager, uploadSpecDoc.single("file"), ingest);
+router.put("/:id", auth, requireContentManager, update);
+router.delete("/:id", auth, requireContentManager, remove);
 
 module.exports = router;

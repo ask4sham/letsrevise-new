@@ -5,14 +5,14 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const auth = require("../middleware/auth");
-const requireAdmin = require("../middleware/requireAdmin");
+const requireContentManager = require("../middleware/requireContentManager");
 const AdminTaxonomyItem = require("../models/AdminTaxonomyItem");
 const AdminTopicPlacement = require("../models/AdminTopicPlacement");
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { getMergedTaxonomyBySpecKey, toSlug, getLinkedContentCounts } = require("../services/adminTaxonomyService");
 const { queryCandidates } = require("../utils/topicKey");
 
-router.use(auth, requireAdmin);
+router.use(auth, requireContentManager);
 
 const SPEC_KEYS = [
   "aqa-gcse-biology",

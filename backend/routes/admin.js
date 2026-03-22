@@ -8,6 +8,7 @@ const { exec } = require("child_process");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const LessonUnlock = require("../models/LessonUnlock");
+const { auditAdminAction } = require("../utils/auditAdminAction");
 const Event = require("../models/Event");
 const auth = require("../middleware/auth");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
@@ -21,15 +22,15 @@ const aiGenerationJobs = require("./aiGenerationJobs");
 
 // Middleware to check if user is admin
 const checkAdmin = (req, res, next) => {
-  // ✅ support either req.user.userType or req.user.type shapes
-  // (some JWT payloads use `type`, some use `userType`)
   const userType = (req.user?.userType || req.user?.type || "").toString().toLowerCase();
-
   if (!req.user || userType !== "admin") {
     return res.status(403).json({ msg: "Admin access required" });
   }
   next();
 };
+
+// Admin OR content_manager (for lesson/taxonomy/content routes only)
+const requireContentManager = require("../middleware/requireContentManager");
 
 /* =========================================
    PR-015: GET /api/admin/jobs — list background jobs (admin only)
@@ -143,7 +144,7 @@ function isPlainObject(v) {
    POST /api/admin/grant-lesson-unlock
    Idempotent; admin-only. Body: { userId, lessonId, source? } (source defaults to "admin").
    ========================================= */
-router.post("/grant-lesson-unlock", auth, checkAdmin, async (req, res) => {
+router.post("/grant-lesson-unlock", auth, requireContentManager, async (req, res) => {
   try {
     const { userId, lessonId, source = "admin" } = req.body;
 
@@ -171,7 +172,7 @@ router.post("/grant-lesson-unlock", auth, checkAdmin, async (req, res) => {
    DELETE /api/admin/revoke-lesson-unlock
    Body: { userId, lessonId }. Admin-only. Reversible grant.
    ========================================= */
-router.delete("/revoke-lesson-unlock", auth, checkAdmin, async (req, res) => {
+router.delete("/revoke-lesson-unlock", auth, requireContentManager, async (req, res) => {
   try {
     const { userId, lessonId } = req.body;
 
@@ -192,7 +193,7 @@ router.delete("/revoke-lesson-unlock", auth, checkAdmin, async (req, res) => {
    GET /api/admin/user/:id/unlocks
    Count + recent unlocks for a user (support / auditing).
    ========================================= */
-router.get("/user/:id/unlocks", auth, checkAdmin, async (req, res) => {
+router.get("/user/:id/unlocks", auth, requireContentManager, async (req, res) => {
   try {
     const userId = req.params.id;
 
@@ -220,7 +221,7 @@ router.get("/user/:id/unlocks", auth, checkAdmin, async (req, res) => {
    GET /api/admin/lesson/:id/unlocks
    Count + recent users who unlocked this lesson (support / auditing).
    ========================================= */
-router.get("/lesson/:id/unlocks", auth, checkAdmin, async (req, res) => {
+router.get("/lesson/:id/unlocks", auth, requireContentManager, async (req, res) => {
   try {
     const lessonId = req.params.id;
 
@@ -430,6 +431,30 @@ router.get("/metrics/top-paywalled-lessons-without-preview", auth, checkAdmin, a
   } catch (err) {
     console.error("GET /api/admin/metrics/top-paywalled-lessons-without-preview error:", err);
     return res.status(500).json({ error: "Failed to load suggested previews" });
+  }
+});
+
+/* =========================================
+   GET /api/admin/audit-log
+   Admin-only. List recent audit log entries.
+   ========================================= */
+const AdminAuditLog = require("../models/AdminAuditLog");
+router.get("/audit-log", auth, checkAdmin, async (req, res) => {
+  try {
+    const { limit = 50, action } = req.query;
+    const lim = Math.min(parseInt(limit, 10) || 50, 200);
+    const query = {};
+    if (action) query.action = String(action).trim();
+
+    const logs = await AdminAuditLog.find(query)
+      .sort({ createdAt: -1 })
+      .limit(lim)
+      .lean();
+
+    return res.json({ success: true, logs });
+  } catch (err) {
+    console.error("GET audit-log error:", err);
+    return res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
 
@@ -675,6 +700,7 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
         firstName: u.firstName,
         lastName: u.lastName,
         userType: u.userType,
+        staffRole: u.staffRole || null,
         verificationStatus: u.verificationStatus,
         shamCoins: u.shamCoins,
         subscription: u.subscription,
@@ -796,6 +822,16 @@ router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
 
     await user.deleteOne();
 
+    auditAdminAction({
+      action: "user_delete",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "User",
+      targetId: userId,
+      details: summary,
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+
     console.log("🧹 [Admin] Deleted user:", summary, "by admin:", req.user.email);
 
     return res.json({ success: true, msg: "User deleted", deleted: summary });
@@ -808,7 +844,7 @@ router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
 /* =========================================
    GET /api/admin/lessons
    ========================================= */
-router.get("/lessons", auth, checkAdmin, async (req, res) => {
+router.get("/lessons", auth, requireContentManager, async (req, res) => {
   try {
     const { page = 1, limit = 20, status, subject, search, sortBy = "createdAt", sortOrder = "desc" } = req.query;
 
@@ -889,7 +925,7 @@ router.get("/lessons", auth, checkAdmin, async (req, res) => {
    GET /api/admin/templates
    (admin-only list of MASTER templates)
    ========================================= */
-router.get("/templates", auth, checkAdmin, async (req, res) => {
+router.get("/templates", auth, requireContentManager, async (req, res) => {
   try {
     const templates = await Lesson.find({ isTemplate: true })
       .sort({ createdAt: -1 })
@@ -907,7 +943,7 @@ router.get("/templates", auth, checkAdmin, async (req, res) => {
    GET /api/admin/template-clones
    (admin-only list of template clones for monitoring)
    ========================================= */
-router.get("/template-clones", auth, checkAdmin, async (req, res) => {
+router.get("/template-clones", auth, requireContentManager, async (req, res) => {
   try {
     const clones = await Lesson.find({
       createdFromTemplate: true,
@@ -928,7 +964,7 @@ router.get("/template-clones", auth, checkAdmin, async (req, res) => {
    GET /api/admin/lessons/:lessonId
    (returns FULL lesson incl. pages/blocks)
    ========================================= */
-router.get("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
+router.get("/lessons/:lessonId", auth, requireContentManager, async (req, res) => {
   try {
     const { lessonId } = req.params;
 
@@ -964,7 +1000,7 @@ router.get("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
    - does NOT break teacher routes
    - safe whitelist so random fields don't get written
    ========================================= */
-router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
+router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) => {
   try {
     const { lessonId } = req.params;
 
@@ -1086,7 +1122,7 @@ router.put("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
    POST /api/admin/lessons/:lessonId/set-free-preview
    Body: { isFreePreview: true | false, note?: string }. Experiment helper.
    ========================================= */
-router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req, res) => {
+router.post("/lessons/:lessonId/set-free-preview", auth, requireContentManager, async (req, res) => {
   try {
     const lessonId = req.params.lessonId;
 
@@ -1156,7 +1192,7 @@ router.post("/lessons/:lessonId/set-free-preview", auth, checkAdmin, async (req,
    PUT /api/admin/lessons/:lessonId/status
    (keeps isPublished aligned)
    ========================================= */
-router.put("/lessons/:lessonId/status", auth, checkAdmin, async (req, res) => {
+router.put("/lessons/:lessonId/status", auth, requireContentManager, async (req, res) => {
   try {
     const { lessonId } = req.params;
     const { status, reason } = req.body;
@@ -1183,6 +1219,16 @@ router.put("/lessons/:lessonId/status", auth, checkAdmin, async (req, res) => {
 
     await lesson.save();
 
+    auditAdminAction({
+      action: "lesson_status",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "Lesson",
+      targetId: lessonId,
+      details: { from: oldStatus, to: status, reason },
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+
     res.json({
       success: true,
       msg: `Lesson status updated from ${oldStatus} to ${status}`,
@@ -1203,7 +1249,7 @@ router.put("/lessons/:lessonId/status", auth, checkAdmin, async (req, res) => {
 /* =========================================
    DELETE /api/admin/lessons/:lessonId
    ========================================= */
-router.delete("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
+router.delete("/lessons/:lessonId", auth, requireContentManager, async (req, res) => {
   try {
     const { lessonId } = req.params;
 
@@ -1239,6 +1285,16 @@ router.delete("/lessons/:lessonId", auth, checkAdmin, async (req, res) => {
     };
 
     await lesson.deleteOne();
+
+    auditAdminAction({
+      action: "lesson_delete",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "Lesson",
+      targetId: lessonId,
+      details: summary,
+      ip: req.ip || req.connection?.remoteAddress,
+    });
 
     console.log("🧹 [Admin] Deleted lesson:", summary, "by admin:", req.user.email);
 
@@ -1350,6 +1406,16 @@ router.put("/users/:userId/verify", auth, checkAdmin, async (req, res) => {
 
     await user.save();
 
+    auditAdminAction({
+      action: "teacher_verify",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "User",
+      targetId: userId,
+      details: { from: oldStatus, to: status, reason },
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+
     res.json({
       success: true,
       msg: `Teacher ${status === "verified" ? "verified" : "rejected"} successfully`,
@@ -1364,6 +1430,46 @@ router.put("/users/:userId/verify", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Verify user error:", err);
+    res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
+   PUT /api/admin/users/:userId/staff-role
+   Admin-only. Assign content_manager to a user (e.g. teacher).
+   ========================================= */
+router.put("/users/:userId/staff-role", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { staffRole } = req.body;
+
+    if (staffRole !== undefined && staffRole !== null && staffRole !== "content_manager" && staffRole !== "") {
+      return res.status(400).json({ msg: "staffRole must be 'content_manager' or null/empty to clear" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    user.staffRole = staffRole === "content_manager" ? "content_manager" : null;
+    await user.save();
+
+    auditAdminAction({
+      action: "staff_role_change",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "User",
+      targetId: userId,
+      details: { staffRole: user.staffRole },
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+
+    res.json({
+      success: true,
+      msg: staffRole ? `Staff role set to ${staffRole}` : "Staff role cleared",
+      user: { id: user._id, email: user.email, staffRole: user.staffRole },
+    });
+  } catch (err) {
+    console.error("Update staff-role error:", err);
     res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
@@ -1508,6 +1614,16 @@ router.post("/subscription/grant", auth, checkAdmin, async (req, res) => {
 
     await user.save();
 
+    auditAdminAction({
+      action: "subscription_grant",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "User",
+      targetId: userId,
+      details: { days: daysNum, expiresAt },
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+
     const active = isSubscriptionActive(user);
 
     return res.json({
@@ -1547,6 +1663,16 @@ router.post("/subscription/expire", auth, checkAdmin, async (req, res) => {
     user.subscriptionV2.expiresAt = yesterday;
 
     await user.save();
+
+    auditAdminAction({
+      action: "subscription_expire",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "User",
+      targetId: userId,
+      details: {},
+      ip: req.ip || req.connection?.remoteAddress,
+    });
 
     const active = isSubscriptionActive(user);
 

@@ -9,7 +9,7 @@ const contentGraphService = require("../services/contentGraphService");
 const contentCoverageService = require("../services/contentCoverageService");
 const curriculumGapDetectionService = require("../services/curriculumGapDetectionService");
 const auth = require("../middleware/auth");
-const requireAdmin = require("../middleware/requireAdmin");
+const requireContentManager = require("../middleware/requireContentManager");
 
 function isValidObjectId(id) {
   return id && mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === String(id);
@@ -272,7 +272,7 @@ router.post("/rebuild/spec/:specKey", auth, async (req, res) => {
  * GET /api/content-graph/gaps/:specKey
  * Curriculum gap analysis for a spec. Admin only.
  */
-router.get("/gaps/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/gaps/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const gaps = await curriculumGapDetectionService.detectTopicGaps(specKey);
@@ -301,7 +301,7 @@ router.get("/gaps/:specKey", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/gaps/:specKey/:topicKey
  * Single topic gap analysis. Admin only.
  */
-router.get("/gaps/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/gaps/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const gap = await curriculumGapDetectionService.detectSingleTopicGap(specKey, topicKey);
@@ -320,7 +320,7 @@ const topicEvidenceService = require("../services/topicEvidenceService");
  * GET /api/content-graph/evidence/:specKey
  * Spec-level evidence for all topics.
  */
-router.get("/evidence/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/evidence/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const result = await topicEvidenceService.getSpecEvidence(specKey);
@@ -335,7 +335,7 @@ router.get("/evidence/:specKey", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/evidence/:specKey/:topicKey
  * Single topic evidence.
  */
-router.get("/evidence/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/evidence/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const result = await topicEvidenceService.getTopicEvidence(specKey, topicKey);
@@ -356,7 +356,7 @@ const evidenceReviewWorklistService = require("../services/evidenceReviewWorklis
  * GET /api/content-graph/evidence-review/:specKey
  * Evidence review worklist for a spec.
  */
-router.get("/evidence-review/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/evidence-review/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : 0;
@@ -374,7 +374,7 @@ router.get("/evidence-review/:specKey", auth, requireAdmin, async (req, res) => 
  * GET /api/content-graph/evidence-review/:specKey/:topicKey
  * Single evidence review item.
  */
-router.get("/evidence-review/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/evidence-review/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const result = await evidenceReviewWorklistService.getEvidenceReviewItem(specKey, topicKey);
@@ -390,7 +390,7 @@ router.get("/evidence-review/:specKey/:topicKey", auth, requireAdmin, async (req
  * GET /api/content-graph/topic-command/:specKey/:topicKey
  * Topic Command Center — unified operational view for a topic. Admin only.
  */
-router.get("/topic-command/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/topic-command/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     if (!specKey || !topicKey) {
@@ -414,7 +414,7 @@ const studentTopicEvidenceService = require("../services/studentTopicEvidenceSer
  * GET /api/content-graph/learning-evidence/:specKey
  * Spec-level learning evidence for all topics.
  */
-router.get("/learning-evidence/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/learning-evidence/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const result = await studentTopicEvidenceService.getSpecLearningEvidence(specKey);
@@ -429,7 +429,7 @@ router.get("/learning-evidence/:specKey", auth, requireAdmin, async (req, res) =
  * GET /api/content-graph/learning-evidence/:specKey/:topicKey
  * Single topic learning evidence.
  */
-router.get("/learning-evidence/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/learning-evidence/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const result = await studentTopicEvidenceService.getTopicLearningEvidence(specKey, topicKey);
@@ -453,7 +453,7 @@ const autopilotOutcomesService = require("../services/autopilotOutcomesService")
  * GET /api/content-graph/autopilot/experiments
  * List experiments.
  */
-router.get("/autopilot/experiments", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/experiments", auth, requireContentManager, async (req, res) => {
   try {
     const { status } = req.query;
     const q = {};
@@ -470,7 +470,7 @@ router.get("/autopilot/experiments", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/autopilot/experiments
  * Create experiment. Body: { experimentId, label, description?, specKey?, topicKey?, promptPacks, assignmentMode? }
  */
-router.post("/autopilot/experiments", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/experiments", auth, requireContentManager, async (req, res) => {
   try {
     const { experimentId, label, description, specKey, topicKey, promptPacks, assignmentMode } = req.body || {};
     if (!experimentId || !label || !Array.isArray(promptPacks) || promptPacks.length < 2) {
@@ -503,7 +503,7 @@ router.post("/autopilot/experiments", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/autopilot/experiments/:id
  * Get single experiment.
  */
-router.get("/autopilot/experiments/:id", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/experiments/:id", auth, requireContentManager, async (req, res) => {
   try {
     const { id } = req.params;
     const q = mongoose.Types.ObjectId.isValid(id) && String(id).length === 24
@@ -522,7 +522,7 @@ router.get("/autopilot/experiments/:id", auth, requireAdmin, async (req, res) =>
  * GET /api/content-graph/autopilot/experiments/:id/results
  * Get experiment performance results.
  */
-router.get("/autopilot/experiments/:id/results", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/experiments/:id/results", auth, requireContentManager, async (req, res) => {
   try {
     const { id } = req.params;
     const q = mongoose.Types.ObjectId.isValid(id) && String(id).length === 24 ? { $or: [{ _id: id }, { experimentId: id }] } : { experimentId: id };
@@ -541,7 +541,7 @@ router.get("/autopilot/experiments/:id/results", auth, requireAdmin, async (req,
  * PATCH /api/content-graph/autopilot/experiments/:id
  * Update experiment (status, label, description, etc).
  */
-router.patch("/autopilot/experiments/:id", auth, requireAdmin, async (req, res) => {
+router.patch("/autopilot/experiments/:id", auth, requireContentManager, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, label, description } = req.body || {};
@@ -572,7 +572,7 @@ router.patch("/autopilot/experiments/:id", auth, requireAdmin, async (req, res) 
  * GET /api/content-graph/autopilot/prompt-packs
  * Returns available prompt packs.
  */
-router.get("/autopilot/prompt-packs", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/prompt-packs", auth, requireContentManager, async (req, res) => {
   try {
     const packs = autopilotPromptMetadata.getAvailableAutopilotPromptPacks();
     res.json({ promptPacks: packs });
@@ -586,7 +586,7 @@ router.get("/autopilot/prompt-packs", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/autopilot/gate/:specKey/:topicKey
  * Returns gate decision for a topic (admin only).
  */
-router.get("/autopilot/gate/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/gate/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     if (!specKey || !topicKey) {
@@ -607,7 +607,7 @@ router.get("/autopilot/gate/:specKey/:topicKey", auth, requireAdmin, async (req,
  * POST /api/content-graph/autopilot/topic
  * Body: { specKey, topicKey, dryRun?, actions?, promptPackId?, promptPackVersion? }
  */
-router.post("/autopilot/topic", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/topic", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey, dryRun, actions, promptPackId, promptPackVersion } = req.body || {};
     if (!specKey || !topicKey) {
@@ -635,7 +635,7 @@ router.post("/autopilot/topic", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/autopilot/spec
  * Body: { specKey, dryRun?, limit?, minPriorityScore?, promptPackId?, promptPackVersion? }
  */
-router.post("/autopilot/spec", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/spec", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, dryRun, limit, minPriorityScore, promptPackId, promptPackVersion } = req.body || {};
     if (!specKey) return res.status(400).json({ error: "specKey required" });
@@ -661,7 +661,7 @@ router.post("/autopilot/spec", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/autopilot/spec/:specKey/preview
  * Returns planned actions only, no writes.
  */
-router.get("/autopilot/spec/:specKey/preview", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/spec/:specKey/preview", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -685,7 +685,7 @@ const autopilotReadinessService = require("../services/autopilotReadinessService
  * GET /api/content-graph/autopilot/readiness/:specKey
  * Returns readiness for all topics in spec.
  */
-router.get("/autopilot/readiness/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/readiness/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const result = await autopilotReadinessService.getSpecAutopilotReadiness(specKey);
@@ -700,7 +700,7 @@ router.get("/autopilot/readiness/:specKey", auth, requireAdmin, async (req, res)
  * GET /api/content-graph/autopilot/readiness/:specKey/:topicKey
  * Returns readiness for a single topic.
  */
-router.get("/autopilot/readiness/:specKey/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/readiness/:specKey/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const result = await autopilotReadinessService.getTopicAutopilotReadiness(specKey, topicKey);
@@ -719,7 +719,7 @@ const draftQuestionLibraryService = require("../services/draftQuestionLibrarySer
  * POST /api/content-graph/draft-library/topic
  * Body: { specKey, topicKey, dryRun?, promptPackId?, promptPackVersion?, limitFlashcards?, limitExamQuestions? }
  */
-router.post("/draft-library/topic", auth, requireAdmin, async (req, res) => {
+router.post("/draft-library/topic", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey, dryRun, promptPackId, promptPackVersion, limitFlashcards, limitExamQuestions } = req.body || {};
     if (!specKey || !topicKey) {
@@ -747,7 +747,7 @@ router.post("/draft-library/topic", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/draft-library/spec
  * Body: { specKey, topicKeys?, limitPerTopic?, dryRun?, promptPackId?, promptPackVersion?, limitFlashcards?, limitExamQuestions? }
  */
-router.post("/draft-library/spec", auth, requireAdmin, async (req, res) => {
+router.post("/draft-library/spec", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKeys, limitPerTopic, dryRun, promptPackId, promptPackVersion, limitFlashcards, limitExamQuestions } = req.body || {};
     if (!specKey) return res.status(400).json({ error: "specKey required" });
@@ -777,7 +777,7 @@ const autopilotApprovalService = require("../services/autopilotApprovalService")
  * GET /api/content-graph/autopilot/drafts
  * Query params: specKey, topicKey, itemType, status, generatorMode (e.g. draft_library)
  */
-router.get("/autopilot/drafts", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/drafts", auth, requireContentManager, async (req, res) => {
   try {
     const filters = {};
     if (req.query.specKey) filters.specKey = String(req.query.specKey).trim();
@@ -797,7 +797,7 @@ router.get("/autopilot/drafts", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/autopilot/approve
  * Body: { itemType, itemId }
  */
-router.post("/autopilot/approve", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/approve", auth, requireContentManager, async (req, res) => {
   try {
     const { itemType, itemId } = req.body || {};
     if (!itemType || !itemId) {
@@ -817,7 +817,7 @@ router.post("/autopilot/approve", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/autopilot/reject
  * Body: { itemType, itemId, reason? }
  */
-router.post("/autopilot/reject", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/reject", auth, requireContentManager, async (req, res) => {
   try {
     const { itemType, itemId, reason } = req.body || {};
     if (!itemType || !itemId) {
@@ -837,7 +837,7 @@ router.post("/autopilot/reject", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/autopilot/approve-bulk
  * Body: { items: [{ itemType, itemId }] }
  */
-router.post("/autopilot/approve-bulk", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/approve-bulk", auth, requireContentManager, async (req, res) => {
   try {
     const { items } = req.body || {};
     if (!Array.isArray(items) || items.length === 0) {
@@ -856,7 +856,7 @@ router.post("/autopilot/approve-bulk", auth, requireAdmin, async (req, res) => {
  * POST /api/content-graph/autopilot/reject-bulk
  * Body: { items: [{ itemType, itemId }], reason? }
  */
-router.post("/autopilot/reject-bulk", auth, requireAdmin, async (req, res) => {
+router.post("/autopilot/reject-bulk", auth, requireContentManager, async (req, res) => {
   try {
     const { items, reason } = req.body || {};
     if (!Array.isArray(items) || items.length === 0) {
@@ -878,7 +878,7 @@ const AutopilotRun = require("../models/AutopilotRun");
  * GET /api/content-graph/autopilot/runs
  * Query params: specKey, topicKey, runType, dryRun, status, limit
  */
-router.get("/autopilot/runs", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/runs", auth, requireContentManager, async (req, res) => {
   try {
     const q = {};
     if (req.query.specKey) q.specKey = String(req.query.specKey).trim();
@@ -898,7 +898,7 @@ router.get("/autopilot/runs", auth, requireAdmin, async (req, res) => {
 /**
  * GET /api/content-graph/autopilot/runs/:id
  */
-router.get("/autopilot/runs/:id", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/runs/:id", auth, requireContentManager, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -918,7 +918,7 @@ router.get("/autopilot/runs/:id", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/autopilot/outcomes
  * Query params: specKey, topicKey, days, limit
  */
-router.get("/autopilot/outcomes", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/outcomes", auth, requireContentManager, async (req, res) => {
   try {
     const filters = {};
     if (req.query.specKey) filters.specKey = String(req.query.specKey).trim();
@@ -937,7 +937,7 @@ router.get("/autopilot/outcomes", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/autopilot/outcomes/prompt-packs
  * Query params: specKey, topicKey, days, limit
  */
-router.get("/autopilot/outcomes/prompt-packs", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/outcomes/prompt-packs", auth, requireContentManager, async (req, res) => {
   try {
     const filters = {};
     if (req.query.specKey) filters.specKey = String(req.query.specKey).trim();
@@ -955,7 +955,7 @@ router.get("/autopilot/outcomes/prompt-packs", auth, requireAdmin, async (req, r
 /**
  * GET /api/content-graph/autopilot/outcomes/spec/:specKey
  */
-router.get("/autopilot/outcomes/spec/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/outcomes/spec/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const filters = {};
@@ -972,7 +972,7 @@ router.get("/autopilot/outcomes/spec/:specKey", auth, requireAdmin, async (req, 
 /**
  * GET /api/content-graph/autopilot/outcomes/spec/:specKey/topic/:topicKey
  */
-router.get("/autopilot/outcomes/spec/:specKey/topic/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/outcomes/spec/:specKey/topic/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const filters = {};
@@ -993,7 +993,7 @@ const autopilotFeedbackService = require("../services/autopilotFeedbackService")
  * GET /api/content-graph/autopilot/feedback
  * Query params: specKey, topicKey, days, limit
  */
-router.get("/autopilot/feedback", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/feedback", auth, requireContentManager, async (req, res) => {
   try {
     const filters = {};
     if (req.query.specKey) filters.specKey = String(req.query.specKey).trim();
@@ -1012,7 +1012,7 @@ router.get("/autopilot/feedback", auth, requireAdmin, async (req, res) => {
  * GET /api/content-graph/autopilot/feedback/prompt-packs
  * Query params: specKey, topicKey, days, limit
  */
-router.get("/autopilot/feedback/prompt-packs", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/feedback/prompt-packs", auth, requireContentManager, async (req, res) => {
   try {
     const filters = {};
     if (req.query.specKey) filters.specKey = String(req.query.specKey).trim();
@@ -1030,7 +1030,7 @@ router.get("/autopilot/feedback/prompt-packs", auth, requireAdmin, async (req, r
 /**
  * GET /api/content-graph/autopilot/feedback/spec/:specKey
  */
-router.get("/autopilot/feedback/spec/:specKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/feedback/spec/:specKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey } = req.params;
     const filters = {};
@@ -1047,7 +1047,7 @@ router.get("/autopilot/feedback/spec/:specKey", auth, requireAdmin, async (req, 
 /**
  * GET /api/content-graph/autopilot/feedback/spec/:specKey/topic/:topicKey
  */
-router.get("/autopilot/feedback/spec/:specKey/topic/:topicKey", auth, requireAdmin, async (req, res) => {
+router.get("/autopilot/feedback/spec/:specKey/topic/:topicKey", auth, requireContentManager, async (req, res) => {
   try {
     const { specKey, topicKey } = req.params;
     const filters = {};
