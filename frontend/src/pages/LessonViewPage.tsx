@@ -4236,24 +4236,24 @@ const LessonViewPage: React.FC = () => {
                   background: "white",
                   borderTop: "2px solid rgba(59,130,246,0.35)",
                   boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
-                  padding: "14px 16px",
-                  paddingBottom: "max(14px, env(safe-area-inset-bottom, 0px))",
                   display: "flex",
-                  justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 12,
+                  justifyContent: "space-between",
                   width: "100%",
-                  minWidth: 0,
+                  maxWidth: "100vw",
+                  boxSizing: "border-box",
+                  padding: "12px 16px",
+                  paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
                   overflow: "hidden",
                 }}
               >
                 <div
                   style={{
+                    flex: 1,
+                    minWidth: 0,
+                    whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    minWidth: 0,
-                    flex: "1 1 0%",
                   }}
                 >
                   <span style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>
@@ -4265,7 +4265,7 @@ const LessonViewPage: React.FC = () => {
                   onClick={() => setShowMobilePagesDrawer(true)}
                   style={{
                     flexShrink: 0,
-                    minWidth: "fit-content",
+                    marginLeft: 12,
                     minHeight: 44,
                     padding: "10px 18px",
                     background: "#eef2ff",
