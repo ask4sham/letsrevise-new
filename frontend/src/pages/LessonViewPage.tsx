@@ -1,5 +1,6 @@
 // frontend/src/pages/LessonViewPage.tsx
 import React, { useMemo, useEffect, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import axios from "axios";
@@ -1125,16 +1126,46 @@ const LessonViewPage: React.FC = () => {
   const [showFlashcards, setShowFlashcards] = useState(false);
   const flashcardsViewerRef = useRef<HTMLDivElement>(null);
 
-  /** Mobile/tablet: stack layout below 768px; preserve 3-column desktop above */
-  const [layoutStacked, setLayoutStacked] = useState(() =>
-    typeof window !== "undefined" && window.innerWidth < 768
-  );
+  /** Mobile/tablet: matchMedia + innerWidth fallback for reliable real-phone detection below 768px */
+  const MOBILE_BREAKPOINT = "(max-width: 767px)";
+  const isMobileViewport = () => {
+    if (typeof window === "undefined") return false;
+    const mql = window.matchMedia(MOBILE_BREAKPOINT);
+    if (mql.matches) return true;
+    return window.innerWidth <= 768;
+  };
+  const [layoutStacked, setLayoutStacked] = useState(() => isMobileViewport());
   const [showMobilePagesDrawer, setShowMobilePagesDrawer] = useState(false);
   useEffect(() => {
-    const check = () => setLayoutStacked(window.innerWidth < 768);
+    const check = () => setLayoutStacked(isMobileViewport());
+    check();
+    const mql = window.matchMedia(MOBILE_BREAKPOINT);
+    mql.addEventListener("change", check);
     window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    if (typeof (window as any).visualViewport !== "undefined") {
+      (window as any).visualViewport.addEventListener("resize", check);
+    }
+    return () => {
+      mql.removeEventListener("change", check);
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+      if (typeof (window as any).visualViewport !== "undefined") {
+        (window as any).visualViewport.removeEventListener("resize", check);
+      }
+    };
   }, []);
+
+  /** Debug: ?layoutDebug=1 shows layout values (for real-phone diagnosis) */
+  const layoutDebug = searchParams.get("layoutDebug") === "1";
+  const layoutDebugValues = layoutDebug && typeof window !== "undefined"
+    ? {
+        layoutStacked,
+        innerWidth: window.innerWidth,
+        visualViewportWidth: (window as any).visualViewport?.width,
+        matchMedia: window.matchMedia(MOBILE_BREAKPOINT).matches,
+      }
+    : null;
 
   /** Sticky top offset to clear header (approx 70px + trial banner + padding) */
   const STICKY_TOP = 88;
@@ -3131,6 +3162,7 @@ const LessonViewPage: React.FC = () => {
     return (
       <div
         data-lesson-view="structured"
+        data-layout={layoutStacked ? "mobile" : "desktop"}
         style={{
           minHeight: "100vh",
           background: layoutStacked ? "#fff" : "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
@@ -3147,6 +3179,25 @@ const LessonViewPage: React.FC = () => {
             type={aiToast.type}
             onClose={() => setAiToast(null)}
           />
+        )}
+        {layoutDebugValues && (
+          <div
+            style={{
+              position: "fixed",
+              top: 80,
+              left: 8,
+              right: 8,
+              zIndex: 9999,
+              background: "#1e293b",
+              color: "#f1f5f9",
+              padding: 12,
+              borderRadius: 8,
+              fontSize: 12,
+              fontFamily: "monospace",
+            }}
+          >
+            layoutDebug: layoutStacked={String(layoutDebugValues.layoutStacked)} innerWidth={layoutDebugValues.innerWidth} vv={layoutDebugValues.visualViewportWidth} mq={String(layoutDebugValues.matchMedia)}
+          </div>
         )}
         <div style={{
           maxWidth: layoutStacked ? "100%" : 1750,
@@ -3400,7 +3451,7 @@ const LessonViewPage: React.FC = () => {
             )}
 
             {/* MAIN CONTENT CARD — mobile: clean article flow; desktop: card */}
-            <main style={{ order: layoutStacked ? undefined : 1, minWidth: 0, width: "100%", maxWidth: "100%" }}>
+            <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0, width: "100%", maxWidth: "100%" }}>
               <div
                 style={{
                   background: "white",
@@ -4171,113 +4222,128 @@ const LessonViewPage: React.FC = () => {
             )}
           </div>
 
-          {/* Mobile: compact sticky progress/navigation bar — always visible when scrolling */}
-          {layoutStacked && orderedPages.length > 0 && (
-            <div
-              style={{
-                position: "fixed",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                zIndex: 1000,
-                background: "white",
-                borderTop: "2px solid rgba(59,130,246,0.35)",
-                boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
-                padding: "14px 16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>
-                Page {currentPageIndex + 1} of {orderedPages.length}
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowMobilePagesDrawer(true)}
-                style={{
-                  padding: "10px 18px",
-                  background: "#eef2ff",
-                  border: "2px solid rgba(59,130,246,0.35)",
-                  borderRadius: 10,
-                  fontWeight: 700,
-                  color: "#3730a3",
-                  cursor: "pointer",
-                  fontSize: 14,
-                }}
-              >
-                Pages
-              </button>
-            </div>
-          )}
-
-          {/* Mobile: Pages drawer (sheet) */}
-          {layoutStacked && showMobilePagesDrawer && orderedPages.length > 0 && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Lesson pages"
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 1100,
-                background: "rgba(0,0,0,0.4)",
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "center",
-              }}
-              onClick={() => setShowMobilePagesDrawer(false)}
-            >
+          {/* Mobile: compact sticky progress/navigation bar — rendered via portal to avoid ancestor clipping */}
+          {layoutStacked &&
+            orderedPages.length > 0 &&
+            createPortal(
               <div
                 style={{
+                  position: "fixed",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 9999,
                   background: "white",
-                  width: "100%",
-                  maxHeight: "70vh",
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  boxShadow: "0 -8px 24px rgba(0,0,0,0.15)",
-                  padding: "20px 16px 32px",
-                  overflowY: "auto",
-                  flexShrink: 0,
+                  borderTop: "2px solid rgba(59,130,246,0.35)",
+                  boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
+                  padding: "14px 16px",
+                  paddingBottom: "max(14px, env(safe-area-inset-bottom, 0px))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
                 }}
-                onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#111827" }}>Lesson pages</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowMobilePagesDrawer(false)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      fontSize: 24,
-                      cursor: "pointer",
-                      color: "#6b7280",
-                      padding: 4,
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {orderedPages.map((p, idx) => {
-                    const isCurrent = idx === currentPageIndex;
-                    const isCompleted = idx < currentPageIndex;
-                    const icon = isCurrent ? "→" : isCompleted ? "✔" : "○";
-                    return (
-                      <button
-                        key={p.pageId || idx}
-                        onClick={() => {
-                          goToPage(p);
-                          setShowMobilePagesDrawer(false);
-                        }}
-                        style={{
-                          textAlign: "left",
-                          padding: "14px 16px",
-                          borderRadius: 10,
-                          border: "2px solid rgba(59,130,246,0.25)",
-                          background: isCurrent ? "#eef2ff" : "white",
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>
+                  Page {currentPageIndex + 1} of {orderedPages.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowMobilePagesDrawer(true)}
+                  style={{
+                    minHeight: 44,
+                    minWidth: 88,
+                    padding: "10px 18px",
+                    background: "#eef2ff",
+                    border: "2px solid rgba(59,130,246,0.35)",
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    color: "#3730a3",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  Pages
+                </button>
+              </div>,
+              document.body
+            )}
+
+          {/* Mobile: Pages drawer — rendered via portal so always on top */}
+          {layoutStacked &&
+            showMobilePagesDrawer &&
+            orderedPages.length > 0 &&
+            createPortal(
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Lesson pages"
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 10000,
+                  background: "rgba(0,0,0,0.4)",
+                  display: "flex",
+                  alignItems: "flex-end",
+                  justifyContent: "center",
+                }}
+                onClick={() => setShowMobilePagesDrawer(false)}
+              >
+                <div
+                  style={{
+                    background: "white",
+                    width: "100%",
+                    maxHeight: "70vh",
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                    boxShadow: "0 -8px 24px rgba(0,0,0,0.15)",
+                    padding: "20px 16px",
+                    paddingBottom: "max(32px, env(safe-area-inset-bottom, 0px))",
+                    overflowY: "auto",
+                    flexShrink: 0,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#111827" }}>Lesson pages</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowMobilePagesDrawer(false)}
+                      style={{
+                        minHeight: 44,
+                        minWidth: 44,
+                        background: "none",
+                        border: "none",
+                        fontSize: 24,
+                        cursor: "pointer",
+                        color: "#6b7280",
+                        padding: 4,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {orderedPages.map((p, idx) => {
+                      const isCurrent = idx === currentPageIndex;
+                      const isCompleted = idx < currentPageIndex;
+                      const icon = isCurrent ? "→" : isCompleted ? "✔" : "○";
+                      return (
+                        <button
+                          key={p.pageId || idx}
+                          onClick={() => {
+                            goToPage(p);
+                            setShowMobilePagesDrawer(false);
+                            // Scroll to top after drawer closes and content re-renders (mobile: students see change)
+                            setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 150);
+                          }}
+                          style={{
+                            minHeight: 48,
+                            textAlign: "left",
+                            padding: "14px 16px",
+                            borderRadius: 10,
+                            border: "2px solid rgba(59,130,246,0.25)",
+                            background: isCurrent ? "#eef2ff" : "white",
                           cursor: "pointer",
                           color: "#111827",
                           fontWeight: isCurrent ? 800 : 600,
@@ -4293,8 +4359,9 @@ const LessonViewPage: React.FC = () => {
                   })}
                 </div>
               </div>
-            </div>
-          )}
+            </div>,
+              document.body
+            )}
 
           {/* Report Issue — bottom of each lesson page (students + teachers) */}
           {user && id && (
