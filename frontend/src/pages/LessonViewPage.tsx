@@ -4222,7 +4222,7 @@ const LessonViewPage: React.FC = () => {
             )}
           </div>
 
-          {/* Mobile: compact sticky progress/navigation bar — rendered via portal to avoid ancestor clipping */}
+          {/* Mobile: compact sticky progress/navigation bar — both elements always visible, no horizontal scroll */}
           {layoutStacked &&
             orderedPages.length > 0 &&
             createPortal(
@@ -4239,20 +4239,34 @@ const LessonViewPage: React.FC = () => {
                   padding: "14px 16px",
                   paddingBottom: "max(14px, env(safe-area-inset-bottom, 0px))",
                   display: "flex",
-                  alignItems: "center",
                   justifyContent: "space-between",
+                  alignItems: "center",
                   gap: 12,
+                  width: "100%",
+                  minWidth: 0,
+                  overflow: "hidden",
                 }}
               >
-                <span style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>
-                  Page {currentPageIndex + 1} of {orderedPages.length}
-                </span>
+                <div
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                    flex: "1 1 0%",
+                  }}
+                >
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>
+                    Page {currentPageIndex + 1} of {orderedPages.length}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowMobilePagesDrawer(true)}
                   style={{
+                    flexShrink: 0,
+                    minWidth: "fit-content",
                     minHeight: 44,
-                    minWidth: 88,
                     padding: "10px 18px",
                     background: "#eef2ff",
                     border: "2px solid rgba(59,130,246,0.35)",
