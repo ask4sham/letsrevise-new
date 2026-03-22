@@ -52,12 +52,52 @@ code {
 .lesson-content {
   overflow-wrap: break-word;
   word-wrap: break-word;
+  white-space: normal;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.lesson-content pre,
-.lesson-content code {
+/* Paragraphs and text: ensure wrap on mobile */
+.lesson-content p,
+.lesson-content li,
+.lesson-content td,
+.lesson-content th,
+.lesson-content blockquote {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Code blocks: horizontal scroll; inline code: wrap long strings */
+.lesson-content pre {
   max-width: 100%;
   overflow-x: auto;
+  white-space: pre;
+}
+
+.lesson-content :not(pre) > code {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.lesson-content pre code {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Tables: wrap text in cells; on mobile, table scrolls via parent */
+.lesson-content table th,
+.lesson-content table td {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  /* Allow horizontal scroll for wide content (tables, code) while text wraps */
+  .lesson-content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* PR-UX-DASH-TEACH-2: Teacher dashboard 3-column layout stacks on mobile */
