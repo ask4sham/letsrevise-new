@@ -124,6 +124,7 @@ const AdminDashboardPage: React.FC = () => {
   const [loadingLessons, setLoadingLessons] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingClones, setLoadingClones] = useState(false);
+  const [togglingPreviewId, setTogglingPreviewId] = useState<string | null>(null);
 
   const [subscriptionUserId, setSubscriptionUserId] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
@@ -458,6 +459,23 @@ const AdminDashboardPage: React.FC = () => {
     } catch (error) {
       console.error("Error updating lesson status:", error);
       setMessage({ type: "error", text: "Failed to update lesson status" });
+    }
+  };
+
+  const handleTogglePreview = async (lessonId: string, currentValue: boolean) => {
+    const next = !currentValue;
+    setTogglingPreviewId(lessonId);
+    try {
+      await api.post(`/admin/lessons/${lessonId}/set-free-preview`, { isFreePreview: next });
+      setMessage({ type: "success", text: next ? "Free preview enabled" : "Free preview disabled" });
+      fetchLessons();
+    } catch (error: any) {
+      setMessage({
+        type: "error",
+        text: error?.response?.data?.error || "Failed to update preview",
+      });
+    } finally {
+      setTogglingPreviewId(null);
     }
   };
 
@@ -1453,21 +1471,26 @@ const AdminDashboardPage: React.FC = () => {
                         </span>
                       </div>
                       <div>
-                        {l.isFreePreview ? (
-                          <span
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: 999,
-                              fontSize: 12,
-                              border: "1px solid #b7ebc6",
-                              background: "#eefdf3",
-                            }}
-                          >
-                            ON
-                          </span>
-                        ) : (
-                          <span style={{ opacity: 0.6, fontSize: 12 }}>—</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePreview(lessonId, !!l.isFreePreview)}
+                          disabled={togglingPreviewId === lessonId}
+                          title={l.isFreePreview ? "Click to disable free preview" : "Click to enable free preview"}
+                          style={{
+                            padding: "4px 12px",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: togglingPreviewId === lessonId ? "wait" : "pointer",
+                            border: l.isFreePreview ? "2px solid #22c55e" : "2px solid #3b82f6",
+                            background: l.isFreePreview ? "#dcfce7" : "#eff6ff",
+                            color: l.isFreePreview ? "#166534" : "#1d4ed8",
+                            opacity: togglingPreviewId === lessonId ? 0.7 : 1,
+                            minWidth: 52,
+                          }}
+                        >
+                          {togglingPreviewId === lessonId ? "..." : l.isFreePreview ? "ON" : "Set"}
+                        </button>
                       </div>
                       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                         <button
