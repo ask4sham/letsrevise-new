@@ -14,6 +14,7 @@ const SettingsPage: React.FC = () => {
   const [emailLoading, setEmailLoading] = useState(false);
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
   const [emailForm, setEmailForm] = useState({ currentPassword: "", newEmail: "" });
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
 
   return (
     <div
@@ -196,14 +197,34 @@ const SettingsPage: React.FC = () => {
             }}
             style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: 400 }}
           >
-            <input
-              type="password"
-              placeholder="Current password"
-              value={emailForm.currentPassword}
-              onChange={(e) => setEmailForm((p) => ({ ...p, currentPassword: e.target.value }))}
-              required
-              style={{ padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8 }}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type={showEmailPassword ? "text" : "password"}
+                placeholder="Current password"
+                value={emailForm.currentPassword}
+                onChange={(e) => setEmailForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                required
+                style={{ padding: "10px 12px", paddingRight: 40, border: "1px solid #d1d5db", borderRadius: 8, width: "100%", boxSizing: "border-box" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowEmailPassword((p) => !p)}
+                aria-label={showEmailPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  padding: 4,
+                }}
+              >
+                {showEmailPassword ? "🙈" : "👁"}
+              </button>
+            </div>
             <input
               type="email"
               placeholder="New email"
