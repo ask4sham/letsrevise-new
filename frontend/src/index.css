@@ -48,13 +48,16 @@ code {
   height: auto;
 }
 
-/* Long words wrap; avoid overflow-x on container (was collapsing images on desktop) */
+/* Base: wrap long words, no horizontal scroll on container */
 .lesson-content {
+  width: 100%;
   overflow-wrap: break-word;
   word-wrap: break-word;
   white-space: normal;
+  word-break: normal;
   min-width: 0;
   max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Paragraphs and text: ensure wrap on mobile */
@@ -93,14 +96,16 @@ code {
 }
 
 @media (max-width: 768px) {
-  /* Mobile: constrain width, wrap text; tables/pre scroll within their blocks */
+  /* Mobile: full width, natural wrap; only pre/table scroll horizontally */
   .lesson-content {
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
+    overflow-x: hidden;
   }
-  /* Wide content (tables, code) scrolls horizontally; container doesn't expand */
+  /* ONLY pre and table may scroll horizontally */
   .lesson-content pre,
   .lesson-content table {
     max-width: 100%;

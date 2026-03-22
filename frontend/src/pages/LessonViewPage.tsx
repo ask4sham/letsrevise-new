@@ -3133,8 +3133,8 @@ const LessonViewPage: React.FC = () => {
         data-lesson-view="structured"
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-          padding: layoutStacked ? "12px" : "18px",
+          background: layoutStacked ? "#fff" : "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
+          padding: layoutStacked ? 0 : 18,
           paddingBottom: layoutStacked && orderedPages.length > 0 ? 80 : undefined,
           fontSize: BASE_FONT_SIZE,
           minWidth: 0,
@@ -3148,7 +3148,14 @@ const LessonViewPage: React.FC = () => {
             onClose={() => setAiToast(null)}
           />
         )}
-        <div style={{ maxWidth: 1750, margin: "0 auto", minWidth: 0, overflow: "visible" as const }}>
+        <div style={{
+          maxWidth: layoutStacked ? "100%" : 1750,
+          width: layoutStacked ? "100%" : undefined,
+          margin: layoutStacked ? 0 : "0 auto",
+          minWidth: 0,
+          overflow: "visible" as const,
+          padding: layoutStacked ? "0 16px" : 0,
+        }}>
           {/* ✅ PROOF PANEL REMOVED FROM HERE */}
 
           <div style={{ marginBottom: 12 }}>
@@ -3261,18 +3268,23 @@ const LessonViewPage: React.FC = () => {
             </div>
           )}
 
+          {/* MOBILE: single-column block layout, no grid, no sidebars. DESKTOP: 3-column grid with sticky sidebars */}
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: layoutStacked ? "1fr" : "260px minmax(0, 1fr) 280px",
-              gap: layoutStacked ? 16 : 18,
-              alignItems: "start",
-              alignContent: "start",
-              minWidth: 0,
-              overflow: "visible" as const,
-            }}
+            style={
+              layoutStacked
+                ? { display: "block", width: "100%", maxWidth: "100%", minWidth: 0 }
+                : {
+                    display: "grid",
+                    gridTemplateColumns: "260px minmax(0, 1fr) 280px",
+                    gap: 18,
+                    alignItems: "start",
+                    alignContent: "start",
+                    minWidth: 0,
+                    overflow: "visible" as const,
+                  }
+            }
           >
-            {/* LEFT SIDEBAR — hidden on mobile; compact bar + drawer used instead */}
+            {/* LEFT SIDEBAR — desktop only */}
             {!layoutStacked && (
             <aside
               style={{
@@ -3387,23 +3399,24 @@ const LessonViewPage: React.FC = () => {
             </aside>
             )}
 
-            {/* MAIN CONTENT CARD */}
-            <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0, width: "100%" }}>
+            {/* MAIN CONTENT CARD — mobile: clean article flow; desktop: card */}
+            <main style={{ order: layoutStacked ? undefined : 1, minWidth: 0, width: "100%", maxWidth: "100%" }}>
               <div
                 style={{
                   background: "white",
-                  borderRadius: 16,
-                  padding: layoutStacked ? "16px" : "28px",
-                  maxWidth: layoutStacked ? "100%" : 1100,
+                  borderRadius: layoutStacked ? 0 : 16,
+                  padding: layoutStacked ? 16 : 28,
+                  maxWidth: "100%",
                   width: "100%",
                   minWidth: 0,
-                  margin: "0 auto",
+                  margin: layoutStacked ? 0 : "0 auto",
                   boxSizing: "border-box",
-                  boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
-                  border: "3px solid rgba(59,130,246,0.45)",
+                  boxShadow: layoutStacked ? "none" : "0 10px 28px rgba(0,0,0,0.08)",
+                  border: layoutStacked ? "none" : "3px solid rgba(59,130,246,0.45)",
                   textAlign: "left",
                   fontSize: BASE_FONT_SIZE,
                   lineHeight: 1.8,
+                  display: "block" as const,
                 }}
               >
                 {/* ✅ Header fix: Lesson title is the main title; page title is secondary */}
