@@ -32,7 +32,7 @@ const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftVal
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
-const { validateLessonDraftAgainstCurriculum, shouldTriggerSecondPass, validateLessonStructure } = require("../services/lessonDraftValidation");
+const { validateLessonDraftAgainstCurriculum, validateLessonStructure } = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
@@ -628,11 +628,18 @@ function buildCurriculumFeedbackLines(validation) {
  * Second-pass improvement: send draft + validation feedback to AI and get improved version.
  * Safe fallback: throws on any error; caller keeps original.
  */
-async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIssues }, context) {
+async function improveDraftWithSecondPass(
+  { draft, curriculumIssues, structureIssues, qualityIssues, qualitySuggestions },
+  context
+) {
   const { topic, subject, level, board, tier, specPoints = [], additionalInstructions = "" } = context || {};
   const feedbackLines = [
     ...(Array.isArray(curriculumIssues) ? curriculumIssues : []),
     ...(Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : []),
+    ...(Array.isArray(qualityIssues) && qualityIssues.length ? ["QUALITY SCORER ISSUES:"] : []),
+    ...(Array.isArray(qualityIssues) ? qualityIssues.map((s) => `- ${s}`) : []),
+    ...(Array.isArray(qualitySuggestions) && qualitySuggestions.length ? ["QUALITY SUGGESTIONS:"] : []),
+    ...(Array.isArray(qualitySuggestions) ? qualitySuggestions.map((s) => `- ${s}`) : []),
   ].filter(Boolean);
 
   const systemPrompt = [
@@ -1267,60 +1274,80 @@ router.post("/generate-and-save", auth, async (req, res) => {
       strictSpec,
     })).sanitized;
 
-    // ✅ 2b) Curriculum validation layer
-    let generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
+    // ✅ 2b) Curriculum validation
+    const generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
       specPoints,
       requiredKeywords,
       requiredMisconceptions,
       requireExamQuestions: true,
       topic,
     });
+    const curriculumIssues = buildCurriculumFeedbackLines(generationValidation);
     const structureIssues = validateLessonStructure(sanitized);
-    generationValidation = { ...generationValidation, structureIssues };
 
-    // ✅ 2c) Second-pass improvement: if draft is weak, ask AI to improve it before saving
-    if (shouldTriggerSecondPass(generationValidation)) {
+    // ✅ 2c) Score quality and decide whether to trigger second pass
+    const qualityResult = scoreLessonQuality(sanitized, {
+      curriculumIssues,
+      structureIssues,
+      source: "ai",
+    });
+
+    const shouldRewrite =
+      curriculumIssues.length > 0 || structureIssues.length > 0 || qualityResult.score < 70;
+
+    let finalDraft = sanitized;
+    let finalStructureIssues = structureIssues;
+
+    if (shouldRewrite) {
       try {
         const improved = await improveDraftWithSecondPass(
           {
             draft: sanitized,
-            curriculumIssues: buildCurriculumFeedbackLines(generationValidation),
+            curriculumIssues,
             structureIssues,
+            qualityIssues: qualityResult.issues,
+            qualitySuggestions: qualityResult.suggestions,
           },
           { topic, subject, level, board, tier, specPoints, additionalInstructions }
         );
-        sanitized = improved.sanitized;
-        generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
+        finalDraft = improved.sanitized;
+
+        const finalCurriculumValidation = validateLessonDraftAgainstCurriculum(finalDraft, {
           specPoints,
           requiredKeywords,
           requiredMisconceptions,
           requireExamQuestions: true,
           topic,
         });
-        generationValidation = { ...generationValidation, structureIssues: validateLessonStructure(sanitized) };
+        finalStructureIssues = validateLessonStructure(finalDraft);
+        const finalCurriculumIssues = buildCurriculumFeedbackLines(finalCurriculumValidation);
+
+        const finalQuality = scoreLessonQuality(finalDraft, {
+          curriculumIssues: finalCurriculumIssues,
+          structureIssues: finalStructureIssues,
+          source: "ai",
+        });
+
+        if (finalQuality.score < 55) {
+          throw new Error(
+            `Lesson quality too low to save. Score: ${finalQuality.score}. ` +
+              `Top issues: ${finalQuality.issues.slice(0, 5).join("; ")}`
+          );
+        }
+
         if (process.env.NODE_ENV !== "production") {
-          console.log("[generate-and-save] Second-pass improvement applied");
+          console.log("[generate-and-save] Second-pass improvement applied, final score:", finalQuality.score);
         }
       } catch (e) {
+        if (e?.message?.includes("Lesson quality too low to save")) throw e;
         console.warn("[generate-and-save] Second-pass improvement failed, using original draft:", e?.message || e);
       }
     }
 
-    const finalStructureIssues = validateLessonStructure(sanitized);
+    sanitized = finalDraft;
+
     if (finalStructureIssues.length > 0) {
       throw new Error(`Lesson failed structure validation: ${finalStructureIssues.join("; ")}`);
-    }
-
-    // ✅ 2d) Quality gate: do not save AI-generated lessons with score < 55
-    const qualityResult = scoreLessonQuality(sanitized, {
-      curriculumIssues: buildCurriculumFeedbackLines(generationValidation),
-      structureIssues: finalStructureIssues,
-    });
-    if (qualityResult.score < 55) {
-      throw new Error(
-        `Lesson quality score too low to save (${qualityResult.score}). ` +
-          `Improve the lesson before saving. Top issues: ${qualityResult.issues.slice(0, 5).join("; ")}`
-      );
     }
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
