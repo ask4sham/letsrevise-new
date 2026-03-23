@@ -395,7 +395,7 @@ Important rules:
 - Use short paragraphs. Maximum 3 sentences per paragraph.
 - Focus on one idea at a time.
 - Always explain structure to function, cause to effect, or feature to purpose.
-- Always include exam wording.
+- Always include exam wording. Use exam-style phrasing: "Explain", "Compare", "Describe".
 - If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
 - Do not skip exam tips.
 - Do not skip checkpoints.
@@ -637,7 +637,7 @@ async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIs
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
-    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Use short paragraphs: maximum 3 sentences per paragraph. Avoid note-like, shallow summaries.",
+    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Use exam-style phrasing: Explain, Compare, Describe. Use short paragraphs: maximum 3 sentences per paragraph. Avoid note-like, shallow summaries.",
   ].join(" ");
 
   const structureEnforcement = [
@@ -649,6 +649,7 @@ async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIs
     "- maintain diagram → explanation → exam tip flow",
     "- rewrite weak sections clearly",
     "- ensure exam-focused explanations",
+    "- use exam-style phrasing: Explain, Compare, Describe",
     "- each checkpoint: real exam-style question (not placeholder) and correct answer",
     "If diagrams are needed, write \"image here\".",
     "Do not skip any required blocks. If unsure, still produce them.",
