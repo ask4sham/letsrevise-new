@@ -633,44 +633,54 @@ async function improveDraftWithSecondPass(
   context
 ) {
   const { topic, subject, level, board, tier, specPoints = [], additionalInstructions = "" } = context || {};
-  const feedbackLines = [
-    ...(Array.isArray(curriculumIssues) ? curriculumIssues : []),
-    ...(Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : []),
-    ...(Array.isArray(qualityIssues) && qualityIssues.length ? ["QUALITY SCORER ISSUES:"] : []),
-    ...(Array.isArray(qualityIssues) ? qualityIssues.map((s) => `- ${s}`) : []),
-    ...(Array.isArray(qualitySuggestions) && qualitySuggestions.length ? ["QUALITY SUGGESTIONS:"] : []),
-    ...(Array.isArray(qualitySuggestions) ? qualitySuggestions.map((s) => `- ${s}`) : []),
-  ].filter(Boolean);
+
+  const qualityIssuesList = Array.isArray(qualityIssues) ? qualityIssues : [];
+  const qualitySuggestionsList = Array.isArray(qualitySuggestions) ? qualitySuggestions : [];
+  const curriculumLines = Array.isArray(curriculumIssues) ? curriculumIssues : [];
+  const structureLines = Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : [];
 
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
-    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Use exam-style phrasing: Explain, Compare, Describe. Use short paragraphs: maximum 3 sentences per paragraph. Avoid note-like, shallow summaries.",
   ].join(" ");
 
-  const structureEnforcement = [
-    "Fix this lesson so it strictly follows the LetsRevise teaching structure.",
-    "You must:",
-    "- include all required roles (hook, coreRule, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule)",
-    "- include at least one worked example",
-    "- include \"What to Notice\" blocks (keyIdea with title \"What to Notice\" and role \"whatToNotice\")",
-    "- maintain diagram → explanation → exam tip flow",
-    "- rewrite weak sections clearly",
-    "- ensure exam-focused explanations",
-    "- use exam-style phrasing: Explain, Compare, Describe",
-    "- each checkpoint: real exam-style question (not placeholder) and correct answer",
-    "If diagrams are needed, write \"image here\".",
-    "Do not skip any required blocks. If unsure, still produce them.",
+  const rewritePrompt = [
+    "Rewrite this lesson so it reaches publish-ready quality for LetsRevise.",
+    "",
+    "You must improve:",
+    "- lesson structure",
+    "- pedagogy",
+    "- exam readiness",
+    "- clarity",
+    "- completeness",
+    "",
+    "Current issues:",
+    qualityIssuesList.length ? qualityIssuesList.join("\n") : "(none)",
+    "",
+    "Improve using these actions:",
+    qualitySuggestionsList.length ? qualitySuggestionsList.join("\n") : "(add missing blocks, improve explanations)",
+    "",
+    "Rules:",
+    "1. Keep the topic, tier, and curriculum accurate.",
+    "2. Preserve correct content.",
+    "3. Add missing blocks if needed.",
+    "4. Add a worked exam example if missing.",
+    "5. Add \"What to Notice\" blocks after diagrams.",
+    "6. Improve vague explanations into specific feature-to-function explanations.",
+    "7. Keep paragraphs short.",
+    "8. Use exam-style wording such as Explain, Compare, and Describe.",
+    "9. If a diagram is needed, write exactly: \"image here\"",
   ].join("\n");
 
   const userPromptParts = [
     `Topic: ${topic} | Subject: ${subject} | Level: ${level} | Board: ${board} | Tier: ${tier}`,
     "",
-    structureEnforcement,
-    "",
-    "VALIDATION FEEDBACK (fix all issues):",
-    feedbackLines.join("\n"),
+    rewritePrompt,
   ];
+  if (curriculumLines.length || structureLines.length) {
+    userPromptParts.push("", "ADDITIONAL VALIDATION FEEDBACK (fix these too):");
+    userPromptParts.push(...curriculumLines, ...structureLines);
+  }
   if (additionalInstructions && typeof additionalInstructions === "string" && additionalInstructions.trim()) {
     userPromptParts.push("", "TEACHER INSTRUCTIONS (honour these when improving):", additionalInstructions.trim());
   }
@@ -681,7 +691,7 @@ async function improveDraftWithSecondPass(
     JSON.stringify(draft, null, 0).slice(0, 60000),
     "```",
     "",
-    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables (when applicable), visual guidance, and a worked exam example with mark breakdown. Add exam question variety (Describe, Explain, Compare, Evaluate, Suggest). Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields. Do not change block structure."
+    "Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields."
   );
   const userPrompt = userPromptParts.join("\n");
 
@@ -1438,6 +1448,14 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
+    // ✅ Step 16: Compute and persist quality metadata
+    const finalDraftForQuality = { ...sanitized, pages: pagesMerged };
+    const aiQualityResult = scoreLessonQuality(finalDraftForQuality, {
+      structureIssues: [],
+      curriculumIssues: [],
+      source: "ai",
+    });
+
     // ✅ 7) Create the cloned lesson doc (required fields satisfied)
     const lessonDoc = new Lesson({
       // Required top-level fields
@@ -1456,6 +1474,12 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
       // Namespaced topicKey for practice/banks (same as manual Create Lesson)
       ...(canonicalTopicKey && { topicKey: canonicalTopicKey }),
+
+      // Step 16: Quality metadata
+      qualityScore: aiQualityResult.score,
+      qualityBand: aiQualityResult.band,
+      qualityCategories: aiQualityResult.categories,
+      qualityIssues: aiQualityResult.issues?.length ? aiQualityResult.issues : undefined,
 
       // Gold structure
       pages: pagesMerged,

@@ -81,6 +81,8 @@ const LessonPageBlockSchema = new mongoose.Schema(
     source: { type: String, default: undefined },
     title: { type: String, default: undefined },
     note: { type: String, default: undefined },
+    /** Block role — semantic label (e.g. Hook, Core rule, What to Notice) for contract enforcement */
+    role: { type: String, default: undefined },
     elements: [
       {
         id: { type: String },
@@ -346,6 +348,18 @@ const LessonSchema = new mongoose.Schema(
     },
     /** PR-014.1: generatedFrom { jobId, statementCodes, seed } for publish gate */
     metadata: { type: mongoose.Schema.Types.Mixed, default: null },
+
+    /** Quality scoring metadata (admin QA, filtering, tracking improvement) */
+    qualityScore: { type: Number, default: null },
+    qualityBand: { type: String, default: null },
+    qualityCategories: {
+      structure: { type: Number, default: null },
+      pedagogy: { type: Number, default: null },
+      examReadiness: { type: Number, default: null },
+      clarity: { type: Number, default: null },
+      completeness: { type: Number, default: null },
+    },
+    qualityIssues: { type: [String], default: undefined },
 
     /** USP 3a: Past paper questions attached to this lesson (teacher-only link; no PDF ingestion yet). */
     examQuestions: [

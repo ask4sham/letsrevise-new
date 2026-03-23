@@ -1783,15 +1783,24 @@ async function publishToggleHandler(req, res, mode) {
         return res.status(400).json({ error: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
       }
 
-      // Quality gate: block publish if score < 70 (strong threshold)
-      const qualityResult = scoreLessonQuality(lessonObj);
+      const structureIssues = validateLessonStructure(lessonObj);
+      const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
+
+      if (structureIssues.length > 0) {
+        return res.status(400).json({
+          error: "Lesson failed structure validation",
+          structureIssues,
+        });
+      }
+
       if (qualityResult.score < 70) {
         return res.status(400).json({
-          error: "Lesson quality score too low to publish",
+          error: "Lesson quality too low to publish",
           score: qualityResult.score,
           band: qualityResult.band,
-          issues: qualityResult.issues,
-          suggestions: qualityResult.suggestions,
+          topIssues: (qualityResult.issues || []).slice(0, 10),
+          topSuggestions: (qualityResult.suggestions || []).slice(0, 10),
+          qualityResult,
         });
       }
     }
@@ -2653,12 +2662,27 @@ router.put("/:id", auth, async (req, res) => {
 
     lesson.tier = sanitizeTierByLevel(newLevel, requestedTier);
 
+    // ✅ Step 16: Populate quality metadata on save (admin QA, filtering, tracking)
+    const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc };
+    const structureIssues = validateLessonStructure(lessonObj);
+    const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
+    lesson.qualityScore = qualityResult.score;
+    lesson.qualityBand = qualityResult.band;
+    lesson.qualityCategories = qualityResult.categories;
+    lesson.qualityIssues = qualityResult.issues?.length ? qualityResult.issues : undefined;
+
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
     
     return res.json({ 
       msg: "Lesson updated successfully", 
-      lesson: updatedLesson 
+      lesson: updatedLesson,
+      qualityResult: {
+        score: qualityResult.score,
+        band: qualityResult.band,
+        topIssues: (qualityResult.issues || []).slice(0, 10),
+        topSuggestions: (qualityResult.suggestions || []).slice(0, 10),
+      },
     });
   } catch (err) {
     console.error(err.message);

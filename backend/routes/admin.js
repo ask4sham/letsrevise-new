@@ -1070,6 +1070,7 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
     }
 
     if (updates.isPublished === true || updates.status === "published") {
+      const { validateLessonStructure } = require("../services/lessonDraftValidation");
       const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
       const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
       const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
@@ -1077,15 +1078,24 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
       if (!gate.ok) {
         return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
       }
-      const qualityResult = scoreLessonQuality(lessonObj);
+      const structureIssues = validateLessonStructure(lessonObj);
+      if (structureIssues.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Lesson failed structure validation",
+          structureIssues,
+        });
+      }
+      const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
       if (qualityResult.score < 70) {
         return res.status(400).json({
           success: false,
-          error: "Lesson quality score too low to publish",
+          error: "Lesson quality too low to publish",
           score: qualityResult.score,
           band: qualityResult.band,
-          issues: qualityResult.issues,
-          suggestions: qualityResult.suggestions,
+          topIssues: (qualityResult.issues || []).slice(0, 10),
+          topSuggestions: (qualityResult.suggestions || []).slice(0, 10),
+          qualityResult,
         });
       }
     }
@@ -1100,6 +1110,20 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
     }
 
     Object.assign(lesson, updates);
+
+    // Step 16: Populate quality metadata on save
+    const { validateLessonStructure: validateStructure } = require("../services/lessonDraftValidation");
+    const lessonObjForQuality = lesson.toObject ? lesson.toObject() : { ...lesson._doc };
+    const structureIssuesForQuality = validateStructure(lessonObjForQuality);
+    const qualityResultForSave = require("../lib/lessonQualityScoring").scoreLessonQuality(
+      lessonObjForQuality,
+      { structureIssues: structureIssuesForQuality, source: "manual" }
+    );
+    lesson.qualityScore = qualityResultForSave.score;
+    lesson.qualityBand = qualityResultForSave.band;
+    lesson.qualityCategories = qualityResultForSave.categories;
+    lesson.qualityIssues = qualityResultForSave.issues?.length ? qualityResultForSave.issues : undefined;
+
     await lesson.save();
 
     // PR-015: Enqueue knowledge refresh when publishing (async, non-blocking)
