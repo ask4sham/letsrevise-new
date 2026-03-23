@@ -1273,15 +1273,14 @@ router.post("/generate-and-save", auth, async (req, res) => {
     // ✅ 2c) Second-pass improvement: if draft is weak, ask AI to improve it before saving
     if (shouldTriggerSecondPass(generationValidation)) {
       try {
-        const improved = await improveDraftWithSecondPass(sanitized, generationValidation, {
-          topic,
-          subject,
-          level,
-          board,
-          tier,
-          specPoints,
-          additionalInstructions,
-        });
+        const improved = await improveDraftWithSecondPass(
+          {
+            draft: sanitized,
+            curriculumIssues: buildCurriculumFeedbackLines(generationValidation),
+            structureIssues,
+          },
+          { topic, subject, level, board, tier, specPoints, additionalInstructions }
+        );
         sanitized = improved.sanitized;
         generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
           specPoints,
@@ -1297,6 +1296,11 @@ router.post("/generate-and-save", auth, async (req, res) => {
       } catch (e) {
         console.warn("[generate-and-save] Second-pass improvement failed, using original draft:", e?.message || e);
       }
+    }
+
+    const finalStructureIssues = validateLessonStructure(sanitized);
+    if (finalStructureIssues.length > 0) {
+      throw new Error(`Lesson failed structure validation: ${finalStructureIssues.join("; ")}`);
     }
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
@@ -1598,6 +1602,11 @@ router.post("/improve-lesson", auth, async (req, res) => {
       sanitized = improved.sanitized;
     } catch (e) {
       console.warn("[improve-lesson] Second-pass failed, using original:", e?.message || e);
+    }
+
+    const improveStructureIssues = validateLessonStructure(sanitized);
+    if (improveStructureIssues.length > 0) {
+      throw new Error(`Lesson failed structure validation: ${improveStructureIssues.join("; ")}`);
     }
 
     const aiPages = ensurePageIds(sanitized.pages);
