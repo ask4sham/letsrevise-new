@@ -383,6 +383,7 @@ You are generating a LetsRevise lesson. Follow this exact lesson structure:
    - text explanation
    - examTip
 6. Include at least one checkpoint block that acts as a worked exam question with a strong model answer.
+   Each checkpoint must: contain a real exam-style question (not a placeholder); include a correct answer.
 7. End with:
    - one keyIdea synthesis block
    - one checkpoint multiple-choice or recall question
@@ -398,6 +399,7 @@ Important rules:
 - If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
 - Do not skip exam tips.
 - Do not skip checkpoints.
+- Each checkpoint must contain a real exam-style question and include a correct answer.
 - Do not skip any required blocks. If unsure, still produce them.
 - Do not write long note-style content.
 `;
@@ -647,6 +649,7 @@ async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIs
     "- maintain diagram → explanation → exam tip flow",
     "- rewrite weak sections clearly",
     "- ensure exam-focused explanations",
+    "- each checkpoint: real exam-style question (not placeholder) and correct answer",
     "If diagrams are needed, write \"image here\".",
     "Do not skip any required blocks. If unsure, still produce them.",
   ].join("\n");

@@ -394,6 +394,21 @@ function validateLessonStructure(draft) {
   );
   if (!hasWorkedExample) issues.push("Missing worked example (needs role 'workedExample' with substantial content)");
 
+  const checkpointBlocks = blocks.filter((b) => safeStr(b?.type, "") === "checkpoint");
+  const placeholderPrompts = /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
+  checkpointBlocks.forEach((b, i) => {
+    const prompt = safeStr(b?.prompt, "") || safeStr(b?.question, "");
+    const correctAnswer = safeStr(b?.correctAnswer, "") || safeStr(b?.answer, "");
+    if (!prompt || prompt.length < 15) {
+      issues.push(`Checkpoint ${i + 1}: must contain a real exam-style question`);
+    } else if (placeholderPrompts.test(prompt.trim())) {
+      issues.push(`Checkpoint ${i + 1}: must contain a real exam-style question (not a placeholder)`);
+    }
+    if (!correctAnswer) {
+      issues.push(`Checkpoint ${i + 1}: must include a correct answer`);
+    }
+  });
+
   return issues;
 }
 
