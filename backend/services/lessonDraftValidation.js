@@ -201,7 +201,26 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
   };
 }
 
+/**
+ * Determine if a draft should trigger a second-pass improvement.
+ * Trigger if: hard validation failure OR any quality weakness:
+ * - subheadings < 3, misconceptions < 3, missing exam questions, missing key words,
+ *   or validation has warnings (exam tips, exam-style Q&A).
+ */
+function shouldTriggerSecondPass(validation) {
+  if (!validation) return false;
+  if (!validation.valid) return true;
+  if ((validation.subheadingCount || 0) < 3) return true;
+  if ((validation.misconceptionCount || 0) < 3) return true;
+  if (!validation.hasExamQuestions) return true;
+  if (!validation.hasKeyWords) return true;
+  if ((validation.examTipCount || 0) < 2) return true;
+  if (!validation.hasExamStyleQandA && validation.hasExamQuestions) return true;
+  return false;
+}
+
 module.exports = {
   validateLessonDraftAgainstCurriculum,
+  shouldTriggerSecondPass,
   extractDraftText,
 };

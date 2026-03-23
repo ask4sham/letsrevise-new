@@ -133,6 +133,7 @@ const TeacherDashboard: React.FC = () => {
     board: "", // ✅ optional by default
     tier: "higher",
     autoGenerateFromBanks: true,
+    additionalInstructions: "",
   });
   const [aiTopicSelection, setAiTopicSelection] = useState<TopicSelectionValue>({
     subject: "Biology",
@@ -559,6 +560,8 @@ const TeacherDashboard: React.FC = () => {
         autoGenerateFromBanks: aiForm.autoGenerateFromBanks === true,
       };
       if (topicKey) payload.topicKey = topicKey;
+      const instr = (aiForm.additionalInstructions || "").trim();
+      if (instr) payload.additionalInstructions = instr;
 
       if (process.env.NODE_ENV !== "production") {
         console.log("[GenerateLessonMaterials] request payload", payload);
@@ -1979,6 +1982,61 @@ const TeacherDashboard: React.FC = () => {
                   </label>
                   <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 2, marginLeft: 24 }}>
                     Only questions for the selected sub-topic will be attached.
+                  </div>
+                </div>
+
+                <div style={{ gridColumn: "1 / -1", marginTop: 12 }}>
+                  <label style={{ fontSize: "0.85rem", color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    Additional instructions for this lesson
+                  </label>
+                  <textarea
+                    value={aiForm.additionalInstructions || ""}
+                    onChange={(e) => setAiForm((p) => ({ ...p, additionalInstructions: e.target.value }))}
+                    placeholder="Only include content relevant to cell structure, differences between plant and animal cells, and functions of organelles. Do not include out-of-spec content. Match GCSE exam expectations."
+                    rows={3}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      fontSize: "0.9rem",
+                      resize: "vertical",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                    {[
+                      "Exam-focused",
+                      "Simpler language",
+                      "Higher tier depth",
+                      "Include misconceptions",
+                      "Add comparison table",
+                      "Keep strictly in spec",
+                    ].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() =>
+                          setAiForm((p) => ({
+                            ...p,
+                            additionalInstructions: (p.additionalInstructions || "").trim()
+                              ? `${p.additionalInstructions.trim()}. ${chip}.`
+                              : `${chip}.`,
+                          }))
+                        }
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 16,
+                          border: "1px solid #d1d5db",
+                          background: "white",
+                          fontSize: "0.8rem",
+                          cursor: "pointer",
+                          color: "#374151",
+                        }}
+                      >
+                        + {chip}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 </div>

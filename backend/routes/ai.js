@@ -32,7 +32,7 @@ const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftVal
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
-const { validateLessonDraftAgainstCurriculum } = require("../services/lessonDraftValidation");
+const { validateLessonDraftAgainstCurriculum, shouldTriggerSecondPass } = require("../services/lessonDraftValidation");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -350,6 +350,7 @@ function buildUserPromptFromMd({
   topicKey = null,
   requiredKeywords = [],
   requiredMisconceptions = [],
+  additionalInstructions = "",
 }) {
   const lvl = normalizeLevel(level);
   const tierFinal = lvl === "GCSE" ? normalizeTier(tier) : ""; // non-GCSE => empty string
@@ -393,6 +394,12 @@ function buildUserPromptFromMd({
       if (Array.isArray(s.markScheme) && s.markScheme.length > 0)
         out += `\nMark scheme: ${s.markScheme.slice(0, 3).join("; ")}`;
     });
+  }
+  if (additionalInstructions && typeof additionalInstructions === "string" && additionalInstructions.trim()) {
+    out += "\n\n## Teacher instructions (refine the lesson; do not override curriculum safety)\n";
+    out += "The teacher has requested the following. Use these to refine scope, style, depth, or emphasis. Stay within the selected subject/board/topic/spec.\n\n";
+    out += additionalInstructions.trim();
+    out += "\n";
   }
   out += buildBoardPromptFragment(board);
   return out;
@@ -449,6 +456,76 @@ async function callOpenAI({ systemPrompt, userPrompt }) {
   if (!outputText) throw new Error("OpenAI response missing output_text");
 
   return { raw: outputText, usage: data.usage || null, model: data.model || model };
+}
+
+/**
+ * Second-pass improvement: send draft + validation feedback to AI and get improved version.
+ * Safe fallback: throws on any error; caller keeps original.
+ */
+async function improveDraftWithSecondPass(draft, validation, context) {
+  const { topic, subject, level, board, tier, specPoints = [], additionalInstructions = "" } = context || {};
+  const feedbackLines = [];
+  if (!validation.valid) feedbackLines.push("HARD FAILURES (must fix):");
+  if (validation.missingSpecPoints?.length) {
+    feedbackLines.push(`- Spec statements not covered: ${validation.missingSpecPoints.slice(0, 5).join("; ")}`);
+  }
+  if (validation.missingKeywords?.length) {
+    feedbackLines.push(`- Required keywords missing: ${validation.missingKeywords.join(", ")}`);
+  }
+  if (validation.missingMisconceptions?.length) {
+    feedbackLines.push(`- Required misconceptions missing: ${validation.missingMisconceptions.join(", ")}`);
+  }
+  if (!validation.hasExamQuestions) feedbackLines.push("- No exam-style questions present");
+  feedbackLines.push("QUALITY ISSUES (improve):");
+  if ((validation.misconceptionCount || 0) < 3) {
+    feedbackLines.push(`- Add more common misconception blocks (have ${validation.misconceptionCount}, need at least 3)`);
+  }
+  if ((validation.examTipCount || 0) < 2) {
+    feedbackLines.push(`- Add more exam tip blocks (have ${validation.examTipCount}, need at least 2)`);
+  }
+  if (!validation.hasKeyWords) feedbackLines.push("- Add a Key words block with 5–10 essential terms");
+  if (!validation.hasExamStyleQandA && validation.hasExamQuestions) {
+    feedbackLines.push("- Add exam-style practice questions with mark-scheme style answers in a text block");
+  }
+  if ((validation.subheadingCount || 0) < 3) {
+    feedbackLines.push(`- Add structured teaching sections with ## markdown subheadings (have ${validation.subheadingCount}, need at least 3)`);
+  }
+
+  const systemPrompt = [
+    "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
+    "Return ONLY valid JSON. Match the lesson draft schema exactly. Same block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint. Keep existing block structure intact.",
+    "Improve this lesson to meet GCSE teaching and exam standards. You must: expand shallow sections, add missing subtopics, improve misconceptions (min 3), improve exam questions and answers, improve structure and flow, ensure full topic coverage.",
+  ].join(" ");
+
+  const userPromptParts = [
+    `Topic: ${topic} | Subject: ${subject} | Level: ${level} | Board: ${board} | Tier: ${tier}`,
+    "",
+    "VALIDATION FEEDBACK (fix all issues):",
+    feedbackLines.join("\n"),
+  ];
+  if (additionalInstructions && typeof additionalInstructions === "string" && additionalInstructions.trim()) {
+    userPromptParts.push("", "TEACHER INSTRUCTIONS (honour these when improving):", additionalInstructions.trim());
+  }
+  userPromptParts.push(
+    "",
+    "CURRENT DRAFT:",
+    "```json",
+    JSON.stringify(draft, null, 0).slice(0, 60000),
+    "```",
+    "",
+    "Improve this lesson. Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields. Do not change block structure."
+  );
+  const userPrompt = userPromptParts.join("\n");
+
+  const ai = await callOpenAI({ systemPrompt, userPrompt });
+  let improved;
+  try {
+    improved = JSON.parse(ai.raw);
+  } catch (e) {
+    throw new Error(`Second-pass AI returned invalid JSON: ${(e?.message || "").slice(0, 100)}`);
+  }
+  const sanitized = sanitizeDraft(improved, { subject, level, topic });
+  return { sanitized };
 }
 
 /**
@@ -724,6 +801,7 @@ async function generateSanitizedDraft({
   topicKey = null,
   requiredKeywords = [],
   requiredMisconceptions = [],
+  additionalInstructions = "",
 }) {
   const systemPrompt = buildSystemPrompt(subject, level);
   const userPrompt = buildUserPromptFromMd({
@@ -739,6 +817,7 @@ async function generateSanitizedDraft({
     topicKey,
     requiredKeywords,
     requiredMisconceptions,
+    additionalInstructions,
   });
 
   const ai = await callOpenAI({ systemPrompt, userPrompt });
@@ -929,6 +1008,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const requiredMisconceptions = Array.isArray(req.body?.requiredMisconceptions)
       ? req.body.requiredMisconceptions.filter((x) => typeof x === "string" && x.trim())
       : [];
+    const additionalInstructions =
+      typeof req.body?.additionalInstructions === "string"
+        ? req.body.additionalInstructions.trim().slice(0, 2000)
+        : "";
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[generate-and-save] handler v2", { autoGenerateFromBanksFromBody: req.body?.autoGenerateFromBanks, autoGenerateFromBanks });
@@ -995,7 +1078,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const thinCoverage = specPoints.length === 0;
 
     // ✅ 2) Generate AI draft (sanitized) with sub-topic scope guardrails
-    const { sanitized } = await generateSanitizedDraft({
+    let sanitized = (await generateSanitizedDraft({
       topic,
       subject,
       level,
@@ -1007,15 +1090,43 @@ router.post("/generate-and-save", auth, async (req, res) => {
       topicKey: canonicalTopicKey,
       requiredKeywords,
       requiredMisconceptions,
-    });
+      additionalInstructions,
+    })).sanitized;
 
     // ✅ 2b) Curriculum validation layer
-    const generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
+    let generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
       specPoints,
       requiredKeywords,
       requiredMisconceptions,
       requireExamQuestions: true,
     });
+
+    // ✅ 2c) Second-pass improvement: if draft is weak, ask AI to improve it before saving
+    if (shouldTriggerSecondPass(generationValidation)) {
+      try {
+        const improved = await improveDraftWithSecondPass(sanitized, generationValidation, {
+          topic,
+          subject,
+          level,
+          board,
+          tier,
+          specPoints,
+          additionalInstructions,
+        });
+        sanitized = improved.sanitized;
+        generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
+          specPoints,
+          requiredKeywords,
+          requiredMisconceptions,
+          requireExamQuestions: true,
+        });
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[generate-and-save] Second-pass improvement applied");
+        }
+      } catch (e) {
+        console.warn("[generate-and-save] Second-pass improvement failed, using original draft:", e?.message || e);
+      }
+    }
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
     console.log("🧩 [AI CuratedVisual] lookup input:", {
