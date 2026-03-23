@@ -31,6 +31,8 @@ const { findTopicByKey, findTopicBySpecAndKey, topicToKey, isValidTopicForSpec }
 const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftValidation");
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
+const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
+const { validateLessonDraftAgainstCurriculum } = require("../services/lessonDraftValidation");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -346,6 +348,8 @@ function buildUserPromptFromMd({
   extraCoveragePoints = [],
   subTopicDisplay = null,
   topicKey = null,
+  requiredKeywords = [],
+  requiredMisconceptions = [],
 }) {
   const lvl = normalizeLevel(level);
   const tierFinal = lvl === "GCSE" ? normalizeTier(tier) : ""; // non-GCSE => empty string
@@ -374,6 +378,14 @@ function buildUserPromptFromMd({
     out += "\n\n## You must also explicitly cover these (currently missing or weak)\n";
     extraCoveragePoints.forEach((p) => { out += `- ${p}\n`; });
   }
+  if (Array.isArray(requiredKeywords) && requiredKeywords.length > 0) {
+    out += "\n\n## Required keywords (you must use these in your content)\n";
+    requiredKeywords.forEach((kw) => { out += `- ${safeStr(kw, "")}\n`; });
+  }
+  if (Array.isArray(requiredMisconceptions) && requiredMisconceptions.length > 0) {
+    out += "\n\n## Required misconceptions (include in commonMistake blocks)\n";
+    requiredMisconceptions.forEach((mc) => { out += `- ${safeStr(mc, "")}\n`; });
+  }
   if (Array.isArray(pastPaperSnippets) && pastPaperSnippets.length > 0) {
     out += "\n\n## Typical exam question context (based on past papers)\n";
     pastPaperSnippets.slice(0, 5).forEach((s, i) => {
@@ -382,6 +394,7 @@ function buildUserPromptFromMd({
         out += `\nMark scheme: ${s.markScheme.slice(0, 3).join("; ")}`;
     });
   }
+  out += buildBoardPromptFragment(board);
   return out;
 }
 
@@ -709,6 +722,8 @@ async function generateSanitizedDraft({
   extraCoveragePoints = [],
   subTopicDisplay = null,
   topicKey = null,
+  requiredKeywords = [],
+  requiredMisconceptions = [],
 }) {
   const systemPrompt = buildSystemPrompt(subject, level);
   const userPrompt = buildUserPromptFromMd({
@@ -722,6 +737,8 @@ async function generateSanitizedDraft({
     extraCoveragePoints,
     subTopicDisplay,
     topicKey,
+    requiredKeywords,
+    requiredMisconceptions,
   });
 
   const ai = await callOpenAI({ systemPrompt, userPrompt });
@@ -906,6 +923,12 @@ router.post("/generate-and-save", auth, async (req, res) => {
       typeof req.body?.topicKey === "string" && req.body.topicKey.trim()
         ? req.body.topicKey.trim()
         : null;
+    const requiredKeywords = Array.isArray(req.body?.requiredKeywords)
+      ? req.body.requiredKeywords.filter((x) => typeof x === "string" && x.trim())
+      : [];
+    const requiredMisconceptions = Array.isArray(req.body?.requiredMisconceptions)
+      ? req.body.requiredMisconceptions.filter((x) => typeof x === "string" && x.trim())
+      : [];
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[generate-and-save] handler v2", { autoGenerateFromBanksFromBody: req.body?.autoGenerateFromBanks, autoGenerateFromBanks });
@@ -982,6 +1005,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
       pastPaperSnippets,
       subTopicDisplay,
       topicKey: canonicalTopicKey,
+      requiredKeywords,
+      requiredMisconceptions,
+    });
+
+    // ✅ 2b) Curriculum validation layer
+    const generationValidation = validateLessonDraftAgainstCurriculum(sanitized, {
+      specPoints,
+      requiredKeywords,
+      requiredMisconceptions,
+      requireExamQuestions: true,
     });
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
@@ -1106,6 +1139,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
       isTemplate: false,
       createdFromTemplate: !!gold,
       ...(gold?._id && { templateSource: gold._id }),
+
+      // ✅ Curriculum validation (generation metadata)
+      metadata: { generationValidation },
     });
 
     await lessonDoc.save();
@@ -1152,9 +1188,13 @@ router.post("/generate-and-save", auth, async (req, res) => {
       ...(gold?._id && { templateSource: String(gold._id) }),
       ...(autoAttachResult && { attached: autoAttachResult }),
       ...(thinCoverage && { thinCoverage: true }),
+      generationValidation,
     };
     if (thinCoverage) {
       responsePayload.warning = "Content coverage for this sub-topic is limited. The draft was kept within the selected sub-topic.";
+    }
+    if (!generationValidation.valid && generationValidation.summary) {
+      responsePayload.warning = (responsePayload.warning ? responsePayload.warning + " " : "") + "Curriculum validation: " + generationValidation.summary;
     }
     if (!driftCheck.valid && driftCheck.warnings?.length > 0) {
       responsePayload.warning = (responsePayload.warning ? responsePayload.warning + " " : "") + driftCheck.warnings[0];
