@@ -569,55 +569,67 @@ function lessonToDraft(lesson) {
 }
 
 /**
+ * Build curriculum feedback lines from validation object (for second-pass prompt).
+ */
+function buildCurriculumFeedbackLines(validation) {
+  const lines = [];
+  if (!validation) return lines;
+  if (!validation.valid) lines.push("HARD FAILURES (must fix):");
+  if (validation.missingSpecPoints?.length) {
+    lines.push(`- Spec statements not covered: ${validation.missingSpecPoints.slice(0, 5).join("; ")}`);
+  }
+  if (validation.missingKeywords?.length) {
+    lines.push(`- Required keywords missing: ${validation.missingKeywords.join(", ")}`);
+  }
+  if (validation.missingMisconceptions?.length) {
+    lines.push(`- Required misconceptions missing: ${validation.missingMisconceptions.join(", ")}`);
+  }
+  if (!validation.hasExamQuestions) lines.push("- No exam-style questions present");
+  lines.push("QUALITY ISSUES (upgrade to SaveMyExams-level):");
+  if ((validation.subheadingCount || 0) < 4) {
+    lines.push(`- Add structured teaching sections with ## markdown subheadings (have ${validation.subheadingCount}, need at least 4)`);
+  }
+  if (validation.needsTableButMissing) {
+    lines.push("- Topic suggests comparison: add a markdown comparison table (e.g. | Feature | Type A | Type B |)");
+  }
+  if (!validation.hasWorkedExample) {
+    lines.push("- Add at least one worked exam-style example with mark allocation (e.g. '1 mark for…', '2 marks for…')");
+  }
+  if ((validation.examQuestionCount || 0) < 3 || (validation.commandWordVariety || 0) < 3) {
+    lines.push("- Add at least 3 exam-style questions covering Describe, Explain, and Compare or Evaluate");
+  }
+  if (validation.topicSuggestsComparison && !validation.hasComparisonLanguage) {
+    lines.push("- Add comparison/evaluation language ('compared to', 'whereas', 'in contrast')");
+  }
+  if (validation.contentTooShort) {
+    lines.push(`- Content too short (${validation.contentLength} chars). Expand each section: explain, give examples, link to exam use`);
+  }
+  if (validation.needsDiagramButMissing) {
+    lines.push("- Topic would benefit from visual: add diagram guidance ('Draw and label…', 'What to notice…', 'The diagram should show…')");
+  }
+  if ((validation.misconceptionCount || 0) < 3) {
+    lines.push(`- Add more common misconception blocks (have ${validation.misconceptionCount}, need at least 3)`);
+  }
+  if ((validation.examTipCount || 0) < 2) {
+    lines.push(`- Add more exam tip blocks (have ${validation.examTipCount}, need at least 2)`);
+  }
+  if (!validation.hasKeyWords) lines.push("- Add a Key words block with 5–10 essential terms");
+  if (!validation.hasExamStyleQandA && validation.hasExamQuestions) {
+    lines.push("- Add exam-style practice questions with mark-scheme style answers in a text block");
+  }
+  return lines;
+}
+
+/**
  * Second-pass improvement: send draft + validation feedback to AI and get improved version.
  * Safe fallback: throws on any error; caller keeps original.
  */
-async function improveDraftWithSecondPass(draft, validation, context) {
+async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIssues }, context) {
   const { topic, subject, level, board, tier, specPoints = [], additionalInstructions = "" } = context || {};
-  const feedbackLines = [];
-  if (!validation.valid) feedbackLines.push("HARD FAILURES (must fix):");
-  if (validation.missingSpecPoints?.length) {
-    feedbackLines.push(`- Spec statements not covered: ${validation.missingSpecPoints.slice(0, 5).join("; ")}`);
-  }
-  if (validation.missingKeywords?.length) {
-    feedbackLines.push(`- Required keywords missing: ${validation.missingKeywords.join(", ")}`);
-  }
-  if (validation.missingMisconceptions?.length) {
-    feedbackLines.push(`- Required misconceptions missing: ${validation.missingMisconceptions.join(", ")}`);
-  }
-  if (!validation.hasExamQuestions) feedbackLines.push("- No exam-style questions present");
-  feedbackLines.push("QUALITY ISSUES (upgrade to SaveMyExams-level):");
-  if ((validation.subheadingCount || 0) < 4) {
-    feedbackLines.push(`- Add structured teaching sections with ## markdown subheadings (have ${validation.subheadingCount}, need at least 4)`);
-  }
-  if (validation.needsTableButMissing) {
-    feedbackLines.push("- Topic suggests comparison: add a markdown comparison table (e.g. | Feature | Type A | Type B |)");
-  }
-  if (!validation.hasWorkedExample) {
-    feedbackLines.push("- Add at least one worked exam-style example with mark allocation (e.g. '1 mark for…', '2 marks for…')");
-  }
-  if ((validation.examQuestionCount || 0) < 3 || (validation.commandWordVariety || 0) < 3) {
-    feedbackLines.push("- Add at least 3 exam-style questions covering Describe, Explain, and Compare or Evaluate");
-  }
-  if (validation.topicSuggestsComparison && !validation.hasComparisonLanguage) {
-    feedbackLines.push("- Add comparison/evaluation language ('compared to', 'whereas', 'in contrast')");
-  }
-  if (validation.contentTooShort) {
-    feedbackLines.push(`- Content too short (${validation.contentLength} chars). Expand each section: explain, give examples, link to exam use`);
-  }
-  if (validation.needsDiagramButMissing) {
-    feedbackLines.push("- Topic would benefit from visual: add diagram guidance ('Draw and label…', 'What to notice…', 'The diagram should show…')");
-  }
-  if ((validation.misconceptionCount || 0) < 3) {
-    feedbackLines.push(`- Add more common misconception blocks (have ${validation.misconceptionCount}, need at least 3)`);
-  }
-  if ((validation.examTipCount || 0) < 2) {
-    feedbackLines.push(`- Add more exam tip blocks (have ${validation.examTipCount}, need at least 2)`);
-  }
-  if (!validation.hasKeyWords) feedbackLines.push("- Add a Key words block with 5–10 essential terms");
-  if (!validation.hasExamStyleQandA && validation.hasExamQuestions) {
-    feedbackLines.push("- Add exam-style practice questions with mark-scheme style answers in a text block");
-  }
+  const feedbackLines = [
+    ...(Array.isArray(curriculumIssues) ? curriculumIssues : []),
+    ...(Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : []),
+  ].filter(Boolean);
 
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
@@ -1561,15 +1573,14 @@ router.post("/improve-lesson", auth, async (req, res) => {
 
     let sanitized = draft;
     try {
-      const improved = await improveDraftWithSecondPass(sanitized, generationValidation, {
-        topic,
-        subject,
-        level,
-        board,
-        tier,
-        specPoints,
-        additionalInstructions,
-      });
+      const improved = await improveDraftWithSecondPass(
+        {
+          draft: sanitized,
+          curriculumIssues: buildCurriculumFeedbackLines(generationValidation),
+          structureIssues: generationValidation.structureIssues ?? [],
+        },
+        { topic, subject, level, board, tier, specPoints, additionalInstructions }
+      );
       sanitized = improved.sanitized;
     } catch (e) {
       console.warn("[improve-lesson] Second-pass failed, using original:", e?.message || e);
