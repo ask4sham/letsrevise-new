@@ -70,6 +70,81 @@ function detectExamStyleQandA(draft) {
 }
 
 /**
+ * Detect if draft has a markdown comparison table (| Feature | Type A | Type B |).
+ */
+function hasComparisonTable(draft) {
+  const draftText = extractDraftText(draft);
+  return /\|[^|]+\|[^|]+\|[^|]+\|/.test(draftText) && /\|[\s-]+\|/.test(draftText);
+}
+
+/**
+ * Detect if topic suggests comparison is applicable (keywords like types, compare, differences).
+ */
+function topicSuggestsComparison(topic) {
+  if (!topic || typeof topic !== "string") return false;
+  const t = topic.toLowerCase();
+  return (
+    /\btypes?\b/.test(t) ||
+    /\bcompare\b/.test(t) ||
+    /\bdifferen(ces?|t)\b/.test(t) ||
+    /\bvs\.?\b/.test(t) ||
+    /\bversus\b/.test(t)
+  );
+}
+
+/**
+ * Detect if draft has a worked example with mark allocation (e.g. "1 mark for", "marks for").
+ */
+function hasWorkedExample(draft) {
+  const draftText = extractDraftText(draft);
+  return /\b\d+\s*mark(s?)\s+(for|to|if)/i.test(draftText) || /\bmark(s?)\s+for\b/i.test(draftText);
+}
+
+/**
+ * Count exam-style questions and detect command word variety (describe, explain, compare, evaluate).
+ */
+function getExamQuestionStats(draft) {
+  const draftText = extractDraftText(draft);
+  // Count question indicators: "Question 1", "Q1", "Q:", etc.
+  const qMatches = draftText.match(/\b(question|q)\s*[:\d]|\bq\d\b/gi);
+  const qCount = qMatches ? Math.min(qMatches.length, 10) : 0;
+
+  const hasDescribe = /\bdescribe\b/i.test(draftText);
+  const hasExplain = /\bexplain\b/i.test(draftText);
+  const hasCompareOrEvaluate = /\b(compare|evaluate)\b/i.test(draftText);
+  const commandWordVariety = [hasDescribe, hasExplain, hasCompareOrEvaluate].filter(Boolean).length;
+  // Need both: 3+ questions and 3 command word types (Describe, Explain, Compare/Evaluate)
+  const examQuestionCount = Math.max(qCount, commandWordVariety);
+
+  return { examQuestionCount, commandWordVariety, hasDescribe, hasExplain, hasCompareOrEvaluate };
+}
+
+/**
+ * Detect comparison/evaluation language ("compared to", "whereas", "in contrast").
+ */
+function hasComparisonLanguage(draft) {
+  const draftText = extractDraftText(draft);
+  return (
+    /\bcompared\s+to\b/i.test(draftText) ||
+    /\bwhereas\b/i.test(draftText) ||
+    /\bin\s+contrast\b/i.test(draftText) ||
+    /\bhowever\b/i.test(draftText) ||
+    /\bdifference\b/i.test(draftText)
+  );
+}
+
+/**
+ * Approximate content length (character count from all text blocks).
+ */
+function getContentLength(draft) {
+  const draftText = extractDraftText(draft);
+  return draftText.length;
+}
+
+/** Minimum content length to avoid shallow summaries (approx 1500 chars). */
+const MIN_CONTENT_LENGTH = 1500;
+
+/**
  * Count markdown ## subheadings in text block content (for structured teaching sections).
  */
 function countSubheadings(draft) {
@@ -97,14 +172,16 @@ function countSubheadings(draft) {
  * @param {string[]} [opts.requiredKeywords] - Keywords that must appear in content
  * @param {string[]} [opts.requiredMisconceptions] - Misconception phrases that must appear (e.g. in commonMistake blocks)
  * @param {boolean} [opts.requireExamQuestions=true] - Whether at least one checkpoint/exam-style block is required
+ * @param {string} [opts.topic] - Topic string (for comparison-table applicability check)
  *
- * @returns {{ valid: boolean, missingSpecPoints: string[], missingKeywords: string[], missingMisconceptions: string[], hasExamQuestions: boolean, misconceptionCount: number, examTipCount: number, hasKeyWords: boolean, hasExamStyleQandA: boolean, summary: string }}
+ * @returns {{ valid: boolean, ...qualityFields, summary: string }}
  */
 function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
   const specPoints = Array.isArray(opts.specPoints) ? opts.specPoints : [];
   const requiredKeywords = Array.isArray(opts.requiredKeywords) ? opts.requiredKeywords : [];
   const requiredMisconceptions = Array.isArray(opts.requiredMisconceptions) ? opts.requiredMisconceptions : [];
   const requireExamQuestions = opts.requireExamQuestions !== false;
+  const topic = opts.topic != null ? String(opts.topic) : "";
 
   const draftText = extractDraftText(draft);
   const counts = countBlocksByType(draft);
@@ -113,6 +190,14 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
   const hasKeyWords = hasKeyWordsBlock(draft);
   const hasExamStyleQandA = detectExamStyleQandA(draft);
   const subheadingCount = countSubheadings(draft);
+  const hasComparisonTableResult = hasComparisonTable(draft);
+  const topicSuggestsComparisonResult = topicSuggestsComparison(topic);
+  const needsTableButMissing = topicSuggestsComparisonResult && !hasComparisonTableResult;
+  const hasWorkedExampleResult = hasWorkedExample(draft);
+  const examStats = getExamQuestionStats(draft);
+  const hasComparisonLanguageResult = hasComparisonLanguage(draft);
+  const contentLength = getContentLength(draft);
+  const contentTooShort = contentLength < MIN_CONTENT_LENGTH;
 
   const missingSpecPoints = [];
   for (const sp of specPoints) {
@@ -174,8 +259,18 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
     qualityParts.push("Key words block not detected");
   if (!hasExamStyleQandA && hasExamQuestions)
     qualityParts.push("Exam-style Q&A with answers not detected");
-  if (subheadingCount < 3)
-    qualityParts.push("Content lacks structured teaching sections (fewer than 3 ## subheadings)");
+  if (subheadingCount < 4)
+    qualityParts.push("Content lacks structured teaching sections (fewer than 4 ## subheadings)");
+  if (needsTableButMissing)
+    qualityParts.push("Topic suggests comparison — markdown table required but not found");
+  if (!hasWorkedExampleResult)
+    qualityParts.push("Worked example with mark allocation (e.g. '1 mark for…') not found");
+  if (examStats.examQuestionCount < 3 || examStats.commandWordVariety < 3)
+    qualityParts.push(`Need at least 3 exam questions with variety (Describe, Explain, Compare/Evaluate) — have ${examStats.examQuestionCount} questions, ${examStats.commandWordVariety} command types`);
+  if (!hasComparisonLanguageResult && topicSuggestsComparisonResult)
+    qualityParts.push("Comparison/evaluation language missing (e.g. 'compared to', 'whereas')");
+  if (contentTooShort)
+    qualityParts.push(`Content too short (${contentLength} chars, need ≥${MIN_CONTENT_LENGTH})`);
 
   let summary;
   if (parts.length > 0) {
@@ -197,6 +292,15 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
     hasKeyWords,
     hasExamStyleQandA,
     subheadingCount,
+    hasComparisonTable: hasComparisonTableResult,
+    needsTableButMissing,
+    hasWorkedExample: hasWorkedExampleResult,
+    examQuestionCount: examStats.examQuestionCount,
+    commandWordVariety: examStats.commandWordVariety,
+    hasComparisonLanguage: hasComparisonLanguageResult,
+    topicSuggestsComparison: topicSuggestsComparisonResult,
+    contentLength,
+    contentTooShort,
     summary,
   };
 }
@@ -204,13 +308,19 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
 /**
  * Determine if a draft should trigger a second-pass improvement.
  * Trigger if: hard validation failure OR any quality weakness:
- * - subheadings < 3, misconceptions < 3, missing exam questions, missing key words,
- *   or validation has warnings (exam tips, exam-style Q&A).
+ * - subheadings < 4, no markdown table when topic suggests comparison,
+ * - no worked example, < 3 exam questions, no comparison language, content too short.
  */
 function shouldTriggerSecondPass(validation) {
   if (!validation) return false;
   if (!validation.valid) return true;
-  if ((validation.subheadingCount || 0) < 3) return true;
+  if ((validation.subheadingCount || 0) < 4) return true;
+  if (validation.needsTableButMissing) return true;
+  if (!validation.hasWorkedExample) return true;
+  if ((validation.examQuestionCount || 0) < 3) return true;
+  if ((validation.commandWordVariety || 0) < 3) return true;
+  if (validation.topicSuggestsComparison && !validation.hasComparisonLanguage) return true;
+  if (validation.contentTooShort) return true;
   if ((validation.misconceptionCount || 0) < 3) return true;
   if (!validation.hasExamQuestions) return true;
   if (!validation.hasKeyWords) return true;

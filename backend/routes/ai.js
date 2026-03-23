@@ -549,7 +549,25 @@ async function improveDraftWithSecondPass(draft, validation, context) {
     feedbackLines.push(`- Required misconceptions missing: ${validation.missingMisconceptions.join(", ")}`);
   }
   if (!validation.hasExamQuestions) feedbackLines.push("- No exam-style questions present");
-  feedbackLines.push("QUALITY ISSUES (improve):");
+  feedbackLines.push("QUALITY ISSUES (upgrade to SaveMyExams-level):");
+  if ((validation.subheadingCount || 0) < 4) {
+    feedbackLines.push(`- Add structured teaching sections with ## markdown subheadings (have ${validation.subheadingCount}, need at least 4)`);
+  }
+  if (validation.needsTableButMissing) {
+    feedbackLines.push("- Topic suggests comparison: add a markdown comparison table (e.g. | Feature | Type A | Type B |)");
+  }
+  if (!validation.hasWorkedExample) {
+    feedbackLines.push("- Add at least one worked exam-style example with mark allocation (e.g. '1 mark for…', '2 marks for…')");
+  }
+  if ((validation.examQuestionCount || 0) < 3 || (validation.commandWordVariety || 0) < 3) {
+    feedbackLines.push("- Add at least 3 exam-style questions covering Describe, Explain, and Compare or Evaluate");
+  }
+  if (validation.topicSuggestsComparison && !validation.hasComparisonLanguage) {
+    feedbackLines.push("- Add comparison/evaluation language ('compared to', 'whereas', 'in contrast')");
+  }
+  if (validation.contentTooShort) {
+    feedbackLines.push(`- Content too short (${validation.contentLength} chars). Expand each section: explain, give examples, link to exam use`);
+  }
   if ((validation.misconceptionCount || 0) < 3) {
     feedbackLines.push(`- Add more common misconception blocks (have ${validation.misconceptionCount}, need at least 3)`);
   }
@@ -560,14 +578,11 @@ async function improveDraftWithSecondPass(draft, validation, context) {
   if (!validation.hasExamStyleQandA && validation.hasExamQuestions) {
     feedbackLines.push("- Add exam-style practice questions with mark-scheme style answers in a text block");
   }
-  if ((validation.subheadingCount || 0) < 3) {
-    feedbackLines.push(`- Add structured teaching sections with ## markdown subheadings (have ${validation.subheadingCount}, need at least 3)`);
-  }
 
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Same block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint. Keep existing block structure intact.",
-    "Improve this lesson to meet GCSE teaching and exam standards. You must: expand shallow sections, add missing subtopics, improve misconceptions (min 3), improve exam questions and answers, improve structure and flow, ensure full topic coverage.",
+    "Upgrade this draft to match high-quality GCSE teaching resources (e.g. SaveMyExams). Add structure, tables, worked examples, and exam depth. Follow the teaching sequence: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…').",
   ].join(" ");
 
   const userPromptParts = [
@@ -586,7 +601,7 @@ async function improveDraftWithSecondPass(draft, validation, context) {
     JSON.stringify(draft, null, 0).slice(0, 60000),
     "```",
     "",
-    "Improve this lesson. Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields. Do not change block structure."
+    "Upgrade this lesson to SaveMyExams-level quality. Add structure, comparison tables (when applicable), worked examples with mark schemes, and exam question variety (Describe, Explain, Compare/Evaluate). Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields. Do not change block structure."
   );
   const userPrompt = userPromptParts.join("\n");
 
@@ -1176,6 +1191,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       requiredKeywords,
       requiredMisconceptions,
       requireExamQuestions: true,
+      topic,
     });
 
     // ✅ 2c) Second-pass improvement: if draft is weak, ask AI to improve it before saving
@@ -1196,6 +1212,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
           requiredKeywords,
           requiredMisconceptions,
           requireExamQuestions: true,
+          topic,
         });
         if (process.env.NODE_ENV !== "production") {
           console.log("[generate-and-save] Second-pass improvement applied");
@@ -1487,6 +1504,7 @@ router.post("/improve-lesson", auth, async (req, res) => {
       requiredKeywords: [],
       requiredMisconceptions: [],
       requireExamQuestions: false,
+      topic,
     });
 
     let sanitized = draft;
