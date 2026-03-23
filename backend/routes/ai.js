@@ -32,7 +32,7 @@ const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftVal
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
-const { validateLessonDraftAgainstCurriculum, shouldTriggerSecondPass } = require("../services/lessonDraftValidation");
+const { validateLessonDraftAgainstCurriculum, shouldTriggerSecondPass, validateLessonStructure } = require("../services/lessonDraftValidation");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -1241,6 +1241,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
       requireExamQuestions: true,
       topic,
     });
+    const structureIssues = validateLessonStructure(sanitized);
+    generationValidation = { ...generationValidation, structureIssues };
 
     // ✅ 2c) Second-pass improvement: if draft is weak, ask AI to improve it before saving
     if (shouldTriggerSecondPass(generationValidation)) {
@@ -1262,6 +1264,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
           requireExamQuestions: true,
           topic,
         });
+        generationValidation = { ...generationValidation, structureIssues: validateLessonStructure(sanitized) };
         if (process.env.NODE_ENV !== "production") {
           console.log("[generate-and-save] Second-pass improvement applied");
         }
@@ -1547,13 +1550,14 @@ router.post("/improve-lesson", auth, async (req, res) => {
     }
 
     const draft = lessonToDraft(lesson);
-    const generationValidation = validateLessonDraftAgainstCurriculum(draft, {
+    let generationValidation = validateLessonDraftAgainstCurriculum(draft, {
       specPoints,
       requiredKeywords: [],
       requiredMisconceptions: [],
       requireExamQuestions: false,
       topic,
     });
+    generationValidation = { ...generationValidation, structureIssues: validateLessonStructure(draft) };
 
     let sanitized = draft;
     try {

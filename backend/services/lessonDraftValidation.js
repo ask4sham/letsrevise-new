@@ -356,13 +356,54 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
 }
 
 /**
+ * Validate lesson structure against the block role contract.
+ * @param {Object} draft - Draft with pages[].blocks
+ * @returns {string[]} Array of issue messages (empty if valid).
+ */
+function validateLessonStructure(draft) {
+  const issues = [];
+  const pages = Array.isArray(draft?.pages) ? draft.pages : [];
+  const blocks = pages.flatMap((p) => p?.blocks ?? []);
+
+  if (blocks.length < 10) issues.push("Too few blocks (need at least 10)");
+
+  const roles = new Set(blocks.map((b) => safeStr(b?.role, "")).filter(Boolean));
+  const requiredRoles = [
+    "hook",
+    "coreRule",
+    "commonMistake",
+    "patternRecognition",
+    "workedExample",
+    "synthesis",
+    "finalMemoryRule",
+  ];
+  requiredRoles.forEach((role) => {
+    if (!roles.has(role)) issues.push(`Missing role: ${role}`);
+  });
+
+  const hasWhatToNotice = blocks.some((b) => safeStr(b?.role, "") === "whatToNotice");
+  if (!hasWhatToNotice) issues.push("Missing What to Notice block");
+
+  const workedExampleContent = (b) =>
+    [b?.explanation, b?.correctAnswer, b?.prompt, b?.answer].filter(Boolean).map(String).join(" ");
+  const hasWorkedExample = blocks.some(
+    (b) => safeStr(b?.role, "") === "workedExample" && workedExampleContent(b).length > 30
+  );
+  if (!hasWorkedExample) issues.push("Missing worked example (needs role 'workedExample' with substantial content)");
+
+  return issues;
+}
+
+/**
  * Determine if a draft should trigger a second-pass improvement.
- * Trigger if: hard validation failure OR any quality weakness:
+ * Trigger if: hard validation failure OR any quality weakness OR structure issues:
  * - subheadings < 4, no markdown table when topic suggests comparison,
- * - no worked example, < 3 exam questions, no comparison language, content too short.
+ * - no worked example, < 3 exam questions, no comparison language, content too short,
+ * - block role contract violations.
  */
 function shouldTriggerSecondPass(validation) {
   if (!validation) return false;
+  if ((validation.structureIssues?.length ?? 0) > 0) return true;
   if (!validation.valid) return true;
   if ((validation.subheadingCount || 0) < 4) return true;
   if (validation.needsTableButMissing) return true;
@@ -384,4 +425,5 @@ module.exports = {
   validateLessonDraftAgainstCurriculum,
   shouldTriggerSecondPass,
   extractDraftText,
+  validateLessonStructure,
 };
