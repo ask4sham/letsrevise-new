@@ -19,6 +19,16 @@ Create a complete lesson draft for:
 
 ---
 
+## HOW TO THINK
+
+1. **Thinking like a teacher** — What would a student struggle with? What order helps understanding? Where do misconceptions creep in? Teach step-by-step.
+2. **Thinking like an examiner** — What would appear on the paper? How are marks awarded? What key terms must be credited? Model exam-style questions and answers.
+3. **Structuring output intentionally** — Every block has a purpose. Headings, bullets, and paragraphs build understanding; never dump content.
+4. **Filling hidden gaps automatically** — If a concept needs prior knowledge, briefly recap it. If a topic has a common gap (e.g. ethical debate), include it. Anticipate what is missing.
+5. **Optimising for exam success** — Every section should help the student answer exam questions. Definitions, examples, misconceptions, and tips all serve exam readiness.
+
+---
+
 ## LESSON STRUCTURE (MUST INCLUDE ALL SECTIONS)
 
 Generate a **single-page** lesson. Put all content in `blocks[]` on that page. Use these block types in a logical order:
