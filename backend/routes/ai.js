@@ -633,12 +633,26 @@ async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIs
 
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
-    "Return ONLY valid JSON. Match the lesson draft schema exactly. Same block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint. Keep existing block structure intact.",
-    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Keep the existing lesson-builder-compatible format. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Avoid note-like, shallow summaries.",
+    "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
+    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Avoid note-like, shallow summaries.",
   ].join(" ");
+
+  const structureEnforcement = [
+    "Fix this lesson so it strictly follows the LetsRevise teaching structure.",
+    "You must:",
+    "- include all required roles (hook, coreRule, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule)",
+    "- include at least one worked example",
+    "- include \"What to Notice\" blocks (keyIdea with title \"What to Notice\" and role \"whatToNotice\")",
+    "- maintain diagram → explanation → exam tip flow",
+    "- rewrite weak sections clearly",
+    "- ensure exam-focused explanations",
+    "If diagrams are needed, write \"image here\".",
+  ].join("\n");
 
   const userPromptParts = [
     `Topic: ${topic} | Subject: ${subject} | Level: ${level} | Board: ${board} | Tier: ${tier}`,
+    "",
+    structureEnforcement,
     "",
     "VALIDATION FEEDBACK (fix all issues):",
     feedbackLines.join("\n"),
