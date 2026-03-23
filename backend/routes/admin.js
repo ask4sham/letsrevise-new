@@ -1071,10 +1071,22 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
 
     if (updates.isPublished === true || updates.status === "published") {
       const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
+      const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
       const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
       const gate = await checkPublishGateForGenerated(lessonObj, req.user);
       if (!gate.ok) {
         return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
+      }
+      const qualityResult = scoreLessonQuality(lessonObj);
+      if (qualityResult.score < 70) {
+        return res.status(400).json({
+          success: false,
+          error: "Lesson quality score too low to publish",
+          score: qualityResult.score,
+          band: qualityResult.band,
+          issues: qualityResult.issues,
+          suggestions: qualityResult.suggestions,
+        });
       }
     }
 

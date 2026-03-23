@@ -43,6 +43,7 @@ const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { pickLessonFlags } = require("../utils/lessonValidation");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
 const { validateLessonStructure } = require("../services/lessonDraftValidation");
+const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
 console.log("✅ lessons router file loaded");
 
@@ -1781,6 +1782,18 @@ async function publishToggleHandler(req, res, mode) {
       if (!gate.ok) {
         return res.status(400).json({ error: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
       }
+
+      // Quality gate: block publish if score < 70 (strong threshold)
+      const qualityResult = scoreLessonQuality(lessonObj);
+      if (qualityResult.score < 70) {
+        return res.status(400).json({
+          error: "Lesson quality score too low to publish",
+          score: qualityResult.score,
+          band: qualityResult.band,
+          issues: qualityResult.issues,
+          suggestions: qualityResult.suggestions,
+        });
+      }
     }
 
     if (mode === "publish") {
@@ -3447,6 +3460,25 @@ router.get("/:id/diagram-suggestions", auth, requireLessonOwnerOrAdmin, async (r
     });
   } catch (err) {
     console.error("GET diagram-suggestions error:", err);
+    return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* =========================================
+   GET /api/lessons/:id/quality-score — owner/admin, for publish gate UI
+   ========================================= */
+router.get("/:id/quality-score", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const lesson = await Lesson.findById(lessonId).lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const result = scoreLessonQuality(lesson);
+    return res.json({
+      lessonId,
+      ...result,
+    });
+  } catch (err) {
+    console.error("GET quality-score error:", err);
     return res.status(500).json({ msg: "Server error" });
   }
 });

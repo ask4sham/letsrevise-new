@@ -33,6 +33,7 @@ const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../util
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
 const { validateLessonDraftAgainstCurriculum, shouldTriggerSecondPass, validateLessonStructure } = require("../services/lessonDraftValidation");
+const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -1308,6 +1309,18 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const finalStructureIssues = validateLessonStructure(sanitized);
     if (finalStructureIssues.length > 0) {
       throw new Error(`Lesson failed structure validation: ${finalStructureIssues.join("; ")}`);
+    }
+
+    // ✅ 2d) Quality gate: do not save AI-generated lessons with score < 55
+    const qualityResult = scoreLessonQuality(sanitized, {
+      curriculumIssues: buildCurriculumFeedbackLines(generationValidation),
+      structureIssues: finalStructureIssues,
+    });
+    if (qualityResult.score < 55) {
+      throw new Error(
+        `Lesson quality score too low to save (${qualityResult.score}). ` +
+          `Improve the lesson before saving. Top issues: ${qualityResult.issues.slice(0, 5).join("; ")}`
+      );
     }
 
     // ✅ 3) Add curated hero visual for AI lessons (even if AI didn't produce hero)
