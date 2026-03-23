@@ -42,6 +42,7 @@ const { validateAndNormalizeRevision } = require("../services/validateRevision")
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { pickLessonFlags } = require("../utils/lessonValidation");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
+const { validateLessonStructure } = require("../services/lessonDraftValidation");
 
 console.log("✅ lessons router file loaded");
 
@@ -656,6 +657,16 @@ async function createLessonHandler(req, res) {
     const safePages = sanitisePagesInput(pages, false);
     if (safePages.length > 0) {
       lessonData.pages = safePages.sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+
+    // ✅ STEP 16: Manual + AI unification — same structure validation as AI generate-and-save
+    const structureIssues = validateLessonStructure({ pages: lessonData.pages });
+    if (structureIssues.length > 0) {
+      return res.status(400).json({
+        msg: "Lesson failed structure validation",
+        structureIssues,
+        missing: { structure: structureIssues },
+      });
     }
 
     // ✅ ADDED: Normalize quiz.questions to array server-side

@@ -797,6 +797,15 @@ const CreateLessonPage: React.FC = () => {
     if (badCheckpoint)
       return `Checkpoint on "${badCheckpoint.title}" needs question + at least 2 options (and answer must match an option).`;
 
+    const placeholderPrompts = /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
+    const checkpointPages = p.filter((pg) => (pg.blocks || []).some((b) => toLegacyBlockType(b.type) === "checkpoint"));
+    for (const pg of checkpointPages) {
+      const q = safeStr(pg.checkpoint?.question, "").trim();
+      if (q && placeholderPrompts.test(q)) {
+        return "Replace the placeholder checkpoint question with a real exam-style question (e.g. 'Explain why...', 'Describe...', 'Compare...').";
+      }
+    }
+
     const blocks = p.flatMap((pg) => pg.blocks || []);
     if (!blocks.some((b) => safeStr(b.role, "") === "workedExample")) {
       return "Lesson must include a worked example";
@@ -828,12 +837,18 @@ const CreateLessonPage: React.FC = () => {
         pageType: safeStr(p.pageType, ""),
         hero: { type: "none" as const, src: "", caption: "" },
         blocks: (p.blocks || []).map((b) => {
+          const blockType = toLegacyBlockType(b.type);
           const out: Record<string, unknown> = {
-            type: toLegacyBlockType(b.type),
+            type: blockType,
             content: sanitizeTeacherMarkdown(String(b.content || "")),
           };
           if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
           if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
+          if (blockType === "checkpoint" && p.checkpoint) {
+            out.prompt = safeStr(p.checkpoint.question, "");
+            out.options = clampOptions((p.checkpoint.options || []) as string[]);
+            out.correctAnswer = safeStr(p.checkpoint.answer, "");
+          }
           return out;
         }),
         checkpoint: p.checkpoint
