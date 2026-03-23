@@ -797,6 +797,11 @@ const CreateLessonPage: React.FC = () => {
     if (badCheckpoint)
       return `Checkpoint on "${badCheckpoint.title}" needs question + at least 2 options (and answer must match an option).`;
 
+    const blocks = p.flatMap((pg) => pg.blocks || []);
+    if (!blocks.some((b) => safeStr(b.role, "") === "workedExample")) {
+      return "Lesson must include a worked example";
+    }
+
     return "";
   };
 
