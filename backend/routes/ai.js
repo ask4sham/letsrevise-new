@@ -840,6 +840,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               explanation: safeStr(b?.explanation, ""),
             };
             if (typeof b?.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
+            if (cpOut.title === undefined) cpOut.title = "";
             return cpOut;
           }
           if (type === "diagram") {
@@ -851,6 +852,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               content: safeStr(b?.content, "") || "image here",
             };
             if (typeof b?.role === "string" && b.role.trim()) dOut.role = b.role.trim();
+            if (dOut.title === undefined) dOut.title = "";
             return dOut;
           }
           const out = {
@@ -858,6 +860,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
             content: safeStr(b?.content, ""),
           };
           if (typeof b?.title === "string" && b.title.trim()) out.title = b.title.trim();
+          if (out.title === undefined) out.title = "";
           if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
           return out;
         })
