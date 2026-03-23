@@ -155,7 +155,7 @@ const LESSON_DRAFT_SCHEMA = {
               properties: {
                 type: {
                   type: "string",
-                  enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint"],
+                  enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"],
                 },
                 content: { type: "string" },
                 prompt: { type: "string" },
@@ -363,6 +363,41 @@ function buildUserPromptFromMd({
     board: board === undefined || board === null ? "" : String(board),
     tier: tierFinal,
   });
+
+  // LETSREVISE LESSON CONTRACT v1.0 — locked instruction
+  out += `
+
+## LETSREVISE LESSON CONTRACT (MANDATORY)
+
+You are generating a LetsRevise lesson. Follow this exact lesson structure:
+
+1. Begin with a short hook in a text block.
+2. Add one keyIdea block that states the core rule of the topic.
+3. Add one commonMistake block showing an incorrect idea and the corrected version.
+4. Add one keyIdea block for exam pattern recognition.
+5. For each major concept, follow this exact sequence:
+   - diagram (or text block with "image here" if diagram block not available)
+   - keyIdea titled "What to Notice"
+   - text explanation
+   - examTip
+6. Include at least one checkpoint block that acts as a worked exam question with a strong model answer.
+7. End with:
+   - one keyIdea synthesis block
+   - one checkpoint multiple-choice or recall question
+   - one checkpoint short explain question
+   - one keyIdea final memory rule
+
+Important rules:
+- Teach like a teacher, not a textbook.
+- Use short paragraphs.
+- Focus on one idea at a time.
+- Always explain structure to function, cause to effect, or feature to purpose.
+- Always include exam wording.
+- If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
+- Do not skip exam tips.
+- Do not skip checkpoints.
+- Do not write long note-style content.
+`;
 
   if (subTopicDisplay || topicKey) {
     const scopeLabel = subTopicDisplay || topic;
@@ -754,10 +789,11 @@ function sanitizeDraft(draft, { subject, level, topic }) {
             };
           }
           if (type === "diagram") {
+            const cap = safeStr(b?.caption, "") || safeStr(b?.content, "image here");
             return {
               type: "diagram",
               visualId: b?.visualId,
-              caption: safeStr(b?.caption, ""),
+              caption: cap,
             };
           }
           return {

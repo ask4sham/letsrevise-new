@@ -210,6 +210,27 @@ function newId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+/** LetsRevise Lesson Contract v1.0 — default stencil for manual lesson creation. */
+const LESSON_STENCIL_BLOCKS: LessonPageBlock[] = [
+  { type: "text", content: "[Write hook here]" },
+  { type: "keyIdeas", content: "[Write core rule here]" },
+  { type: "misconceptions", content: "[Write common mistake here]" },
+  { type: "keyIdeas", content: "[Write pattern recognition here]" },
+  { type: "diagram", content: "" },
+  { type: "keyIdeas", content: "What to Notice\n\n[What should the student observe from the diagram?]" },
+  { type: "text", content: "[Explain concept here]" },
+  { type: "examTips", content: "[Write exam tip here]" },
+  { type: "diagram", content: "" },
+  { type: "keyIdeas", content: "What to Notice\n\n[What should the student observe?]" },
+  { type: "text", content: "[Explain concept here]" },
+  { type: "examTips", content: "[Write exam tip here]" },
+  { type: "checkpoint", content: "" },
+  { type: "keyIdeas", content: "[Write synthesis here]" },
+  { type: "checkpoint", content: "" },
+  { type: "checkpoint", content: "" },
+  { type: "keyIdeas", content: "[Write final memory rule here]" },
+];
+
 function sortPages(pages: LessonPage[]) {
   return [...pages].sort((a, b) => (a.order || 0) - (b.order || 0));
 }
@@ -341,7 +362,7 @@ const CreateLessonPage: React.FC = () => {
       order: 1,
       pageType: "",
       hero: { type: "none", src: "", caption: "" }, // legacy compat
-      blocks: [{ type: "text", content: "" }],
+      blocks: [...LESSON_STENCIL_BLOCKS],
       checkpoint: { ...VALID_STARTER_CHECKPOINT },
     },
   ]);
