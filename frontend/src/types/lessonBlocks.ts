@@ -6,6 +6,19 @@
 
 import type { CSSProperties } from "react";
 
+/**
+ * Shared lesson block shape for contract enforcement.
+ * role = semantic label (e.g. Hook, Core rule, What to Notice).
+ */
+export interface LessonBlock {
+  type: LessonBlockType | LegacyBlockType;
+  title?: string;
+  content?: string;
+  question?: string;
+  answer?: string;
+  role?: string;
+}
+
 export type LessonBlockType =
   | "text"
   | "keyIdeas"
@@ -225,6 +238,32 @@ export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "deeperKnowledge",
   "checkpoint",
   "diagram",
+];
+
+/** Option for add-block dropdown: maps role to block type + optional title. */
+export interface AddBlockOption {
+  role: string;
+  type: LessonBlockType;
+  title?: string;
+  label: string;
+}
+
+/** Contract-aligned add-block options for the dropdown menu. */
+export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
+  { role: "hook", type: "text", label: "Hook (text)" },
+  { role: "coreRule", type: "keyIdeas", title: "", label: "Core rule (key idea)" },
+  { role: "commonMistake", type: "misconceptions", label: "Common mistake" },
+  { role: "patternRecognition", type: "keyIdeas", title: "", label: "Pattern recognition (key idea)" },
+  { role: "concept", type: "diagram", label: "Diagram (concept)" },
+  { role: "whatToNotice", type: "keyIdeas", title: "What to Notice", label: "What to Notice (key idea)" },
+  { role: "concept", type: "text", label: "Text (concept)" },
+  { role: "concept", type: "examTips", label: "Exam tip (concept)" },
+  { role: "workedExample", type: "checkpoint", label: "Worked example (checkpoint)" },
+  { role: "synthesis", type: "keyIdeas", label: "Synthesis (key idea)" },
+  { role: "quickCheck", type: "checkpoint", label: "Quick check (checkpoint)" },
+  { role: "finalMemoryRule", type: "keyIdeas", label: "Final memory rule (key idea)" },
+  { role: "keyWords", type: "keyWords", label: "Key words" },
+  { role: "deeperKnowledge", type: "deeperKnowledge", label: "Deeper knowledge (stretch)" },
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */

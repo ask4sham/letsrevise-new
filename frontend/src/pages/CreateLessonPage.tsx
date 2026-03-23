@@ -11,9 +11,8 @@ import {
   type LessonBlockType,
   BLOCK_META,
   getBlockStyle,
-  getBlockButtonStyle,
   toLegacyBlockType,
-  BLOCK_TYPES_FOR_BUTTONS,
+  ADD_BLOCK_OPTIONS,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -23,6 +22,8 @@ type HeroType = "none" | "image" | "video" | "animation";
 type LessonPageBlock = {
   type: LessonBlockType;
   content: string;
+  title?: string;
+  role?: string;
 };
 
 // Kept for backward compatibility only (UI removed)
@@ -212,23 +213,23 @@ function newId() {
 
 /** LetsRevise Lesson Contract v1.0 — default stencil for manual lesson creation. */
 const LESSON_STENCIL_BLOCKS: LessonPageBlock[] = [
-  { type: "text", content: "[Write hook here]" },
-  { type: "keyIdeas", content: "[Write core rule here]" },
-  { type: "misconceptions", content: "[Write common mistake here]" },
-  { type: "keyIdeas", content: "[Write pattern recognition here]" },
-  { type: "diagram", content: "" },
-  { type: "keyIdeas", content: "What to Notice\n\n[What should the student observe from the diagram?]" },
-  { type: "text", content: "[Explain concept here]" },
-  { type: "examTips", content: "[Write exam tip here]" },
-  { type: "diagram", content: "" },
-  { type: "keyIdeas", content: "What to Notice\n\n[What should the student observe?]" },
-  { type: "text", content: "[Explain concept here]" },
-  { type: "examTips", content: "[Write exam tip here]" },
-  { type: "checkpoint", content: "" },
-  { type: "keyIdeas", content: "[Write synthesis here]" },
-  { type: "checkpoint", content: "" },
-  { type: "checkpoint", content: "" },
-  { type: "keyIdeas", content: "[Write final memory rule here]" },
+  { type: "text", role: "hook", content: "[Write hook here]" },
+  { type: "keyIdeas", role: "coreRule", title: "", content: "[Write core rule here]" },
+  { type: "misconceptions", role: "commonMistake", content: "[Write common mistake here]" },
+  { type: "keyIdeas", role: "patternRecognition", title: "", content: "[Write pattern recognition here]" },
+  { type: "diagram", role: "concept", content: "" },
+  { type: "keyIdeas", role: "whatToNotice", title: "What to Notice", content: "[What should the student observe from the diagram?]" },
+  { type: "text", role: "concept", content: "[Explain concept here]" },
+  { type: "examTips", role: "concept", content: "[Write exam tip here]" },
+  { type: "diagram", role: "concept", content: "" },
+  { type: "keyIdeas", role: "whatToNotice", title: "What to Notice", content: "[What should the student observe?]" },
+  { type: "text", role: "concept", content: "[Explain concept here]" },
+  { type: "examTips", role: "concept", content: "[Write exam tip here]" },
+  { type: "checkpoint", role: "workedExample", content: "" },
+  { type: "keyIdeas", role: "synthesis", content: "[Write synthesis here]" },
+  { type: "checkpoint", role: "quickCheck", content: "" },
+  { type: "checkpoint", role: "quickCheck", content: "" },
+  { type: "keyIdeas", role: "finalMemoryRule", content: "[Write final memory rule here]" },
 ];
 
 function sortPages(pages: LessonPage[]) {
@@ -551,12 +552,22 @@ const CreateLessonPage: React.FC = () => {
     );
   };
 
-  const addBlock = (pageId: string, type: LessonBlockType, initialContent?: string) => {
+  const addBlock = (
+    pageId: string,
+    type: LessonBlockType,
+    opts?: { role?: string; title?: string; initialContent?: string }
+  ) => {
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
         const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
-        blocks.push({ type, content: initialContent ?? "" });
+        const block: LessonPageBlock = {
+          type,
+          content: opts?.initialContent ?? "",
+        };
+        if (opts?.role?.trim()) block.role = opts.role.trim();
+        if (opts?.title !== undefined) block.title = opts.title ?? "";
+        blocks.push(block);
         return { ...p, blocks };
       })
     );
@@ -811,10 +822,15 @@ const CreateLessonPage: React.FC = () => {
         order: p.order,
         pageType: safeStr(p.pageType, ""),
         hero: { type: "none" as const, src: "", caption: "" },
-        blocks: (p.blocks || []).map((b) => ({
-          type: toLegacyBlockType(b.type),
-          content: sanitizeTeacherMarkdown(String(b.content || "")),
-        })),
+        blocks: (p.blocks || []).map((b) => {
+          const out: Record<string, unknown> = {
+            type: toLegacyBlockType(b.type),
+            content: sanitizeTeacherMarkdown(String(b.content || "")),
+          };
+          if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
+          if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
+          return out;
+        }),
         checkpoint: p.checkpoint
           ? {
               question: safeStr(p.checkpoint.question, ""),
@@ -1332,18 +1348,35 @@ const CreateLessonPage: React.FC = () => {
                     </div>
 
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-                      {BLOCK_TYPES_FOR_BUTTONS.map((blockType) => {
-                        const meta = BLOCK_META[blockType];
-                        return (
-                          <button
-                            key={blockType}
-                            onClick={() => addBlock(pg.pageId, blockType)}
-                            style={{ ...ui.btnSecondary, ...getBlockButtonStyle(blockType) }}
-                          >
-                            + {meta.label}
-                          </button>
-                        );
-                      })}
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (!val) return;
+                          e.target.value = "";
+                          const opt = ADD_BLOCK_OPTIONS.find((o) => `${o.role}:${o.type}` === val);
+                          if (opt) {
+                            addBlock(pg.pageId, opt.type, {
+                              role: opt.role,
+                              title: opt.title,
+                              initialContent: opt.type === "checkpoint" ? "" : "",
+                            });
+                          }
+                        }}
+                        style={{
+                          ...ui.input,
+                          minWidth: 200,
+                          padding: "8px 12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        <option value="">+ Add block by role…</option>
+                        {ADD_BLOCK_OPTIONS.map((opt) => (
+                          <option key={`${opt.role}:${opt.type}`} value={`${opt.role}:${opt.type}`}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>

@@ -10,6 +10,7 @@ import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
+import { validateLessonStructure } from "../utils/validateLessonStructure";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
@@ -24,10 +25,9 @@ import {
   type LessonBlockType,
   BLOCK_META,
   getBlockStyle,
-  getBlockButtonStyle,
   normalizeBlockType,
   toLegacyBlockType,
-  BLOCK_TYPES_FOR_BUTTONS,
+  ADD_BLOCK_OPTIONS,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import Toast from "../components/Toast";
@@ -58,6 +58,8 @@ interface LessonPageBlock {
   source?: string;
   title?: string;
   note?: string;
+  /** Block role — semantic label for contract enforcement (e.g. Hook, Core rule, What to Notice) */
+  role?: string;
   elements?: Array<{ id: string; label: string; x?: number; y?: number }>;
   /** AI-generated diagram image (when no VisualModel; Chalkie-like) */
   imageUrl?: string;
@@ -861,7 +863,7 @@ const EditLessonPage: React.FC = () => {
           blocks: Array.isArray((p as any).blocks)
             ? (p as any).blocks.map((b: any) => {
                 if (b?.type === "checkpoint") {
-                  return {
+                  const out = {
                     type: "checkpoint" as const,
                     prompt: safeStr(b.prompt, ""),
                     questionType: b?.questionType === "short" ? "short" : "mcq",
@@ -870,10 +872,13 @@ const EditLessonPage: React.FC = () => {
                       : ["", "", "", ""],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
-                  };
+                  } as Record<string, unknown>;
+                  if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+                  return out;
                 }
                 if (b?.type === "diagram") {
                   const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
+                  const role = typeof b?.role === "string" && b.role.trim() ? b.role.trim() : undefined;
                   const annotations = Array.isArray(b.annotations) ? b.annotations.map((a: any) => ({
                     id: String(a?.id ?? ""),
                     kind: a?.kind === "callout" ? "callout" : "label",
@@ -906,12 +911,16 @@ const EditLessonPage: React.FC = () => {
                     imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
                     imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
                     alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
+                    ...(role && { role }),
                   };
                 }
-                return {
+                const out: Record<string, unknown> = {
                   type: normalizeBlockType(b?.type),
                   content: safeStr(b?.content, ""),
                 };
+                if (typeof b?.title === "string" && b.title.trim()) out.title = b.title.trim();
+                if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+                return out;
               })
             : [{ type: "text", content: "" }],
           checkpoint: (p as any).checkpoint
@@ -1171,7 +1180,11 @@ const EditLessonPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [lesson?.pages, lesson?.level]);
 
-  const addBlock = (pageId: string, type: LessonBlockType) => {
+  const addBlock = (
+    pageId: string,
+    type: LessonBlockType,
+    opts?: { role?: string; title?: string }
+  ) => {
     setLesson((prev) => {
       if (!prev) return prev;
       const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
@@ -1190,36 +1203,40 @@ const EditLessonPage: React.FC = () => {
       const blocks = Array.isArray(pages[pIdx].blocks)
         ? [...(pages[pIdx].blocks as any[])]
         : [];
+      let block: Record<string, unknown>;
       if (type === "checkpoint") {
-        blocks.push({
+        block = {
           type: "checkpoint",
           prompt: "Which statement is correct?",
           questionType: "mcq",
           options: ["Option 1", "Option 2", "Option 3", "Option 4"],
           correctAnswer: "Option 1",
           explanation: "",
-        });
+        };
       } else if (type === "diagram") {
-        blocks.push({
+        block = {
           type: "diagram",
           visualId: "",
           caption: "",
           mode: "static",
           annotations: [],
           steps: [],
-        });
+        };
       } else if (type === "pageQuiz") {
-        blocks.push({
+        block = {
           type: "pageQuiz",
           question: "",
           questionType: "mcq",
           options: ["", "", "", ""],
           correctAnswer: "",
           explanation: "",
-        });
+        };
       } else {
-        blocks.push({ type, content: "" });
+        block = { type, content: "" };
       }
+      if (opts?.role?.trim()) block.role = opts.role.trim();
+      if (opts?.title !== undefined) block.title = opts.title ?? "";
+      blocks.push(block);
       pages[pIdx] = { ...pages[pIdx], blocks };
       return { ...prev, pages };
     });
@@ -2136,7 +2153,7 @@ const EditLessonPage: React.FC = () => {
         blocks: (p.blocks || []).map((b: any) => {
           if (b.type === "checkpoint") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            return {
+            const cpOut: Record<string, unknown> = {
               type: "checkpoint",
               prompt: String(b.prompt ?? "").trim(),
               questionType: b.questionType === "short" ? "short" : "mcq",
@@ -2144,10 +2161,12 @@ const EditLessonPage: React.FC = () => {
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
             };
+            if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
+            return cpOut;
           }
           if (b.type === "pageQuiz") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            return {
+            const pqOut: Record<string, unknown> = {
               type: "pageQuiz",
               question: String(b.question ?? b.prompt ?? "").trim(),
               questionType: b.questionType === "short" ? "short" : "mcq",
@@ -2155,13 +2174,15 @@ const EditLessonPage: React.FC = () => {
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
             };
+            if (typeof b.role === "string" && b.role.trim()) pqOut.role = b.role.trim();
+            return pqOut;
           }
           if (b.type === "diagram") {
             const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
             const steps = Array.isArray(b.steps) ? b.steps : [];
             const connectors = Array.isArray(b.connectors) ? b.connectors : [];
-            return {
+            const dOut: Record<string, unknown> = {
               ...b,
               type: "diagram",
               visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
@@ -2174,11 +2195,16 @@ const EditLessonPage: React.FC = () => {
               imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
               alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
             };
+            if (typeof b.role === "string" && b.role.trim()) dOut.role = b.role.trim();
+            return dOut;
           }
-          return {
+          const contentOut: Record<string, unknown> = {
             type: toLegacyBlockType(b.type),
             content: sanitizeTeacherMarkdown(String(b.content || "")),
           };
+          if (typeof b.title === "string" && b.title.trim()) contentOut.title = b.title.trim();
+          if (typeof b.role === "string" && b.role.trim()) contentOut.role = b.role.trim();
+          return contentOut;
         }),
       }));
 
@@ -2258,7 +2284,7 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
-  /** PR20: Compute local publish issues for gate modal (checkpoints, diagrams, practice, reviewed). */
+  /** PR20: Compute local publish issues for gate modal (checkpoints, diagrams, practice, reviewed, structure). */
   function computeLocalPublishIssues(
     l: Lesson | null,
     attachedCount: number
@@ -2279,6 +2305,8 @@ const EditLessonPage: React.FC = () => {
     if (diagramsCount === 0) issues.push("No diagrams");
     if (practiceAttachedCount === 0) issues.push("No practice questions attached");
     if (notReviewed) issues.push("Lesson not marked as reviewed");
+    // Contract structure validation
+    issues.push(...validateLessonStructure(l));
     return { issues, checkpointsCount, diagramsCount, practiceAttachedCount, notReviewed };
   }
 
@@ -2329,7 +2357,7 @@ const EditLessonPage: React.FC = () => {
         blocks: (p.blocks || []).map((b: any) => {
           if (b.type === "checkpoint") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            return {
+            const cpOut: Record<string, unknown> = {
               type: "checkpoint",
               prompt: String(b.prompt ?? "").trim(),
               questionType: b.questionType === "short" ? "short" : "mcq",
@@ -2337,13 +2365,15 @@ const EditLessonPage: React.FC = () => {
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
             };
+            if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
+            return cpOut;
           }
           if (b.type === "diagram") {
             const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
             const annotations = Array.isArray(b.annotations) ? b.annotations : [];
             const steps = Array.isArray(b.steps) ? b.steps : [];
             const connectors = Array.isArray(b.connectors) ? b.connectors : [];
-            return {
+            const dOut: Record<string, unknown> = {
               ...b,
               type: "diagram",
               visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
@@ -2356,11 +2386,16 @@ const EditLessonPage: React.FC = () => {
               imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
               alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
             };
+            if (typeof b.role === "string" && b.role.trim()) dOut.role = b.role.trim();
+            return dOut;
           }
-          return {
+          const contentOut: Record<string, unknown> = {
             type: toLegacyBlockType(b.type),
             content: sanitizeTeacherMarkdown(String(b.content || "")),
           };
+          if (typeof b.title === "string" && b.title.trim()) contentOut.title = b.title.trim();
+          if (typeof b.role === "string" && b.role.trim()) contentOut.role = b.role.trim();
+          return contentOut;
         }),
       }));
 
@@ -3221,31 +3256,57 @@ const EditLessonPage: React.FC = () => {
                         Editing: {currentPage?.title || `Page ${currentPage?.order}`}
                       </div>
 
-                      <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {BLOCK_TYPES_FOR_BUTTONS.map((blockType) => {
-                          const meta = BLOCK_META[blockType];
-                          // PR-EDITOR-GUARD-1: Don't allow adding checkpoint block when page.checkpoint is used
+                      <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        {/* PR-EDITOR-GUARD-1: Don't allow adding checkpoint block when page.checkpoint is used */}
+                        {(() => {
                           const hasPageCheckpoint = Boolean(
                             currentPage?.checkpoint?.question?.trim() &&
                             Array.isArray(currentPage?.checkpoint?.options) &&
                             (currentPage!.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
                           );
-                          const isCheckpointDisabled = blockType === "checkpoint" && hasPageCheckpoint;
                           return (
-                            <button
-                              key={blockType}
-                              onClick={() => !isCheckpointDisabled && addBlock(currentPage!.pageId, blockType)}
-                              disabled={isCheckpointDisabled}
-                              title={isCheckpointDisabled ? "Page checkpoint takes precedence; checkpoint blocks are ignored in student view." : undefined}
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                e.target.value = "";
+                                const opt = ADD_BLOCK_OPTIONS.find((o) => `${o.role}:${o.type}` === val);
+                                if (opt) {
+                                  if (opt.type === "checkpoint" && hasPageCheckpoint) return;
+                                  addBlock(currentPage!.pageId, opt.type, {
+                                    role: opt.role,
+                                    title: opt.title,
+                                  });
+                                }
+                              }}
                               style={{
-                                ...getBlockButtonStyle(blockType),
-                                ...(isCheckpointDisabled ? { opacity: 0.5, cursor: "not-allowed" } : {}),
+                                padding: "8px 14px",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                borderRadius: 8,
+                                border: "2px solid rgba(0,0,0,0.14)",
+                                minWidth: 200,
+                                background: "white",
                               }}
                             >
-                              + {meta.label}
-                            </button>
+                              <option value="">+ Add block by role…</option>
+                              {ADD_BLOCK_OPTIONS.map((opt) => {
+                                const isCheckpointDisabled = opt.type === "checkpoint" && hasPageCheckpoint;
+                                return (
+                                  <option
+                                    key={`${opt.role}:${opt.type}`}
+                                    value={`${opt.role}:${opt.type}`}
+                                    disabled={isCheckpointDisabled}
+                                  >
+                                    {opt.label}
+                                    {isCheckpointDisabled ? " (page checkpoint in use)" : ""}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           );
-                        })}
+                        })()}
                         <button
                           type="button"
                           onClick={() => setAttachPageQuizModalOpen(true)}

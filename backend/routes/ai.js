@@ -163,6 +163,8 @@ const LESSON_DRAFT_SCHEMA = {
                 options: { type: "array", items: { type: "string" } },
                 correctAnswer: { type: "string" },
                 explanation: { type: "string" },
+                title: { type: "string" },
+                role: { type: "string" },
               },
             },
           },
@@ -779,7 +781,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               b?.questionType === "short" ? "short" : (options.length > 0 ? "mcq" : "short");
             const finalOptions =
               questionType === "mcq" && options.length === 0 ? ["A", "B", "C", "D"] : options;
-            return {
+            const cpOut = {
               type: "checkpoint",
               prompt: prompt || "Quick check",
               questionType,
@@ -787,19 +789,26 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               correctAnswer: safeStr(b?.correctAnswer, ""),
               explanation: safeStr(b?.explanation, ""),
             };
+            if (typeof b?.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
+            return cpOut;
           }
           if (type === "diagram") {
             const cap = safeStr(b?.caption, "") || safeStr(b?.content, "image here");
-            return {
+            const dOut = {
               type: "diagram",
               visualId: b?.visualId,
               caption: cap,
             };
+            if (typeof b?.role === "string" && b.role.trim()) dOut.role = b.role.trim();
+            return dOut;
           }
-          return {
+          const out = {
             type,
             content: safeStr(b?.content, ""),
           };
+          if (typeof b?.title === "string" && b.title.trim()) out.title = b.title.trim();
+          if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+          return out;
         })
         .filter((b) => {
           if (b.type === "checkpoint") {
