@@ -391,13 +391,14 @@ You are generating a LetsRevise lesson. Follow this exact lesson structure:
 
 Important rules:
 - Teach like a teacher, not a textbook.
-- Use short paragraphs.
+- Use short paragraphs. Maximum 3 sentences per paragraph.
 - Focus on one idea at a time.
 - Always explain structure to function, cause to effect, or feature to purpose.
 - Always include exam wording.
 - If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
 - Do not skip exam tips.
 - Do not skip checkpoints.
+- Do not skip any required blocks. If unsure, still produce them.
 - Do not write long note-style content.
 `;
 
@@ -634,7 +635,7 @@ async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIs
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
-    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Avoid note-like, shallow summaries.",
+    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Use short paragraphs: maximum 3 sentences per paragraph. Avoid note-like, shallow summaries.",
   ].join(" ");
 
   const structureEnforcement = [
@@ -647,6 +648,7 @@ async function improveDraftWithSecondPass({ draft, curriculumIssues, structureIs
     "- rewrite weak sections clearly",
     "- ensure exam-focused explanations",
     "If diagrams are needed, write \"image here\".",
+    "Do not skip any required blocks. If unsure, still produce them.",
   ].join("\n");
 
   const userPromptParts = [
