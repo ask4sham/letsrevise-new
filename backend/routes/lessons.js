@@ -154,7 +154,7 @@ function sanitisePageInput(p, isUpdate = false) {
               explanation: "",
             };
           }
-          return {
+          const cpOut = {
             type: "checkpoint",
             prompt: prompt.trim(),
             questionType,
@@ -162,10 +162,12 @@ function sanitisePageInput(p, isUpdate = false) {
             correctAnswer: correctAnswer.trim(),
             explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
           };
+          if (typeof b?.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
+          return cpOut;
         }
         if (type === "pageQuiz") {
           const qText = typeof b?.question === "string" ? b.question : (typeof b?.prompt === "string" ? b.prompt : "");
-          return {
+          const pqOut = {
             type: "pageQuiz",
             question: qText,
             questionType: b?.questionType === "short" || b?.type === "shortAnswer" ? "short" : "mcq",
@@ -173,6 +175,8 @@ function sanitisePageInput(p, isUpdate = false) {
             correctAnswer: typeof b?.correctAnswer === "string" ? b.correctAnswer : "",
             explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
           };
+          if (typeof b?.role === "string" && b.role.trim()) pqOut.role = b.role.trim();
+          return pqOut;
         }
         if (type === "diagram") {
           const visualId =
@@ -229,6 +233,7 @@ function sanitisePageInput(p, isUpdate = false) {
             type: "diagram",
             visualId: visualId || undefined,
             caption: typeof b?.caption === "string" ? b.caption : "",
+            content: typeof b?.content === "string" && b.content.trim() ? b.content.trim() : "image here",
             mode,
             annotations: annotations.length ? annotations : undefined,
             steps: steps.length ? steps : undefined,
@@ -237,12 +242,16 @@ function sanitisePageInput(p, isUpdate = false) {
           if (typeof b?.imageUrl === "string" && b.imageUrl.trim()) diagramBlock.imageUrl = b.imageUrl.trim();
           if (typeof b?.imageSource === "string" && b.imageSource.trim()) diagramBlock.imageSource = b.imageSource.trim();
           if (typeof b?.alt === "string" && b.alt.trim()) diagramBlock.alt = b.alt.trim();
+          if (typeof b?.role === "string" && b.role.trim()) diagramBlock.role = b.role.trim();
           return diagramBlock;
         }
-        return {
+        const out = {
           type,
           content: typeof b?.content === "string" ? b.content : "",
         };
+        if (typeof b?.title === "string" && b.title.trim()) out.title = b.title.trim();
+        if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+        return out;
       })
     : [];
 

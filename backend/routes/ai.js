@@ -824,6 +824,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               type: "diagram",
               visualId: b?.visualId,
               caption: cap,
+              content: safeStr(b?.content, "") || "image here",
             };
             if (typeof b?.role === "string" && b.role.trim()) dOut.role = b.role.trim();
             return dOut;

@@ -367,6 +367,9 @@ function validateLessonStructure(draft) {
 
   if (blocks.length < 10) issues.push("Too few blocks (need at least 10)");
 
+  const diagramCount = blocks.filter((b) => safeStr(b?.type, "") === "diagram").length;
+  if (diagramCount < 2) issues.push("Not enough diagrams");
+
   const roles = new Set(blocks.map((b) => safeStr(b?.role, "")).filter(Boolean));
   const requiredRoles = [
     "hook",
