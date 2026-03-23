@@ -75,6 +75,37 @@ function topicToKey(topic: string | undefined): string {
 /** Exam boards for AI modal dropdown (from bank). */
 const EXAM_BOARDS = ["", "AQA", "OCR", "Edexcel", "WJEC"] as const;
 
+/** Append chip/preset text to instructions with clean formatting: no duplicates, period-separated. */
+function appendInstructionClean(current: string, toAdd: string): string {
+  const trim = (s: string) => s.replace(/\.+$/, "").trim();
+  const segments = (trim(current) || "")
+    .split(/\.\s+/)
+    .map((s) => trim(s))
+    .filter(Boolean);
+  const addSegments = trim(toAdd)
+    .split(/\.\s+/)
+    .map((s) => trim(s))
+    .filter(Boolean);
+  const seen = new Set(segments.map((s) => s.toLowerCase()));
+  for (const s of addSegments) {
+    if (s && !seen.has(s.toLowerCase())) {
+      seen.add(s.toLowerCase());
+      segments.push(s);
+    }
+  }
+  return segments.join(". ").replace(/\s*$/, "") + (segments.length ? "" : "");
+}
+
+/** Preset instruction texts for combined presets. */
+const AI_PRESETS = {
+  "Exam-ready lesson":
+    "Exam-focused. Include misconceptions. Add exam-style questions with mark-scheme answers. Keep strictly in spec.",
+  "Foundation-friendly":
+    "Use simpler language. Keep explanations short and clear. Avoid unnecessary complexity. Stay strictly within foundation-level GCSE expectations.",
+  "High-grade (7–9) depth":
+    "Include deeper knowledge, stronger explanations, comparisons, and evaluation where relevant. Target high-grade GCSE answers while staying in spec.",
+} as const;
+
 /** Map AI form (subject, level, board, tier) to taxonomy specKey for topic dropdown. Only AQA specs have taxonomy endpoints. */
 function getSpecKeyForAiForm(
   subject: string,
@@ -134,6 +165,10 @@ const TeacherDashboard: React.FC = () => {
     tier: "higher",
     autoGenerateFromBanks: true,
     additionalInstructions: "",
+    strictSpec: false,
+    forceComparisonTable: false,
+    forceExamQuestion: false,
+    forceDiagramSuggestion: false,
   });
   const [aiTopicSelection, setAiTopicSelection] = useState<TopicSelectionValue>({
     subject: "Biology",
@@ -551,6 +586,11 @@ const TeacherDashboard: React.FC = () => {
     setAiError("");
     setAiLoading(true);
     try {
+      let instr = (aiForm.additionalInstructions || "").trim();
+      if (aiForm.forceComparisonTable) instr = appendInstructionClean(instr, "Add comparison table");
+      if (aiForm.forceExamQuestion) instr = appendInstructionClean(instr, "Include a real exam question with mark scheme");
+      if (aiForm.forceDiagramSuggestion) instr = appendInstructionClean(instr, "Include diagram suggestion or placeholder");
+
       const payload: Record<string, unknown> = {
         subject: (aiForm.subject || "").trim(),
         level: (aiForm.level || "").trim(),
@@ -558,9 +598,9 @@ const TeacherDashboard: React.FC = () => {
         board: (aiForm.board || "").trim(),
         tier: aiForm.level === "GCSE" ? (aiForm.tier || "").trim() : "",
         autoGenerateFromBanks: aiForm.autoGenerateFromBanks === true,
+        strictSpec: aiForm.strictSpec === true,
       };
       if (topicKey) payload.topicKey = topicKey;
-      const instr = (aiForm.additionalInstructions || "").trim();
       if (instr) payload.additionalInstructions = instr;
 
       if (process.env.NODE_ENV !== "production") {
@@ -1902,6 +1942,10 @@ const TeacherDashboard: React.FC = () => {
                     topicKey={aiForm.topicKey}
                     currentUserId={user?._id ? String(user._id) : undefined}
                     layout="compact"
+                    aiFormContext={{
+                      additionalInstructions: aiForm.additionalInstructions || undefined,
+                      strictSpec: aiForm.strictSpec || undefined,
+                    }}
                   />
                 ) : null}
 
@@ -1985,6 +2029,17 @@ const TeacherDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem", color: "#374151" }}>
+                    <input
+                      type="checkbox"
+                      checked={aiForm.strictSpec === true}
+                      onChange={(e) => setAiForm((p) => ({ ...p, strictSpec: e.target.checked }))}
+                    />
+                    Strictly follow specification (no extra content)
+                  </label>
+                </div>
+
                 <div style={{ gridColumn: "1 / -1", marginTop: 12 }}>
                   <label style={{ fontSize: "0.85rem", color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>
                     Additional instructions for this lesson
@@ -2004,7 +2059,39 @@ const TeacherDashboard: React.FC = () => {
                       fontFamily: "inherit",
                     }}
                   />
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.8rem", marginTop: 10, marginBottom: 4, color: "#0f172a" }}>
+                    Presets
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                    {(Object.keys(AI_PRESETS) as Array<keyof typeof AI_PRESETS>).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          setAiForm((p) => ({
+                            ...p,
+                            additionalInstructions: appendInstructionClean(p.additionalInstructions || "", AI_PRESETS[key]),
+                          }))
+                        }
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: "1px solid #22c55e",
+                          background: "rgba(34,197,94,0.08)",
+                          fontSize: "0.8rem",
+                          cursor: "pointer",
+                          color: "#166534",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: "0.8rem", marginBottom: 4, color: "#0f172a" }}>
+                    Quick chips
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                     {[
                       "Exam-focused",
                       "Simpler language",
@@ -2019,9 +2106,7 @@ const TeacherDashboard: React.FC = () => {
                         onClick={() =>
                           setAiForm((p) => ({
                             ...p,
-                            additionalInstructions: (p.additionalInstructions || "").trim()
-                              ? `${p.additionalInstructions.trim()}. ${chip}.`
-                              : `${chip}.`,
+                            additionalInstructions: appendInstructionClean(p.additionalInstructions || "", chip),
                           }))
                         }
                         style={{
@@ -2037,6 +2122,53 @@ const TeacherDashboard: React.FC = () => {
                         + {chip}
                       </button>
                     ))}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", fontSize: "0.8rem", color: "#6b7280" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={aiForm.forceComparisonTable}
+                        onChange={(e) => setAiForm((p) => ({ ...p, forceComparisonTable: e.target.checked }))}
+                      />
+                      Include comparison table
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={aiForm.forceExamQuestion}
+                        onChange={(e) => setAiForm((p) => ({ ...p, forceExamQuestion: e.target.checked }))}
+                      />
+                      Include real exam question
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={aiForm.forceDiagramSuggestion}
+                        onChange={(e) => setAiForm((p) => ({ ...p, forceDiagramSuggestion: e.target.checked }))}
+                      />
+                      Include diagram suggestion
+                    </label>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      fontSize: "0.8rem",
+                      color: "#475569",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: "#334155" }}>AI will generate:</div>
+                    <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                      <li>Structured lesson with 3–5 teaching sections</li>
+                      <li>Key ideas, misconceptions, and exam tips</li>
+                      <li>Exam-style questions with answers</li>
+                      <li>1 checkpoint</li>
+                      <li>Flashcards/quiz if selected topic banks exist</li>
+                    </ul>
                   </div>
                 </div>
                 </div>

@@ -351,6 +351,7 @@ function buildUserPromptFromMd({
   requiredKeywords = [],
   requiredMisconceptions = [],
   additionalInstructions = "",
+  strictSpec = false,
 }) {
   const lvl = normalizeLevel(level);
   const tierFinal = lvl === "GCSE" ? normalizeTier(tier) : ""; // non-GCSE => empty string
@@ -394,6 +395,10 @@ function buildUserPromptFromMd({
       if (Array.isArray(s.markScheme) && s.markScheme.length > 0)
         out += `\nMark scheme: ${s.markScheme.slice(0, 3).join("; ")}`;
     });
+  }
+  if (strictSpec === true) {
+    out += "\n\n## CRITICAL: Strictly follow specification\n";
+    out += "The teacher has requested STRICT spec alignment. Do NOT add any content beyond the specification points. No extra topics, no out-of-spec detail. Stay strictly within the curriculum scope.\n";
   }
   if (additionalInstructions && typeof additionalInstructions === "string" && additionalInstructions.trim()) {
     out += "\n\n## Teacher instructions (refine the lesson; do not override curriculum safety)\n";
@@ -456,6 +461,74 @@ async function callOpenAI({ systemPrompt, userPrompt }) {
   if (!outputText) throw new Error("OpenAI response missing output_text");
 
   return { raw: outputText, usage: data.usage || null, model: data.model || model };
+}
+
+/**
+ * Convert Lesson doc to draft format for improvement (strips diagrams to fit schema).
+ */
+function lessonToDraft(lesson) {
+  const pages = Array.isArray(lesson?.pages) ? lesson.pages : [];
+  const draftPages = pages
+    .map((p, idx) => {
+      const blocksRaw = Array.isArray(p?.blocks) ? p.blocks : [];
+      const blocks = blocksRaw
+        .filter((b) => b && b.type && b.type !== "diagram")
+        .map((b) => {
+          const t = normalizeBlockType(b.type);
+          if (t === "checkpoint") {
+            const opts = Array.isArray(b.options) ? b.options.map((o) => String(o).trim()).filter(Boolean) : [];
+            while (opts.length < 4) opts.push(`Option ${opts.length + 1}`);
+            return {
+              type: "checkpoint",
+              content: "",
+              prompt: safeStr(b.prompt || b.question, "Quick check"),
+              questionType: b.questionType === "short" ? "short" : "mcq",
+              options: opts.slice(0, 4),
+              correctAnswer: safeStr(b.correctAnswer, opts[0]),
+              explanation: safeStr(b.explanation, ""),
+            };
+          }
+          return {
+            type: t,
+            content: safeStr(b.content, ""),
+            prompt: "",
+            questionType: "mcq",
+            options: [],
+            correctAnswer: "",
+            explanation: "",
+          };
+        })
+        .filter((b) => b.type === "checkpoint" || (b.content && b.content.trim()));
+      const cp = p?.checkpoint || {};
+      return {
+        title: safeStr(p?.title, `Page ${idx + 1}`),
+        order: Number.isFinite(Number(p?.order)) ? p.order : idx + 1,
+        pageType: safeStr(p?.pageType, ""),
+        blocks,
+        checkpoint: cp?.question
+          ? { question: cp.question, options: Array.isArray(cp.options) ? cp.options.slice(0, 4) : ["A", "B", "C", "D"], answer: cp.answer || "" }
+          : { question: "", options: ["A", "B", "C", "D"], answer: "" },
+      };
+    })
+    .filter((p) => p.blocks.length > 0);
+  if (draftPages.length === 0) {
+    draftPages.push({
+      title: "Page 1",
+      order: 1,
+      pageType: "",
+      blocks: [{ type: "text", content: safeStr(lesson?.content, "Content"), prompt: "", questionType: "mcq", options: [], correctAnswer: "", explanation: "" }],
+      checkpoint: undefined,
+    });
+  }
+  return {
+    title: safeStr(lesson?.title, "Lesson"),
+    description: safeStr(lesson?.description, ""),
+    estimatedDuration: Number.isFinite(Number(lesson?.estimatedDuration)) ? lesson.estimatedDuration : 40,
+    tags: Array.isArray(lesson?.tags) ? lesson.tags : [],
+    board: safeStr(lesson?.board, ""),
+    tier: safeStr(lesson?.tier, ""),
+    pages: draftPages,
+  };
 }
 
 /**
@@ -802,6 +875,7 @@ async function generateSanitizedDraft({
   requiredKeywords = [],
   requiredMisconceptions = [],
   additionalInstructions = "",
+  strictSpec = false,
 }) {
   const systemPrompt = buildSystemPrompt(subject, level);
   const userPrompt = buildUserPromptFromMd({
@@ -818,6 +892,7 @@ async function generateSanitizedDraft({
     requiredKeywords,
     requiredMisconceptions,
     additionalInstructions,
+    strictSpec,
   });
 
   const ai = await callOpenAI({ systemPrompt, userPrompt });
@@ -1012,6 +1087,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       typeof req.body?.additionalInstructions === "string"
         ? req.body.additionalInstructions.trim().slice(0, 2000)
         : "";
+    const strictSpec = req.body?.strictSpec === true;
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[generate-and-save] handler v2", { autoGenerateFromBanksFromBody: req.body?.autoGenerateFromBanks, autoGenerateFromBanks });
@@ -1091,6 +1167,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       requiredKeywords,
       requiredMisconceptions,
       additionalInstructions,
+      strictSpec,
     })).sanitized;
 
     // ✅ 2b) Curriculum validation layer
@@ -1345,6 +1422,149 @@ router.post("/generate-and-save", auth, async (req, res) => {
     return res.status(500).json({
       error: "Failed to generate lesson materials",
       ...(details && { details }),
+    });
+  }
+});
+
+/* =========================================================
+   ✅ Improve existing lesson with AI (creates new draft, does not overwrite)
+   POST /api/ai/improve-lesson
+   Body: { lessonId, additionalInstructions?, strictSpec? }
+   ========================================================= */
+router.post("/improve-lesson", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    if (!requireTeacherOrAdmin(req, res)) return;
+
+    if (!process.env.OPENAI_API_KEY || !String(process.env.OPENAI_API_KEY).trim()) {
+      return res.status(503).json({
+        error: "AI improvement is not configured",
+        details: "OPENAI_API_KEY is missing.",
+      });
+    }
+
+    const lessonId = req.body?.lessonId != null ? String(req.body.lessonId).trim() : null;
+    if (!lessonId || !mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Valid lessonId is required" });
+    }
+
+    const additionalInstructions =
+      typeof req.body?.additionalInstructions === "string"
+        ? req.body.additionalInstructions.trim().slice(0, 2000)
+        : "";
+    const strictSpec = req.body?.strictSpec === true;
+
+    const lesson = await Lesson.findById(lessonId).lean();
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const { getLessonOwnerId } = require("../utils/lessonPayload");
+    const ownerId = getLessonOwnerId(lesson);
+    const currentUserId = req.user?._id || req.user?.userId || req.user?.id;
+    const isOwner = ownerId != null && String(currentUserId) === String(ownerId);
+    const isAdmin = (req.user?.userType || req.user?.role || "").toString().toLowerCase() === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Only the lesson owner or an admin can improve this lesson" });
+    }
+
+    const topic = safeStr(lesson.topic, "");
+    const subject = safeStr(lesson.subject, "Biology");
+    const level = normalizeLevel(safeStr(lesson.level, "GCSE"));
+    const board = safeStr(lesson.board, "");
+    const tier = level === "GCSE" ? normalizeTier(lesson.tier) : "";
+    const specKey = boardSubjectToSpecKey(board, subject) || parseTopicKey(lesson.topicKey || "").specKey;
+    const resolved = resolveSpecAndTopicKey(board, subject, topic);
+    const parsedLessonKey = parseTopicKey(lesson.topicKey || "");
+    const canonicalTopicKey = parsedLessonKey.topicKey || resolved?.topicKey || null;
+
+    let specPoints = [];
+    if (specKey && canonicalTopicKey) {
+      specPoints = getSpecPointsForTopic(specKey, canonicalTopicKey) || [];
+    }
+
+    const draft = lessonToDraft(lesson);
+    const generationValidation = validateLessonDraftAgainstCurriculum(draft, {
+      specPoints,
+      requiredKeywords: [],
+      requiredMisconceptions: [],
+      requireExamQuestions: false,
+    });
+
+    let sanitized = draft;
+    try {
+      const improved = await improveDraftWithSecondPass(sanitized, generationValidation, {
+        topic,
+        subject,
+        level,
+        board,
+        tier,
+        specPoints,
+        additionalInstructions,
+      });
+      sanitized = improved.sanitized;
+    } catch (e) {
+      console.warn("[improve-lesson] Second-pass failed, using original:", e?.message || e);
+    }
+
+    const aiPages = ensurePageIds(sanitized.pages);
+    const singlePage = aiPages[0] || {
+      title: "Page 1",
+      order: 1,
+      pageType: "",
+      blocks: [{ type: "text", content: "Content coming soon." }],
+      checkpoint: undefined,
+    };
+
+    const pagesMerged = [
+      {
+        pageId: safeStr(singlePage?.pageId, "") || makePageIdFallback(0),
+        title: safeStr(singlePage?.title, "Page 1"),
+        order: 1,
+        pageType: safeStr(singlePage?.pageType, ""),
+        hero: singlePage?.hero,
+        visualModelId: singlePage?.visualModelId,
+        checkpoint: singlePage?.checkpoint,
+        blocks: Array.isArray(singlePage?.blocks) && singlePage.blocks.length
+          ? singlePage.blocks
+          : [{ type: "text", content: "Content coming soon." }],
+      },
+    ];
+
+    const first = safeStr(req.user?.firstName, "");
+    const last = safeStr(req.user?.lastName, "");
+    const teacherName = first || last ? `${first} ${last}`.trim() : safeStr(req.user?.email, "Teacher");
+
+    const newLesson = new Lesson({
+      title: (sanitized.title || lesson.title || "Improved").trim() + " (AI improved)",
+      description: sanitized.description || lesson.description || "",
+      topic,
+      subject,
+      level,
+      content: "Structured lesson (see pages)",
+      board: sanitized.board || board,
+      tier: level === "GCSE" ? normalizeTier(sanitized.tier || tier) : "",
+      estimatedDuration: sanitized.estimatedDuration || lesson.estimatedDuration || 40,
+      tags: Array.isArray(sanitized.tags) && sanitized.tags.length ? sanitized.tags : (lesson.tags || []),
+      ...((lesson.topicKey || canonicalTopicKey) && { topicKey: lesson.topicKey || canonicalTopicKey }),
+      pages: pagesMerged,
+      teacherId: currentUserId,
+      teacherName,
+      status: "draft",
+      isPublished: false,
+      metadata: { improvedFrom: lessonId },
+    });
+
+    await newLesson.save();
+
+    return res.json({
+      success: true,
+      lessonId: String(newLesson._id),
+      message: "Improved draft created. Original lesson unchanged.",
+    });
+  } catch (error) {
+    console.error("❌ AI improve-lesson error:", error?.message || error);
+    return res.status(500).json({
+      error: "Failed to improve lesson",
+      details: process.env.NODE_ENV === "development" ? String(error?.message || error) : undefined,
     });
   }
 });

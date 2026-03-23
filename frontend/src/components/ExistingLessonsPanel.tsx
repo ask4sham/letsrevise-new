@@ -1,10 +1,10 @@
 /**
  * Shows reuse suggestions when teacher selects a topicKey: list of existing lessons
- * with View / Duplicate / Edit (if owner). Does not block creation; page's primary button = "Create anyway".
+ * with View / Duplicate / Edit (if owner) / Improve with AI. Does not block creation; page's primary button = "Create anyway".
  */
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getLessonsByTopicKey, duplicateLesson, type LessonByTopicKeyItem } from "../api/lessons";
+import { getLessonsByTopicKey, duplicateLesson, improveLessonWithAI, type LessonByTopicKeyItem } from "../api/lessons";
 
 type Props = {
   topicKey: string;
@@ -12,12 +12,15 @@ type Props = {
   /** Layout: "inline" (default) or "compact" for modals */
   layout?: "inline" | "compact";
   style?: React.CSSProperties;
+  /** Optional AI form context for Improve with AI (instructions + strictSpec) */
+  aiFormContext?: { additionalInstructions?: string; strictSpec?: boolean };
 };
 
-export function ExistingLessonsPanel({ topicKey, currentUserId, layout = "inline", style }: Props) {
+export function ExistingLessonsPanel({ topicKey, currentUserId, layout = "inline", style, aiFormContext }: Props) {
   const [lessons, setLessons] = useState<LessonByTopicKeyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [improvingId, setImprovingId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,6 +52,19 @@ export function ExistingLessonsPanel({ topicKey, currentUserId, layout = "inline
       navigate(`/edit-lesson/${newId}`);
     } catch {
       setDuplicatingId(null);
+    }
+  };
+
+  const handleImproveWithAI = async (lessonId: string) => {
+    setImprovingId(lessonId);
+    try {
+      const { lessonId: newId } = await improveLessonWithAI(lessonId, {
+        additionalInstructions: aiFormContext?.additionalInstructions?.trim() || undefined,
+        strictSpec: aiFormContext?.strictSpec,
+      });
+      navigate(`/edit-lesson/${newId}`);
+    } catch {
+      setImprovingId(null);
     }
   };
 
@@ -93,7 +109,7 @@ export function ExistingLessonsPanel({ topicKey, currentUserId, layout = "inline
                 {lesson.isPublished ? " · Published" : " · Draft"}
               </span>
             ) : null}
-            <div style={{ display: "inline-flex", gap: 8, marginLeft: 8, marginTop: 2 }}>
+            <div style={{ display: "inline-flex", gap: 8, marginLeft: 8, marginTop: 2, flexWrap: "wrap" }}>
               <a
                 href={`/lesson/${lesson._id}`}
                 target="_blank"
@@ -125,6 +141,25 @@ export function ExistingLessonsPanel({ topicKey, currentUserId, layout = "inline
                 >
                   Edit
                 </Link>
+              )}
+              {currentUserId && lesson.teacherId === currentUserId && (
+                <button
+                  type="button"
+                  onClick={() => handleImproveWithAI(lesson._id)}
+                  disabled={improvingId !== null}
+                  style={{
+                    fontSize: "0.75rem",
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "#16a34a",
+                    fontWeight: 600,
+                    cursor: improvingId !== null ? "not-allowed" : "pointer",
+                  }}
+                  title="Create an AI-improved draft (original unchanged)"
+                >
+                  {improvingId === lesson._id ? "Improving…" : "Improve with AI"}
+                </button>
               )}
             </div>
           </li>

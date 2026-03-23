@@ -93,6 +93,19 @@ export async function duplicateLesson(lessonId: string): Promise<{ lessonId: str
   return res.data!;
 }
 
+/** Improve an existing lesson with AI (creates new draft, original unchanged). */
+export async function improveLessonWithAI(
+  lessonId: string,
+  options?: { additionalInstructions?: string; strictSpec?: boolean }
+): Promise<{ success: boolean; lessonId: string }> {
+  const res = await api.post<{ success: boolean; lessonId: string }>("/ai/improve-lesson", {
+    lessonId,
+    additionalInstructions: options?.additionalInstructions,
+    strictSpec: options?.strictSpec,
+  });
+  return res.data!;
+}
+
 /** Auto-attach content (fill-only when empty): flashcards + quiz (+ optional assessments) from topic banks. */
 export type AutoAttachAttached = {
   flashcards: { count: number; source: string };
