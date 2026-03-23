@@ -29,16 +29,18 @@ Create a complete lesson draft for:
 
 ---
 
-## MANDATORY TEACHING SEQUENCE
+## MANDATORY TEACHING SEQUENCE (TEACHING JOURNEY)
 
-The lesson MUST follow this structure in order. Do NOT skip steps. Build understanding progressively like a teacher. Each section must clearly follow from the previous.
+The lesson MUST follow this structure in order where relevant. Do NOT skip steps. Do NOT just summarise. Teach the topic step by step. Build understanding progressively like a teacher. Each section must clearly follow logically from the previous.
 
-1. **What is it** — Clear definition. Set the concept firmly.
-2. **Types / categories** — (If applicable) e.g. plant vs animal cells, embryonic vs adult stem cells.
+1. **What is it?** — Clear definition. Set the concept firmly.
+2. **Types / categories / structure** — (If applicable) e.g. plant vs animal cells, embryonic vs adult stem cells, mitosis stages.
 3. **How it works** — Process, mechanism, step-by-step.
 4. **Applications / examples** — Real-world or exam-relevant examples.
-5. **Risks / evaluation / limitations** — (If applicable) Where students often go wrong; evaluate.
+5. **Risks / evaluation / limitations / ethics** — (If applicable) Where students often go wrong; evaluate.
 6. **Exam focus** — How this appears in exams; what examiners credit.
+
+**Instruction:** Build understanding like a teacher would. Do not dump facts. Teach.
 
 ---
 
@@ -47,8 +49,9 @@ The lesson MUST follow this structure in order. Do NOT skip steps. Build underst
 Generate a **single-page** lesson. Put all content in `blocks[]` on that page. Use these block types in a logical order that respects the teaching sequence above:
 
 1. **Overview** (text) — 2–3 sentences that introduce the topic and set expectations. Clear and engaging.
-2. **Core explanation** (text) — **CRITICAL: This must be textbook-quality, structured content.** Use markdown subheadings (##) to organise the lesson into clear teaching sections following the mandatory teaching sequence. Cover the full topic. Do NOT output one short paragraph.
-3. **Comparison table** (text) — **MANDATORY WHEN APPLICABLE.** If the topic includes multiple types (e.g. plant vs animal cells, embryonic vs adult stem cells), you MUST include a comparison table using markdown:
+2. **Core explanation** (text) — **CRITICAL: This must be textbook-quality, structured content.** Use at least 4 markdown subheadings (##). Include short paragraphs plus bullet points where useful. Include at least 2 concrete examples. Include at least 1 comparison where relevant. Explain WHY, not just WHAT. Feel like a real lesson page, not notes. Do NOT output one short paragraph. Do NOT produce shallow summaries.
+
+3. **Comparison table** (text) — **MANDATORY WHEN APPLICABLE.** If the topic involves comparing types, categories, stages, structures, advantages/disadvantages (e.g. animal vs plant cells, embryonic vs adult stem cells, diffusion vs osmosis, mitosis stages), you MUST include a clean markdown table. After any table, briefly explain what the student should notice from it.
 
 ```
 | Feature | Type A | Type B |
@@ -56,14 +59,16 @@ Generate a **single-page** lesson. Put all content in `blocks[]` on that page. U
 | Function | … | … |
 ```
 
+**Rule:** If comparison or classification is relevant, include at least one clean markdown table. Then explain what to notice.
+
 4. **Key ideas** (keyIdea) — At least 3 blocks. Core definitions, essential concepts, "need to know" points.
-5. **Diagram guidance / visual thinking** (text) — Where diagrams would help, include guidance such as: "Draw and label…", "Imagine…", "This can be visualised as…". Even without images, support visual learning.
+5. **Diagram guidance / What to notice** (text) — Where visual explanation would help, include a dedicated section explaining: what the image/diagram should show; what labels are important; what the student should compare or observe. Use phrases such as: "Draw and label…", "The diagram should show…", "Compare…", "Notice that…", "This process can be visualised as…". Structure the lesson so diagram guidance maps to the existing LetsRevise diagram flow.
 6. **Deeper knowledge** (stretch, Higher only) — Extension material. At least one block for Higher tier.
 7. **Common misconceptions** (commonMistake) — **At least 3 blocks.** Strong, curriculum-relevant misconceptions students actually make. Explain why each is wrong and what the correct understanding is.
 8. **Key words** (text) — A block containing "Key words: term1, term2, term3, …" with 5–10 essential terms for this topic.
 9. **Exam tips** (examTip) — At least 2 blocks. How to tackle exam questions, what examiners credit, typical mark allocations.
-10. **Worked exam example** (text) — **MANDATORY.** You MUST include at least one worked exam-style example showing: the question, the model answer, and how marks are awarded (e.g. "1 mark for…", "2 marks for…").
-11. **Exam-style questions** (text) — **You MUST include exam-style questions covering at least 3 types: Describe, Explain, Compare or Evaluate.** Mix command words. One or more text blocks with practice questions and **mark-scheme style answers**.
+10. **Worked exam example** (text) — **MANDATORY.** You MUST include at least one worked exam-style example with: the question, a model answer, and mark breakdown (e.g. "1 mark for…", "another mark for…", "full marks requires…").
+11. **Exam-style questions** (text) — **Do not use only one question style.** Include a varied set of exam-style questions covering Describe, Explain, Compare, Evaluate, Suggest (where appropriate). Mix command words. One or more text blocks with practice questions and **mark-scheme style answers**.
 12. **Checkpoint** (checkpoint) — Exactly one checkpoint block. A quality MCQ or short-answer question that tests understanding.
 
 ---
@@ -88,23 +93,25 @@ Generate a **single-page** lesson. Put all content in `blocks[]` on that page. U
 
 ## TEACHER VOICE (MANDATORY)
 
-Write like a teacher explaining to a GCSE student. Include phrases such as:
+Write like a teacher. Guide the student through the topic. Include phrases such as:
 
 - "Students often think…"
 - "A common mistake is…"
-- "In exams, you should…"
 - "Remember that…"
+- "In exams, you should…"
+- "This is important because…"
+- "This means that…"
 
-Do not just list facts. Explain, guide, and anticipate confusion.
+The lesson should feel guided, not dumped. Do not just list facts. Explain, guide, and anticipate confusion.
 
 ---
 
 ## CONTENT DEPTH RULE
 
-Avoid shallow summaries. Each section must:
+Avoid shallow summaries. Each major section should teach, explain, and connect to exam understanding. Each section must:
 
-- **explain** — Clear reasoning, not just labels.
-- **give an example** — Concrete illustration.
+- **explain** — Clear reasoning, not just labels. Explain WHY, not just WHAT.
+- **give an example** — At least 2 concrete examples in the lesson.
 - **link to exam use** — How this helps in questions.
 
 ---
@@ -127,14 +134,14 @@ Before returning your JSON, verify:
 1. Does the lesson follow the mandatory teaching sequence (What is it → Types → How it works → Applications → Risks/evaluation → Exam focus)?
 2. Have all important topic concepts been covered?
 3. Is the output appropriate for the selected tier (Foundation vs Higher)?
-4. If the topic includes multiple types, is there a **markdown comparison table**?
+4. If the topic includes multiple types/comparison, is there a **markdown comparison table**? Have you explained what the student should notice from it?
 5. Are there **at least 3 commonMistake blocks**?
 6. Are key words included in a dedicated block?
 7. Are there **at least 2 examTip blocks**?
-8. Is there at least one **worked example** with mark allocation (e.g. "1 mark for…")?
-9. Are there **at least 3 exam-style questions** covering Describe, Explain, and Compare/Evaluate?
-10. Does the lesson use **teacher voice** ("Students often think…", "In exams, you should…")?
-11. Is there **visual thinking guidance** ("Draw and label…", "Imagine…") where applicable?
+8. Is there at least one **worked example** with question, model answer, and mark breakdown (e.g. "1 mark for…", "full marks requires…")?
+9. Are there **at least 3 exam-style questions** with varied command words (Describe, Explain, Compare, Evaluate, Suggest)?
+10. Does the lesson use **teacher voice** ("Students often think…", "This is important because…", "In exams, you should…")?
+11. Is there **diagram/visual guidance** ("Draw and label…", "What to notice…", "The diagram should show…") where the topic benefits from visuals?
 12. Is the checkpoint question clear and appropriate?
 13. **Does the core explanation have at least 4 markdown subheadings (##)?** Is it structured like a textbook, not a short note?
 14. Does each section **explain, give an example, and link to exam use**?

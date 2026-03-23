@@ -78,7 +78,7 @@ function hasComparisonTable(draft) {
 }
 
 /**
- * Detect if topic suggests comparison is applicable (keywords like types, compare, differences).
+ * Detect if topic suggests comparison/classification is applicable.
  */
 function topicSuggestsComparison(topic) {
   if (!topic || typeof topic !== "string") return false;
@@ -88,7 +88,48 @@ function topicSuggestsComparison(topic) {
     /\bcompare\b/.test(t) ||
     /\bdifferen(ces?|t)\b/.test(t) ||
     /\bvs\.?\b/.test(t) ||
-    /\bversus\b/.test(t)
+    /\bversus\b/.test(t) ||
+    /\bstages?\b/.test(t) ||
+    /\badvantages?\b/.test(t) ||
+    /\bdisadvantages?\b/.test(t) ||
+    /\bmitosis\b/.test(t) ||
+    /\bmeiosis\b/.test(t) ||
+    /\bosmosis\b/.test(t) ||
+    /\bdiffusion\b/.test(t) ||
+    /\b(plant|animal)\s*(and|vs|or)\s*(plant|animal)\b/.test(t)
+  );
+}
+
+/**
+ * Detect if topic strongly benefits from a visual/diagram (cells, mitosis, osmosis, etc.).
+ */
+function topicSuggestsVisual(topic) {
+  if (!topic || typeof topic !== "string") return false;
+  const t = topic.toLowerCase();
+  return (
+    /\bcell(s?)\b/.test(t) ||
+    /\bmitosis\b/.test(t) ||
+    /\bmeiosis\b/.test(t) ||
+    /\b(osmosis|diffusion)\b/.test(t) ||
+    /\b(diagram|structure|label)\b/.test(t) ||
+    /\b(stem\s*cell|organism)\b/.test(t) ||
+    /\b(enzyme|respiration|photosynthesis)\b/.test(t)
+  );
+}
+
+/**
+ * Detect if draft has diagram/visual guidance (Draw and label, diagram should show, Notice that, etc.).
+ */
+function hasDiagramGuidance(draft) {
+  const draftText = extractDraftText(draft);
+  return (
+    /\bdraw\s+and\s+label\b/i.test(draftText) ||
+    /\bdiagram\s+should\s+show\b/i.test(draftText) ||
+    /\bwhat\s+to\s+notice\b/i.test(draftText) ||
+    /\bnotice\s+that\b/i.test(draftText) ||
+    /\bcan\s+be\s+visuali(s|z)ed\s+as\b/i.test(draftText) ||
+    /\bimagine\s+(that|the)\b/i.test(draftText) ||
+    /\blabel(l)?\s+(the|these|x|y|z)\b/i.test(draftText)
   );
 }
 
@@ -112,11 +153,12 @@ function getExamQuestionStats(draft) {
   const hasDescribe = /\bdescribe\b/i.test(draftText);
   const hasExplain = /\bexplain\b/i.test(draftText);
   const hasCompareOrEvaluate = /\b(compare|evaluate)\b/i.test(draftText);
-  const commandWordVariety = [hasDescribe, hasExplain, hasCompareOrEvaluate].filter(Boolean).length;
+  const hasSuggest = /\bsuggest\b/i.test(draftText);
+  const commandWordVariety = [hasDescribe, hasExplain, hasCompareOrEvaluate, hasSuggest].filter(Boolean).length;
   // Need both: 3+ questions and 3 command word types (Describe, Explain, Compare/Evaluate)
   const examQuestionCount = Math.max(qCount, commandWordVariety);
 
-  return { examQuestionCount, commandWordVariety, hasDescribe, hasExplain, hasCompareOrEvaluate };
+  return { examQuestionCount, commandWordVariety, hasDescribe, hasExplain, hasCompareOrEvaluate, hasSuggest };
 }
 
 /**
@@ -198,6 +240,9 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
   const hasComparisonLanguageResult = hasComparisonLanguage(draft);
   const contentLength = getContentLength(draft);
   const contentTooShort = contentLength < MIN_CONTENT_LENGTH;
+  const topicSuggestsVisualResult = topicSuggestsVisual(topic);
+  const hasDiagramGuidanceResult = hasDiagramGuidance(draft);
+  const needsDiagramButMissing = topicSuggestsVisualResult && !hasDiagramGuidanceResult;
 
   const missingSpecPoints = [];
   for (const sp of specPoints) {
@@ -271,6 +316,8 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
     qualityParts.push("Comparison/evaluation language missing (e.g. 'compared to', 'whereas')");
   if (contentTooShort)
     qualityParts.push(`Content too short (${contentLength} chars, need ≥${MIN_CONTENT_LENGTH})`);
+  if (needsDiagramButMissing)
+    qualityParts.push("Topic would benefit from visual — add diagram guidance ('Draw and label…', 'What to notice…')");
 
   let summary;
   if (parts.length > 0) {
@@ -299,6 +346,9 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
     commandWordVariety: examStats.commandWordVariety,
     hasComparisonLanguage: hasComparisonLanguageResult,
     topicSuggestsComparison: topicSuggestsComparisonResult,
+    topicSuggestsVisual: topicSuggestsVisualResult,
+    hasDiagramGuidance: hasDiagramGuidanceResult,
+    needsDiagramButMissing,
     contentLength,
     contentTooShort,
     summary,
@@ -321,6 +371,7 @@ function shouldTriggerSecondPass(validation) {
   if ((validation.commandWordVariety || 0) < 3) return true;
   if (validation.topicSuggestsComparison && !validation.hasComparisonLanguage) return true;
   if (validation.contentTooShort) return true;
+  if (validation.needsDiagramButMissing) return true;
   if ((validation.misconceptionCount || 0) < 3) return true;
   if (!validation.hasExamQuestions) return true;
   if (!validation.hasKeyWords) return true;

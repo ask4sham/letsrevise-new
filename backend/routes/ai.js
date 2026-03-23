@@ -568,6 +568,9 @@ async function improveDraftWithSecondPass(draft, validation, context) {
   if (validation.contentTooShort) {
     feedbackLines.push(`- Content too short (${validation.contentLength} chars). Expand each section: explain, give examples, link to exam use`);
   }
+  if (validation.needsDiagramButMissing) {
+    feedbackLines.push("- Topic would benefit from visual: add diagram guidance ('Draw and label…', 'What to notice…', 'The diagram should show…')");
+  }
   if ((validation.misconceptionCount || 0) < 3) {
     feedbackLines.push(`- Add more common misconception blocks (have ${validation.misconceptionCount}, need at least 3)`);
   }
@@ -582,7 +585,7 @@ async function improveDraftWithSecondPass(draft, validation, context) {
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Same block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint. Keep existing block structure intact.",
-    "Upgrade this draft to match high-quality GCSE teaching resources (e.g. SaveMyExams). Add structure, tables, worked examples, and exam depth. Follow the teaching sequence: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…').",
+    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables, visual guidance, and a worked exam example. Keep the existing lesson-builder-compatible format. Follow: What is it → Types → How it works → Applications → Risks/evaluation → Exam focus. Use teacher voice ('Students often think…', 'In exams, you should…'). Avoid note-like, shallow summaries.",
   ].join(" ");
 
   const userPromptParts = [
@@ -601,7 +604,7 @@ async function improveDraftWithSecondPass(draft, validation, context) {
     JSON.stringify(draft, null, 0).slice(0, 60000),
     "```",
     "",
-    "Upgrade this lesson to SaveMyExams-level quality. Add structure, comparison tables (when applicable), worked examples with mark schemes, and exam question variety (Describe, Explain, Compare/Evaluate). Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields. Do not change block structure."
+    "Upgrade this lesson to a high-quality GCSE teaching resource. Add stronger teaching sequence, deeper explanation, comparison tables (when applicable), visual guidance, and a worked exam example with mark breakdown. Add exam question variety (Describe, Explain, Compare, Evaluate, Suggest). Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields. Do not change block structure."
   );
   const userPrompt = userPromptParts.join("\n");
 
