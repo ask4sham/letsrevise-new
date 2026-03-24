@@ -50,6 +50,113 @@ function hasSubstantialWorkedAnswer(block) {
   return answerText.length >= 60 || bulletLikeCount >= 2;
 }
 
+/** V3: keyIdea looks like punchy bullets or very short lines (not a paragraph dump). */
+function looksLikePunchyKeyIdea(block) {
+  const text = `${block?.title || ""}\n${block?.content || ""}`.trim();
+  if (!text) return false;
+
+  const lineCount = text.split("\n").filter(Boolean).length;
+  const bulletCount = (text.match(/(^|\n)\s*[-•]/g) || []).length;
+
+  return bulletCount >= 1 || lineCount <= 3;
+}
+
+/** V3: commonMistake uses Wrong / Correct / Exam link scaffold. */
+function looksLikeProperCommonMistake(block) {
+  const text = String(block?.content || "");
+  return /wrong:/i.test(text) && /correct:/i.test(text) && /exam link:/i.test(text);
+}
+
+/** V3: examTip sounds practical for exams / marks. */
+function looksLikePracticalExamTip(block) {
+  const text = String(block?.content || "");
+  return /(exam|mark|credit|answer|command word|gain marks)/i.test(text);
+}
+
+/** V3: "What to Notice" title plus at least two bullet lines in content. */
+function looksLikeWhatToNotice(block) {
+  const title = String(block?.title || "");
+  const content = String(block?.content || "");
+  const bulletCount = (content.match(/(^|\n)\s*[-•*]/g) || []).length;
+  return /what to notice/i.test(title) && bulletCount >= 2;
+}
+
+/** V4: banned vague / filler phrasing in block text. */
+function containsGenericFiller(text = "") {
+  const value = String(text).toLowerCase();
+  const genericPhrases = [
+    "this topic",
+    "this concept",
+    "this process",
+    "this material",
+    "this is important",
+    "it helps in exams",
+    "used in many situations",
+    "helps the body",
+    "is useful in medicine",
+    "plays an important role",
+  ];
+  return genericPhrases.some((p) => value.includes(p));
+}
+
+/** Words from lesson title/description/topic for topic-specific checks (any subject). */
+function draftTopicTokens(draft) {
+  const raw = [safeStr(draft?.title, ""), safeStr(draft?.description, ""), safeStr(draft?.topic, "")]
+    .join(" ");
+  const words = raw.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+  return [...new Set(words)];
+}
+
+function textMentionsTopicTokens(text, draft) {
+  const lower = String(text).toLowerCase();
+  const tokens = draftTopicTokens(draft);
+  return tokens.some((t) => lower.includes(t));
+}
+
+/** V4: keyIdea content feels tied to the lesson topic (not generic filler). */
+function keyIdeaLooksSpecific(block, draft = {}) {
+  const text = `${block?.title || ""} ${block?.content || ""}`.trim();
+  if (!text) return false;
+  if (containsGenericFiller(text)) return false;
+  if (textMentionsTopicTokens(text, draft)) return true;
+  return /(stem cells?|embryonic|adult stem cells?|differentiat|regenerative|medicine|repair|leukaemia|specialised cells?)/i.test(
+    text
+  );
+}
+
+/** V4: examTip explains marks / exams in a topic-aware way. */
+function examTipLooksSpecific(block, draft = {}) {
+  const text = String(block?.content || "");
+  if (!text) return false;
+  if (containsGenericFiller(text)) return false;
+  if (textMentionsTopicTokens(text, draft)) return true;
+  return /(exam|marks?|compare|describe|explain|credit|definition|difference|embryonic|adult stem cells?|leukaemia|regenerative)/i.test(
+    text
+  );
+}
+
+/** V4: What to Notice bullets reference real ideas, not only generic scaffolding. */
+function whatToNoticeLooksSpecific(block, draft = {}) {
+  const text = `${block?.title || ""}\n${block?.content || ""}`.trim();
+  if (!/what to notice/i.test(block?.title || "")) return false;
+  if (containsGenericFiller(text)) return false;
+  const bulletCount = (String(block?.content || "").match(/(^|\n)\s*[-•*]/g) || []).length;
+  if (bulletCount < 2) return false;
+  if (textMentionsTopicTokens(text, draft)) return true;
+  return /(stem cells?|embryonic|adult stem cells?|differentiat|specialised cells?|regenerative|medicine)/i.test(
+    text
+  );
+}
+
+/** V4: final memory rule names the topic, not vague revision fluff. */
+function finalMemoryRuleLooksSpecific(block, draft = {}) {
+  const text = String(block?.content || "").trim();
+  if (!text) return false;
+  if (containsGenericFiller(text)) return false;
+  if (textMentionsTopicTokens(text, draft)) return true;
+  return /(stem cells?|differentiat|embryonic|adult stem cells?|repair|medicine|ethic)/i.test(text);
+}
+
 /**
  * Extract all text content from a lesson draft (blocks, checkpoint prompts) for keyword/concept search.
  */
@@ -427,8 +534,44 @@ function validateLessonStructure(draft) {
     if (!roles.has(role)) issues.push(`Missing role: ${role}`);
   });
 
-  const hasWhatToNotice = blocks.some((b) => safeStr(b?.role, "") === "whatToNotice");
-  if (!hasWhatToNotice) issues.push("Missing What to Notice block");
+  const keyIdeas = blocks.filter((b) => safeStr(b?.type, "") === "keyIdea");
+  const commonMistakes = blocks.filter((b) => safeStr(b?.type, "") === "commonMistake");
+  const examTips = blocks.filter((b) => safeStr(b?.type, "") === "examTip");
+
+  if (diagramCount >= 1 && !keyIdeas.some(looksLikeWhatToNotice)) {
+    issues.push(
+      'Missing a proper "What to Notice" keyIdea block (required when the lesson has diagrams).'
+    );
+  }
+
+  if (commonMistakes.length > 0 && !commonMistakes.some(looksLikeProperCommonMistake)) {
+    issues.push("Common mistake blocks are not using Wrong / Correct / Exam link format.");
+  }
+
+  if (examTips.length > 0 && !examTips.some(looksLikePracticalExamTip)) {
+    issues.push("Exam tip blocks are too descriptive and not practical enough.");
+  }
+
+  if (keyIdeas.length > 0 && !keyIdeas.some((b) => keyIdeaLooksSpecific(b, draft))) {
+    issues.push("Key idea blocks are too generic and not topic-specific enough.");
+  }
+
+  if (examTips.length > 0 && !examTips.some((b) => examTipLooksSpecific(b, draft))) {
+    issues.push("Exam tip blocks are too generic and not specific to how marks are earned.");
+  }
+
+  const whatToNoticeBlocks = keyIdeas.filter((b) => /what to notice/i.test(b.title || ""));
+  if (
+    whatToNoticeBlocks.length > 0 &&
+    !whatToNoticeBlocks.some((b) => whatToNoticeLooksSpecific(b, draft))
+  ) {
+    issues.push("What to Notice blocks are too generic and not tied to the actual topic.");
+  }
+
+  const finalMemoryRuleBlock = blocks.find((b) => safeStr(b?.role, "") === "finalMemoryRule");
+  if (finalMemoryRuleBlock && !finalMemoryRuleLooksSpecific(finalMemoryRuleBlock, draft)) {
+    issues.push("Final memory rule is too generic and not topic-specific enough.");
+  }
 
   const workedExampleBlock = blocks.find((b) => safeStr(b?.type, "") === "checkpoint" && safeStr(b?.role, "") === "workedExample");
 
@@ -559,4 +702,13 @@ module.exports = {
   validateBlockTypeRequirements,
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,
+  looksLikePunchyKeyIdea,
+  looksLikeProperCommonMistake,
+  looksLikePracticalExamTip,
+  looksLikeWhatToNotice,
+  containsGenericFiller,
+  keyIdeaLooksSpecific,
+  examTipLooksSpecific,
+  whatToNoticeLooksSpecific,
+  finalMemoryRuleLooksSpecific,
 };

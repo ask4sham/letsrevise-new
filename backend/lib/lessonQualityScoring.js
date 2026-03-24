@@ -8,7 +8,11 @@
  * Weights: structure=20, pedagogy=25, examReadiness=20, clarity=15, completeness=20
  */
 
-const { validateLessonStructure } = require("../services/lessonDraftValidation");
+const {
+  validateLessonStructure,
+  keyIdeaLooksSpecific,
+  examTipLooksSpecific,
+} = require("../services/lessonDraftValidation");
 
 function getBlocks(lesson) {
   if (Array.isArray(lesson?.blocks)) return lesson.blocks;
@@ -122,6 +126,12 @@ function scoreLessonQuality(lesson, context = {}) {
     suggestions.push("Add a keyIdea block showing repeatable exam patterns.");
   }
 
+  if (keyIdeas.length > 0 && !keyIdeas.some((b) => keyIdeaLooksSpecific(b, lesson))) {
+    pedagogy -= 3;
+    issues.push("Key ideas are too generic.");
+    suggestions.push("Make key ideas topic-specific and exam-relevant.");
+  }
+
   if (pedagogy < 0) pedagogy = 0;
 
   // EXAM READINESS
@@ -129,6 +139,12 @@ function scoreLessonQuality(lesson, context = {}) {
     examReadiness -= 4;
     issues.push("Too few exam tips.");
     suggestions.push("Add at least 2 examTip blocks.");
+  }
+
+  if (examTips.length > 0 && !examTips.some((b) => examTipLooksSpecific(b, lesson))) {
+    examReadiness -= 3;
+    issues.push("Exam tips are too generic.");
+    suggestions.push("Write exam tips that explain how marks are earned in this topic.");
   }
 
   const hasWorkedExample = checkpoints.some(

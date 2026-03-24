@@ -39,6 +39,7 @@ const {
   validateBlockTypeRequirements,
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,
+  examTipLooksSpecific,
 } = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
@@ -351,6 +352,238 @@ If forced to choose, choose what earns marks — not what sounds most detailed.
 
 ---
 
+## V3 — MICRO-TEACHING ENFORCEMENT
+
+Every block must do a teaching job, not just contain information.
+
+### TEXT BLOCK RULE
+
+Every text block must follow this order:
+1. Simple explanation
+2. Why it matters
+3. Example or application
+
+Rules:
+- maximum 2 short sentences per idea
+- if needed, split into another text block
+- do not stack multiple big ideas in one block
+- do not define a term without explaining why it matters
+
+### KEY IDEA BLOCK RULE
+
+Every keyIdea block must be:
+- bullet points or very short lines only
+- maximum 2 lines unless it is "What to Notice"
+- punchy
+- memorable
+- exam-focused
+
+Bad:
+"Stem cells are undifferentiated cells that are important for growth and development."
+
+Good:
+- Stem cells can self-renew
+- Stem cells can differentiate
+
+### COMMON MISTAKE RULE
+
+Every commonMistake block must contain:
+- one wrong belief
+- one correct belief
+- one short exam consequence
+
+Format:
+Wrong: ...
+Correct: ...
+Exam link: ...
+
+A valid commonMistake block must use this exact format in **content** (three lines labelled Wrong: / Correct: / Exam link:).
+
+### EXAM TIP RULE
+
+Every examTip block must:
+- be one short practical exam rule
+- tell the student how to gain marks
+- avoid repeating a definition
+
+### DIAGRAM RULE
+
+Each major concept must include:
+- one diagram block
+- immediately followed by one keyIdea block titled exactly "What to Notice"
+
+If no real image is available:
+- content must be exactly: "image here"
+
+### "WHAT TO NOTICE" RULE
+
+This block must:
+- contain exactly 2 or 3 bullet points
+- focus on visible features
+- explain why the feature matters
+
+### CHECKPOINT RULE
+
+Checkpoint blocks must not be placeholders.
+
+Each checkpoint must be one of:
+- worked example
+- short exam-style question
+- compare/explain/describe question
+
+Checkpoint rules:
+- use command words like Explain, Describe, Compare, Evaluate, State
+- avoid fake MCQs unless they are meaningful
+- no "Option 1", "Option 2" placeholder content
+- must include a correct answer or model answer
+
+### WORKED EXAMPLE RULE
+
+The workedExample checkpoint must include:
+- a real exam-style question
+- mark count
+- bullet-point answer
+- each bullet = one marking point
+- specific wording, not generic filler
+
+### FINAL MEMORY RULE
+
+The last keyIdea block must:
+- summarise the topic in 1 or 2 very short lines
+- be easy to remember for exam revision
+
+The final keyIdea block must use role "finalMemoryRule" and summarise the topic in 1 or 2 short lines.
+
+### ANTI-NOTE-DUMPING RULE
+
+Do not produce blocks that only list facts.
+Every block must either:
+- explain
+- guide attention
+- train exam thinking
+- correct a misconception
+- test understanding
+
+If a block does none of those, rewrite it.
+
+---
+
+## V3 OUTPUT FORMAT REMINDER
+
+Write the lesson so that:
+- text blocks teach in mini-steps
+- keyIdea blocks are short and punchy
+- commonMistake blocks use Wrong / Correct / Exam link
+- examTip blocks sound like examiner advice
+- checkpoint blocks sound like real GCSE questions
+- worked examples look like mark-scheme training
+- the lesson feels like a teacher guiding the student, not a page of notes
+
+---
+
+## V4 — CONTENT INTELLIGENCE LAYER
+
+Do not use generic filler.
+Every block must feel specific to the actual topic being taught.
+
+### TOPIC-SPECIFIC RULE
+
+Always mention the real concept being taught.
+Do not write vague phrases like:
+- "this topic"
+- "the concept"
+- "the process"
+- "the material"
+
+Instead, name the real thing:
+- stem cells
+- embryonic stem cells
+- adult stem cells
+- differentiation
+- regenerative medicine
+
+### KEY IDEA CONTENT RULE
+
+A keyIdea block must do at least one of these:
+- define a term clearly
+- explain a distinction
+- state an exam-relevant rule
+- compress a high-value fact into a memorable form
+
+Do not write keyIdea blocks that are only generic statements.
+
+### TEXT BLOCK CONTENT RULE
+
+A text block must:
+1. explain the idea simply
+2. explain why it matters
+3. give a real example or application tied to the topic
+
+If the block does not contain a real example, rewrite it.
+
+### COMMON MISTAKE CONTENT RULE
+
+The commonMistake block must refer to a real misconception from this topic.
+
+It must not be generic.
+It should contrast two real ideas students confuse.
+
+Example for stem cells:
+Wrong: Adult stem cells can become any cell type
+Correct: Adult stem cells can only differentiate into a limited range of cell types
+Exam link: This is often tested in compare questions about embryonic vs adult stem cells
+
+### EXAM TIP CONTENT RULE
+
+Exam tips must be specific to how marks are earned in this topic.
+
+Bad:
+"Use key terms in your answer."
+
+Good:
+"In stem cell questions, compare embryonic and adult stem cells directly to earn comparison marks."
+
+### WHAT TO NOTICE CONTENT RULE
+
+A What to Notice block must mention actual visible or conceptual features from the topic.
+It must not use generic fallback wording unless absolutely necessary.
+
+Bad:
+- Focus on labelled parts
+- Notice how features link to function
+
+Good:
+- Notice embryonic stem cells can become any cell type
+- Notice adult stem cells are more limited
+- In exams, use this difference when comparing their uses
+
+### WORKED EXAMPLE CONTENT RULE
+
+The worked example must be topic-specific.
+The model answer must include:
+- exact terminology from the topic
+- one concrete example
+- no vague filler such as "helps the body"
+
+### FINAL MEMORY RULE CONTENT
+
+The finalMemoryRule block must contain:
+- the single most important exam idea from the topic
+- phrased in a memorable way
+
+### ANTI-GENERIC RULE
+
+Avoid generic phrases unless absolutely necessary.
+Examples to avoid:
+- "this is important"
+- "it helps in exams"
+- "this concept matters"
+- "used in many situations"
+
+Replace them with specific statements about the actual topic.
+
+---
+
 ## ROLE STENCIL (MANDATORY)
 
 You must generate the lesson using this exact role sequence at the start and end.
@@ -426,6 +659,12 @@ You MUST fix:
 - weak or missing workedExample → rewrite or add one with command word, mark count, and bullet-point model answer (at least three marking points)
 
 The improved lesson must still match the JSON schema and full block field set from the first pass.
+
+---
+
+Final priority:
+If a block is technically correct but still feels like a revision note, rewrite it into guided teaching.
+Marks, clarity, and learning come before sounding comprehensive.
 `;
 
 /** Second-pass: explicit repair targets for roles + diagrams (tuning). */
@@ -449,6 +688,42 @@ If the workedExample checkpoint is weak or missing, rewrite or add one. A valid 
 - a mark count
 - a bullet-point model answer
 - at least three useful marking points
+
+If any commonMistake block does not use Wrong / Correct / Exam link format in content, rewrite at least one so it does.
+
+If the draft is missing a finalMemoryRule block, add one as the last keyIdea block.
+`;
+
+const LESSON_SECOND_PASS_V3_REPAIR = `
+
+## V3 SECOND-PASS REPAIR
+
+When improving the draft, repair block behaviour as well as structure.
+
+You must:
+- rewrite weak text blocks into simple explanation + why it matters + example/application
+- shorten long keyIdea blocks into punchy bullet points
+- rewrite commonMistake blocks into Wrong / Correct / Exam link format
+- rewrite examTip blocks into practical mark-gaining advice
+- rewrite weak checkpoints into real exam-style questions with correct answers
+- upgrade the workedExample into a proper marked model answer if weak
+- insert or repair "What to Notice" blocks after diagrams
+- remove note-dumping and split overloaded blocks
+`;
+
+const LESSON_SECOND_PASS_V4_REPAIR = `
+
+## V4 SECOND-PASS REPAIR
+
+When improving the draft, rewrite weak blocks so they become more topic-specific.
+
+You must:
+- replace generic filler with real topic terms
+- replace vague statements with specific biological or exam-relevant facts
+- upgrade weak keyIdea blocks so they define, distinguish, or state a rule
+- upgrade weak examTip blocks so they explain exactly how marks are earned in this topic
+- upgrade What to Notice blocks so they mention real topic-specific features
+- upgrade the finalMemoryRule so it captures the most important exam takeaway
 `;
 
 /* =========================================================
@@ -935,6 +1210,8 @@ async function improveDraftWithSecondPass(
     LESSON_BLOCK_FULL_KEYS_INSTRUCTION,
     LESSON_TEACHING_AND_STYLE_LOCKED,
     LESSON_SECOND_PASS_ROLE_REPAIR,
+    LESSON_SECOND_PASS_V3_REPAIR,
+    LESSON_SECOND_PASS_V4_REPAIR,
   ];
   if (curriculumLines.length || structureLines.length) {
     userPromptParts.push("", "ADDITIONAL VALIDATION FEEDBACK (fix these too):");
@@ -1213,6 +1490,140 @@ function ensureMinimumDiagramBlocks(draft) {
   return draft;
 }
 
+function buildTopicAwareWhatToNotice(topicHint = "") {
+  const topic = String(topicHint || "").toLowerCase();
+  if (topic.includes("stem cell")) {
+    return [
+      "- Notice embryonic stem cells can become any cell type",
+      "- Notice adult stem cells can only form a limited range of cell types",
+      "- In exams, compare these differences when explaining their medical uses",
+    ];
+  }
+  return [
+    "- Focus on the labelled parts or key features",
+    "- Notice how each feature links to its job or meaning",
+    "- In exams, use these visible features as evidence in your answer",
+  ];
+}
+
+function buildTopicAwareCommonMistake(topicHint = "") {
+  const topic = String(topicHint || "").toLowerCase();
+  if (topic.includes("stem cell")) {
+    return (
+      "Wrong: Adult stem cells can become any cell type.\n" +
+      "Correct: Adult stem cells can only differentiate into a limited range of cell types, unlike embryonic stem cells.\n" +
+      "Exam link: This is often tested in compare questions about embryonic and adult stem cells."
+    );
+  }
+  const label = safeStr(topicHint, "this topic").trim() || "this topic";
+  return (
+    "Wrong: Students often confuse the key idea in " +
+    label +
+    ".\n" +
+    "Correct: Use the precise GCSE definition and focus on what makes it different.\n" +
+    "Exam link: This kind of misunderstanding often loses marks in explain or compare questions."
+  );
+}
+
+function buildTopicAwareFinalMemoryRule(topicHint = "") {
+  const topic = String(topicHint || "").toLowerCase();
+  if (topic.includes("stem cell")) {
+    return "Remember: stem cells can self-renew and differentiate, but embryonic and adult stem cells do not have the same potential.";
+  }
+  const label = safeStr(topicHint, "this topic").trim() || "this topic";
+  return `Remember: ${label} is most important because it combines core ideas with common GCSE exam questions.`;
+}
+
+function whatToNoticeBulletCount(content) {
+  const c = String(content || "");
+  return (c.match(/(^|\n)\s*[-•*]\s*/g) || []).length;
+}
+
+/**
+ * After each diagram, ensure a keyIdea "What to Notice" with ≥2 bullets (insert or rewrite).
+ * Mutates draft.pages[].blocks in place.
+ */
+function ensureWhatToNoticeBlocks(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const fallbackBullets = buildTopicAwareWhatToNotice(topicHint).join("\n");
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    for (let i = 0; i < blocks.length; i++) {
+      if (blocks[i]?.type !== "diagram") continue;
+
+      const next = blocks[i + 1];
+      const needInsert = !next || next.type !== "keyIdea";
+
+      if (needInsert) {
+        blocks.splice(i + 1, 0, {
+          type: "keyIdea",
+          title: "What to Notice",
+          content: fallbackBullets,
+          role: "whatToNotice",
+        });
+        continue;
+      }
+
+      next.type = "keyIdea";
+      next.title = "What to Notice";
+      next.role = "whatToNotice";
+      if (whatToNoticeBulletCount(next.content) < 2) {
+        next.content = fallbackBullets;
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * Ensure at least one commonMistake uses Wrong / Correct / Exam link in content (insert or rewrite).
+ * Mutates draft.pages[].blocks. Runs before structure validation via sanitizeDraft.
+ */
+function ensureProperCommonMistakeBlock(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const fallbackContent = buildTopicAwareCommonMistake(topicHint);
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    const commonMistakes = blocks.filter((b) => b.type === "commonMistake");
+
+    const alreadyValid = commonMistakes.find((b) => {
+      const text = String(b.content || "");
+      return /wrong:/i.test(text) && /correct:/i.test(text) && /exam link:/i.test(text);
+    });
+
+    if (alreadyValid) {
+      if (!safeStr(alreadyValid.role, "")) alreadyValid.role = "commonMistake";
+      continue;
+    }
+
+    const firstCommonMistake = commonMistakes[0];
+    if (firstCommonMistake) {
+      firstCommonMistake.role = "commonMistake";
+      firstCommonMistake.content = fallbackContent;
+      continue;
+    }
+
+    const insertIndex = Math.min(2, blocks.length);
+    blocks.splice(insertIndex, 0, {
+      type: "commonMistake",
+      title: "",
+      content: fallbackContent,
+      role: "commonMistake",
+    });
+  }
+
+  return draft;
+}
+
 const CHECKPOINT_PLACEHOLDER_PROMPT = /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
 
 /** Upgrade placeholder / too-short checkpoint prompts so per-checkpoint structure validation passes. */
@@ -1233,6 +1644,40 @@ function upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, workedBlock) {
   }
 }
 
+const WORKED_EXAMPLE_DEFAULT_QUESTION = (safeTopic) =>
+  `Explain one important use of ${safeTopic} in medicine (3 marks).`;
+
+const WORKED_EXAMPLE_DEFAULT_ANSWER =
+  "- Stem cells can differentiate into specialised cells.\n" +
+  "- This means they can replace damaged or diseased cells.\n" +
+  "- Example: bone marrow stem cells can be used to treat leukaemia.";
+
+/** Fill question / prompt / answer / explanation / correctAnswer on workedExample checkpoints (sanitized shape). */
+function syncWorkedExampleFields(b, safeTopic) {
+  if (!b || b.type !== "checkpoint" || safeStr(b.role, "") !== "workedExample") return;
+
+  const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
+  const defaultAns = WORKED_EXAMPLE_DEFAULT_ANSWER;
+
+  if (!safeStr(b.question, "")) {
+    b.question = safeStr(b.prompt, "") || defaultQ;
+  }
+  if (!safeStr(b.prompt, "")) {
+    b.prompt = b.question;
+  }
+  if (!safeStr(b.answer, "") && !safeStr(b.explanation, "")) {
+    b.answer = defaultAns;
+    b.explanation = defaultAns;
+  } else if (!safeStr(b.answer, "")) {
+    b.answer = safeStr(b.explanation, "");
+  } else if (!safeStr(b.explanation, "")) {
+    b.explanation = safeStr(b.answer, "");
+  }
+  if (!safeStr(b.correctAnswer, "")) {
+    b.correctAnswer = "See model answer";
+  }
+}
+
 /**
  * Ensure one checkpoint is a valid worked example (exam-style question + substantial bullet answer).
  * Mutates draft.pages[].blocks. Uses sanitized checkpoint shape (prompt, questionType, options, correctAnswer, explanation).
@@ -1241,6 +1686,8 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
   if (!draft || typeof draft !== "object") return draft;
 
   const safeTopic = safeStr(topicHint, "this topic").trim() || "this topic";
+  const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
+  const modelBullets = WORKED_EXAMPLE_DEFAULT_ANSWER;
 
   for (const page of draft.pages || []) {
     const blocks = page.blocks;
@@ -1272,7 +1719,8 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
         }
       }
       upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, existingGood);
-      return draft;
+      syncWorkedExampleFields(existingGood, safeTopic);
+      continue;
     }
 
     for (const b of checkpoints) {
@@ -1295,25 +1743,115 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
       blocks.push(target);
     }
 
-    const q = `Explain one important use of ${safeTopic} in medicine (3 marks).`;
-    const modelBullets =
-      "- It can be used to replace damaged or diseased cells.\n" +
-      "- This helps restore the function of affected tissues.\n" +
-      "- Example: stem cells can be used in bone marrow treatment for leukaemia.";
-
     target.role = "workedExample";
-    target.prompt = q;
-    target.question = q;
+    target.question = defaultQ;
+    target.prompt = defaultQ;
+    target.answer = modelBullets;
+    target.explanation = modelBullets;
     target.questionType = "short";
     target.options = [];
-    target.explanation = modelBullets;
-    target.correctAnswer = "See model answer in bullets above.";
+    target.correctAnswer = "See model answer";
     upgradeWeakNonWorkedCheckpoints(
       blocks.filter((b) => b.type === "checkpoint"),
       safeTopic,
       target
     );
-    return draft;
+    syncWorkedExampleFields(target, safeTopic);
+  }
+
+  for (const page of draft.pages || []) {
+    for (const b of page.blocks || []) {
+      if (b?.type === "checkpoint" && safeStr(b.role, "") === "workedExample") {
+        syncWorkedExampleFields(b, safeTopic);
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * Ensure a keyIdea with role finalMemoryRule (promote last keyIdea or append).
+ * Mutates draft.pages[].blocks in place.
+ */
+function ensureFinalMemoryRuleBlock(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const fallbackContent = buildTopicAwareFinalMemoryRule(topicHint);
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    const existing = blocks.find((b) => safeStr(b.role, "") === "finalMemoryRule");
+    if (existing) {
+      if (existing.type !== "keyIdea") existing.type = "keyIdea";
+      if (!safeStr(existing.title, "")) existing.title = "Final Memory Rule";
+      if (!String(existing.content || "").trim()) {
+        existing.content = fallbackContent;
+      }
+      continue;
+    }
+
+    const keyIdeas = blocks.filter((b) => b.type === "keyIdea");
+    const lastKeyIdea = keyIdeas[keyIdeas.length - 1];
+
+    if (lastKeyIdea) {
+      lastKeyIdea.role = "finalMemoryRule";
+      if (!safeStr(lastKeyIdea.title, "")) lastKeyIdea.title = "Final Memory Rule";
+      if (!String(lastKeyIdea.content || "").trim()) {
+        lastKeyIdea.content = fallbackContent;
+      }
+      continue;
+    }
+
+    blocks.push({
+      type: "keyIdea",
+      title: "Final Memory Rule",
+      content: fallbackContent,
+      role: "finalMemoryRule",
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * V4: ensure at least one examTip is topic- and marks-aware; rewrite first or append.
+ */
+function ensureSpecificExamTipBlock(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topicLower = String(topicHint || "").toLowerCase();
+  let fallbackContent =
+    "Use precise scientific vocabulary and answer the exact command word in the question.";
+
+  if (topicLower.includes("stem cell")) {
+    fallbackContent =
+      "In stem cell questions, compare embryonic and adult stem cells directly and use terms like differentiate, specialised cells, and leukaemia to gain marks.";
+  }
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    const examTips = blocks.filter((b) => b.type === "examTip");
+
+    const validTip = examTips.find((b) => examTipLooksSpecific(b, draft));
+    if (validTip) continue;
+
+    if (examTips[0]) {
+      examTips[0].content = fallbackContent;
+      if (!safeStr(examTips[0].role, "")) examTips[0].role = "concept";
+      continue;
+    }
+
+    blocks.push({
+      type: "examTip",
+      title: "",
+      content: fallbackContent,
+      role: "concept",
+    });
   }
 
   return draft;
@@ -1485,10 +2023,42 @@ function sanitizeDraft(draft, { subject, level, topic }) {
 
   applyRoleFallbacksToLesson(clean);
   ensureMinimumDiagramBlocks(clean);
+  ensureWhatToNoticeBlocks(clean, topic);
+  ensureProperCommonMistakeBlock(clean, topic);
   ensureWorkedExampleCheckpoint(clean, topic);
+  ensureFinalMemoryRuleBlock(clean, topic);
+  ensureSpecificExamTipBlock(clean, topic);
 
   if (process.env.NODE_ENV !== "production") {
     for (const page of clean.pages || []) {
+      console.log(
+        "V4 keyIdea debug:",
+        (page.blocks || [])
+          .map((b, i) => ({ i, type: b.type, title: b.title, role: b.role, content: b.content }))
+          .filter((b) => b.type === "keyIdea")
+      );
+      console.log(
+        "V4 examTip debug:",
+        (page.blocks || [])
+          .map((b, i) => ({ i, type: b.type, role: b.role, content: b.content }))
+          .filter((b) => b.type === "examTip")
+      );
+      const commonMistakeDbg = (page.blocks || [])
+        .map((b, i) => ({ i, type: b.type, role: b.role, content: b.content }))
+        .filter((x) => x.type === "commonMistake" || x.role === "commonMistake");
+      console.log("CommonMistake debug:", commonMistakeDbg);
+      const fmrDbg = (page.blocks || [])
+        .map((b, i) => ({ i, type: b.type, role: b.role, title: b.title, content: b.content }))
+        .filter((x) => safeStr(x.role, "") === "finalMemoryRule");
+      console.log("FinalMemoryRule debug:", fmrDbg);
+      const wtnOnly = (page.blocks || []).filter(
+        (b) =>
+          /what to notice/i.test(String(b?.title || "").trim()) ||
+          safeStr(b?.role, "") === "whatToNotice"
+      );
+      if (wtnOnly.length) {
+        console.log("What to Notice debug:", wtnOnly);
+      }
       console.log(
         "AI lesson block roles:",
         (page.blocks || []).map((b, i) => ({
@@ -1499,6 +2069,18 @@ function sanitizeDraft(draft, { subject, level, topic }) {
         }))
       );
     }
+    const allBlocksSanitized = (clean.pages || []).flatMap((p) => p.blocks || []);
+    const workedSanitized = allBlocksSanitized.find((b) => safeStr(b.role, "") === "workedExample");
+    console.log(
+      "Worked example debug:",
+      workedSanitized
+        ? {
+            question: workedSanitized.question || workedSanitized.prompt,
+            answer: workedSanitized.answer || workedSanitized.explanation,
+            role: workedSanitized.role,
+          }
+        : "NONE"
+    );
   }
 
   return clean;
