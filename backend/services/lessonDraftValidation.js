@@ -413,6 +413,66 @@ function validateLessonStructure(draft) {
 }
 
 /**
+ * Post-generation block-type shape checks (runs after sanitization).
+ * Complements validateLessonStructure (roles, counts, checkpoint quality).
+ * @param {Object} lesson - Draft with pages[].blocks
+ * @returns {string[]}
+ */
+function validateBlockTypeRequirements(lesson) {
+  const issues = [];
+  const blocks = (Array.isArray(lesson?.pages) ? lesson.pages : []).flatMap((page) =>
+    Array.isArray(page?.blocks) ? page.blocks : []
+  );
+
+  for (const block of blocks) {
+    const type = safeStr(block?.type, "");
+
+    if (type === "text" && !safeStr(block?.content, "").trim()) {
+      issues.push("Text block missing content.");
+    }
+
+    if (type === "keyIdea") {
+      if (!safeStr(block?.title, "").trim()) {
+        issues.push("Key idea block missing title.");
+      }
+      if (!safeStr(block?.content, "").trim()) {
+        issues.push("Key idea block missing content.");
+      }
+    }
+
+    if (type === "commonMistake" && !safeStr(block?.content, "").trim()) {
+      issues.push("Common mistake block missing content.");
+    }
+
+    if (type === "examTip" && !safeStr(block?.content, "").trim()) {
+      issues.push("Exam tip block missing content.");
+    }
+
+    if (type === "stretch" && !safeStr(block?.content, "").trim()) {
+      issues.push("Stretch block missing content.");
+    }
+
+    if (type === "diagram" && !safeStr(block?.content, "").trim()) {
+      issues.push("Diagram block missing content.");
+    }
+
+    if (type === "checkpoint") {
+      const hasQuestion =
+        !!safeStr(block?.question, "").trim() || !!safeStr(block?.prompt, "").trim();
+      const hasAnswer =
+        !!safeStr(block?.answer, "").trim() ||
+        !!safeStr(block?.correctAnswer, "").trim() ||
+        !!safeStr(block?.explanation, "").trim();
+
+      if (!hasQuestion) issues.push("Checkpoint block missing question.");
+      if (!hasAnswer) issues.push("Checkpoint block missing answer.");
+    }
+  }
+
+  return issues;
+}
+
+/**
  * Determine if a draft should trigger a second-pass improvement.
  * Trigger if: hard validation failure OR any quality weakness OR structure issues:
  * - subheadings < 4, no markdown table when topic suggests comparison,
@@ -444,4 +504,5 @@ module.exports = {
   shouldTriggerSecondPass,
   extractDraftText,
   validateLessonStructure,
+  validateBlockTypeRequirements,
 };

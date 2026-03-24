@@ -32,7 +32,11 @@ const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftVal
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
-const { validateLessonDraftAgainstCurriculum, validateLessonStructure } = require("../services/lessonDraftValidation");
+const {
+  validateLessonDraftAgainstCurriculum,
+  validateLessonStructure,
+  validateBlockTypeRequirements,
+} = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
@@ -150,93 +154,35 @@ const LESSON_DRAFT_SCHEMA = {
             minItems: 1,
             maxItems: 24,
             items: {
-              oneOf: [
-                {
-                  type: "object",
-                  required: ["type", "content"],
-                  properties: {
-                    type: { const: "text" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
+              type: "object",
+              required: ["type"],
+              additionalProperties: false,
+              properties: {
+                type: {
+                  type: "string",
+                  enum: [
+                    "text",
+                    "keyIdea",
+                    "commonMistake",
+                    "examTip",
+                    "stretch",
+                    "checkpoint",
+                    "diagram",
+                  ],
                 },
-                {
-                  type: "object",
-                  required: ["type", "content"],
-                  properties: {
-                    type: { const: "keyIdea" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-                {
-                  type: "object",
-                  required: ["type", "content"],
-                  properties: {
-                    type: { const: "commonMistake" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-                {
-                  type: "object",
-                  required: ["type", "content"],
-                  properties: {
-                    type: { const: "examTip" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-                {
-                  type: "object",
-                  required: ["type", "content"],
-                  properties: {
-                    type: { const: "stretch" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-                {
-                  type: "object",
-                  required: ["type"],
-                  properties: {
-                    type: { const: "diagram" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    caption: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-                {
-                  type: "object",
-                  required: ["type"],
-                  properties: {
-                    type: { const: "checkpoint" },
-                    title: { type: "string" },
-                    content: { type: "string" },
-                    prompt: { type: "string" },
-                    question: { type: "string" },
-                    answer: { type: "string" },
-                    explanation: { type: "string" },
-                    questionType: { type: "string", enum: ["mcq", "short"] },
-                    options: { type: "array", items: { type: "string" } },
-                    correctAnswer: { type: "string" },
-                    role: { type: "string" },
-                  },
-                  additionalProperties: true,
-                },
-              ],
+                title: { type: "string" },
+                content: { type: "string" },
+                role: { type: "string" },
+                caption: { type: "string" },
+                question: { type: "string" },
+                answer: { type: "string" },
+                prompt: { type: "string" },
+                explanation: { type: "string" },
+                questionType: { type: "string", enum: ["mcq", "short"] },
+                options: { type: "array", items: { type: "string" } },
+                correctAnswer: { type: "string" },
+                visualId: { type: "string" },
+              },
             },
           },
           checkpoint: {
@@ -264,11 +210,9 @@ const LESSON_DRAFT_SCHEMA = {
  * Locked teaching + style rules: shared by first-pass user prompt and second-pass rewrite.
  * Single source of truth — update here only.
  *
- * Prompt-only patches (STEP 11): change behaviour via prompts here, buildUserPromptFromMd(),
- * improveDraftWithSecondPass(), and/or backend/prompts/AI_LESSON_PROMPT.md — do NOT change
- * LESSON_DRAFT_SCHEMA, sanitizeDraft(), lesson draft validation, or lesson quality scoring
- * unless you are explicitly doing a structure/schema rollout. Model behaviour vs enforcement
- * stay separate.
+ * Prompt-only patches: prefer changing prompts here or AI_LESSON_PROMPT.md. Schema may still
+ * change for API compatibility (e.g. permissive response_format); keep scoring/validation intent
+ * aligned when you touch enforcement.
  */
 const LESSON_TEACHING_AND_STYLE_LOCKED = `
 
@@ -928,6 +872,43 @@ function collapsePagesToSingle(pages) {
   ];
 }
 
+/**
+ * Normalize raw AI block shapes before type-specific sanitization.
+ * Keeps response_format schema permissive; strict checks run in validateLessonStructure + validateBlockTypeRequirements.
+ */
+function normalizeLessonBlockForDraft(block) {
+  const raw = block && typeof block === "object" ? { ...block } : {};
+  const next = raw;
+
+  if (!next.type) next.type = "text";
+  if (next.title === undefined) next.title = "";
+  if (next.content === undefined) next.content = "";
+  if (next.role === undefined) next.role = "";
+
+  if (next.type === "diagram") {
+    if (!String(next.title || "").trim()) next.title = "Diagram";
+    if (!String(next.content || "").trim()) next.content = "image here";
+  }
+
+  if (next.type === "keyIdea") {
+    const r = String(next.role || "").trim();
+    if (!String(next.title || "").trim() && r !== "whatToNotice") {
+      next.title = "Key Idea";
+    }
+  }
+
+  if (next.type === "checkpoint") {
+    if (!next.question && next.prompt) next.question = next.prompt;
+    if (!next.answer && next.explanation) next.answer = next.explanation;
+    if (next.question === undefined) next.question = "";
+    if (next.answer === undefined) next.answer = "";
+    if (!Array.isArray(next.options)) next.options = [];
+    if (next.correctAnswer === undefined) next.correctAnswer = "";
+  }
+
+  return next;
+}
+
 function sanitizeDraft(draft, { subject, level, topic }) {
   const lvl = normalizeLevel(level);
 
@@ -957,7 +938,8 @@ function sanitizeDraft(draft, { subject, level, topic }) {
     .map((p, idx) => {
       const blocksRaw = Array.isArray(p?.blocks) ? p.blocks : [];
       let blocks = blocksRaw
-        .map((b) => {
+        .map((raw) => {
+          const b = normalizeLessonBlockForDraft(raw);
           const type = normalizeBlockType(b?.type);
           if (type === "checkpoint") {
             const prompt = safeStr(b?.prompt || b?.question, "").trim();
@@ -1435,7 +1417,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
       topic,
     });
     const curriculumIssues = buildCurriculumFeedbackLines(generationValidation);
-    const structureIssues = validateLessonStructure(sanitized);
+    const structureIssuesBase = validateLessonStructure(sanitized);
+    const typeIssues = validateBlockTypeRequirements(sanitized);
+    const structureIssues = [...structureIssuesBase, ...typeIssues];
 
     // ✅ 2c) Score quality and decide whether to trigger second pass
     const qualityResult = scoreLessonQuality(sanitized, {
@@ -1800,7 +1784,13 @@ router.post("/improve-lesson", auth, async (req, res) => {
       requireExamQuestions: false,
       topic,
     });
-    generationValidation = { ...generationValidation, structureIssues: validateLessonStructure(draft) };
+    generationValidation = {
+      ...generationValidation,
+      structureIssues: [
+        ...validateLessonStructure(draft),
+        ...validateBlockTypeRequirements(draft),
+      ],
+    };
 
     let sanitized = draft;
     try {
@@ -1817,7 +1807,10 @@ router.post("/improve-lesson", auth, async (req, res) => {
       console.warn("[improve-lesson] Second-pass failed, using original:", e?.message || e);
     }
 
-    const improveStructureIssues = validateLessonStructure(sanitized);
+    const improveStructureIssues = [
+      ...validateLessonStructure(sanitized),
+      ...validateBlockTypeRequirements(sanitized),
+    ];
     if (improveStructureIssues.length > 0) {
       throw new Error(`Lesson failed structure validation: ${improveStructureIssues.join("; ")}`);
     }
