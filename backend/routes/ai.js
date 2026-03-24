@@ -257,6 +257,22 @@ const LESSON_TEACHING_AND_STYLE_LOCKED = `
 
 ## TEACHING AND STYLE (MANDATORY)
 
+## EXECUTION PERSONA — CONVERSATIONAL TUTOR (CHATGPT-LIKE, MANDATORY)
+
+Generate the lesson as if you were tutoring **one student in a live chat**: sequential, plain-spoken, and helpful. JSON is only the delivery pipe — every \`title\` and \`content\` should read like **the next message** in that conversation, not like a wiki article or condensed notes.
+
+**Think:** Before moving on, ask what a typical student would misunderstand at this point; resolve it in the following block (without breaking block-type rules).
+
+**Behave:** Warm and direct. Prefer short sentences, "So …", "That means …", "Here's the catch …" over passive or admin tone. Avoid "This section will discuss …", "It is important to note …", and other document-y framing.
+
+**Act:** One teaching move per block (same as Rule 2). Order blocks so the student can read top-to-bottom like scrolling a chat thread — each line of reasoning connects to the last.
+
+**Execute:** Lead with intuition where helpful, then tighten with specification language for marks. Checkpoints are **pause points** — write them like a tutor checking understanding, not like anonymous quiz items. Link ideas across blocks (carry forward one thread).
+
+**Do not** mention AI, ChatGPT, language models, or that you are automated. This persona does **not** relax JSON shape, full block fields, or the role stencil — only tone, reasoning flow, and clarity.
+
+---
+
 ## V2 — TEACHING BEHAVIOUR (GUIDED TEACHING, NOT NOTES)
 
 You are not writing notes. You are teaching a student who is learning this for the first time and must understand AND answer exam questions.
@@ -1071,12 +1087,12 @@ function injectPromptVars(template, vars) {
 }
 
 function buildSystemPrompt(subject, level) {
-  // Keep system prompt short; main rules live in the md template.
+  // Keep system prompt compact; behaviour detail lives in LESSON_TEACHING_AND_STYLE_LOCKED + MD template.
   return [
-    `You are an expert UK curriculum educator.`,
-    `Write for ${normalizeLevel(level)} ${safeStr(subject)} students.`,
-    `Be accurate, exam-focused, student-friendly, British English.`,
-    `Return ONLY valid JSON.`,
+    `You are an expert UK curriculum tutor teaching one student step-by-step — like a leading conversational tutor: clear, patient, encouraging, never patronising.`,
+    `Think before each step: what would confuse a ${normalizeLevel(level)} ${safeStr(subject)} student here? Address it in the next block. Block text should read like live chat teaching, not a syllabus handout.`,
+    `Be exam-accurate and British English. JSON is only the wire format — titles and content strings carry natural tutor voice.`,
+    `Return ONLY valid JSON matching the schema. No text before or after the JSON.`,
   ].join(" ");
 }
 
@@ -1112,7 +1128,9 @@ function buildUserPromptFromMd({
 
 ## LETSREVISE LESSON CONTRACT (MANDATORY)
 
-You are generating a LetsRevise lesson. Follow this exact lesson structure:
+You are generating a LetsRevise lesson. Follow the **EXECUTION PERSONA — CONVERSATIONAL TUTOR** rules in the teaching/style section below (think, behave, and execute like a step-by-step chat tutor; JSON is the transport only).
+
+Follow this exact lesson structure:
 
 1. Begin with a short hook in a text block.
 2. Add one keyIdea block that states the core rule of the topic.
@@ -1212,6 +1230,20 @@ Use block roles where the output allows: hook, coreRule, commonMistake, patternR
 }
 
 /**
+ * Optional sampling temperature for `/v1/responses` (0–2). Omit from the request when unset or invalid
+ * so the API uses its default (some models ignore or reject custom temperature).
+ */
+function parseOptionalOpenAITemperature() {
+  const raw = process.env.OPENAI_TEMPERATURE;
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0 || n > 2) return null;
+  return n;
+}
+
+/**
  * Calls OpenAI Responses API with Structured Outputs.
  */
 async function callOpenAI({ systemPrompt, userPrompt }) {
@@ -1219,6 +1251,7 @@ async function callOpenAI({ systemPrompt, userPrompt }) {
   if (!apiKey) throw new Error("Missing OPENAI_API_KEY in environment");
 
   const model = safeStr(process.env.OPENAI_MODEL, "gpt-4o-mini");
+  const temperature = parseOptionalOpenAITemperature();
 
   const payload = {
     model,
@@ -1235,6 +1268,10 @@ async function callOpenAI({ systemPrompt, userPrompt }) {
       },
     },
   };
+
+  if (temperature !== null) {
+    payload.temperature = temperature;
+  }
 
   const resp = await axios.post("https://api.openai.com/v1/responses", payload, {
     headers: {
@@ -1411,7 +1448,8 @@ async function improveDraftWithSecondPass(
 
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing LetsRevise lesson draft.",
-    "Target: V2 guided teaching — step-by-step understanding and exam success, NOT structured notes.",
+    "Target: conversational tutor in chat — step-by-step understanding and exam success (ChatGPT-like flow), NOT structured notes or document outlines.",
+    "Each block should read like the next message in a patient tutorial: connect to the previous idea, anticipate confusion, then advance.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
   ].join(" ");
 
