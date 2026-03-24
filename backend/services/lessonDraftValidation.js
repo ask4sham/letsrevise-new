@@ -863,7 +863,7 @@ function collectV7TeachingAdvisoryNotes(draft) {
   const joinedForTransitions = blocks.map((b) => blockFlowText(b)).join(" ");
   if (
     blocks.length >= 8 &&
-    !/(to understand this clearly:|building on this:|to understand this,|this means that|so in simple terms,|what this shows is that|this is important because|in exams, this matters because|this leads to an important pattern:|this leads to an important exam pattern:|a common mistake (students make )?is:|in exams, remember:|in exams,|putting this together:|\bhowever\b|\bthis leads\b)/i.test(
+    !/(to understand this clearly:|building on this:|to understand this,|this means that|so in simple terms,|so what does this show\?|why does this matter\?|what this shows is that|this is important because|in exams, this matters because|this leads to an important pattern:|this leads to a key exam pattern:|this leads to an important exam pattern:|a common mistake (students make )?is:|in exams, remember:|in exams,|putting this together:|\bhowever\b|\bthis leads\b)/i.test(
       joinedForTransitions
     )
   ) {

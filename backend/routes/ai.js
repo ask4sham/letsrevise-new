@@ -2451,35 +2451,41 @@ const V7_TRANSITION_ELIGIBLE_TYPES = new Set(["text", "keyIdea", "examTip", "com
 const V7_NATURAL_TRANSITIONS = [
   "To understand this,",
   "This means that",
-  "So in simple terms,",
-  "What this shows is that",
+  "So what does this show?",
+  "Why does this matter?",
   "This is important because",
   "In exams, this matters because",
 ];
 
-function getNaturalTransition(blockIndex, role, blockType) {
+function v7TransitionPickIndex(blockIndex, topicHint = "") {
+  const salt = String(topicHint || "").length + blockIndex * 17;
+  return salt % V7_NATURAL_TRANSITIONS.length;
+}
+
+function getNaturalTransition(blockIndex, role, blockType, topicHint = "") {
   const r = safeStr(role, "");
   const t = normalizeBlockType(blockType);
-  if (r === "patternRecognition") return "This leads to an important pattern:";
+  if (r === "patternRecognition") return "This leads to a key exam pattern:";
   if (r === "commonMistake" || t === "commonMistake") return "A common mistake is:";
   if (r === "examTip" || t === "examTip") return "In exams,";
   if (r === "synthesis") return "Putting this together:";
 
-  return V7_NATURAL_TRANSITIONS[blockIndex % V7_NATURAL_TRANSITIONS.length];
+  const idx = v7TransitionPickIndex(blockIndex, topicHint);
+  return V7_NATURAL_TRANSITIONS[idx];
 }
 
 function v7AlreadyHasTransitionPrefix(text) {
   const t = String(text || "").trim();
   if (/^(now|next|however|this leads)\b/i.test(t)) return true;
-  return /^(to understand this clearly:|building on this:|to understand this,|this means that|so in simple terms,|what this shows is that|this is important because|in exams, this matters because|this leads to an important pattern:|this leads to an important exam pattern:|a common mistake (students make )?is:|a common mistake students make is:|in exams, remember:|in exams,|putting this together:)/i.test(
+  return /^(to understand this clearly:|building on this:|to understand this,|this means that|so in simple terms,|so what does this show\?|why does this matter\?|what this shows is that|this is important because|in exams, this matters because|this leads to an important pattern:|this leads to a key exam pattern:|this leads to an important exam pattern:|a common mistake (students make )?is:|a common mistake students make is:|in exams, remember:|in exams,|putting this together:)/i.test(
     t
   );
 }
 
 /**
- * V7 / V7.5: prepend varied teaching transitions so blocks read as guided explanation.
+ * V7 / V7.5 / V7.6: prepend varied teaching transitions (deterministic pick by index + topic).
  */
-function applyTeachingTransitions(draft) {
+function applyTeachingTransitions(draft, topicHint = "") {
   if (!draft || typeof draft !== "object") return draft;
 
   for (const page of draft.pages || []) {
@@ -2502,7 +2508,7 @@ function applyTeachingTransitions(draft) {
 
       if (v7AlreadyHasTransitionPrefix(raw)) continue;
 
-      const prefix = getNaturalTransition(i, curr.role, curr.type);
+      const prefix = getNaturalTransition(i, curr.role, curr.type, topicHint);
       curr.content = `${prefix} ${String(curr.content || "")}`;
     }
   }
@@ -2544,13 +2550,12 @@ function convertTablesToReadableBlocks(draft) {
 }
 
 /**
- * V7.5: short keyIdea blocks get a concise “why it matters” line (exam link).
+ * V7.6: topic-aware “why this matters” for keyIdea (exam context).
  */
-function addWhyThisMatters(draft) {
+function addWhyThisMatters(draft, topicHint = "") {
   if (!draft || typeof draft !== "object") return draft;
 
-  const boost =
-    "\nThis is important because it often appears in exam questions.";
+  const topic = String(topicHint || "").toLowerCase();
 
   for (const page of draft.pages || []) {
     for (const block of page.blocks || []) {
@@ -2560,10 +2565,68 @@ function addWhyThisMatters(draft) {
       if (safeStr(block.role, "") === "finalMemoryRule") continue;
 
       const c = String(block.content || "");
-      if (c.length >= 180) continue;
-      if (c.includes("often appears in exam questions")) continue;
+      if (!c.trim() || c.length > 200) continue;
+      if (/exam|important because/i.test(c)) continue;
+      if (/answer exam questions more accurately|differentiation and medical use|both sides of the comparison|benefits and concerns to gain full marks/i.test(c)) {
+        continue;
+      }
 
-      block.content = c + boost;
+      let reason = "This helps you answer exam questions more accurately.";
+      if (topic.includes("stem cell")) {
+        reason = "This is often tested in exam questions about differentiation and medical use.";
+      }
+
+      block.content = `${c}\n${reason}`;
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V7.6: exam-thinking scaffolds on relevant keyIdea blocks.
+ */
+function addExamThinkingPrompts(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block.type) !== "keyIdea") continue;
+
+      let body = String(block.content || "");
+      if (/compare|difference/i.test(body) && !/both sides of the comparison clearly/i.test(body)) {
+        body += "\nIn exams, always state both sides of the comparison clearly.";
+      }
+      if (/ethic/i.test(body) && !/benefits and concerns to gain full marks/i.test(body)) {
+        body += "\nIn evaluation questions, include both benefits and concerns to gain full marks.";
+      }
+      block.content = body;
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V7.6: replace loose embryonic vs adult prose with a tight comparison scaffold when detected.
+ */
+function enhanceComparisons(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (block?.content == null || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+      if (t !== "text" && t !== "keyIdea") continue;
+
+      if (!/embryonic.*adult|adult.*embryonic/i.test(block.content)) continue;
+
+      block.content =
+        "Key comparison:\n" +
+        "- Embryonic stem cells: can become almost any cell type (pluripotent)\n" +
+        "- Adult stem cells: can only form a limited range (multipotent)\n" +
+        "- This difference is essential in exam questions";
     }
   }
 
@@ -2617,8 +2680,22 @@ function collapseWeakKeyIdeas(draft, topicHint = "") {
     const newBlocks = [];
     let seenCore = false;
 
+    const protectedKeyIdeaRoles = new Set([
+      "patternRecognition",
+      "coreRule",
+      "finalMemoryRule",
+      "whatToNotice",
+      "synthesis",
+    ]);
+
     for (const block of page.blocks) {
       if (normalizeBlockType(block.type) !== "keyIdea") {
+        newBlocks.push(block);
+        continue;
+      }
+
+      const r = safeStr(block.role, "");
+      if (protectedKeyIdeaRoles.has(r)) {
         newBlocks.push(block);
         continue;
       }
@@ -2687,7 +2764,7 @@ function applyV7TeachingPresentationLayer(draft, topicHint = "") {
   convertTablesToReadableBlocks(draft);
   strengthenWorkedExample(draft, topicHint);
   enforceTeachingOrder(draft);
-  applyTeachingTransitions(draft);
+  applyTeachingTransitions(draft, topicHint);
 
   return draft;
 }
@@ -2890,7 +2967,12 @@ function sanitizeDraft(draft, opts = {}) {
   ensureSpecificExamTipBlock(clean, topic);
 
   applyV7TeachingPresentationLayer(clean, topic);
-  addWhyThisMatters(clean);
+  enhanceComparisons(clean);
+  addWhyThisMatters(clean, topic);
+  addExamThinkingPrompts(clean);
+
+  ensurePatternRecognitionBlock(clean, topic);
+  ensureProperCommonMistakeBlock(clean, topic);
 
   if (process.env.NODE_ENV !== "production") {
     for (const page of clean.pages || []) {
@@ -3362,7 +3444,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
           requireExamQuestions: true,
           topic,
         });
-        finalStructureIssues = validateLessonStructure(finalDraft);
+        finalStructureIssues = [
+          ...validateLessonStructure(finalDraft),
+          ...validateBlockTypeRequirements(finalDraft),
+        ];
         const finalCurriculumIssues = buildCurriculumFeedbackLines(finalCurriculumValidation);
 
         const finalQuality = scoreLessonQuality(finalDraft, {
