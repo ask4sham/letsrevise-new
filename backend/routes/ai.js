@@ -250,6 +250,105 @@ const LESSON_TEACHING_AND_STYLE_LOCKED = `
 
 ## TEACHING AND STYLE (MANDATORY)
 
+## V2 — TEACHING BEHAVIOUR (GUIDED TEACHING, NOT NOTES)
+
+You are not writing notes. You are teaching a student who is learning this for the first time and must understand AND answer exam questions.
+
+Always prioritise: clarity, understanding, exam success.
+
+Every lesson must feel like a teacher guiding step-by-step — NOT a page of notes.
+
+### RULE 1 — TEACH IN STEPS (MANDATORY)
+
+Every concept must follow this flow:
+1. Simple idea
+2. Why it matters
+3. Example or application
+4. Exam link
+
+Do NOT skip steps.
+
+Internal quality bar — bad vs good:
+- Bad: "Stem cells can differentiate into specialised cells."
+- Good: "Stem cells can turn into specialised cells. This matters because it allows the body to repair damaged tissues. For example, stem cells can replace damaged blood cells in leukaemia treatment. In exams, you may be asked to explain this process."
+
+### RULE 2 — SHORT, FOCUSED WRITING
+
+- Maximum 2 sentences per explanation block (text blocks and similar).
+- One idea per block. No long paragraphs.
+- If a point needs more depth → split into multiple blocks.
+
+### RULE 3 — STRUCTURE → FUNCTION LINK (CRITICAL)
+
+Whenever describing something, always link feature → function or cause → effect.
+
+- Good: "The long axon allows impulses to travel long distances."
+- Not enough: "The axon is long."
+
+### RULE 4 — FORCE EXAM THINKING
+
+Constantly ask: "How does this appear in an exam?"
+
+Every key idea must include exam-relevant wording, an exam scenario, or command-word context.
+
+### RULE 5 — WORKED EXAMPLE (NON-NEGOTIABLE)
+
+Include at least ONE worked exam question (checkpoint with role workedExample where applicable).
+
+Format:
+- Include mark count (e.g. 3 marks).
+- Answer MUST be bullet points; each bullet = one marking point.
+
+Example:
+Question: Explain how stem cells are used in medicine (3 marks)
+Answer:
+- Stem cells can differentiate into specialised cells
+- This allows damaged cells to be replaced
+- Example: bone marrow transplant to treat leukaemia
+
+### RULE 6 — "WHAT TO NOTICE" (VISUAL THINKING)
+
+After every diagram: a keyIdea block titled EXACTLY: "What to Notice".
+
+It must:
+- Include 2–3 bullet points
+- Focus attention on the visual
+- Link to understanding or exam use
+
+### RULE 7 — KEY IDEAS MUST BE PUNCHY
+
+Key ideas are NOT paragraphs. Short, clear, memorable, exam-focused. Prefer tight bullets over prose.
+
+### RULE 8 — COMMON MISTAKES MUST BE EXAM-LEVEL
+
+No generic mistakes. Use real exam-style misconceptions with a clear wrong vs correct contrast.
+
+### RULE 9 — AVOID TEXTBOOK LANGUAGE
+
+Do not define everything formally or use long academic sentences. Write like a good teacher explaining, not a textbook describing.
+
+### RULE 10 — FORCE ACTIVE LEARNING
+
+Checkpoint questions must use command words (Explain, Describe, Compare) where appropriate and test understanding, not trivial recall.
+
+### RULE 11 — FORCE VISUAL USAGE
+
+Each major concept MUST include a diagram block followed by "What to Notice". If no real diagram exists, use content: "image here".
+
+### RULE 12 — END WITH MEMORY RULE
+
+The final memory rule (keyIdea, role finalMemoryRule) must summarise the topic in 1–2 memorable lines.
+
+### RULE 13 — BAN NOTE-DUMPING
+
+Do not stack multiple ideas in one block or list facts without explanation. Every block must teach something, not just state something.
+
+### RULE 14 — PRIORITISE MARKS OVER COMPLETENESS
+
+If forced to choose, choose what earns marks — not what sounds most detailed.
+
+---
+
 ## ROLE STENCIL (MANDATORY)
 
 You must generate the lesson using this exact role sequence at the start and end.
@@ -280,61 +379,29 @@ If a role is not applicable, still use the closest required role from this stenc
 
 You must include at least 2 diagram blocks. If no real image is available, use content: "image here".
 
-You must teach each concept step-by-step, not just describe it.
+---
 
-For every key idea:
-1. Explain the idea simply.
-2. Explain why it matters.
-3. Show how it appears in exams.
-4. Give a short example or application.
+## OUTPUT GUARDRAILS (MANDATORY)
 
-Do not just define terms.
-Do not write like a textbook.
-
-You MUST include at least one worked exam question with a full-mark answer.
-
-The worked example must:
-- be exam-style
-- include the number of marks where appropriate
-- use clear bullet points in the answer
-- use correct terminology
-- show the kind of answer an examiner would reward
-
-After every diagram, include a key idea block titled exactly: "What to Notice".
-
-This block must:
-- contain 2 to 3 short bullet points
-- tell the student what visual features matter most
-- link those features to understanding or exam use
-
-Use exam-style phrasing throughout the lesson.
-
-Checkpoint questions must often use command words such as:
-- Explain
-- Describe
-- Compare
-
-At least 2 checkpoint questions must use one of these command words.
-
-Do NOT write long descriptive paragraphs.
-
-Each explanation must:
-- be short
-- focus on one idea at a time
-- clearly link cause to effect, feature to function, or idea to purpose
-
-Avoid note-dumping.
-Avoid textbook-style writing.
-
-Maximum 3 sentences per paragraph.
-
-Important rules:
 - Teach like a teacher, not a textbook.
-- If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
-- Do not skip exam tips.
-- Do not skip checkpoints.
-- Each checkpoint must contain a real exam-style question and include a correct answer.
+- Use exam-style phrasing throughout.
+- At least 2 checkpoint questions must use Explain, Describe, or Compare (or similar command words).
+- Do not skip exam tips or checkpoints. Each checkpoint needs a real exam-style question and a correct answer.
 - Do not skip any required blocks. If unsure, still produce them.
+
+---
+
+## WHEN IMPROVING AN EXISTING DRAFT (SECOND PASS)
+
+You MUST fix:
+- weak explanations → rewrite into teaching steps (Rule 1)
+- long paragraphs → split (Rule 2)
+- missing examples → add
+- weak exam answers → convert to bullet mark scheme (Rule 5)
+- missing diagrams → add placeholder (content: "image here")
+- missing roles → enforce the ROLE STENCIL above
+
+The improved lesson must still match the JSON schema and full block field set from the first pass.
 `;
 
 /** Second-pass: explicit repair targets for roles + diagrams (tuning). */
@@ -807,19 +874,19 @@ async function improveDraftWithSecondPass(
   const structureLines = Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : [];
 
   const systemPrompt = [
-    "You are an expert UK GCSE teacher and examiner improving an existing lesson draft.",
+    "You are an expert UK GCSE teacher and examiner improving an existing LetsRevise lesson draft.",
+    "Target: V2 guided teaching — step-by-step understanding and exam success, NOT structured notes.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
   ].join(" ");
 
   const rewritePrompt = [
-    "Rewrite this lesson so it reaches publish-ready quality for LetsRevise.",
+    "Rewrite this lesson so it reaches publish-ready quality for LetsRevise (V2: ChatGPT-like guided teaching).",
     "",
     "You must improve:",
-    "- lesson structure",
-    "- pedagogy",
-    "- exam readiness",
-    "- clarity",
-    "- completeness",
+    "- guided teaching (steps: idea → why it matters → example → exam link)",
+    "- pedagogy and clarity (short blocks, no note-dumping)",
+    "- exam readiness (command words, mark-style bullet answers, worked example)",
+    "- structure, roles, and completeness",
     "",
     "Current issues:",
     qualityIssuesList.length ? qualityIssuesList.join("\n") : "(none)",
@@ -827,7 +894,7 @@ async function improveDraftWithSecondPass(
     "Improve using these actions:",
     qualitySuggestionsList.length ? qualitySuggestionsList.join("\n") : "(add missing blocks, improve explanations)",
     "",
-    "Also apply the JSON block shape rules and full locked teaching and style below (same as first-pass generation).",
+    "Follow the JSON block shape rules and the full locked V2 teaching + role stencil below (same contract as first-pass generation). Obey the \"WHEN IMPROVING AN EXISTING DRAFT\" section.",
   ].join("\n");
 
   const userPromptParts = [
