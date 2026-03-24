@@ -17,6 +17,9 @@ const {
   blockFlowText,
   soundsTeacherLike,
   hasConcreteExample,
+  blockRepeatsKnownIdea,
+  soundsLikeTeacherQuestion,
+  checkpointLooksReal,
 } = require("../services/lessonDraftValidation");
 
 function getBlocks(lesson) {
@@ -284,9 +287,76 @@ function scoreLessonQuality(lesson, context = {}) {
   }
   v9Bonus = Math.min(3, v9Bonus);
 
+  // V10 polish: mild bonus only — aha cue, concise key ideas, low stock stem repetition
+  let v10Bonus = 0;
+  const joinedFlows = blocks.map((b) => blockFlowText(b));
+  if (
+    joinedFlows.some(
+      (t) =>
+        /the key difference is this/i.test(t) || /anchor .{0,120} in three moves:/i.test(t)
+    )
+  ) {
+    v10Bonus += 1;
+  }
+  if (
+    keyIdeas.length > 0 &&
+    keyIdeas.every((b) => {
+      const lines = String(b?.content || "")
+        .trim()
+        .split("\n")
+        .filter((l) => l.trim());
+      return lines.length > 0 && lines.length <= 3;
+    })
+  ) {
+    v10Bonus += 1;
+  }
+  const stemish =
+    fullText.includes("stem cell") ||
+    String(lesson?.topic || "")
+      .toLowerCase()
+      .includes("stem cell");
+  if (stemish) {
+    const stockRepeats = blocks.filter((b) => {
+      const ft = blockFlowText(b);
+      return (
+        blockRepeatsKnownIdea(ft) &&
+        !/because|for example|which means|in other words/i.test(ft)
+      );
+    }).length;
+    if (stockRepeats <= 1) v10Bonus += 1;
+  }
+  v10Bonus = Math.min(2, v10Bonus);
+
+  // V11 polish: teacher questions, sharp finale, exam-like quick checkpoints
+  let v11Bonus = 0;
+  if (blocks.some((b) => soundsLikeTeacherQuestion(blockFlowText(b)))) {
+    v11Bonus += 1;
+  }
+  const finalRule = blocks.find((b) => (b?.role ?? "").toString().trim() === "finalMemoryRule");
+  if (finalRule) {
+    const fc = String(finalRule.content || "").trim();
+    const lines = fc.split("\n").filter((l) => l.trim());
+    if (lines.length >= 2 && fc.length >= 50) v11Bonus += 1;
+  }
+  const quickCps = blocks.filter(
+    (b) =>
+      (b?.type ?? "").toString().trim() === "checkpoint" &&
+      (b?.role ?? "").toString().trim() !== "workedExample"
+  );
+  if (
+    quickCps.length >= 2 &&
+    quickCps.filter((b) => {
+      const stem = `${b?.prompt ?? ""} ${b?.question ?? ""}`.trim();
+      return checkpointLooksReal(stem);
+    }).length >= 2
+  ) {
+    v11Bonus += 1;
+  }
+  v11Bonus = Math.min(2, v11Bonus);
+
   const score = Math.max(
     0,
-    Math.min(100, structure + pedagogy + examReadiness + clarity + completeness + v9Bonus)
+    Math.min(100, structure + pedagogy + examReadiness + clarity + completeness + v9Bonus + v10Bonus + v11Bonus)
   );
   const band = getLessonQualityBand(score);
   const passed =

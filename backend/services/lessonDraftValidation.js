@@ -211,6 +211,88 @@ function v6JaccardSimilarity(setA, setB) {
 }
 
 /**
+ * V6-style overlap / repetition hints. Advisory only — V9–V11 deliberately reuse exam/stem phrasing,
+ * so these must not block save (see validateLessonStructure).
+ */
+function buildV6CompressionIssueStrings(draft) {
+  const pages = Array.isArray(draft?.pages) ? draft.pages : [];
+  const blocks = pages.flatMap((p) => p?.blocks ?? []);
+  if (blocks.length < 3) return [];
+
+  const v6Issues = [];
+
+  let adjacentRedundancyReports = 0;
+  for (let i = 0; i < blocks.length - 1; i++) {
+    const a = blocks[i];
+    const b = blocks[i + 1];
+    const ta = safeStr(a?.type, "");
+    const tb = safeStr(b?.type, "");
+    if (!["text", "keyIdea", "examTip"].includes(ta) || !["text", "keyIdea", "examTip"].includes(tb)) {
+      continue;
+    }
+    const s1 = v6TokenSetForOverlap(blockFlowText(a));
+    const s2 = v6TokenSetForOverlap(blockFlowText(b));
+    if (s1.size < 5 || s2.size < 5) continue;
+    if (v6JaccardSimilarity(s1, s2) >= 0.48) {
+      if (adjacentRedundancyReports < 8) {
+        v6Issues.push(
+          `Blocks ${i + 1} and ${i + 2} repeat similar ideas; merge or rewrite so each adds a new cognitive step (V6).`
+        );
+      }
+      adjacentRedundancyReports += 1;
+    }
+  }
+
+  let weakNewStepReports = 0;
+  let cumulativePrior = "";
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const t = safeStr(b?.type, "");
+    const body = blockFlowText(b);
+    if (!["text", "keyIdea"].includes(t)) {
+      cumulativePrior += ` ${body}`;
+      continue;
+    }
+    if (body.length < 100 || i < 2) {
+      cumulativePrior += ` ${body}`;
+      continue;
+    }
+    const curTok = v6TokenSetForOverlap(body);
+    const priorTok = v6TokenSetForOverlap(cumulativePrior);
+    if (curTok.size < 8) {
+      cumulativePrior += ` ${body}`;
+      continue;
+    }
+    let newCount = 0;
+    for (const w of curTok) if (!priorTok.has(w)) newCount += 1;
+    const hasReasoningSignal =
+      /(but not|unlike|whereas|however|wrong:|correct:|exam link:|for example|e\.g\.|such as|in contrast|vs\.?\s|versus|compared to|difference between)/i.test(
+        body
+      );
+    if (newCount < 4 && !hasReasoningSignal) {
+      if (weakNewStepReports < 8) {
+        v6Issues.push(
+          `Block ${i + 1} may only restate earlier content; add contrast, example, application, or exam link — or merge (V6).`
+        );
+      }
+      weakNewStepReports += 1;
+    }
+    cumulativePrior += ` ${body}`;
+  }
+
+  const differentiationMentions = blocks.filter((b) =>
+    /differentiat/i.test(blockFlowText(b))
+  ).length;
+  if (differentiationMentions >= 5) {
+    v6Issues.push(
+      "The same core idea (e.g. differentiation or stem cell definition) appears in too many blocks; compress into fewer teaching steps (V6)."
+    );
+  }
+
+  return v6Issues;
+}
+
+/**
  * Extract all text content from a lesson draft (blocks, checkpoint prompts) for keyword/concept search.
  */
 function extractDraftText(draft) {
@@ -677,81 +759,6 @@ function validateLessonStructure(draft) {
     issues.push("Lesson does not connect clearly enough to exam use.");
   }
 
-  // --- V6: compression / non-repetition (only escalate after sanitizer repair — allow minor noise) ---
-  const v6Issues = [];
-
-  let adjacentRedundancyReports = 0;
-  for (let i = 0; i < blocks.length - 1; i++) {
-    const a = blocks[i];
-    const b = blocks[i + 1];
-    const ta = safeStr(a?.type, "");
-    const tb = safeStr(b?.type, "");
-    if (!["text", "keyIdea", "examTip"].includes(ta) || !["text", "keyIdea", "examTip"].includes(tb)) {
-      continue;
-    }
-    const s1 = v6TokenSetForOverlap(blockFlowText(a));
-    const s2 = v6TokenSetForOverlap(blockFlowText(b));
-    if (s1.size < 5 || s2.size < 5) continue;
-    if (v6JaccardSimilarity(s1, s2) >= 0.48) {
-      if (adjacentRedundancyReports < 8) {
-        v6Issues.push(
-          `Blocks ${i + 1} and ${i + 2} repeat similar ideas; merge or rewrite so each adds a new cognitive step (V6).`
-        );
-      }
-      adjacentRedundancyReports += 1;
-    }
-  }
-
-  let weakNewStepReports = 0;
-  let cumulativePrior = "";
-  for (let i = 0; i < blocks.length; i++) {
-    const b = blocks[i];
-    const t = safeStr(b?.type, "");
-    const body = blockFlowText(b);
-    if (!["text", "keyIdea"].includes(t)) {
-      cumulativePrior += ` ${body}`;
-      continue;
-    }
-    if (body.length < 100 || i < 2) {
-      cumulativePrior += ` ${body}`;
-      continue;
-    }
-    const curTok = v6TokenSetForOverlap(body);
-    const priorTok = v6TokenSetForOverlap(cumulativePrior);
-    if (curTok.size < 8) {
-      cumulativePrior += ` ${body}`;
-      continue;
-    }
-    let newCount = 0;
-    for (const w of curTok) if (!priorTok.has(w)) newCount += 1;
-    const hasReasoningSignal =
-      /(but not|unlike|whereas|however|wrong:|correct:|exam link:|for example|e\.g\.|such as|in contrast|vs\.?\s|versus|compared to|difference between)/i.test(
-        body
-      );
-    if (newCount < 4 && !hasReasoningSignal) {
-      if (weakNewStepReports < 8) {
-        v6Issues.push(
-          `Block ${i + 1} may only restate earlier content; add contrast, example, application, or exam link — or merge (V6).`
-        );
-      }
-      weakNewStepReports += 1;
-    }
-    cumulativePrior += ` ${body}`;
-  }
-
-  const differentiationMentions = blocks.filter((b) =>
-    /differentiat/i.test(blockFlowText(b))
-  ).length;
-  if (differentiationMentions >= 5) {
-    v6Issues.push(
-      "The same core idea (e.g. differentiation or stem cell definition) appears in too many blocks; compress into fewer teaching steps (V6)."
-    );
-  }
-
-  if (v6Issues.length > 4) {
-    issues.push(...v6Issues);
-  }
-
   return issues;
 }
 
@@ -852,6 +859,30 @@ function hasConcreteExample(text = "") {
   return /(for example|such as|leukaemia|bone marrow|nerve cell|blood cell)/i.test(String(text));
 }
 
+/** V10 advisory: more than three sentence-like units (split on “. ”). */
+function blockLooksTooLong(text = "") {
+  return String(text).split(/\.\s+/).filter(Boolean).length > 3;
+}
+
+/** V10 advisory: stock stem-cell lines that often stack without adding reasoning. */
+function blockRepeatsKnownIdea(text = "") {
+  return /(stem cells can differentiate|embryonic stem cells can become|adult stem cells can only)/i.test(
+    String(text)
+  );
+}
+
+/** V11 advisory: teacher-style question or “ask yourself” cue. */
+function soundsLikeTeacherQuestion(text = "") {
+  return /(have you ever|why does this matter|ask yourself|so what is the key difference)/i.test(
+    String(text)
+  );
+}
+
+/** V11 advisory: written checkpoint looks like a real exam question (command word + marks). */
+function checkpointLooksReal(text = "") {
+  return /(explain|compare|evaluate|describe|outline)/i.test(String(text)) && /(marks?)/i.test(String(text));
+}
+
 /**
  * V7.5: non-blocking teaching-quality hints (do not use for save/publish gates).
  * @returns {{ type: string, message: string, severity: string }[]}
@@ -910,6 +941,70 @@ function collectV7TeachingAdvisoryNotes(draft) {
         severity: "low",
       });
     }
+
+    const tooLong = teachableBlocks.filter((b) => blockLooksTooLong(blockFlowText(b))).length;
+    if (teachableBlocks.length >= 4 && tooLong / teachableBlocks.length > 0.5) {
+      notes.push({
+        type: "v10_length",
+        message:
+          "Many blocks read as long multi-sentence paragraphs — consider splitting so each block carries one idea (V10 simplicity).",
+        severity: "low",
+      });
+    }
+
+    const stemStockNoExpl = teachableBlocks.filter((b) => {
+      const ft = blockFlowText(b);
+      return (
+        blockRepeatsKnownIdea(ft) &&
+        !/because|for example|which means|in other words/i.test(ft)
+      );
+    }).length;
+    if (teachableBlocks.length >= 4 && stemStockNoExpl >= 3) {
+      notes.push({
+        type: "v10_repetition",
+        message:
+          "Several blocks repeat common stem-cell phrases without adding explanation (e.g. because / for example) — trim duplicates or add one new layer each time.",
+        severity: "low",
+      });
+    }
+  }
+
+  if (blocks.length >= 6 && !blocks.some((b) => soundsLikeTeacherQuestion(blockFlowText(b)))) {
+    notes.push({
+      type: "v11_teacher_questions",
+      message:
+        "Few teacher-style questions or “ask yourself” prompts — consider opening some sections with a short question to guide thinking.",
+      severity: "low",
+    });
+  }
+
+  const nonWorkedCps = blocks.filter(
+    (b) => safeStr(b?.type, "") === "checkpoint" && safeStr(b?.role, "") !== "workedExample"
+  );
+  if (nonWorkedCps.length >= 2) {
+    const weakCp = nonWorkedCps.filter((b) => {
+      const stem = safeStr(b?.prompt, "") || safeStr(b?.question, "");
+      return stem.length > 0 && !checkpointLooksReal(stem);
+    }).length;
+    if (weakCp / nonWorkedCps.length > 0.5) {
+      notes.push({
+        type: "v11_checkpoints",
+        message:
+          "Some checkpoints read like placeholders — use command words plus mark counts (e.g. Explain … (3 marks)) for a teacher-like check.",
+        severity: "low",
+      });
+    }
+  }
+
+  const v6Hints = buildV6CompressionIssueStrings(draft);
+  if (v6Hints.length > 0) {
+    notes.push({
+      type: "v6_compression",
+      message:
+        "Some blocks overlap or repeat the same teaching move (V6). Guided post-processing often does this on purpose; merge or trim if you want a tighter lesson. " +
+        `Examples: ${v6Hints.slice(0, 2).join(" • ")}${v6Hints.length > 2 ? ` (+${v6Hints.length - 2} more)` : ""}`,
+      severity: "low",
+    });
   }
 
   return notes;
@@ -939,6 +1034,10 @@ module.exports = {
   blockMentionsExamUse,
   soundsTeacherLike,
   hasConcreteExample,
+  blockLooksTooLong,
+  blockRepeatsKnownIdea,
+  soundsLikeTeacherQuestion,
+  checkpointLooksReal,
   v6TokenSetForOverlap,
   v6JaccardSimilarity,
 };

@@ -1823,18 +1823,54 @@ function whatToNoticeBulletCount(content) {
   return (c.match(/(^|\n)\s*[-•*]\s*/g) || []).length;
 }
 
+/** Normalize keyIdea body so duplicate detection ignores V11 prompts and line breaks. */
+function keyIdeaContentSignatureForDedupe(content) {
+  let s = String(content || "").trim();
+  s = s.replace(/^why does this matter\?\s*/i, "");
+  s = s.replace(/^so what is the key difference[^\n]*\n/i, "");
+  s = s.replace(/\nAsk yourself:[\s\S]*$/i, "");
+  s = s.toLowerCase().replace(/\s+/g, " ").trim();
+  return s;
+}
+
+/**
+ * Keep the first keyIdea on each page when later ones are the same teaching text (e.g. triple “What to Notice” after 2+ diagrams + AI).
+ */
+function dedupeNearDuplicateKeyIdeasOnPage(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    const seen = new Set();
+    page.blocks = (page.blocks || []).filter((b) => {
+      if (normalizeBlockType(b?.type) !== "keyIdea") return true;
+      const sig = keyIdeaContentSignatureForDedupe(b?.content);
+      if (sig.length < 40) return true;
+      if (seen.has(sig)) return false;
+      seen.add(sig);
+      return true;
+    });
+  }
+
+  return draft;
+}
+
 /**
  * After each diagram, ensure a keyIdea "What to Notice" with ≥2 bullets (insert or rewrite).
+ * Stem-cell (and identical fallback): only one full canonical copy per page — extra diagrams point back.
  * Mutates draft.pages[].blocks in place.
  */
 function ensureWhatToNoticeBlocks(draft, topicHint = "") {
   if (!draft || typeof draft !== "object") return draft;
 
+  const topic = String(topicHint || "").toLowerCase();
+  const stemCellTopic = topic.includes("stem cell");
   const fallbackBullets = buildTopicAwareWhatToNotice(topicHint).join("\n");
 
   for (const page of draft.pages || []) {
     const blocks = page.blocks;
     if (!Array.isArray(blocks)) continue;
+
+    let stemCanonicalWtnPlaced = false;
 
     for (let i = 0; i < blocks.length; i++) {
       if (blocks[i]?.type !== "diagram") continue;
@@ -1843,20 +1879,45 @@ function ensureWhatToNoticeBlocks(draft, topicHint = "") {
       const needInsert = !next || next.type !== "keyIdea";
 
       if (needInsert) {
+        if (stemCellTopic && stemCanonicalWtnPlaced) {
+          continue;
+        }
         blocks.splice(i + 1, 0, {
           type: "keyIdea",
           title: "What to Notice",
           content: fallbackBullets,
           role: "whatToNotice",
         });
+        if (stemCellTopic) stemCanonicalWtnPlaced = true;
+        i += 1;
         continue;
       }
 
       next.type = "keyIdea";
       next.title = "What to Notice";
       next.role = "whatToNotice";
+
+      if (
+        stemCellTopic &&
+        stemCanonicalWtnPlaced &&
+        /notice embryonic stem cells can become/i.test(String(next.content || ""))
+      ) {
+        blocks.splice(i + 1, 1);
+        continue;
+      }
+
       if (whatToNoticeBulletCount(next.content) < 2) {
+        if (stemCellTopic && stemCanonicalWtnPlaced) {
+          blocks.splice(i + 1, 1);
+          continue;
+        }
         next.content = fallbackBullets;
+        if (stemCellTopic) stemCanonicalWtnPlaced = true;
+      } else if (
+        stemCellTopic &&
+        /notice embryonic stem cells can become/i.test(String(next.content || ""))
+      ) {
+        stemCanonicalWtnPlaced = true;
       }
     }
   }
@@ -2493,6 +2554,7 @@ function repairLessonStructureAfterCompression(draft, topicHint = "") {
   ensurePatternRecognitionBlock(draft, topicHint);
   ensureWorkedExampleCheckpoint(draft, topicHint);
   ensureFinalMemoryRuleBlock(draft, topicHint);
+  dedupeNearDuplicateKeyIdeasOnPage(draft);
   ensureSynthesisRole(draft, topicHint);
   applyRoleFallbacksToLesson(draft);
   ensureMinimumBlockCount(draft, topicHint, 10);
@@ -3195,21 +3257,10 @@ const V10_WHY_VARIATIONS = [
 ];
 
 /**
- * V10: topic-specific duplicate cues (text/keyIdea only). First matching row wins; unknown topics → no concept dedupe.
- * Each block is assigned the first concept whose test passes; later blocks repeating that id are removed.
+ * V10: topic-specific duplicate cues (text/keyIdea only). Stem-cell overlap uses removeDuplicateConceptsByMeaning instead.
+ * First matching row wins; unknown topics → no table dedupe.
  */
 const V10_DEDUPE_BY_TOPIC = [
-  {
-    match: (t) => t.includes("stem cell"),
-    concepts: [
-      { id: "stem_differentiation", test: (x) => /\bdifferentiat/.test(x) },
-      { id: "stem_embryonic_adult", test: (x) => x.includes("embryonic") && x.includes("adult") },
-      {
-        id: "stem_ethics",
-        test: (x) => /\b(ethic|moral)\b/.test(x) && (x.includes("embryo") || x.includes("destroy")),
-      },
-    ],
-  },
   {
     match: (t) => t.includes("photosynthesis"),
     concepts: [
@@ -3325,13 +3376,6 @@ function resolveV10DedupeConcepts(topicLower) {
  */
 const V10_TOPIC_AHA = [
   {
-    match: (t) => t.includes("stem cell"),
-    title: "The key idea",
-    role: "patternRecognition",
-    content:
-      "The key difference is this:\nEmbryonic stem cells can become almost any cell type.\nAdult stem cells are limited to a narrower range.\nExaminers reward a clean comparison plus one medical or ethical example.",
-  },
-  {
     match: (t) => t.includes("photosynthesis"),
     title: "The key idea",
     role: "patternRecognition",
@@ -3397,23 +3441,183 @@ function resolveV10AhaRow(topicHint) {
 }
 
 /**
- * V10: cap keyIdea length (one idea per block). Skips wrap-up / notice anchors that need slightly more room.
+ * V10: max 3 non-empty lines per keyIdea (whole draft).
  */
-function enforceKeyIdeaLength(block) {
-  if (normalizeBlockType(block?.type) !== "keyIdea") return block;
+function enforceKeyIdeaLength(draft) {
+  if (!draft || typeof draft !== "object") return draft;
 
-  const r = safeStr(block?.role, "");
-  if (r === "finalMemoryRule" || r === "synthesis") return block;
-  if (/what to notice/i.test(String(block?.title || ""))) return block;
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block?.type) !== "keyIdea" || !block?.content) continue;
 
-  const raw = String(block?.content || "").trim();
-  if (!raw) return block;
+      const lines = String(block.content)
+        .split("\n")
+        .map((x) => x.trim())
+        .filter(Boolean);
 
-  const lines = raw.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim());
-  if (lines.length <= 3) return block;
+      block.content = lines.slice(0, 3).join("\n");
+    }
+  }
 
-  block.content = lines.slice(0, 3).join("\n");
-  return block;
+  return draft;
+}
+
+/**
+ * V10: never drop or concept-tag blocks that carry required roles / structural types (dedupe must not remove them).
+ */
+function isV10ConceptDedupeProtected(block) {
+  if (!block || typeof block !== "object") return true;
+  const r = safeStr(block.role, "");
+  if (
+    ["finalMemoryRule", "synthesis", "hook", "whatToNotice", "coreRule", "patternRecognition"].includes(
+      r
+    )
+  ) {
+    return true;
+  }
+  if (/what to notice/i.test(String(block.title || ""))) return true;
+  const t = normalizeBlockType(block.type);
+  if (["diagram", "checkpoint", "examTip", "commonMistake", "stretch"].includes(t)) return true;
+  return false;
+}
+
+/**
+ * V10: stem-cell lessons — drop second+ blocks hitting the same meaning bucket (title + content).
+ */
+function removeDuplicateConceptsByMeaning(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    const seen = new Set();
+
+    page.blocks = (page.blocks || []).filter((block) => {
+      if (isV10ConceptDedupeProtected(block)) return true;
+
+      const text = `${block.title || ""} ${block.content || ""}`.toLowerCase();
+
+      let concept = null;
+
+      if (topic.includes("stem cell")) {
+        if (text.includes("differentiat")) concept = "differentiation";
+        else if (text.includes("embryonic") && text.includes("adult")) concept = "comparison";
+        else if (
+          text.includes("leukaemia") ||
+          text.includes("bone marrow") ||
+          text.includes("regenerative")
+        ) {
+          concept = "application";
+        } else if (text.includes("ethic") || text.includes("embryo")) concept = "ethics";
+      }
+
+      if (!concept) return true;
+      if (seen.has(concept)) return false;
+      seen.add(concept);
+      return true;
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * V10: cap long text/keyIdea blocks at three sentence-style units (split on “. ”).
+ */
+function enforceOneIdeaPerBlock(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content) continue;
+
+      const t = normalizeBlockType(block.type);
+      if (t !== "text" && t !== "keyIdea") continue;
+
+      const parts = String(block.content)
+        .split(/\.\s+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+
+      if (parts.length > 3) {
+        block.content = `${parts.slice(0, 3).join(". ")}.`;
+      }
+    }
+  }
+
+  return draft;
+}
+
+function preferExplanationOverRestatement(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content) continue;
+
+      const text = String(block.content).toLowerCase();
+
+      if (
+        text.includes("stem cells can differentiate") &&
+        !/because|for example|which means|in other words/.test(text)
+      ) {
+        block.content +=
+          "\nIn other words, stem cells have not yet developed a fixed role, so they can later become specialised cells.";
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V10: rotate “this matters because” across the whole lesson (one counter).
+ */
+function varyWhyStatementsAcrossDraft(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  let i = 0;
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+      block.content = block.content.replace(/this matters because/gi, () => {
+        const v = V10_WHY_VARIATIONS[i % V10_WHY_VARIATIONS.length];
+        i += 1;
+        return v;
+      });
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V10: stem-cell “aha” block at index 2 when missing the cue phrase.
+ */
+function ensureAhaMomentBlock(draft, topicHint = "") {
+  const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell") || !draft?.pages) return draft;
+
+  for (const page of draft.pages) {
+    const exists = (page.blocks || []).some((b) =>
+      /the key difference is this/i.test(`${b.title || ""} ${b.content || ""}`)
+    );
+
+    if (exists) continue;
+
+    page.blocks.splice(2, 0, {
+      type: "keyIdea",
+      title: "The key idea",
+      role: "coreRule",
+      content:
+        "The key difference is this:\n" +
+        "Embryonic stem cells can become any cell.\n" +
+        "Adult stem cells can only become a limited range.\n" +
+        "This is what examiners are looking for.",
+    });
+  }
+
+  return draft;
 }
 
 /**
@@ -3428,6 +3632,8 @@ function removeDuplicateConcepts(blocks, topicHint = "") {
   const seen = new Set();
 
   return blocks.filter((b) => {
+    if (isV10ConceptDedupeProtected(b)) return true;
+
     const bt = normalizeBlockType(b?.type);
     if (bt !== "text" && bt !== "keyIdea") return true;
 
@@ -3444,11 +3650,6 @@ function removeDuplicateConcepts(blocks, topicHint = "") {
     seen.add(hit);
     return true;
   });
-}
-
-function varyWhyStatements(text, i) {
-  if (text == null || typeof text !== "string") return text;
-  return text.replace(/this matters because/gi, V10_WHY_VARIATIONS[i % V10_WHY_VARIATIONS.length]);
 }
 
 /**
@@ -3490,26 +3691,268 @@ function insertAhaMoment(blocks, topicHint = "") {
 }
 
 /**
- * V10 — simplicity + focus: trim key ideas, topic-aware dedupe, topic-aware aha insert, vary “this matters because”.
+ * V10 — simplicity + focus: shorter key ideas, one idea per block, meaning + table dedupe, aha, explanation cue, varied “why”.
  */
 function applyV10SimplicityAndFocus(draft, topicHint = "") {
   if (!draft || typeof draft !== "object") return draft;
 
-  for (const page of draft.pages || []) {
-    if (!Array.isArray(page.blocks)) continue;
+  const topicLower = String(topicHint || "").toLowerCase();
 
-    let blocks = page.blocks;
-    blocks = blocks.map((b) => enforceKeyIdeaLength(b));
-    blocks = removeDuplicateConcepts(blocks, topicHint);
-    blocks = insertAhaMoment(blocks, topicHint);
-    blocks = blocks.map((b, i) => {
-      if (b?.content != null && typeof b.content === "string") {
-        b.content = varyWhyStatements(b.content, i);
-      }
-      return b;
-    });
-    page.blocks = blocks;
+  enforceKeyIdeaLength(draft);
+  enforceOneIdeaPerBlock(draft);
+  removeDuplicateConceptsByMeaning(draft, topicHint);
+
+  if (!topicLower.includes("stem cell")) {
+    for (const page of draft.pages || []) {
+      if (!Array.isArray(page.blocks)) continue;
+      page.blocks = removeDuplicateConcepts(page.blocks, topicHint);
+    }
   }
+
+  ensureAhaMomentBlock(draft, topicHint);
+
+  if (!topicLower.includes("stem cell")) {
+    for (const page of draft.pages || []) {
+      if (!Array.isArray(page.blocks)) continue;
+      page.blocks = insertAhaMoment(page.blocks, topicHint);
+    }
+  }
+
+  preferExplanationOverRestatement(draft);
+  varyWhyStatementsAcrossDraft(draft);
+
+  return draft;
+}
+
+function v11HookQuestionLine(topicHint = "") {
+  const t = String(topicHint || "").toLowerCase();
+  if (t.includes("stem cell")) {
+    return "Have you ever wondered how damaged tissues can be repaired?\n";
+  }
+  const label = safeStr(topicHint, "this topic").trim().slice(0, 80) || "this topic";
+  return `Have you ever wondered why ${label} keeps coming up in GCSE exams?\n`;
+}
+
+/**
+ * V11: teacher-style questions at the top of selected blocks (hook, pattern recognition, following text blocks).
+ */
+function addTeacherQuestions(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks || [];
+    /** Count text blocks after index 0 — only every other gets “Why does this matter?” */
+    let textAfterHookOrdinal = 0;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      if (!block?.content || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+      if (t !== "text" && t !== "keyIdea") continue;
+
+      const text = block.content.trim();
+
+      if (
+        /^have you ever/i.test(text) ||
+        /^why does this matter\??/i.test(text) ||
+        /^so what is the key difference/i.test(text)
+      ) {
+        continue;
+      }
+
+      const r = safeStr(block.role, "");
+
+      if (r === "hook") {
+        block.content = v11HookQuestionLine(topicHint) + text;
+      } else if (r === "patternRecognition") {
+        block.content = "So what is the key difference students must remember?\n" + text;
+      } else if (i > 0 && t === "text") {
+        textAfterHookOrdinal += 1;
+        if (textAfterHookOrdinal % 2 === 1) {
+          block.content = "Why does this matter?\n" + text;
+        }
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V11: slightly more spoken pacing (connectives).
+ */
+function paceExplanationsLikeTeacher(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+      if (t !== "text" && t !== "keyIdea") continue;
+
+      let content = block.content;
+
+      content = content
+        .replace(/\bIn other words,\s*/gi, "In simple terms, ")
+        .replace(/\bThis means that\s*/gi, "This means ")
+        .replace(/\bFor example,\s*/gi, "For example, ")
+        .replace(/\bHowever,\s*/gi, "However, ");
+
+      block.content = content.trim();
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V11: stem-cell key ideas get one-line “ask yourself” prompts.
+ */
+function addGuidedThinkingPrompts(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell")) return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+      if (normalizeBlockType(block.type) !== "keyIdea") continue;
+
+      const text = block.content.toLowerCase();
+
+      if (text.includes("embryonic") && text.includes("adult")) {
+        block.content +=
+          "\nAsk yourself: which type has greater potential, and why does that matter in medicine?";
+      }
+      if (/\b(ethic|moral)\b/.test(text)) {
+        block.content +=
+          "\nAsk yourself: what is the medical benefit, and what is the ethical cost?";
+      }
+      if (text.includes("differentiat")) {
+        block.content +=
+          "\nAsk yourself: why is differentiation the reason stem cells are useful in treatment?";
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V11: exam tips as examiner-in-the-room voice + compare nudge when missing.
+ */
+function makeExamTipsTeacherLike(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block.type) !== "examTip" || !block?.content) continue;
+
+      let content = String(block.content).trim();
+      if (!content) continue;
+
+      if (!/^In exams,/i.test(content)) {
+        content = "In exams, " + content.charAt(0).toLowerCase() + content.slice(1);
+      }
+
+      if (!/make sure|always|do not forget|state both sides/i.test(content)) {
+        content +=
+          " Always make sure you compare both sides clearly if the question asks for differences.";
+      }
+
+      block.content = content;
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V11: non–worked-example checkpoints as short teacher-style written questions (stem cell topics).
+ */
+function upgradeCheckpointsToTeacherStyle(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell")) return draft;
+
+  for (const page of draft.pages || []) {
+    const checkpoints = (page.blocks || []).filter(
+      (b) =>
+        normalizeBlockType(b?.type) === "checkpoint" && safeStr(b?.role, "") !== "workedExample"
+    );
+
+    if (checkpoints[0]) {
+      const q = "Explain why stem cells are useful in medicine (3 marks)";
+      checkpoints[0].question = q;
+      checkpoints[0].prompt = q;
+      checkpoints[0].correctAnswer =
+        "Because they can differentiate into specialised cells and replace damaged cells.";
+      checkpoints[0].questionType = "short";
+      checkpoints[0].options = [];
+    }
+
+    if (checkpoints[1]) {
+      const q = "Compare embryonic stem cells and adult stem cells (2 marks)";
+      checkpoints[1].question = q;
+      checkpoints[1].prompt = q;
+      checkpoints[1].correctAnswer =
+        "Embryonic stem cells can become almost any cell type, whereas adult stem cells can only form a limited range.";
+      checkpoints[1].questionType = "short";
+      checkpoints[1].options = [];
+    }
+
+    if (checkpoints[2]) {
+      const q = "Evaluate one benefit and one ethical concern of embryonic stem cells (4 marks)";
+      checkpoints[2].question = q;
+      checkpoints[2].prompt = q;
+      checkpoints[2].correctAnswer = "Benefit: potential to treat disease. Concern: embryos are destroyed.";
+      checkpoints[2].questionType = "short";
+      checkpoints[2].options = [];
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V11: memorable closing lines for stem-cell final memory rule.
+ */
+function strengthenFinalTakeaway(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell")) return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (safeStr(block?.role, "") !== "finalMemoryRule") continue;
+
+      block.content =
+        "Remember this:\n" +
+        "Embryonic stem cells can become almost any cell type, but adult stem cells are more limited.\n" +
+        "That difference is the key to both their medical use and the ethical debate around them.";
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V11 — true teacher dialogue: questions, pacing, prompts, exam tips, checkpoints, finale.
+ */
+function applyV11TeacherDialogueAndQuestioning(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  addTeacherQuestions(draft, topicHint);
+  paceExplanationsLikeTeacher(draft);
+  addGuidedThinkingPrompts(draft, topicHint);
+  makeExamTipsTeacherLike(draft);
+  upgradeCheckpointsToTeacherStyle(draft, topicHint);
+  strengthenFinalTakeaway(draft, topicHint);
 
   return draft;
 }
@@ -3854,6 +4297,7 @@ function sanitizeDraft(draft, opts = {}) {
   ensureProperCommonMistakeBlock(clean, topic);
   ensureWorkedExampleCheckpoint(clean, topic);
   ensureFinalMemoryRuleBlock(clean, topic);
+  dedupeNearDuplicateKeyIdeasOnPage(clean);
   ensureSpecificExamTipBlock(clean, topic);
   ensureTeachingFlowAnchors(clean, topic);
 
@@ -3887,6 +4331,11 @@ function sanitizeDraft(draft, opts = {}) {
 
   applyV9TeacherVoiceAndDepth(clean, topic);
   applyV10SimplicityAndFocus(clean, topic);
+  applyV11TeacherDialogueAndQuestioning(clean, topic);
+
+  ensureWhatToNoticeBlocks(clean, topic);
+  ensureFinalMemoryRuleBlock(clean, topic);
+  dedupeNearDuplicateKeyIdeasOnPage(clean);
 
   ensurePatternRecognitionBlock(clean, topic);
   ensureProperCommonMistakeBlock(clean, topic);
