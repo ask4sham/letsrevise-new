@@ -7,6 +7,49 @@ function safeStr(v, fallback = "") {
   return s.trim() ? s.trim() : fallback;
 }
 
+/** True if prompt looks like a real exam-style written question (command word + marks), not a placeholder MCQ stem. */
+function isRealExamStyleQuestion(text = "") {
+  const value = String(text).trim();
+  if (!value) return false;
+
+  const hasCommandWord = /(explain|describe|compare|evaluate|outline|state)/i.test(value);
+  const hasMarkCount = /\(\s*\d+\s*marks?\s*\)/i.test(value) || /\b\d+\s*marks?\b/i.test(value);
+
+  const banned = [
+    "what statement is correct",
+    "write your answer here",
+    "option 1",
+    "option 2",
+    "option 3",
+    "option 4",
+  ];
+
+  const containsBanned = banned.some((p) => value.toLowerCase().includes(p));
+
+  return hasCommandWord && hasMarkCount && !containsBanned;
+}
+
+/** True if checkpoint has a substantial model answer (bullets and/or long combined answer fields). */
+function hasSubstantialWorkedAnswer(block) {
+  if (!block || typeof block !== "object") return false;
+
+  const answerText = [
+    block.answer,
+    block.explanation,
+    block.correctAnswer,
+    Array.isArray(block.options) ? block.options.join(" ") : "",
+  ]
+    .filter(Boolean)
+    .map(String)
+    .join(" ")
+    .trim();
+
+  const bulletSource = [block.answer, block.explanation, block.correctAnswer].filter(Boolean).join("\n");
+  const bulletLikeCount = (bulletSource.match(/(^|\n)\s*[-•*]\s*/g) || []).length;
+
+  return answerText.length >= 60 || bulletLikeCount >= 2;
+}
+
 /**
  * Extract all text content from a lesson draft (blocks, checkpoint prompts) for keyword/concept search.
  */
@@ -387,12 +430,21 @@ function validateLessonStructure(draft) {
   const hasWhatToNotice = blocks.some((b) => safeStr(b?.role, "") === "whatToNotice");
   if (!hasWhatToNotice) issues.push("Missing What to Notice block");
 
-  const workedExampleContent = (b) =>
-    [b?.explanation, b?.correctAnswer, b?.prompt, b?.answer].filter(Boolean).map(String).join(" ");
-  const hasWorkedExample = blocks.some(
-    (b) => safeStr(b?.role, "") === "workedExample" && workedExampleContent(b).length > 30
-  );
-  if (!hasWorkedExample) issues.push("Missing worked example (needs role 'workedExample' with substantial content)");
+  const workedExampleBlock = blocks.find((b) => safeStr(b?.type, "") === "checkpoint" && safeStr(b?.role, "") === "workedExample");
+
+  if (!workedExampleBlock) {
+    issues.push("Missing worked example (needs role 'workedExample' with substantial content)");
+  } else {
+    const workedQuestion = safeStr(workedExampleBlock.prompt, "") || safeStr(workedExampleBlock.question, "");
+    if (!isRealExamStyleQuestion(workedQuestion)) {
+      issues.push(
+        "Worked example must contain a real exam-style question with command word and mark count"
+      );
+    }
+    if (!hasSubstantialWorkedAnswer(workedExampleBlock)) {
+      issues.push("Worked example must include a substantial model answer");
+    }
+  }
 
   const checkpointBlocks = blocks.filter((b) => safeStr(b?.type, "") === "checkpoint");
   const placeholderPrompts = /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
@@ -505,4 +557,6 @@ module.exports = {
   extractDraftText,
   validateLessonStructure,
   validateBlockTypeRequirements,
+  isRealExamStyleQuestion,
+  hasSubstantialWorkedAnswer,
 };
