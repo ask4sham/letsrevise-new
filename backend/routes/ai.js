@@ -260,6 +260,77 @@ const LESSON_DRAFT_SCHEMA = {
   },
 };
 
+/**
+ * Locked teaching + style rules: shared by first-pass user prompt and second-pass rewrite.
+ * Single source of truth — update here only.
+ *
+ * Prompt-only patches (STEP 11): change behaviour via prompts here, buildUserPromptFromMd(),
+ * improveDraftWithSecondPass(), and/or backend/prompts/AI_LESSON_PROMPT.md — do NOT change
+ * LESSON_DRAFT_SCHEMA, sanitizeDraft(), lesson draft validation, or lesson quality scoring
+ * unless you are explicitly doing a structure/schema rollout. Model behaviour vs enforcement
+ * stay separate.
+ */
+const LESSON_TEACHING_AND_STYLE_LOCKED = `
+
+## TEACHING AND STYLE (MANDATORY)
+
+You must teach each concept step-by-step, not just describe it.
+
+For every key idea:
+1. Explain the idea simply.
+2. Explain why it matters.
+3. Show how it appears in exams.
+4. Give a short example or application.
+
+Do not just define terms.
+Do not write like a textbook.
+
+You MUST include at least one worked exam question with a full-mark answer.
+
+The worked example must:
+- be exam-style
+- include the number of marks where appropriate
+- use clear bullet points in the answer
+- use correct terminology
+- show the kind of answer an examiner would reward
+
+After every diagram, include a key idea block titled exactly: "What to Notice".
+
+This block must:
+- contain 2 to 3 short bullet points
+- tell the student what visual features matter most
+- link those features to understanding or exam use
+
+Use exam-style phrasing throughout the lesson.
+
+Checkpoint questions must often use command words such as:
+- Explain
+- Describe
+- Compare
+
+At least 2 checkpoint questions must use one of these command words.
+
+Do NOT write long descriptive paragraphs.
+
+Each explanation must:
+- be short
+- focus on one idea at a time
+- clearly link cause to effect, feature to function, or idea to purpose
+
+Avoid note-dumping.
+Avoid textbook-style writing.
+
+Maximum 3 sentences per paragraph.
+
+Important rules:
+- Teach like a teacher, not a textbook.
+- If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
+- Do not skip exam tips.
+- Do not skip checkpoints.
+- Each checkpoint must contain a real exam-style question and include a correct answer.
+- Do not skip any required blocks. If unsure, still produce them.
+`;
+
 /* =========================================================
    PROMPT LOADING (AI_LESSON_PROMPT.md)
    ========================================================= */
@@ -450,30 +521,34 @@ You are generating a LetsRevise lesson. Follow this exact lesson structure:
 4. Add one keyIdea block for exam pattern recognition.
 5. For each major concept, follow this exact sequence:
    - diagram (or text block with "image here" if diagram block not available)
-   - keyIdea titled "What to Notice"
+   - immediately next: a keyIdea block titled exactly: "What to Notice" (role whatToNotice where the schema allows)
    - text explanation
    - examTip
-6. Include at least one checkpoint block that acts as a worked exam question with a strong model answer.
-   Each checkpoint must: contain a real exam-style question (not a placeholder); include a correct answer.
+   After EVERY diagram in the lesson, the very next block must be that "What to Notice" keyIdea (no other block type in between).
+6. Include at least one worked exam question with a full-mark answer (checkpoint with role workedExample or clearly the main worked example). Every other checkpoint must still contain a real exam-style question (not a placeholder) and a correct answer.
 7. End with:
    - one keyIdea synthesis block
    - one checkpoint multiple-choice or recall question
    - one checkpoint short explain question
    - one keyIdea final memory rule
 
-Important rules:
-- Teach like a teacher, not a textbook.
-- Use short paragraphs. Maximum 3 sentences per paragraph.
-- Focus on one idea at a time.
-- Always explain structure to function, cause to effect, or feature to purpose.
-- Always include exam wording. Use exam-style phrasing: "Explain", "Compare", "Describe".
-- If a diagram should be placed, write exactly: "image here" in a text block or use a diagram block.
-- Do not skip exam tips.
-- Do not skip checkpoints.
-- Each checkpoint must contain a real exam-style question and include a correct answer.
-- Do not skip any required blocks. If unsure, still produce them.
-- Do not write long note-style content.
-`;
+## STRUCTURE CONTRACT (MANDATORY — KEEP ALL)
+
+Do NOT remove or skip the existing structure contract. The "Teaching and style" section below strengthens behaviour only; it does NOT replace structure.
+
+You must still deliver the full lesson skeleton:
+- Hook (opening text block)
+- Core rule (keyIdea: main rule of the topic)
+- Common mistake (commonMistake: wrong vs correct thinking)
+- Pattern recognition (keyIdea: repeatable exam patterns)
+- Concept loop (each major concept: diagram or "image here" → What to Notice keyIdea → text → examTip, per step 5)
+- Worked example (checkpoint with full-mark style model answer; role workedExample where applicable)
+- Synthesis (keyIdea synthesis before the final checks)
+- Final checkpoints (multiple-choice or recall, then short explain — per step 7)
+- Final memory rule (keyIdea closing memory rule)
+
+Use block roles where the output allows: hook, coreRule, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
+` + LESSON_TEACHING_AND_STYLE_LOCKED;
 
   if (subTopicDisplay || topicKey) {
     const scopeLabel = subTopicDisplay || topic;
@@ -730,22 +805,14 @@ async function improveDraftWithSecondPass(
     "Improve using these actions:",
     qualitySuggestionsList.length ? qualitySuggestionsList.join("\n") : "(add missing blocks, improve explanations)",
     "",
-    "Rules:",
-    "1. Keep the topic, tier, and curriculum accurate.",
-    "2. Preserve correct content.",
-    "3. Add missing blocks if needed.",
-    "4. Add a worked exam example if missing.",
-    "5. Add \"What to Notice\" blocks after diagrams.",
-    "6. Improve vague explanations into specific feature-to-function explanations.",
-    "7. Keep paragraphs short.",
-    "8. Use exam-style wording such as Explain, Compare, and Describe.",
-    "9. If a diagram is needed, write exactly: \"image here\"",
+    "Also apply the full locked teaching and style rules below (same as first-pass generation).",
   ].join("\n");
 
   const userPromptParts = [
     `Topic: ${topic} | Subject: ${subject} | Level: ${level} | Board: ${board} | Tier: ${tier}`,
     "",
     rewritePrompt,
+    LESSON_TEACHING_AND_STYLE_LOCKED,
   ];
   if (curriculumLines.length || structureLines.length) {
     userPromptParts.push("", "ADDITIONAL VALIDATION FEEDBACK (fix these too):");
