@@ -150,23 +150,93 @@ const LESSON_DRAFT_SCHEMA = {
             minItems: 1,
             maxItems: 24,
             items: {
-              type: "object",
-              additionalProperties: false,
-              required: ["type"],
-              properties: {
-                type: {
-                  type: "string",
-                  enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "diagram"],
+              oneOf: [
+                {
+                  type: "object",
+                  required: ["type", "content"],
+                  properties: {
+                    type: { const: "text" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
                 },
-                content: { type: "string" },
-                prompt: { type: "string" },
-                questionType: { type: "string", enum: ["mcq", "short"] },
-                options: { type: "array", items: { type: "string" } },
-                correctAnswer: { type: "string" },
-                explanation: { type: "string" },
-                title: { type: "string" },
-                role: { type: "string" },
-              },
+                {
+                  type: "object",
+                  required: ["type", "content"],
+                  properties: {
+                    type: { const: "keyIdea" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+                {
+                  type: "object",
+                  required: ["type", "content"],
+                  properties: {
+                    type: { const: "commonMistake" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+                {
+                  type: "object",
+                  required: ["type", "content"],
+                  properties: {
+                    type: { const: "examTip" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+                {
+                  type: "object",
+                  required: ["type", "content"],
+                  properties: {
+                    type: { const: "stretch" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+                {
+                  type: "object",
+                  required: ["type"],
+                  properties: {
+                    type: { const: "diagram" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    caption: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+                {
+                  type: "object",
+                  required: ["type"],
+                  properties: {
+                    type: { const: "checkpoint" },
+                    title: { type: "string" },
+                    content: { type: "string" },
+                    prompt: { type: "string" },
+                    question: { type: "string" },
+                    answer: { type: "string" },
+                    explanation: { type: "string" },
+                    questionType: { type: "string", enum: ["mcq", "short"] },
+                    options: { type: "array", items: { type: "string" } },
+                    correctAnswer: { type: "string" },
+                    role: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+              ],
             },
           },
           checkpoint: {
@@ -823,7 +893,8 @@ function sanitizeDraft(draft, { subject, level, topic }) {
         .map((b) => {
           const type = normalizeBlockType(b?.type);
           if (type === "checkpoint") {
-            const prompt = safeStr(b?.prompt, "").trim();
+            const prompt = safeStr(b?.prompt || b?.question, "").trim();
+            const correctAnswer = safeStr(b?.correctAnswer || b?.answer, "");
             const options = Array.isArray(b?.options)
               ? b.options.map((o) => safeStr(o, "")).filter(Boolean).slice(0, 6)
               : [];
@@ -836,7 +907,7 @@ function sanitizeDraft(draft, { subject, level, topic }) {
               prompt: prompt || "Quick check",
               questionType,
               options: finalOptions,
-              correctAnswer: safeStr(b?.correctAnswer, ""),
+              correctAnswer: correctAnswer || (finalOptions[0] ?? ""),
               explanation: safeStr(b?.explanation, ""),
             };
             if (typeof b?.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
@@ -845,11 +916,12 @@ function sanitizeDraft(draft, { subject, level, topic }) {
           }
           if (type === "diagram") {
             const cap = safeStr(b?.caption, "") || safeStr(b?.content, "image here");
+            const content = safeStr(b?.content, "") || "image here";
             const dOut = {
               type: "diagram",
               visualId: b?.visualId,
               caption: cap,
-              content: safeStr(b?.content, "") || "image here",
+              content,
             };
             if (typeof b?.role === "string" && b.role.trim()) dOut.role = b.role.trim();
             if (dOut.title === undefined) dOut.title = "";
