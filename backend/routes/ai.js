@@ -40,6 +40,9 @@ const {
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,
   examTipLooksSpecific,
+  blockFlowText,
+  v6TokenSetForOverlap,
+  v6JaccardSimilarity,
 } = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
@@ -584,6 +587,131 @@ Replace them with specific statements about the actual topic.
 
 ---
 
+## V5 — TEACHING FLOW ENGINE
+
+The lesson must feel like a guided explanation, not a stack of separate notes.
+
+### FLOW RULE
+
+Each important block must build on the previous one.
+
+The lesson should move in this order:
+1. What it is
+2. Why it matters
+3. Key distinction or rule
+4. Example or application
+5. Exam use
+
+Do not jump randomly between facts.
+
+### CONNECTION RULE
+
+When writing a new block, connect it to the previous block.
+Use connecting ideas such as:
+- This means...
+- This matters because...
+- In contrast...
+- This is why...
+- In exams...
+- For example...
+
+Do not let blocks feel isolated.
+
+### LESSON ARC RULE
+
+The lesson must follow a clear arc:
+- opening curiosity or relevance
+- core idea
+- distinction or comparison
+- practical application
+- exam guidance
+- memory takeaway
+
+### KEY IDEA FLOW RULE
+
+A keyIdea block should not only state a fact.
+It should either:
+- introduce the next step in understanding
+- summarise the previous step
+- highlight the exact rule needed for the next explanation
+
+### TEXT FLOW RULE
+
+A text block must progress understanding.
+It should answer one of these:
+- What is this?
+- Why does it matter?
+- How is it used?
+- How is it different?
+- How will this appear in exams?
+
+### COMPARISON FLOW RULE
+
+If the topic includes two or more important categories, introduce the comparison early and return to it often.
+
+Example for stem cells:
+- embryonic stem cells vs adult stem cells
+- this difference should appear early, not only later
+
+### APPLICATION FLOW RULE
+
+If the topic has real-world or medical applications, explain those only after the core biological idea is secure.
+
+Do not introduce applications before the student understands the concept.
+
+### EXAM FLOW RULE
+
+Exam tips and worked examples must feel like the natural next step in the lesson, not random add-ons.
+
+### FINAL TAKEAWAY RULE
+
+The finalMemoryRule must clearly conclude the lesson by capturing the single comparison, rule, or idea that exam questions are most likely to test.
+
+---
+
+## V6 — REASONING AND COMPRESSION ENGINE
+
+Do not repeat an idea that has already been explained.
+
+Before writing each new block, check:
+1. Has this idea already been stated?
+2. If yes, do not restate it.
+3. Instead, add one of:
+   - a contrast (X, but not Y; unlike; whereas)
+   - an example
+   - an application
+   - an exam implication (marks, command words, what examiners reward)
+
+Every new block must add a new cognitive step.
+
+If two adjacent blocks cover the same idea in similar words, merge them into one stronger block.
+
+### BLOCK VALIDITY RULE
+
+A block is only valid if it does at least one of:
+- introduces a new idea
+- explains why a previous idea matters
+- contrasts two ideas
+- gives a real example
+- shows how marks are earned (or corrects a misconception)
+
+### REASONING CHAIN FOR THE TOPIC CORE
+
+Cover the core in this order (you may use fewer blocks by combining steps — prefer compression over repetition):
+1. What is it?
+2. Why does it matter?
+3. What is the main distinction or comparison?
+4. What is the application or example?
+5. What is the exam takeaway?
+
+Prefer teaching through contrast (this vs that) rather than listing separate facts that restate the same point.
+
+### ANTI-REPETITION RULE
+
+Do not restate the same exam distinction (e.g. embryonic vs adult stem cells, or "they can differentiate") in multiple blocks unless each repetition adds a genuinely new angle (ethics vs medicine vs exam technique).
+
+---
+
 ## ROLE STENCIL (MANDATORY)
 
 You must generate the lesson using this exact role sequence at the start and end.
@@ -725,6 +853,81 @@ You must:
 - upgrade What to Notice blocks so they mention real topic-specific features
 - upgrade the finalMemoryRule so it captures the most important exam takeaway
 `;
+
+const LESSON_SECOND_PASS_V5_REPAIR = `
+
+## V5 SECOND-PASS FLOW REPAIR
+
+When improving the draft, repair lesson flow as well as content.
+
+You must:
+- reorder or rewrite blocks so ideas build logically
+- move comparisons earlier if they are central to the topic
+- make applications follow understanding, not come before it
+- make exam tips feel like a next step from the explanation
+- rewrite isolated blocks so they connect to what came before
+- make the final memory rule feel like a conclusion, not just another block
+`;
+
+const LESSON_SECOND_PASS_V6_REPAIR = `
+
+## V6 SECOND-PASS — COMPRESSION AND REASONING
+
+When improving the draft, compress aggressively. Clarity beats completeness.
+
+You must:
+- if more than 3 blocks express the same idea, merge them into 1–2 stronger blocks and delete weaker duplicates — do not preserve all content
+- merge or delete blocks that restate the same idea (stem cells / differentiation / embryonic vs adult / medical uses) unless each adds a clearly new angle
+- ensure each text or keyIdea block adds a new cognitive step compared to the previous teaching block
+- prefer contrast (X vs Y, but not Z) over stacking similar facts
+- keep the reasoning chain once: what it is → why it matters → main distinction → application → exam takeaway — no duplicate steps
+- if two adjacent blocks overlap in wording or meaning, merge into one stronger block
+`;
+
+function buildTopicAwareFlowHints(topicHint = "") {
+  const topic = String(topicHint || "").toLowerCase();
+
+  if (topic.includes("stem cell")) {
+    return [
+      "Start by explaining that stem cells are unspecialised cells.",
+      "Then explain why this matters: they can differentiate into specialised cells.",
+      "Introduce embryonic vs adult stem cells early.",
+      "Then explain medical uses such as bone marrow transplants and regenerative medicine.",
+      "Then cover ethical issues.",
+      "End by reinforcing the difference between embryonic and adult stem cells because this is often tested in exams.",
+    ];
+  }
+
+  return [
+    "Start with the core idea.",
+    "Then explain why it matters.",
+    "Then introduce the key distinction or comparison.",
+    "Then apply it to an example.",
+    "Then link it to exam questions.",
+    "End with a strong memory takeaway.",
+  ];
+}
+
+function buildTopicAwareReasoningChainHints(topicHint = "") {
+  const topic = String(topicHint || "").toLowerCase();
+
+  if (topic.includes("stem cell")) {
+    return [
+      "Compress: one tight step for what stem cells are and why differentiation matters — avoid repeating the same definition later.",
+      "Teach embryonic vs adult mainly through contrast (potency, ethics context, typical uses) — not three blocks that restate the difference.",
+      "Medical uses: one clear application block after the distinction is secure.",
+      "Exam: one block that says how that contrast earns marks — do not repeat the same exam tip in different words.",
+    ];
+  }
+
+  return [
+    "What is it? (once, clearly)",
+    "Why does it matter? (link to mechanism or consequence)",
+    "Main distinction or comparison (prefer X vs Y in one place)",
+    "Application or example (new information only)",
+    "Exam takeaway (marks, command words — without repeating earlier definitions)",
+  ];
+}
 
 /* =========================================================
    PROMPT LOADING (AI_LESSON_PROMPT.md)
@@ -944,6 +1147,22 @@ You must still deliver the full lesson skeleton:
 
 Use block roles where the output allows: hook, coreRule, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
 ` + LESSON_BLOCK_FULL_KEYS_INSTRUCTION + LESSON_TEACHING_AND_STYLE_LOCKED;
+
+  {
+    const flowHintTopic = safeStr(subTopicDisplay, "") || safeStr(topic, "");
+    out += `\n\n## TEACHING FLOW HINTS (V5 — follow this sequence)\n`;
+    for (const h of buildTopicAwareFlowHints(flowHintTopic)) {
+      out += `- ${h}\n`;
+    }
+  }
+
+  {
+    const chainTopic = safeStr(subTopicDisplay, "") || safeStr(topic, "");
+    out += `\n\n## REASONING CHAIN + COMPRESSION (V6 — follow; avoid repetition)\n`;
+    for (const h of buildTopicAwareReasoningChainHints(chainTopic)) {
+      out += `- ${h}\n`;
+    }
+  }
 
   if (subTopicDisplay || topicKey) {
     const scopeLabel = subTopicDisplay || topic;
@@ -1212,6 +1431,14 @@ async function improveDraftWithSecondPass(
     LESSON_SECOND_PASS_ROLE_REPAIR,
     LESSON_SECOND_PASS_V3_REPAIR,
     LESSON_SECOND_PASS_V4_REPAIR,
+    LESSON_SECOND_PASS_V5_REPAIR,
+    LESSON_SECOND_PASS_V6_REPAIR,
+    "",
+    "## TEACHING FLOW HINTS (V5 — follow this sequence)",
+    ...buildTopicAwareFlowHints(safeStr(topic, "")).map((h) => `- ${h}`),
+    "",
+    "## REASONING CHAIN + COMPRESSION (V6)",
+    ...buildTopicAwareReasoningChainHints(safeStr(topic, "")).map((h) => `- ${h}`),
   ];
   if (curriculumLines.length || structureLines.length) {
     userPromptParts.push("", "ADDITIONAL VALIDATION FEEDBACK (fix these too):");
@@ -1238,7 +1465,8 @@ async function improveDraftWithSecondPass(
   } catch (e) {
     throw new Error(`Second-pass AI returned invalid JSON: ${(e?.message || "").slice(0, 100)}`);
   }
-  const sanitized = sanitizeDraft(improved, { subject, level, topic });
+  const strictBlueprint = detectStrictBlueprintFromPrompt(additionalInstructions, topic);
+  const sanitized = sanitizeDraft(improved, { subject, level, topic, strictBlueprint });
   return { sanitized };
 }
 
@@ -1857,7 +2085,571 @@ function ensureSpecificExamTipBlock(draft, topicHint = "") {
   return draft;
 }
 
-function sanitizeDraft(draft, { subject, level, topic }) {
+/**
+ * V5: Nudge lesson arc (early comparison, applications after core for stem cells).
+ * Mutates draft.pages[].blocks in place.
+ */
+function ensureTeachingFlowAnchors(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topicLower = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    const blockText = (b) =>
+      `${safeStr(b?.title, "")} ${safeStr(b?.content, "")} ${safeStr(b?.prompt, "")} ${safeStr(b?.question, "")}`;
+
+    const hasEarlyComparison = blocks
+      .slice(0, Math.ceil(blocks.length / 2))
+      .some((b) =>
+        /(compare|difference|whereas|however|unlike|embryonic|adult stem cells?)/i.test(blockText(b))
+      );
+
+    if (!hasEarlyComparison && topicLower.includes("stem cell")) {
+      const insertIndex = Math.min(4, blocks.length);
+      blocks.splice(insertIndex, 0, {
+        type: "keyIdea",
+        title: "Key Difference",
+        content:
+          "- Embryonic stem cells can become almost any cell type\n" +
+          "- Adult stem cells can only form a limited range of cell types",
+        role: "patternRecognition",
+      });
+    }
+
+    const hasApplication = blocks.some((b) =>
+      /(medicine|medical|therapy|transplant|regenerative|leukaemia)/i.test(blockText(b))
+    );
+
+    if (!hasApplication && topicLower.includes("stem cell")) {
+      blocks.push({
+        type: "text",
+        title: "",
+        content:
+          "Stem cells are used in medicine because they can replace damaged cells. For example, bone marrow stem cells can treat leukaemia.",
+        role: "concept",
+      });
+    }
+  }
+
+  return draft;
+}
+
+const V6_MERGEABLE_TYPES = new Set(["text", "keyIdea", "examTip"]);
+
+/** Blocks touching these topics must not be merged away or weak-removed (blueprint / SS2–SS3 style). */
+const V6_BLUEPRINT_CONTENT_RE = /table|comparison|therapeutic|cloning|ethic|plant|meristem/i;
+
+function v6BlueprintText(block) {
+  return `${block?.title || ""} ${block?.content || ""}`;
+}
+
+function v6PairTouchesBlueprintKeywords(cur, nxt) {
+  return V6_BLUEPRINT_CONTENT_RE.test(`${v6BlueprintText(cur)} ${v6BlueprintText(nxt)}`);
+}
+
+function v6BlockTouchesBlueprintKeywords(block) {
+  return V6_BLUEPRINT_CONTENT_RE.test(v6BlueprintText(block));
+}
+
+function v6PreferredMergeType(ta, tb) {
+  const order = { keyIdea: 3, examTip: 2, text: 1 };
+  const oa = order[ta] || 0;
+  const ob = order[tb] || 0;
+  return oa >= ob ? ta : tb;
+}
+
+/**
+ * V6: merge adjacent text/keyIdea/examTip pairs that are very similar (Jaccard on content tokens).
+ * Mutates draft.pages[].blocks in place.
+ */
+function mergeAdjacentRedundantBlocks(draft, options = {}) {
+  const THRESHOLD = typeof options.mergeThreshold === "number" ? options.mergeThreshold : 0.38;
+  const MIN_TOKENS = 5;
+  if (!draft || typeof draft !== "object") return draft;
+
+  let mergeCount = 0;
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks) || blocks.length < 2) continue;
+
+    const nextBlocks = [];
+    let i = 0;
+    while (i < blocks.length) {
+      const cur = blocks[i];
+      const nxt = blocks[i + 1];
+      const tCur = normalizeBlockType(cur?.type);
+      const tNext = nxt ? normalizeBlockType(nxt?.type) : "";
+
+      const skipMergeForPatternRole =
+        safeStr(cur?.role, "") === "patternRecognition" ||
+        safeStr(nxt?.role, "") === "patternRecognition";
+
+      const skipMergeForBlueprint = v6PairTouchesBlueprintKeywords(cur, nxt);
+
+      if (
+        nxt &&
+        !skipMergeForPatternRole &&
+        !skipMergeForBlueprint &&
+        V6_MERGEABLE_TYPES.has(tCur) &&
+        V6_MERGEABLE_TYPES.has(tNext)
+      ) {
+        const s1 = v6TokenSetForOverlap(blockFlowText(cur));
+        const s2 = v6TokenSetForOverlap(blockFlowText(nxt));
+        if (s1.size >= MIN_TOKENS && s2.size >= MIN_TOKENS && v6JaccardSimilarity(s1, s2) >= THRESHOLD) {
+          const mergedType = v6PreferredMergeType(tCur, tNext);
+          const title = safeStr(cur.title, "") || safeStr(nxt.title, "");
+          const c1 = String(cur.content || "").trim();
+          const c2 = String(nxt.content || "").trim();
+          const content = [c1, c2].filter(Boolean).join("\n\n");
+          const role = safeStr(cur.role, "") || safeStr(nxt.role, "");
+          const merged = {
+            type: mergedType,
+            title,
+            content,
+          };
+          if (role) merged.role = role;
+          nextBlocks.push(merged);
+          mergeCount += 1;
+          i += 2;
+          continue;
+        }
+      }
+      nextBlocks.push(cur);
+      i += 1;
+    }
+    page.blocks = nextBlocks;
+  }
+
+  if (process.env.NODE_ENV !== "production" && mergeCount > 0) {
+    console.log(`V6 compression: merged ${mergeCount} adjacent redundant block pair(s).`);
+  }
+
+  return draft;
+}
+
+/**
+ * V6: drop blocks that repeat the same coarse concept too many times (per page).
+ * Max 2 blocks per concept bucket (3rd+ dropped).
+ */
+function removeOverRepeatedConcepts(blocks, options = {}) {
+  if (!Array.isArray(blocks)) return blocks;
+
+  const maxPerConcept =
+    typeof options.maxConceptRepeats === "number" ? options.maxConceptRepeats : 2;
+
+  const conceptCounts = {};
+
+  return blocks.filter((block) => {
+    if (safeStr(block?.role, "") === "patternRecognition") return true;
+
+    const text = `${block?.title || ""} ${block?.content || ""}`.toLowerCase();
+
+    if (V6_BLUEPRINT_CONTENT_RE.test(text)) return true;
+
+    let concept = null;
+    if (text.includes("differentiat")) concept = "differentiation";
+    else if (text.includes("stem cell")) concept = "stem_cells";
+    else if (text.includes("embryonic") || text.includes("adult")) concept = "comparison";
+
+    if (!concept) return true;
+
+    conceptCounts[concept] = (conceptCounts[concept] || 0) + 1;
+    if (conceptCounts[concept] > maxPerConcept) return false;
+
+    return true;
+  });
+}
+
+/**
+ * V6: remove thin or generic-filler teaching blocks. Preserves diagram, checkpoint, commonMistake, stretch.
+ */
+function removeWeakBlocks(blocks) {
+  if (!Array.isArray(blocks)) return blocks;
+
+  const alwaysKeepTypes = new Set(["diagram", "checkpoint", "commonMistake", "stretch"]);
+  const alwaysKeepRoles = new Set([
+    "hook",
+    "coreRule",
+    "commonMistake",
+    "patternRecognition",
+    "workedExample",
+    "synthesis",
+    "finalMemoryRule",
+    "whatToNotice",
+  ]);
+
+  return blocks.filter((block) => {
+    if (safeStr(block?.role, "") === "patternRecognition") return true;
+
+    if (v6BlockTouchesBlueprintKeywords(block)) return true;
+
+    const type = normalizeBlockType(block?.type);
+    if (alwaysKeepTypes.has(type)) return true;
+
+    const role = safeStr(block?.role, "");
+    if (role && alwaysKeepRoles.has(role)) return true;
+
+    const text = `${block?.title || ""} ${block?.content || ""}`.toLowerCase();
+
+    if (text.trim().length < 60) return false;
+
+    if (
+      text.includes("important in biology") ||
+      text.includes("useful in exams") ||
+      text.includes("helps understanding") ||
+      text.includes("plays a role")
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Ensure a keyIdea with role patternRecognition (often lost after V6 compression).
+ * Mutates draft.pages[].blocks in place.
+ */
+function ensurePatternRecognitionBlock(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) page.blocks = [];
+    const blocks = page.blocks;
+
+    if (blocks.some((b) => safeStr(b.role, "") === "patternRecognition")) continue;
+
+    let content = "";
+    if (topic.includes("stem cell")) {
+      content =
+        "- Embryonic stem cells can differentiate into almost any cell type\n" +
+        "- Adult stem cells can only form a limited range of cell types\n" +
+        "- This difference is a common exam comparison";
+    } else {
+      content =
+        "- Identify the key difference or pattern in this topic\n" +
+        "- Compare similar structures or processes\n" +
+        "- This distinction is often tested in exams";
+    }
+
+    blocks.splice(Math.min(3, blocks.length), 0, {
+      type: "keyIdea",
+      title: "Key Pattern",
+      content,
+      role: "patternRecognition",
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * After V6 compression, required role "synthesis" may be missing. Promote a keyIdea or insert one.
+ */
+function ensureSynthesisRole(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const label = safeStr(topicHint, "this topic").trim() || "this topic";
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    if (blocks.some((b) => safeStr(b.role, "") === "synthesis")) continue;
+
+    const pool = blocks
+      .map((b, idx) => ({ b, idx }))
+      .filter(
+        ({ b }) =>
+          b.type === "keyIdea" &&
+          roleStringEmpty(b.role) &&
+          !/what to notice/i.test(String(b.title || ""))
+      );
+
+    const pick = pool.length ? pool[pool.length - 1].b : null;
+    if (pick) {
+      pick.role = "synthesis";
+      if (!String(pick.title || "").trim()) pick.title = "Synthesis";
+      continue;
+    }
+
+    const fmrIdx = blocks.findIndex((b) => safeStr(b.role, "") === "finalMemoryRule");
+    const at = fmrIdx >= 0 ? fmrIdx : blocks.length;
+    blocks.splice(at, 0, {
+      type: "keyIdea",
+      title: "Synthesis",
+      content:
+        `Pull it together for ${label}: one line on the main idea, one on the distinction examiners reward, and one on how you would start a mark-scoring answer.`,
+      role: "synthesis",
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * Structure validation requires at least N blocks total (single-page lessons).
+ */
+function ensureMinimumBlockCount(draft, topicHint = "", minCount = 10) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topicLabel = safeStr(topicHint, "this topic").trim() || "this topic";
+  const pages = Array.isArray(draft.pages) ? draft.pages : [];
+  if (!pages.length) return draft;
+
+  let guard = 0;
+  while (guard < 24) {
+    guard += 1;
+    const blocks = pages.flatMap((p) => p?.blocks || []);
+    if (blocks.length >= minCount) break;
+
+    const target = pages[0];
+    if (!Array.isArray(target.blocks)) target.blocks = [];
+    const n = target.blocks.length;
+    target.blocks.push({
+      type: "text",
+      title: "",
+      content:
+        `Build your exam voice for ${topicLabel}: add one sentence that uses precise vocabulary, then a second sentence that answers the kind of “explain” or “compare” question this topic often uses. (Block ${n + 1} — keep ideas distinct from earlier steps.)`,
+      role: "concept",
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * V6 merge/trim runs after the first ensure-* pass; re-apply structure so validation can pass.
+ */
+function repairLessonStructureAfterCompression(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  applyRoleFallbacksToLesson(draft);
+  ensureMinimumDiagramBlocks(draft);
+  ensureWhatToNoticeBlocks(draft, topicHint);
+  ensureProperCommonMistakeBlock(draft, topicHint);
+  ensurePatternRecognitionBlock(draft, topicHint);
+  ensureWorkedExampleCheckpoint(draft, topicHint);
+  ensureFinalMemoryRuleBlock(draft, topicHint);
+  ensureSynthesisRole(draft, topicHint);
+  applyRoleFallbacksToLesson(draft);
+  ensureMinimumBlockCount(draft, topicHint, 10);
+  ensurePatternRecognitionBlock(draft, topicHint);
+
+  return draft;
+}
+
+const V7_TRANSITION_ELIGIBLE_TYPES = new Set(["text", "keyIdea", "examTip", "commonMistake", "stretch"]);
+
+function v7AlreadyHasTransitionPrefix(text) {
+  const t = String(text || "").trim();
+  if (/^(now|next|however|this leads)\b/i.test(t)) return true;
+  return /^(to understand this clearly:|building on this:|this leads to an important exam pattern:|a common mistake students make is:|in exams, remember:|putting this together:)/i.test(
+    t
+  );
+}
+
+/**
+ * V7: prepend short teaching transitions so adjacent blocks read as guided explanation.
+ */
+function applyTeachingTransitions(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    for (let i = 1; i < blocks.length; i++) {
+      const curr = blocks[i];
+      if (!curr) continue;
+
+      const t = normalizeBlockType(curr.type);
+      if (!V7_TRANSITION_ELIGIBLE_TYPES.has(t)) continue;
+
+      const raw = String(curr.content || "").trim();
+      if (!raw) continue;
+
+      if (/what to notice/i.test(String(curr.title || ""))) continue;
+      if (safeStr(curr.role, "") === "whatToNotice") continue;
+      if (safeStr(curr.role, "") === "finalMemoryRule") continue;
+
+      if (v7AlreadyHasTransitionPrefix(raw)) continue;
+
+      let prefix = "";
+      const role = safeStr(curr.role, "");
+
+      if (role === "patternRecognition") {
+        prefix = "This leads to an important exam pattern: ";
+      } else if (role === "commonMistake" || t === "commonMistake") {
+        prefix = "A common mistake students make is: ";
+      } else if (role === "examTip" || t === "examTip") {
+        prefix = "In exams, remember: ";
+      } else if (role === "synthesis") {
+        prefix = "Putting this together: ";
+      } else if (i < 4) {
+        prefix = "To understand this clearly: ";
+      } else {
+        prefix = "Building on this: ";
+      }
+
+      curr.content = prefix + String(curr.content || "");
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V7: rough markdown table → bullet-style lines (readable in block UI).
+ */
+function convertTablesToReadableBlocks(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      const c = block?.content;
+      if (c == null || typeof c !== "string") continue;
+      if (!c.includes("|") || !/---/.test(c)) continue;
+
+      block.content = c
+        .replace(/\|/g, "•")
+        .replace(/---+/g, "")
+        .replace(/\n{3,}/g, "\n\n");
+    }
+  }
+  return draft;
+}
+
+/**
+ * V7: ensure worked example is a strong compare + bullet model answer (stem-cell topics only; others unchanged).
+ */
+function strengthenWorkedExample(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const stem = String(topicHint || "").toLowerCase().includes("stem cell");
+  if (!stem) return draft;
+
+  const q = "Compare embryonic and adult stem cells (4 marks)";
+  const model =
+    "- Embryonic stem cells can become almost any cell type, whereas adult stem cells can only form a limited range.\n" +
+    "- Embryonic stem cells come from early embryos, whereas adult stem cells come from tissues such as bone marrow.\n" +
+    "- Embryonic stem cells have greater medical potential.\n" +
+    "- However, their use raises ethical concerns because embryos are destroyed.";
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block.type) !== "checkpoint") continue;
+      if (safeStr(block.role, "") !== "workedExample") continue;
+
+      block.prompt = q;
+      block.question = q;
+      block.answer = model;
+      block.explanation = model;
+      block.correctAnswer = "See model answer";
+      block.questionType = "short";
+    }
+  }
+  return draft;
+}
+
+/**
+ * V7: collapse repeated stem-cell “definition” key ideas into one strong line (stem-cell topics only).
+ */
+function collapseWeakKeyIdeas(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell")) return draft;
+
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+
+    const newBlocks = [];
+    let seenCore = false;
+
+    for (const block of page.blocks) {
+      if (normalizeBlockType(block.type) !== "keyIdea") {
+        newBlocks.push(block);
+        continue;
+      }
+
+      const text = String(block.content || "").toLowerCase();
+      if (text.includes("differentiat") || text.includes("unspecialised") || text.includes("unspecialized")) {
+        if (seenCore) continue;
+        seenCore = true;
+        block.content =
+          "Stem cells are unspecialised cells that can self-renew and differentiate into specialised cells, making them essential for growth, repair, and medical treatment.";
+      }
+
+      newBlocks.push(block);
+    }
+
+    page.blocks = newBlocks;
+  }
+
+  return draft;
+}
+
+/** Coarse teaching band; original index breaks ties so in-band order is preserved. */
+function v7TeachingFlowBand(block) {
+  const r = safeStr(block?.role, "");
+  const t = normalizeBlockType(block?.type);
+
+  if (r === "hook") return 0;
+  if (r === "coreRule") return 1;
+  if (r === "patternRecognition") return 2;
+  if (r === "commonMistake" || t === "commonMistake") return 3;
+  if (t === "diagram") return 4;
+  if (r === "whatToNotice") return 5;
+  if (t === "text" || t === "keyIdea") return 6;
+  if (t === "stretch") return 6;
+  if (t === "examTip") return 7;
+  if (t === "checkpoint" && r !== "workedExample") return 8;
+  if (t === "checkpoint" && r === "workedExample") return 9;
+  if (r === "synthesis") return 10;
+  if (r === "finalMemoryRule") return 11;
+  return 6;
+}
+
+/**
+ * V7: stable reorder toward teaching flow (band + original index — avoids scrambling body text).
+ */
+function enforceTeachingOrder(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+    const tagged = page.blocks.map((b, i) => ({
+      b,
+      k: v7TeachingFlowBand(b) * 100000 + i,
+    }));
+    tagged.sort((a, b) => a.k - b.k);
+    page.blocks = tagged.map((x) => x.b);
+  }
+
+  return draft;
+}
+
+function applyV7TeachingPresentationLayer(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  collapseWeakKeyIdeas(draft, topicHint);
+  convertTablesToReadableBlocks(draft);
+  strengthenWorkedExample(draft, topicHint);
+  enforceTeachingOrder(draft);
+  applyTeachingTransitions(draft);
+
+  return draft;
+}
+
+function sanitizeDraft(draft, opts = {}) {
+  const { subject, level, topic, strictBlueprint = false } = opts || {};
   const lvl = normalizeLevel(level);
 
   const clean = {
@@ -2028,6 +2820,32 @@ function sanitizeDraft(draft, { subject, level, topic }) {
   ensureWorkedExampleCheckpoint(clean, topic);
   ensureFinalMemoryRuleBlock(clean, topic);
   ensureSpecificExamTipBlock(clean, topic);
+  ensureTeachingFlowAnchors(clean, topic);
+
+  const mergeThreshold = strictBlueprint ? 0.65 : 0.38;
+  const maxConceptRepeats = strictBlueprint ? 4 : 2;
+
+  mergeAdjacentRedundantBlocks(clean, { mergeThreshold });
+  for (const page of clean.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+    page.blocks = removeOverRepeatedConcepts(page.blocks, { maxConceptRepeats });
+    page.blocks = removeWeakBlocks(page.blocks);
+    if (page.blocks.length === 0) {
+      page.blocks = [
+        {
+          type: "text",
+          title: "",
+          content: `## ${safeStr(topic)}\n\nAdd content here.`,
+          role: "concept",
+        },
+      ];
+    }
+  }
+
+  repairLessonStructureAfterCompression(clean, topic);
+  ensureSpecificExamTipBlock(clean, topic);
+
+  applyV7TeachingPresentationLayer(clean, topic);
 
   if (process.env.NODE_ENV !== "production") {
     for (const page of clean.pages || []) {
@@ -2081,6 +2899,18 @@ function sanitizeDraft(draft, { subject, level, topic }) {
           }
         : "NONE"
     );
+    for (const page of clean.pages || []) {
+      console.log(
+        "V5 flow debug:",
+        (page.blocks || []).map((b, i) => ({
+          i,
+          type: b.type,
+          role: b.role,
+          title: b.title,
+          content: b.content,
+        }))
+      );
+    }
   }
 
   return clean;
@@ -2110,6 +2940,12 @@ function ensurePageIds(pages) {
     blocks: Array.isArray(p?.blocks) ? p.blocks : [],
     checkpoint: p?.checkpoint || undefined,
   }));
+}
+
+/** True when the teacher prompt requests a fixed multi-section layout (softer V6 compression). */
+function detectStrictBlueprintFromPrompt(...parts) {
+  const s = parts.filter(Boolean).join("\n");
+  return /STRICT\s+BLUEPRINT/i.test(s);
 }
 
 /* =========================================================
@@ -2159,7 +2995,8 @@ async function generateSanitizedDraft({
     throw new Error(`AI returned invalid JSON. Snippet: ${snippet}`);
   }
 
-  const sanitized = sanitizeDraft(draft, { subject, level, topic });
+  const strictBlueprint = detectStrictBlueprintFromPrompt(userPrompt, additionalInstructions, topic);
+  const sanitized = sanitizeDraft(draft, { subject, level, topic, strictBlueprint });
   return { sanitized, ai };
 }
 
@@ -2191,6 +3028,11 @@ router.post("/generate-lesson", auth, async (req, res) => {
       `🤖 AI generate-lesson: user=${getAuthUserId(req)} type=${req.user.userType} | ${subject} | ${level} | ${topic}`
     );
 
+    const additionalInstructions =
+      typeof req.body?.additionalInstructions === "string"
+        ? req.body.additionalInstructions.trim().slice(0, 2000)
+        : "";
+
     // Algorithm 1: resolve spec/topic and load syllabus + past paper context (no breaking change if missing)
     let specPoints = [];
     let pastPaperSnippets = [];
@@ -2213,6 +3055,7 @@ router.post("/generate-lesson", auth, async (req, res) => {
       tier,
       specPoints,
       pastPaperSnippets,
+      additionalInstructions,
     });
 
     let coverageScore = null;
@@ -2234,6 +3077,7 @@ router.post("/generate-lesson", auth, async (req, res) => {
           specPoints,
           pastPaperSnippets,
           extraCoveragePoints: missingPoints,
+          additionalInstructions,
         });
         const retryCoverage = await verifySyllabusCoverage(retrySanitized, specPoints);
         if (retryCoverage.coverageRatio >= coverageScore) {

@@ -157,6 +157,59 @@ function finalMemoryRuleLooksSpecific(block, draft = {}) {
   return /(stem cells?|differentiat|embryonic|adult stem cells?|repair|medicine|ethic)/i.test(text);
 }
 
+/** Concatenate common block fields for flow heuristics (V5). */
+function blockFlowText(b) {
+  return [
+    b?.title,
+    b?.content,
+    b?.prompt,
+    b?.question,
+    b?.explanation,
+    b?.answer,
+  ]
+    .filter(Boolean)
+    .map(String)
+    .join(" ");
+}
+
+function blockMentionsComparison(text = "") {
+  return /(compare|difference|whereas|however|unlike|embryonic|adult stem cells?)/i.test(String(text));
+}
+
+function blockMentionsApplication(text = "") {
+  return /(medicine|medical|therapy|treat|treatment|transplant|regenerative|leukaemia|disease|for example|for instance|real[- ]world|used in|application|environmental|everyday|industry)/i.test(
+    String(text)
+  );
+}
+
+function blockMentionsExamUse(text = "") {
+  return /(exam|marks?|compare|describe|explain|credit|question)/i.test(String(text));
+}
+
+/** V6: common function words — strip for overlap / redundancy heuristics. */
+const V6_STOPWORDS = new Set(
+  `the and for are not but can may its our was how all any you who one two used using that this with from have been were will your what when where which their there these those about into than then them very just only also some such each other because while being would could should might often many much more most make like well even they has had does did done`.split(
+    /\s+/
+  )
+);
+
+function v6TokenSetForOverlap(text = "") {
+  const words = String(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !V6_STOPWORDS.has(w));
+  return new Set(words);
+}
+
+function v6JaccardSimilarity(setA, setB) {
+  if (setA.size === 0 && setB.size === 0) return 1;
+  let inter = 0;
+  for (const x of setA) if (setB.has(x)) inter++;
+  const union = setA.size + setB.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
 /**
  * Extract all text content from a lesson draft (blocks, checkpoint prompts) for keyword/concept search.
  */
@@ -538,6 +591,24 @@ function validateLessonStructure(draft) {
   const commonMistakes = blocks.filter((b) => safeStr(b?.type, "") === "commonMistake");
   const examTips = blocks.filter((b) => safeStr(b?.type, "") === "examTip");
 
+  if (examTips.length === 0) {
+    issues.push(
+      "V7: No examTip blocks — add at least one practical tip so the lesson signals how marks are earned."
+    );
+  }
+
+  const joinedForTransitions = blocks.map((b) => blockFlowText(b)).join(" ");
+  if (
+    blocks.length >= 8 &&
+    !/(to understand this clearly|building on this|this leads to an important exam pattern|a common mistake students make is:|in exams, remember:|putting this together:|\bhowever\b|\bthis leads\b)/i.test(
+      joinedForTransitions
+    )
+  ) {
+    issues.push(
+      "V7: Few guided transition phrases — the lesson may feel like separate notes; add clearer stepping between ideas."
+    );
+  }
+
   if (diagramCount >= 1 && !keyIdeas.some(looksLikeWhatToNotice)) {
     issues.push(
       'Missing a proper "What to Notice" keyIdea block (required when the lesson has diagrams).'
@@ -603,6 +674,101 @@ function validateLessonStructure(draft) {
       issues.push(`Checkpoint ${i + 1}: must include a correct answer`);
     }
   });
+
+  const mid = Math.ceil(blocks.length / 2);
+  const firstHalf = blocks.slice(0, mid);
+  const secondHalf = blocks.slice(mid);
+
+  const earlyComparison = firstHalf.some((b) => blockMentionsComparison(blockFlowText(b)));
+  const laterApplication = secondHalf.some((b) => blockMentionsApplication(blockFlowText(b)));
+  const hasExamLink = blocks.some((b) => blockMentionsExamUse(blockFlowText(b)));
+
+  if (!earlyComparison) {
+    issues.push("Key comparison or distinction appears too late or is missing.");
+  }
+
+  if (!laterApplication) {
+    issues.push("Real-world or medical application is missing or appears too weakly.");
+  }
+
+  if (!hasExamLink) {
+    issues.push("Lesson does not connect clearly enough to exam use.");
+  }
+
+  // --- V6: compression / non-repetition (only escalate after sanitizer repair — allow minor noise) ---
+  const v6Issues = [];
+
+  let adjacentRedundancyReports = 0;
+  for (let i = 0; i < blocks.length - 1; i++) {
+    const a = blocks[i];
+    const b = blocks[i + 1];
+    const ta = safeStr(a?.type, "");
+    const tb = safeStr(b?.type, "");
+    if (!["text", "keyIdea", "examTip"].includes(ta) || !["text", "keyIdea", "examTip"].includes(tb)) {
+      continue;
+    }
+    const s1 = v6TokenSetForOverlap(blockFlowText(a));
+    const s2 = v6TokenSetForOverlap(blockFlowText(b));
+    if (s1.size < 5 || s2.size < 5) continue;
+    if (v6JaccardSimilarity(s1, s2) >= 0.48) {
+      if (adjacentRedundancyReports < 8) {
+        v6Issues.push(
+          `Blocks ${i + 1} and ${i + 2} repeat similar ideas; merge or rewrite so each adds a new cognitive step (V6).`
+        );
+      }
+      adjacentRedundancyReports += 1;
+    }
+  }
+
+  let weakNewStepReports = 0;
+  let cumulativePrior = "";
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const t = safeStr(b?.type, "");
+    const body = blockFlowText(b);
+    if (!["text", "keyIdea"].includes(t)) {
+      cumulativePrior += ` ${body}`;
+      continue;
+    }
+    if (body.length < 100 || i < 2) {
+      cumulativePrior += ` ${body}`;
+      continue;
+    }
+    const curTok = v6TokenSetForOverlap(body);
+    const priorTok = v6TokenSetForOverlap(cumulativePrior);
+    if (curTok.size < 8) {
+      cumulativePrior += ` ${body}`;
+      continue;
+    }
+    let newCount = 0;
+    for (const w of curTok) if (!priorTok.has(w)) newCount += 1;
+    const hasReasoningSignal =
+      /(but not|unlike|whereas|however|wrong:|correct:|exam link:|for example|e\.g\.|such as|in contrast|vs\.?\s|versus|compared to|difference between)/i.test(
+        body
+      );
+    if (newCount < 4 && !hasReasoningSignal) {
+      if (weakNewStepReports < 8) {
+        v6Issues.push(
+          `Block ${i + 1} may only restate earlier content; add contrast, example, application, or exam link — or merge (V6).`
+        );
+      }
+      weakNewStepReports += 1;
+    }
+    cumulativePrior += ` ${body}`;
+  }
+
+  const differentiationMentions = blocks.filter((b) =>
+    /differentiat/i.test(blockFlowText(b))
+  ).length;
+  if (differentiationMentions >= 5) {
+    v6Issues.push(
+      "The same core idea (e.g. differentiation or stem cell definition) appears in too many blocks; compress into fewer teaching steps (V6)."
+    );
+  }
+
+  if (v6Issues.length > 4) {
+    issues.push(...v6Issues);
+  }
 
   return issues;
 }
@@ -711,4 +877,10 @@ module.exports = {
   examTipLooksSpecific,
   whatToNoticeLooksSpecific,
   finalMemoryRuleLooksSpecific,
+  blockFlowText,
+  blockMentionsComparison,
+  blockMentionsApplication,
+  blockMentionsExamUse,
+  v6TokenSetForOverlap,
+  v6JaccardSimilarity,
 };

@@ -12,6 +12,9 @@ const {
   validateLessonStructure,
   keyIdeaLooksSpecific,
   examTipLooksSpecific,
+  blockMentionsComparison,
+  blockMentionsApplication,
+  blockFlowText,
 } = require("../services/lessonDraftValidation");
 
 function getBlocks(lesson) {
@@ -51,6 +54,16 @@ function scoreLessonQuality(lesson, context = {}) {
   const diagrams = blocks.filter((b) => (b?.type ?? "").toString().trim() === "diagram");
   const keyIdeas = blocks.filter((b) =>
     ["keyIdea", "keyIdeas"].includes((b?.type ?? "").toString().trim())
+  );
+
+  const midFlow = Math.ceil(blocks.length / 2);
+  const firstHalfFlow = blocks.slice(0, midFlow);
+  const secondHalfFlow = blocks.slice(midFlow);
+  const earlyComparisonFlow = firstHalfFlow.some((b) =>
+    blockMentionsComparison(blockFlowText(b))
+  );
+  const laterApplicationFlow = secondHalfFlow.some((b) =>
+    blockMentionsApplication(blockFlowText(b))
   );
 
   const fullText = blocks
@@ -132,6 +145,12 @@ function scoreLessonQuality(lesson, context = {}) {
     suggestions.push("Make key ideas topic-specific and exam-relevant.");
   }
 
+  if (!earlyComparisonFlow) {
+    pedagogy -= 2;
+    issues.push("Core comparison appears too late or is missing.");
+    suggestions.push("Introduce the main distinction earlier in the lesson.");
+  }
+
   if (pedagogy < 0) pedagogy = 0;
 
   // EXAM READINESS
@@ -209,6 +228,12 @@ function scoreLessonQuality(lesson, context = {}) {
   if (clarity < 0) clarity = 0;
 
   // COMPLETENESS
+  if (!laterApplicationFlow) {
+    completeness -= 2;
+    issues.push("Application section is weak or missing.");
+    suggestions.push("Add a concrete real-world or medical use after the core explanation.");
+  }
+
   if (curriculumIssues.length > 0) {
     completeness -= Math.min(10, curriculumIssues.length * 3);
     issues.push(...curriculumIssues.map((i) => `Curriculum: ${i}`));
