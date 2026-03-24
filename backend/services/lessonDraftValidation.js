@@ -842,6 +842,16 @@ function shouldTriggerSecondPass(validation) {
   return false;
 }
 
+/** V9 advisory: reasoning / linking language typical of strong teacher explanations. */
+function soundsTeacherLike(text = "") {
+  return /(because|for example|in contrast|whereas|however|this matters)/i.test(String(text));
+}
+
+/** V9 advisory: concrete biology examples or cue phrases. */
+function hasConcreteExample(text = "") {
+  return /(for example|such as|leukaemia|bone marrow|nerve cell|blood cell)/i.test(String(text));
+}
+
 /**
  * V7.5: non-blocking teaching-quality hints (do not use for save/publish gates).
  * @returns {{ type: string, message: string, severity: string }[]}
@@ -875,6 +885,33 @@ function collectV7TeachingAdvisoryNotes(draft) {
     });
   }
 
+  const teachableBlocks = blocks.filter((b) => {
+    const t = safeStr(b?.type, "");
+    return t === "text" || t === "keyIdea";
+  });
+
+  if (teachableBlocks.length >= 4) {
+    const lackingVoice = teachableBlocks.filter((b) => !soundsTeacherLike(blockFlowText(b))).length;
+    if (lackingVoice / teachableBlocks.length > 0.5) {
+      notes.push({
+        type: "v9_teacher_voice",
+        message:
+          "Many text/key idea blocks lack teacher-like explanation cues (e.g. because, for example, whereas). Consider adding short reasoning or examples.",
+        severity: "low",
+      });
+    }
+
+    const lackingExample = teachableBlocks.filter((b) => !hasConcreteExample(blockFlowText(b))).length;
+    if (lackingExample / teachableBlocks.length > 0.5) {
+      notes.push({
+        type: "v9_concrete_examples",
+        message:
+          "Several blocks could use a concrete example (e.g. “such as…”, a named cell type, or a familiar context) to read less like abstract notes.",
+        severity: "low",
+      });
+    }
+  }
+
   return notes;
 }
 
@@ -900,6 +937,8 @@ module.exports = {
   blockMentionsComparison,
   blockMentionsApplication,
   blockMentionsExamUse,
+  soundsTeacherLike,
+  hasConcreteExample,
   v6TokenSetForOverlap,
   v6JaccardSimilarity,
 };

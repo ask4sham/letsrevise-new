@@ -31,6 +31,9 @@ function makeLessonDbSafe(lesson) {
 
     for (const block of page.blocks || []) {
       if (!block || typeof block !== "object") continue;
+      if (Object.prototype.hasOwnProperty.call(block, "_intent")) {
+        delete block._intent;
+      }
       for (const field of LESSON_BLOCK_OPTIONAL_OBJECTID_FIELDS) {
         const v = block[field];
         if (v === "" || v === null || v === undefined) {

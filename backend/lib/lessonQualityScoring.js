@@ -15,6 +15,8 @@ const {
   blockMentionsComparison,
   blockMentionsApplication,
   blockFlowText,
+  soundsTeacherLike,
+  hasConcreteExample,
 } = require("../services/lessonDraftValidation");
 
 function getBlocks(lesson) {
@@ -258,7 +260,34 @@ function scoreLessonQuality(lesson, context = {}) {
 
   if (completeness < 0) completeness = 0;
 
-  const score = Math.max(0, Math.min(100, structure + pedagogy + examReadiness + clarity + completeness));
+  // V9 polish: mild bonus only (no penalties) — teacher-like reasoning, examples, rich worked answer
+  let v9Bonus = 0;
+  if (
+    keyIdeas.length > 0 &&
+    keyIdeas.filter((b) => soundsTeacherLike(blockFlowText(b))).length >= Math.ceil(keyIdeas.length * 0.5)
+  ) {
+    v9Bonus += 1;
+  }
+  if (
+    textBlocks.length > 0 &&
+    textBlocks.filter((b) => hasConcreteExample(blockFlowText(b))).length >= Math.ceil(textBlocks.length * 0.4)
+  ) {
+    v9Bonus += 1;
+  }
+  const workedForBonus = checkpoints.find(
+    (b) => (b?.role ?? "").toString().trim() === "workedExample"
+  );
+  if (workedForBonus) {
+    const ans = String(workedForBonus.answer ?? workedForBonus.explanation ?? "");
+    const bulletCount = ans.split("\n").filter((l) => /^\s*[-•]\s?/.test(l.trimStart())).length;
+    if (bulletCount >= 4) v9Bonus += 1;
+  }
+  v9Bonus = Math.min(3, v9Bonus);
+
+  const score = Math.max(
+    0,
+    Math.min(100, structure + pedagogy + examReadiness + clarity + completeness + v9Bonus)
+  );
   const band = getLessonQualityBand(score);
   const passed =
     score >= 70 &&

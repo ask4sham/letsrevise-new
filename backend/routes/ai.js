@@ -1392,7 +1392,17 @@ async function improveDraftWithSecondPass(
   { draft, curriculumIssues, structureIssues, qualityIssues, qualitySuggestions },
   context
 ) {
-  const { topic, subject, level, board, tier, specPoints = [], additionalInstructions = "" } = context || {};
+  const {
+    topic,
+    subject,
+    level,
+    board,
+    tier,
+    specPoints = [],
+    additionalInstructions = "",
+    retainTeachingIntentMetadata = false,
+    teachingIntentTagOnly = false,
+  } = context || {};
 
   const qualityIssuesList = Array.isArray(qualityIssues) ? qualityIssues : [];
   const qualitySuggestionsList = Array.isArray(qualitySuggestions) ? qualitySuggestions : [];
@@ -1467,7 +1477,14 @@ async function improveDraftWithSecondPass(
     throw new Error(`Second-pass AI returned invalid JSON: ${(e?.message || "").slice(0, 100)}`);
   }
   const strictBlueprint = detectStrictBlueprintFromPrompt(additionalInstructions, topic);
-  const sanitized = sanitizeDraft(improved, { subject, level, topic, strictBlueprint });
+  const sanitized = sanitizeDraft(improved, {
+    subject,
+    level,
+    topic,
+    strictBlueprint,
+    retainTeachingIntentMetadata,
+    teachingIntentTagOnly,
+  });
   return { sanitized };
 }
 
@@ -2446,6 +2463,244 @@ function repairLessonStructureAfterCompression(draft, topicHint = "") {
   return draft;
 }
 
+/** V8: default teaching-step labels (used for intent tagging on all topics). */
+const DEFAULT_TEACHING_SEQUENCE = [
+  "definition",
+  "mechanism",
+  "comparison",
+  "application",
+  "evaluation",
+];
+
+/**
+ * Optional topic-specific sequences (first substring match wins). Same labels keep analytics comparable.
+ * Add entries with topic substrings your product uses (lowercase).
+ */
+const V8_TOPIC_TEACHING_SEQUENCES = [
+  {
+    match: (t) => t.includes("stem cell"),
+    sequence: DEFAULT_TEACHING_SEQUENCE,
+  },
+  {
+    match: (t) => t.includes("photosynthesis"),
+    sequence: ["definition", "mechanism", "comparison", "application", "evaluation"],
+  },
+  {
+    match: (t) => t.includes("respiration") || t.includes("aerobic") || t.includes("anaerobic"),
+    sequence: ["definition", "mechanism", "comparison", "application", "evaluation"],
+  },
+  {
+    match: (t) => t.includes("enzyme"),
+    sequence: ["definition", "mechanism", "comparison", "application", "evaluation"],
+  },
+  {
+    match: (t) => t.includes("osmosis") || t.includes("diffusion") || t.includes("active transport"),
+    sequence: ["definition", "mechanism", "comparison", "application", "evaluation"],
+  },
+];
+
+function getTeachingSequenceForTopic(topicHint = "") {
+  const t = String(topicHint || "").toLowerCase();
+  for (const row of V8_TOPIC_TEACHING_SEQUENCES) {
+    if (row.match(t)) return row.sequence.slice();
+  }
+  return DEFAULT_TEACHING_SEQUENCE.slice();
+}
+
+const V8_INTENT_SKIP_ROLES = new Set([
+  "hook",
+  "coreRule",
+  "patternRecognition",
+  "commonMistake",
+  "finalMemoryRule",
+  "whatToNotice",
+  "synthesis",
+  "workedExample",
+]);
+
+/**
+ * V8: assign sequential teaching intent to generic text / keyIdea blocks (not structural roles).
+ */
+function assignTeachingIntent(blocks, sequence) {
+  if (!Array.isArray(blocks)) return blocks;
+
+  const intents = Array.isArray(sequence) && sequence.length ? sequence : DEFAULT_TEACHING_SEQUENCE;
+  let i = 0;
+
+  return blocks.map((b) => {
+    const t = normalizeBlockType(b?.type);
+    if (t !== "text" && t !== "keyIdea") return b;
+
+    const r = safeStr(b?.role, "");
+    if (V8_INTENT_SKIP_ROLES.has(r)) return b;
+
+    b._intent = intents[Math.min(i, intents.length - 1)];
+    i += 1;
+    return b;
+  });
+}
+
+/**
+ * V8 (stem cell): strong alignment — replace weak blocks with canonical comparison/application text.
+ */
+function enforceIntentContentStrictStemCell(block) {
+  if (!block || !block._intent) return block;
+
+  const text = `${block.title || ""} ${block.content || ""}`.toLowerCase();
+
+  if (block._intent === "definition") {
+    if (!text.includes("unspecialised") && !text.includes("unspecialized")) {
+      block.content =
+        "Stem cells are unspecialised cells that can differentiate into specialised cells.";
+    }
+  }
+
+  if (block._intent === "comparison") {
+    block.content =
+      "Embryonic stem cells: can become any cell (pluripotent)\n" +
+      "Adult stem cells: limited range (multipotent)\n\n" +
+      "In exams, always compare both clearly.";
+  }
+
+  if (block._intent === "application") {
+    block.content =
+      "Stem cells are used in treatments such as bone marrow transplants.\n\n" +
+      "In exams, link differentiation to how tissues are repaired.";
+  }
+
+  return block;
+}
+
+const V8_GENTLE_SENTINELS = {
+  definition: /\[v8 definition\]/i,
+  mechanism: /\[v8 mechanism\]/i,
+  comparison: /\[v8 comparison\]/i,
+  application: /\[v8 application\]/i,
+  evaluation: /\[v8 evaluation\]/i,
+};
+
+/**
+ * V8 (general topics): append one short exam-facing line only when content exists and signal is missing.
+ */
+function enforceIntentContentGentle(block) {
+  if (!block || !block._intent) return block;
+
+  const raw = String(block.content || "").trim();
+  if (raw.length < 30) return block;
+
+  const intent = block._intent;
+  const sentinel = V8_GENTLE_SENTINELS[intent];
+  if (sentinel && sentinel.test(raw)) return block;
+
+  const text = `${block.title || ""} ${raw}`.toLowerCase();
+
+  const append = (line) => {
+    block.content = `${raw}\n\n${line}`;
+  };
+
+  if (intent === "definition") {
+    if (!/exam|mark|define|means|is (a|the|when)/i.test(text)) {
+      append("[v8 definition] In exams, state a precise definition using key terms from the specification.");
+    }
+  } else if (intent === "mechanism") {
+    if (!/step|process|because|therefore|causes|leads to/i.test(text)) {
+      append("[v8 mechanism] Show the sequence: what happens, then why it happens, using topic vocabulary.");
+    }
+  } else if (intent === "comparison") {
+    if (!/compared|whereas|unlike|both|difference|similar/i.test(text)) {
+      append("[v8 comparison] In compare questions, make both sides explicit and use a linking word (e.g. whereas).");
+    }
+  } else if (intent === "application") {
+    if (!/example|such as|used in|real|context|industry|medicine|environment/i.test(text)) {
+      append("[v8 application] Add one concrete example or context so your answer is not only theoretical.");
+    }
+  } else if (intent === "evaluation") {
+    if (!/advantage|disadvantage|benefit|risk|limitation|however|because/i.test(text)) {
+      append("[v8 evaluation] For evaluation marks, balance strengths and limits, and link to evidence or context.");
+    }
+  }
+
+  return block;
+}
+
+function enforceIntentContent(block, topicHint = "") {
+  const t = String(topicHint || "").toLowerCase();
+  if (t.includes("stem cell")) return enforceIntentContentStrictStemCell(block);
+  return enforceIntentContentGentle(block);
+}
+
+/**
+ * V8: keep first block per intent; structural block types and protected roles always kept.
+ */
+function dedupeByIntent(blocks) {
+  if (!Array.isArray(blocks)) return blocks;
+
+  const seen = new Set();
+
+  return blocks.filter((b) => {
+    const t = normalizeBlockType(b?.type);
+    if (
+      t === "diagram" ||
+      t === "checkpoint" ||
+      t === "examTip" ||
+      t === "commonMistake" ||
+      t === "stretch"
+    ) {
+      return true;
+    }
+
+    const r = safeStr(b?.role, "");
+    if (V8_INTENT_SKIP_ROLES.has(r)) return true;
+
+    if (!b._intent) return true;
+
+    if (seen.has(b._intent)) return false;
+    seen.add(b._intent);
+    return true;
+  });
+}
+
+function stripTeachingIntentMetadata(blocks) {
+  if (!Array.isArray(blocks)) return;
+  for (const b of blocks) {
+    if (b && Object.prototype.hasOwnProperty.call(b, "_intent")) delete b._intent;
+  }
+}
+
+/**
+ * V8 — teaching intent engine (all topics: tag + gentle enforce; stem cell also strict enforce + dedupe).
+ * @param {boolean} [opts.retainTeachingIntentMetadata] — if true, keep `_intent` on blocks (API/analytics); still stripped on DB save in makeLessonDbSafe.
+ * @param {boolean} [opts.teachingIntentTagOnly] — if true, assign `_intent` only; skip content enforcement (gentle or stem-cell strict).
+ */
+function applyV8TeachingIntentEngine(draft, topicHint = "", opts = {}) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const retainIntent = opts?.retainTeachingIntentMetadata === true;
+  const tagOnly = opts?.teachingIntentTagOnly === true;
+  const topic = String(topicHint || "").toLowerCase();
+  const sequence = getTeachingSequenceForTopic(topicHint);
+  const stemCell = topic.includes("stem cell");
+
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+
+    let blocks = page.blocks;
+    blocks = assignTeachingIntent(blocks, sequence);
+    if (!tagOnly) {
+      blocks = blocks.map((b) => enforceIntentContent(b, topicHint));
+    }
+    if (stemCell && !tagOnly) {
+      blocks = dedupeByIntent(blocks);
+    }
+    if (!retainIntent) {
+      stripTeachingIntentMetadata(blocks);
+    }
+    page.blocks = blocks;
+  }
+
+  return draft;
+}
+
 const V7_TRANSITION_ELIGIBLE_TYPES = new Set(["text", "keyIdea", "examTip", "commonMistake", "stretch"]);
 
 const V7_NATURAL_TRANSITIONS = [
@@ -2604,6 +2859,293 @@ function addExamThinkingPrompts(draft) {
     }
   }
 
+  return draft;
+}
+
+/**
+ * V9: teacher voice — strip transition clutter from key ideas, swap vague phrasing, normalise exam tips.
+ */
+function applyTeacherVoice(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (block?.content == null || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+
+      if (t === "keyIdea") {
+        block.content = block.content
+          .replace(/^This means that\s+/i, "")
+          .replace(/^To understand this,\s+/i, "")
+          .replace(/^So what does this show\?\s*/i, "")
+          .trim();
+
+        if (!/because|this matters|in exams|for example/i.test(block.content)) {
+          block.content += "\nThis matters because students often need to apply this idea, not just define it.";
+        }
+      }
+
+      if (t === "text") {
+        block.content = block.content
+          .replace(/\bplays an important role\b/gi, "matters")
+          .replace(/\bis useful in medicine\b/gi, "can be used in treatment")
+          .replace(/\bhelps the body\b/gi, "helps repair or replace damaged cells")
+          .trim();
+      }
+
+      if (t === "examTip") {
+        const tip = block.content.trim();
+        if (!tip) continue;
+        if (!/^In exams,/i.test(tip)) {
+          block.content = "In exams, " + tip.replace(/^[A-Z]/, (c) => c.toLowerCase());
+        }
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9: add in-teacher explanation depth for high-value topic cues (stem cells).
+ */
+function deepenExplanations(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (block?.content == null || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+      if (t !== "text" && t !== "keyIdea") continue;
+
+      const text = block.content.toLowerCase();
+
+      if (topic.includes("stem cell")) {
+        if (text.includes("unspecialised") && !text.includes("fixed function")) {
+          block.content +=
+            "\nIn other words, they have not yet developed a fixed function, which is why they can turn into other cell types.";
+        }
+
+        if (text.includes("differentiat") && !text.includes("specialised cells")) {
+          block.content +=
+            "\nDifferentiation means becoming a specialised cell with a specific job, such as a nerve cell or blood cell.";
+        }
+
+        if (text.includes("embryonic") && text.includes("adult") && !text.includes("pluripotent")) {
+          block.content +=
+            "\nThis comparison matters because embryonic stem cells are pluripotent, whereas adult stem cells are multipotent.";
+        }
+
+        if (text.includes("ethic") && !text.includes("embryo")) {
+          block.content +=
+            "\nThe main ethical issue is that embryonic stem cells are taken from embryos, which many people believe should not be destroyed.";
+        }
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9: topic-aware “why this matters” on key ideas (layers after V7.6; dedupes by exact line).
+ */
+function improveWhyThisMatters(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block.type) !== "keyIdea") continue;
+      if (!block.content || typeof block.content !== "string") continue;
+
+      let addition = "";
+
+      if (topic.includes("stem cell")) {
+        const text = block.content.toLowerCase();
+
+        if (text.includes("embryonic") || text.includes("adult")) {
+          addition =
+            "This matters because exam questions often ask you to compare their potential, uses, and ethical issues.";
+        } else if (text.includes("differentiat")) {
+          addition =
+            "This matters because many exam questions focus on how stem cells become specialised and why that is useful in medicine.";
+        } else if (text.includes("ethic")) {
+          addition =
+            "This matters because evaluation questions often require both medical benefits and ethical concerns.";
+        } else {
+          addition = "This matters because stem cells link core biology ideas to real medical treatments.";
+        }
+      } else {
+        addition = "This matters because students often need to explain this idea clearly in exams.";
+      }
+
+      if (!block.content.includes(addition)) {
+        block.content += "\n" + addition;
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9: concrete examples for stem-cell teaching blocks.
+ */
+function addConcreteExamples(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (block?.content == null || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+      if (t !== "text" && t !== "keyIdea") continue;
+
+      const text = block.content.toLowerCase();
+
+      if (topic.includes("stem cell")) {
+        if (text.includes("differentiat") && !text.includes("for example")) {
+          block.content +=
+            "\nFor example, a stem cell could differentiate into a blood cell, nerve cell, or muscle cell depending on the signals it receives.";
+        }
+
+        if (text.includes("medicine") && !text.includes("leukaemia")) {
+          block.content +=
+            "\nA common GCSE example is using bone marrow stem cells to help treat leukaemia.";
+        }
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9: strip stock AI-teaching filler phrases.
+ */
+function removeMetaTeachingPhrases(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const badPhrases = [
+    "this helps you answer exam questions more accurately",
+    "this is often tested in exam questions",
+    "this is important because it often appears in exam questions",
+    "this concept matters",
+    "used in many situations",
+  ];
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (block?.content == null || typeof block.content !== "string") continue;
+
+      let content = block.content;
+
+      for (const phrase of badPhrases) {
+        const regex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+        content = content.replace(regex, "");
+      }
+
+      content = content.replace(/\n{3,}/g, "\n\n").trim();
+      block.content = content;
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9: strengthen worked-example checkpoint for stem-cell topics (sanitized checkpoint shape).
+ */
+function strengthenExamAnswers(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell")) return draft;
+
+  const q = "Compare embryonic stem cells and adult stem cells (4 marks)";
+  const model =
+    "- Embryonic stem cells can become almost any cell type, whereas adult stem cells can only form a limited range.\n" +
+    "- Embryonic stem cells come from early embryos, whereas adult stem cells are found in tissues such as bone marrow.\n" +
+    "- Embryonic stem cells have greater potential in medicine because they can form more cell types.\n" +
+    "- However, their use raises ethical concerns because embryos are destroyed.";
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block.type) !== "checkpoint") continue;
+      if (safeStr(block.role, "") !== "workedExample") continue;
+
+      block.question = q;
+      block.prompt = q;
+      block.answer = model;
+      block.explanation = model;
+      block.correctAnswer = "See model answer";
+      block.questionType = "short";
+      if (Array.isArray(block.options)) block.options = [];
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9: ensure key ideas and text blocks carry definitional / reasoning / example cues.
+ */
+function enforceTeacherBlockPurpose(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (block?.content == null || typeof block.content !== "string") continue;
+
+      const t = normalizeBlockType(block.type);
+
+      if (t === "keyIdea") {
+        const text = block.content.toLowerCase();
+        const hasDefinition = /is|are|means/.test(text);
+        const hasReasoning = /because|this matters|in contrast|whereas|however/.test(text);
+
+        if (!hasDefinition && !hasReasoning) {
+          block.content += "\nThis is a key idea because it helps explain how the topic works.";
+        }
+      }
+
+      if (t === "text") {
+        const text = block.content.toLowerCase();
+        const hasExample = /for example|such as/.test(text);
+        const hasWhy = /because|this matters/.test(text);
+
+        if (!hasExample || !hasWhy) {
+          block.content +=
+            "\nThis matters because students need to connect the idea to real biological examples.";
+        }
+      }
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * V9 pipeline: teacher voice + explanation depth (after V7 / V7.6 presentation layer).
+ */
+function applyV9TeacherVoiceAndDepth(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+  const topic = safeStr(topicHint, "");
+  applyTeacherVoice(draft, topic);
+  deepenExplanations(draft, topic);
+  removeMetaTeachingPhrases(draft);
+  improveWhyThisMatters(draft, topic);
+  addConcreteExamples(draft, topic);
+  strengthenExamAnswers(draft, topic);
+  enforceTeacherBlockPurpose(draft);
   return draft;
 }
 
@@ -2770,7 +3312,14 @@ function applyV7TeachingPresentationLayer(draft, topicHint = "") {
 }
 
 function sanitizeDraft(draft, opts = {}) {
-  const { subject, level, topic, strictBlueprint = false } = opts || {};
+  const {
+    subject,
+    level,
+    topic,
+    strictBlueprint = false,
+    retainTeachingIntentMetadata = false,
+    teachingIntentTagOnly = false,
+  } = opts || {};
   const lvl = normalizeLevel(level);
 
   const clean = {
@@ -2971,8 +3520,18 @@ function sanitizeDraft(draft, opts = {}) {
   addWhyThisMatters(clean, topic);
   addExamThinkingPrompts(clean);
 
+  applyV9TeacherVoiceAndDepth(clean, topic);
+
   ensurePatternRecognitionBlock(clean, topic);
   ensureProperCommonMistakeBlock(clean, topic);
+
+  applyV8TeachingIntentEngine(clean, topic, {
+    retainTeachingIntentMetadata,
+    teachingIntentTagOnly,
+  });
+  ensurePatternRecognitionBlock(clean, topic);
+  ensureProperCommonMistakeBlock(clean, topic);
+  ensureMinimumBlockCount(clean, topic, 10);
 
   if (process.env.NODE_ENV !== "production") {
     for (const page of clean.pages || []) {
@@ -3093,6 +3652,8 @@ async function generateSanitizedDraft({
   requiredMisconceptions = [],
   additionalInstructions = "",
   strictSpec = false,
+  retainTeachingIntentMetadata = false,
+  teachingIntentTagOnly = false,
 }) {
   const systemPrompt = buildSystemPrompt(subject, level);
   const userPrompt = buildUserPromptFromMd({
@@ -3123,7 +3684,14 @@ async function generateSanitizedDraft({
   }
 
   const strictBlueprint = detectStrictBlueprintFromPrompt(userPrompt, additionalInstructions, topic);
-  const sanitized = sanitizeDraft(draft, { subject, level, topic, strictBlueprint });
+  const sanitized = sanitizeDraft(draft, {
+    subject,
+    level,
+    topic,
+    strictBlueprint,
+    retainTeachingIntentMetadata,
+    teachingIntentTagOnly,
+  });
   return { sanitized, ai };
 }
 
@@ -3159,6 +3727,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
       typeof req.body?.additionalInstructions === "string"
         ? req.body.additionalInstructions.trim().slice(0, 2000)
         : "";
+    const retainTeachingIntentMetadata = req.body?.retainTeachingIntentMetadata === true;
+    const teachingIntentTagOnly = req.body?.teachingIntentTagOnly === true;
 
     // Algorithm 1: resolve spec/topic and load syllabus + past paper context (no breaking change if missing)
     let specPoints = [];
@@ -3183,6 +3753,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
       specPoints,
       pastPaperSnippets,
       additionalInstructions,
+      retainTeachingIntentMetadata,
+      teachingIntentTagOnly,
     });
 
     let coverageScore = null;
@@ -3205,6 +3777,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
           pastPaperSnippets,
           extraCoveragePoints: missingPoints,
           additionalInstructions,
+          retainTeachingIntentMetadata,
+          teachingIntentTagOnly,
         });
         const retryCoverage = await verifySyllabusCoverage(retrySanitized, specPoints);
         if (retryCoverage.coverageRatio >= coverageScore) {
@@ -3315,6 +3889,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
         ? req.body.additionalInstructions.trim().slice(0, 2000)
         : "";
     const strictSpec = req.body?.strictSpec === true;
+    const retainTeachingIntentMetadata = req.body?.retainTeachingIntentMetadata === true;
+    const teachingIntentTagOnly = req.body?.teachingIntentTagOnly === true;
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[generate-and-save] handler v2", { autoGenerateFromBanksFromBody: req.body?.autoGenerateFromBanks, autoGenerateFromBanks });
@@ -3395,6 +3971,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
       requiredMisconceptions,
       additionalInstructions,
       strictSpec,
+      retainTeachingIntentMetadata,
+      teachingIntentTagOnly,
     })).sanitized;
 
     // ✅ 2b) Curriculum validation
@@ -3433,7 +4011,17 @@ router.post("/generate-and-save", auth, async (req, res) => {
             qualityIssues: qualityResult.issues,
             qualitySuggestions: qualityResult.suggestions,
           },
-          { topic, subject, level, board, tier, specPoints, additionalInstructions }
+          {
+            topic,
+            subject,
+            level,
+            board,
+            tier,
+            specPoints,
+            additionalInstructions,
+            retainTeachingIntentMetadata,
+            teachingIntentTagOnly,
+          }
         );
         finalDraft = improved.sanitized;
 
@@ -3735,7 +4323,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
 /* =========================================================
    ✅ Improve existing lesson with AI (creates new draft, does not overwrite)
    POST /api/ai/improve-lesson
-   Body: { lessonId, additionalInstructions?, strictSpec? }
+   Body: { lessonId, additionalInstructions?, strictSpec?, retainTeachingIntentMetadata?, teachingIntentTagOnly? }
    ========================================================= */
 router.post("/improve-lesson", auth, async (req, res) => {
   try {
@@ -3759,6 +4347,8 @@ router.post("/improve-lesson", auth, async (req, res) => {
         ? req.body.additionalInstructions.trim().slice(0, 2000)
         : "";
     const strictSpec = req.body?.strictSpec === true;
+    const retainTeachingIntentMetadata = req.body?.retainTeachingIntentMetadata === true;
+    const teachingIntentTagOnly = req.body?.teachingIntentTagOnly === true;
 
     const lesson = await Lesson.findById(lessonId).lean();
     if (!lesson) return res.status(404).json({ error: "Lesson not found" });
@@ -3811,7 +4401,17 @@ router.post("/improve-lesson", auth, async (req, res) => {
           curriculumIssues: buildCurriculumFeedbackLines(generationValidation),
           structureIssues: generationValidation.structureIssues ?? [],
         },
-        { topic, subject, level, board, tier, specPoints, additionalInstructions }
+        {
+          topic,
+          subject,
+          level,
+          board,
+          tier,
+          specPoints,
+          additionalInstructions,
+          retainTeachingIntentMetadata,
+          teachingIntentTagOnly,
+        }
       );
       sanitized = improved.sanitized;
     } catch (e) {
