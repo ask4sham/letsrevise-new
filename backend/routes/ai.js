@@ -3187,6 +3187,333 @@ function applyV9TeacherVoiceAndDepth(draft, topicHint = "") {
   return draft;
 }
 
+const V10_WHY_VARIATIONS = [
+  "This is important because",
+  "The key reason this matters is",
+  "You will need this when answering exam questions about",
+  "This idea is often used when explaining",
+];
+
+/**
+ * V10: topic-specific duplicate cues (text/keyIdea only). First matching row wins; unknown topics → no concept dedupe.
+ * Each block is assigned the first concept whose test passes; later blocks repeating that id are removed.
+ */
+const V10_DEDUPE_BY_TOPIC = [
+  {
+    match: (t) => t.includes("stem cell"),
+    concepts: [
+      { id: "stem_differentiation", test: (x) => /\bdifferentiat/.test(x) },
+      { id: "stem_embryonic_adult", test: (x) => x.includes("embryonic") && x.includes("adult") },
+      {
+        id: "stem_ethics",
+        test: (x) => /\b(ethic|moral)\b/.test(x) && (x.includes("embryo") || x.includes("destroy")),
+      },
+    ],
+  },
+  {
+    match: (t) => t.includes("photosynthesis"),
+    concepts: [
+      {
+        id: "photo_core_outputs",
+        test: (x) =>
+          /\b(chlorophyll|chloroplast|photosynth)/.test(x) &&
+          (x.includes("glucose") || x.includes("oxygen") || x.includes("starch")),
+      },
+      {
+        id: "photo_gas_exchange",
+        test: (x) => x.includes("carbon dioxide") && (x.includes("oxygen") || /\bo2\b/.test(x)),
+      },
+      {
+        id: "photo_stages",
+        test: (x) =>
+          /calvin|light[- ]dependent|light[- ]independent|thylakoid|stroma|photolysis/.test(x),
+      },
+    ],
+  },
+  {
+    match: (t) => t.includes("respiration") || t.includes("aerobic") || t.includes("anaerobic"),
+    concepts: [
+      {
+        id: "resp_aerobic",
+        test: (x) =>
+          /\baerobic\b/.test(x) &&
+          (x.includes("mitochond") || x.includes("oxygen") || x.includes("glucose")),
+      },
+      {
+        id: "resp_anaerobic",
+        test: (x) =>
+          /\banaerobic\b/.test(x) || /\bferment/.test(x) || x.includes("lactic acid"),
+      },
+      { id: "resp_atp", test: (x) => /\batp\b/.test(x) && /\b(energy|release|transfer)\b/.test(x) },
+    ],
+  },
+  {
+    match: (t) => t.includes("enzyme"),
+    concepts: [
+      {
+        id: "enzyme_specificity",
+        test: (x) =>
+          /active site|substrate|lock and key|specific shape|complementary/.test(x),
+      },
+      {
+        id: "enzyme_denature",
+        test: (x) => /denatur|optimum (temperature|ph)|too hot|extreme ph/i.test(x),
+      },
+    ],
+  },
+  {
+    match: (t) =>
+      t.includes("osmosis") || t.includes("diffusion") || t.includes("active transport"),
+    concepts: [
+      {
+        id: "transport_diffusion",
+        test: (x) => /\bdiffusion\b/.test(x) && /(concentration|gradient|high|low|particles)/.test(x),
+      },
+      {
+        id: "transport_osmosis",
+        test: (x) =>
+          /\bosmosis\b/.test(x) &&
+          /(water|partially permeable|semi[- ]permeable|concentration)/.test(x),
+      },
+      {
+        id: "transport_active",
+        test: (x) =>
+          /active transport/.test(x) && /(atp|energy|against|low to high)/.test(x),
+      },
+    ],
+  },
+  {
+    match: (t) =>
+      /\bmitosis\b/.test(t) ||
+      /\bmeiosis\b/.test(t) ||
+      t.includes("cell division") ||
+      t.includes("cell cycle"),
+    concepts: [
+      {
+        id: "mitosis_named_stages",
+        test: (x) =>
+          /\b(prophase|metaphase|anaphase|telophase)\b/.test(x) &&
+          /\b(chromosome|chromatid|spindle)\b/.test(x),
+      },
+      {
+        id: "meiosis_variation_halving",
+        test: (x) =>
+          /\bmeiosis\b/.test(x) &&
+          /(crossing over|chiasmata|homologous|haploid|genetic variation|assortment)/.test(x),
+      },
+      {
+        id: "mitosis_growth_repair",
+        test: (x) =>
+          /\bmitosis\b/.test(x) &&
+          /(two daughter|genetically identical|diploid|\brepair\b|\bgrowth\b|replacement)/.test(x),
+      },
+    ],
+  },
+];
+
+function resolveV10DedupeConcepts(topicLower) {
+  const t = String(topicLower || "").toLowerCase();
+  for (const row of V10_DEDUPE_BY_TOPIC) {
+    if (row.match(t)) return row.concepts;
+  }
+  return [];
+}
+
+/**
+ * V10: topic-aware “aha” keyIdea (inserted at index 2). Last row matches everything.
+ * role patternRecognition keeps a single coreRule from the model while still adding an exam-focus anchor.
+ */
+const V10_TOPIC_AHA = [
+  {
+    match: (t) => t.includes("stem cell"),
+    title: "The key idea",
+    role: "patternRecognition",
+    content:
+      "The key difference is this:\nEmbryonic stem cells can become almost any cell type.\nAdult stem cells are limited to a narrower range.\nExaminers reward a clean comparison plus one medical or ethical example.",
+  },
+  {
+    match: (t) => t.includes("photosynthesis"),
+    title: "The key idea",
+    role: "patternRecognition",
+    content:
+      "Hold this structure:\nPlants trap light energy and use it to turn carbon dioxide and water into glucose (and oxygen is released).\nExam questions often test the word equation, limiting factors, or where each stage happens in the chloroplast.",
+  },
+  {
+    match: (t) => t.includes("respiration") || t.includes("aerobic") || t.includes("anaerobic"),
+    title: "The key idea",
+    role: "patternRecognition",
+    content:
+      "Energy release is the story:\nAerobic respiration uses oxygen in the mitochondria and releases a lot of ATP.\nAnaerobic pathways happen without enough oxygen and yield less ATP (e.g. lactic acid in animals).\nExaminers love compare questions and “why ATP matters” wording.",
+  },
+  {
+    match: (t) => t.includes("enzyme"),
+    title: "The key idea",
+    role: "patternRecognition",
+    content:
+      "Enzymes are picky catalysts:\nEach enzyme has an active site shaped for its substrate.\nTemperature and pH change shape — too extreme and the enzyme denatures and stops working.\nLink “fewer successful collisions” to rate in longer answers.",
+  },
+  {
+    match: (t) =>
+      t.includes("osmosis") || t.includes("diffusion") || t.includes("active transport"),
+    title: "The key idea",
+    role: "patternRecognition",
+    content:
+      "Three transport ideas, three exam stories:\nDiffusion — particles spread down a concentration gradient, no energy.\nOsmosis — water across a partially permeable membrane.\nActive transport — moves substances against the gradient and needs energy (ATP).\nAlways name membrane, substance, and direction for full marks.",
+  },
+  {
+    match: (t) =>
+      /\bmitosis\b/.test(t) ||
+      /\bmeiosis\b/.test(t) ||
+      t.includes("cell division") ||
+      t.includes("cell cycle"),
+    title: "The key idea",
+    role: "patternRecognition",
+    content:
+      "Separate the two jobs in your head:\nMitosis — two diploid daughter cells, genetically identical; ties to growth, repair, and asexual reproduction.\nMeiosis — four haploid cells, not identical; crossing over and assortment create variation for sexual reproduction.\nMarks come from chromosome behaviour and why the outcomes differ, not from vague stage lists.",
+  },
+  {
+    match: () => true,
+    title: "The key idea",
+    role: "patternRecognition",
+    contentFn: (topicHint) => {
+      const label = safeStr(topicHint, "this topic").trim() || "this topic";
+      const short = label.length > 72 ? `${label.slice(0, 69)}…` : label;
+      return (
+        `Anchor ${short} in three moves:\n` +
+        "State the precise definition using spec vocabulary.\n" +
+        "Add one concrete example or comparison the examiner can recognise.\n" +
+        "Name the command word you would use to start an answer (explain, describe, compare) — then practise one sentence."
+      );
+    },
+  },
+];
+
+function resolveV10AhaRow(topicHint) {
+  const t = String(topicHint || "").toLowerCase();
+  for (const row of V10_TOPIC_AHA) {
+    if (row.match(t)) return row;
+  }
+  return null;
+}
+
+/**
+ * V10: cap keyIdea length (one idea per block). Skips wrap-up / notice anchors that need slightly more room.
+ */
+function enforceKeyIdeaLength(block) {
+  if (normalizeBlockType(block?.type) !== "keyIdea") return block;
+
+  const r = safeStr(block?.role, "");
+  if (r === "finalMemoryRule" || r === "synthesis") return block;
+  if (/what to notice/i.test(String(block?.title || ""))) return block;
+
+  const raw = String(block?.content || "").trim();
+  if (!raw) return block;
+
+  const lines = raw.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim());
+  if (lines.length <= 3) return block;
+
+  block.content = lines.slice(0, 3).join("\n");
+  return block;
+}
+
+/**
+ * V10: drop redundant text/keyIdea blocks that restate the same topic-specific cue (first wins).
+ */
+function removeDuplicateConcepts(blocks, topicHint = "") {
+  if (!Array.isArray(blocks)) return blocks;
+
+  const conceptDefs = resolveV10DedupeConcepts(topicHint);
+  if (!conceptDefs.length) return blocks;
+
+  const seen = new Set();
+
+  return blocks.filter((b) => {
+    const bt = normalizeBlockType(b?.type);
+    if (bt !== "text" && bt !== "keyIdea") return true;
+
+    const text = String(b?.content || "").toLowerCase();
+    let hit = null;
+    for (const { id, test } of conceptDefs) {
+      if (test(text)) {
+        hit = id;
+        break;
+      }
+    }
+    if (!hit) return true;
+    if (seen.has(hit)) return false;
+    seen.add(hit);
+    return true;
+  });
+}
+
+function varyWhyStatements(text, i) {
+  if (text == null || typeof text !== "string") return text;
+  return text.replace(/this matters because/gi, V10_WHY_VARIATIONS[i % V10_WHY_VARIATIONS.length]);
+}
+
+/**
+ * V10: one topic-aware “aha” anchor (after hook + core rule). Skips duplicate title or near-duplicate opening lines.
+ */
+function insertAhaMoment(blocks, topicHint = "") {
+  if (!Array.isArray(blocks)) return blocks;
+  if (blocks.length < 2) return blocks;
+
+  if (blocks.some((b) => /the key idea/i.test(safeStr(b?.title, "")))) return blocks;
+
+  const row = resolveV10AhaRow(topicHint);
+  if (!row) return blocks;
+
+  let content =
+    typeof row.contentFn === "function"
+      ? row.contentFn(topicHint)
+      : String(row.content || "").trim();
+  if (!content) return blocks;
+
+  const firstLine = content.split("\n").map((l) => l.trim()).find(Boolean) || content;
+  const needle = firstLine.slice(0, 48).toLowerCase();
+  if (
+    needle.length > 12 &&
+    blocks.slice(0, 5).some((b) => String(b?.content || "").toLowerCase().includes(needle))
+  ) {
+    return blocks;
+  }
+
+  const aha = {
+    type: "keyIdea",
+    title: safeStr(row.title, "The key idea"),
+    content,
+    role: safeStr(row.role, "patternRecognition") || "patternRecognition",
+  };
+
+  blocks.splice(2, 0, aha);
+  return blocks;
+}
+
+/**
+ * V10 — simplicity + focus: trim key ideas, topic-aware dedupe, topic-aware aha insert, vary “this matters because”.
+ */
+function applyV10SimplicityAndFocus(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+
+    let blocks = page.blocks;
+    blocks = blocks.map((b) => enforceKeyIdeaLength(b));
+    blocks = removeDuplicateConcepts(blocks, topicHint);
+    blocks = insertAhaMoment(blocks, topicHint);
+    blocks = blocks.map((b, i) => {
+      if (b?.content != null && typeof b.content === "string") {
+        b.content = varyWhyStatements(b.content, i);
+      }
+      return b;
+    });
+    page.blocks = blocks;
+  }
+
+  return draft;
+}
+
 /**
  * V7.6: replace loose embryonic vs adult prose with a tight comparison scaffold when detected.
  */
@@ -3559,6 +3886,7 @@ function sanitizeDraft(draft, opts = {}) {
   addExamThinkingPrompts(clean);
 
   applyV9TeacherVoiceAndDepth(clean, topic);
+  applyV10SimplicityAndFocus(clean, topic);
 
   ensurePatternRecognitionBlock(clean, topic);
   ensureProperCommonMistakeBlock(clean, topic);
