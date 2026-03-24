@@ -113,10 +113,9 @@ function hasDiagram(pages) {
 }
 
 /**
- * JSON Schema for Structured Outputs
- * - Matches your Lesson.pages[] structure in backend/models/Lesson.js
- * - We keep pageId out of the AI output (server generates it on save)
- * - PR: Single-page default — exactly 1 page, subsection labels become blocks not pages
+ * JSON Schema for Structured Outputs (OpenAI response_format strict dialect).
+ * Every key in blocks.items.properties must appear in blocks.items.required.
+ * Optional semantics are handled via empty strings / [] and post-generation sanitization.
  */
 const LESSON_DRAFT_SCHEMA = {
   type: "object",
@@ -155,7 +154,6 @@ const LESSON_DRAFT_SCHEMA = {
             maxItems: 24,
             items: {
               type: "object",
-              required: ["type"],
               additionalProperties: false,
               properties: {
                 type: {
@@ -165,9 +163,9 @@ const LESSON_DRAFT_SCHEMA = {
                     "keyIdea",
                     "commonMistake",
                     "examTip",
-                    "stretch",
                     "checkpoint",
                     "diagram",
+                    "stretch",
                   ],
                 },
                 title: { type: "string" },
@@ -178,11 +176,26 @@ const LESSON_DRAFT_SCHEMA = {
                 answer: { type: "string" },
                 prompt: { type: "string" },
                 explanation: { type: "string" },
-                questionType: { type: "string", enum: ["mcq", "short"] },
+                questionType: { type: "string" },
                 options: { type: "array", items: { type: "string" } },
                 correctAnswer: { type: "string" },
                 visualId: { type: "string" },
               },
+              required: [
+                "type",
+                "title",
+                "content",
+                "role",
+                "caption",
+                "question",
+                "answer",
+                "prompt",
+                "explanation",
+                "questionType",
+                "options",
+                "correctAnswer",
+                "visualId",
+              ],
             },
           },
           checkpoint: {
@@ -214,6 +227,24 @@ const LESSON_DRAFT_SCHEMA = {
  * change for API compatibility (e.g. permissive response_format); keep scoring/validation intent
  * aligned when you touch enforcement.
  */
+const LESSON_BLOCK_FULL_KEYS_INSTRUCTION = `
+
+## JSON BLOCK SHAPE (MANDATORY — matches response_format schema)
+
+For every object in pages[0].blocks, include ALL standard fields on every block. Do not omit keys.
+
+Each block must always include exactly these keys:
+type, title, content, role, caption, question, answer, prompt, explanation, questionType, options, correctAnswer, visualId
+
+If a field does not apply to that block type:
+- use "" for string fields
+- use [] for options (use four strings for MCQ checkpoints when applicable)
+
+Do not omit keys. The API schema requires every listed property on every block.
+
+For non-checkpoint blocks, questionType may be "". For checkpoint blocks, use "mcq" or "short". visualId is usually "" unless you have a real id string.
+`;
+
 const LESSON_TEACHING_AND_STYLE_LOCKED = `
 
 ## TEACHING AND STYLE (MANDATORY)
@@ -478,7 +509,7 @@ You are generating a LetsRevise lesson. Follow this exact lesson structure:
 
 ## STRUCTURE CONTRACT (MANDATORY — KEEP ALL)
 
-Do NOT remove or skip the existing structure contract. The "Teaching and style" section below strengthens behaviour only; it does NOT replace structure.
+Do NOT remove or skip the existing structure contract. The sections below (JSON block shape, then teaching and style) add output shape and behaviour only; they do NOT replace structure.
 
 You must still deliver the full lesson skeleton:
 - Hook (opening text block)
@@ -492,7 +523,7 @@ You must still deliver the full lesson skeleton:
 - Final memory rule (keyIdea closing memory rule)
 
 Use block roles where the output allows: hook, coreRule, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
-` + LESSON_TEACHING_AND_STYLE_LOCKED;
+` + LESSON_BLOCK_FULL_KEYS_INSTRUCTION + LESSON_TEACHING_AND_STYLE_LOCKED;
 
   if (subTopicDisplay || topicKey) {
     const scopeLabel = subTopicDisplay || topic;
@@ -749,13 +780,14 @@ async function improveDraftWithSecondPass(
     "Improve using these actions:",
     qualitySuggestionsList.length ? qualitySuggestionsList.join("\n") : "(add missing blocks, improve explanations)",
     "",
-    "Also apply the full locked teaching and style rules below (same as first-pass generation).",
+    "Also apply the JSON block shape rules and full locked teaching and style below (same as first-pass generation).",
   ].join("\n");
 
   const userPromptParts = [
     `Topic: ${topic} | Subject: ${subject} | Level: ${level} | Board: ${board} | Tier: ${tier}`,
     "",
     rewritePrompt,
+    LESSON_BLOCK_FULL_KEYS_INSTRUCTION,
     LESSON_TEACHING_AND_STYLE_LOCKED,
   ];
   if (curriculumLines.length || structureLines.length) {
@@ -772,7 +804,7 @@ async function improveDraftWithSecondPass(
     JSON.stringify(draft, null, 0).slice(0, 60000),
     "```",
     "",
-    "Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. All blocks must have required fields."
+    "Return the IMPROVED draft as valid JSON only. Keep exactly 1 page. Every block must include every schema field (use \"\" or [] where unused), same as first-pass output."
   );
   const userPrompt = userPromptParts.join("\n");
 
@@ -874,20 +906,40 @@ function collapsePagesToSingle(pages) {
 
 /**
  * Normalize raw AI block shapes before type-specific sanitization.
- * Keeps response_format schema permissive; strict checks run in validateLessonStructure + validateBlockTypeRequirements.
+ * OpenAI response_format requires every property on every block; we fill gaps and coerce types here.
+ * Strict lesson rules run in validateLessonStructure + validateBlockTypeRequirements.
  */
 function normalizeLessonBlockForDraft(block) {
-  const raw = block && typeof block === "object" ? { ...block } : {};
-  const next = raw;
+  const next = block && typeof block === "object" ? { ...block } : {};
 
   if (!next.type) next.type = "text";
+
   if (next.title === undefined) next.title = "";
   if (next.content === undefined) next.content = "";
   if (next.role === undefined) next.role = "";
+  if (next.caption === undefined) next.caption = "";
+
+  if (next.question === undefined) next.question = "";
+  if (next.answer === undefined) next.answer = "";
+
+  if (next.prompt === undefined) next.prompt = "";
+  if (next.explanation === undefined) next.explanation = "";
+
+  if (next.questionType === undefined) next.questionType = "";
+  if (!Array.isArray(next.options)) next.options = [];
+
+  if (next.correctAnswer === undefined || next.correctAnswer === null) {
+    next.correctAnswer = "";
+  } else {
+    next.correctAnswer = String(next.correctAnswer);
+  }
+
+  if (next.visualId === undefined) next.visualId = "";
 
   if (next.type === "diagram") {
     if (!String(next.title || "").trim()) next.title = "Diagram";
     if (!String(next.content || "").trim()) next.content = "image here";
+    if (!String(next.caption || "").trim()) next.caption = next.content || "image here";
   }
 
   if (next.type === "keyIdea") {
@@ -900,10 +952,6 @@ function normalizeLessonBlockForDraft(block) {
   if (next.type === "checkpoint") {
     if (!next.question && next.prompt) next.question = next.prompt;
     if (!next.answer && next.explanation) next.answer = next.explanation;
-    if (next.question === undefined) next.question = "";
-    if (next.answer === undefined) next.answer = "";
-    if (!Array.isArray(next.options)) next.options = [];
-    if (next.correctAnswer === undefined) next.correctAnswer = "";
   }
 
   return next;
