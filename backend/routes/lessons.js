@@ -31,6 +31,7 @@ const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
 const { toLessonPreviewPayload, toLessonFullPayload } = require("../utils/lessonPayload");
+const { makeLessonDbSafe } = require("../utils/lessonDbSafe");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
@@ -657,7 +658,8 @@ async function createLessonHandler(req, res) {
     // ✅ FIXED: Use sanitisePagesInput for creation (no merge needed)
     const safePages = sanitisePagesInput(pages, false);
     if (safePages.length > 0) {
-      lessonData.pages = safePages.sort((a, b) => (a.order || 0) - (b.order || 0));
+      const sorted = safePages.sort((a, b) => (a.order || 0) - (b.order || 0));
+      lessonData.pages = makeLessonDbSafe({ pages: sorted }).pages;
     }
 
     // ✅ STEP 16: Manual + AI unification — same structure validation as AI generate-and-save
@@ -1668,7 +1670,9 @@ router.post("/:id/duplicate", auth, async (req, res) => {
       resources: Array.isArray(source.resources) ? source.resources : [],
       board: source.board || "",
       tier: source.tier || undefined,
-      pages: Array.isArray(source.pages) ? JSON.parse(JSON.stringify(source.pages)) : [],
+      pages: makeLessonDbSafe({
+        pages: Array.isArray(source.pages) ? JSON.parse(JSON.stringify(source.pages)) : [],
+      }).pages,
       quiz: source.quiz && typeof source.quiz === "object" ? JSON.parse(JSON.stringify(source.quiz)) : undefined,
       assessment: source.assessment && typeof source.assessment === "object" ? JSON.parse(JSON.stringify(source.assessment)) : undefined,
       flashcards: Array.isArray(source.flashcards) ? JSON.parse(JSON.stringify(source.flashcards)) : [],
@@ -1719,7 +1723,7 @@ router.put("/:id/pages", auth, async (req, res) => {
     // ✅ FIXED: Use mergePagesOnUpdate instead of sanitisePagesInput
     const mergedPages = mergePagesOnUpdate(lessonId, lesson.pages || [], pages);
 
-    lesson.pages = mergedPages;
+    lesson.pages = makeLessonDbSafe({ pages: mergedPages }).pages;
     
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
