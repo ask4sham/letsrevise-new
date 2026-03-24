@@ -591,24 +591,6 @@ function validateLessonStructure(draft) {
   const commonMistakes = blocks.filter((b) => safeStr(b?.type, "") === "commonMistake");
   const examTips = blocks.filter((b) => safeStr(b?.type, "") === "examTip");
 
-  if (examTips.length === 0) {
-    issues.push(
-      "V7: No examTip blocks — add at least one practical tip so the lesson signals how marks are earned."
-    );
-  }
-
-  const joinedForTransitions = blocks.map((b) => blockFlowText(b)).join(" ");
-  if (
-    blocks.length >= 8 &&
-    !/(to understand this clearly|building on this|this leads to an important exam pattern|a common mistake students make is:|in exams, remember:|putting this together:|\bhowever\b|\bthis leads\b)/i.test(
-      joinedForTransitions
-    )
-  ) {
-    issues.push(
-      "V7: Few guided transition phrases — the lesson may feel like separate notes; add clearer stepping between ideas."
-    );
-  }
-
   if (diagramCount >= 1 && !keyIdeas.some(looksLikeWhatToNotice)) {
     issues.push(
       'Missing a proper "What to Notice" keyIdea block (required when the lesson has diagrams).'
@@ -860,11 +842,48 @@ function shouldTriggerSecondPass(validation) {
   return false;
 }
 
+/**
+ * V7.5: non-blocking teaching-quality hints (do not use for save/publish gates).
+ * @returns {{ type: string, message: string, severity: string }[]}
+ */
+function collectV7TeachingAdvisoryNotes(draft) {
+  const notes = [];
+  const pages = Array.isArray(draft?.pages) ? draft.pages : [];
+  const blocks = pages.flatMap((p) => p?.blocks ?? []);
+  const examTips = blocks.filter((b) => safeStr(b?.type, "") === "examTip");
+
+  if (examTips.length === 0) {
+    notes.push({
+      type: "v7_warning",
+      message: "No examTip blocks — consider adding at least one practical tip for how marks are earned.",
+      severity: "low",
+    });
+  }
+
+  const joinedForTransitions = blocks.map((b) => blockFlowText(b)).join(" ");
+  if (
+    blocks.length >= 8 &&
+    !/(to understand this clearly:|building on this:|to understand this,|this means that|so in simple terms,|what this shows is that|this is important because|in exams, this matters because|this leads to an important pattern:|this leads to an important exam pattern:|a common mistake (students make )?is:|in exams, remember:|in exams,|putting this together:|\bhowever\b|\bthis leads\b)/i.test(
+      joinedForTransitions
+    )
+  ) {
+    notes.push({
+      type: "v7_warning",
+      message:
+        "Few guided transition phrases — the lesson may read like separate notes; consider clearer stepping between ideas.",
+      severity: "low",
+    });
+  }
+
+  return notes;
+}
+
 module.exports = {
   validateLessonDraftAgainstCurriculum,
   shouldTriggerSecondPass,
   extractDraftText,
   validateLessonStructure,
+  collectV7TeachingAdvisoryNotes,
   validateBlockTypeRequirements,
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,

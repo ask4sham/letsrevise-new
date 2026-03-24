@@ -37,6 +37,7 @@ const {
   validateLessonDraftAgainstCurriculum,
   validateLessonStructure,
   validateBlockTypeRequirements,
+  collectV7TeachingAdvisoryNotes,
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,
   examTipLooksSpecific,
@@ -2447,16 +2448,36 @@ function repairLessonStructureAfterCompression(draft, topicHint = "") {
 
 const V7_TRANSITION_ELIGIBLE_TYPES = new Set(["text", "keyIdea", "examTip", "commonMistake", "stretch"]);
 
+const V7_NATURAL_TRANSITIONS = [
+  "To understand this,",
+  "This means that",
+  "So in simple terms,",
+  "What this shows is that",
+  "This is important because",
+  "In exams, this matters because",
+];
+
+function getNaturalTransition(blockIndex, role, blockType) {
+  const r = safeStr(role, "");
+  const t = normalizeBlockType(blockType);
+  if (r === "patternRecognition") return "This leads to an important pattern:";
+  if (r === "commonMistake" || t === "commonMistake") return "A common mistake is:";
+  if (r === "examTip" || t === "examTip") return "In exams,";
+  if (r === "synthesis") return "Putting this together:";
+
+  return V7_NATURAL_TRANSITIONS[blockIndex % V7_NATURAL_TRANSITIONS.length];
+}
+
 function v7AlreadyHasTransitionPrefix(text) {
   const t = String(text || "").trim();
   if (/^(now|next|however|this leads)\b/i.test(t)) return true;
-  return /^(to understand this clearly:|building on this:|this leads to an important exam pattern:|a common mistake students make is:|in exams, remember:|putting this together:)/i.test(
+  return /^(to understand this clearly:|building on this:|to understand this,|this means that|so in simple terms,|what this shows is that|this is important because|in exams, this matters because|this leads to an important pattern:|this leads to an important exam pattern:|a common mistake (students make )?is:|a common mistake students make is:|in exams, remember:|in exams,|putting this together:)/i.test(
     t
   );
 }
 
 /**
- * V7: prepend short teaching transitions so adjacent blocks read as guided explanation.
+ * V7 / V7.5: prepend varied teaching transitions so blocks read as guided explanation.
  */
 function applyTeachingTransitions(draft) {
   if (!draft || typeof draft !== "object") return draft;
@@ -2481,24 +2502,8 @@ function applyTeachingTransitions(draft) {
 
       if (v7AlreadyHasTransitionPrefix(raw)) continue;
 
-      let prefix = "";
-      const role = safeStr(curr.role, "");
-
-      if (role === "patternRecognition") {
-        prefix = "This leads to an important exam pattern: ";
-      } else if (role === "commonMistake" || t === "commonMistake") {
-        prefix = "A common mistake students make is: ";
-      } else if (role === "examTip" || t === "examTip") {
-        prefix = "In exams, remember: ";
-      } else if (role === "synthesis") {
-        prefix = "Putting this together: ";
-      } else if (i < 4) {
-        prefix = "To understand this clearly: ";
-      } else {
-        prefix = "Building on this: ";
-      }
-
-      curr.content = prefix + String(curr.content || "");
+      const prefix = getNaturalTransition(i, curr.role, curr.type);
+      curr.content = `${prefix} ${String(curr.content || "")}`;
     }
   }
 
@@ -2506,23 +2511,62 @@ function applyTeachingTransitions(draft) {
 }
 
 /**
- * V7: rough markdown table → bullet-style lines (readable in block UI).
+ * V7.5: markdown pipe rows → readable “Key comparison” lines (em dash separated cells).
  */
 function convertTablesToReadableBlocks(draft) {
   if (!draft || typeof draft !== "object") return draft;
 
   for (const page of draft.pages || []) {
     for (const block of page.blocks || []) {
-      const c = block?.content;
-      if (c == null || typeof c !== "string") continue;
-      if (!c.includes("|") || !/---/.test(c)) continue;
+      if (block?.content == null || typeof block.content !== "string") continue;
+      if (!block.content.includes("|")) continue;
 
-      block.content = c
-        .replace(/\|/g, "•")
-        .replace(/---+/g, "")
-        .replace(/\n{3,}/g, "\n\n");
+      const pipeLines = block.content.split("\n").filter((line) => line.includes("|"));
+      if (pipeLines.length === 0) continue;
+
+      const body = pipeLines
+        .map((line) =>
+          line
+            .split("|")
+            .map((x) => x.trim())
+            .filter(Boolean)
+            .join(" — ")
+        )
+        .filter(Boolean)
+        .join("\n");
+
+      if (!body) continue;
+
+      block.content = `Key comparison:\n${body}`;
     }
   }
+  return draft;
+}
+
+/**
+ * V7.5: short keyIdea blocks get a concise “why it matters” line (exam link).
+ */
+function addWhyThisMatters(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const boost =
+    "\nThis is important because it often appears in exam questions.";
+
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block.type) !== "keyIdea") continue;
+      if (/what to notice/i.test(String(block.title || ""))) continue;
+      if (safeStr(block.role, "") === "whatToNotice") continue;
+      if (safeStr(block.role, "") === "finalMemoryRule") continue;
+
+      const c = String(block.content || "");
+      if (c.length >= 180) continue;
+      if (c.includes("often appears in exam questions")) continue;
+
+      block.content = c + boost;
+    }
+  }
+
   return draft;
 }
 
@@ -2846,6 +2890,7 @@ function sanitizeDraft(draft, opts = {}) {
   ensureSpecificExamTipBlock(clean, topic);
 
   applyV7TeachingPresentationLayer(clean, topic);
+  addWhyThisMatters(clean);
 
   if (process.env.NODE_ENV !== "production") {
     for (const page of clean.pages || []) {
@@ -3116,6 +3161,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
       payload.coverageScore = coverageScore;
       payload.missingPoints = missingPoints;
     }
+    const v7AdvisoryGen = collectV7TeachingAdvisoryNotes(sanitized);
+    if (v7AdvisoryGen.length) payload.teachingAdvisory = v7AdvisoryGen;
     return res.json(payload);
   } catch (error) {
     console.error("❌ AI Route Error:", error?.message || error);
@@ -3559,6 +3606,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
     if (!driftCheck.valid && driftCheck.warnings?.length > 0) {
       responsePayload.warning = (responsePayload.warning ? responsePayload.warning + " " : "") + driftCheck.warnings[0];
     }
+    const v7AdvisorySave = collectV7TeachingAdvisoryNotes(finalDraftForQuality);
+    if (v7AdvisorySave.length) responsePayload.teachingAdvisory = v7AdvisorySave;
     return res.json(responsePayload);
   } catch (error) {
     if (process.env.NODE_ENV !== "production" && error?.stack) {
