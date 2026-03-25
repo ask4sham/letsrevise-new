@@ -36,6 +36,7 @@ const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
 const {
   validateLessonDraftAgainstCurriculum,
   validateLessonStructure,
+  mergeStructureValidationForScoring,
   validateBlockTypeRequirements,
   collectV7TeachingAdvisoryNotes,
   isRealExamStyleQuestion,
@@ -256,6 +257,8 @@ For non-checkpoint blocks, questionType may be "". For checkpoint blocks, use "m
 const LESSON_TEACHING_AND_STYLE_LOCKED = `
 
 ## TEACHING AND STYLE (MANDATORY)
+
+User-provided additional instructions override stylistic defaults where applicable.
 
 ## EXECUTION PERSONA — CONVERSATIONAL TUTOR (CHATGPT-LIKE, MANDATORY)
 
@@ -1086,14 +1089,32 @@ function injectPromptVars(template, vars) {
   return out.trim();
 }
 
-function buildSystemPrompt(subject, level) {
+/** Highest-priority teacher free-text; injected into system + user prompt (first pass + second pass). */
+function buildAdditionalInstructionsStrong(additionalInstructions) {
+  const raw =
+    additionalInstructions && typeof additionalInstructions === "string"
+      ? additionalInstructions.trim()
+      : "";
+  if (!raw) return "";
+  return `## USER REQUIREMENTS (HIGHEST PRIORITY)
+The following requirements MUST be followed exactly:
+
+${raw}
+
+If any conflict occurs between these instructions and other rules,
+PRIORITISE THESE USER REQUIREMENTS.`;
+}
+
+function buildSystemPrompt(subject, level, additionalInstructions = "") {
+  const userReq = buildAdditionalInstructionsStrong(additionalInstructions);
   // Keep system prompt compact; behaviour detail lives in LESSON_TEACHING_AND_STYLE_LOCKED + MD template.
-  return [
+  const base = [
     `You are an expert UK curriculum tutor teaching one student step-by-step — like a leading conversational tutor: clear, patient, encouraging, never patronising.`,
     `Think before each step: what would confuse a ${normalizeLevel(level)} ${safeStr(subject)} student here? Address it in the next block. Block text should read like live chat teaching, not a syllabus handout.`,
     `Be exam-accurate and British English. JSON is only the wire format — titles and content strings carry natural tutor voice.`,
     `Return ONLY valid JSON matching the schema. No text before or after the JSON.`,
   ].join(" ");
+  return userReq ? `${base}\n\n${userReq}` : base;
 }
 
 function buildUserPromptFromMd({
@@ -1122,6 +1143,14 @@ function buildUserPromptFromMd({
     board: board === undefined || board === null ? "" : String(board),
     tier: tierFinal,
   });
+
+  const ADDITIONAL_INSTRUCTIONS_STRONG = buildAdditionalInstructionsStrong(additionalInstructions);
+  if (ADDITIONAL_INSTRUCTIONS_STRONG) {
+    out += `
+
+${ADDITIONAL_INSTRUCTIONS_STRONG}
+`;
+  }
 
   // LETSREVISE LESSON CONTRACT v1.0 — locked instruction
   out += `
@@ -1218,12 +1247,6 @@ Use block roles where the output allows: hook, coreRule, commonMistake, patternR
   if (strictSpec === true) {
     out += "\n\n## CRITICAL: Strictly follow specification\n";
     out += "The teacher has requested STRICT spec alignment. Do NOT add any content beyond the specification points. No extra topics, no out-of-spec detail. Stay strictly within the curriculum scope.\n";
-  }
-  if (additionalInstructions && typeof additionalInstructions === "string" && additionalInstructions.trim()) {
-    out += "\n\n## Teacher instructions (refine the lesson; do not override curriculum safety)\n";
-    out += "The teacher has requested the following. Use these to refine scope, style, depth, or emphasis. Stay within the selected subject/board/topic/spec.\n\n";
-    out += additionalInstructions.trim();
-    out += "\n";
   }
   out += buildBoardPromptFragment(board);
   return out;
@@ -1446,12 +1469,16 @@ async function improveDraftWithSecondPass(
   const curriculumLines = Array.isArray(curriculumIssues) ? curriculumIssues : [];
   const structureLines = Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : [];
 
+  const ADDITIONAL_INSTRUCTIONS_STRONG = buildAdditionalInstructionsStrong(additionalInstructions);
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing LetsRevise lesson draft.",
     "Target: conversational tutor in chat — step-by-step understanding and exam success (ChatGPT-like flow), NOT structured notes or document outlines.",
     "Each block should read like the next message in a patient tutorial: connect to the previous idea, anticipate confusion, then advance.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
-  ].join(" ");
+    ADDITIONAL_INSTRUCTIONS_STRONG,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const rewritePrompt = [
     "Rewrite this lesson so it reaches publish-ready quality for LetsRevise (V2: ChatGPT-like guided teaching).",
@@ -1489,12 +1516,12 @@ async function improveDraftWithSecondPass(
     "## REASONING CHAIN + COMPRESSION (V6)",
     ...buildTopicAwareReasoningChainHints(safeStr(topic, "")).map((h) => `- ${h}`),
   ];
+  if (ADDITIONAL_INSTRUCTIONS_STRONG) {
+    userPromptParts.unshift("", ADDITIONAL_INSTRUCTIONS_STRONG);
+  }
   if (curriculumLines.length || structureLines.length) {
     userPromptParts.push("", "ADDITIONAL VALIDATION FEEDBACK (fix these too):");
     userPromptParts.push(...curriculumLines, ...structureLines);
-  }
-  if (additionalInstructions && typeof additionalInstructions === "string" && additionalInstructions.trim()) {
-    userPromptParts.push("", "TEACHER INSTRUCTIONS (honour these when improving):", additionalInstructions.trim());
   }
   userPromptParts.push(
     "",
@@ -3724,6 +3751,214 @@ function applyV10SimplicityAndFocus(draft, topicHint = "") {
   return draft;
 }
 
+/** V10.5: roles/types never removed by hard concept dedupe (pick-best / prune). */
+function isV105HardDedupeProtected(block) {
+  if (!block || typeof block !== "object") return true;
+  const r = safeStr(block.role, "");
+  if (
+    [
+      "workedExample",
+      "finalMemoryRule",
+      "commonMistake",
+      "examTip",
+      "patternRecognition",
+      "synthesis",
+      "hook",
+      "coreRule",
+      "whatToNotice",
+    ].includes(r)
+  ) {
+    return true;
+  }
+  const t = normalizeBlockType(block.type);
+  if (["examTip", "commonMistake", "checkpoint", "diagram", "pageQuiz"].includes(t)) return true;
+  return false;
+}
+
+/**
+ * V10.5 — core concept tag for stem-cell (and similar) teaching text; null = skip dedupe.
+ */
+function detectConcept(text = "", topic = "") {
+  const t = String(text || "").toLowerCase();
+  const topicLower = String(topic || "").toLowerCase();
+
+  if (!topicLower.includes("stem cell")) return null;
+
+  if (t.includes("differentiat")) return "differentiation";
+  if (t.includes("embryonic") && t.includes("adult")) return "comparison";
+  if (t.includes("unspecialised") || t.includes("unspecialized")) return "definition";
+  if (t.includes("leukaemia") || t.includes("leukemia") || t.includes("bone marrow")) return "application";
+  if (t.includes("ethic") || /\bembryos?\b/.test(t)) return "ethics";
+
+  return null;
+}
+
+function scoreBlockQuality(block) {
+  const text = String(block?.content || "").toLowerCase();
+
+  let score = 0;
+
+  if (/because/.test(text)) score += 2;
+  if (/for example|such as/.test(text)) score += 2;
+  if (/in exams/.test(text)) score += 2;
+  if (text.length > 120) score += 1;
+
+  return score;
+}
+
+/**
+ * V10.5 — among blocks with the same detectConcept, keep the single highest-scoring block; preserve order.
+ */
+function keepBestPerConcept(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks || [];
+    const winnerIndexByConcept = new Map();
+
+    blocks.forEach((block, index) => {
+      if (isV105HardDedupeProtected(block)) return;
+      if (!block?.content) return;
+      const concept = detectConcept(block.content, topic);
+      if (!concept) return;
+      const score = scoreBlockQuality(block);
+      const prevIdx = winnerIndexByConcept.get(concept);
+      if (prevIdx === undefined) {
+        winnerIndexByConcept.set(concept, index);
+        return;
+      }
+      const prevScore = scoreBlockQuality(blocks[prevIdx]);
+      if (score > prevScore) {
+        winnerIndexByConcept.set(concept, index);
+      }
+    });
+
+    page.blocks = blocks.filter((block, index) => {
+      if (isV105HardDedupeProtected(block)) return true;
+      if (!block?.content) return true;
+      const concept = detectConcept(block.content, topic);
+      if (!concept) return true;
+      return winnerIndexByConcept.get(concept) === index;
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * V10.5 — first occurrence wins per concept after keep-best (safety net); protected roles/types kept.
+ */
+function hardPruneDuplicateConcepts(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topic = String(topicHint || "").toLowerCase();
+
+  for (const page of draft.pages || []) {
+    const seen = new Set();
+
+    page.blocks = (page.blocks || []).filter((block) => {
+      if (isV105HardDedupeProtected(block)) return true;
+      if (!block?.content) return true;
+
+      const concept = detectConcept(block.content, topic);
+
+      if (!concept) return true;
+
+      if (seen.has(concept)) {
+        return false;
+      }
+
+      seen.add(concept);
+      return true;
+    });
+  }
+
+  return draft;
+}
+
+/**
+ * Teaching-intent bucket from title + body (and checkpoint fields), for stem-cell lessons.
+ * Broader than keyword-only V10.5 buckets so differently worded blocks still collide.
+ */
+function detectTeachingIntent(block, topicHint = "") {
+  const topicLower = String(topicHint || "").toLowerCase();
+  if (!topicLower.includes("stem cell")) return null;
+
+  const text = `${block?.title || ""} ${block?.content || ""} ${block?.prompt || ""} ${block?.question || ""}`.toLowerCase();
+
+  if (/unspecialised|unspecialized|differentiat|self-renew/.test(text)) return "definition";
+  if (/embryonic|adult|pluripotent|multipotent|key difference|compare/.test(text)) return "comparison";
+  if (/leukaemia|leukemia|bone marrow|medicine|treatment|regenerative/.test(text)) return "application";
+  if (/ethic|moral|controvers/.test(text) || /\bembryos?\b/.test(text)) return "ethics";
+  if (safeStr(block?.role, "") === "finalMemoryRule") return "takeaway";
+
+  return null;
+}
+
+const TEACHING_INTENT_DEDUPE_PROTECTED_ROLES = new Set([
+  "hook",
+  "coreRule",
+  "commonMistake",
+  "patternRecognition",
+  "workedExample",
+  "synthesis",
+  "finalMemoryRule",
+  "whatToNotice",
+  "examTip",
+]);
+
+function isTeachingIntentDedupeProtected(block) {
+  if (!block || typeof block !== "object") return true;
+  const r = safeStr(block.role, "");
+  if (TEACHING_INTENT_DEDUPE_PROTECTED_ROLES.has(r)) return true;
+  const t = normalizeBlockType(block.type);
+  if (["examTip", "commonMistake", "checkpoint", "diagram", "pageQuiz"].includes(t)) return true;
+  return false;
+}
+
+/**
+ * Stem-cell lessons: at most one surviving block per teaching intent (best scoreBlockQuality wins).
+ * Preserves original order; does not merge blocks.
+ */
+function dedupeByTeachingIntent(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const topicLower = String(topicHint || "").toLowerCase();
+  if (!topicLower.includes("stem cell")) return draft;
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks || [];
+    const winnerIndexByIntent = new Map();
+
+    blocks.forEach((block, index) => {
+      if (isTeachingIntentDedupeProtected(block)) return;
+      const intent = detectTeachingIntent(block, topicHint);
+      if (!intent) return;
+      const score = scoreBlockQuality(block);
+      const prevIdx = winnerIndexByIntent.get(intent);
+      if (prevIdx === undefined) {
+        winnerIndexByIntent.set(intent, index);
+        return;
+      }
+      const prevScore = scoreBlockQuality(blocks[prevIdx]);
+      if (score > prevScore) {
+        winnerIndexByIntent.set(intent, index);
+      }
+    });
+
+    page.blocks = blocks.filter((block, index) => {
+      if (isTeachingIntentDedupeProtected(block)) return true;
+      const intent = detectTeachingIntent(block, topicHint);
+      if (!intent) return true;
+      return winnerIndexByIntent.get(intent) === index;
+    });
+  }
+
+  return draft;
+}
+
 function v11HookQuestionLine(topicHint = "") {
   const t = String(topicHint || "").toLowerCase();
   if (t.includes("stem cell")) {
@@ -4331,6 +4566,8 @@ function sanitizeDraft(draft, opts = {}) {
 
   applyV9TeacherVoiceAndDepth(clean, topic);
   applyV10SimplicityAndFocus(clean, topic);
+  keepBestPerConcept(clean, topic);
+  hardPruneDuplicateConcepts(clean, topic);
   applyV11TeacherDialogueAndQuestioning(clean, topic);
 
   ensureWhatToNoticeBlocks(clean, topic);
@@ -4414,6 +4651,11 @@ function sanitizeDraft(draft, opts = {}) {
     }
   }
 
+  dedupeByTeachingIntent(clean, topic);
+
+  // Required by validateLessonStructure; V10.5 / dedupe may drop a keyIdea that held this role earlier.
+  ensureSynthesisRole(clean, topic);
+
   return clean;
 }
 
@@ -4470,7 +4712,7 @@ async function generateSanitizedDraft({
   retainTeachingIntentMetadata = false,
   teachingIntentTagOnly = false,
 }) {
-  const systemPrompt = buildSystemPrompt(subject, level);
+  const systemPrompt = buildSystemPrompt(subject, level, additionalInstructions);
   const userPrompt = buildUserPromptFromMd({
     topic,
     subject,
@@ -4799,9 +5041,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
       topic,
     });
     const curriculumIssues = buildCurriculumFeedbackLines(generationValidation);
-    const structureIssuesBase = validateLessonStructure(sanitized);
+    const structureValidation = validateLessonStructure(sanitized, { isManual: false });
     const typeIssues = validateBlockTypeRequirements(sanitized);
-    const structureIssues = [...structureIssuesBase, ...typeIssues];
+    const structureIssues = [...mergeStructureValidationForScoring(structureValidation), ...typeIssues];
 
     // ✅ 2c) Score quality and decide whether to trigger second pass
     const qualityResult = scoreLessonQuality(sanitized, {
@@ -4847,8 +5089,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
           requireExamQuestions: true,
           topic,
         });
+        const finalStruct = validateLessonStructure(finalDraft, { isManual: false });
         finalStructureIssues = [
-          ...validateLessonStructure(finalDraft),
+          ...mergeStructureValidationForScoring(finalStruct),
           ...validateBlockTypeRequirements(finalDraft),
         ];
         const finalCurriculumIssues = buildCurriculumFeedbackLines(finalCurriculumValidation);
@@ -5203,7 +5446,7 @@ router.post("/improve-lesson", auth, async (req, res) => {
     generationValidation = {
       ...generationValidation,
       structureIssues: [
-        ...validateLessonStructure(draft),
+        ...mergeStructureValidationForScoring(validateLessonStructure(draft, { isManual: false })),
         ...validateBlockTypeRequirements(draft),
       ],
     };
@@ -5233,8 +5476,9 @@ router.post("/improve-lesson", auth, async (req, res) => {
       console.warn("[improve-lesson] Second-pass failed, using original:", e?.message || e);
     }
 
+    const improveStruct = validateLessonStructure(sanitized, { isManual: false });
     const improveStructureIssues = [
-      ...validateLessonStructure(sanitized),
+      ...improveStruct.blocking,
       ...validateBlockTypeRequirements(sanitized),
     ];
     if (improveStructureIssues.length > 0) {

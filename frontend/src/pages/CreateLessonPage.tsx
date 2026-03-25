@@ -16,6 +16,11 @@ import {
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
+import {
+  collapseExactDuplicatePaste,
+  guardLessonBlockPatchForDuplicatePaste,
+  transformLessonPastedPlainText,
+} from "../utils/lessonEditorPaste";
 
 type HeroType = "none" | "image" | "video" | "animation";
 
@@ -117,11 +122,17 @@ const space = 12;
 const ui = {
   page: {
     minHeight: "100vh",
-    padding: "6px 10px 14px",
+    padding: "6px 16px 14px",
     background:
       "linear-gradient(165deg, #f8fafc 0%, #f1f5f9 40%, #ede9fe 100%), radial-gradient(800px 600px at 10% 10%, rgba(99,102,241,0.08) 0%, transparent 50%), radial-gradient(600px 500px at 90% 20%, rgba(34,197,94,0.06) 0%, transparent 45%), radial-gradient(500px 400px at 70% 80%, rgba(236,72,153,0.05) 0%, transparent 45%)",
   },
-  shell: { maxWidth: 1200, margin: "0 auto" },
+  /** Full-width up to large desktops; was 1200px and felt cramped with preview. */
+  shell: {
+    width: "100%",
+    maxWidth: 1800,
+    margin: "0 auto",
+    boxSizing: "border-box" as const,
+  },
   card: {
     borderRadius: radius,
     background: "rgba(255,255,255,0.88)",
@@ -613,12 +624,13 @@ const CreateLessonPage: React.FC = () => {
     blockIndex: number,
     patch: Partial<LessonPageBlock>
   ) => {
+    const guarded = guardLessonBlockPatchForDuplicatePaste(patch as Record<string, unknown>);
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
         const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
         if (blockIndex < 0 || blockIndex >= blocks.length) return p;
-        blocks[blockIndex] = { ...blocks[blockIndex], ...patch };
+        blocks[blockIndex] = { ...blocks[blockIndex], ...guarded };
         return { ...p, blocks };
       })
     );
@@ -646,6 +658,7 @@ const CreateLessonPage: React.FC = () => {
     optIndex: number,
     value: string
   ) => {
+    const collapsed = collapseExactDuplicatePaste(value);
     setPages((prev) =>
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
@@ -656,7 +669,7 @@ const CreateLessonPage: React.FC = () => {
         };
         const options = Array.isArray(cp.options) ? [...cp.options] : [];
         while (options.length < 4) options.push("");
-        options[optIndex] = value;
+        options[optIndex] = collapsed;
         return { ...p, checkpoint: { ...cp, options } };
       })
     );
@@ -969,8 +982,8 @@ const CreateLessonPage: React.FC = () => {
             className="create-lesson-editor-grid"
             style={{
               display: "grid",
-              gridTemplateColumns: "200px minmax(0, 1fr) 260px",
-              gap: space,
+              gridTemplateColumns: "minmax(180px, 220px) minmax(0, 1fr) minmax(300px, 520px)",
+              gap: 14,
               alignItems: "start",
             }}
           >
@@ -1504,67 +1517,27 @@ const CreateLessonPage: React.FC = () => {
                               value={safeStr(b.content, "")}
                               onChange={(e) => updateBlock(pg.pageId, idx, { content: e.target.value })}
                               onPaste={(e) => {
-                                // Auto-format pasted bullets into proper markdown list items
                                 const pasted = e.clipboardData?.getData("text/plain") ?? "";
                                 if (!pasted) return;
 
-                                const looksLikeBullets =
-                                  /(^|\n)\s*(•|·|–|—|-|\*)\s+/.test(pasted) || pasted.includes("•");
+                                const { text, needsCustomInsert } =
+                                  transformLessonPastedPlainText(pasted);
+                                // Let the browser paste once; onChange updates state. Custom insert only when we transform.
+                                if (!needsCustomInsert) return;
 
-                                let text = pasted;
-                                
-                                if (looksLikeBullets) {
-                                  e.preventDefault();
-
-                                  // 1) Turn "• a • b • c" into lines if needed
-                                  text = pasted.replace(/\s*•\s*/g, "\n• ").trim();
-
-                                  // 2) Convert bullet markers to "- " (with space)
-                                  text = text
-                                    .split("\n")
-                                    .map((line) =>
-                                      line.replace(/^[•·–—*-]\s*/gm, "- ")
-                                    )
-                                    .join("\n");
-
-                                  // 3) Clean double dashes and ensure proper spacing
-                                  text = text.replace(/^-\s*(?=\S)/gm, "- ");
-                                }
-                                
-                                // 4) Auto-convert plain headings followed by bullets into markdown headings
-                                const lines = text.split("\n");
-                                
-                                for (let i = 0; i < lines.length - 1; i++) {
-                                  const current = lines[i].trim();
-                                  const next = lines[i + 1].trim();
-                                
-                                  const looksLikeHeading =
-                                    current.length > 0 &&
-                                    current.length < 60 &&
-                                    !current.startsWith("-") &&
-                                    !current.startsWith("*") &&
-                                    !current.endsWith(".") &&
-                                    /^- /.test(next);
-                                
-                                  if (looksLikeHeading) {
-                                    lines[i] = `### ${current}`;
-                                  }
-                                }
-                                
-                                text = lines.join("\n");
+                                e.preventDefault();
 
                                 const el = e.currentTarget;
                                 const start = el.selectionStart ?? el.value.length;
                                 const end = el.selectionEnd ?? el.value.length;
-
                                 const before = el.value.slice(0, start);
                                 const after = el.value.slice(end);
-
-                                const nextValue = before + text + after;
+                                const nextValue = collapseExactDuplicatePaste(
+                                  before + text + after
+                                );
 
                                 updateBlock(pg.pageId, idx, { content: nextValue });
 
-                                // Optional: restore cursor after paste (next tick)
                                 setTimeout(() => {
                                   try {
                                     el.focus();
@@ -1693,8 +1666,8 @@ const CreateLessonPage: React.FC = () => {
                                 {BLOCK_META[b.type].icon} {BLOCK_META[b.type].label}
                               </div>
                             )}
-                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                              {safeStr(b.content, "").slice(0, 80)}{safeStr(b.content, "").length > 80 ? "…" : ""}
+                            <div style={{ fontSize: "0.75rem", color: "#64748b", wordBreak: "break-word" }}>
+                              {safeStr(b.content, "").slice(0, 140)}{safeStr(b.content, "").length > 140 ? "…" : ""}
                             </div>
                           </div>
                         ))}

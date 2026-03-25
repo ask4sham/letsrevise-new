@@ -43,7 +43,10 @@ const { validateAndNormalizeRevision } = require("../services/validateRevision")
 const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { pickLessonFlags } = require("../utils/lessonValidation");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
-const { validateLessonStructure } = require("../services/lessonDraftValidation");
+const {
+  validateLessonStructure,
+  mergeStructureValidationForScoring,
+} = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 
 console.log("✅ lessons router file loaded");
@@ -662,13 +665,14 @@ async function createLessonHandler(req, res) {
       lessonData.pages = makeLessonDbSafe({ pages: sorted }).pages;
     }
 
-    // ✅ STEP 16: Manual + AI unification — same structure validation as AI generate-and-save
-    const structureIssues = validateLessonStructure({ pages: lessonData.pages });
-    if (structureIssues.length > 0) {
+    // Manual create: strict contract → warnings only (draft may use placeholders). AI paths use isManual: false.
+    const structureValidation = validateLessonStructure({ pages: lessonData.pages }, { isManual: true });
+    if (structureValidation.blocking.length > 0) {
       return res.status(400).json({
         msg: "Lesson failed structure validation",
-        structureIssues,
-        missing: { structure: structureIssues },
+        structureIssues: structureValidation.blocking,
+        structureWarnings: structureValidation.warnings,
+        missing: { structure: structureValidation.blocking },
       });
     }
 
@@ -790,6 +794,9 @@ async function createLessonHandler(req, res) {
       lesson,
       updatedShamCoins,
     };
+    if (structureValidation.warnings.length > 0) {
+      resPayload.structureWarnings = structureValidation.warnings;
+    }
     if (shouldAutoGen) {
       resPayload.autoGenerateResult = autoGenResult;
     }
@@ -1787,13 +1794,15 @@ async function publishToggleHandler(req, res, mode) {
         return res.status(400).json({ error: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
       }
 
-      const structureIssues = validateLessonStructure(lessonObj);
+      const structureValidation = validateLessonStructure(lessonObj, { isManual: false });
+      const structureIssues = mergeStructureValidationForScoring(structureValidation);
       const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
 
-      if (structureIssues.length > 0) {
+      if (structureValidation.blocking.length > 0) {
         return res.status(400).json({
           error: "Lesson failed structure validation",
-          structureIssues,
+          structureIssues: structureValidation.blocking,
+          structureWarnings: structureValidation.warnings,
         });
       }
 
@@ -2668,7 +2677,8 @@ router.put("/:id", auth, async (req, res) => {
 
     // ✅ Step 16: Populate quality metadata on save (admin QA, filtering, tracking)
     const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc };
-    const structureIssues = validateLessonStructure(lessonObj);
+    const structureValidation = validateLessonStructure(lessonObj, { isManual: true });
+    const structureIssues = mergeStructureValidationForScoring(structureValidation);
     const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
     lesson.qualityScore = qualityResult.score;
     lesson.qualityBand = qualityResult.band;
@@ -2678,9 +2688,11 @@ router.put("/:id", auth, async (req, res) => {
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
     
-    return res.json({ 
-      msg: "Lesson updated successfully", 
+    return res.json({
+      msg: "Lesson updated successfully",
       lesson: updatedLesson,
+      structureWarnings:
+        structureValidation.warnings.length > 0 ? structureValidation.warnings : undefined,
       qualityResult: {
         score: qualityResult.score,
         band: qualityResult.band,

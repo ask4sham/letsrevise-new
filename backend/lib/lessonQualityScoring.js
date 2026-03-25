@@ -10,6 +10,7 @@
 
 const {
   validateLessonStructure,
+  mergeStructureValidationForScoring,
   keyIdeaLooksSpecific,
   examTipLooksSpecific,
   blockMentionsComparison,
@@ -39,7 +40,13 @@ function getLessonQualityBand(score) {
 function scoreLessonQuality(lesson, context = {}) {
   const blocks = getBlocks(lesson);
   const curriculumIssues = context.curriculumIssues || [];
-  const structureIssues = context.structureIssues ?? validateLessonStructure(lesson);
+  const structureIssues =
+    context.structureIssues ??
+    mergeStructureValidationForScoring(
+      validateLessonStructure(lesson, {
+        isManual: context.source === "manual",
+      })
+    );
 
   const issues = [];
   const suggestions = [];

@@ -33,6 +33,11 @@ import {
 import Toast from "../components/Toast";
 import { listReports, updateReportStatus, REPORT_PRIORITY, type LessonIssueReport } from "../api/lessonIssues";
 import { fetchLessonGraph, fetchTopicCoverage, rebuildLessonGraph } from "../api/contentGraph";
+import {
+  collapseExactDuplicatePaste,
+  guardLessonBlockPatchForDuplicatePaste,
+  transformLessonPastedPlainText,
+} from "../utils/lessonEditorPaste";
 
 interface LessonPageBlock {
   type: LessonBlockType;
@@ -1072,6 +1077,7 @@ const EditLessonPage: React.FC = () => {
     blockIndex: number,
     patch: Partial<LessonPageBlock>
   ) => {
+    const guarded = guardLessonBlockPatchForDuplicatePaste(patch as Record<string, unknown>);
     setLesson((prev) => {
       if (!prev) return prev;
       const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
@@ -1081,7 +1087,7 @@ const EditLessonPage: React.FC = () => {
         ? [...(pages[pIdx].blocks as any[])]
         : [];
       if (blockIndex < 0 || blockIndex >= blocks.length) return prev;
-      blocks[blockIndex] = { ...blocks[blockIndex], ...patch };
+      blocks[blockIndex] = { ...blocks[blockIndex], ...guarded };
       pages[pIdx] = { ...pages[pIdx], blocks };
       return { ...prev, pages };
     });
@@ -4527,52 +4533,20 @@ const EditLessonPage: React.FC = () => {
                               const pasted = e.clipboardData?.getData("text/plain") ?? "";
                               if (!pasted) return;
 
-                              const looksLikeBullets =
-                                /(^|\n)\s*(•|·|–|—|-|\*)\s+/.test(pasted) || pasted.includes("•");
+                              const { text, needsCustomInsert } =
+                                transformLessonPastedPlainText(pasted);
+                              if (!needsCustomInsert) return;
 
-                              let text = pasted;
-                              
-                              if (looksLikeBullets) {
-                                e.preventDefault();
-                                text = pasted.replace(/\s*•\s*/g, "\n• ").trim();
-                                text = text
-                                  .split("\n")
-                                  .map((line) =>
-                                    line.replace(/^[•·–—*-]\s*/gm, "- ")
-                                  )
-                                  .join("\n");
-                                text = text.replace(/^-\s*(?=\S)/gm, "- ");
-                              }
-                              
-                              const lines = text.split("\n");
-                              
-                              for (let i = 0; i < lines.length - 1; i++) {
-                                const current = lines[i].trim();
-                                const next = lines[i + 1].trim();
-                              
-                                const looksLikeHeading =
-                                  current.length > 0 &&
-                                  current.length < 60 &&
-                                  !current.startsWith("-") &&
-                                  !current.startsWith("*") &&
-                                  !current.endsWith(".") &&
-                                  /^- /.test(next);
-                              
-                                if (looksLikeHeading) {
-                                  lines[i] = `### ${current}`;
-                                }
-                              }
-                              
-                              text = lines.join("\n");
+                              e.preventDefault();
 
                               const el = e.currentTarget;
                               const start = el.selectionStart ?? el.value.length;
                               const end = el.selectionEnd ?? el.value.length;
-
                               const before = el.value.slice(0, start);
                               const after = el.value.slice(end);
-
-                              const nextValue = before + text + after;
+                              const nextValue = collapseExactDuplicatePaste(
+                                before + text + after
+                              );
 
                               updateBlock(currentPage!.pageId, idx, { content: nextValue });
 

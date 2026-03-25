@@ -1070,7 +1070,10 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
     }
 
     if (updates.isPublished === true || updates.status === "published") {
-      const { validateLessonStructure } = require("../services/lessonDraftValidation");
+      const {
+        validateLessonStructure,
+        mergeStructureValidationForScoring,
+      } = require("../services/lessonDraftValidation");
       const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
       const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
       const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
@@ -1078,12 +1081,14 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
       if (!gate.ok) {
         return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
       }
-      const structureIssues = validateLessonStructure(lessonObj);
-      if (structureIssues.length > 0) {
+      const structureValidation = validateLessonStructure(lessonObj, { isManual: false });
+      const structureIssues = mergeStructureValidationForScoring(structureValidation);
+      if (structureValidation.blocking.length > 0) {
         return res.status(400).json({
           success: false,
           error: "Lesson failed structure validation",
-          structureIssues,
+          structureIssues: structureValidation.blocking,
+          structureWarnings: structureValidation.warnings,
         });
       }
       const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
@@ -1112,9 +1117,14 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
     Object.assign(lesson, updates);
 
     // Step 16: Populate quality metadata on save
-    const { validateLessonStructure: validateStructure } = require("../services/lessonDraftValidation");
+    const {
+      validateLessonStructure: validateStructure,
+      mergeStructureValidationForScoring: mergeStructureForQuality,
+    } = require("../services/lessonDraftValidation");
     const lessonObjForQuality = lesson.toObject ? lesson.toObject() : { ...lesson._doc };
-    const structureIssuesForQuality = validateStructure(lessonObjForQuality);
+    const structureIssuesForQuality = mergeStructureForQuality(
+      validateStructure(lessonObjForQuality, { isManual: true })
+    );
     const qualityResultForSave = require("../lib/lessonQualityScoring").scoreLessonQuality(
       lessonObjForQuality,
       { structureIssues: structureIssuesForQuality, source: "manual" }

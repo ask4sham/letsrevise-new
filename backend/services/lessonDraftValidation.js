@@ -641,19 +641,40 @@ function validateLessonDraftAgainstCurriculum(draft, opts = {}) {
 }
 
 /**
+ * Flatten structure validation for scoring / second-pass feedback (blocking + warnings).
+ * @param {{ blocking?: string[], warnings?: string[] }|string[]} result
+ * @returns {string[]}
+ */
+function mergeStructureValidationForScoring(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  const blocking = Array.isArray(result.blocking) ? result.blocking : [];
+  const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+  return [...blocking, ...warnings];
+}
+
+/**
  * Validate lesson structure against the block role contract.
  * @param {Object} draft - Draft with pages[].blocks
- * @returns {string[]} Array of issue messages (empty if valid).
+ * @param {{ isManual?: boolean }} [options] - Manual drafts: strict rules become warnings only (draft save).
+ * @returns {{ blocking: string[], warnings: string[] }} Blocking issues fail AI/publish checks; warnings inform UI only.
  */
-function validateLessonStructure(draft) {
-  const issues = [];
+function validateLessonStructure(draft, options = {}) {
+  const { isManual = false } = options;
+  const blocking = [];
+  const warnings = [];
+  const pushIssue = (msg) => {
+    if (isManual) warnings.push(msg);
+    else blocking.push(msg);
+  };
+
   const pages = Array.isArray(draft?.pages) ? draft.pages : [];
   const blocks = pages.flatMap((p) => p?.blocks ?? []);
 
-  if (blocks.length < 10) issues.push("Too few blocks (need at least 10)");
+  if (blocks.length < 10) pushIssue("Too few blocks (need at least 10)");
 
   const diagramCount = blocks.filter((b) => safeStr(b?.type, "") === "diagram").length;
-  if (diagramCount < 2) issues.push("Not enough diagrams");
+  if (diagramCount < 2) pushIssue("Not enough diagrams");
 
   const roles = new Set(blocks.map((b) => safeStr(b?.role, "")).filter(Boolean));
   const requiredRoles = [
@@ -666,7 +687,7 @@ function validateLessonStructure(draft) {
     "finalMemoryRule",
   ];
   requiredRoles.forEach((role) => {
-    if (!roles.has(role)) issues.push(`Missing role: ${role}`);
+    if (!roles.has(role)) pushIssue(`Missing role: ${role}`);
   });
 
   const keyIdeas = blocks.filter((b) => safeStr(b?.type, "") === "keyIdea");
@@ -674,25 +695,25 @@ function validateLessonStructure(draft) {
   const examTips = blocks.filter((b) => safeStr(b?.type, "") === "examTip");
 
   if (diagramCount >= 1 && !keyIdeas.some(looksLikeWhatToNotice)) {
-    issues.push(
+    pushIssue(
       'Missing a proper "What to Notice" keyIdea block (required when the lesson has diagrams).'
     );
   }
 
   if (commonMistakes.length > 0 && !commonMistakes.some(looksLikeProperCommonMistake)) {
-    issues.push("Common mistake blocks are not using Wrong / Correct / Exam link format.");
+    pushIssue("Common mistake blocks are not using Wrong / Correct / Exam link format.");
   }
 
   if (examTips.length > 0 && !examTips.some(looksLikePracticalExamTip)) {
-    issues.push("Exam tip blocks are too descriptive and not practical enough.");
+    pushIssue("Exam tip blocks are too descriptive and not practical enough.");
   }
 
   if (keyIdeas.length > 0 && !keyIdeas.some((b) => keyIdeaLooksSpecific(b, draft))) {
-    issues.push("Key idea blocks are too generic and not topic-specific enough.");
+    pushIssue("Key idea blocks are too generic and not topic-specific enough.");
   }
 
   if (examTips.length > 0 && !examTips.some((b) => examTipLooksSpecific(b, draft))) {
-    issues.push("Exam tip blocks are too generic and not specific to how marks are earned.");
+    pushIssue("Exam tip blocks are too generic and not specific to how marks are earned.");
   }
 
   const whatToNoticeBlocks = keyIdeas.filter((b) => /what to notice/i.test(b.title || ""));
@@ -700,42 +721,46 @@ function validateLessonStructure(draft) {
     whatToNoticeBlocks.length > 0 &&
     !whatToNoticeBlocks.some((b) => whatToNoticeLooksSpecific(b, draft))
   ) {
-    issues.push("What to Notice blocks are too generic and not tied to the actual topic.");
+    pushIssue("What to Notice blocks are too generic and not tied to the actual topic.");
   }
 
   const finalMemoryRuleBlock = blocks.find((b) => safeStr(b?.role, "") === "finalMemoryRule");
   if (finalMemoryRuleBlock && !finalMemoryRuleLooksSpecific(finalMemoryRuleBlock, draft)) {
-    issues.push("Final memory rule is too generic and not topic-specific enough.");
+    pushIssue("Final memory rule is too generic and not topic-specific enough.");
   }
 
-  const workedExampleBlock = blocks.find((b) => safeStr(b?.type, "") === "checkpoint" && safeStr(b?.role, "") === "workedExample");
+  const workedExampleBlock = blocks.find(
+    (b) => safeStr(b?.type, "") === "checkpoint" && safeStr(b?.role, "") === "workedExample"
+  );
 
   if (!workedExampleBlock) {
-    issues.push("Missing worked example (needs role 'workedExample' with substantial content)");
+    pushIssue("Missing worked example (needs role 'workedExample' with substantial content)");
   } else {
-    const workedQuestion = safeStr(workedExampleBlock.prompt, "") || safeStr(workedExampleBlock.question, "");
+    const workedQuestion =
+      safeStr(workedExampleBlock.prompt, "") || safeStr(workedExampleBlock.question, "");
     if (!isRealExamStyleQuestion(workedQuestion)) {
-      issues.push(
+      pushIssue(
         "Worked example must contain a real exam-style question with command word and mark count"
       );
     }
     if (!hasSubstantialWorkedAnswer(workedExampleBlock)) {
-      issues.push("Worked example must include a substantial model answer");
+      pushIssue("Worked example must include a substantial model answer");
     }
   }
 
   const checkpointBlocks = blocks.filter((b) => safeStr(b?.type, "") === "checkpoint");
-  const placeholderPrompts = /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
+  const placeholderPrompts =
+    /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
   checkpointBlocks.forEach((b, i) => {
     const prompt = safeStr(b?.prompt, "") || safeStr(b?.question, "");
     const correctAnswer = safeStr(b?.correctAnswer, "") || safeStr(b?.answer, "");
     if (!prompt || prompt.length < 15) {
-      issues.push(`Checkpoint ${i + 1}: must contain a real exam-style question`);
+      pushIssue(`Checkpoint ${i + 1}: must contain a real exam-style question`);
     } else if (placeholderPrompts.test(prompt.trim())) {
-      issues.push(`Checkpoint ${i + 1}: must contain a real exam-style question (not a placeholder)`);
+      pushIssue(`Checkpoint ${i + 1}: must contain a real exam-style question (not a placeholder)`);
     }
     if (!correctAnswer) {
-      issues.push(`Checkpoint ${i + 1}: must include a correct answer`);
+      pushIssue(`Checkpoint ${i + 1}: must include a correct answer`);
     }
   });
 
@@ -748,18 +773,18 @@ function validateLessonStructure(draft) {
   const hasExamLink = blocks.some((b) => blockMentionsExamUse(blockFlowText(b)));
 
   if (!earlyComparison) {
-    issues.push("Key comparison or distinction appears too late or is missing.");
+    pushIssue("Key comparison or distinction appears too late or is missing.");
   }
 
   if (!laterApplication) {
-    issues.push("Real-world or medical application is missing or appears too weakly.");
+    pushIssue("Real-world or medical application is missing or appears too weakly.");
   }
 
   if (!hasExamLink) {
-    issues.push("Lesson does not connect clearly enough to exam use.");
+    pushIssue("Lesson does not connect clearly enough to exam use.");
   }
 
-  return issues;
+  return { blocking, warnings };
 }
 
 /**
@@ -1015,6 +1040,7 @@ module.exports = {
   shouldTriggerSecondPass,
   extractDraftText,
   validateLessonStructure,
+  mergeStructureValidationForScoring,
   collectV7TeachingAdvisoryNotes,
   validateBlockTypeRequirements,
   isRealExamStyleQuestion,
