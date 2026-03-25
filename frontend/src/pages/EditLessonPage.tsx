@@ -1,7 +1,9 @@
 /** @module EditLessonPage */
 import React, { useMemo, useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
-import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
+import { defaultUrlTransform } from "react-markdown";
+import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api/topicFlashcards";
@@ -4521,13 +4523,14 @@ const EditLessonPage: React.FC = () => {
                             }}
                           />
 
-                          <textarea
-                            ref={(el) => {
+                          <LessonBlockContentTextarea
+                            assignTextareaRef={(el) => {
                               blockTextareasRef.current[key] = el;
                             }}
+                            getTextarea={() => blockTextareasRef.current[key] ?? null}
                             value={safeStr(b.content, "")}
-                            onChange={(e) =>
-                              updateBlock(currentPage!.pageId, idx, { content: e.target.value })
+                            onChange={(next) =>
+                              updateBlock(currentPage!.pageId, idx, { content: next })
                             }
                             onPaste={(e) => {
                               const pasted = e.clipboardData?.getData("text/plain") ?? "";
@@ -4558,29 +4561,21 @@ const EditLessonPage: React.FC = () => {
                                 } catch {}
                               }, 0);
                             }}
-                            placeholder="Write markdown here... (images/videos you upload will be inserted at your cursor)"
+                            placeholder="Write markdown here... Toolbar for size, colour, lists. Blank lines preserved."
                             rows={6}
-                            style={{
-                              width: "100%",
-                              marginTop: 10,
-                              padding: "10px 12px",
-                              borderRadius: 12,
-                              border: "2px solid rgba(0,0,0,0.14)",
-                              resize: "vertical",
-                              fontFamily:
-                                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                              background: "white",
-                            }}
+                            style={{ marginTop: 10 }}
                           />
-                          
+
                           <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
                             <strong>Editing tips:</strong>
                             <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                              <li>Use <b>**double asterisks**</b> for bold (e.g. <code>**cell membrane**</code>)</li>
-                              <li>Use <b>*single asterisks*</b> for italic (e.g. <code>*genetic material*</code>)</li>
-                              <li>Use <b>###</b> at the start of a line for headings (e.g. <code>### Cell membrane</code>)</li>
-                              <li>Pasting bullets from Word/Google Docs usually turns them into lists</li>
-                              <li>Text colour is not supported — use headings and bold to highlight key terms</li>
+                              <li>
+                                <b>**bold**</b> uses double asterisks — list items use <code>* word</code> with a space after{" "}
+                                <code>*</code>
+                              </li>
+                              <li>Use <b>*italic*</b> for emphasis</li>
+                              <li>Toolbar: underline, headings, lists, font size, safe colours</li>
+                              <li>Line breaks and blank lines are kept in preview and when saved</li>
                             </ul>
                           </div>
                             </>
@@ -4783,8 +4778,9 @@ const EditLessonPage: React.FC = () => {
                     return (
                       <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
                         <div className="lesson-content" style={getBlockStyle(blockType)}>
-                          <ReactMarkdown
+                          <LessonMarkdown
                             key={`preview-md-${currentPage!.pageId}-${idx}-${blockContent.length}`}
+                            className="lesson-md-body"
                             components={markdownComponents as any}
                             urlTransform={(url: string) => {
                               try {
@@ -4798,7 +4794,7 @@ const EditLessonPage: React.FC = () => {
                             }}
                           >
                             {preprocessMarkdownAssetUrls(blockContent)}
-                          </ReactMarkdown>
+                          </LessonMarkdown>
                         </div>
                       </div>
                     );

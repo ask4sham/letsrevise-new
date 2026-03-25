@@ -30,15 +30,23 @@ export function transformLessonPastedPlainText(pasted: string): {
   let text = pasted;
   let modified = false;
 
+  // Real bullets only — do not treat **bold** markdown as a list marker
   const looksLikeBullets =
-    /(^|\n)\s*(•|·|–|—|-|\*)\s+/.test(pasted) || pasted.includes("•");
+    /(^|\n)\s*(•|·|–|—)\s+/.test(pasted) ||
+    /(^|\n)\s*-\s+\S/.test(pasted) ||
+    /(^|\n)\s*\*\s+(?!\*)/.test(pasted) ||
+    pasted.includes("•");
 
   if (looksLikeBullets) {
     modified = true;
     text = pasted.replace(/\s*•\s*/g, "\n• ").trim();
     text = text
       .split("\n")
-      .map((line) => line.replace(/^[•·–—*-]\s*/gm, "- "))
+      .map((line) => {
+        if (/^\s*\*\*/.test(line)) return line;
+        if (/^\s*\*\s+/.test(line)) return line.replace(/^\s*\*\s+/, "- ");
+        return line.replace(/^\s*[•·–—]\s*/, "- ");
+      })
       .join("\n");
     text = text.replace(/^-\s*(?=\S)/gm, "- ");
   }
@@ -53,6 +61,7 @@ export function transformLessonPastedPlainText(pasted: string): {
       current.length < 60 &&
       !current.startsWith("-") &&
       !current.startsWith("*") &&
+      !current.startsWith("**") &&
       !current.endsWith(".") &&
       /^- /.test(next);
 

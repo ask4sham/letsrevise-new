@@ -5,7 +5,9 @@
  */
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { lessonMarkdownUrlTransform } from "../components/lesson/lessonMarkdownViewComponents";
+import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import api from "../services/api";
 
 type ReteachPlanResponse = {
@@ -612,7 +614,9 @@ export default function LessonAttemptReportPage() {
                     color: "#374151",
                   }}
                 >
-                  <ReactMarkdown>{plan.content}</ReactMarkdown>
+                  <LessonMarkdown className="lesson-md-body" urlTransform={lessonMarkdownUrlTransform}>
+                    {preprocessMarkdownAssetUrls(plan.content)}
+                  </LessonMarkdown>
                 </div>
               )}
             </>

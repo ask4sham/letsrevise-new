@@ -4,9 +4,13 @@
  */
 import React, { useMemo, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
 import api, { getVisualById } from "../services/api";
-import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import {
+  createLessonMarkdownViewComponents,
+  lessonMarkdownUrlTransform,
+} from "../components/lesson/lessonMarkdownViewComponents";
 import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 
 interface DiagramAnnotation {
@@ -382,6 +386,11 @@ const ClassroomModePage: React.FC = () => {
     return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: candidate ?? undefined });
   }, [lesson]);
 
+  const lessonMarkdownComponents = useMemo(
+    () => createLessonMarkdownViewComponents(safeStr),
+    []
+  );
+
   useEffect(() => {
     if (!lessonId) return;
     setPracticeLoading(true);
@@ -442,10 +451,10 @@ const ClassroomModePage: React.FC = () => {
 
   const renderCallout = (kind: LessonPageBlock["type"] | "keyWords", text: string, idx: number) => {
     const base: React.CSSProperties = { padding: 14, borderRadius: 12, margin: "14px 0", lineHeight: 1.8, background: "white", textAlign: "left", fontSize: BASE_FONT };
-    if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key Idea(s)</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
-    if (kind === "examTip") return <div key={idx} style={{ ...base, background: "#eef2ff", border: "2px solid rgba(99,102,241,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>🧠 Exam insight</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
-    if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake(s)</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
-    if (kind === "stretch") return <div key={idx} style={{ ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#5b21b6" }}>🔍 Deeper knowledge</div><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
+    if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key Idea(s)</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
+    if (kind === "examTip") return <div key={idx} style={{ ...base, background: "#eef2ff", border: "2px solid rgba(99,102,241,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>🧠 Exam insight</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
+    if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake(s)</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
+    if (kind === "stretch") return <div key={idx} style={{ ...base, border: "2px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#5b21b6" }}>🔍 Deeper knowledge</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
     const keywords = (kind === "keyWords" || kind === "text") ? maybeParseKeywordsFromText(text) : null;
     if (keywords && keywords.length > 0) return (
       <div key={idx} style={{ ...base, background: "rgba(139,92,246,0.06)", border: "2px solid rgba(139,92,246,0.30)" }}>
@@ -453,7 +462,7 @@ const ClassroomModePage: React.FC = () => {
         <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>{keywords.map((item, i) => <li key={i}>{item}</li>)}</ul>
       </div>
     );
-    return <div key={idx} style={{ ...base, background: "#fbfbfc", border: "2px solid rgba(0,0,0,0.10)" }}><div className="lesson-content"><ReactMarkdown>{text}</ReactMarkdown></div></div>;
+    return <div key={idx} style={{ ...base, background: "#fbfbfc", border: "2px solid rgba(0,0,0,0.10)" }}><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
   };
 
   const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
@@ -540,7 +549,7 @@ const ClassroomModePage: React.FC = () => {
                   </button>
                 </div>
                 <div className="reteach-plan-content" style={{ fontSize: 22, lineHeight: 1.6, color: "#1f2937", textAlign: "left" }}>
-                  <ReactMarkdown>{reteachPlan.content}</ReactMarkdown>
+                  <LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(reteachPlan.content)}</LessonMarkdown>
                 </div>
               </>
             )}

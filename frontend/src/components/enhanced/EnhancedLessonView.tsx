@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import ReactMarkdown from 'react-markdown';
+import { LessonMarkdown } from '../lesson/LessonMarkdown';
+import { lessonMarkdownUrlTransform } from '../lesson/lessonMarkdownViewComponents';
+import { preprocessMarkdownAssetUrls } from '../../utils/assetUrl';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { updateUser } from '../../utils/authStorage';
 
@@ -239,7 +241,9 @@ const EnhancedLessonView: React.FC = () => {
                 ) : (
                   <>
                     <div className="prose max-w-none">
-                      <ReactMarkdown>{lesson.content}</ReactMarkdown>
+                      <LessonMarkdown className="lesson-md-body" urlTransform={lessonMarkdownUrlTransform}>
+                        {preprocessMarkdownAssetUrls(lesson.content)}
+                      </LessonMarkdown>
                     </div>
                     
                     {/* Progress Section */}

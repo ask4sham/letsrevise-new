@@ -1,8 +1,13 @@
 // frontend/src/pages/CreateLesson.tsx — PR-AUTH-UI-3: use useCurrentUser for token/user.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { defaultUrlTransform } from "react-markdown";
 import api from "../services/api";
 import { toAbsoluteAssetUrl } from "../services/mediaUrl";
+import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
+import { sanitizeTeacherMarkdown } from "../utils/lessonTeacherMarkdown";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
@@ -252,43 +257,6 @@ function clampOptions(raw: string[]) {
 }
 
 // ============================
-// Step 4.1 — Sanitize markdown helper
-// ============================
-function sanitizeTeacherMarkdown(input: string) {
-  let text = (input || "").replace(/\r\n/g, "\n");
-
-  // 1) Convert common bullet markers at start of line into "- "
-  text = text.replace(/^[ \t]*[•·–—*]\s*/gm, "- ");
-  // Also normalize dash bullets to "- "
-  text = text.replace(/^[ \t]*-\s*(?=\S)/gm, "- ");
-
-  // 2) If a "heading-like" line is followed by a list, convert to ### Heading
-  // (only if it isn't already a markdown heading)
-  const lines = text.split("\n");
-  for (let i = 0; i < lines.length - 1; i++) {
-    const cur = lines[i].trim();
-    const next = lines[i + 1].trim();
-
-    const looksLikeHeading =
-      cur.length > 0 &&
-      cur.length <= 60 &&
-      !cur.startsWith("#") &&
-      !cur.startsWith("-") &&
-      !cur.startsWith("*") &&
-      !cur.endsWith(".") &&
-      !cur.endsWith(":");
-
-    const nextIsList = next.startsWith("- ");
-
-    if (looksLikeHeading && nextIsList) {
-      lines[i] = `### ${cur}`;
-    }
-  }
-
-  return lines.join("\n").trimEnd();
-}
-
-// ============================
 // Upload helpers (per-block)
 // ============================
 
@@ -380,6 +348,37 @@ const CreateLessonPage: React.FC = () => {
   ]);
 
   const orderedPages = useMemo(() => sortPages(pages), [pages]);
+
+  const createPreviewMarkdownComponents = useMemo(
+    () => ({
+      img: ({ ...props }: Record<string, unknown> & { src?: string; alt?: string }) => {
+        const rawSrc = safeStr(props.src, "");
+        let decoded = rawSrc;
+        try {
+          if (rawSrc && rawSrc.includes("%")) decoded = decodeURIComponent(rawSrc);
+        } catch {
+          /* keep decoded */
+        }
+        const srcAbs = decoded ? (toAbsoluteAssetUrl(decoded) ?? "") : "";
+        const finalSrc = srcAbs || decoded || rawSrc;
+        return (
+          <img
+            {...props}
+            src={finalSrc}
+            alt={props.alt || "Lesson image"}
+            style={{
+              maxWidth: "100%",
+              height: "auto",
+              borderRadius: 8,
+              display: "block",
+              margin: "8px 0",
+            }}
+          />
+        );
+      },
+    }),
+    []
+  );
 
   useEffect(() => {
     if (titleTouched) return;
@@ -1510,19 +1509,19 @@ const CreateLessonPage: React.FC = () => {
                               }}
                             />
 
-                            <textarea
-                              ref={(el) => {
+                            <LessonBlockContentTextarea
+                              assignTextareaRef={(el) => {
                                 blockTextareasRef.current[key] = el;
                               }}
+                              getTextarea={() => blockTextareasRef.current[key] ?? null}
                               value={safeStr(b.content, "")}
-                              onChange={(e) => updateBlock(pg.pageId, idx, { content: e.target.value })}
+                              onChange={(next) => updateBlock(pg.pageId, idx, { content: next })}
                               onPaste={(e) => {
                                 const pasted = e.clipboardData?.getData("text/plain") ?? "";
                                 if (!pasted) return;
 
                                 const { text, needsCustomInsert } =
                                   transformLessonPastedPlainText(pasted);
-                                // Let the browser paste once; onChange updates state. Custom insert only when we transform.
                                 if (!needsCustomInsert) return;
 
                                 e.preventDefault();
@@ -1546,23 +1545,19 @@ const CreateLessonPage: React.FC = () => {
                                   } catch {}
                                 }, 0);
                               }}
-                              placeholder="Write markdown here... (images/videos you upload will be inserted at your cursor)"
+                              placeholder="Write markdown here... Use the toolbar for size, colour, and lists. Blank lines are kept."
                               rows={6}
-                              style={{
-                                ...ui.input,
-                                marginTop: 10,
-                                resize: "vertical",
-                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                              }}
                             />
                             <div style={{ marginTop: 8, color: "#64748b", fontSize: "0.8rem", lineHeight: 1.5 }}>
                               <strong>Editing tips:</strong>
                               <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                                <li>Use <b>**double asterisks**</b> for bold (e.g. <code>**cell membrane**</code>)</li>
-                                <li>Use <b>*single asterisks*</b> for italic (e.g. <code>*genetic material*</code>)</li>
-                                <li>Use <b>###</b> at the start of a line for headings (e.g. <code>### Cell membrane</code>)</li>
-                                <li>Pasting bullets from Word/Google Docs usually turns them into lists</li>
-                                <li>Text colour is not supported — use headings and bold to highlight key terms</li>
+                                <li>
+                                  Use <b>**double asterisks**</b> for bold — list bullets use <code>* word</code> with a space, not{" "}
+                                  <code>**</code>
+                                </li>
+                                <li>Use <b>*single asterisks*</b> for italic</li>
+                                <li>Toolbar: underline, headings, lists, font size, and safe text colours</li>
+                                <li>Line breaks and empty lines are preserved in preview and when saved</li>
                               </ul>
                             </div>
                           </div>
@@ -1666,8 +1661,26 @@ const CreateLessonPage: React.FC = () => {
                                 {BLOCK_META[b.type].icon} {BLOCK_META[b.type].label}
                               </div>
                             )}
-                            <div style={{ fontSize: "0.75rem", color: "#64748b", wordBreak: "break-word" }}>
-                              {safeStr(b.content, "").slice(0, 140)}{safeStr(b.content, "").length > 140 ? "…" : ""}
+                            <div
+                              className="lesson-content"
+                              style={{ fontSize: "0.8rem", color: "#334155", wordBreak: "break-word" }}
+                            >
+                              <LessonMarkdown
+                                className="lesson-md-body"
+                                components={createPreviewMarkdownComponents}
+                                urlTransform={(url) => {
+                                  try {
+                                    const decoded = url?.includes("%") ? decodeURIComponent(url) : (url ?? "");
+                                    const abs = toAbsoluteAssetUrl(decoded);
+                                    if (abs) return abs;
+                                    return defaultUrlTransform(url ?? "");
+                                  } catch {
+                                    return defaultUrlTransform(url ?? "");
+                                  }
+                                }}
+                              >
+                                {preprocessMarkdownAssetUrls(safeStr(b.content, ""))}
+                              </LessonMarkdown>
                             </div>
                           </div>
                         ))}
