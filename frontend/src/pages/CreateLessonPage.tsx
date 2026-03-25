@@ -7,6 +7,7 @@ import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
+import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { sanitizeTeacherMarkdown } from "../utils/lessonTeacherMarkdown";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomyOptions";
@@ -250,6 +251,15 @@ const LESSON_STENCIL_BLOCKS: LessonPageBlock[] = [
 
 function sortPages(pages: LessonPage[]) {
   return [...pages].sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+function blockEditorSizeVariant(type: LessonBlockType): "default" | "long" {
+  return type === "keyIdeas" ||
+    type === "misconceptions" ||
+    type === "examTips" ||
+    type === "deeperKnowledge"
+    ? "long"
+    : "default";
 }
 
 function clampOptions(raw: string[]) {
@@ -977,21 +987,18 @@ const CreateLessonPage: React.FC = () => {
         ) : null}
 
         <div style={ui.card}>
-          <div
-            className="create-lesson-editor-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(180px, 220px) minmax(0, 1fr) minmax(300px, 520px)",
-              gap: 14,
-              alignItems: "start",
-            }}
-          >
-            {/* LEFT: Pages sidebar (compact, stable width) */}
-            <aside
+            <div
+              className="create-lesson-editor-grid"
               style={{
-                position: "sticky",
-                top: 10,
-                alignSelf: "start",
+                display: "grid",
+                gridTemplateColumns: "minmax(180px, 220px) minmax(0, 1fr) minmax(300px, 520px)",
+                gap: 14,
+              }}
+            >
+            {/* LEFT: Pages sidebar — desktop: optional sticky below header */}
+            <aside
+              className="lesson-editor-sidebar-sticky"
+              style={{
                 minWidth: 0,
                 ...ui.sidebar,
               }}
@@ -1302,17 +1309,18 @@ const CreateLessonPage: React.FC = () => {
                       )}
                     </span>
                   </div>
-                  <textarea
+                  <LessonAutoTextarea
+                    editorVariant="plain"
                     name="description"
                     value={formData.description}
                     maxLength={DESCRIPTION_LIMIT}
-                    onChange={(e) => {
+                    minHeightPx={160}
+                    onChange={(v) => {
                       setDescriptionTouched(true);
-                      setFormData((prev) => ({ ...prev, description: e.target.value }));
+                      setFormData((prev) => ({ ...prev, description: v }));
                     }}
-                    rows={3}
                     placeholder="Students will learn…"
-                    style={{ ...ui.input, resize: "vertical", width: "100%" }}
+                    style={{ fontSize: "0.9375rem" }}
                   />
                   <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
                     <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
@@ -1510,6 +1518,7 @@ const CreateLessonPage: React.FC = () => {
                             />
 
                             <LessonBlockContentTextarea
+                              sizeVariant={blockEditorSizeVariant(b.type)}
                               assignTextareaRef={(el) => {
                                 blockTextareasRef.current[key] = el;
                               }}
@@ -1546,7 +1555,6 @@ const CreateLessonPage: React.FC = () => {
                                 }, 0);
                               }}
                               placeholder="Write markdown here... Use the toolbar for size, colour, and lists. Blank lines are kept."
-                              rows={6}
                             />
                             <div style={{ marginTop: 8, color: "#64748b", fontSize: "0.8rem", lineHeight: 1.5 }}>
                               <strong>Editing tips:</strong>
@@ -1635,10 +1643,9 @@ const CreateLessonPage: React.FC = () => {
 
             {/* RIGHT: Preview */}
             <aside
+              id="create-lesson-preview"
+              className="lesson-editor-preview-sticky"
               style={{
-                position: "sticky",
-                top: 10,
-                alignSelf: "start",
                 minWidth: 0,
                 ...ui.sidebar,
               }}
@@ -1692,7 +1699,7 @@ const CreateLessonPage: React.FC = () => {
                 )}
               </div>
             </aside>
-          </div>
+            </div>
         </div>
       </div>
     </div>

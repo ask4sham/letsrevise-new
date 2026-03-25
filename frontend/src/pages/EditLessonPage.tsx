@@ -4,6 +4,7 @@ import { useParams, Link, useSearchParams, useNavigate, useLocation } from "reac
 import { defaultUrlTransform } from "react-markdown";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
+import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank } from "../api/topicFlashcards";
@@ -40,6 +41,15 @@ import {
   guardLessonBlockPatchForDuplicatePaste,
   transformLessonPastedPlainText,
 } from "../utils/lessonEditorPaste";
+
+function blockEditorSizeVariant(type: LessonBlockType): "default" | "long" {
+  return type === "keyIdeas" ||
+    type === "misconceptions" ||
+    type === "examTips" ||
+    type === "deeperKnowledge"
+    ? "long"
+    : "default";
+}
 
 interface LessonPageBlock {
   type: LessonBlockType;
@@ -656,7 +666,8 @@ const EditLessonPage: React.FC = () => {
   useEffect(() => {
     const update = () => {
       const w = typeof window !== "undefined" ? window.innerWidth : 1200;
-      if (w >= 1200) setLayoutBreakpoint("wide");
+      /* Match Create Lesson editor: 3-col from ~1100px (see App.css .create-lesson-editor-grid) */
+      if (w >= 1100) setLayoutBreakpoint("wide");
       else if (w >= 900) setLayoutBreakpoint("medium");
       else setLayoutBreakpoint("narrow");
     };
@@ -753,6 +764,18 @@ const EditLessonPage: React.FC = () => {
       .then((res) => setLessonIssueReports(res.reports || []))
       .catch(() => setLessonIssueReports([]));
   }, [id]);
+
+  /** Deep links (e.g. from Create Lesson sidebar) — scroll to #revision-materials, #edit-lesson-practice-lane, etc. */
+  useEffect(() => {
+    if (loading || !lesson) return;
+    const raw = (location.hash || "").replace(/^#/, "").trim();
+    if (!raw) return;
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(raw);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [loading, lesson?.id, location.hash]);
 
   const fetchLessonSmart = async () => {
     try {
@@ -2566,7 +2589,9 @@ const EditLessonPage: React.FC = () => {
   const pagesReady = hasStructuredPages && currentPage;
 
   return (
-    <div style={{ padding: 16 }}>
+    <div
+      style={{ padding: "8px 0", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}
+    >
       {generationWarning && (
         <Toast
           message={generationWarning}
@@ -2594,11 +2619,16 @@ const EditLessonPage: React.FC = () => {
     <div
       style={{
         minHeight: "100vh",
+        width: "100%",
+        maxWidth: "100%",
         background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-        padding: "18px",
+        padding: "12px clamp(12px, 2vw, 24px)",
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: 1680, margin: "0 auto" }}>
+      <div
+        style={{ width: "100%", maxWidth: "none", margin: 0, boxSizing: "border-box" }}
+      >
         {lesson?.createdFromTemplate && (
           <div
             style={{
@@ -2687,9 +2717,9 @@ const EditLessonPage: React.FC = () => {
               /* Before: grid-template-columns: 280px minmax(0, 1fr) 432px; */
               gridTemplateColumns:
                 layoutBreakpoint === "wide"
-                  ? "260px minmax(0, 1.25fr) minmax(0, 1.2fr)"
+                  ? "minmax(220px, 240px) minmax(0, 1fr) 400px"
                   : layoutBreakpoint === "medium"
-                    ? "280px minmax(0, 1fr)"
+                    ? "minmax(220px, 280px) minmax(0, 1fr)"
                     : "1fr",
               gridTemplateRows: layoutBreakpoint === "medium" ? "auto auto" : undefined,
               gap: 16,
@@ -2703,8 +2733,8 @@ const EditLessonPage: React.FC = () => {
                 display: "flex",
                 flexDirection: "column",
                 gap: 16,
-                position: layoutBreakpoint !== "narrow" ? "sticky" : undefined,
-                top: layoutBreakpoint !== "narrow" ? 16 : undefined,
+                position: layoutBreakpoint === "narrow" ? undefined : "sticky",
+                top: layoutBreakpoint === "narrow" ? undefined : 110,
                 alignSelf: "start",
               }}
             >
@@ -2904,7 +2934,7 @@ const EditLessonPage: React.FC = () => {
               })()}
 
               {/* Card 4: Practice questions (in this lesson) — Lane A */}
-              <div style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
+              <div id="edit-lesson-practice-lane" style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
                 <div style={{ fontWeight: 900, marginBottom: 8 }}>Practice questions (in this lesson)</div>
                 <p style={{ margin: "0 0 10px", fontSize: 13, color: "#64748b" }}>These appear as the practice questions for students. Only questions for the selected sub-topic will be attached.</p>
                 <button
@@ -2982,7 +3012,11 @@ const EditLessonPage: React.FC = () => {
             </div>
 
             {/* CENTER: Lesson details + Description + Editing blocks */}
-            <div data-col="center" style={{ minWidth: 0 }} role="main">
+            <div
+              data-col="center"
+              style={{ minWidth: 0, width: "100%" }}
+              role="main"
+            >
               <div
                 style={{
                   background: "white",
@@ -3137,17 +3171,12 @@ const EditLessonPage: React.FC = () => {
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={{ display: "block", marginTop: 10 }}>
                       <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
-                      <textarea
+                      <LessonAutoTextarea
+                        editorVariant="plain"
                         value={lesson.description}
-                        onChange={(e) => updateLessonField("description", e.target.value)}
-                        rows={4}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          border: "2px solid rgba(0,0,0,0.14)",
-                          resize: "vertical",
-                        }}
+                        onChange={(v) => updateLessonField("description", v)}
+                        minHeightPx={160}
+                        style={{ fontSize: "0.9375rem" }}
                       />
                     </label>
                   </div>
@@ -3586,20 +3615,15 @@ const EditLessonPage: React.FC = () => {
                               )}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Prompt</div>
-                                <textarea
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
                                   value={cp.prompt ?? ""}
-                                  onChange={(e) =>
-                                    updateBlock(currentPage!.pageId, idx, { prompt: e.target.value })
+                                  onChange={(v) =>
+                                    updateBlock(currentPage!.pageId, idx, { prompt: v })
                                   }
                                   placeholder="Question or instruction..."
-                                  rows={2}
-                                  style={{
-                                    width: "100%",
-                                    padding: "10px 12px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(0,0,0,0.14)",
-                                    resize: "vertical",
-                                  }}
+                                  minHeightPx={240}
+                                  style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
                               <label style={{ display: "block" }}>
@@ -3723,20 +3747,15 @@ const EditLessonPage: React.FC = () => {
                               )}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Explanation (optional)</div>
-                                <textarea
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
                                   value={cp.explanation ?? ""}
-                                  onChange={(e) =>
-                                    updateBlock(currentPage!.pageId, idx, { explanation: e.target.value })
+                                  onChange={(v) =>
+                                    updateBlock(currentPage!.pageId, idx, { explanation: v })
                                   }
                                   placeholder="Why this answer is correct..."
-                                  rows={2}
-                                  style={{
-                                    width: "100%",
-                                    padding: "10px 12px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(0,0,0,0.14)",
-                                    resize: "vertical",
-                                  }}
+                                  minHeightPx={300}
+                                  style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
                             </div>
@@ -4130,19 +4149,15 @@ const EditLessonPage: React.FC = () => {
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption (optional)</div>
                                 <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>e.g. &quot;Simple cell with nucleus, cytoplasm, mitochondria and cell membrane&quot; — then add labels with Edit diagram → Place labels.</p>
-                                <input
-                                  type="text"
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
                                   value={d.caption ?? ""}
-                                  onChange={(e) =>
-                                    updateBlock(currentPage!.pageId, idx, { caption: e.target.value })
+                                  onChange={(v) =>
+                                    updateBlock(currentPage!.pageId, idx, { caption: v })
                                   }
                                   placeholder="e.g. A single simple animal cell"
-                                  style={{
-                                    width: "100%",
-                                    padding: "10px 12px",
-                                    borderRadius: 10,
-                                    border: "2px solid rgba(0,0,0,0.14)",
-                                  }}
+                                  minHeightPx={120}
+                                  style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
                               {/* PR11: diagram mode */}
@@ -4524,6 +4539,7 @@ const EditLessonPage: React.FC = () => {
                           />
 
                           <LessonBlockContentTextarea
+                            sizeVariant={blockEditorSizeVariant(blockType)}
                             assignTextareaRef={(el) => {
                               blockTextareasRef.current[key] = el;
                             }}
@@ -4561,23 +4577,9 @@ const EditLessonPage: React.FC = () => {
                                 } catch {}
                               }, 0);
                             }}
-                            placeholder="Write markdown here... Toolbar for size, colour, lists. Blank lines preserved."
-                            rows={6}
+                            placeholder="Write here — toolbar for format, colours, markers (Alt+1 💡 · Alt+2 ⚠️ · Alt+3 🔍 · Alt+4 🔑)."
                             style={{ marginTop: 10 }}
                           />
-
-                          <div style={{ marginTop: 8, color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
-                            <strong>Editing tips:</strong>
-                            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                              <li>
-                                <b>**bold**</b> uses double asterisks — list items use <code>* word</code> with a space after{" "}
-                                <code>*</code>
-                              </li>
-                              <li>Use <b>*italic*</b> for emphasis</li>
-                              <li>Toolbar: underline, headings, lists, font size, safe colours</li>
-                              <li>Line breaks and blank lines are kept in preview and when saved</li>
-                            </ul>
-                          </div>
                             </>
                           )}
                         </div>
@@ -4733,11 +4735,15 @@ const EditLessonPage: React.FC = () => {
             </div>
 
             <aside
+              id="edit-lesson-preview"
               data-col="right"
               style={{
                 position: layoutBreakpoint === "medium" ? undefined : "sticky",
-                top: layoutBreakpoint === "medium" ? undefined : 16,
+                top: layoutBreakpoint === "medium" ? undefined : 110,
                 alignSelf: "start",
+                width: layoutBreakpoint === "wide" ? 400 : "100%",
+                maxWidth: layoutBreakpoint === "wide" ? 400 : "100%",
+                flexShrink: 0,
                 ...(layoutBreakpoint === "medium" ? { gridRow: 2, gridColumn: "1 / -1" } : {}),
               }}
             >
@@ -4809,15 +4815,17 @@ const EditLessonPage: React.FC = () => {
             </aside>
           </div>
 
-          <div style={{
-            gridColumn: "1 / -1",
+          <div
+            id="revision-materials"
+            style={{
             marginTop: "30px",
             background: "white",
             borderRadius: "14px",
             padding: "20px",
             boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
             border: "2px solid rgba(0,0,0,0.16)"
-          }}>
+          }}
+          >
             <div style={{ 
               display: "flex", 
               justifyContent: "space-between", 

@@ -1266,6 +1266,18 @@ function parseOptionalOpenAITemperature() {
   return n;
 }
 
+/** Axios timeout for `/v1/responses` (structured lesson JSON). Default 5m; override with OPENAI_RESPONSE_TIMEOUT_MS. */
+function parseOpenAIResponsesTimeoutMs() {
+  const defaultMs = 300000;
+  const raw = process.env.OPENAI_RESPONSE_TIMEOUT_MS;
+  if (raw === undefined || raw === null) return defaultMs;
+  const s = String(raw).trim();
+  if (!s) return defaultMs;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return defaultMs;
+  return Math.min(Math.max(Math.floor(n), 60000), 900000);
+}
+
 /**
  * Calls OpenAI Responses API with Structured Outputs.
  */
@@ -1301,7 +1313,7 @@ async function callOpenAI({ systemPrompt, userPrompt }) {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    timeout: 60000,
+    timeout: parseOpenAIResponsesTimeoutMs(),
   });
 
   const data = resp.data || {};
@@ -4192,6 +4204,254 @@ function applyV11TeacherDialogueAndQuestioning(draft, topicHint = "") {
   return draft;
 }
 
+/* =========================================================
+   V12 — Visual hierarchy engine (chunking, spacing, scan cues)
+   Advisory helpers are non-blocking; draft transforms run in sanitizeDraft after V11.
+   ========================================================= */
+
+function looksVisuallyDense(text = "") {
+  const s = String(text);
+  return s.length > 400 || s.split("\n").length < 2;
+}
+
+function lacksScanMarkers(text = "") {
+  return !/(💡|👉|⚠️|🧪|•|🔑|🧬|🧠|🔍|⚖️)/.test(String(text));
+}
+
+function collectV12VisualAdvisoryNotes(draft) {
+  if (!draft || typeof draft !== "object") return [];
+  const notes = [];
+  const seen = new Set();
+  for (const page of draft.pages || []) {
+    const pt = safeStr(page?.title, "page");
+    for (const block of page.blocks || []) {
+      const t = normalizeBlockType(block.type);
+      if (!["text", "keyIdea", "examTip", "commonMistake", "stretch"].includes(t)) continue;
+      const c = safeStr(block.content, "");
+      if (!c.trim() || c.length < 200) continue;
+      if (looksVisuallyDense(c)) {
+        const msg = `Visual hierarchy (V12): a block on "${pt}" is visually dense — consider splitting or adding markers (🔑 💡 👉).`;
+        if (!seen.has(msg)) {
+          seen.add(msg);
+          notes.push(msg);
+        }
+      }
+      if (c.length > 320 && lacksScanMarkers(c)) {
+        const msg2 = `Visual hierarchy (V12): a long passage on "${pt}" has few scan cues — teaching icons in the editor can help.`;
+        if (!seen.has(msg2)) {
+          seen.add(msg2);
+          notes.push(msg2);
+        }
+      }
+    }
+  }
+  return notes.slice(0, 8);
+}
+
+function chunkDenseBlocks(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+    const nextBlocks = [];
+    for (const block of page.blocks) {
+      const t = normalizeBlockType(block?.type);
+      if (!block?.content || typeof block.content !== "string" || (t !== "text" && t !== "keyIdea")) {
+        nextBlocks.push(block);
+        continue;
+      }
+      let parts;
+      try {
+        parts = block.content
+          .split(/\n{2,}|(?<=\.)\s+(?=[A-Z])/)
+          .map((x) => x.trim())
+          .filter(Boolean);
+      } catch {
+        nextBlocks.push(block);
+        continue;
+      }
+      if (parts.length <= 2) {
+        nextBlocks.push(block);
+        continue;
+      }
+      const first = { ...block, content: parts[0] };
+      if (first.title === undefined) first.title = "";
+      nextBlocks.push(first);
+      const baseTitle = safeStr(block.title, "").trim();
+      for (let i = 1; i < parts.length; i++) {
+        const cont = {
+          ...block,
+          title: "",
+          role: block.role,
+          content: parts[i],
+        };
+        if (t === "keyIdea") {
+          cont.title = baseTitle ? `${baseTitle} (continued)` : "Key idea";
+        }
+        nextBlocks.push(cont);
+      }
+    }
+    page.blocks = nextBlocks;
+  }
+  return draft;
+}
+
+/** Structure validation requires a non-empty title on every keyIdea (chunk splits / AI gaps). */
+function ensureKeyIdeaBlockTitles(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  const fromRole = {
+    whatToNotice: "What to Notice",
+    finalMemoryRule: "Final Memory Rule",
+    patternRecognition: "Key pattern",
+    synthesis: "Synthesis",
+    coreRule: "Core idea",
+    concept: "Key idea",
+    hook: "Key idea",
+  };
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (normalizeBlockType(block?.type) !== "keyIdea") continue;
+      if (safeStr(block?.title, "").trim()) continue;
+      const r = safeStr(block?.role, "").trim();
+      if (fromRole[r]) {
+        block.title = fromRole[r];
+        continue;
+      }
+      const text = safeStr(block?.content, "").trim();
+      const firstLine = text.split(/\r?\n/).find((l) => l.trim()) || "";
+      const plain = firstLine.replace(/^[\s•\-*🧪💡👉⚠️🔑🧬🧠🔍⚖️]+/u, "").trim();
+      if (plain.length >= 3 && plain.length <= 72) {
+        block.title = plain;
+      } else if (plain.length > 72) {
+        block.title = `${plain.slice(0, 69).trim()}…`;
+      } else {
+        block.title = "Key idea";
+      }
+    }
+  }
+  return draft;
+}
+
+function emphasiseKeyLines(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+      const lines = block.content.split("\n");
+      const next = lines.map((line) => {
+        const t = line.trim();
+        if (!t) return line;
+        if (/^(💡|👉|⚠️|🧪|🔑|🧬|🧠|🔍|⚖️)/.test(t)) return line;
+        if (/^The key difference is this:/i.test(t))
+          return line.replace(/^(\s*)The key difference is this:/i, "$1💡 The key difference is this:");
+        if (/^In exams,/i.test(t)) return line.replace(/^(\s*)In exams,/i, "$1👉 In exams,");
+        if (/^A common mistake/i.test(t)) return line.replace(/^(\s*)A common mistake/i, "$1⚠️ A common mistake");
+        if (/^For example,/i.test(t)) return line.replace(/^(\s*)For example,/i, "$1🧪 For example,");
+        return line;
+      });
+      block.content = next.join("\n");
+    }
+  }
+  return draft;
+}
+
+function normalizeVisualSpacing(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+      block.content = block.content
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/([.!?])\s+(👉|💡|⚠️|🧪|🧠|🔍|⚖️|🧬|🔑)/g, "$1\n\n$2")
+        .trim();
+    }
+  }
+  return draft;
+}
+
+function shortenOverlongParagraphs(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+      const lines = block.content.split("\n");
+      const nextLines = [];
+      for (const line of lines) {
+        if (line.length > 220) {
+          const sentences = line.split(/(?<=[.!?])\s+/);
+          let current = "";
+          for (const sentence of sentences) {
+            if (`${current} ${sentence}`.trim().length > 140) {
+              if (current.trim()) nextLines.push(current.trim());
+              current = sentence;
+            } else {
+              current = `${current} ${sentence}`.trim();
+            }
+          }
+          if (current.trim()) nextLines.push(current.trim());
+        } else {
+          nextLines.push(line);
+        }
+      }
+      block.content = nextLines.join("\n");
+    }
+  }
+  return draft;
+}
+
+function normalizeBulletLists(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  for (const page of draft.pages || []) {
+    for (const block of page.blocks || []) {
+      if (!block?.content || typeof block.content !== "string") continue;
+      block.content = block.content
+        .replace(/^\*\s+/gm, "• ")
+        .replace(/^-\s+/gm, "• ")
+        .replace(/^\d+\.\s+/gm, (match) => `${match.trim()} `);
+    }
+  }
+  return draft;
+}
+
+function addOneGlanceSummary(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+  const topic = String(topicHint || "").toLowerCase();
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks) || page.blocks.length < 10) continue;
+    const alreadyExists = page.blocks.some((b) =>
+      /one-glance summary|quick summary/i.test(`${b.title || ""} ${b.content || ""}`)
+    );
+    if (alreadyExists) continue;
+    let summary =
+      "💡 Quick summary:\n• Key idea\n• Main comparison\n• Main exam point";
+    if (topic.includes("stem cell")) {
+      summary =
+        "💡 Quick summary:\n" +
+        "• Stem cells are unspecialised cells that can differentiate\n" +
+        "• Embryonic stem cells are pluripotent; adult stem cells are multipotent\n" +
+        "• This difference is central to medicine and ethics questions";
+    }
+    page.blocks.splice(1, 0, {
+      type: "keyIdea",
+      title: "One-glance summary",
+      role: "coreRule",
+      content: summary,
+    });
+  }
+  return draft;
+}
+
+function applyV12VisualHierarchyEngine(draft, topicHint = "") {
+  if (!draft || typeof draft !== "object") return draft;
+  chunkDenseBlocks(draft);
+  shortenOverlongParagraphs(draft);
+  normalizeBulletLists(draft);
+  emphasiseKeyLines(draft);
+  normalizeVisualSpacing(draft);
+  addOneGlanceSummary(draft, topicHint);
+  ensureKeyIdeaBlockTitles(draft);
+  return draft;
+}
+
 /**
  * V7.6: replace loose embryonic vs adult prose with a tight comparison scaffold when detected.
  */
@@ -4569,6 +4829,7 @@ function sanitizeDraft(draft, opts = {}) {
   keepBestPerConcept(clean, topic);
   hardPruneDuplicateConcepts(clean, topic);
   applyV11TeacherDialogueAndQuestioning(clean, topic);
+  applyV12VisualHierarchyEngine(clean, topic);
 
   ensureWhatToNoticeBlocks(clean, topic);
   ensureFinalMemoryRuleBlock(clean, topic);
@@ -4875,7 +5136,9 @@ router.post("/generate-lesson", auth, async (req, res) => {
       payload.missingPoints = missingPoints;
     }
     const v7AdvisoryGen = collectV7TeachingAdvisoryNotes(sanitized);
-    if (v7AdvisoryGen.length) payload.teachingAdvisory = v7AdvisoryGen;
+    const v12AdvisoryGen = collectV12VisualAdvisoryNotes(sanitized);
+    const mergedAdvisoryGen = [...v7AdvisoryGen, ...v12AdvisoryGen];
+    if (mergedAdvisoryGen.length) payload.teachingAdvisory = mergedAdvisoryGen;
     return res.json(payload);
   } catch (error) {
     console.error("❌ AI Route Error:", error?.message || error);
@@ -5338,7 +5601,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
       responsePayload.warning = (responsePayload.warning ? responsePayload.warning + " " : "") + driftCheck.warnings[0];
     }
     const v7AdvisorySave = collectV7TeachingAdvisoryNotes(finalDraftForQuality);
-    if (v7AdvisorySave.length) responsePayload.teachingAdvisory = v7AdvisorySave;
+    const v12AdvisorySave = collectV12VisualAdvisoryNotes(finalDraftForQuality);
+    const mergedAdvisorySave = [...v7AdvisorySave, ...v12AdvisorySave];
+    if (mergedAdvisorySave.length) responsePayload.teachingAdvisory = mergedAdvisorySave;
     return res.json(responsePayload);
   } catch (error) {
     if (process.env.NODE_ENV !== "production" && error?.stack) {

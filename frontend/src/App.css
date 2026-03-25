@@ -375,10 +375,32 @@ tr:hover td {
 .bg-red-50 { background-color: #fef2f2; }
 .bg-yellow-50 { background-color: #fffbeb; }
 
-/* Create Lesson editor: stack sidebar above main on small screens */
-@media (max-width: 768px) {
+/* ----- Lesson editor (Create): one page scroll; sticky preview + optional left below app header ----- */
+:root {
+  --lesson-editor-sticky-top: 110px;
+}
+
+@media (min-width: 1101px) {
+  .create-lesson-page #create-lesson-preview.lesson-editor-preview-sticky {
+    position: sticky;
+    top: var(--lesson-editor-sticky-top);
+    align-self: start;
+  }
+
+  .create-lesson-page aside.lesson-editor-sidebar-sticky {
+    position: sticky;
+    top: var(--lesson-editor-sticky-top);
+    align-self: start;
+  }
+}
+
+/* Create Lesson editor: stack sidebar above main on small / medium screens */
+@media (max-width: 1100px) {
   .create-lesson-editor-grid {
     grid-template-columns: 1fr !important;
+  }
+  .create-lesson-editor-grid aside[id="create-lesson-preview"] {
+    max-width: none !important;
   }
 }
 

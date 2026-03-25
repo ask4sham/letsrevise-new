@@ -607,7 +607,8 @@ const TeacherDashboard: React.FC = () => {
         console.log("[GenerateLessonMaterials] request payload", payload);
       }
 
-      const res = await api.post("/ai/generate-and-save", payload);
+      // Backend may run two OpenAI Responses calls (draft + second pass); allow long structured JSON latency.
+      const res = await api.post("/ai/generate-and-save", payload, { timeout: 600000 });
       const lessonId = res?.data?.lessonId;
 
       if (!lessonId) {

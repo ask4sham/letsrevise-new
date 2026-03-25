@@ -1,8 +1,8 @@
 // Explicit proxy so /api/* and /uploads/* are forwarded to the backend.
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
-// Coverage and other heavy reads: allow backend time to respond (avoid 504 from proxy timeout).
-const PROXY_TIMEOUT_MS = 90000;
+// AI generate-and-save (two OpenAI passes + save) and other heavy API calls — avoid proxy cutting the connection early.
+const PROXY_TIMEOUT_MS = 600000;
 const BACKEND = "http://localhost:5000";
 
 module.exports = function (app) {
