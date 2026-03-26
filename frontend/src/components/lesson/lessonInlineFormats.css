@@ -1,0 +1,48 @@
+/* Allowed lesson-inline classes (sanitized at render). Dark colours only for light card backgrounds. */
+
+.lesson-content.lesson-md-body,
+.lesson-md-body {
+  line-height: 1.7;
+}
+
+.lesson-md-body p {
+  margin: 0 0 0.85em;
+  white-space: pre-wrap;
+}
+
+.lesson-md-body p:last-child {
+  margin-bottom: 0;
+}
+
+.lesson-md-body br {
+  line-height: inherit;
+}
+
+.lesson-inline.lesson-fsz-small {
+  font-size: 0.8125rem;
+}
+.lesson-inline.lesson-fsz-normal {
+  font-size: 1rem;
+}
+.lesson-inline.lesson-fsz-large {
+  font-size: 1.125rem;
+}
+.lesson-inline.lesson-fsz-xlarge {
+  font-size: 1.25rem;
+}
+
+.lesson-inline.lesson-fc-black {
+  color: #0f172a;
+}
+.lesson-inline.lesson-fc-navy {
+  color: #1e3a8a;
+}
+.lesson-inline.lesson-fc-green {
+  color: #166534;
+}
+.lesson-inline.lesson-fc-red {
+  color: #991b1b;
+}
+.lesson-inline.lesson-fc-purple {
+  color: #6b21a8;
+}

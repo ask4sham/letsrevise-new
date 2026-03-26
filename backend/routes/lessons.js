@@ -1801,6 +1801,7 @@ async function publishToggleHandler(req, res, mode) {
       if (structureValidation.blocking.length > 0) {
         return res.status(400).json({
           error: "Lesson failed structure validation",
+          msg: "Lesson failed structure validation",
           structureIssues: structureValidation.blocking,
           structureWarnings: structureValidation.warnings,
         });
@@ -1809,6 +1810,7 @@ async function publishToggleHandler(req, res, mode) {
       if (qualityResult.score < 70) {
         return res.status(400).json({
           error: "Lesson quality too low to publish",
+          msg: "Lesson quality too low to publish",
           score: qualityResult.score,
           band: qualityResult.band,
           topIssues: (qualityResult.issues || []).slice(0, 10),

@@ -79,16 +79,31 @@ describe("AI generate-and-save: structure (hook, worked example, diagrams, exam 
               blocks: [
                 { type: "text", role: "hook", content: "Cells are the basic units of life. What makes them work?" },
                 { type: "keyIdea", role: "coreRule", content: "Eukaryotic cells have a nucleus and membrane-bound organelles." },
-                { type: "commonMistake", role: "commonMistake", content: "Students often think prokaryotes have a nucleus. They do not—DNA floats in cytoplasm." },
+                {
+                  type: "commonMistake",
+                  role: "commonMistake",
+                  content:
+                    "Wrong: Prokaryotes have a nucleus.\nCorrect: Prokaryotes have DNA in the cytoplasm (nucleoid), not a membrane-bound nucleus.\nExam link: You lose marks if you say prokaryotes have a nucleus.",
+                },
                 { type: "keyIdea", role: "patternRecognition", content: "Exam questions often ask you to compare plant and animal cells." },
                 { type: "diagram", role: "concept", caption: "image here", content: "image here" },
-                { type: "keyIdea", role: "whatToNotice", title: "What to Notice", content: "Nucleus, cytoplasm, cell membrane." },
+                {
+                  type: "keyIdea",
+                  role: "whatToNotice",
+                  title: "What to Notice",
+                  content: "- Nucleus controls activities\n- Cytoplasm is where reactions occur\n- Membrane controls entry and exit",
+                },
                 { type: "text", role: "concept", content: "The nucleus controls the cell. Cytoplasm is where reactions happen." },
                 { type: "examTip", role: "concept", content: "Describe the function of each organelle in exams." },
                 { type: "diagram", role: "concept", caption: "image here", content: "image here" },
-                { type: "keyIdea", role: "whatToNotice", title: "What to Notice", content: "Chloroplasts in plant cells only." },
+                {
+                  type: "keyIdea",
+                  role: "whatToNotice",
+                  title: "What to Notice",
+                  content: "- Chloroplasts only in plant cells\n- Site of photosynthesis\n- Often asked in compare questions",
+                },
                 { type: "text", role: "concept", content: "Plant cells have chloroplasts for photosynthesis." },
-                { type: "examTip", role: "concept", content: "Compare plant and animal cells using a table." },
+                { type: "examTip", role: "concept", content: "In compare questions, state one difference per mark and use exam command words." },
                 {
                   type: "checkpoint",
                   role: "workedExample",

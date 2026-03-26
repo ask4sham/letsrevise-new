@@ -2166,20 +2166,11 @@ const EditLessonPage: React.FC = () => {
     input.click();
   };
 
-  const saveToBackend = async () => {
-    if (!lesson || !id) return;
-    if (!isMongoObjectId(id)) {
-      setSaveMsg(
-        "This lesson is a legacy (Supabase) lesson. (UUID). Editing pages is currently supported for Mongo lessons."
-      );
-      return;
-    }
+  /** Full lesson PUT payload (pages + quiz) — shared by Save and Publish so publish validates the same snapshot. */
+  const getLessonPersistPayload = (): Record<string, unknown> | null => {
+    if (!lesson) return null;
 
-    try {
-      setSaving(true);
-      setSaveMsg("");
-
-      const sanitizedPages = (lesson.pages || []).map((p: any) => ({
+    const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
         blocks: (p.blocks || []).map((b: any) => {
           if (b.type === "checkpoint") {
@@ -2269,27 +2260,44 @@ const EditLessonPage: React.FC = () => {
       );
       const mergedQuizQuestions = [...pageQuizQuestions, ...endOfLessonQuestions];
 
-      const payload: any = {
-        title: lesson.title,
-        description: lesson.description,
-        subject: lesson.subject,
-        level: lesson.level,
-        topic: lesson.topic,
-        topicKey: topicKeyForBank ?? lesson.topicKey ?? undefined,
-        specKey: (lesson as { specKey?: string }).specKey ?? undefined,
-        mainTopic: (lesson as { mainTopic?: string }).mainTopic ?? undefined,
-        subTopic: (lesson as { subTopic?: string }).subTopic ?? undefined,
-        board: lesson.examBoardName || "",
-        estimatedDuration: lesson.estimatedDuration,
-        shamCoinPrice: lesson.shamCoinPrice,
-        isFreePreview: !!lesson.isFreePreview,
-        pages: sanitizedPages,
-        quiz: {
-          ...(lesson.quiz || {}),
-          timeSeconds: lesson.quiz?.timeSeconds ?? 600,
-          questions: mergedQuizQuestions,
-        },
-      };
+    return {
+      title: lesson.title,
+      description: lesson.description,
+      subject: lesson.subject,
+      level: lesson.level,
+      topic: lesson.topic,
+      topicKey: topicKeyForBank ?? lesson.topicKey ?? undefined,
+      specKey: (lesson as { specKey?: string }).specKey ?? undefined,
+      mainTopic: (lesson as { mainTopic?: string }).mainTopic ?? undefined,
+      subTopic: (lesson as { subTopic?: string }).subTopic ?? undefined,
+      board: lesson.examBoardName || "",
+      estimatedDuration: lesson.estimatedDuration,
+      shamCoinPrice: lesson.shamCoinPrice,
+      isFreePreview: !!lesson.isFreePreview,
+      pages: sanitizedPages,
+      quiz: {
+        ...(lesson.quiz || {}),
+        timeSeconds: lesson.quiz?.timeSeconds ?? 600,
+        questions: mergedQuizQuestions,
+      },
+    };
+  };
+
+  const saveToBackend = async () => {
+    if (!lesson || !id) return;
+    if (!isMongoObjectId(id)) {
+      setSaveMsg(
+        "This lesson is a legacy (Supabase) lesson. (UUID). Editing pages is currently supported for Mongo lessons."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setSaveMsg("");
+
+      const payload = getLessonPersistPayload();
+      if (!payload) return;
 
       let saved = false;
 
@@ -2314,6 +2322,29 @@ const EditLessonPage: React.FC = () => {
       setTimeout(() => setSaveMsg(""), 2500);
     }
   };
+
+  function formatPublishOrSaveError(e: unknown): string {
+    const err = e as {
+      message?: string;
+      data?: {
+        error?: string;
+        msg?: string;
+        structureIssues?: string[];
+        topIssues?: string[];
+        topSuggestions?: string[];
+      };
+    };
+    const base = err?.message || err?.data?.error || err?.data?.msg || "Request failed";
+    const struct = err?.data?.structureIssues;
+    if (Array.isArray(struct) && struct.length > 0) {
+      return `${base}\n\n${struct.map((s) => `• ${s}`).join("\n")}`;
+    }
+    const top = err?.data?.topIssues;
+    if (Array.isArray(top) && top.length > 0) {
+      return `${base}\n\n${top.slice(0, 12).map((s) => `• ${s}`).join("\n")}`;
+    }
+    return base;
+  }
 
   /** PR20: Compute local publish issues for gate modal (checkpoints, diagrams, practice, reviewed, structure). */
   function computeLocalPublishIssues(
@@ -2383,91 +2414,59 @@ const EditLessonPage: React.FC = () => {
       setPublishing(true);
       setSaveMsg("");
 
-      const sanitizedPages = (lesson.pages || []).map((p: any) => ({
-        ...p,
-        blocks: (p.blocks || []).map((b: any) => {
-          if (b.type === "checkpoint") {
-            const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            const cpOut: Record<string, unknown> = {
-              type: "checkpoint",
-              prompt: String(b.prompt ?? "").trim(),
-              questionType: b.questionType === "short" ? "short" : "mcq",
-              options: opts,
-              correctAnswer: String(b.correctAnswer ?? "").trim(),
-              explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
-            };
-            if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
-            return cpOut;
-          }
-          if (b.type === "diagram") {
-            const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
-            const annotations = Array.isArray(b.annotations) ? b.annotations : [];
-            const steps = Array.isArray(b.steps) ? b.steps : [];
-            const connectors = Array.isArray(b.connectors) ? b.connectors : [];
-            const dOut: Record<string, unknown> = {
-              ...b,
-              type: "diagram",
-              visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
-              caption: b.caption != null ? String(b.caption).trim() : undefined,
-              mode,
-              annotations: annotations.length ? annotations : undefined,
-              steps: steps.length ? steps : undefined,
-              connectors: connectors.length ? connectors : undefined,
-              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
-              imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
-              alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
-            };
-            if (typeof b.role === "string" && b.role.trim()) dOut.role = b.role.trim();
-            return dOut;
-          }
-          const contentOut: Record<string, unknown> = {
-            type: toLegacyBlockType(b.type),
-            content: sanitizeTeacherMarkdown(String(b.content || "")),
-          };
-          if (typeof b.title === "string" && b.title.trim()) contentOut.title = b.title.trim();
-          if (typeof b.role === "string" && b.role.trim()) contentOut.role = b.role.trim();
-          return contentOut;
-        }),
-      }));
-
-      const payload: any = {
-        isPublished: newStatus,
-        title: lesson.title,
-        description: lesson.description,
-        subject: lesson.subject,
-        level: lesson.level,
-        topic: lesson.topic,
-        board: lesson.examBoardName || "",
-        estimatedDuration: lesson.estimatedDuration,
-        shamCoinPrice: lesson.shamCoinPrice,
-        isFreePreview: !!lesson.isFreePreview,
-        pages: sanitizedPages,
-      };
-
-      let updated = false;
-
-      if (isAdmin) {
-        try {
-          await api.put(`/admin/lessons/${id}`, payload);
-          updated = true;
-        } catch {}
+      const persistPayload = getLessonPersistPayload();
+      if (!persistPayload) {
+        setSaveMsg("❌ Nothing to save.");
+        return;
       }
 
-      if (!updated) {
-        await api.put(`/lessons/${id}`, payload);
+      /**
+       * Publish: save draft first, then PATCH publish (validation uses DB snapshot).
+       * Unpublish: PATCH first (teacher cannot PUT while published), then save draft content.
+       */
+      if (newStatus) {
+        let savedOk = false;
+        if (isAdmin) {
+          try {
+            await api.put(`/admin/lessons/${id}`, persistPayload);
+            savedOk = true;
+          } catch {
+            /* fall through to teacher route */
+          }
+        }
+        if (!savedOk) {
+          await api.put(`/lessons/${id}`, persistPayload);
+        }
+        await api.patch(`/lessons/${id}/publish`, { isPublished: true });
+      } else {
+        await api.patch(`/lessons/${id}/publish`, { isPublished: false });
+        let savedOk = false;
+        if (isAdmin) {
+          try {
+            await api.put(`/admin/lessons/${id}`, persistPayload);
+            savedOk = true;
+          } catch {
+            /* fall through */
+          }
+        }
+        if (!savedOk) {
+          await api.put(`/lessons/${id}`, persistPayload);
+        }
       }
 
       setSaveMsg(newStatus ? "✅ Lesson published!" : "✅ Lesson unpublished.");
-      setLesson(prev => prev ? { ...prev, isPublished: newStatus } : null);
+      setLesson((prev) => (prev ? { ...prev, isPublished: newStatus } : null));
       if (newStatus) setPostPublishClassroomModalOpen(true);
       setPublishGateOpen(false);
       await fetchLessonSmart();
-    } catch (e: any) {
+      setTimeout(() => setSaveMsg(""), 2500);
+    } catch (e: unknown) {
       console.error(e);
-      setSaveMsg(e?.message || "❌ Publish/unpublish failed.");
+      const msg = formatPublishOrSaveError(e);
+      setSaveMsg(msg);
+      setTimeout(() => setSaveMsg(""), msg.includes("•") ? 12000 : 2500);
     } finally {
       setPublishing(false);
-      setTimeout(() => setSaveMsg(""), 2500);
     }
   };
 

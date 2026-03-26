@@ -487,7 +487,19 @@ const TeacherDashboard: React.FC = () => {
         return;
       }
 
-      alert(err?.message || "Failed to update lesson status");
+      const data = err?.data || err?.response?.data;
+      const base = err?.message || data?.error || data?.msg || "Failed to update lesson status";
+      const struct = data?.structureIssues;
+      if (Array.isArray(struct) && struct.length > 0) {
+        alert(`${base}\n\n${struct.map((s: string) => `• ${s}`).join("\n")}`);
+        return;
+      }
+      const top = data?.topIssues;
+      if (Array.isArray(top) && top.length > 0) {
+        alert(`${base}\n\n${top.slice(0, 12).map((s: string) => `• ${s}`).join("\n")}`);
+        return;
+      }
+      alert(base);
     }
   };
 

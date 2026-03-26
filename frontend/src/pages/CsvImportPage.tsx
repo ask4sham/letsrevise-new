@@ -1,10 +1,16 @@
 /**
  * Phase 1: CSV import for Flashcards and Exam Questions.
  * Route: /admin/csv-import or /teacher/csv-import
+ *
+ * Subject → Collection → Topic matches Topic Flashcard Bank / Topic Quiz Bank.
  */
-import React, { useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { SpecSelector } from "../components/SpecSelector";
+import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
+import { useTaxonomy } from "../hooks/useTaxonomy";
+import type { SpecKey } from "../api/taxonomy";
 import {
   importFlashcardsCsv,
   importExamQuestionsCsv,
@@ -15,18 +21,69 @@ import {
 
 type ImportType = "flashcards" | "exam-questions";
 
+type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
+
 export default function CsvImportPage() {
   const { user } = useCurrentUser();
   const isTeacher = user?.userType === "teacher";
+  const [searchParams] = useSearchParams();
+
   const [importType, setImportType] = useState<ImportType>("flashcards");
   const [file, setFile] = useState<File | null>(null);
-  const [defaultSpecKey, setDefaultSpecKey] = useState("");
-  const [defaultTopicKey, setDefaultTopicKey] = useState("");
+  const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
+  const { data: taxonomy } = useTaxonomy(specKey);
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
+  const [topicKey, setTopicKey] = useState<string>("");
   const [dryRun, setDryRun] = useState(true);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
+
+  const onSpecChange = (v: SpecKey | "") => {
+    if (!v) return;
+    setSpecKey(v);
+    setStoredSpecKey(v);
+    setSelectedUnit("");
+    setTopicKey("");
+  };
+
+  /** Deep-link: ?specKey=&topicKey= (e.g. from Topic Command Center / dashboards) */
+  useEffect(() => {
+    const sk = searchParams.get("specKey");
+    const tk = searchParams.get("topicKey");
+    if (sk) {
+      setSpecKey(sk as SpecKey);
+      setStoredSpecKey(sk as SpecKey);
+    }
+    if (tk) setTopicKey(tk);
+  }, [searchParams]);
+
+  /** When taxonomy loads, select collection that contains URL topic */
+  useEffect(() => {
+    const tk = searchParams.get("topicKey");
+    if (!tk || !taxonomy?.units) return;
+    const units = taxonomy.units ?? [];
+    const unitContaining = units.find((u: TaxonomyUnit) =>
+      (u.topics || []).some((t: { topic: string; key: string }) => t.key === tk)
+    );
+    if (unitContaining) setSelectedUnit(unitContaining.unit);
+  }, [searchParams, taxonomy?.units]);
+
+  /** If topic chosen from the all-topics list before a collection, infer collection (same idea as banks). */
+  useEffect(() => {
+    if (!topicKey.trim() || !taxonomy?.units) return;
+    if (selectedUnit) return;
+    const units = taxonomy.units ?? [];
+    const unitContaining = units.find((u: TaxonomyUnit) =>
+      (u.topics || []).some((t: { topic: string; key: string }) => t.key === topicKey)
+    );
+    if (unitContaining) setSelectedUnit(unitContaining.unit);
+  }, [topicKey, selectedUnit, taxonomy?.units]);
+
+  const units = taxonomy?.units ?? [];
+  const topicsInUnit = selectedUnit ? units.find((u) => u.unit === selectedUnit)?.topics ?? [] : [];
+  const allTopics = units.flatMap((u) => u.topics || []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -40,6 +97,15 @@ export default function CsvImportPage() {
       setError("Please select a CSV file");
       return;
     }
+    if (!selectedUnit.trim()) {
+      setError("Please select a collection");
+      return;
+    }
+    if (!topicKey.trim()) {
+      setError("Please select a topic");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -47,8 +113,8 @@ export default function CsvImportPage() {
       const params = {
         file,
         dryRun,
-        defaultSpecKey: defaultSpecKey.trim() || undefined,
-        defaultTopicKey: defaultTopicKey.trim() || undefined,
+        defaultSpecKey: specKey.trim(),
+        defaultTopicKey: topicKey.trim(),
       };
       const res =
         importType === "flashcards"
@@ -60,20 +126,17 @@ export default function CsvImportPage() {
     } finally {
       setLoading(false);
     }
-  }, [file, dryRun, defaultSpecKey, defaultTopicKey, importType]);
+  }, [file, dryRun, specKey, topicKey, selectedUnit, importType]);
 
-  const handleDownloadTemplate = useCallback(
-    async (type: ImportType) => {
-      setTemplateError(null);
-      try {
-        if (type === "flashcards") await downloadFlashcardsTemplate();
-        else await downloadExamQuestionsTemplate();
-      } catch (e) {
-        setTemplateError(e instanceof Error ? e.message : "Download failed");
-      }
-    },
-    []
-  );
+  const handleDownloadTemplate = useCallback(async (type: ImportType) => {
+    setTemplateError(null);
+    try {
+      if (type === "flashcards") await downloadFlashcardsTemplate();
+      else await downloadExamQuestionsTemplate();
+    } catch (e) {
+      setTemplateError(e instanceof Error ? e.message : "Download failed");
+    }
+  }, []);
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
@@ -108,6 +171,62 @@ export default function CsvImportPage() {
         </select>
       </div>
 
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
+        <SpecSelector value={specKey} onChange={onSpecChange} />
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Collection</label>
+          <select
+            value={selectedUnit}
+            onChange={(e) => {
+              setSelectedUnit(e.target.value);
+              setTopicKey("");
+            }}
+            style={{ padding: "8px 12px", minWidth: 220, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">— Select collection —</option>
+            {units.map((u) => (
+              <option key={u.unit} value={u.unit}>
+                {u.unit}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Topic</label>
+          <select
+            value={topicKey}
+            onChange={(e) => setTopicKey(e.target.value)}
+            style={{ padding: "8px 12px", minWidth: 260, borderRadius: 8, border: "1px solid #d1d5db" }}
+          >
+            <option value="">— Select topic —</option>
+            {selectedUnit
+              ? topicsInUnit.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.topic}
+                  </option>
+                ))
+              : allTopics.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.topic}
+                  </option>
+                ))}
+          </select>
+        </div>
+      </div>
+      <p style={{ marginTop: -12, marginBottom: 20, fontSize: 14, color: "#6b7280" }}>
+        Defaults apply when rows omit <code style={{ background: "#f3f4f6", padding: "1px 6px", borderRadius: 4 }}>specKey</code> /{" "}
+        <code style={{ background: "#f3f4f6", padding: "1px 6px", borderRadius: 4 }}>topicKey</code>. Choose Subject → Collection → Topic
+        first (same as Flashcard / Quiz banks).
+      </p>
+
       <div style={{ marginBottom: 24 }}>
         <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
           CSV file
@@ -121,33 +240,6 @@ export default function CsvImportPage() {
         {file && (
           <span style={{ marginLeft: 8, color: "#666" }}>{file.name}</span>
         )}
-      </div>
-
-      <div style={{ marginBottom: 24, display: "flex", gap: 24, flexWrap: "wrap" }}>
-        <div>
-          <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>
-            Default specKey (optional)
-          </label>
-          <input
-            type="text"
-            value={defaultSpecKey}
-            onChange={(e) => setDefaultSpecKey(e.target.value)}
-            placeholder="e.g. aqa-gcse-biology"
-            style={{ padding: 8, width: 200 }}
-          />
-        </div>
-        <div>
-          <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>
-            Default topicKey (optional)
-          </label>
-          <input
-            type="text"
-            value={defaultTopicKey}
-            onChange={(e) => setDefaultTopicKey(e.target.value)}
-            placeholder="e.g. cell-structure"
-            style={{ padding: 8, width: 200 }}
-          />
-        </div>
       </div>
 
       <div style={{ marginBottom: 24 }}>

@@ -1076,7 +1076,9 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
       } = require("../services/lessonDraftValidation");
       const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
       const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
-      const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
+      /** Validate the lesson *after* applying updates (same snapshot teacher publish will see once saved). */
+      const base = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
+      const lessonObj = { ...base, ...updates };
       const gate = await checkPublishGateForGenerated(lessonObj, req.user);
       if (!gate.ok) {
         return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });

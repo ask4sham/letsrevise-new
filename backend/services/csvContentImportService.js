@@ -69,8 +69,20 @@ function validateFlashcardRow(row, opts = {}) {
   const specKey = (row.specKey && String(row.specKey).trim()) || defaultSpecKey;
   const topicKey = (row.topicKey && String(row.topicKey).trim()) || defaultTopicKey;
 
-  if (!specKey) return { valid: false, error: "specKey is required (or provide defaultSpecKey)" };
-  if (!topicKey) return { valid: false, error: "topicKey is required (or provide defaultTopicKey)" };
+  if (!specKey) {
+    return {
+      valid: false,
+      error:
+        "Missing subject for this row. Choose Subject (and defaults) on the import form, or add a specKey column.",
+    };
+  }
+  if (!topicKey) {
+    return {
+      valid: false,
+      error:
+        "Missing topic for this row. Choose Topic on the import form, or add a topicKey column.",
+    };
+  }
 
   try {
     assertValidSpecKey(specKey);
@@ -101,8 +113,20 @@ function validateExamQuestionRow(row, opts = {}) {
   const specKey = (row.specKey && String(row.specKey).trim()) || defaultSpecKey;
   const topicKey = (row.topicKey && String(row.topicKey).trim()) || defaultTopicKey;
 
-  if (!specKey) return { valid: false, error: "specKey is required (or provide defaultSpecKey)" };
-  if (!topicKey) return { valid: false, error: "topicKey is required (or provide defaultTopicKey)" };
+  if (!specKey) {
+    return {
+      valid: false,
+      error:
+        "Missing subject for this row. Choose Subject (and defaults) on the import form, or add a specKey column.",
+    };
+  }
+  if (!topicKey) {
+    return {
+      valid: false,
+      error:
+        "Missing topic for this row. Choose Topic on the import form, or add a topicKey column.",
+    };
+  }
 
   try {
     assertValidSpecKey(specKey);
