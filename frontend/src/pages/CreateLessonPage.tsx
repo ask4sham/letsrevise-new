@@ -22,11 +22,13 @@ import {
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
+import { CreateLessonPracticePanel } from "../components/lesson/CreateLessonPracticePanel";
 import {
   collapseExactDuplicatePaste,
   guardLessonBlockPatchForDuplicatePaste,
   transformLessonPastedPlainText,
 } from "../utils/lessonEditorPaste";
+import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 
 type HeroType = "none" | "image" | "video" | "animation";
 
@@ -228,26 +230,8 @@ function newId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-/** LetsRevise Lesson Contract v1.0 — default stencil for manual lesson creation. */
-const LESSON_STENCIL_BLOCKS: LessonPageBlock[] = [
-  { type: "text", role: "hook", content: "[Write hook here]" },
-  { type: "keyIdeas", role: "coreRule", title: "", content: "[Write core rule here]" },
-  { type: "misconceptions", role: "commonMistake", content: "[Write common mistake here]" },
-  { type: "keyIdeas", role: "patternRecognition", title: "", content: "[Write pattern recognition here]" },
-  { type: "diagram", role: "concept", content: "" },
-  { type: "keyIdeas", role: "whatToNotice", title: "What to Notice", content: "[What should the student observe from the diagram?]" },
-  { type: "text", role: "concept", content: "[Explain concept here]" },
-  { type: "examTips", role: "concept", content: "[Write exam tip here]" },
-  { type: "diagram", role: "concept", content: "" },
-  { type: "keyIdeas", role: "whatToNotice", title: "What to Notice", content: "[What should the student observe?]" },
-  { type: "text", role: "concept", content: "[Explain concept here]" },
-  { type: "examTips", role: "concept", content: "[Write exam tip here]" },
-  { type: "checkpoint", role: "workedExample", content: "" },
-  { type: "keyIdeas", role: "synthesis", content: "[Write synthesis here]" },
-  { type: "checkpoint", role: "quickCheck", content: "" },
-  { type: "checkpoint", role: "quickCheck", content: "" },
-  { type: "keyIdeas", role: "finalMemoryRule", content: "[Write final memory rule here]" },
-];
+/** Manual create only: one empty text block; teacher adds further blocks via the editor. */
+const MANUAL_CREATE_INITIAL_BLOCKS: LessonPageBlock[] = [{ type: "text", content: "" }];
 
 function sortPages(pages: LessonPage[]) {
   return [...pages].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -297,6 +281,16 @@ const CreateLessonPage: React.FC = () => {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
+  /** Set when teacher uses practice tools — final submit updates this draft instead of POSTing again. */
+  const [draftLessonId, setDraftLessonId] = useState<string | null>(null);
+  const [ensuringDraft, setEnsuringDraft] = useState(false);
+  /** Loaded when a draft exists — drives Readiness counts + review state (same as Edit lesson). */
+  const [draftLessonSnapshot, setDraftLessonSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [makeClassroomReadyLoading, setMakeClassroomReadyLoading] = useState(false);
+  const [makeClassroomReadyError, setMakeClassroomReadyError] = useState<string | null>(null);
+  /** Bump to remount practice panel after make-classroom-ready attaches questions. */
+  const [practicePanelRefreshKey, setPracticePanelRefreshKey] = useState(0);
 
   // Upload UI
   const [uploadingKey, setUploadingKey] = useState<string>(""); // pageId:blockIndex
@@ -352,7 +346,7 @@ const CreateLessonPage: React.FC = () => {
       order: 1,
       pageType: "",
       hero: { type: "none", src: "", caption: "" }, // legacy compat
-      blocks: [...LESSON_STENCIL_BLOCKS],
+      blocks: [...MANUAL_CREATE_INITIAL_BLOCKS],
       checkpoint: { ...VALID_STARTER_CHECKPOINT },
     },
   ]);
@@ -486,6 +480,63 @@ const CreateLessonPage: React.FC = () => {
       .slice()
       .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map((p, idx) => ({ ...p, order: idx + 1 }));
+
+  /** Same readiness model as Edit lesson left rail (local draft only — no saved quiz/flashcards until create/draft). */
+  const lessonDraftForReadiness = useMemo(
+    () => ({
+      pages: normalizeOrders(pages),
+      topicKey: formData.topicKey || topicSelection.topicKey || "",
+      quiz: { questions: [] },
+      flashcards: [],
+    }),
+    [pages, formData.topicKey, topicSelection.topicKey]
+  );
+
+  const readinessEval = useMemo(
+    () => evaluateLessonReadiness(lessonDraftForReadiness),
+    [lessonDraftForReadiness]
+  );
+
+  const topicKeyForBankLinks = (formData.topicKey || topicSelection.topicKey || "").trim();
+
+  const readinessDisplay = useMemo(() => {
+    if (draftLessonSnapshot && typeof draftLessonSnapshot === "object") {
+      try {
+        return evaluateLessonReadiness(draftLessonSnapshot);
+      } catch {
+        return readinessEval;
+      }
+    }
+    return readinessEval;
+  }, [draftLessonSnapshot, readinessEval]);
+
+  const isDraftReviewed = useMemo(() => {
+    const snap = draftLessonSnapshot as {
+      reviewedAt?: string | null;
+      readiness?: { signals?: { isReviewed?: boolean } };
+    } | null;
+    if (!snap) return false;
+    return !!snap.reviewedAt || !!snap.readiness?.signals?.isReviewed;
+  }, [draftLessonSnapshot]);
+
+  useEffect(() => {
+    if (!draftLessonId) {
+      setDraftLessonSnapshot(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get(`/lessons/${draftLessonId}`)
+      .then((res) => {
+        if (!cancelled && res?.data && typeof res.data === "object") {
+          setDraftLessonSnapshot(res.data as Record<string, unknown>);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [draftLessonId, practicePanelRefreshKey]);
 
   // ---------------------------
   // Basic handlers
@@ -828,12 +879,109 @@ const CreateLessonPage: React.FC = () => {
       }
     }
 
-    const blocks = p.flatMap((pg) => pg.blocks || []);
-    if (!blocks.some((b) => safeStr(b.role, "") === "workedExample")) {
-      return "Lesson must include a worked example";
+    return "";
+  };
+
+  /** Minimum fields for POST /lessons (draft) — used by practice tools; does not require worked example or block content. */
+  const validateForDraftTools = (): string => {
+    if (!formData.title.trim()) return "Lesson title is required.";
+    if (!formData.description.trim()) return "Short description is required.";
+    if (!formData.subject.trim()) return "Subject is required.";
+    if (!formData.level.trim()) return "Level is required.";
+    if (!formData.board.trim()) return "Board is required (AQA/OCR/Edexcel/WJEC).";
+    if (!formData.topic.trim() && !formData.topicKey.trim()) return "Select a sub-topic (or enter Topic).";
+    if (formData.level === "GCSE" && !formData.tier.trim()) {
+      return "Tier is required for GCSE lessons (Foundation or Higher).";
+    }
+    const p = normalizeOrders(pages);
+    if (p.length === 0) return "Add at least 1 page.";
+    return "";
+  };
+
+  const buildLessonPayload = (): Record<string, unknown> => {
+    const sanitizedPages = normalizeOrders(pages).map((p) => ({
+      pageId: p.pageId,
+      title: safeStr(p.title, `Page ${p.order}`),
+      order: p.order,
+      pageType: safeStr(p.pageType, ""),
+      hero: { type: "none" as const, src: "", caption: "" },
+      blocks: (p.blocks || []).map((b) => {
+        const blockType = toLegacyBlockType(b.type);
+        const out: Record<string, unknown> = {
+          type: blockType,
+          content: sanitizeTeacherMarkdown(String(b.content || "")),
+        };
+        if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
+        if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
+        if (blockType === "checkpoint" && p.checkpoint) {
+          out.prompt = safeStr(p.checkpoint.question, "");
+          out.options = clampOptions((p.checkpoint.options || []) as string[]);
+          out.correctAnswer = safeStr(p.checkpoint.answer, "");
+        }
+        return out;
+      }),
+      checkpoint: p.checkpoint
+        ? {
+            question: safeStr(p.checkpoint.question, ""),
+            options: clampOptions((p.checkpoint.options || []) as string[]),
+            answer: safeStr(p.checkpoint.answer, ""),
+          }
+        : { question: "", options: ["", "", "", ""], answer: "" },
+    }));
+
+    const payload: Record<string, unknown> = {
+      title: formData.title,
+      description: formData.description,
+      subject: formData.subject,
+      level: formData.level,
+      board: formData.board,
+      topic: formData.topic || topicSelection.mainTopicTitle || "",
+      tags: formData.tags,
+      content: "Structured lesson (see pages)",
+      externalResources: formData.externalResources,
+      estimatedDuration: formData.estimatedDuration,
+      shamCoinPrice: formData.shamCoinPrice,
+      pages: sanitizedPages,
+    };
+    if (formData.topicKey.trim()) {
+      payload.topicKey = formData.topicKey.trim();
+      if (topicSelection.specKey) payload.specKey = topicSelection.specKey;
+      if (topicSelection.mainTopicTitle) payload.mainTopic = topicSelection.mainTopicTitle;
+      if (topicSelection.topic) payload.subTopic = topicSelection.topic;
     }
 
-    return "";
+    if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
+    payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;
+    return payload;
+  };
+
+  const ensureLessonId = async (): Promise<
+    { ok: true; id: string } | { ok: false; message: string }
+  > => {
+    if (draftLessonId) return { ok: true, id: draftLessonId };
+    const err = validateForDraftTools();
+    if (err) return { ok: false, message: err };
+    try {
+      setEnsuringDraft(true);
+      setError("");
+      const payload = buildLessonPayload();
+      const res = await api.post(`/lessons`, payload);
+      const id = res?.data?.lesson?._id || res?.data?.lesson?.id;
+      if (!id) return { ok: false, message: "Lesson saved but no id returned." };
+      const sid = String(id);
+      setDraftLessonId(sid);
+      return { ok: true, id: sid };
+    } catch (e: unknown) {
+      const errObj = e as { response?: { data?: { message?: string; msg?: string } } };
+      const msg =
+        errObj?.response?.data?.message ||
+        errObj?.response?.data?.msg ||
+        (e instanceof Error ? e.message : null) ||
+        "Failed to save draft lesson.";
+      return { ok: false, message: typeof msg === "string" ? msg : "Failed to save draft lesson." };
+    } finally {
+      setEnsuringDraft(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -849,68 +997,16 @@ const CreateLessonPage: React.FC = () => {
       setError("");
       setSuccess("");
 
-      // ============================
-      // Step 4.2 — Sanitize content right before creating (block types sent as legacy to API)
-      // ============================
-      const sanitizedPages = normalizeOrders(pages).map((p) => ({
-        pageId: p.pageId,
-        title: safeStr(p.title, `Page ${p.order}`),
-        order: p.order,
-        pageType: safeStr(p.pageType, ""),
-        hero: { type: "none" as const, src: "", caption: "" },
-        blocks: (p.blocks || []).map((b) => {
-          const blockType = toLegacyBlockType(b.type);
-          const out: Record<string, unknown> = {
-            type: blockType,
-            content: sanitizeTeacherMarkdown(String(b.content || "")),
-          };
-          if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
-          if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
-          if (blockType === "checkpoint" && p.checkpoint) {
-            out.prompt = safeStr(p.checkpoint.question, "");
-            out.options = clampOptions((p.checkpoint.options || []) as string[]);
-            out.correctAnswer = safeStr(p.checkpoint.answer, "");
-          }
-          return out;
-        }),
-        checkpoint: p.checkpoint
-          ? {
-              question: safeStr(p.checkpoint.question, ""),
-              options: clampOptions((p.checkpoint.options || []) as string[]),
-              answer: safeStr(p.checkpoint.answer, ""),
-            }
-          : { question: "", options: ["", "", "", ""], answer: "" },
-      }));
+      const payload = buildLessonPayload();
 
-      const payload: any = {
-        title: formData.title,
-        description: formData.description,
-        subject: formData.subject,
-        level: formData.level,
-        board: formData.board,
-        topic: formData.topic || topicSelection.mainTopicTitle || "",
-        tags: formData.tags,
-        content: "Structured lesson (see pages)",
-        externalResources: formData.externalResources,
-        estimatedDuration: formData.estimatedDuration,
-        shamCoinPrice: formData.shamCoinPrice,
-        pages: sanitizedPages,
-      };
-      if (formData.topicKey.trim()) {
-        payload.topicKey = formData.topicKey.trim();
-        if (topicSelection.specKey) payload.specKey = topicSelection.specKey;
-        if (topicSelection.mainTopicTitle) payload.mainTopic = topicSelection.mainTopicTitle;
-        if (topicSelection.topic) payload.subTopic = topicSelection.topic;
-      }
-
-      if (formData.level === "GCSE" && formData.tier) payload.tier = formData.tier;
-      payload.autoGenerateFromBanks = !!formData.autoGenerateFromBanks;
-
-      const res = await api.post(`/lessons`, payload);
+      const res = draftLessonId
+        ? await api.put(`/lessons/${draftLessonId}`, payload)
+        : await api.post(`/lessons`, payload);
       const data = res?.data;
 
       const gen = data?.autoGenerateResult;
-      const lessonId = data?.lesson?._id || data?.lesson?.id;
+      const lessonId =
+        data?.lesson?._id || data?.lesson?.id || (draftLessonId ? draftLessonId : undefined);
       if (gen) {
         const parts: string[] = [];
         if (gen.flashcardsAdded) parts.push(`${gen.flashcardsAdded} flashcards`);
@@ -1003,6 +1099,9 @@ const CreateLessonPage: React.FC = () => {
                 ...ui.sidebar,
               }}
             >
+              <div style={{ fontWeight: 800, fontSize: "0.9rem", color: "#0f172a", marginBottom: 6 }}>
+                Teacher editor
+              </div>
               <HowToCreateLessonCallout bodyCopy="Start here before filling in exam board, subject, topic, quizzes and practice." />
               <div style={{ ...ui.sectionTitle, marginBottom: 2 }}>Pages</div>
               <div style={{ color: "#64748b", fontSize: "0.75rem", marginBottom: 8 }}>
@@ -1056,6 +1155,250 @@ const CreateLessonPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 14,
+                  borderRadius: 14,
+                  border: "2px solid rgba(0,0,0,0.08)",
+                  background: "white",
+                  boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 900, fontSize: "0.875rem", color: "#111827" }}>Readiness</span>
+                  <a
+                    href="/docs/TEACHER_LESSON_GUIDES_INDEX.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: "#64748b" }}
+                  >
+                    What is this?
+                  </a>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 20,
+                      fontSize: "0.8rem",
+                      fontWeight: "bold",
+                      background: readinessDisplay.classroomReady
+                        ? "#c6f6d5"
+                        : readinessDisplay.minimumPublishable
+                          ? "#fef3c7"
+                          : "#e5e7eb",
+                      color: readinessDisplay.classroomReady
+                        ? "#22543d"
+                        : readinessDisplay.minimumPublishable
+                          ? "#92400e"
+                          : "#4b5563",
+                    }}
+                  >
+                    {readinessDisplay.classroomReady
+                      ? "Classroom-ready"
+                      : readinessDisplay.minimumPublishable
+                        ? "Ready to publish"
+                        : "Needs review"}
+                  </span>
+                </div>
+                <ul style={{ margin: "0 0 10px", paddingLeft: 20, fontSize: 13, color: "#374151" }}>
+                  <li>Pages: {readinessDisplay.counts.pages}</li>
+                  <li>Checkpoints: {readinessDisplay.counts.checkpoints}</li>
+                  <li>Diagrams: {readinessDisplay.counts.diagrams}</li>
+                  <li>Quiz: {readinessDisplay.counts.quizQuestions}</li>
+                  <li>Flashcards: {readinessDisplay.counts.flashcards}</li>
+                  <li>Practice: {readinessDisplay.counts.practiceAttached}</li>
+                  <li>Misconceptions: {readinessDisplay.counts.misconceptions}</li>
+                  <li>Reviewed: {isDraftReviewed ? "Yes" : "No"}</li>
+                </ul>
+                {draftLessonId ? (
+                  <div style={{ marginTop: 8, fontSize: 12 }}>
+                    <Link
+                      to={`/teacher/misconceptions?lessonId=${draftLessonId}`}
+                      style={{ color: "#2563eb", textDecoration: "none", marginRight: 12 }}
+                    >
+                      View misconceptions →
+                    </Link>
+                    <Link
+                      to={`/teacher/reteach-plans?lessonId=${draftLessonId}`}
+                      style={{ color: "#2563eb", textDecoration: "none" }}
+                    >
+                      View reteach plan →
+                    </Link>
+                  </div>
+                ) : null}
+                {draftLessonId ? (
+                  <>
+                    <div style={{ marginTop: 12 }}>
+                      <button
+                        type="button"
+                        disabled={reviewLoading}
+                        onClick={async () => {
+                          if (!draftLessonId) return;
+                          setReviewLoading(true);
+                          try {
+                            const res = await api.post(`/lessons/${draftLessonId}/review`, {
+                              reviewed: !isDraftReviewed,
+                            });
+                            const data = res?.data as {
+                              reviewedAt?: string | null;
+                              readiness?: unknown;
+                            };
+                            setDraftLessonSnapshot((prev) => {
+                              const base = (prev || {}) as Record<string, unknown>;
+                              return {
+                                ...base,
+                                reviewedAt: data?.reviewedAt ?? base.reviewedAt,
+                                readiness: data?.readiness ?? base.readiness,
+                              };
+                            });
+                          } finally {
+                            setReviewLoading(false);
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: isDraftReviewed ? "2px solid #94a3b8" : "2px solid #22c55e",
+                          background: isDraftReviewed ? "#f1f5f9" : "rgba(34,197,94,0.12)",
+                          cursor: reviewLoading ? "not-allowed" : "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        {reviewLoading ? "Updating…" : isDraftReviewed ? "Unmark review" : "Mark as reviewed"}
+                      </button>
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <button
+                        type="button"
+                        disabled={makeClassroomReadyLoading}
+                        onClick={async () => {
+                          if (!draftLessonId) return;
+                          setMakeClassroomReadyError(null);
+                          setMakeClassroomReadyLoading(true);
+                          try {
+                            const res = await api.post<{
+                              ok?: boolean;
+                              readiness?: unknown;
+                              review?: { status?: string };
+                              attach?: { added?: number };
+                            }>(`/reports/lessons/${draftLessonId}/make-classroom-ready`, {
+                              days: 7,
+                              attachPractice: true,
+                              attachLimit: 10,
+                              ensureDiagram: true,
+                              regeneratePlan: true,
+                              planLimit: 10,
+                              markReviewed: true,
+                            });
+                            const d = res?.data;
+                            if (!d?.ok) {
+                              setMakeClassroomReadyError("Request failed");
+                              return;
+                            }
+                            setDraftLessonSnapshot((prev) => {
+                              if (!prev) return prev;
+                              const p = prev as { reviewedAt?: string; readiness?: unknown };
+                              return {
+                                ...prev,
+                                readiness: d.readiness ?? p.readiness,
+                                reviewedAt:
+                                  d.review?.status === "MARKED" || d.review?.status === "ALREADY_REVIEWED"
+                                    ? new Date().toISOString()
+                                    : p.reviewedAt,
+                              };
+                            });
+                            setPracticePanelRefreshKey((k) => k + 1);
+                            setUploadMsg(
+                              `Done: +${d.attach?.added ?? 0} practice · diagram · plan · reviewed`
+                            );
+                            setTimeout(() => setUploadMsg(""), 5000);
+                          } catch (e: unknown) {
+                            const err = e as { response?: { data?: { error?: string; message?: string } } };
+                            setMakeClassroomReadyError(
+                              err?.response?.data?.error ??
+                                err?.response?.data?.message ??
+                                (e instanceof Error ? e.message : null) ??
+                                "Make classroom-ready failed"
+                            );
+                          } finally {
+                            setMakeClassroomReadyLoading(false);
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: "2px solid #059669",
+                          background: makeClassroomReadyLoading ? "#e5e7eb" : "rgba(5,150,105,0.12)",
+                          cursor: makeClassroomReadyLoading ? "not-allowed" : "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          color: "#047857",
+                        }}
+                      >
+                        {makeClassroomReadyLoading ? "Preparing…" : "Make classroom-ready"}
+                      </button>
+                    </div>
+                    {makeClassroomReadyError ? (
+                      <div style={{ marginTop: 6, fontSize: 13, color: "#b91c1c" }}>{makeClassroomReadyError}</div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p style={{ margin: "8px 0 0", fontSize: "0.68rem", color: "#64748b", lineHeight: 1.45 }}>
+                    Save a draft lesson first (use Practice questions below). Then counts and actions match the server,
+                    same as Edit lesson.
+                  </p>
+                )}
+              </div>
+
+              <div style={{ ...ui.sectionTitle, marginTop: 16, marginBottom: 4 }}>Topic banks</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
+                <Link
+                  to={
+                    topicKeyForBankLinks
+                      ? `/teacher/topic-banks/flashcards?topicKey=${encodeURIComponent(topicKeyForBankLinks)}`
+                      : "/teacher/topic-banks/flashcards"
+                  }
+                  style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2563eb", textDecoration: "none" }}
+                >
+                  Flashcards bank →
+                </Link>
+                <Link
+                  to={
+                    topicKeyForBankLinks
+                      ? `/teacher/topic-banks/quizzes?topicKey=${encodeURIComponent(topicKeyForBankLinks)}`
+                      : "/teacher/topic-banks/quizzes"
+                  }
+                  style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2563eb", textDecoration: "none" }}
+                >
+                  Quiz bank →
+                </Link>
+                <Link
+                  to={
+                    topicKeyForBankLinks
+                      ? `/teacher/topic-banks/past-papers?topicKey=${encodeURIComponent(topicKeyForBankLinks)}`
+                      : "/teacher/topic-banks/past-papers"
+                  }
+                  style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2563eb", textDecoration: "none" }}
+                >
+                  Past papers bank →
+                </Link>
+              </div>
+              {!topicKeyForBankLinks ? (
+                <p style={{ margin: "0 0 10px", fontSize: "0.68rem", color: "#64748b", lineHeight: 1.45 }}>
+                  Select a sub-topic above to open banks with this topic pre-selected.
+                </p>
+              ) : null}
+
+              <CreateLessonPracticePanel
+                key={practicePanelRefreshKey}
+                lessonId={draftLessonId}
+                parentEnsuring={ensuringDraft}
+                ensureLessonId={ensureLessonId}
+              />
             </aside>
 
             {/* MIDDLE: lesson details + page editors */}
