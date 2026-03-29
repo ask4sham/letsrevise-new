@@ -26,9 +26,10 @@ import { CreateLessonPracticePanel } from "../components/lesson/CreateLessonPrac
 import {
   collapseExactDuplicatePaste,
   guardLessonBlockPatchForDuplicatePaste,
-  transformLessonPastedPlainText,
+  getLessonPasteInsertText,
 } from "../utils/lessonEditorPaste";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
+import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 
 type HeroType = "none" | "image" | "video" | "animation";
 
@@ -75,8 +76,6 @@ const SUBJECTS = [
   "Business",
   "Economics",
 ] as const;
-
-const DESCRIPTION_LIMIT = 280;
 
 function buildDefaultTitle({
   subTopic,
@@ -417,7 +416,7 @@ const CreateLessonPage: React.FC = () => {
 
     setFormData((prev) => ({
       ...prev,
-      description: starter.slice(0, DESCRIPTION_LIMIT),
+      description: starter.slice(0, LESSON_DESCRIPTION_MAX_LENGTH),
     }));
   }, [
     topicSelection.topic,
@@ -1594,7 +1593,9 @@ const CreateLessonPage: React.FC = () => {
 
                 <label style={{ display: "block", width: "100%" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={ui.label}>Description *</span>
+                    <span style={ui.label}>
+                      Short lesson summary (max {LESSON_DESCRIPTION_MAX_LENGTH} characters) *
+                    </span>
                     <span
                       style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
                       onMouseEnter={() => setDescriptionTooltipVisible(true)}
@@ -1656,7 +1657,7 @@ const CreateLessonPage: React.FC = () => {
                     editorVariant="plain"
                     name="description"
                     value={formData.description}
-                    maxLength={DESCRIPTION_LIMIT}
+                    maxLength={LESSON_DESCRIPTION_MAX_LENGTH}
                     minHeightPx={160}
                     onChange={(v) => {
                       setDescriptionTouched(true);
@@ -1665,14 +1666,42 @@ const CreateLessonPage: React.FC = () => {
                     placeholder="Students will learn…"
                     style={{ fontSize: "0.9375rem" }}
                   />
-                  <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                  <div
+                    style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}
+                    aria-live="polite"
+                  >
                     <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                      Write a short lesson plan describing what students will learn in this specific lesson.
+                      Lesson objective — what students will learn in this lesson.
                     </span>
-                    <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                      {formData.description.length}/{DESCRIPTION_LIMIT}
+                    <span
+                      style={{
+                        fontSize: "0.8125rem",
+                        fontWeight: 600,
+                        color:
+                          formData.description.length >= LESSON_DESCRIPTION_MAX_LENGTH
+                            ? "#b45309"
+                            : formData.description.length >= LESSON_DESCRIPTION_MAX_LENGTH * 0.9
+                              ? "#b45309"
+                              : "#64748b",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {formData.description.length} / {LESSON_DESCRIPTION_MAX_LENGTH} characters
                     </span>
                   </div>
+                  {formData.description.length >= LESSON_DESCRIPTION_MAX_LENGTH ? (
+                    <div
+                      role="status"
+                      style={{
+                        marginTop: 6,
+                        fontSize: "0.8125rem",
+                        fontWeight: 600,
+                        color: "#b45309",
+                      }}
+                    >
+                      Character limit reached
+                    </div>
+                  ) : null}
                   <div style={{ marginTop: 4 }}>
                     <button
                       type="button"
@@ -1869,15 +1898,12 @@ const CreateLessonPage: React.FC = () => {
                               value={safeStr(b.content, "")}
                               onChange={(next) => updateBlock(pg.pageId, idx, { content: next })}
                               onPaste={(e) => {
-                                const pasted = e.clipboardData?.getData("text/plain") ?? "";
-                                if (!pasted) return;
-
-                                const { text, needsCustomInsert } =
-                                  transformLessonPastedPlainText(pasted);
-                                if (!needsCustomInsert) return;
+                                const insert = getLessonPasteInsertText(e.clipboardData);
+                                if (!insert) return;
 
                                 e.preventDefault();
 
+                                const text = insert.text;
                                 const el = e.currentTarget;
                                 const start = el.selectionStart ?? el.value.length;
                                 const end = el.selectionEnd ?? el.value.length;

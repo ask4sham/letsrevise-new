@@ -13,7 +13,12 @@ import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
+import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import { validateLessonStructure } from "../utils/validateLessonStructure";
+import {
+  formatPublishWithQualityWarningsMessage,
+  type PublishWarningSummary,
+} from "../utils/formatPublishWarningMessage";
 import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
@@ -38,8 +43,8 @@ import { listReports, updateReportStatus, REPORT_PRIORITY, type LessonIssueRepor
 import { fetchLessonGraph, fetchTopicCoverage, rebuildLessonGraph } from "../api/contentGraph";
 import {
   collapseExactDuplicatePaste,
+  getLessonPasteInsertText,
   guardLessonBlockPatchForDuplicatePaste,
-  transformLessonPastedPlainText,
 } from "../utils/lessonEditorPaste";
 
 function blockEditorSizeVariant(type: LessonBlockType): "default" | "long" {
@@ -2424,6 +2429,13 @@ const EditLessonPage: React.FC = () => {
        * Publish: save draft first, then PATCH publish (validation uses DB snapshot).
        * Unpublish: PATCH first (teacher cannot PUT while published), then save draft content.
        */
+      let publishData: {
+        publishedWithWarnings?: boolean;
+        publishWarningSummary?: PublishWarningSummary;
+        publishWarnings?: string[];
+        msg?: string;
+      } | null = null;
+
       if (newStatus) {
         let savedOk = false;
         if (isAdmin) {
@@ -2437,7 +2449,8 @@ const EditLessonPage: React.FC = () => {
         if (!savedOk) {
           await api.put(`/lessons/${id}`, persistPayload);
         }
-        await api.patch(`/lessons/${id}/publish`, { isPublished: true });
+        const pubRes = await api.patch(`/lessons/${id}/publish`, { isPublished: true });
+        publishData = pubRes.data;
       } else {
         await api.patch(`/lessons/${id}/publish`, { isPublished: false });
         let savedOk = false;
@@ -2454,12 +2467,31 @@ const EditLessonPage: React.FC = () => {
         }
       }
 
-      setSaveMsg(newStatus ? "✅ Lesson published!" : "✅ Lesson unpublished.");
+      if (newStatus && publishData?.publishedWithWarnings && publishData?.publishWarningSummary) {
+        setSaveMsg(
+          formatPublishWithQualityWarningsMessage(publishData.publishWarningSummary, {
+            leadingSuccessEmoji: true,
+          })
+        );
+        setTimeout(() => setSaveMsg(""), 16000);
+      } else if (
+        newStatus &&
+        publishData?.publishedWithWarnings &&
+        Array.isArray(publishData.publishWarnings) &&
+        publishData.publishWarnings.length > 0
+      ) {
+        setSaveMsg(
+          `✅ Lesson published successfully, with quality warnings.\n\n${publishData.publishWarnings.map((w) => `• ${w}`).join("\n")}`
+        );
+        setTimeout(() => setSaveMsg(""), 16000);
+      } else {
+        setSaveMsg(newStatus ? "✅ Lesson published!" : "✅ Lesson unpublished.");
+        setTimeout(() => setSaveMsg(""), 2500);
+      }
       setLesson((prev) => (prev ? { ...prev, isPublished: newStatus } : null));
       if (newStatus) setPostPublishClassroomModalOpen(true);
       setPublishGateOpen(false);
       await fetchLessonSmart();
-      setTimeout(() => setSaveMsg(""), 2500);
     } catch (e: unknown) {
       console.error(e);
       const msg = formatPublishOrSaveError(e);
@@ -3169,14 +3201,60 @@ const EditLessonPage: React.FC = () => {
 
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={{ display: "block", marginTop: 10 }}>
-                      <div style={{ fontWeight: 800, marginBottom: 6 }}>Description</div>
+                      <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                        Short lesson summary (max {LESSON_DESCRIPTION_MAX_LENGTH} characters)
+                      </div>
                       <LessonAutoTextarea
                         editorVariant="plain"
                         value={lesson.description}
                         onChange={(v) => updateLessonField("description", v)}
                         minHeightPx={160}
+                        maxLength={LESSON_DESCRIPTION_MAX_LENGTH}
                         style={{ fontSize: "0.9375rem" }}
                       />
+                      <div
+                        style={{
+                          marginTop: 6,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: 8,
+                        }}
+                        aria-live="polite"
+                      >
+                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                          Lesson objective — what students will learn in this lesson.
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color:
+                              lesson.description.length >= LESSON_DESCRIPTION_MAX_LENGTH
+                                ? "#b45309"
+                                : lesson.description.length >= LESSON_DESCRIPTION_MAX_LENGTH * 0.9
+                                  ? "#b45309"
+                                  : "#64748b",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {lesson.description.length} / {LESSON_DESCRIPTION_MAX_LENGTH} characters
+                        </span>
+                      </div>
+                      {lesson.description.length >= LESSON_DESCRIPTION_MAX_LENGTH ? (
+                        <div
+                          role="status"
+                          style={{
+                            marginTop: 6,
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color: "#b45309",
+                          }}
+                        >
+                          Character limit reached
+                        </div>
+                      ) : null}
                     </label>
                   </div>
 
@@ -4548,15 +4626,12 @@ const EditLessonPage: React.FC = () => {
                               updateBlock(currentPage!.pageId, idx, { content: next })
                             }
                             onPaste={(e) => {
-                              const pasted = e.clipboardData?.getData("text/plain") ?? "";
-                              if (!pasted) return;
-
-                              const { text, needsCustomInsert } =
-                                transformLessonPastedPlainText(pasted);
-                              if (!needsCustomInsert) return;
+                              const insert = getLessonPasteInsertText(e.clipboardData);
+                              if (!insert) return;
 
                               e.preventDefault();
 
+                              const text = insert.text;
                               const el = e.currentTarget;
                               const start = el.selectionStart ?? el.value.length;
                               const end = el.selectionEnd ?? el.value.length;

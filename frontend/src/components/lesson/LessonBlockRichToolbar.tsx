@@ -1,4 +1,5 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
+import { pasteRawBufferToLessonMarkdown } from "../../utils/lessonEditorPaste";
 
 export const LESSON_FONT_SIZE_LABELS = ["Small", "Normal", "Large", "Extra Large"] as const;
 export const LESSON_FONT_SIZE_CLASSES = [
@@ -79,6 +80,9 @@ const toolbarBtn: React.CSSProperties = {
 };
 
 export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRichToolbarProps) {
+  const [pasteFmtOpen, setPasteFmtOpen] = useState(false);
+  const [pasteFmtBuffer, setPasteFmtBuffer] = useState("");
+
   const apply = useCallback(
     (fn: (el: HTMLTextAreaElement) => { next: string; cursor: number }) => {
       const el = getTextarea();
@@ -89,7 +93,19 @@ export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRich
     [onApply, getTextarea]
   );
 
+  const insertPasteFormatted = useCallback(() => {
+    const el = getTextarea();
+    if (!el) return;
+    const md = pasteRawBufferToLessonMarkdown(pasteFmtBuffer);
+    if (!md) return;
+    const { next, cursor } = insertAtCursor(el, md);
+    onApply(next, cursor);
+    setPasteFmtOpen(false);
+    setPasteFmtBuffer("");
+  }, [getTextarea, onApply, pasteFmtBuffer]);
+
   return (
+    <>
     <div
       role="toolbar"
       aria-label="Block text formatting and teaching markers"
@@ -98,7 +114,7 @@ export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRich
         flexWrap: "wrap",
         gap: 6,
         alignItems: "center",
-        marginBottom: 8,
+        marginBottom: pasteFmtOpen ? 0 : 8,
         padding: "6px 8px",
         borderRadius: 8,
         border: "1px solid rgba(15,23,42,0.12)",
@@ -123,6 +139,16 @@ export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRich
       </button>
       <button type="button" style={toolbarBtn} onClick={() => apply((el) => prefixCurrentLine(el, "1. "))} title="Numbered list" aria-label="Numbered list">
         1.
+      </button>
+      <button
+        type="button"
+        style={toolbarBtn}
+        onClick={() => setPasteFmtOpen((v) => !v)}
+        title="Paste HTML or plain text and convert to safe lesson markdown"
+        aria-expanded={pasteFmtOpen}
+        aria-label="Paste and format lesson"
+      >
+        Paste and format lesson
       </button>
 
       <span style={{ width: 1, height: 18, background: "rgba(15,23,42,0.15)", margin: "0 4px" }} />
@@ -211,6 +237,66 @@ export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRich
         ))}
       </div>
     </div>
+    {pasteFmtOpen && (
+      <div
+        style={{
+          marginBottom: 8,
+          padding: "10px 12px",
+          borderRadius: 8,
+          border: "1px solid rgba(59,130,246,0.35)",
+          background: "rgba(239,246,255,0.95)",
+        }}
+      >
+        <div style={{ fontSize: 12, color: "#334155", marginBottom: 8, lineHeight: 1.45 }}>
+          Paste from Word, ChatGPT, or the web. Content is converted to lesson markdown (headings, lists, bold, links).
+          Inline styles and scripts are removed.
+        </div>
+        <textarea
+          value={pasteFmtBuffer}
+          onChange={(e) => setPasteFmtBuffer(e.target.value)}
+          rows={8}
+          placeholder="Paste here, then click Insert formatted…"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            fontSize: 13,
+            fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
+            padding: 8,
+            borderRadius: 6,
+            border: "1px solid rgba(15,23,42,0.2)",
+            resize: "vertical",
+            minHeight: 120,
+          }}
+        />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={insertPasteFormatted}
+            disabled={!pasteFmtBuffer.trim()}
+            style={{
+              ...toolbarBtn,
+              background: pasteFmtBuffer.trim() ? "rgba(37,99,235,0.95)" : "rgba(148,163,184,0.5)",
+              color: "#fff",
+              borderColor: "rgba(37,99,235,0.5)",
+              cursor: pasteFmtBuffer.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            Insert formatted
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPasteFmtOpen(false);
+              setPasteFmtBuffer("");
+            }}
+            style={toolbarBtn}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
