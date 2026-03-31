@@ -45,6 +45,8 @@ const { pickLessonFlags } = require("../utils/lessonValidation");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
 const {
   validateLessonStructure,
+  validateLessonStructureForPublish,
+  buildPublishWarningSummary,
   mergeStructureValidationForScoring,
 } = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
@@ -1786,6 +1788,10 @@ async function publishToggleHandler(req, res, mode) {
       }
     }
 
+    let publishWarningSummary = null;
+    let publishValidationMode = null;
+    let publishQualityScore = null;
+
     if (willBePublished) {
       const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
       const lessonObj = lesson.toObject ? lesson.toObject() : { ...lesson._doc, metadata: lesson.metadata };
@@ -1794,9 +1800,11 @@ async function publishToggleHandler(req, res, mode) {
         return res.status(400).json({ error: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
       }
 
-      const structureValidation = validateLessonStructure(lessonObj, { isManual: false });
+      const structureValidation = validateLessonStructureForPublish(lessonObj);
+      publishValidationMode = structureValidation.mode;
       const structureIssues = mergeStructureValidationForScoring(structureValidation);
       const qualityResult = scoreLessonQuality(lessonObj, { structureIssues, source: "manual" });
+      publishQualityScore = qualityResult.score;
 
       if (structureValidation.blocking.length > 0) {
         return res.status(400).json({
@@ -1804,10 +1812,13 @@ async function publishToggleHandler(req, res, mode) {
           msg: "Lesson failed structure validation",
           structureIssues: structureValidation.blocking,
           structureWarnings: structureValidation.warnings,
+          publishValidationMode: structureValidation.mode,
         });
       }
 
-      if (qualityResult.score < 70) {
+      if (structureValidation.mode === "manual_teacher") {
+        publishWarningSummary = buildPublishWarningSummary(structureValidation, qualityResult);
+      } else if (qualityResult.score < 70) {
         return res.status(400).json({
           error: "Lesson quality too low to publish",
           msg: "Lesson quality too low to publish",
@@ -1816,6 +1827,7 @@ async function publishToggleHandler(req, res, mode) {
           topIssues: (qualityResult.issues || []).slice(0, 10),
           topSuggestions: (qualityResult.suggestions || []).slice(0, 10),
           qualityResult,
+          publishValidationMode: structureValidation.mode,
         });
       }
     }
@@ -1853,11 +1865,26 @@ async function publishToggleHandler(req, res, mode) {
       }
     }
 
+    const publishSuccessMsg =
+      lesson.isPublished && publishWarningSummary
+        ? publishWarningSummary.headline
+        : lesson.isPublished
+          ? "Lesson published successfully"
+          : "Lesson unpublished successfully";
+
     return res.json({
       success: true,
-      msg: lesson.isPublished
-        ? "Lesson published successfully"
-        : "Lesson unpublished successfully",
+      msg: publishSuccessMsg,
+      ...(lesson.isPublished && publishWarningSummary
+        ? {
+            publishedWithWarnings: true,
+            publishWarningSummary,
+            publishValidationMode,
+            qualityScore: publishQualityScore,
+          }
+        : lesson.isPublished && publishValidationMode
+          ? { publishValidationMode, qualityScore: publishQualityScore }
+          : {}),
       lesson: updatedLesson,
     });
   } catch (err) {

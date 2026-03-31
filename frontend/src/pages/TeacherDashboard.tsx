@@ -12,6 +12,10 @@ import { useCreateLessonTaxonomyOptions } from "../hooks/useCreateLessonTaxonomy
 import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../components/TopicSelectors/CreateLessonTopicSelectors";
 import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
 import type { SpecKey } from "../api/taxonomy";
+import {
+  formatPublishWithQualityWarningsMessage,
+  type PublishWarningSummary,
+} from "../utils/formatPublishWarningMessage";
 
 /** PR7: readiness from backend (computed) */
 type ReadinessSignals = {
@@ -470,9 +474,27 @@ const TeacherDashboard: React.FC = () => {
     try {
       const next = !isCurrentlyPublished;
 
-      await api.patch(`/lessons/${lessonId}/publish`, { isPublished: next });
-
-      alert(next ? "Lesson published successfully!" : "Lesson unpublished successfully!");
+      const pubRes = await api.patch(`/lessons/${lessonId}/publish`, { isPublished: next });
+      const pubData = pubRes.data as {
+        publishedWithWarnings?: boolean;
+        publishWarningSummary?: PublishWarningSummary;
+        /** @deprecated legacy flat list */
+        publishWarnings?: string[];
+      };
+      if (next && pubData?.publishedWithWarnings && pubData?.publishWarningSummary) {
+        alert(formatPublishWithQualityWarningsMessage(pubData.publishWarningSummary));
+      } else if (
+        next &&
+        pubData?.publishedWithWarnings &&
+        Array.isArray(pubData.publishWarnings) &&
+        pubData.publishWarnings.length > 0
+      ) {
+        alert(
+          `Lesson published successfully, with quality warnings.\n\n${pubData.publishWarnings.map((w) => `• ${w}`).join("\n")}`
+        );
+      } else {
+        alert(next ? "Lesson published successfully!" : "Lesson unpublished successfully!");
+      }
 
       await fetchLessonsFromBackend();
       await fetchTeacherStatsFromBackend();

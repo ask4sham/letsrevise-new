@@ -788,6 +788,103 @@ function validateLessonStructure(draft, options = {}) {
 }
 
 /**
+ * Lessons created via AI generation pipeline carry metadata.generatedFrom.jobId — full block contract on publish.
+ * Manual teacher lessons (no jobId) use contract as warnings + only critical guards block.
+ */
+function lessonUsesStrictPublishContract(lesson) {
+  return Boolean(lesson?.metadata?.generatedFrom?.jobId);
+}
+
+/**
+ * Hard blocks for manual teacher publish only: empty lesson, missing title, checkpoints missing Q/A.
+ * AI-style role gaps are not checked here (handled as warnings via validateLessonStructure(..., { isManual: true })).
+ */
+function validateCriticalPublishGuards(draft) {
+  const blocking = [];
+  const title = String(draft?.title ?? "").trim();
+  if (!title) blocking.push("Lesson must have a title.");
+
+  const pages = Array.isArray(draft?.pages) ? draft.pages : [];
+  if (pages.length === 0) {
+    blocking.push("Lesson must have at least one page.");
+    return blocking;
+  }
+
+  const blocks = pages.flatMap((p) => p?.blocks ?? []);
+  if (blocks.length === 0) {
+    blocking.push("Lesson must have at least one block.");
+  }
+
+  let cpIdx = 0;
+  for (const b of blocks) {
+    if (safeStr(b?.type, "") !== "checkpoint") continue;
+    cpIdx += 1;
+    const prompt = safeStr(b?.prompt, "") || safeStr(b?.question, "");
+    const correctAnswer = safeStr(b?.correctAnswer, "") || safeStr(b?.answer, "");
+    if (!prompt.trim()) {
+      blocking.push(`Checkpoint ${cpIdx}: missing question.`);
+    }
+    if (!correctAnswer.trim()) {
+      blocking.push(`Checkpoint ${cpIdx}: missing correct answer.`);
+    }
+  }
+
+  return blocking;
+}
+
+/**
+ * Publish-time structure validation: strict (AI-structured) vs manual_teacher (warnings + critical guards only).
+ * @returns {{ blocking: string[], warnings: string[], mode: 'strict'|'manual_teacher' }}
+ */
+function validateLessonStructureForPublish(draft) {
+  const strict = lessonUsesStrictPublishContract(draft);
+  if (strict) {
+    const v = validateLessonStructure(draft, { isManual: false });
+    return {
+      blocking: v.blocking,
+      warnings: v.warnings,
+      mode: "strict",
+    };
+  }
+  const soft = validateLessonStructure(draft, { isManual: true });
+  const critical = validateCriticalPublishGuards(draft);
+  return {
+    blocking: critical,
+    warnings: soft.warnings,
+    mode: "manual_teacher",
+  };
+}
+
+/**
+ * Rich summary when manual publish succeeds but quality is below recommended (non-blocking).
+ * Top reasons are deduped from `qualityResult.issues` (max 3) — enough context without the old long list.
+ */
+function buildPublishWarningSummary(structureValidation, qualityResult) {
+  if (structureValidation.mode !== "manual_teacher") return null;
+  if (qualityResult.score >= 70) return null;
+
+  const issues = Array.isArray(qualityResult.issues) ? qualityResult.issues : [];
+  const topReasons = [];
+  const seen = new Set();
+  for (const iss of issues) {
+    const s = typeof iss === "string" ? iss.trim() : String(iss?.message || iss).trim();
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    topReasons.push(s);
+    if (topReasons.length >= 3) break;
+  }
+
+  return {
+    headline: "Lesson published successfully, with quality warnings.",
+    qualityScore: qualityResult.score,
+    recommendedMinimum: 70,
+    explanation:
+      "The lesson is now published, but some teaching structure or exam alignment improvements are still recommended.",
+    topReasons,
+  };
+}
+
+/**
  * Post-generation block-type shape checks (runs after sanitization).
  * Complements validateLessonStructure (roles, counts, checkpoint quality).
  * @param {Object} lesson - Draft with pages[].blocks
@@ -1040,6 +1137,10 @@ module.exports = {
   shouldTriggerSecondPass,
   extractDraftText,
   validateLessonStructure,
+  lessonUsesStrictPublishContract,
+  validateCriticalPublishGuards,
+  validateLessonStructureForPublish,
+  buildPublishWarningSummary,
   mergeStructureValidationForScoring,
   collectV7TeachingAdvisoryNotes,
   validateBlockTypeRequirements,
