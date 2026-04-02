@@ -7,10 +7,13 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import api, { getVisualById } from "../services/api";
 import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
+import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
 import {
   createLessonMarkdownViewComponents,
   lessonMarkdownUrlTransform,
 } from "../components/lesson/lessonMarkdownViewComponents";
+import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 
 interface DiagramAnnotation {
@@ -146,11 +149,19 @@ function DiagramBlockContent({
     textAlign: "center",
   };
   if (loading) return <div style={boxStyle}><div style={{ color: "#6b7280" }}>Loading diagram…</div></div>;
-  if (!src) return <div style={boxStyle}><div style={{ color: "#6b7280" }}>Diagram unavailable</div></div>;
+  if (!src || !hasRenderableLessonImageSrc(src)) {
+    return <div style={boxStyle}><div style={{ color: "#6b7280" }}>Diagram unavailable</div></div>;
+  }
   return (
     <div style={boxStyle}>
-      <div style={{ position: "relative", display: "inline-block", maxWidth: 720, width: "100%" }}>
-        <img src={src} alt={caption || "Diagram"} style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12, margin: "0 auto", display: "block" }} />
+      <LessonImageFrame variant="primary" lightboxSrc={src}>
+        <div style={{ position: "relative", display: "inline-block", maxWidth: 720, width: "100%" }}>
+          <img
+            src={src}
+            alt={caption || "Diagram"}
+            style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12, margin: "0 auto", display: "block" }}
+            onError={hideBrokenLessonImage}
+          />
         {showOverlay && (
           <div style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, pointerEvents: "none", borderRadius: 12 }}>
             <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} preserveAspectRatio="none">
@@ -201,7 +212,8 @@ function DiagramBlockContent({
             })}
           </div>
         )}
-      </div>
+        </div>
+      </LessonImageFrame>
       {caption ? <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>{caption}</div> : null}
       {hasSteps && steps.length > 1 && (
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
@@ -508,6 +520,7 @@ const ClassroomModePage: React.FC = () => {
   );
 
   return (
+    <LessonImageLightboxProvider>
     <div style={{ minHeight: "100vh", background: "#f5f7fa", padding: 18, fontSize: BASE_FONT }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
         {/* Top bar: Lesson | Reteach tabs + nav */}
@@ -609,6 +622,7 @@ const ClassroomModePage: React.FC = () => {
         )}
       </div>
     </div>
+    </LessonImageLightboxProvider>
   );
 };
 

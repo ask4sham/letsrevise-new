@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { lessonMarkdownUrlTransform } from "../components/lesson/lessonMarkdownViewComponents";
 import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import api from "../services/api";
@@ -162,6 +163,7 @@ export default function LessonAttemptReportPage() {
   }
 
   return (
+    <LessonImageLightboxProvider>
     <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
         <Link to="/teacher-dashboard" style={{ color: "#2563eb", textDecoration: "none" }}>
@@ -624,5 +626,6 @@ export default function LessonAttemptReportPage() {
         })()}
       </div>
     </div>
+    </LessonImageLightboxProvider>
   );
 }

@@ -1,0 +1,245 @@
+/* Lesson Image Card — grouped visuals, consistent rhythm, readable hierarchy */
+
+.lesson-image-card-figure {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+}
+
+.lesson-image-card {
+  max-width: 420px;
+  margin: 20px auto 28px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.lesson-image-card > img,
+.lesson-image-card picture > img {
+  width: 100%;
+  height: auto;
+  max-height: min(70vh, 520px);
+  object-fit: contain;
+  border-radius: 10px;
+  display: block;
+}
+
+/* Core / key visuals (hero, main diagrams) */
+.lesson-image-card--primary {
+  max-width: 460px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.07);
+  border-color: #d1d5db;
+}
+
+/* Inline / supporting illustrations in body text */
+.lesson-image-card--secondary {
+  max-width: 360px;
+  opacity: 0.98;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+}
+
+.lesson-image-caption {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Nested diagram overlay: fill card width without double max-height fighting layout */
+.lesson-image-card .lesson-image-card__diagram-overlay-host {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.lesson-image-card .lesson-image-card__diagram-overlay-host > img:first-child {
+  width: 100%;
+  height: auto;
+  max-height: none;
+}
+
+/* Click-to-enlarge (lightbox) */
+.lesson-image-card.clickable {
+  cursor: zoom-in;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lesson-image-card.clickable:hover {
+  transform: scale(1.02);
+}
+
+.lesson-image-card-zoom-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 2;
+  text-shadow: 0 0 4px #fff;
+}
+
+/* Full-screen lightbox (portal) — desktop hover zoom + touch pinch only inside viewport */
+.lesson-lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.lesson-lightbox-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: min(96vw, 1200px);
+  width: 100%;
+}
+
+.lesson-lightbox-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 90vw;
+  margin-bottom: 8px;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.lesson-lightbox-counter {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.02em;
+}
+
+.lesson-lightbox-counter--ghost {
+  visibility: hidden;
+}
+
+.lesson-lightbox-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lesson-lightbox-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lesson-lightbox-icon-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.lesson-lightbox-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 4px;
+}
+
+.lesson-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lesson-lightbox-nav:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lesson-lightbox-nav:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.lesson-lightbox-nav--prev {
+  left: 4px;
+}
+
+.lesson-lightbox-nav--next {
+  right: 4px;
+}
+
+@media (max-width: 520px) {
+  .lesson-lightbox-nav {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lesson-lightbox-nav--prev {
+    left: 0;
+  }
+
+  .lesson-lightbox-nav--next {
+    right: 0;
+  }
+}
+
+.lesson-lightbox-viewport {
+  overflow: hidden;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  touch-action: none;
+}
+
+.lesson-lightbox-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  will-change: transform;
+}
+
+.lesson-lightbox-caption {
+  margin-top: 12px;
+  max-width: min(90vw, 560px);
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+}

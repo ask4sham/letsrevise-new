@@ -4,6 +4,7 @@ import remarkBreaks from "remark-breaks";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import { lessonMarkdownSanitizeSchema } from "./lessonMarkdownSchema";
+import { lessonMarkdownImageComponentsOnly } from "./lessonMarkdownViewComponents";
 import "./lessonInlineFormats.css";
 
 const defaultTypography: Partial<Components> = {
@@ -41,6 +42,7 @@ export function LessonMarkdown({
   const merged = useMemo(
     () => ({
       ...defaultTypography,
+      ...lessonMarkdownImageComponentsOnly,
       ...components,
     }),
     [components]

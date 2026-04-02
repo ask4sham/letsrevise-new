@@ -7,6 +7,9 @@ import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
+import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
+import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
+import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { sanitizeTeacherMarkdown } from "../utils/lessonTeacherMarkdown";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -364,19 +367,13 @@ const CreateLessonPage: React.FC = () => {
         }
         const srcAbs = decoded ? (toAbsoluteAssetUrl(decoded) ?? "") : "";
         const finalSrc = srcAbs || decoded || rawSrc;
+        if (!hasRenderableLessonImageSrc(rawSrc) || !hasRenderableLessonImageSrc(finalSrc)) return null;
         return (
-          <img
-            {...props}
-            src={finalSrc}
-            alt={props.alt || "Lesson image"}
-            style={{
-              maxWidth: "100%",
-              height: "auto",
-              borderRadius: 8,
-              display: "block",
-              margin: "8px 0",
-            }}
-          />
+          <figure className="lesson-image-card-figure">
+            <LessonImageFrame variant="secondary" lightboxSrc={finalSrc}>
+              <img {...props} src={finalSrc} alt={props.alt || "Lesson image"} onError={hideBrokenLessonImage} />
+            </LessonImageFrame>
+          </figure>
         );
       },
     }),
@@ -1039,6 +1036,7 @@ const CreateLessonPage: React.FC = () => {
   // Render
   // ---------------------------
   return (
+    <LessonImageLightboxProvider>
     <>
       <style>{`.create-lesson-page input:focus, .create-lesson-page select:focus, .create-lesson-page textarea:focus { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); outline: none; }`}</style>
       <div className="create-lesson-page" style={ui.page}>
@@ -2077,6 +2075,7 @@ const CreateLessonPage: React.FC = () => {
       </div>
     </div>
     </>
+    </LessonImageLightboxProvider>
   );
 };
 

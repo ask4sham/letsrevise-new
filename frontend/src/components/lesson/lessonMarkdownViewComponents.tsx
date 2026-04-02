@@ -2,6 +2,8 @@ import type { Components } from "react-markdown";
 import { defaultUrlTransform } from "react-markdown";
 import React from "react";
 import { makeAbsoluteAssetUrl } from "../../utils/assetUrl";
+import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
+import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 
 /**
  * Asset URLs for react-markdown v10 (pass-through for same-origin uploads, else default sanitization).
@@ -138,39 +140,25 @@ export function createLessonMarkdownViewComponents(
     ),
     img: ({ node, ...props }: any) => {
       const rawSrc = safeStr(props.src, "");
-      const srcAbs = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? "") : "";
+      if (!hasRenderableLessonImageSrc(rawSrc)) return null;
+
+      const srcAbs = makeAbsoluteAssetUrl(rawSrc) ?? "";
+      const resolved = srcAbs || rawSrc;
+      if (!hasRenderableLessonImageSrc(resolved)) return null;
+
       const caption = props.title || "";
 
       return (
-        <figure style={{ margin: "12px auto", textAlign: "center" }}>
-          <img
-            {...props}
-            src={srcAbs || rawSrc}
-            style={{
-              maxWidth: "100%",
-              height: "auto",
-              borderRadius: 10,
-              display: "block",
-              margin: "0 auto",
-              background: "white",
-              border: "1px solid rgba(0,0,0,0.08)",
-            }}
-            alt={props.alt || "Lesson image"}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-          {caption && (
-            <figcaption
-              style={{
-                marginTop: 6,
-                fontSize: "0.9rem",
-                color: "#6b7280",
-              }}
-            >
-              {caption}
-            </figcaption>
-          )}
+        <figure className="lesson-image-card-figure">
+          <LessonImageFrame variant="secondary" lightboxSrc={resolved}>
+            <img
+              {...props}
+              src={resolved}
+              alt={props.alt || "Lesson image"}
+              onError={hideBrokenLessonImage}
+            />
+            {caption ? <p className="lesson-image-caption">{caption}</p> : null}
+          </LessonImageFrame>
         </figure>
       );
     },
@@ -242,3 +230,13 @@ export function createLessonMarkdownViewComponents(
     },
   };
 }
+
+const defaultSafeStrForSharedImg: SafeStr = (v, fallback = "") => String(v ?? fallback);
+const _sharedLessonMarkdownView = createLessonMarkdownViewComponents(defaultSafeStrForSharedImg);
+
+/**
+ * Img renderer only — use as defaults for {@link LessonMarkdown} when no custom `components` are passed.
+ */
+export const lessonMarkdownImageComponentsOnly: Partial<Components> = {
+  img: _sharedLessonMarkdownView.img as Components["img"],
+};

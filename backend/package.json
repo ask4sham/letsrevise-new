@@ -60,7 +60,9 @@
     "migrate:legacy-image-urls:apply": "node scripts/migrate-legacy-image-urls.js --apply",
     "migrate:uploads-to-supabase": "node scripts/migrate-uploads-to-supabase.js",
     "migrate:uploads-to-supabase:apply": "node scripts/migrate-uploads-to-supabase.js --apply",
-    "audit:lesson-images": "node scripts/audit-lesson-images.js"
+    "audit:lesson-images": "node scripts/audit-lesson-images.js",
+    "backfill:png-display": "node scripts/backfill-lesson-png-display.js",
+    "backfill:png-display:apply": "node scripts/backfill-lesson-png-display.js --apply"
   },
   "keywords": [
     "education",
@@ -94,6 +96,7 @@
     "pg": "^8.19.0",
     "rate-limiter-flexible": "^3.0.0",
     "resend": "^6.6.0",
+    "sharp": "^0.34.5",
     "swagger-ui-express": "^5.0.0",
     "yaml": "^2.7.0"
   },

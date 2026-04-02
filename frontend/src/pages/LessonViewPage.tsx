@@ -7,6 +7,9 @@ import {
   createLessonMarkdownViewComponents,
   lessonMarkdownUrlTransform,
 } from "../components/lesson/lessonMarkdownViewComponents";
+import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
+import { hideBrokenLessonImage, LessonImageFrame, lessonImageFrameImgStyle } from "../components/lesson/LessonImageFrame";
+import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import api, { getVisual, getVisualById } from "../services/api";
@@ -432,7 +435,7 @@ function DiagramBlockContent({
       </div>
     );
   }
-  if (error || !src) {
+  if (error || !src || !hasRenderableLessonImageSrc(src)) {
     return (
       <div style={boxStyle}>
         <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>Diagram unavailable</div>
@@ -441,21 +444,22 @@ function DiagramBlockContent({
   }
 
   return (
-    <div style={boxStyle}>
-      <div style={{ position: "relative", display: "block", maxWidth: "100%", width: "100%" }}>
-        <img
-          src={src}
-          alt={caption || "Diagram"}
-          style={{
-            width: "100%",
-            maxWidth: "100%",
-            height: "auto",
-            borderRadius: 12,
-            display: "block",
-            margin: "0 auto",
-          }}
-        />
-        {showOverlay && (
+    <div style={{ marginTop: 14, textAlign: "center" }}>
+      <LessonImageFrame variant="primary" lightboxSrc={src}>
+        {showOverlay ? (
+          <div
+            className="lesson-image-card__diagram-overlay-host"
+            style={{ position: "relative", display: "block", width: "100%" }}
+          >
+            <img
+              src={src}
+              alt={caption || "Diagram"}
+              style={{
+                ...lessonImageFrameImgStyle,
+                borderRadius: 10,
+              }}
+              onError={hideBrokenLessonImage}
+            />
           <div
             style={{
               position: "absolute",
@@ -464,7 +468,7 @@ function DiagramBlockContent({
               right: 0,
               bottom: 0,
               pointerEvents: "none",
-              borderRadius: 12,
+              borderRadius: 10,
             }}
           >
             {/* PR11.2: leader lines (vertical tick from pin toward label) */}
@@ -539,8 +543,15 @@ function DiagramBlockContent({
               );
             })}
           </div>
+        </div>
+        ) : (
+          <img
+            src={src}
+            alt={caption || "Diagram"}
+            onError={hideBrokenLessonImage}
+          />
         )}
-      </div>
+      </LessonImageFrame>
       {hasSteps && steps.length > 1 && (
         <div
           style={{
@@ -589,11 +600,7 @@ function DiagramBlockContent({
           </button>
         </div>
       )}
-      {caption ? (
-        <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>
-          {caption}
-        </div>
-      ) : null}
+      {caption ? <p className="lesson-image-caption">{caption}</p> : null}
     </div>
   );
 }
@@ -2478,36 +2485,25 @@ const LessonViewPage: React.FC = () => {
 
   const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
     const caption = block.caption ?? "";
-    if (block.imageUrl) {
-      const src = block.imageUrl.startsWith("http")
-        ? block.imageUrl
-        : (makeAbsoluteAssetUrl(block.imageUrl) ?? "");
-      return (
-        <div
-          key={`diagram-${idx}-img`}
-          style={{
-            marginTop: 14,
-            padding: 14,
-            borderRadius: 14,
-            background: "#f8f9fa",
-            border: "2px solid rgba(34,197,94,0.25)",
-            boxShadow: "0 0 0 2px rgba(34,197,94,0.08)",
-            textAlign: "center",
-          }}
-        >
-          <img
-            src={src}
-            alt={block.alt ?? (caption || "Diagram")}
-            style={{ width: "100%", maxWidth: "100%", height: "auto", borderRadius: 12 }}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-          {caption ? (
-            <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>{caption}</div>
-          ) : null}
-        </div>
-      );
+    const rawDiagramUrl = block.imageUrl != null ? String(block.imageUrl) : "";
+    if (hasRenderableLessonImageSrc(rawDiagramUrl)) {
+      const src = String(block.imageUrl).startsWith("http")
+        ? String(block.imageUrl)
+        : (makeAbsoluteAssetUrl(String(block.imageUrl)) ?? "");
+      if (hasRenderableLessonImageSrc(src)) {
+        return (
+          <div key={`diagram-${idx}-img`} style={{ marginTop: 14, textAlign: "center" }}>
+            <LessonImageFrame variant="primary" lightboxSrc={src}>
+              <img
+                src={src}
+                alt={block.alt ?? (caption || "Diagram")}
+                onError={hideBrokenLessonImage}
+              />
+              {caption ? <p className="lesson-image-caption">{caption}</p> : null}
+            </LessonImageFrame>
+          </div>
+        );
+      }
     }
     const visualId = block.visualId ?? "";
     const level = lesson?.level ?? "GCSE";
@@ -2531,8 +2527,11 @@ const LessonViewPage: React.FC = () => {
   const renderHero = (hero?: LessonPageHero) => {
     const h = hero || { type: "none", src: "", caption: "" };
     const rawSrc = normalizeHeroSrc(h);
+    if (!hasRenderableLessonImageSrc(rawSrc)) return null;
+
     // Resolve to absolute URL so videos/images load from backend (/uploads, /visuals, /content)
     const src = rawSrc ? (makeAbsoluteAssetUrl(rawSrc) ?? rawSrc) : "";
+    if (!hasRenderableLessonImageSrc(src)) return null;
 
     // ✅ If there is no valid src, do NOT render the hero at all (prevents broken image icon)
     if (!h || h.type === "none" || !src) return null;
@@ -2547,41 +2546,17 @@ const LessonViewPage: React.FC = () => {
     }
     const renderCaption = SHOW_PAGE_KICKER && Boolean(h?.caption?.trim());
 
-    const boxStyle: React.CSSProperties = {
-      background: "#f8f9fa",
-      borderRadius: 14,
-      padding: 14,
-      marginBottom: 14,
-      border: "2px solid rgba(59,130,246,0.25)",
-      boxShadow: "0 0 0 2px rgba(59,130,246,0.10)",
-      textAlign: "left",
-    };
-
-    const captionStyle: React.CSSProperties = {
-      marginTop: 10,
-      color: "#6b7280",
-      fontSize: "0.95rem",
-      textAlign: "center",
-    };
-
     if (h.type === "image") {
       return (
-        <div style={boxStyle}>
-          <img
-            src={src}
-            alt={h.caption || "Lesson visual"}
-            style={{
-              width: "100%",
-              height: "auto",
-              borderRadius: 12,
-              display: "block",
-            }}
-            onError={(e) => {
-              // hide broken image if URL is invalid
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-          {renderCaption ? <div style={captionStyle} data-testid="page-kicker">{h.caption}</div> : null}
+        <div style={{ marginBottom: 16 }}>
+          <LessonImageFrame variant="primary" lightboxSrc={src}>
+            <img src={src} alt={h.caption || "Lesson visual"} onError={hideBrokenLessonImage} />
+            {renderCaption && h.caption?.trim() ? (
+              <p className="lesson-image-caption" data-testid="page-kicker">
+                {h.caption}
+              </p>
+            ) : null}
+          </LessonImageFrame>
         </div>
       );
     }
@@ -2618,8 +2593,11 @@ const LessonViewPage: React.FC = () => {
 
     // -------- static diagram --------
     if (visualData.visual.type === "staticDiagram") {
-      const srcAbs = makeAbsoluteAssetUrl((visualData.visual as any).src);
-      if (!srcAbs) return null;
+      const rawStaticSrc = (visualData.visual as any).src;
+      const rawStr = typeof rawStaticSrc === "string" ? rawStaticSrc : "";
+      if (!hasRenderableLessonImageSrc(rawStr)) return null;
+      const srcAbs = makeAbsoluteAssetUrl(rawStaticSrc);
+      if (!srcAbs || !hasRenderableLessonImageSrc(srcAbs)) return null;
 
       return (
         <div style={wrapper}>
@@ -2630,14 +2608,13 @@ const LessonViewPage: React.FC = () => {
             </div>
           </div>
 
-          <img
-            src={srcAbs}
-            alt={`${lesson?.topic || "Lesson"} diagram`}
-            style={{ width: "100%", height: "auto", borderRadius: 12 }}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
+          <LessonImageFrame variant="primary" lightboxSrc={srcAbs}>
+            <img
+              src={srcAbs}
+              alt={`${lesson?.topic || "Lesson"} diagram`}
+              onError={hideBrokenLessonImage}
+            />
+          </LessonImageFrame>
 
           {Array.isArray((visualData.visual as any).labels) &&
           (visualData.visual as any).labels.length > 0 ? (
@@ -2694,19 +2671,11 @@ const LessonViewPage: React.FC = () => {
             {title}
           </div>
 
-          <img
-            src={src}
-            alt={title}
-            style={{
-              width: "100%",
-              height: "auto",
-              borderRadius: 12,
-              marginBottom: 10,
-            }}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
+          {hasRenderableLessonImageSrc(src) ? (
+            <LessonImageFrame variant="primary" lightboxSrc={src}>
+              <img src={src} alt={title} onError={hideBrokenLessonImage} />
+            </LessonImageFrame>
+          ) : null}
 
           {hasSvgInline ? (
             <div
@@ -2967,6 +2936,7 @@ const LessonViewPage: React.FC = () => {
       : null;
 
     return (
+      <LessonImageLightboxProvider>
       <div
         data-lesson-view="structured"
         data-layout={layoutStacked ? "mobile" : "desktop"}
@@ -4234,6 +4204,7 @@ const LessonViewPage: React.FC = () => {
         </div>
 
       </div>
+      </LessonImageLightboxProvider>
     );
   }
 
@@ -4241,6 +4212,7 @@ const LessonViewPage: React.FC = () => {
   // Legacy view (no pages)
   // ============================
   return (
+    <LessonImageLightboxProvider>
     <div
       style={{
         maxWidth: "1000px",
@@ -4931,6 +4903,7 @@ const LessonViewPage: React.FC = () => {
         )}
       </div>
     </div>
+    </LessonImageLightboxProvider>
   );
 };
 

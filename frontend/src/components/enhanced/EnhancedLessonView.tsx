@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { LessonMarkdown } from '../lesson/LessonMarkdown';
+import { LessonImageLightboxProvider } from '../lesson/LessonImageLightbox';
 import { lessonMarkdownUrlTransform } from '../lesson/lessonMarkdownViewComponents';
 import { preprocessMarkdownAssetUrls } from '../../utils/assetUrl';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
@@ -135,6 +136,7 @@ const EnhancedLessonView: React.FC = () => {
   const canAccess = canAccessContent();
 
   return (
+    <LessonImageLightboxProvider>
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
@@ -354,6 +356,7 @@ const EnhancedLessonView: React.FC = () => {
         </div>
       </div>
     </div>
+    </LessonImageLightboxProvider>
   );
 };
 
