@@ -17,6 +17,8 @@ export interface LessonPrevNextBarProps {
   currentTopicKey: string;
   onNavigateTopic: (topicKey: string) => void;
   onBackToTopics?: () => void;
+  /** Optional root class (e.g. V12 student presentation) */
+  className?: string;
 }
 
 export function LessonPrevNextBar({
@@ -24,6 +26,7 @@ export function LessonPrevNextBar({
   currentTopicKey,
   onNavigateTopic,
   onBackToTopics,
+  className,
 }: LessonPrevNextBarProps): React.ReactElement | null {
   const { data: taxonomy, loading, error } = useTaxonomy(specKey);
 
@@ -70,6 +73,7 @@ export function LessonPrevNextBar({
 
   return (
     <div
+      className={className}
       style={{
         marginTop: 32,
         paddingTop: 24,

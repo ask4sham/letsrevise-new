@@ -10,6 +10,13 @@ import {
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { hideBrokenLessonImage, LessonImageFrame, lessonImageFrameImgStyle } from "../components/lesson/LessonImageFrame";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
+import {
+  LessonStudentBlockRenderer,
+  isV12StudentLessonPresentation,
+} from "../components/lesson/student";
+import { chunkBlocksForTeachingLayout } from "../components/lesson/student/chunkLessonSegments";
+import { LessonStudentChunk } from "../components/lesson/student/LessonStudentChunk";
+import "../components/lesson/student/lessonStudentView.css";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import api, { getVisual, getVisualById } from "../services/api";
@@ -606,7 +613,16 @@ function DiagramBlockContent({
 }
 
 // PR3b: Practice question components (entitled-only section; always show explanation after check)
-function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
+function PracticeMCQQuestion({
+  q,
+  lessonId,
+  hideExplanationLabel,
+}: {
+  q: PracticeQuestionLite;
+  lessonId?: string;
+  /** V12: no "Explanation:" scaffold — content only */
+  hideExplanationLabel?: boolean;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
@@ -728,8 +744,18 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
             {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
             {q.explanation ? (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
-                <strong style={{ color: "#374151" }}>Explanation:</strong>
-                <div style={{ marginTop: 4, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>{q.explanation}</div>
+                {!hideExplanationLabel ? (
+                  <strong style={{ color: "#374151" }}>Explanation:</strong>
+                ) : null}
+                <div
+                  style={{
+                    marginTop: hideExplanationLabel ? 0 : 4,
+                    color: "#4b5563",
+                    fontSize: BASE_FONT_SIZE,
+                  }}
+                >
+                  {q.explanation}
+                </div>
               </div>
             ) : null}
             <button
@@ -754,7 +780,15 @@ function PracticeMCQQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonI
   );
 }
 
-function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lessonId?: string }) {
+function PracticeShortQuestion({
+  q,
+  lessonId,
+  hideExplanationLabel,
+}: {
+  q: PracticeQuestionLite;
+  lessonId?: string;
+  hideExplanationLabel?: boolean;
+}) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
   const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
@@ -868,8 +902,18 @@ function PracticeShortQuestion({ q, lessonId }: { q: PracticeQuestionLite; lesso
             )}
             {q.explanation ? (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
-                <strong style={{ color: "#374151" }}>Explanation:</strong>
-                <div style={{ marginTop: 4, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>{q.explanation}</div>
+                {!hideExplanationLabel ? (
+                  <strong style={{ color: "#374151" }}>Explanation:</strong>
+                ) : null}
+                <div
+                  style={{
+                    marginTop: hideExplanationLabel ? 0 : 4,
+                    color: "#4b5563",
+                    fontSize: BASE_FONT_SIZE,
+                  }}
+                >
+                  {q.explanation}
+                </div>
               </div>
             ) : null}
             <button
@@ -906,6 +950,7 @@ function PracticeSection({
   topicKey,
   onTryAnotherSet,
   onLoadBankOnly,
+  hidePracticeStructuralLabels,
 }: {
   practiceLoading: boolean;
   practiceError: string | null;
@@ -916,6 +961,8 @@ function PracticeSection({
   topicKey?: string;
   onTryAnotherSet?: () => void;
   onLoadBankOnly?: () => void;
+  /** V12 student lesson: no visible "Explanation:" prefix on practice items */
+  hidePracticeStructuralLabels?: boolean;
 }) {
   const displayQuestions = practiceQuestions.slice(0, PRACTICE_DISPLAY_LIMIT);
   const hasMore = practiceQuestions.length > PRACTICE_DISPLAY_LIMIT;
@@ -1034,9 +1081,17 @@ function PracticeSection({
                   </div>
                   <div style={{ color: "#1f2937", marginBottom: 12 }}>{q.question}</div>
                   {(q.type === "mcq" || (Array.isArray(q.options) && q.options.length > 0)) ? (
-                    <PracticeMCQQuestion q={q} lessonId={lessonId} />
+                    <PracticeMCQQuestion
+                      q={q}
+                      lessonId={lessonId}
+                      hideExplanationLabel={hidePracticeStructuralLabels}
+                    />
                   ) : (
-                    <PracticeShortQuestion q={q} lessonId={lessonId} />
+                    <PracticeShortQuestion
+                      q={q}
+                      lessonId={lessonId}
+                      hideExplanationLabel={hidePracticeStructuralLabels}
+                    />
                   )}
                 </div>
               ))}
@@ -2548,7 +2603,10 @@ const LessonViewPage: React.FC = () => {
 
     if (h.type === "image") {
       return (
-        <div style={{ marginBottom: 16 }}>
+        <div
+          className={v12StudentPresentation ? "lesson-student-hero-slot" : undefined}
+          style={{ marginBottom: v12StudentPresentation ? 24 : 16 }}
+        >
           <LessonImageFrame variant="primary" lightboxSrc={src}>
             <img src={src} alt={h.caption || "Lesson visual"} onError={hideBrokenLessonImage} />
             {renderCaption && h.caption?.trim() ? (
@@ -2567,7 +2625,7 @@ const LessonViewPage: React.FC = () => {
   const renderVisualBox = () => {
     if (!visualData?.visual) return null;
 
-    const wrapper: React.CSSProperties = {
+    const wrapperLegacy: React.CSSProperties = {
       margin: "14px 0",
       padding: 14,
       borderRadius: 14,
@@ -2575,6 +2633,17 @@ const LessonViewPage: React.FC = () => {
       background: "#ffffff",
       textAlign: "left",
     };
+    const wrapper: React.CSSProperties = v12StudentPresentation
+      ? {
+          margin: "28px 0 32px",
+          padding: 20,
+          borderRadius: 18,
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+          boxShadow: "0 4px 20px rgba(15, 23, 42, 0.06)",
+          textAlign: "left",
+        }
+      : wrapperLegacy;
 
     const headerRow: React.CSSProperties = {
       display: "flex",
@@ -2600,7 +2669,10 @@ const LessonViewPage: React.FC = () => {
       if (!srcAbs || !hasRenderableLessonImageSrc(srcAbs)) return null;
 
       return (
-        <div style={wrapper}>
+        <div
+          className={v12StudentPresentation ? "lesson-student-visual-slot" : undefined}
+          style={wrapper}
+        >
           <div style={headerRow}>
             <div style={badge}>📌 Visual</div>
             <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>
@@ -2659,7 +2731,10 @@ const LessonViewPage: React.FC = () => {
       const src = makeAbsoluteAssetUrl(step.image || derived) ?? "";
 
       return (
-        <div style={wrapper}>
+        <div
+          className={v12StudentPresentation ? "lesson-student-visual-slot" : undefined}
+          style={wrapper}
+        >
           <div style={headerRow}>
             <div style={badge}>📌 Visual</div>
             <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>
@@ -2837,6 +2912,20 @@ const LessonViewPage: React.FC = () => {
   // ✅ Check if user is teacher or admin
   // ============================
   const isStudent = user?.userType === "student";
+  /**
+   * V12 learner presentation must run for every viewer of lesson content (students, teachers/admins
+   * previewing, parents, guests). Gating only on `isStudent` left teachers on the legacy path
+   * (`renderCallout` + hardcoded “Key Idea(s)” / “Exam insight” labels + boxed SS1 styles).
+   */
+  const v12LearnerPresentation =
+    user == null ||
+    !String(user?.userType ?? "").trim() ||
+    user?.userType === "student" ||
+    user?.userType === "teacher" ||
+    user?.userType === "admin" ||
+    user?.userType === "parent" ||
+    (user as { isAdmin?: boolean })?.isAdmin === true;
+  const v12StudentPresentation = isV12StudentLessonPresentation(v12LearnerPresentation);
 
   const isTeacherOrAdmin =
     user?.userType === "admin" ||
@@ -2879,19 +2968,23 @@ const LessonViewPage: React.FC = () => {
       Boolean(pageCp?.question && Array.isArray(pageCp?.options)) &&
       (pageCp!.options!.filter((o: any) => o != null && String(o).trim()).length >= 2);
     const blocks = currentPage.blocks || [];
-    const blocksToRender = blocks.filter((b) => {
-      if (b.type === "stretch" && !showDeeperKnowledge) return false;
-      if (b.type === "checkpoint") return false; // PR-UX-LESSON-3: always render checkpoint via LessonCheckpoint
-      // Regression guard: do not render page kicker/subtitle block unless SHOW_PAGE_KICKER is true
-      if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
-      return true;
-    });
+    const blockRenderList = blocks
+      .map((b, idx) => ({ block: b, idx }))
+      .filter(({ block: b }) => {
+        if (b.type === "stretch" && !showDeeperKnowledge) return false;
+        if (b.type === "checkpoint") return false; // PR-UX-LESSON-3: always render checkpoint via LessonCheckpoint
+        if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
+        return true;
+      });
 
     // Regression guard: when SHOW_PAGE_KICKER is false, no kicker-like block must be rendered
     if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && !SHOW_PAGE_KICKER) {
-      const leaked = blocksToRender.find((b) => isKickerLikeBlock(b));
+      const leaked = blockRenderList.find(({ block: b }) => isKickerLikeBlock(b));
       if (leaked) {
-        console.warn("[LessonViewPage] Regression: kicker-like block would be rendered; filter should have removed it.", { type: leaked.type, contentPreview: safeStr(leaked.content, "").slice(0, 60) });
+        console.warn("[LessonViewPage] Regression: kicker-like block would be rendered; filter should have removed it.", {
+          type: leaked.block.type,
+          contentPreview: safeStr(leaked.block.content, "").slice(0, 60),
+        });
       }
     }
     // Dev-only: log when kicker/subtitle source is present (remove after confirming fix)
@@ -2903,7 +2996,7 @@ const LessonViewPage: React.FC = () => {
         console.log("[LessonViewPage] page header fields", {
           currentPage: { pageId: currentPage.pageId, title: currentPage.title, subtitle: (currentPage as any).subtitle, kicker: (currentPage as any).kicker, summary: (currentPage as any).summary },
           firstBlock: firstBlock ? { type: firstBlock.type, contentPreview: safeStr(firstBlock.content, "").trim().slice(0, 80), isKickerLike: kickerLike } : null,
-          blocksToRenderCount: blocksToRender.length,
+          blocksToRenderCount: blockRenderList.length,
         });
       }
     }
@@ -2940,12 +3033,17 @@ const LessonViewPage: React.FC = () => {
       <div
         data-lesson-view="structured"
         data-layout={layoutStacked ? "mobile" : "desktop"}
+        className={v12StudentPresentation ? "lesson-student-page-shell" : undefined}
         style={{
           minHeight: "100vh",
-          background: layoutStacked ? "#fff" : "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-          padding: layoutStacked ? 0 : 18,
+          background: layoutStacked
+            ? "#fff"
+            : v12StudentPresentation
+              ? "#e8ecf2"
+              : "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
+          padding: layoutStacked ? 0 : v12StudentPresentation ? 28 : 18,
           paddingBottom: layoutStacked && orderedPages.length > 0 ? 80 : undefined,
-          fontSize: BASE_FONT_SIZE,
+          fontSize: v12StudentPresentation ? undefined : BASE_FONT_SIZE,
           minWidth: 0,
           overflow: "visible" as const,
         }}
@@ -3098,13 +3196,16 @@ const LessonViewPage: React.FC = () => {
 
           {/* MOBILE: single-column block layout, no grid, no sidebars. DESKTOP: 3-column grid with sticky sidebars */}
           <div
+            data-lesson-presentation={v12StudentPresentation ? "v12" : "legacy"}
             style={
               layoutStacked
                 ? { display: "block", width: "100%", maxWidth: "100%", minWidth: 0 }
                 : {
                     display: "grid",
-                    gridTemplateColumns: "260px minmax(0, 1fr) 280px",
-                    gap: 18,
+                    gridTemplateColumns: v12StudentPresentation
+                      ? "minmax(152px, 176px) minmax(0, 1fr) minmax(152px, 188px)"
+                      : "260px minmax(0, 1fr) 280px",
+                    gap: v12StudentPresentation ? 22 : 18,
                     alignItems: "start",
                     alignContent: "start",
                     minWidth: 0,
@@ -3115,6 +3216,7 @@ const LessonViewPage: React.FC = () => {
             {/* LEFT SIDEBAR — desktop only */}
             {!layoutStacked && (
             <aside
+              className={v12StudentPresentation ? "lesson-student-sidebar--v12" : undefined}
               style={{
                 position: "sticky",
                 top: STICKY_TOP,
@@ -3122,8 +3224,12 @@ const LessonViewPage: React.FC = () => {
                 background: "white",
                 borderRadius: 14,
                 padding: 14,
-                boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                border: "2px solid rgba(59,130,246,0.35)",
+                boxShadow: v12StudentPresentation
+                  ? "0 1px 10px rgba(15,23,42,0.05)"
+                  : "0 6px 18px rgba(0,0,0,0.06)",
+                border: v12StudentPresentation
+                  ? "1px solid #e8ecf1"
+                  : "2px solid rgba(59,130,246,0.35)",
                 textAlign: "left",
                 minWidth: 0,
                 maxHeight: `calc(100vh - ${STICKY_TOP + 24}px)`,
@@ -3161,13 +3267,24 @@ const LessonViewPage: React.FC = () => {
                   return (
                     <button
                       key={p.pageId || idx}
+                      type="button"
+                      className={
+                        v12StudentPresentation ? "lesson-student-nav-page" : undefined
+                      }
+                      data-current={v12StudentPresentation ? (isCurrent ? "true" : "false") : undefined}
                       onClick={() => goToPage(p)}
                       style={{
                         textAlign: "left",
                         padding: "10px 10px",
                         borderRadius: 10,
-                        border: "2px solid rgba(59,130,246,0.25)",
-                        background: isCurrent ? "#eef2ff" : "white",
+                        border: v12StudentPresentation
+                          ? "1px solid #e5e7eb"
+                          : "2px solid rgba(59,130,246,0.25)",
+                        background: isCurrent
+                          ? v12StudentPresentation
+                            ? "#f8fafc"
+                            : "#eef2ff"
+                          : "white",
                         cursor: "pointer",
                         color: "#111827",
                         fontWeight: isCurrent ? 800 : 600,
@@ -3187,23 +3304,38 @@ const LessonViewPage: React.FC = () => {
                 })}
               </div>
 
-              <div style={{ marginTop: 14 }}>
+              <div
+                className={
+                  v12StudentPresentation ? "lesson-student-progress-block" : undefined
+                }
+                style={{ marginTop: 14 }}
+              >
                 <div
                   style={{
-                    fontWeight: "bold",
+                    fontWeight: v12StudentPresentation ? 600 : "bold",
                     marginBottom: 6,
-                    color: "#111827",
+                    color: v12StudentPresentation ? "#64748b" : "#111827",
+                    fontSize: v12StudentPresentation ? "0.8125rem" : undefined,
+                    letterSpacing: v12StudentPresentation ? "0.04em" : undefined,
+                    textTransform: v12StudentPresentation
+                      ? ("uppercase" as const)
+                      : undefined,
                   }}
                 >
                   Progress
                 </div>
                 <div
+                  className={
+                    v12StudentPresentation ? "lesson-student-progress-track" : undefined
+                  }
                   style={{
                     height: 10,
                     background: "#e5e7eb",
                     borderRadius: 999,
                     overflow: "hidden",
-                    border: "2px solid rgba(59,130,246,0.20)",
+                    border: v12StudentPresentation
+                      ? "1px solid #e2e8f0"
+                      : "2px solid rgba(59,130,246,0.20)",
                   }}
                 >
                   <div
@@ -3230,43 +3362,78 @@ const LessonViewPage: React.FC = () => {
             {/* MAIN CONTENT CARD — mobile: clean article flow; desktop: card */}
             <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0, width: "100%", maxWidth: "100%" }}>
               <div
+                className={
+                  v12StudentPresentation
+                    ? "lesson-student-main-card lesson-student-section"
+                    : undefined
+                }
+                data-v12-student={v12StudentPresentation ? "true" : undefined}
                 style={{
                   background: "white",
                   borderRadius: layoutStacked ? 0 : 16,
-                  padding: layoutStacked ? 16 : 28,
+                  padding: v12StudentPresentation
+                    ? layoutStacked
+                      ? 20
+                      : 36
+                    : layoutStacked
+                      ? 16
+                      : 28,
                   maxWidth: "100%",
                   width: "100%",
                   minWidth: 0,
                   margin: layoutStacked ? 0 : "0 auto",
                   boxSizing: "border-box",
-                  boxShadow: layoutStacked ? "none" : "0 10px 28px rgba(0,0,0,0.08)",
-                  border: layoutStacked ? "none" : "3px solid rgba(59,130,246,0.45)",
+                  boxShadow: layoutStacked
+                    ? "none"
+                    : v12StudentPresentation
+                      ? "0 4px 36px rgba(15, 23, 42, 0.07)"
+                      : "0 10px 28px rgba(0,0,0,0.08)",
+                  border: layoutStacked
+                    ? "none"
+                    : v12StudentPresentation
+                      ? "1px solid #e8ecf1"
+                      : "3px solid rgba(59,130,246,0.45)",
                   textAlign: "left",
-                  fontSize: BASE_FONT_SIZE,
-                  lineHeight: 1.8,
+                  ...(v12StudentPresentation
+                    ? {}
+                    : { fontSize: BASE_FONT_SIZE, lineHeight: 1.8 }),
                   display: "block" as const,
                 }}
               >
+                <div
+                  className={
+                    v12StudentPresentation ? "lesson-student-page-chrome" : undefined
+                  }
+                >
                 {/* ✅ Header fix: Lesson title is the main title; page title is secondary */}
-                <div style={{ marginBottom: 14, textAlign: "left" }}>
+                <div
+                  className={v12StudentPresentation ? "lesson-student-header" : undefined}
+                  style={{ marginBottom: v12StudentPresentation ? 16 : 14, textAlign: "left" }}
+                >
                   <h1
-                    style={{
-                      margin: 0,
-                      color: "#111827",
-                      textAlign: "left",
-                      fontSize: layoutStacked ? "1.75rem" : "2.4rem",
-                      fontWeight: 950 as any,
-                      lineHeight: 1.15,
-                      letterSpacing: "-0.02em",
-                    }}
+                    className={v12StudentPresentation ? "lesson-student-title" : undefined}
+                    style={
+                      v12StudentPresentation
+                        ? { margin: 0, textAlign: "left" as const }
+                        : {
+                            margin: 0,
+                            color: "#111827",
+                            textAlign: "left",
+                            fontSize: layoutStacked ? "1.75rem" : "2.4rem",
+                            fontWeight: 950 as any,
+                            lineHeight: 1.15,
+                            letterSpacing: "-0.02em",
+                          }
+                    }
                   >
                     {lesson.title}
                   </h1>
                   <div
+                    className={v12StudentPresentation ? "lesson-student-meta" : undefined}
                     style={{
                       color: "#6b7280",
-                      marginTop: 8,
-                      fontSize: "1rem",
+                      marginTop: v12StudentPresentation ? 10 : 8,
+                      fontSize: v12StudentPresentation ? "0.9375rem" : "1rem",
                       textAlign: "left",
                     }}
                   >
@@ -3279,17 +3446,21 @@ const LessonViewPage: React.FC = () => {
                     if (!cleanedDesc) return null;
                     return (
                       <div
+                        className={v12StudentPresentation ? "lesson-student-blurb" : undefined}
                         style={{
-                          marginTop: 12,
+                          marginTop: v12StudentPresentation ? 20 : 12,
                           borderRadius: 6,
-                          border: "1px solid #e5e7eb",
-                          background: "#f9fafb",
-                          padding: 12,
-                          fontSize: "0.875rem",
+                          border: v12StudentPresentation ? "none" : "1px solid #e5e7eb",
+                          background: v12StudentPresentation ? "transparent" : "#f9fafb",
+                          padding: v12StudentPresentation ? 0 : 12,
+                          fontSize: v12StudentPresentation ? "1rem" : "0.875rem",
+                          lineHeight: v12StudentPresentation ? 1.65 : undefined,
                           color: "#1f2937",
                         }}
                       >
-                        <div style={{ fontWeight: 500, marginBottom: 4 }}>What you&apos;ll learn</div>
+                        {!v12StudentPresentation ? (
+                          <div style={{ fontWeight: 500, marginBottom: 4 }}>What you&apos;ll learn</div>
+                        ) : null}
                         <div style={{ whiteSpace: "pre-wrap" }}>
                           {cleanedDesc.length > 400
                             ? `${cleanedDesc.slice(0, 400)}…`
@@ -3300,14 +3471,19 @@ const LessonViewPage: React.FC = () => {
                   })()}
 
                   <h2
-                    style={{
-                      margin: "16px 0 0",
-                      color: "#111827",
-                      textAlign: "left",
-                      fontSize: layoutStacked ? "1.4rem" : "2.0rem",
-                      fontWeight: 900,
-                      lineHeight: 1.2,
-                    }}
+                    className={v12StudentPresentation ? "lesson-student-page-heading" : undefined}
+                    style={
+                      v12StudentPresentation
+                        ? { margin: "20px 0 0", textAlign: "left" as const }
+                        : {
+                            margin: "16px 0 0",
+                            color: "#111827",
+                            textAlign: "left",
+                            fontSize: layoutStacked ? "1.4rem" : "2.0rem",
+                            fontWeight: 900,
+                            lineHeight: 1.2,
+                          }
+                    }
                   >
                     {currentPage.title || `Page ${currentPageIndex + 1}`}
                   </h2>
@@ -3335,64 +3511,126 @@ const LessonViewPage: React.FC = () => {
                 {renderVisualBox()}
 
                 {/* Deeper knowledge toggle */}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    marginBottom: v12StudentPresentation ? 0 : 10,
+                  }}
+                >
                   <button
                     type="button"
+                    className={v12StudentPresentation ? "lesson-student-deeper-toggle" : undefined}
                     onClick={() => setShowDeeperKnowledge((v) => !v)}
                     style={{
                       padding: "10px 14px",
                       borderRadius: 10,
-                      border: "2px solid rgba(124,58,237,0.25)",
-                      background: showDeeperKnowledge ? "rgba(124,58,237,0.10)" : "white",
+                      border: v12StudentPresentation
+                        ? "1px solid #e2e8f0"
+                        : "2px solid rgba(124,58,237,0.25)",
+                      background: showDeeperKnowledge
+                        ? v12StudentPresentation
+                          ? "#f1f5f9"
+                          : "rgba(124,58,237,0.10)"
+                        : "white",
                       cursor: "pointer",
-                      fontWeight: 900,
-                      color: "#5b21b6",
+                      fontWeight: v12StudentPresentation ? 600 : 900,
+                      color: v12StudentPresentation ? "#334155" : "#5b21b6",
                     }}
                   >
                     {showDeeperKnowledge ? "Hide deeper knowledge" : "Show deeper knowledge"}
                   </button>
                 </div>
+                </div>
 
                 {/* Blocks — checkpoint rendered via LessonCheckpoint below. PR-006.1: id=block-{idx} uses original block index for citation deep links. */}
-                <div>
-                  {blocks.map((b, idx) => {
-                    if (b.type === "stretch" && !showDeeperKnowledge) return null;
-                    if (b.type === "checkpoint") return null;
-                    if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return null;
-                    return (
-                      <div key={idx} id={`block-${idx}`}>
-                        {b.type === "diagram"
-                          ? renderDiagramBlock(b, idx)
-                          : renderCallout(b.type, safeStr(b.content, ""), idx)}
-                        {user && id && (
-                          <div style={{ marginTop: 6, fontSize: 12 }}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setReportBlockId(String(idx));
-                                setShowReportModal(true);
-                              }}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#94a3b8",
-                                cursor: "pointer",
-                                textDecoration: "underline",
-                                padding: 0,
-                              }}
-                            >
-                              Report issue with this block
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div
+                  className={
+                    v12StudentPresentation ? "lesson-student-page-body" : undefined
+                  }
+                >
+                  {v12StudentPresentation
+                    ? chunkBlocksForTeachingLayout(blockRenderList).map((chunk, chunkIdx) => (
+                        <LessonStudentChunk
+                          key={`lesson-section-${chunkIdx}`}
+                          chunk={chunk}
+                          renderBlockRow={({ block: b, idx }) => (
+                            <div key={idx} id={`block-${idx}`}>
+                              <LessonStudentBlockRenderer
+                                block={b as any}
+                                blockIndex={idx}
+                                markdownComponents={markdownComponents as any}
+                                stripVideoMarkdown={stripVideoMarkdown}
+                                maybeParseKeywordsFromText={maybeParseKeywordsFromText}
+                                renderDiagramBlock={renderDiagramBlock}
+                                enableMarkdownMediaSplit={v12StudentPresentation}
+                              />
+                              {user && id && (
+                                <div style={{ marginTop: 6, fontSize: 12 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setReportBlockId(String(idx));
+                                      setShowReportModal(true);
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "#94a3b8",
+                                      cursor: "pointer",
+                                      textDecoration: "underline",
+                                      padding: 0,
+                                    }}
+                                  >
+                                    Report issue with this block
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        />
+                      ))
+                    : blockRenderList.map(({ block: b, idx }) => (
+                        <div key={idx} id={`block-${idx}`}>
+                          {b.type === "diagram" ? (
+                            renderDiagramBlock(b, idx)
+                          ) : (
+                            renderCallout(b.type, safeStr(b.content, ""), idx)
+                          )}
+                          {user && id && (
+                            <div style={{ marginTop: 6, fontSize: 12 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReportBlockId(String(idx));
+                                  setShowReportModal(true);
+                                }}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#94a3b8",
+                                  cursor: "pointer",
+                                  textDecoration: "underline",
+                                  padding: 0,
+                                }}
+                              >
+                                Report issue with this block
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                 </div>
 
                 {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}
                 {checkpointData && (
-                  <div>
+                  <div
+                    className={
+                      v12StudentPresentation
+                        ? "lesson-student-checkpoint-section"
+                        : undefined
+                    }
+                  >
                     <LessonCheckpoint
                       mode={checkpointData.mode}
                       prompt={checkpointData.prompt}
@@ -3402,6 +3640,7 @@ const LessonViewPage: React.FC = () => {
                       name={checkpointData.name}
                       lessonId={id ?? undefined}
                       entitled={Boolean(accessDecision?.allowed)}
+                      presentation={v12StudentPresentation ? "v12" : "default"}
                     />
                     {user && id && (
                       <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -3712,6 +3951,7 @@ const LessonViewPage: React.FC = () => {
                   topicKey={topicKeyForBank || undefined}
                   onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
                   onLoadBankOnly={loadBankOnly}
+                  hidePracticeStructuralLabels={v12StudentPresentation}
                 />
 
                 {/* PR-CONTENT-TARGETING-1: warn when lesson has no valid topic mapping */}
@@ -3979,16 +4219,32 @@ const LessonViewPage: React.FC = () => {
               }}
             >
               <div
+                className={v12StudentPresentation ? "lesson-student-rail-card--v12" : undefined}
                 style={{
                   background: "white",
                   borderRadius: 14,
                   padding: 14,
-                  boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-                  border: "2px solid rgba(59,130,246,0.25)",
+                  boxShadow: v12StudentPresentation
+                    ? "0 1px 10px rgba(15,23,42,0.05)"
+                    : "0 6px 18px rgba(0,0,0,0.06)",
+                  border: v12StudentPresentation
+                    ? "1px solid #e8ecf1"
+                    : "2px solid rgba(59,130,246,0.25)",
                   textAlign: "left",
                 }}
               >
-                <div style={{ fontWeight: "bold", marginBottom: 6 }}>
+                <div
+                  style={{
+                    fontWeight: v12StudentPresentation ? 600 : "bold",
+                    marginBottom: 6,
+                    color: v12StudentPresentation ? "#64748b" : "#111827",
+                    fontSize: v12StudentPresentation ? "0.8125rem" : undefined,
+                    letterSpacing: v12StudentPresentation ? "0.04em" : undefined,
+                    textTransform: v12StudentPresentation
+                      ? ("uppercase" as const)
+                      : undefined,
+                  }}
+                >
                   Topic progress
                 </div>
                 <div style={{ color: "#6b7280" }}>
@@ -4004,6 +4260,7 @@ const LessonViewPage: React.FC = () => {
             orderedPages.length > 0 &&
             createPortal(
               <div
+                data-lesson-presentation={v12StudentPresentation ? "v12" : "legacy"}
                 style={{
                   position: "fixed",
                   bottom: 0,
@@ -4011,8 +4268,12 @@ const LessonViewPage: React.FC = () => {
                   right: 0,
                   zIndex: 9999,
                   background: "white",
-                  borderTop: "2px solid rgba(59,130,246,0.35)",
-                  boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
+                  borderTop: v12StudentPresentation
+                    ? "1px solid #e8ecf1"
+                    : "2px solid rgba(59,130,246,0.35)",
+                  boxShadow: v12StudentPresentation
+                    ? "0 -2px 14px rgba(15,23,42,0.06)"
+                    : "0 -4px 12px rgba(0,0,0,0.08)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -4190,6 +4451,7 @@ const LessonViewPage: React.FC = () => {
               currentTopicKey={topicKeyForBank}
               onNavigateTopic={(key) => navigate(`/browse-lessons?topicKey=${encodeURIComponent(key)}`)}
               onBackToTopics={() => navigate("/browse-lessons")}
+              className={v12StudentPresentation ? "lesson-student-prevnext" : undefined}
             />
           )}
           {/* PR-024.1: Student topic summary modal (structured view) */}
@@ -4214,6 +4476,7 @@ const LessonViewPage: React.FC = () => {
   return (
     <LessonImageLightboxProvider>
     <div
+      data-lesson-presentation={v12StudentPresentation ? "v12" : "legacy"}
       style={{
         maxWidth: "1000px",
         margin: "0 auto",
@@ -4264,6 +4527,7 @@ const LessonViewPage: React.FC = () => {
       )}
 
       <div
+        className={v12StudentPresentation ? "lesson-student-legacy-card" : undefined}
         style={{
           marginTop: "30px",
           background: "white",
@@ -4283,6 +4547,7 @@ const LessonViewPage: React.FC = () => {
         >
           <div>
             <h1
+              className={v12StudentPresentation ? "lesson-student-page-heading" : undefined}
               style={{
                 marginBottom: "10px",
                 color: "#111827",
@@ -4311,7 +4576,7 @@ const LessonViewPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ marginBottom: "30px" }}>
+        <div className={v12StudentPresentation ? "lesson-student-legacy-content" : undefined} style={{ marginBottom: "30px" }}>
           <h3
             style={{
               color: "#111827",
@@ -4323,7 +4588,7 @@ const LessonViewPage: React.FC = () => {
             Lesson Content
           </h3>
           <div
-            className="lesson-content"
+            className={v12StudentPresentation ? "lesson-content lesson-student-legacy-inner" : "lesson-content"}
             style={{
               background: "#f8f9fa",
               padding: "20px",
@@ -4610,6 +4875,7 @@ const LessonViewPage: React.FC = () => {
           topicKey={topicKeyForBank || undefined}
           onTryAnotherSet={() => setPracticeSeedCounter((c) => c + 1)}
           onLoadBankOnly={loadBankOnly}
+          hidePracticeStructuralLabels={v12StudentPresentation}
         />
 
         {lesson && !topicKeyForBank && (
@@ -4890,6 +5156,7 @@ const LessonViewPage: React.FC = () => {
             currentTopicKey={topicKeyForBank}
             onNavigateTopic={(key) => navigate(`/browse-lessons?topicKey=${encodeURIComponent(key)}`)}
             onBackToTopics={() => navigate("/browse-lessons")}
+            className={v12StudentPresentation ? "lesson-student-prevnext" : undefined}
           />
         )}
         {/* PR-024.1: Student topic summary modal */}

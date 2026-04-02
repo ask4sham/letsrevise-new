@@ -1,0 +1,763 @@
+/**
+ * SS2-style V12 lesson — composition, authority, chunked scan path.
+ * Parent: [data-lesson-presentation="v12"]
+ */
+
+.lesson-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- V12 premium base: calmer, darker body, consistent scale (12 / 16 / 24 / 32) --- */
+[data-lesson-presentation="v12"] {
+  font-size: 18.5px;
+  line-height: 1.75;
+  color: #1f2937;
+}
+
+/* --- Page shell: calm canvas, lesson column reads as primary --- */
+.lesson-student-page-shell {
+  /* background set inline; this class hooks sidebar quieting */
+}
+
+[data-lesson-presentation="v12"] aside.lesson-student-sidebar--v12 {
+  opacity: 0.92;
+  border: 1px solid #e4e9f0 !important;
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-rail-card--v12 {
+  border: 1px solid #e4e9f0 !important;
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* --- Main lesson card: wide, confident surface --- */
+[data-lesson-presentation="v12"] .lesson-student-main-card.lesson-student-section {
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+  max-width: min(1280px, 100%) !important;
+  width: 100% !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 10px 40px rgba(15, 23, 42, 0.09) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+@media (min-width: 1100px) {
+  [data-lesson-presentation="v12"] .lesson-student-main-card.lesson-student-section {
+    padding: 52px 52px 56px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-lesson-presentation="v12"] .lesson-student-main-card.lesson-student-section {
+    font-size: 18px !important;
+    padding: 24px 18px 28px !important;
+  }
+}
+
+/* Chrome (title, hero, visual, toggle) vs teaching body — one separator, no double gap */
+[data-lesson-presentation="v12"] .lesson-student-page-chrome {
+  padding-bottom: 8px;
+  margin-bottom: 0;
+  border-bottom: 1px solid #e8edf4;
+}
+
+/* Single gap after chrome border (replaces former margin-top: 24px + padding-top: 8px stack) */
+[data-lesson-presentation="v12"] .lesson-student-page-body {
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+/* First teaching chunk: chrome border is the only break; no extra top margin */
+[data-lesson-presentation="v12"] .lesson-student-page-body > .lesson-student-section-chunk:first-child {
+  margin-top: 0 !important;
+}
+
+/* --- Section chunks: teaching cards (intentional grouping) --- */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk {
+  padding: 28px;
+  margin-bottom: 28px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk:last-child {
+  margin-bottom: 0;
+}
+
+/*
+ * SS2: text + diagram in one section (desktop: left / right; narrow viewports: stack).
+ * Use !important so global/legacy rules cannot collapse the grid.
+ * Breakpoint 767px — not 900px — so laptop + 3-column layouts still get two columns.
+ * Split polish: stable ~300px media column; text measure capped so the pair feels intentional.
+ * align-items: center — shorter column (text or image) centers vs the taller column.
+ */
+[data-lesson-presentation="v12"] section.lesson-student-section-chunk.lesson-student-section-chunk--with-media {
+  display: grid !important;
+  grid-template-columns: minmax(0, 0.9fr) 300px !important;
+  gap: 28px !important;
+  row-gap: 20px !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 24px 22px 26px !important;
+  margin-bottom: 24px !important;
+}
+
+/* Split mode only — left column in grid */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content {
+  min-width: 0 !important;
+  max-width: min(36rem, 100%) !important;
+  justify-self: start !important;
+  width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__media {
+  width: 300px !important;
+  max-width: 300px !important;
+  min-width: 0 !important;
+  align-self: center !important;
+  justify-self: stretch !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__media .lesson-student-diagram-slot {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__media .lesson-student-diagram-slot > div {
+  margin-top: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__media img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__tail {
+  grid-column: 1 / -1 !important;
+  min-width: 0;
+  padding-top: 14px !important;
+  margin-top: 6px !important;
+  border-top: 1px solid #eef2f7;
+}
+
+@media (max-width: 767px) {
+  [data-lesson-presentation="v12"] section.lesson-student-section-chunk.lesson-student-section-chunk--with-media {
+    grid-template-columns: 1fr !important;
+    min-width: 0 !important;
+  }
+
+  [data-lesson-presentation="v12"] .lesson-student-section-chunk__media {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  [data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content {
+    max-width: 100% !important;
+  }
+
+  [data-lesson-presentation="v12"] .lesson-student-section-chunk__tail {
+    padding-top: 16px;
+    margin-top: 8px;
+  }
+}
+
+/* SS2 layout debug (uncomment temporarily): tint columns + outline split
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text { outline: 2px solid rgba(59,130,246,0.35); background: rgba(59,130,246,0.06); }
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media { outline: 2px solid rgba(16,185,129,0.35); background: rgba(16,185,129,0.06); }
+[data-lesson-presentation="v12"] section.lesson-student-section-chunk--with-media { outline: 2px dashed rgba(124,58,237,0.4); }
+*/
+
+/* Markdown-in-text block: first standalone `![](url)` line → same SS2 grid as diagram chunks */
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 0.9fr) 300px !important;
+  gap: 28px !important;
+  row-gap: 0 !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text {
+  min-width: 0 !important;
+  max-width: min(36rem, 100%) !important;
+  justify-self: start !important;
+  width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md img {
+  display: block !important;
+  margin: 16px auto 16px 0 !important;
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media {
+  width: 300px !important;
+  max-width: 300px !important;
+  min-width: 0 !important;
+  align-self: center !important;
+}
+
+/* Beat index.css `.lesson-content img { margin: 20px auto }` on the framed figure in the right column */
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media img,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card img {
+  display: block !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__tail {
+  margin-top: 16px !important;
+  padding-top: 14px !important;
+  border-top: 1px solid #eef2f7 !important;
+}
+
+/* Chunk that contains markdown split: match diagram-split band spacing */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk:has(.lesson-student-md-media-split) {
+  padding: 24px 22px 26px !important;
+  margin-bottom: 24px !important;
+}
+
+/* MODE 2 — text-only chunks: centered readable column */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--text-only .lesson-student-section-chunk__text-column {
+  max-width: min(720px, 100%) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* MODE 3 — image-only chunks: figures use full section width */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-student-diagram-slot {
+  margin: 0 auto !important;
+  padding: 8px 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  text-align: center !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-student-diagram-slot > div {
+  width: 100% !important;
+  max-width: none !important;
+  margin-top: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-student-diagram-slot img,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-image-card {
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-image-card {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* MODE 4 — stack fallback: full-width vertical flow (multi-diagram + text) */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--stack {
+  width: 100% !important;
+}
+
+/* SS2 split — tighter editorial rhythm (split grid + markdown paths; not text-only center column) */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md h2:first-child,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md h3:first-child,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md h2:first-child,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md h3:first-child {
+  margin-top: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md h2,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md h2 {
+  margin: 0 0 0.55em !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md h3,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md h3 {
+  margin: 1.1em 0 0.5em !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md p,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md p {
+  margin: 0 0 14px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md ul,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md ol,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md ul,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md ol {
+  margin: 12px 0 14px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content .lesson-student-md li,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md li {
+  margin: 0.45em 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content > div:not(:last-child) > .student-block,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__tail > div:not(:last-child) > .student-block {
+  margin-bottom: 18px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content > div:last-child > .student-block,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__tail > div:last-child > .student-block {
+  margin-bottom: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split .student-block--text.lesson-content {
+  margin-bottom: 0 !important;
+}
+
+[data-lesson-presentation="v12"] section.lesson-student-section-chunk.lesson-student-section-chunk--with-media:last-child,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--text-only:last-child,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only:last-child,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--stack:last-child,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk:has(.lesson-student-md-media-split):last-child {
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 767px) {
+  [data-lesson-presentation="v12"] .lesson-student-md-media-split__grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  [data-lesson-presentation="v12"] .lesson-student-md-media-split__media {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  [data-lesson-presentation="v12"] .lesson-student-md-media-split__text {
+    max-width: 100% !important;
+  }
+}
+
+/* H1 lesson title — confident page anchor */
+[data-lesson-presentation="v12"] h1.lesson-student-title {
+  color: #05080f !important;
+  font-size: clamp(28px, 3vw, 36px) !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Page section title (current page) — strong, not oversized; ~16–20px below title line */
+[data-lesson-presentation="v12"] .lesson-student-section h2.lesson-student-page-heading,
+[data-lesson-presentation="v12"] h2.lesson-student-page-heading {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  line-height: 1.28 !important;
+  letter-spacing: -0.02em !important;
+  color: #0f172a !important;
+  margin-top: 24px !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-header {
+  padding-bottom: 4px;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-meta {
+  color: #5b6578 !important;
+  font-size: 1.05rem !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-blurb {
+  border-top: 1px solid #eef2f7;
+  padding-top: 20px !important;
+  margin-top: 24px !important;
+  color: #3d4a5c;
+  font-size: 1.02rem !important;
+  line-height: 1.68 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-blurb-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b95a8;
+  margin-bottom: 10px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-deeper-toggle {
+  border: 1px solid #e2e8f0 !important;
+  background: #fafafa !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+}
+
+/* Markdown body — editorial reading */
+[data-lesson-presentation="v12"] .lesson-student-md {
+  line-height: 1.78 !important;
+  font-size: 1.04rem !important;
+  color: #1f2937 !important;
+  font-weight: 400;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md p {
+  margin: 0 0 14px !important;
+  color: inherit;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md p:last-child {
+  margin-bottom: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md h1,
+[data-lesson-presentation="v12"] .lesson-student-md h2 {
+  font-size: 1.45rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  color: #0a0f1a !important;
+  margin: 1.35em 0 0.65em !important;
+  line-height: 1.28 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md h3 {
+  font-size: 1.22rem !important;
+  font-weight: 700 !important;
+  color: #15202b !important;
+  margin: 1.25em 0 0.55em !important;
+  line-height: 1.32 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md h4 {
+  font-size: 1.08rem !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  margin: 1.15em 0 0.45em !important;
+}
+
+/* Lists — process / science rhythm */
+[data-lesson-presentation="v12"] .lesson-student-md ul,
+[data-lesson-presentation="v12"] .lesson-student-md ol {
+  margin: 12px 0 16px !important;
+  padding-left: 1.55em !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md li {
+  margin: 0.45em 0 !important;
+  padding-left: 0.3em !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md ol {
+  list-style-type: decimal;
+  padding-left: 1.75em !important;
+  margin: 12px 0 16px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md ol > li {
+  margin: 0.45em 0 !important;
+  padding-left: 0.35em !important;
+  font-weight: 500;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md ol > li::marker {
+  font-weight: 800;
+  color: #1d4ed8;
+  font-size: 0.95em;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md ul li::marker {
+  color: #64748b;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md blockquote {
+  margin: 1.2em 0 !important;
+  padding: 0.55em 0 0.55em 1.1em !important;
+  border-left: 4px solid #cbd5e1 !important;
+  color: #475569 !important;
+  background: rgba(248, 250, 252, 0.8) !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+
+/* Block rhythm */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk .student-block:last-child {
+  margin-bottom: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block {
+  margin: 0 0 26px;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot {
+  margin: 36px 0 44px;
+  padding: 12px 0;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot > div {
+  margin-top: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot img {
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-image-caption {
+  margin-top: 16px;
+  font-size: 0.95rem;
+  color: #5c6b80;
+  line-height: 1.55;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-hero-slot {
+  margin-top: 12px;
+  margin-bottom: 24px;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-hero-slot .lesson-image-caption {
+  margin-top: 16px;
+  font-size: 0.95rem;
+  color: #5c6b80;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.55;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-visual-slot img {
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-lesson-presentation="v12"] .student-block--text .lesson-student-md img {
+  margin: 32px auto 36px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 36px rgba(15, 23, 42, 0.1) !important;
+}
+
+/* Explanation — unboxed editorial */
+[data-lesson-presentation="v12"] .student-block--text.lesson-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--text .lesson-student-md {
+  font-size: 1.04rem !important;
+  font-weight: 400 !important;
+  line-height: 1.78 !important;
+  color: #1f2937 !important;
+}
+
+/* Key idea — “what you must remember” */
+[data-lesson-presentation="v12"] .student-block--key {
+  padding: 18px 20px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg, #eaf2ff, #f5f9ff) !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+  border-left: 6px solid #3b82f6 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06) !important;
+  margin-top: 8px !important;
+  margin-bottom: 24px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--key .lesson-student-md {
+  font-size: 1.2rem !important;
+  font-weight: 600 !important;
+  line-height: 1.48 !important;
+  color: #0f172a !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--key .lesson-student-md p {
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+/* Exam tip — micro-card, actionable */
+[data-lesson-presentation="v12"] .student-block--exam-tip {
+  max-width: 100%;
+  padding: 14px 16px !important;
+  border-radius: 12px !important;
+  background: #ecfdf5 !important;
+  border: 1px solid rgba(34, 197, 94, 0.28) !important;
+  border-left: 5px solid #22c55e !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
+  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--exam-tip .lesson-student-md {
+  font-size: 0.95rem !important;
+  line-height: 1.55 !important;
+  font-weight: 500 !important;
+  color: #14532d !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--misconception {
+  padding: 18px 22px 20px 18px !important;
+  border-radius: 13px !important;
+  background: #fff7ed !important;
+  border: 1px solid rgba(251, 146, 60, 0.35) !important;
+  border-left: 5px solid #ea580c !important;
+  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--misconception .lesson-student-md {
+  font-size: 1.06rem !important;
+  line-height: 1.7 !important;
+  color: #7c2d12 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--synthesis {
+  padding: 24px 26px 26px 22px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #e8edf3 0%, #f1f5f9 100%) !important;
+  border: 1px solid #c5d0de !important;
+  border-left: 5px solid #475569 !important;
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.07) !important;
+  margin-bottom: 24px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--synthesis .lesson-student-md {
+  font-size: 1.1rem !important;
+  line-height: 1.74 !important;
+  color: #334155 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--hook {
+  padding: 12px 0 14px 22px !important;
+  border: none !important;
+  border-left: 4px solid #94a3b8 !important;
+  background: transparent !important;
+  margin-bottom: 26px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--hook .lesson-student-md {
+  font-size: 1.08rem !important;
+  color: #475569 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--example {
+  padding: 18px 22px !important;
+  border-radius: 13px !important;
+  background: #f8fafc !important;
+  border: 1px dashed #94a3b8 !important;
+  border-left: 4px solid #64748b !important;
+  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--keywords {
+  padding: 18px 22px !important;
+  border-radius: 13px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block__keyword-list {
+  margin: 0;
+  padding-left: 1.4rem;
+  line-height: 1.78;
+  color: #334155;
+  font-size: 1.05rem;
+}
+
+[data-lesson-presentation="v12"] .student-block__keyword-list li {
+  margin-bottom: 9px;
+}
+
+.lesson-student-diagram-slot {
+  text-align: center;
+}
+
+.lesson-student-prevnext {
+  margin-top: 52px !important;
+  padding-top: 28px !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+.lesson-student-prevnext button {
+  border-width: 1px !important;
+  font-weight: 600 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-legacy-card {
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06) !important;
+}
+
+.lesson-student-legacy-content h3 {
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  color: #94a3b8 !important;
+  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-legacy-inner {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.lesson-checkpoint-v12 {
+  border: 1px solid #dce3ed !important;
+  border-radius: 16px !important;
+  background: #fafbfc !important;
+  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.07) !important;
+}
+
+.lesson-checkpoint-v12-explain {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  color: #475569;
+  font-size: 17px;
+  line-height: 1.68;
+}
+
+.lesson-checkpoint-v12-model {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-checkpoint-section {
+  margin-top: 44px;
+  padding-top: 36px;
+  border-top: 1px solid #dce3ed;
+}

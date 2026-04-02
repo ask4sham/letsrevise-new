@@ -4,6 +4,7 @@
  * No auto-reveal: user must click "Check answer" to see correctness.
  */
 import React, { useState, useEffect } from "react";
+import "./student/lessonStudentView.css";
 import { logAttempt } from "../../utils/attempts";
 import { SubscribeCTA } from "../SubscribeCTA";
 
@@ -32,6 +33,8 @@ export interface LessonCheckpointProps {
   name: string;
   lessonId?: string;
   entitled?: boolean;
+  /** V12 student view: calmer chrome, no "Explanation:" / "Checkpoint" visible labels */
+  presentation?: "default" | "v12";
 }
 
 export function LessonCheckpoint({
@@ -43,6 +46,7 @@ export function LessonCheckpoint({
   name,
   lessonId,
   entitled = false,
+  presentation = "default",
 }: LessonCheckpointProps) {
   const correctAnswer = String(correctAnswerProp ?? "").trim();
 
@@ -56,6 +60,7 @@ export function LessonCheckpoint({
         name={name}
         lessonId={lessonId}
         entitled={entitled}
+        presentation={presentation}
       />
     );
   }
@@ -67,6 +72,7 @@ export function LessonCheckpoint({
       explanation={explanation}
       lessonId={lessonId}
       entitled={entitled}
+      presentation={presentation}
     />
   );
 }
@@ -79,6 +85,7 @@ function LessonCheckpointMCQ({
   name,
   lessonId,
   entitled,
+  presentation = "default",
 }: {
   prompt: string;
   options: string[];
@@ -87,6 +94,7 @@ function LessonCheckpointMCQ({
   name: string;
   lessonId?: string;
   entitled: boolean;
+  presentation?: "default" | "v12";
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
@@ -108,9 +116,26 @@ function LessonCheckpointMCQ({
     return "white";
   };
 
+  const v12 = presentation === "v12";
+
   return (
-    <div style={{ marginTop: 14, padding: 16, borderRadius: 14, background: "#f8f9fa", border: "2px solid rgba(59,130,246,0.25)", boxShadow: "0 0 0 2px rgba(59,130,246,0.08)", textAlign: "left" }}>
-      <div style={TITLE_STYLE}>Checkpoint</div>
+    <div
+      className={v12 ? "lesson-checkpoint-v12" : undefined}
+      style={{
+        marginTop: v12 ? 28 : 14,
+        padding: 16,
+        borderRadius: 14,
+        background: "#f8f9fa",
+        border: "2px solid rgba(59,130,246,0.25)",
+        boxShadow: v12 ? "none" : "0 0 0 2px rgba(59,130,246,0.08)",
+        textAlign: "left",
+      }}
+    >
+      {v12 ? (
+        <span className="lesson-sr-only">Quick check</span>
+      ) : (
+        <div style={TITLE_STYLE}>Checkpoint</div>
+      )}
       <div style={PROMPT_STYLE}>{prompt}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {options.map((opt, i) => (
@@ -204,10 +229,14 @@ function LessonCheckpointMCQ({
             )}
             {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
             {entitled && explanation ? (
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
-                <strong style={{ color: "#374151" }}>Explanation:</strong>
-                <div style={{ marginTop: 4, color: "#4b5563", fontSize: CONTENT_FONT }}>{explanation}</div>
-              </div>
+              v12 ? (
+                <div className="lesson-checkpoint-v12-explain">{explanation}</div>
+              ) : (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                  <strong style={{ color: "#374151" }}>Explanation:</strong>
+                  <div style={{ marginTop: 4, color: "#4b5563", fontSize: CONTENT_FONT }}>{explanation}</div>
+                </div>
+              )
             ) : null}
             {checked && !entitled && (
               <div style={{ marginTop: 8, opacity: 0.85, fontSize: "0.9rem", color: "#6b7280" }}>Subscribe to see the full explanation.</div>
@@ -232,12 +261,14 @@ function LessonCheckpointShort({
   explanation,
   lessonId,
   entitled,
+  presentation = "default",
 }: {
   prompt: string;
   correctAnswer: string;
   explanation?: string;
   lessonId?: string;
   entitled: boolean;
+  presentation?: "default" | "v12";
 }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
@@ -252,9 +283,22 @@ function LessonCheckpointShort({
     setRecorded(true);
   }, [entitled, lessonId, selfMarked, confidence, recorded, answer]);
 
+  const v12 = presentation === "v12";
+
   return (
-    <div style={{ marginTop: 14, padding: 16, borderRadius: 14, background: "#f8f9fa", border: "2px solid rgba(59,130,246,0.25)", boxShadow: "0 0 0 2px rgba(59,130,246,0.08)", textAlign: "left" }}>
-      <div style={TITLE_STYLE}>Checkpoint</div>
+    <div
+      className={v12 ? "lesson-checkpoint-v12" : undefined}
+      style={{
+        marginTop: v12 ? 28 : 14,
+        padding: 16,
+        borderRadius: 14,
+        background: "#f8f9fa",
+        border: "2px solid rgba(59,130,246,0.25)",
+        boxShadow: v12 ? "none" : "0 0 0 2px rgba(59,130,246,0.08)",
+        textAlign: "left",
+      }}
+    >
+      {v12 ? <span className="lesson-sr-only">Quick check</span> : <div style={TITLE_STYLE}>Checkpoint</div>}
       <div style={PROMPT_STYLE}>{prompt}</div>
       <div style={{ marginTop: 8 }}>
         <input
@@ -293,13 +337,19 @@ function LessonCheckpointShort({
           </button>
         ) : (
           <>
-            <div style={{ marginTop: 2, color: "#374151", fontSize: "0.95rem" }}>Compare your answer to the model answer below.</div>
+            <div style={{ marginTop: 2, color: "#374151", fontSize: "0.95rem" }}>
+              {v12 ? "Compare with the reference below." : "Compare your answer to the model answer below."}
+            </div>
             {entitled ? (
               <>
-                <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-                  <strong style={{ color: "#374151" }}>Model answer:</strong>
-                  <div style={{ marginTop: 6, color: "#4b5563", fontSize: CONTENT_FONT }}>{correctAnswer || "—"}</div>
-                </div>
+                {v12 ? (
+                  <div className="lesson-checkpoint-v12-model">{correctAnswer || "—"}</div>
+                ) : (
+                  <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                    <strong style={{ color: "#374151" }}>Model answer:</strong>
+                    <div style={{ marginTop: 6, color: "#4b5563", fontSize: CONTENT_FONT }}>{correctAnswer || "—"}</div>
+                  </div>
+                )}
                 {selfMarked === null ? (
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
@@ -319,10 +369,16 @@ function LessonCheckpointShort({
                   <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
                 )}
                 {explanation ? (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
-                    <strong style={{ color: "#374151" }}>Explanation:</strong>
-                    <div style={{ marginTop: 4, color: "#4b5563", fontSize: CONTENT_FONT }}>{explanation}</div>
-                  </div>
+                  v12 ? (
+                    <div className="lesson-checkpoint-v12-explain" style={{ marginTop: 12 }}>
+                      {explanation}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
+                      <strong style={{ color: "#374151" }}>Explanation:</strong>
+                      <div style={{ marginTop: 4, color: "#4b5563", fontSize: CONTENT_FONT }}>{explanation}</div>
+                    </div>
+                  )
                 ) : null}
               </>
             ) : (
