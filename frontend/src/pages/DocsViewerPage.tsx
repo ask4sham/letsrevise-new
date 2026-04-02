@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 
 /** Allowed filename: only .md, no path traversal. Returns null if invalid. Do NOT mutate result for fetch. */
 function safeDocFilename(param: string | null): string | null {
@@ -143,7 +144,7 @@ const DocsViewerPage: React.FC = () => {
             border: "1px solid #e5e7eb",
           }}
         >
-          {segmentContent(content).map((seg, idx) =>
+          {segmentContent(preprocessMarkdownAssetUrls(content)).map((seg, idx) =>
             seg.type === "table" ? (
               <div key={idx} style={tableStyles.wrapper}>
                 <table style={tableStyles.table}>

@@ -23,6 +23,7 @@ import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
 import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
+import { AddBlockByRoleSelect } from "../components/lesson/AddBlockByRoleSelect";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -35,7 +36,6 @@ import {
   getBlockStyle,
   normalizeBlockType,
   toLegacyBlockType,
-  ADD_BLOCK_OPTIONS,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import Toast from "../components/Toast";
@@ -1219,7 +1219,7 @@ const EditLessonPage: React.FC = () => {
   const addBlock = (
     pageId: string,
     type: LessonBlockType,
-    opts?: { role?: string; title?: string }
+    opts?: { role?: string; title?: string; insertAt?: number }
   ) => {
     setLesson((prev) => {
       if (!prev) return prev;
@@ -1272,7 +1272,12 @@ const EditLessonPage: React.FC = () => {
       }
       if (opts?.role?.trim()) block.role = opts.role.trim();
       if (opts?.title !== undefined) block.title = opts.title ?? "";
-      blocks.push(block);
+      const insertAt = opts?.insertAt;
+      if (typeof insertAt === "number" && insertAt >= 0 && insertAt <= blocks.length) {
+        blocks.splice(insertAt, 0, block);
+      } else {
+        blocks.push(block);
+      }
       pages[pIdx] = { ...pages[pIdx], blocks };
       return { ...prev, pages };
     });
@@ -3379,22 +3384,10 @@ const EditLessonPage: React.FC = () => {
                             (currentPage!.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
                           );
                           return (
-                            <select
-                              value=""
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (!val) return;
-                                e.target.value = "";
-                                const opt = ADD_BLOCK_OPTIONS.find((o) => `${o.role}:${o.type}` === val);
-                                if (opt) {
-                                  if (opt.type === "checkpoint" && hasPageCheckpoint) return;
-                                  addBlock(currentPage!.pageId, opt.type, {
-                                    role: opt.role,
-                                    title: opt.title,
-                                  });
-                                }
-                              }}
-                              style={{
+                            <AddBlockByRoleSelect
+                              placeholderLabel="+ Add block by role…"
+                              disableCheckpointBlocks={hasPageCheckpoint}
+                              selectStyle={{
                                 padding: "8px 14px",
                                 fontSize: 13,
                                 fontWeight: 600,
@@ -3403,22 +3396,14 @@ const EditLessonPage: React.FC = () => {
                                 minWidth: 200,
                                 background: "white",
                               }}
-                            >
-                              <option value="">+ Add block by role…</option>
-                              {ADD_BLOCK_OPTIONS.map((opt) => {
-                                const isCheckpointDisabled = opt.type === "checkpoint" && hasPageCheckpoint;
-                                return (
-                                  <option
-                                    key={`${opt.role}:${opt.type}`}
-                                    value={`${opt.role}:${opt.type}`}
-                                    disabled={isCheckpointDisabled}
-                                  >
-                                    {opt.label}
-                                    {isCheckpointDisabled ? " (page checkpoint in use)" : ""}
-                                  </option>
-                                );
-                              })}
-                            </select>
+                              onChoose={(opt) => {
+                                if (opt.type === "checkpoint" && hasPageCheckpoint) return;
+                                addBlock(currentPage!.pageId, opt.type, {
+                                  role: opt.role,
+                                  title: opt.title,
+                                });
+                              }}
+                            />
                           );
                         })()}
                         <button
@@ -3648,6 +3633,20 @@ const EditLessonPage: React.FC = () => {
                               >
                                 ↓
                               </button>
+
+                              <AddBlockByRoleSelect
+                                compact
+                                placeholderLabel="+ Add below"
+                                disableCheckpointBlocks={hasPageCheckpointContent}
+                                onChoose={(opt) => {
+                                  if (opt.type === "checkpoint" && hasPageCheckpointContent) return;
+                                  addBlock(currentPage!.pageId, opt.type, {
+                                    role: opt.role,
+                                    title: opt.title,
+                                    insertAt: idx + 1,
+                                  });
+                                }}
+                              />
 
                               {!isCheckpoint && !isDiagram && (
                                 <button

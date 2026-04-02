@@ -18,11 +18,11 @@ import {
   BLOCK_META,
   getBlockStyle,
   toLegacyBlockType,
-  ADD_BLOCK_OPTIONS,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { CreateLessonPracticePanel } from "../components/lesson/CreateLessonPracticePanel";
+import { AddBlockByRoleSelect } from "../components/lesson/AddBlockByRoleSelect";
 import {
   collapseExactDuplicatePaste,
   guardLessonBlockPatchForDuplicatePaste,
@@ -625,7 +625,7 @@ const CreateLessonPage: React.FC = () => {
   const addBlock = (
     pageId: string,
     type: LessonBlockType,
-    opts?: { role?: string; title?: string; initialContent?: string }
+    opts?: { role?: string; title?: string; initialContent?: string; insertAt?: number }
   ) => {
     setPages((prev) =>
       prev.map((p) => {
@@ -637,7 +637,12 @@ const CreateLessonPage: React.FC = () => {
         };
         if (opts?.role?.trim()) block.role = opts.role.trim();
         if (opts?.title !== undefined) block.title = opts.title ?? "";
-        blocks.push(block);
+        const insertAt = opts?.insertAt;
+        if (typeof insertAt === "number" && insertAt >= 0 && insertAt <= blocks.length) {
+          blocks.splice(insertAt, 0, block);
+        } else {
+          blocks.push(block);
+        }
         return { ...p, blocks };
       })
     );
@@ -1760,35 +1765,22 @@ const CreateLessonPage: React.FC = () => {
                     </div>
 
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (!val) return;
-                          e.target.value = "";
-                          const opt = ADD_BLOCK_OPTIONS.find((o) => `${o.role}:${o.type}` === val);
-                          if (opt) {
-                            addBlock(pg.pageId, opt.type, {
-                              role: opt.role,
-                              title: opt.title,
-                              initialContent: opt.type === "checkpoint" ? "" : "",
-                            });
-                          }
-                        }}
-                        style={{
+                      <AddBlockByRoleSelect
+                        placeholderLabel="+ Add block by role…"
+                        selectStyle={{
                           ...ui.input,
                           minWidth: 200,
                           padding: "8px 12px",
                           fontWeight: 600,
                         }}
-                      >
-                        <option value="">+ Add block by role…</option>
-                        {ADD_BLOCK_OPTIONS.map((opt) => (
-                          <option key={`${opt.role}:${opt.type}`} value={`${opt.role}:${opt.type}`}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                        onChoose={(opt) =>
+                          addBlock(pg.pageId, opt.type, {
+                            role: opt.role,
+                            title: opt.title,
+                            initialContent: opt.type === "checkpoint" ? "" : "",
+                          })
+                        }
+                      />
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -1851,6 +1843,18 @@ const CreateLessonPage: React.FC = () => {
                                 >
                                   ↓
                                 </button>
+                                <AddBlockByRoleSelect
+                                  compact
+                                  placeholderLabel="+ Add below"
+                                  onChoose={(opt) =>
+                                    addBlock(pg.pageId, opt.type, {
+                                      role: opt.role,
+                                      title: opt.title,
+                                      initialContent: opt.type === "checkpoint" ? "" : "",
+                                      insertAt: idx + 1,
+                                    })
+                                  }
+                                />
                                 <button
                                   onClick={() => triggerBlockUpload(pg.pageId, idx)}
                                   disabled={isUploading}
