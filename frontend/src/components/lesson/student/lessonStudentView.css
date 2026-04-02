@@ -38,25 +38,27 @@
   box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04) !important;
 }
 
-/* --- Main lesson card: wide, confident surface --- */
+/*
+ * Main lesson surface — neutral only (no purple / no “chunk” frame; blocks use [data-ss2-chunk]).
+ */
 [data-lesson-presentation="v12"] .lesson-student-main-card.lesson-student-section {
   font-size: inherit !important;
   line-height: inherit !important;
   color: inherit !important;
-  max-width: min(1280px, 100%) !important;
+  max-width: min(1260px, 100%) !important;
   width: 100% !important;
   border: 1px solid #e5e7eb !important;
+  outline: none !important;
   border-radius: 20px !important;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.92) inset,
-    0 10px 40px rgba(15, 23, 42, 0.09) !important;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06) !important;
   margin-left: auto !important;
   margin-right: auto !important;
 }
 
 @media (min-width: 1100px) {
   [data-lesson-presentation="v12"] .lesson-student-main-card.lesson-student-section {
-    padding: 52px 52px 56px !important;
+    /* Slightly calmer top band; shell + chrome handle “start” rhythm */
+    padding: 44px 12px 52px !important;
   }
 }
 
@@ -69,7 +71,7 @@
 
 /* Chrome (title, hero, visual, toggle) vs teaching body — one separator, no double gap */
 [data-lesson-presentation="v12"] .lesson-student-page-chrome {
-  padding-bottom: 8px;
+  padding-bottom: 4px;
   margin-bottom: 0;
   border-bottom: 1px solid #e8edf4;
 }
@@ -77,74 +79,146 @@
 /* Single gap after chrome border (replaces former margin-top: 24px + padding-top: 8px stack) */
 [data-lesson-presentation="v12"] .lesson-student-page-body {
   margin-top: 0;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
-/* First teaching chunk: chrome border is the only break; no extra top margin */
-[data-lesson-presentation="v12"] .lesson-student-page-body > .lesson-student-section-chunk:first-child {
+/*
+ * Teaching blocks — outer DOM from LessonStudentChunk only:
+ *   section|div.lesson-student-section-chunk[data-ss2-chunk="1"][data-ss2-layout] (split / text / image / stack)
+ * Scoped under .lesson-student-main-card[data-lesson-presentation="v12"] so borders win over globals.
+ */
+/*
+ * Teaching chunk wrapper — groups blocks for layout (split grid / stack) only.
+ * Hard purple frames belong on each role: `#block-N > .student-block` (see end of file).
+ */
+[data-lesson-presentation="v12"] .lesson-student-main-card [data-ss2-chunk="1"] {
+  box-sizing: border-box !important;
+  padding: 0 !important;
+  margin-top: 18px !important;
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body > [data-ss2-chunk="1"]:first-child {
   margin-top: 0 !important;
 }
 
-/* --- Section chunks: teaching cards (intentional grouping) --- */
-[data-lesson-presentation="v12"] .lesson-student-section-chunk {
-  padding: 28px;
-  margin-bottom: 28px;
-  border-radius: 18px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body > [data-ss2-chunk="1"] + [data-ss2-chunk="1"] {
+  margin-top: 24px !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-section-chunk:last-child {
-  margin-bottom: 0;
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body > [data-ss2-chunk="1"]:last-child {
+  margin-bottom: 0 !important;
 }
 
 /*
  * SS2: text + diagram in one section (desktop: left / right; narrow viewports: stack).
  * Use !important so global/legacy rules cannot collapse the grid.
  * Breakpoint 767px — not 900px — so laptop + 3-column layouts still get two columns.
- * Split polish: stable ~300px media column; text measure capped so the pair feels intentional.
+ * Split: text-first — narrow fixed media column so diagrams feel supportive, not dominant.
  * align-items: center — shorter column (text or image) centers vs the taller column.
  */
-[data-lesson-presentation="v12"] section.lesson-student-section-chunk.lesson-student-section-chunk--with-media {
+[data-lesson-presentation="v12"] .lesson-student-main-card section.lesson-student-section-chunk.lesson-student-section-chunk--with-media {
   display: grid !important;
-  grid-template-columns: minmax(0, 0.9fr) 300px !important;
-  gap: 28px !important;
-  row-gap: 20px !important;
+  grid-template-columns: minmax(0, 1fr) 210px !important;
+  gap: 14px !important;
   align-items: center !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  padding: 24px 22px 26px !important;
-  margin-bottom: 24px !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
 }
 
-/* Split mode only — left column in grid */
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content {
+/* Split mode — text column: composed reading width (paired with ~210px media column) */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__text {
   min-width: 0 !important;
-  max-width: min(36rem, 100%) !important;
+  max-width: min(60rem, 100%) !important;
   justify-self: start !important;
   width: 100% !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-section-chunk__media {
-  width: 300px !important;
-  max-width: 300px !important;
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__media {
+  width: 210px !important;
+  max-width: 210px !important;
   min-width: 0 !important;
   align-self: center !important;
   justify-self: stretch !important;
 }
 
+/*
+ * Split diagram DOM (typical): __media > .lesson-student-diagram-slot > div (inline wrapper) >
+ * [data-lesson-image-frame].lesson-image-card.lesson-image-card--primary > img
+ * lessonImageCard.css sets .lesson-image-card--primary { max-width: 460px } — that was expanding
+ * the grid item past the narrow column; overrides below constrain the full chain.
+ */
 [data-lesson-presentation="v12"] .lesson-student-section-chunk__media .lesson-student-diagram-slot {
   margin: 0 !important;
   padding: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media [data-lesson-image-frame].lesson-image-card,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card.lesson-image-card--primary,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+}
+
+/* lessonImageCard `.clickable:hover { transform: scale(1.02) }` reads larger than the narrow column */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card.clickable:hover {
+  transform: none !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card__diagram-overlay-host {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card > img,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card picture > img,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-card__diagram-overlay-host img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: min(48vh, 300px) !important;
+  object-fit: contain !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Narrow column: full-width chain inside split only (diagram slot → frame → img) */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media [data-lesson-image-frame],
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media [data-lesson-image-frame] img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-image-caption {
+  max-width: 100% !important;
+  font-size: 0.8rem !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-section-chunk__media .lesson-student-diagram-slot > div {
   margin-top: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-section-chunk__media img {
@@ -193,19 +267,11 @@
 /* Markdown-in-text block: first standalone `![](url)` line → same SS2 grid as diagram chunks */
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__grid {
   display: grid !important;
-  grid-template-columns: minmax(0, 0.9fr) 300px !important;
-  gap: 28px !important;
-  row-gap: 0 !important;
+  grid-template-columns: minmax(0, 1fr) 210px !important;
+  gap: 14px !important;
   align-items: center !important;
   width: 100% !important;
   box-sizing: border-box !important;
-}
-
-[data-lesson-presentation="v12"] .lesson-student-md-media-split__text {
-  min-width: 0 !important;
-  max-width: min(36rem, 100%) !important;
-  justify-self: start !important;
-  width: 100% !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__text .lesson-student-md img {
@@ -215,21 +281,49 @@
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__media {
-  width: 300px !important;
-  max-width: 300px !important;
+  width: 210px !important;
+  max-width: 210px !important;
   min-width: 0 !important;
   align-self: center !important;
 }
 
+/* Same as diagram split: neutralize lessonImageCard 420/460px caps on the frame root */
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media [data-lesson-image-frame].lesson-image-card,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card.lesson-image-card--primary,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card.clickable:hover {
+  transform: none !important;
+}
+
 /* Beat index.css `.lesson-content img { margin: 20px auto }` on the framed figure in the right column */
-[data-lesson-presentation="v12"] .lesson-student-md-media-split__media img,
-[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card img {
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card > img,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card picture > img,
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media img {
   display: block !important;
+  width: 100% !important;
   max-width: 100% !important;
   height: auto !important;
+  max-height: min(48vh, 300px) !important;
+  object-fit: contain !important;
   margin: 0 !important;
   border-radius: 14px !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media [data-lesson-image-frame],
+[data-lesson-presentation="v12"] .lesson-student-md-media-split__media [data-lesson-image-frame] img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__tail {
@@ -238,44 +332,112 @@
   border-top: 1px solid #eef2f7 !important;
 }
 
-/* Chunk that contains markdown split: match diagram-split band spacing */
-[data-lesson-presentation="v12"] .lesson-student-section-chunk:has(.lesson-student-md-media-split) {
-  padding: 24px 22px 26px !important;
-  margin-bottom: 24px !important;
+/* Chunk that contains markdown split — outer chunk has no padding; role cards carry the frame */
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-section-chunk:has(.lesson-student-md-media-split) {
+  padding: 0 !important;
+  margin-bottom: 0 !important;
 }
 
-/* MODE 2 — text-only chunks: centered readable column */
+/* MODE 2 — text-only: centered readable column (wider than legacy 720px, not full-bleed) */
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--text-only .lesson-student-section-chunk__text-column {
-  max-width: min(720px, 100%) !important;
+  max-width: min(52rem, 100%) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   width: 100% !important;
   box-sizing: border-box !important;
 }
 
-/* MODE 3 — image-only chunks: figures use full section width */
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-student-diagram-slot {
-  margin: 0 auto !important;
-  padding: 8px 0 !important;
+/*
+ * MODE 3 — image-only: full teaching width
+ *
+ * DOM (typical): section[data-ss2-image-only] > #block-N > .lesson-student-diagram-slot > div > [data-lesson-image-frame].lesson-image-card.lesson-image-card--primary > img
+ *
+ * The real width cap is usually lessonImageCard.css on the frame root:
+ *   .lesson-image-card { max-width: 420px; }  .lesson-image-card--primary { max-width: 460px; }
+ * Image-only: near-full card width (not text-column narrow); align cap with main card max-width.
+ */
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] {
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] > div {
   width: 100% !important;
-  max-width: none !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot {
+  margin: 0 auto !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
   text-align: center !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-student-diagram-slot > div {
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot > div {
   width: 100% !important;
-  max-width: none !important;
+  max-width: 100% !important;
   margin-top: 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-student-diagram-slot img,
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-image-card {
+/* LessonImageFrame root — overrides global 420px / 460px card max-width */
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card,
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card.lesson-image-card--primary,
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card.lesson-image-card--secondary {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 4px 4px !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame] .lesson-image-card__diagram-overlay-host {
+  width: 100% !important;
   max-width: 100% !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only .lesson-image-card {
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-image-card > img,
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-image-card picture > img {
   width: 100% !important;
-  max-width: none !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: min(82vh, 820px) !important;
+  object-fit: contain !important;
+}
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot:not(:has(.lesson-image-card)) img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+}
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot .lesson-image-caption {
+  max-width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+@media (max-width: 767px) {
+  [data-lesson-presentation="v12"] .lesson-student-main-card [data-ss2-chunk="1"].lesson-student-section-chunk--image-only {
+    padding: 16px 18px 20px !important;
+  }
+
+  [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card,
+  [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card--primary {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 
 /* MODE 4 — stack fallback: full-width vertical flow (multi-diagram + text) */
@@ -332,14 +494,6 @@
   margin-bottom: 0 !important;
 }
 
-[data-lesson-presentation="v12"] section.lesson-student-section-chunk.lesson-student-section-chunk--with-media:last-child,
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--text-only:last-child,
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only:last-child,
-[data-lesson-presentation="v12"] .lesson-student-section-chunk--stack:last-child,
-[data-lesson-presentation="v12"] .lesson-student-section-chunk:has(.lesson-student-md-media-split):last-child {
-  margin-bottom: 0 !important;
-}
-
 @media (max-width: 767px) {
   [data-lesson-presentation="v12"] .lesson-student-md-media-split__grid {
     grid-template-columns: 1fr !important;
@@ -372,14 +526,14 @@
   line-height: 1.28 !important;
   letter-spacing: -0.02em !important;
   color: #0f172a !important;
-  margin-top: 24px !important;
-  margin-bottom: 8px !important;
-  padding-bottom: 8px !important;
+  margin-top: 12px !important;
+  margin-bottom: 6px !important;
+  padding-bottom: 6px !important;
   border-bottom: 1px solid #e5e7eb !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-header {
-  padding-bottom: 4px;
+  padding-bottom: 0;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-meta {
@@ -389,8 +543,8 @@
 
 [data-lesson-presentation="v12"] .lesson-student-blurb {
   border-top: 1px solid #eef2f7;
-  padding-top: 20px !important;
-  margin-top: 24px !important;
+  padding-top: 12px !important;
+  margin-top: 14px !important;
   color: #3d4a5c;
   font-size: 1.02rem !important;
   line-height: 1.68 !important;
@@ -530,21 +684,21 @@
   font-size: 0.95rem;
   color: #5c6b80;
   line-height: 1.55;
-  max-width: 42rem;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-hero-slot {
-  margin-top: 12px;
-  margin-bottom: 24px;
+  margin-top: 8px;
+  margin-bottom: 16px;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-hero-slot .lesson-image-caption {
   margin-top: 16px;
   font-size: 0.95rem;
   color: #5c6b80;
-  max-width: 48rem;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
   line-height: 1.55;
@@ -760,4 +914,29 @@
   margin-top: 44px;
   padding-top: 36px;
   border-top: 1px solid #dce3ed;
+}
+
+/*
+ * V12 SS2: one hard purple frame per ROLE block — not per teaching chunk.
+ * DOM: LessonViewPage wraps each block in <div id="block-{idx}">; LessonStudentBlockRenderer
+ * outputs <div class="lesson-content student-block student-block--{kind}"> (studentLessonBlocks.tsx).
+ * Diagram blocks: #block-N > .lesson-student-diagram-slot.
+ */
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-student-diagram-slot {
+  background: #ffffff !important;
+  border: 2px solid #7c3aed !important;
+  border-radius: 10px !important;
+  padding: 20px 22px !important;
+  box-shadow: none !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] + [id^="block-"] {
+  margin-top: 18px !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block:hover {
+  border-color: #6d28d9 !important;
 }

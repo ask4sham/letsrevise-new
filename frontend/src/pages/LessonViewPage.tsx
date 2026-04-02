@@ -2605,7 +2605,7 @@ const LessonViewPage: React.FC = () => {
       return (
         <div
           className={v12StudentPresentation ? "lesson-student-hero-slot" : undefined}
-          style={{ marginBottom: v12StudentPresentation ? 24 : 16 }}
+          style={{ marginBottom: 16 }}
         >
           <LessonImageFrame variant="primary" lightboxSrc={src}>
             <img src={src} alt={h.caption || "Lesson visual"} onError={hideBrokenLessonImage} />
@@ -2635,7 +2635,7 @@ const LessonViewPage: React.FC = () => {
     };
     const wrapper: React.CSSProperties = v12StudentPresentation
       ? {
-          margin: "28px 0 32px",
+          margin: "16px 0 20px",
           padding: 20,
           borderRadius: 18,
           border: "1px solid #e2e8f0",
@@ -3041,7 +3041,8 @@ const LessonViewPage: React.FC = () => {
             : v12StudentPresentation
               ? "#e8ecf2"
               : "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-          padding: layoutStacked ? 0 : v12StudentPresentation ? 28 : 18,
+          /* v12: less top padding so the lesson starts sooner; keep a little bottom room */
+          padding: layoutStacked ? 0 : v12StudentPresentation ? "0 4px 16px" : 18,
           paddingBottom: layoutStacked && orderedPages.length > 0 ? 80 : undefined,
           fontSize: v12StudentPresentation ? undefined : BASE_FONT_SIZE,
           minWidth: 0,
@@ -3075,8 +3076,9 @@ const LessonViewPage: React.FC = () => {
           </div>
         )}
         <div style={{
-          maxWidth: layoutStacked ? "100%" : 1750,
-          width: layoutStacked ? "100%" : undefined,
+          /* Full width of shell — no 1750/1920px band limiting the lesson grid. */
+          maxWidth: "100%",
+          width: layoutStacked ? "100%" : "100%",
           margin: layoutStacked ? 0 : "0 auto",
           minWidth: 0,
           overflow: "visible" as const,
@@ -3084,7 +3086,7 @@ const LessonViewPage: React.FC = () => {
         }}>
           {/* ✅ PROOF PANEL REMOVED FROM HERE */}
 
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: v12StudentPresentation ? 6 : 12 }}>
             <Link
               to="/dashboard"
               style={{ color: "#667eea", textDecoration: "none" }}
@@ -3123,7 +3125,7 @@ const LessonViewPage: React.FC = () => {
           {isTeacherOrAdmin && lesson && (
             <div
               style={{
-                marginBottom: 16,
+                marginBottom: v12StudentPresentation ? 8 : 16,
                 padding: "12px 16px",
                 borderRadius: 10,
                 background: "#f0f9ff",
@@ -3149,7 +3151,7 @@ const LessonViewPage: React.FC = () => {
                 padding: 8,
                 border: "1px solid #ddd",
                 borderRadius: 8,
-                marginBottom: 12,
+                marginBottom: v12StudentPresentation ? 8 : 12,
                 fontSize: "0.9rem",
                 color: "#555",
               }}
@@ -3160,7 +3162,7 @@ const LessonViewPage: React.FC = () => {
           {!hasFullLessonAccess && (
             <div
               style={{
-                marginBottom: 14,
+                marginBottom: v12StudentPresentation ? 8 : 14,
                 padding: "10px 12px",
                 borderRadius: 10,
                 backgroundColor: "#fff7ed",
@@ -3202,13 +3204,18 @@ const LessonViewPage: React.FC = () => {
                 ? { display: "block", width: "100%", maxWidth: "100%", minWidth: 0 }
                 : {
                     display: "grid",
+                    /* V12: stable side rails + centered band — avoids ultra-wide stretch and fake gutters */
                     gridTemplateColumns: v12StudentPresentation
-                      ? "minmax(152px, 176px) minmax(0, 1fr) minmax(152px, 188px)"
+                      ? "minmax(180px, 220px) minmax(0, 1fr) minmax(180px, 220px)"
                       : "260px minmax(0, 1fr) 280px",
-                    gap: v12StudentPresentation ? 22 : 18,
+                    gap: v12StudentPresentation ? 8 : 4,
                     alignItems: "start",
                     alignContent: "start",
                     minWidth: 0,
+                    width: "100%",
+                    maxWidth: v12StudentPresentation ? "1400px" : undefined,
+                    margin: v12StudentPresentation ? "0 auto" : undefined,
+                    boxSizing: "border-box" as const,
                     overflow: "visible" as const,
                   }
             }
@@ -3368,6 +3375,7 @@ const LessonViewPage: React.FC = () => {
                     : undefined
                 }
                 data-v12-student={v12StudentPresentation ? "true" : undefined}
+                data-lesson-presentation={v12StudentPresentation ? "v12" : undefined}
                 style={{
                   background: "white",
                   borderRadius: layoutStacked ? 0 : 16,
@@ -3391,7 +3399,7 @@ const LessonViewPage: React.FC = () => {
                   border: layoutStacked
                     ? "none"
                     : v12StudentPresentation
-                      ? "1px solid #e8ecf1"
+                      ? "1px solid #e5e7eb"
                       : "3px solid rgba(59,130,246,0.45)",
                   textAlign: "left",
                   ...(v12StudentPresentation
@@ -3408,7 +3416,7 @@ const LessonViewPage: React.FC = () => {
                 {/* ✅ Header fix: Lesson title is the main title; page title is secondary */}
                 <div
                   className={v12StudentPresentation ? "lesson-student-header" : undefined}
-                  style={{ marginBottom: v12StudentPresentation ? 16 : 14, textAlign: "left" }}
+                  style={{ marginBottom: v12StudentPresentation ? 10 : 14, textAlign: "left" }}
                 >
                   <h1
                     className={v12StudentPresentation ? "lesson-student-title" : undefined}
@@ -3432,7 +3440,7 @@ const LessonViewPage: React.FC = () => {
                     className={v12StudentPresentation ? "lesson-student-meta" : undefined}
                     style={{
                       color: "#6b7280",
-                      marginTop: v12StudentPresentation ? 10 : 8,
+                      marginTop: v12StudentPresentation ? 6 : 8,
                       fontSize: v12StudentPresentation ? "0.9375rem" : "1rem",
                       textAlign: "left",
                     }}
@@ -3448,7 +3456,7 @@ const LessonViewPage: React.FC = () => {
                       <div
                         className={v12StudentPresentation ? "lesson-student-blurb" : undefined}
                         style={{
-                          marginTop: v12StudentPresentation ? 20 : 12,
+                          marginTop: 12,
                           borderRadius: 6,
                           border: v12StudentPresentation ? "none" : "1px solid #e5e7eb",
                           background: v12StudentPresentation ? "transparent" : "#f9fafb",
@@ -3474,7 +3482,7 @@ const LessonViewPage: React.FC = () => {
                     className={v12StudentPresentation ? "lesson-student-page-heading" : undefined}
                     style={
                       v12StudentPresentation
-                        ? { margin: "20px 0 0", textAlign: "left" as const }
+                        ? { margin: "12px 0 0", textAlign: "left" as const }
                         : {
                             margin: "16px 0 0",
                             color: "#111827",
