@@ -385,6 +385,9 @@ tr:hover td {
     position: sticky;
     top: var(--lesson-editor-sticky-top);
     align-self: start;
+    max-height: calc(100vh - var(--lesson-editor-sticky-top) - 24px);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .create-lesson-page aside.lesson-editor-sidebar-sticky {
@@ -392,6 +395,84 @@ tr:hover td {
     top: var(--lesson-editor-sticky-top);
     align-self: start;
   }
+}
+
+/* Edit Lesson: preview column stays in view and scrolls independently (matches Create Lesson intent) */
+@media (min-width: 768px) {
+  [data-lesson-editor="true"] #edit-lesson-preview.lesson-editor-preview-sticky {
+    max-height: calc(100vh - var(--lesson-editor-sticky-top) - 24px);
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+}
+
+/*
+ * Edit Lesson: centered app column + responsive grid.
+ * ResizeObserver ref is on .edit-lesson-editor-column so breakpoints use capped width (not full viewport).
+ */
+.edit-lesson-editor-column {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.edit-lesson-layout-shell {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.edit-lesson-layout-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  box-sizing: border-box;
+}
+
+/* Inside capped shell: modest rails + flexible center + fixed modest preview (tracks can shrink via minmax 0) */
+.edit-lesson-layout-grid--wide {
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr) minmax(0, 320px);
+  grid-template-rows: none;
+}
+
+/* Laptop / tablet: two columns; preview spans full width below — no forced giant 3-col row */
+.edit-lesson-layout-grid--medium {
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+}
+
+.edit-lesson-layout-grid--medium .edit-lesson-preview-aside {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* Mobile: single column; TSX toggles Edit vs Preview */
+.edit-lesson-layout-grid--narrow {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+}
+
+.edit-lesson-layout-grid--narrow .edit-lesson-preview-aside {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* Edit Lesson: allow grid/flex tracks to shrink (avoid fixed-canvas horizontal overflow) */
+[data-lesson-editor="true"] [data-col="wrapper"],
+[data-lesson-editor="true"] [data-col="left"],
+[data-lesson-editor="true"] [data-col="center"],
+[data-lesson-editor="true"] [data-col="right"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Long markdown / pre inside preview: wrap instead of forcing page wider than viewport */
+[data-lesson-editor="true"] #edit-lesson-preview .lesson-content {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Create Lesson editor: stack sidebar above main on small / medium screens */

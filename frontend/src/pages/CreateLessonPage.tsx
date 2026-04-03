@@ -1039,7 +1039,7 @@ const CreateLessonPage: React.FC = () => {
     <LessonImageLightboxProvider>
     <>
       <style>{`.create-lesson-page input:focus, .create-lesson-page select:focus, .create-lesson-page textarea:focus { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); outline: none; }`}</style>
-      <div className="create-lesson-page" style={ui.page}>
+      <div className="create-lesson-page" data-lesson-editor="true" style={ui.page}>
       <div style={ui.shell}>
         {/* Top bar: Back + Create Lesson only */}
         <div

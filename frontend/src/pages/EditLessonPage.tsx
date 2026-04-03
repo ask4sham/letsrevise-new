@@ -1,5 +1,5 @@
 /** @module EditLessonPage */
-import React, { useMemo, useEffect, useState, useRef } from "react";
+import React, { useMemo, useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { defaultUrlTransform } from "react-markdown";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
@@ -392,6 +392,11 @@ const parseMarkScheme = (markSchemeStr: string): string[] => {
   return trimmed.split(';').map(item => item.trim()).filter(item => item);
 };
 
+/** Measured editor shell width must reach this (px) before 3-column layout — avoids one fixed wide row on most viewports. */
+const EDIT_LESSON_WIDE_MIN_PX = 1220;
+/** At or below this width (px): Edit / Preview tabs (single column). */
+const EDIT_LESSON_NARROW_MAX_PX = 767;
+
 const EditLessonPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -666,24 +671,48 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
-  /** SS1 responsive layout: wide (3 col) / medium (2 col, preview below) / narrow (1 col stack) */
-  const [layoutBreakpoint, setLayoutBreakpoint] = useState<"wide" | "medium" | "narrow">("wide");
-  useEffect(() => {
-    const update = () => {
+  /**
+   * SS1 layout: wide (3 col) / medium (2 col + preview row) / narrow (tabs).
+   * Breakpoints use ResizeObserver on the editor shell — not window.innerWidth — so layout reflows
+   * from actual container width (browser zoom / ultrawide / future constrained parents behave correctly).
+   */
+  const [layoutBreakpoint, setLayoutBreakpoint] = useState<"wide" | "medium" | "narrow">("medium");
+  /** Mobile & small screens: show either editor chrome + blocks or preview — not both stacked miles apart */
+  const [mobileEditorTab, setMobileEditorTab] = useState<"edit" | "preview">("edit");
+  /** When set, right preview shows only this block (linked to focused / last-edited block) */
+  const [previewFocusBlockIdx, setPreviewFocusBlockIdx] = useState<number | null>(null);
+  const editorLayoutShellRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const el = editorLayoutShellRef.current;
+    if (!el || typeof ResizeObserver === "undefined") {
       const w = typeof window !== "undefined" ? window.innerWidth : 1200;
-      /* Match Create Lesson editor: 3-col from ~1100px (see App.css .create-lesson-editor-grid) */
-      if (w >= 1100) setLayoutBreakpoint("wide");
-      else if (w >= 900) setLayoutBreakpoint("medium");
+      if (w >= EDIT_LESSON_WIDE_MIN_PX) setLayoutBreakpoint("wide");
+      else if (w > EDIT_LESSON_NARROW_MAX_PX) setLayoutBreakpoint("medium");
+      else setLayoutBreakpoint("narrow");
+      return;
+    }
+    const apply = (width: number) => {
+      if (width >= EDIT_LESSON_WIDE_MIN_PX) setLayoutBreakpoint("wide");
+      else if (width > EDIT_LESSON_NARROW_MAX_PX) setLayoutBreakpoint("medium");
       else setLayoutBreakpoint("narrow");
     };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+    apply(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width ?? 0;
+      if (w > 0) apply(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [id, loading]);
 
   useEffect(() => {
     fetchLessonSmart();
   }, [id]);
+
+  useEffect(() => {
+    setPreviewFocusBlockIdx(null);
+  }, [currentPage?.pageId]);
 
   /** Fetch summaries of attached assessment papers when lesson.assessmentPaperIds changes */
   useEffect(() => {
@@ -2513,6 +2542,9 @@ const EditLessonPage: React.FC = () => {
     border: "2px solid rgba(0,0,0,0.14)",
     background: "white",
     marginTop: 10,
+    minWidth: 0,
+    maxWidth: "100%",
+    boxSizing: "border-box",
   };
 
   const markdownComponents = {
@@ -2626,7 +2658,14 @@ const EditLessonPage: React.FC = () => {
 
   return (
     <div
-      style={{ padding: "8px 0", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}
+      data-lesson-editor="true"
+      style={{
+        padding: "8px 0",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+      }}
     >
       {generationWarning && (
         <Toast
@@ -2657,14 +2696,25 @@ const EditLessonPage: React.FC = () => {
         minHeight: "100vh",
         width: "100%",
         maxWidth: "100%",
+        minWidth: 0,
         background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
         padding: "12px clamp(12px, 2vw, 24px)",
         boxSizing: "border-box",
       }}
     >
       <div
-        style={{ width: "100%", maxWidth: "none", margin: 0, boxSizing: "border-box" }}
+        style={{
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          margin: 0,
+          boxSizing: "border-box",
+        }}
       >
+        <div
+          ref={editorLayoutShellRef}
+          className="edit-lesson-editor-column"
+        >
         {lesson?.createdFromTemplate && (
           <div
             style={{
@@ -2737,41 +2787,80 @@ const EditLessonPage: React.FC = () => {
         </div>
 
         <div
+          className="edit-lesson-layout-shell"
           style={{
             border: "4px solid rgba(17,24,39,0.35)",
             borderRadius: 18,
             background: "rgba(255,255,255,0.78)",
             boxShadow: "0 18px 46px rgba(0,0,0,0.14)",
             padding: 16,
+            width: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
+          {layoutBreakpoint === "narrow" && (
+            <div
+              role="tablist"
+              aria-label="Editor or preview"
+              style={{
+                display: "flex",
+                gap: 8,
+                marginBottom: 14,
+                padding: 4,
+                borderRadius: 12,
+                background: "rgba(15,23,42,0.06)",
+                border: "1px solid rgba(15,23,42,0.12)",
+              }}
+            >
+              {(["edit", "preview"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={mobileEditorTab === tab}
+                  onClick={() => setMobileEditorTab(tab)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: mobileEditorTab === tab ? "2px solid rgba(59,130,246,0.45)" : "2px solid transparent",
+                    background: mobileEditorTab === tab ? "white" : "transparent",
+                    fontWeight: 800,
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    color: mobileEditorTab === tab ? "#1d4ed8" : "#64748b",
+                  }}
+                >
+                  {tab === "edit" ? "Edit" : "Preview"}
+                </button>
+              ))}
+            </div>
+          )}
           <div
             data-col="wrapper"
+            className={`edit-lesson-layout-grid edit-lesson-layout-grid--${
+              layoutBreakpoint === "wide" ? "wide" : layoutBreakpoint === "medium" ? "medium" : "narrow"
+            }`}
             style={{
-              display: "grid",
-              /* Edit Lesson desktop layout tweak — reversible */
-              /* Before: grid-template-columns: 280px minmax(0, 1fr) 432px; */
-              gridTemplateColumns:
-                layoutBreakpoint === "wide"
-                  ? "minmax(220px, 240px) minmax(0, 1fr) 400px"
-                  : layoutBreakpoint === "medium"
-                    ? "minmax(220px, 280px) minmax(0, 1fr)"
-                    : "1fr",
-              gridTemplateRows: layoutBreakpoint === "medium" ? "auto auto" : undefined,
-              gap: 16,
-              alignItems: "start",
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
             }}
           >
             {/* LEFT RAIL: Teacher guide + Pages + Readiness + Practice questions (in lesson) */}
             <div
               data-col="left"
               style={{
-                display: "flex",
+                display:
+                  layoutBreakpoint === "narrow" && mobileEditorTab === "preview" ? "none" : "flex",
                 flexDirection: "column",
                 gap: 16,
                 position: layoutBreakpoint === "narrow" ? undefined : "sticky",
                 top: layoutBreakpoint === "narrow" ? undefined : 110,
                 alignSelf: "start",
+                minWidth: 0,
+                maxWidth: "100%",
               }}
             >
               {/* Card 1: Teacher editor guide */}
@@ -3050,7 +3139,13 @@ const EditLessonPage: React.FC = () => {
             {/* CENTER: Lesson details + Description + Editing blocks */}
             <div
               data-col="center"
-              style={{ minWidth: 0, width: "100%" }}
+              style={{
+                minWidth: 0,
+                maxWidth: "100%",
+                width: "100%",
+                display:
+                  layoutBreakpoint === "narrow" && mobileEditorTab === "preview" ? "none" : undefined,
+              }}
               role="main"
             >
               <div
@@ -3060,13 +3155,23 @@ const EditLessonPage: React.FC = () => {
                   padding: 14,
                   boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
                   border: "2px solid rgba(0,0,0,0.16)",
+                  minWidth: 0,
+                  maxWidth: "100%",
+                  boxSizing: "border-box",
                 }}
               >
                 <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>
                   Lesson details
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: 10,
+                    minWidth: 0,
+                  }}
+                >
                   <label style={{ display: "block" }}>
                     <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
                     <input
@@ -3393,7 +3498,8 @@ const EditLessonPage: React.FC = () => {
                                 fontWeight: 600,
                                 borderRadius: 8,
                                 border: "2px solid rgba(0,0,0,0.14)",
-                                minWidth: 200,
+                                minWidth: 0,
+                                maxWidth: "100%",
                                 background: "white",
                               }}
                               onChoose={(opt) => {
@@ -3433,7 +3539,15 @@ const EditLessonPage: React.FC = () => {
                       </div>
                     )}
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gap: 10,
+                        marginTop: 12,
+                        minWidth: 0,
+                      }}
+                    >
                       <label style={{ display: "block" }}>
                         <div style={{ fontWeight: 800, marginBottom: 6 }}>Page title</div>
                         <input
@@ -3517,7 +3631,11 @@ const EditLessonPage: React.FC = () => {
                       const blockReports = reportsByBlock.get(blockReportKey) ?? [];
 
                       return (
-                        <div key={key} style={getBlockStyle(blockType)}>
+                        <div
+                          key={key}
+                          style={getBlockStyle(blockType)}
+                          onFocusCapture={() => setPreviewFocusBlockIdx(idx)}
+                        >
                           {blockReports.length > 0 && (
                             <div
                               style={{
@@ -4765,7 +4883,15 @@ const EditLessonPage: React.FC = () => {
                       />
                     </label>
 
-                    <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div
+                      style={{
+                        marginTop: 10,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gap: 10,
+                        minWidth: 0,
+                      }}
+                    >
                       {[0, 1, 2, 3].map((i) => (
                         <label key={i} style={{ display: "block" }}>
                           <div style={{ fontWeight: 800, marginBottom: 6 }}>Option {i + 1}</div>
@@ -4810,14 +4936,17 @@ const EditLessonPage: React.FC = () => {
             <aside
               id="edit-lesson-preview"
               data-col="right"
+              className="lesson-editor-preview-sticky edit-lesson-preview-aside"
               style={{
-                position: layoutBreakpoint === "medium" ? undefined : "sticky",
-                top: layoutBreakpoint === "medium" ? undefined : 110,
+                position: layoutBreakpoint === "narrow" ? undefined : "sticky",
+                top: layoutBreakpoint === "narrow" ? undefined : 110,
                 alignSelf: "start",
-                width: layoutBreakpoint === "wide" ? 400 : "100%",
-                maxWidth: layoutBreakpoint === "wide" ? 400 : "100%",
-                flexShrink: 0,
-                ...(layoutBreakpoint === "medium" ? { gridRow: 2, gridColumn: "1 / -1" } : {}),
+                width: "100%",
+                maxWidth: "100%",
+                minWidth: 0,
+                boxSizing: "border-box",
+                display:
+                  layoutBreakpoint === "narrow" && mobileEditorTab === "edit" ? "none" : undefined,
               }}
             >
               <div
@@ -4833,8 +4962,29 @@ const EditLessonPage: React.FC = () => {
                   Preview
                 </div>
                 <div style={{ color: "#6b7280", fontSize: "0.92rem" }}>
-                  This is how the current page will render.
+                  {previewFocusBlockIdx != null
+                    ? "Showing the block you’re editing. Use “Full page” to see the whole page."
+                    : "This is how the current page will render."}
                 </div>
+                {pagesReady && previewFocusBlockIdx != null && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFocusBlockIdx(null)}
+                    style={{
+                      marginTop: 10,
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #cbd5e1",
+                      background: "#f8fafc",
+                      fontWeight: 700,
+                      fontSize: "0.8125rem",
+                      cursor: "pointer",
+                      color: "#334155",
+                    }}
+                  >
+                    Full page preview
+                  </button>
+                )}
               </div>
 
               {pagesReady ? (
@@ -4844,18 +4994,36 @@ const EditLessonPage: React.FC = () => {
                   </div>
 
                   {(currentPage?.blocks || [])
-                    .filter((b): b is NonNullable<typeof b> => Boolean(b))
-                    .filter((b) => {
+                    .map((b, origIdx) => ({ b, origIdx }))
+                    .filter((x) => Boolean(x.b))
+                    .filter(({ b }) => {
                       const raw = safeStr(b.content, "").trim();
                       if (!raw) return true;
                       const content = raw.replace(/\*+/g, "").trim();
                       return !/^Animal and plant cell structure\s*\(GCSE\)\s*$/i.test(content);
                     })
-                    .map((b, idx) => {
+                    .filter(({ origIdx }) =>
+                      previewFocusBlockIdx == null ? true : origIdx === previewFocusBlockIdx
+                    )
+                    .map(({ b, origIdx: idx }) => {
                     const blockType = normalizeBlockType(b?.type);
                     const blockContent = safeStr(b.content, "");
+                    const linked =
+                      previewFocusBlockIdx != null && idx === previewFocusBlockIdx;
                     return (
-                      <div key={`${currentPage!.pageId}_prev_${idx}`} style={{ marginBottom: 12 }}>
+                      <div
+                        key={`${currentPage!.pageId}_prev_${idx}`}
+                        style={{
+                          marginBottom: 12,
+                          ...(linked
+                            ? {
+                                outline: "2px solid rgba(59,130,246,0.45)",
+                                outlineOffset: 4,
+                                borderRadius: 10,
+                              }
+                            : {}),
+                        }}
+                      >
                         <div className="lesson-content" style={getBlockStyle(blockType)}>
                           <LessonMarkdown
                             key={`preview-md-${currentPage!.pageId}-${idx}-${blockContent.length}`}
@@ -5187,6 +5355,7 @@ const EditLessonPage: React.FC = () => {
             </div>
 
           </div>
+        </div>
         </div>
       </div>
 

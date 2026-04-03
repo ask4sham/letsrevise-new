@@ -3,7 +3,7 @@
  * Parent: [data-lesson-presentation="v12"]
  */
 
-.lesson-sr-only {
+[data-lesson-presentation="v12"] .lesson-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -42,10 +42,7 @@
   color: #1f2937;
 }
 
-/* --- Page shell: calm canvas, lesson column reads as primary --- */
-.lesson-student-page-shell {
-  /* background set inline; this class hooks sidebar quieting */
-}
+/* --- Page shell: calm canvas, lesson column reads as primary (background set inline on LessonViewPage) --- */
 
 [data-lesson-presentation="v12"] aside.lesson-student-sidebar--v12 {
   opacity: 0.92;
@@ -738,6 +735,7 @@
   background: transparent !important;
   box-shadow: none !important;
   box-sizing: border-box !important;
+  text-align: center;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-diagram-frame {
@@ -917,17 +915,13 @@
   margin-bottom: 9px;
 }
 
-.lesson-student-diagram-slot {
-  text-align: center;
-}
-
-.lesson-student-prevnext {
+[data-lesson-presentation="v12"] .lesson-student-prevnext {
   margin-top: 52px !important;
   padding-top: 28px !important;
   border-top: 1px solid #e2e8f0 !important;
 }
 
-.lesson-student-prevnext button {
+[data-lesson-presentation="v12"] .lesson-student-prevnext button {
   border-width: 1px !important;
   font-weight: 600 !important;
 }
@@ -937,7 +931,7 @@
   box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06) !important;
 }
 
-.lesson-student-legacy-content h3 {
+[data-lesson-presentation="v12"] .lesson-student-legacy-content h3 {
   font-size: 13px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
@@ -953,14 +947,14 @@
   border-radius: 0 !important;
 }
 
-.lesson-checkpoint-v12 {
+[data-lesson-presentation="v12"] .lesson-checkpoint-v12 {
   border: 1px solid #dce3ed !important;
   border-radius: 16px !important;
   background: #fafbfc !important;
   box-shadow: 0 6px 28px rgba(15, 23, 42, 0.07) !important;
 }
 
-.lesson-checkpoint-v12-explain {
+[data-lesson-presentation="v12"] .lesson-checkpoint-v12-explain {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #e5e7eb;
@@ -969,7 +963,7 @@
   line-height: 1.68;
 }
 
-.lesson-checkpoint-v12-model {
+[data-lesson-presentation="v12"] .lesson-checkpoint-v12-model {
   margin-top: 10px;
   padding: 14px 16px;
   border-radius: 8px;
@@ -1183,3 +1177,6 @@
   margin: 1em 0 !important;
   padding: 0.45em 0 0.45em 1.05em !important;
 }
+
+/* V12 rules are scoped under [data-lesson-presentation="v12"] — do not reset .lesson-content here:
+   editor previews rely on index.css + lessonInlineFormats for .lesson-content typography. */
