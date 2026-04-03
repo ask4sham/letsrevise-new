@@ -1,0 +1,88 @@
+/**
+ * LetsRevise diagram shell — branded strip + calm frame. Inner {@link LessonImageFrame} stays visually flat.
+ */
+
+.lesson-diagram-frame {
+  --lesson-diagram-radius: 12px;
+  --lesson-diagram-border: 1px solid #d1d5db;
+  --lesson-diagram-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --lesson-diagram-body-pad: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: var(--lesson-diagram-border);
+  border-radius: var(--lesson-diagram-radius);
+  box-shadow: var(--lesson-diagram-shadow);
+  overflow: hidden;
+}
+
+.lesson-diagram-frame--featured {
+  --lesson-diagram-border: 1px solid #c4b5fd;
+  --lesson-diagram-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(124, 58, 237, 0.08);
+  --lesson-diagram-body-pad: 16px;
+}
+
+/* Small branded top strip — not a heavy worksheet frame */
+.lesson-diagram-frame__strip {
+  height: 3px;
+  width: 100%;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #7c3aed 0%, #6366f1 42%, #8b5cf6 100%);
+}
+
+.lesson-diagram-frame__body {
+  padding: var(--lesson-diagram-body-pad);
+  box-sizing: border-box;
+  min-width: 0;
+  text-align: center;
+}
+
+.lesson-diagram-frame__caption {
+  margin: 0;
+  padding: 0 var(--lesson-diagram-body-pad) calc(var(--lesson-diagram-body-pad) * 0.85);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b7280;
+  text-align: center;
+}
+
+.lesson-diagram-frame--featured .lesson-diagram-frame__caption {
+  padding-bottom: calc(var(--lesson-diagram-body-pad) * 0.85);
+}
+
+/* Flatten inner LessonImageFrame — outer diagram owns the frame */
+.lesson-diagram-frame [data-lesson-image-frame].lesson-image-card,
+.lesson-diagram-frame .lesson-image-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.lesson-diagram-frame .lesson-image-card--primary {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.lesson-diagram-frame .lesson-image-card.clickable:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.lesson-diagram-frame .lesson-image-card > img,
+.lesson-diagram-frame .lesson-image-card picture > img,
+.lesson-diagram-frame .lesson-image-card__diagram-overlay-host img {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.lesson-diagram-frame .lesson-image-card__diagram-overlay-host {
+  max-width: 100% !important;
+}

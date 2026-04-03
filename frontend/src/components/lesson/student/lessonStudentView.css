@@ -15,8 +15,28 @@
   border: 0;
 }
 
-/* --- V12 premium base: calmer, darker body, consistent scale (12 / 16 / 24 / 32) --- */
+/* --- V12 design system: 4px spacing (4,8,12,16,20,24,32); default border grey; purple = highlight (key) only --- */
 [data-lesson-presentation="v12"] {
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  /* Neutral block / divider — slightly stronger than #e5e7eb for clearer cards */
+  --ds-border-default: #d1d5db;
+  --ds-border-highlight: #7c3aed;
+  --ds-content-max: 880px;
+  /* Teaching body — locked type scale (.lesson-student-md); shell chrome may use rem */
+  --lesson-md-body-size: 14px;
+  --lesson-md-body-lh: 1.6;
+  --lesson-md-list-lh: 1.55;
+  --lesson-md-title-size: 20px;
+  --lesson-md-title-lh: 1.25;
+  --lesson-md-title-tracking: -0.01em;
+  --lesson-md-subhead-size: 15px;
+  --lesson-md-subhead-lh: 1.35;
   font-size: 18.5px;
   line-height: 1.75;
   color: #1f2937;
@@ -45,7 +65,7 @@
   font-size: inherit !important;
   line-height: inherit !important;
   color: inherit !important;
-  max-width: min(1260px, 100%) !important;
+  max-width: min(1280px, 100%) !important;
   width: 100% !important;
   border: 1px solid #e5e7eb !important;
   outline: none !important;
@@ -57,8 +77,7 @@
 
 @media (min-width: 1100px) {
   [data-lesson-presentation="v12"] .lesson-student-main-card.lesson-student-section {
-    /* Slightly calmer top band; shell + chrome handle “start” rhythm */
-    padding: 44px 12px 52px !important;
+    padding: var(--ds-space-8) var(--ds-space-6) var(--ds-space-8) !important;
   }
 }
 
@@ -76,10 +95,14 @@
   border-bottom: 1px solid #e8edf4;
 }
 
-/* Single gap after chrome border (replaces former margin-top: 24px + padding-top: 8px stack) */
-[data-lesson-presentation="v12"] .lesson-student-page-body {
+/* Teaching column: centered in main card */
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body {
   margin-top: 0;
-  padding-top: 4px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-top: var(--ds-space-1);
+  max-width: var(--ds-content-max);
+  box-sizing: border-box;
 }
 
 /*
@@ -94,7 +117,7 @@
 [data-lesson-presentation="v12"] .lesson-student-main-card [data-ss2-chunk="1"] {
   box-sizing: border-box !important;
   padding: 0 !important;
-  margin-top: 18px !important;
+  margin-top: var(--ds-space-4) !important;
   margin-bottom: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -109,7 +132,7 @@
 }
 
 [data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body > [data-ss2-chunk="1"] + [data-ss2-chunk="1"] {
-  margin-top: 24px !important;
+  margin-top: var(--ds-space-6) !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body > [data-ss2-chunk="1"]:last-child {
@@ -126,7 +149,7 @@
 [data-lesson-presentation="v12"] .lesson-student-main-card section.lesson-student-section-chunk.lesson-student-section-chunk--with-media {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 210px !important;
-  gap: 14px !important;
+  gap: var(--ds-space-4) !important;
   align-items: center !important;
   width: 100% !important;
   box-sizing: border-box !important;
@@ -138,7 +161,7 @@
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__content,
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__text {
   min-width: 0 !important;
-  max-width: min(60rem, 100%) !important;
+  max-width: min(var(--ds-content-max), 100%) !important;
   justify-self: start !important;
   width: 100% !important;
 }
@@ -159,10 +182,24 @@
  */
 [data-lesson-presentation="v12"] .lesson-student-section-chunk__media .lesson-student-diagram-slot {
   margin: 0 !important;
-  padding: 0 !important;
+  /* Padding/border/shadow: shared “light diagram” container on .lesson-student-diagram-slot */
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot [data-lesson-image-frame].lesson-image-card,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot .lesson-image-card.lesson-image-card--primary,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot .lesson-image-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media [data-lesson-image-frame].lesson-image-card,
@@ -198,6 +235,14 @@
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
 }
 
+/* Diagram slot owns depth; no second shadow on the image */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot .lesson-image-card > img,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot .lesson-image-card picture > img,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot .lesson-image-card__diagram-overlay-host img {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
 /* Narrow column: full-width chain inside split only (diagram slot → frame → img) */
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-diagram-slot,
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media [data-lesson-image-frame],
@@ -221,19 +266,19 @@
   box-sizing: border-box !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-section-chunk__media img {
+[data-lesson-presentation="v12"] .lesson-student-section-chunk__media .lesson-student-diagram-slot img {
   max-width: 100% !important;
   height: auto !important;
-  border-radius: 14px !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-section-chunk__tail {
   grid-column: 1 / -1 !important;
   min-width: 0;
-  padding-top: 14px !important;
-  margin-top: 6px !important;
-  border-top: 1px solid #eef2f7;
+  padding-top: var(--ds-space-2) !important;
+  margin-top: var(--ds-space-2) !important;
+  border-top: 1px solid var(--ds-border-default);
 }
 
 @media (max-width: 767px) {
@@ -268,7 +313,7 @@
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__grid {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 210px !important;
-  gap: 14px !important;
+  gap: var(--ds-space-4) !important;
   align-items: center !important;
   width: 100% !important;
   box-sizing: border-box !important;
@@ -287,7 +332,7 @@
   align-self: center !important;
 }
 
-/* Same as diagram split: neutralize lessonImageCard 420/460px caps on the frame root */
+/* Inline markdown split: no diagram-slot — keep image flat (light framing lives on .lesson-student-diagram-slot only) */
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__media [data-lesson-image-frame].lesson-image-card,
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card.lesson-image-card--primary,
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__media .lesson-image-card {
@@ -295,7 +340,10 @@
   max-width: 100% !important;
   min-width: 0 !important;
   margin: 0 auto !important;
-  padding: 6px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   box-sizing: border-box !important;
 }
 
@@ -314,8 +362,8 @@
   max-height: min(48vh, 300px) !important;
   object-fit: contain !important;
   margin: 0 !important;
-  border-radius: 14px !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__media [data-lesson-image-frame],
@@ -327,9 +375,9 @@
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md-media-split__tail {
-  margin-top: 16px !important;
-  padding-top: 14px !important;
-  border-top: 1px solid #eef2f7 !important;
+  margin-top: var(--ds-space-4) !important;
+  padding-top: var(--ds-space-3) !important;
+  border-top: 1px solid var(--ds-border-default) !important;
 }
 
 /* Chunk that contains markdown split — outer chunk has no padding; role cards carry the frame */
@@ -340,7 +388,7 @@
 
 /* MODE 2 — text-only: centered readable column (wider than legacy 720px, not full-bleed) */
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--text-only .lesson-student-section-chunk__text-column {
-  max-width: min(52rem, 100%) !important;
+  max-width: min(var(--ds-content-max), 100%) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   width: 100% !important;
@@ -369,7 +417,6 @@
 
 [data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot {
   margin: 0 auto !important;
-  padding: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
   text-align: center !important;
@@ -384,7 +431,7 @@
   box-sizing: border-box !important;
 }
 
-/* LessonImageFrame root — overrides global 420px / 460px card max-width */
+/* LessonImageFrame root — flat inside diagram slot (outer slot carries the light frame) */
 [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card,
 [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card.lesson-image-card--primary,
 [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card.lesson-image-card--secondary {
@@ -395,7 +442,10 @@
   margin-right: auto !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
-  padding: 4px 4px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   box-sizing: border-box !important;
 }
 
@@ -411,6 +461,8 @@
   height: auto !important;
   max-height: min(82vh, 820px) !important;
   object-fit: contain !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
 }
 
 [data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot:not(:has(.lesson-image-card)) img {
@@ -422,17 +474,8 @@
   display: block !important;
 }
 
-[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot .lesson-image-caption {
-  max-width: 100% !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-}
 
 @media (max-width: 767px) {
-  [data-lesson-presentation="v12"] .lesson-student-main-card [data-ss2-chunk="1"].lesson-student-section-chunk--image-only {
-    padding: 16px 18px 20px !important;
-  }
-
   [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card,
   [data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card--primary {
     width: 100% !important;
@@ -551,10 +594,10 @@
 }
 
 [data-lesson-presentation="v12"] .lesson-student-blurb-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: #8b95a8;
   margin-bottom: 10px !important;
 }
@@ -566,10 +609,10 @@
   color: #334155 !important;
 }
 
-/* Markdown body — editorial reading */
+/* Markdown body — locked hierarchy (block titles / subheads / body / lists); sentence case only */
 [data-lesson-presentation="v12"] .lesson-student-md {
-  line-height: 1.78 !important;
-  font-size: 1.04rem !important;
+  line-height: var(--lesson-md-body-lh) !important;
+  font-size: var(--lesson-md-body-size) !important;
   color: #1f2937 !important;
   font-weight: 400;
 }
@@ -577,52 +620,71 @@
 [data-lesson-presentation="v12"] .lesson-student-md p {
   margin: 0 0 14px !important;
   color: inherit;
+  font-size: var(--lesson-md-body-size) !important;
+  font-weight: 400 !important;
+  line-height: var(--lesson-md-body-lh) !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md p:last-child {
   margin-bottom: 0 !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-md strong {
-  font-weight: 700;
+[data-lesson-presentation="v12"] .lesson-student-md strong,
+[data-lesson-presentation="v12"] .lesson-student-md b {
+  font-weight: 600 !important;
   color: #111827;
 }
 
+/* Block titles (e.g. lesson questions, topic headings in markdown) */
 [data-lesson-presentation="v12"] .lesson-student-md h1,
 [data-lesson-presentation="v12"] .lesson-student-md h2 {
-  font-size: 1.45rem !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.025em !important;
+  font-size: var(--lesson-md-title-size) !important;
+  font-weight: 700 !important;
+  line-height: var(--lesson-md-title-lh) !important;
+  letter-spacing: var(--lesson-md-title-tracking) !important;
+  text-transform: none !important;
+  font-variant: normal !important;
   color: #0a0f1a !important;
   margin: 1.35em 0 0.65em !important;
-  line-height: 1.28 !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-md h3 {
-  font-size: 1.22rem !important;
-  font-weight: 700 !important;
+/* Subheadings / role-style labels (Explanation, Key points, etc.) */
+[data-lesson-presentation="v12"] .lesson-student-md h3,
+[data-lesson-presentation="v12"] .lesson-student-md h4,
+[data-lesson-presentation="v12"] .lesson-student-md h5,
+[data-lesson-presentation="v12"] .lesson-student-md h6 {
+  font-size: var(--lesson-md-subhead-size) !important;
+  font-weight: 600 !important;
+  line-height: var(--lesson-md-subhead-lh) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  font-variant: normal !important;
   color: #15202b !important;
-  margin: 1.25em 0 0.55em !important;
-  line-height: 1.32 !important;
+  margin: 1.15em 0 0.5em !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-md h4 {
-  font-size: 1.08rem !important;
-  font-weight: 700 !important;
+[data-lesson-presentation="v12"] .lesson-student-md h4,
+[data-lesson-presentation="v12"] .lesson-student-md h5,
+[data-lesson-presentation="v12"] .lesson-student-md h6 {
   color: #334155 !important;
-  margin: 1.15em 0 0.45em !important;
 }
 
-/* Lists — process / science rhythm */
+/* Lists — same 14px base, slightly tighter line rhythm */
 [data-lesson-presentation="v12"] .lesson-student-md ul,
 [data-lesson-presentation="v12"] .lesson-student-md ol {
   margin: 12px 0 16px !important;
   padding-left: 1.55em !important;
+  font-size: var(--lesson-md-body-size) !important;
+  font-weight: 400 !important;
+  line-height: var(--lesson-md-list-lh) !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md li {
   margin: 0.45em 0 !important;
   padding-left: 0.3em !important;
+  font-size: inherit !important;
+  font-weight: 400 !important;
+  line-height: var(--lesson-md-list-lh) !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md ol {
@@ -634,11 +696,11 @@
 [data-lesson-presentation="v12"] .lesson-student-md ol > li {
   margin: 0.45em 0 !important;
   padding-left: 0.35em !important;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-md ol > li::marker {
-  font-weight: 800;
+  font-weight: 600;
   color: #1d4ed8;
   font-size: 0.95em;
 }
@@ -654,6 +716,9 @@
   color: #475569 !important;
   background: rgba(248, 250, 252, 0.8) !important;
   border-radius: 0 8px 8px 0 !important;
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
+  font-weight: 400 !important;
 }
 
 /* Block rhythm */
@@ -665,26 +730,29 @@
   margin: 0 0 26px;
 }
 
+/* Diagram chrome: LetsRevise shell is .lesson-diagram-frame (LessonDiagramFrame) — slot is layout only */
 [data-lesson-presentation="v12"] .lesson-student-diagram-slot {
   margin: 36px 0 44px;
-  padding: 12px 0;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-diagram-frame {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-diagram-slot > div {
   margin-top: 0 !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-diagram-slot img {
-  border-radius: 14px !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08) !important;
-}
-
-[data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-image-caption {
-  margin-top: 16px;
-  font-size: 0.95rem;
-  color: #5c6b80;
-  line-height: 1.55;
-  max-width: 100%;
+/* Image-only role: allow diagram frame to use teaching column width */
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot .lesson-diagram-frame {
+  max-width: min(100%, var(--ds-content-max));
   margin-left: auto;
   margin-right: auto;
 }
@@ -710,9 +778,9 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--text .lesson-student-md img {
-  margin: 32px auto 36px !important;
-  border-radius: 14px !important;
-  box-shadow: 0 10px 36px rgba(15, 23, 42, 0.1) !important;
+  margin: 24px auto 28px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
 }
 
 /* Explanation — unboxed editorial */
@@ -725,9 +793,9 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--text .lesson-student-md {
-  font-size: 1.04rem !important;
+  font-size: var(--lesson-md-body-size) !important;
   font-weight: 400 !important;
-  line-height: 1.78 !important;
+  line-height: var(--lesson-md-body-lh) !important;
   color: #1f2937 !important;
 }
 
@@ -744,15 +812,15 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--key .lesson-student-md {
-  font-size: 1.2rem !important;
-  font-weight: 600 !important;
-  line-height: 1.48 !important;
+  font-size: var(--lesson-md-body-size) !important;
+  font-weight: 400 !important;
+  line-height: var(--lesson-md-body-lh) !important;
   color: #0f172a !important;
 }
 
 [data-lesson-presentation="v12"] .student-block--key .lesson-student-md p {
   font-size: inherit !important;
-  font-weight: inherit !important;
+  font-weight: 400 !important;
 }
 
 /* Exam tip — micro-card, actionable */
@@ -768,9 +836,9 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--exam-tip .lesson-student-md {
-  font-size: 0.95rem !important;
-  line-height: 1.55 !important;
-  font-weight: 500 !important;
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
+  font-weight: 400 !important;
   color: #14532d !important;
 }
 
@@ -784,8 +852,8 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--misconception .lesson-student-md {
-  font-size: 1.06rem !important;
-  line-height: 1.7 !important;
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
   color: #7c2d12 !important;
 }
 
@@ -800,8 +868,8 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--synthesis .lesson-student-md {
-  font-size: 1.1rem !important;
-  line-height: 1.74 !important;
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
   color: #334155 !important;
 }
 
@@ -814,7 +882,8 @@
 }
 
 [data-lesson-presentation="v12"] .student-block--hook .lesson-student-md {
-  font-size: 1.08rem !important;
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
   color: #475569 !important;
 }
 
@@ -838,9 +907,10 @@
 [data-lesson-presentation="v12"] .student-block__keyword-list {
   margin: 0;
   padding-left: 1.4rem;
-  line-height: 1.78;
+  line-height: var(--lesson-md-body-lh);
   color: #334155;
-  font-size: 1.05rem;
+  font-size: var(--lesson-md-body-size);
+  font-weight: 400;
 }
 
 [data-lesson-presentation="v12"] .student-block__keyword-list li {
@@ -868,10 +938,10 @@
 }
 
 .lesson-student-legacy-content h3 {
-  font-size: 0.7rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.14em !important;
-  text-transform: uppercase !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
   color: #94a3b8 !important;
   margin-bottom: 16px !important;
 }
@@ -917,26 +987,199 @@
 }
 
 /*
- * V12 SS2: one hard purple frame per ROLE block — not per teaching chunk.
- * DOM: LessonViewPage wraps each block in <div id="block-{idx}">; LessonStudentBlockRenderer
- * outputs <div class="lesson-content student-block student-block--{kind}"> (studentLessonBlocks.tsx).
- * Diagram blocks: #block-N > .lesson-student-diagram-slot.
+ * DS: one role = one #block-N card. Default: soft grey border. Purple = highlight (key idea) only.
+ * DOM: LessonViewPage #block-{idx} > .lesson-content.student-block | .lesson-student-diagram-slot
  */
-[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block,
 [data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-student-diagram-slot {
+  /* Light diagram shell: shared with .lesson-student-diagram-slot; only fix role-block rhythm */
+  margin: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block:not(.student-block--key) {
   background: #ffffff !important;
-  border: 2px solid #7c3aed !important;
-  border-radius: 10px !important;
-  padding: 20px 22px !important;
-  box-shadow: none !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
+  border: 1px solid #c4cad3 !important;
+  border-radius: var(--ds-space-2) !important;
+  padding: var(--ds-space-4) var(--ds-space-6) 14px !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.042),
+    0 1px 4px rgba(0, 0, 0, 0.055) !important;
+  margin: 0 !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block.student-block--key {
+  background: #fafafa !important;
+  border: 1.5px solid var(--ds-border-highlight) !important;
+  border-radius: var(--ds-space-2) !important;
+  padding: var(--ds-space-4) var(--ds-space-6) 14px !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.042),
+    0 1px 4px rgba(0, 0, 0, 0.055) !important;
+  margin: 0 !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 [data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] + [id^="block-"] {
-  margin-top: 18px !important;
+  margin-top: var(--ds-space-5) !important;
 }
 
-[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block:hover {
-  border-color: #6d28d9 !important;
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  > .lesson-content.student-block:not(.student-block--key):hover {
+  transform: translateY(-1px) !important;
+  border-color: #b9c0cb !important;
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.052),
+    0 4px 9px rgba(0, 0, 0, 0.072) !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  > .lesson-content.student-block.student-block--key:hover {
+  transform: translateY(-1px) !important;
+  border-color: #9333ea !important;
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.052),
+    0 4px 9px rgba(0, 0, 0, 0.072) !important;
+}
+
+/* Role cards (#block-*): slightly tighter vertical rhythm inside the frame only */
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h1:first-child,
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h2:first-child {
+  margin: 0 0 0.32em !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h3:first-child {
+  margin: 0 0 0.28em !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h1:not(:first-child),
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h2:not(:first-child) {
+  margin: 1.12em 0 0.42em !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h3:not(:first-child) {
+  margin: 1.02em 0 0.38em !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  h4 {
+  margin: 0.95em 0 0.38em !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  p {
+  margin: 0 0 10px !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  ul,
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  ol {
+  margin: 10px 0 10px !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  ol {
+  margin: 10px 0 10px !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  li {
+  margin: 0.34em 0 !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  ol
+  > li {
+  margin: 0.34em 0 !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  ul
+  + p,
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  ol
+  + p {
+  margin-top: 0 !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-main-card
+  .lesson-student-page-body
+  [id^="block-"]
+  .lesson-student-md
+  blockquote {
+  margin: 1em 0 !important;
+  padding: 0.45em 0 0.45em 1.05em !important;
 }

@@ -9,6 +9,7 @@ import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/asse
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
+import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
 import {
   createLessonMarkdownViewComponents,
   lessonMarkdownUrlTransform,
@@ -45,6 +46,7 @@ interface LessonPageBlock {
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
   steps?: DiagramStep[];
+  diagramVariant?: "standard" | "featured";
 }
 
 interface LessonPage {
@@ -95,6 +97,7 @@ function DiagramBlockContent({
   mode: blockMode = "static",
   annotations = [],
   steps = [],
+  variant = "standard",
 }: {
   visualId: string;
   caption: string;
@@ -102,6 +105,7 @@ function DiagramBlockContent({
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
   steps?: DiagramStep[];
+  variant?: "standard" | "featured";
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!visualId);
@@ -140,20 +144,22 @@ function DiagramBlockContent({
   }, [visualId, level]);
 
   if (!visualId?.trim()) return null;
-  const boxStyle: React.CSSProperties = {
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 14,
-    background: "#f8f9fa",
-    border: "2px solid rgba(34,197,94,0.25)",
-    textAlign: "center",
-  };
-  if (loading) return <div style={boxStyle}><div style={{ color: "#6b7280" }}>Loading diagram…</div></div>;
+  if (loading) {
+    return (
+      <LessonDiagramFrame variant={variant}>
+        <div style={{ color: "#6b7280" }}>Loading diagram…</div>
+      </LessonDiagramFrame>
+    );
+  }
   if (!src || !hasRenderableLessonImageSrc(src)) {
-    return <div style={boxStyle}><div style={{ color: "#6b7280" }}>Diagram unavailable</div></div>;
+    return (
+      <LessonDiagramFrame variant={variant}>
+        <div style={{ color: "#6b7280" }}>Diagram unavailable</div>
+      </LessonDiagramFrame>
+    );
   }
   return (
-    <div style={boxStyle}>
+    <LessonDiagramFrame variant={variant} caption={caption}>
       <LessonImageFrame variant="primary" lightboxSrc={src}>
         <div style={{ position: "relative", display: "inline-block", maxWidth: 720, width: "100%" }}>
           <img
@@ -214,7 +220,6 @@ function DiagramBlockContent({
         )}
         </div>
       </LessonImageFrame>
-      {caption ? <div style={{ marginTop: 10, color: "#6b7280", fontSize: "0.95rem" }}>{caption}</div> : null}
       {hasSteps && steps.length > 1 && (
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontSize: "0.9rem", color: "#6b7280" }}>Step {stepIndex + 1} / {steps.length}</span>
@@ -236,7 +241,7 @@ function DiagramBlockContent({
           </button>
         </div>
       )}
-    </div>
+    </LessonDiagramFrame>
   );
 }
 
@@ -481,6 +486,7 @@ const ClassroomModePage: React.FC = () => {
     const mode = block.mode === "annotated" || block.mode === "step" ? block.mode : "static";
     const annotations = Array.isArray(block.annotations) ? block.annotations : [];
     const steps = Array.isArray(block.steps) ? block.steps : [];
+    const diagramVariant = block.diagramVariant === "featured" ? "featured" : "standard";
     return (
       <div key={`diagram-${idx}`} style={{ marginTop: 14 }}>
         <DiagramBlockContent
@@ -490,6 +496,7 @@ const ClassroomModePage: React.FC = () => {
           mode={mode}
           annotations={annotations}
           steps={steps}
+          variant={diagramVariant}
         />
       </div>
     );

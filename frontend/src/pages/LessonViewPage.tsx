@@ -9,6 +9,7 @@ import {
 } from "../components/lesson/lessonMarkdownViewComponents";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { hideBrokenLessonImage, LessonImageFrame, lessonImageFrameImgStyle } from "../components/lesson/LessonImageFrame";
+import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import {
   LessonStudentBlockRenderer,
@@ -90,6 +91,8 @@ interface LessonPageBlock {
   imageUrl?: string;
   imageSource?: string;
   alt?: string;
+  /** Student diagram shell: standard (default) vs featured (key visuals) */
+  diagramVariant?: "standard" | "featured";
 }
 
 interface LessonPageHero {
@@ -372,6 +375,7 @@ function DiagramBlockContent({
   annotations = [],
   steps = [],
   makeAbsoluteAssetUrl: resolveUrl,
+  variant = "standard",
 }: {
   visualId: string;
   caption: string;
@@ -380,6 +384,7 @@ function DiagramBlockContent({
   annotations?: DiagramAnnotation[];
   steps?: DiagramStep[];
   makeAbsoluteAssetUrl: (url: string) => string;
+  variant?: "standard" | "featured";
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!visualId);
@@ -425,33 +430,23 @@ function DiagramBlockContent({
 
   if (!visualId || !visualId.trim()) return null;
 
-  const boxStyle: React.CSSProperties = {
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 14,
-    background: "#f8f9fa",
-    border: "2px solid rgba(34,197,94,0.25)",
-    boxShadow: "0 0 0 2px rgba(34,197,94,0.08)",
-    textAlign: "center",
-  };
-
   if (loading) {
     return (
-      <div style={boxStyle}>
+      <LessonDiagramFrame variant={variant}>
         <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>Loading diagram…</div>
-      </div>
+      </LessonDiagramFrame>
     );
   }
   if (error || !src || !hasRenderableLessonImageSrc(src)) {
     return (
-      <div style={boxStyle}>
+      <LessonDiagramFrame variant={variant}>
         <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>Diagram unavailable</div>
-      </div>
+      </LessonDiagramFrame>
     );
   }
 
   return (
-    <div style={{ marginTop: 14, textAlign: "center" }}>
+    <LessonDiagramFrame variant={variant} caption={caption}>
       <LessonImageFrame variant="primary" lightboxSrc={src}>
         {showOverlay ? (
           <div
@@ -607,8 +602,7 @@ function DiagramBlockContent({
           </button>
         </div>
       )}
-      {caption ? <p className="lesson-image-caption">{caption}</p> : null}
-    </div>
+    </LessonDiagramFrame>
   );
 }
 
@@ -2540,6 +2534,7 @@ const LessonViewPage: React.FC = () => {
 
   const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
     const caption = block.caption ?? "";
+    const diagramVariant = block.diagramVariant === "featured" ? "featured" : "standard";
     const rawDiagramUrl = block.imageUrl != null ? String(block.imageUrl) : "";
     if (hasRenderableLessonImageSrc(rawDiagramUrl)) {
       const src = String(block.imageUrl).startsWith("http")
@@ -2547,16 +2542,19 @@ const LessonViewPage: React.FC = () => {
         : (makeAbsoluteAssetUrl(String(block.imageUrl)) ?? "");
       if (hasRenderableLessonImageSrc(src)) {
         return (
-          <div key={`diagram-${idx}-img`} style={{ marginTop: 14, textAlign: "center" }}>
+          <LessonDiagramFrame
+            key={`diagram-${idx}-img`}
+            variant={diagramVariant}
+            caption={caption || undefined}
+          >
             <LessonImageFrame variant="primary" lightboxSrc={src}>
               <img
                 src={src}
                 alt={block.alt ?? (caption || "Diagram")}
                 onError={hideBrokenLessonImage}
               />
-              {caption ? <p className="lesson-image-caption">{caption}</p> : null}
             </LessonImageFrame>
-          </div>
+          </LessonDiagramFrame>
         );
       }
     }
@@ -2575,6 +2573,7 @@ const LessonViewPage: React.FC = () => {
         annotations={annotations}
         steps={steps}
         makeAbsoluteAssetUrl={resolveAssetUrl}
+        variant={diagramVariant}
       />
     );
   };
@@ -3208,7 +3207,7 @@ const LessonViewPage: React.FC = () => {
                     gridTemplateColumns: v12StudentPresentation
                       ? "minmax(180px, 220px) minmax(0, 1fr) minmax(180px, 220px)"
                       : "260px minmax(0, 1fr) 280px",
-                    gap: v12StudentPresentation ? 8 : 4,
+                    gap: v12StudentPresentation ? 2 : 4,
                     alignItems: "start",
                     alignContent: "start",
                     minWidth: 0,
