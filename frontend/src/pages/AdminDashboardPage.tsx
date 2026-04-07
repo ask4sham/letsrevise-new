@@ -132,6 +132,9 @@ const AdminDashboardPage: React.FC = () => {
   const [seedBankLoading, setSeedBankLoading] = useState(false);
   const [seedBankMessage, setSeedBankMessage] = useState<string | null>(null);
 
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
   const [userFilters, setUserFilters] = useState({
     page: 1,
     limit: 20,
@@ -380,6 +383,30 @@ const AdminDashboardPage: React.FC = () => {
     } catch (error) {
       console.error("Error updating staff role:", error);
       setMessage({ type: "error", text: "Failed to update staff role" });
+    }
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!deleteConfirmUser) return;
+    const id = deleteConfirmUser.id;
+    setDeletingUserId(id);
+    try {
+      const res = await api.delete(`/admin/users/${id}`);
+      const data = res.data;
+      if (data?.success) {
+        setMessage({ type: "success", text: data.msg || "User deleted" });
+        setDeleteConfirmUser(null);
+        fetchUsers();
+      } else {
+        setMessage({ type: "error", text: data?.msg || "Failed to delete user" });
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { msg?: string } }; message?: string };
+      const msg =
+        err?.response?.data?.msg || err?.message || "Failed to delete user";
+      setMessage({ type: "error", text: msg });
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -1340,7 +1367,7 @@ const AdminDashboardPage: React.FC = () => {
                     {u.entitlementSummary?.label ?? "—"}
                   </div>
 
-                  <div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                     <button
                       onClick={() => navigate(`/profile/${u.id}`)}
                       style={{
@@ -1354,6 +1381,38 @@ const AdminDashboardPage: React.FC = () => {
                       }}
                     >
                       View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmUser(u)}
+                      disabled={
+                        String(user?._id) === String(u.id) || deletingUserId === u.id
+                      }
+                      title={
+                        String(user?._id) === String(u.id)
+                          ? "You cannot delete your own account"
+                          : "Delete user"
+                      }
+                      style={{
+                        padding: "0.25rem 0.5rem",
+                        backgroundColor:
+                          String(user?._id) === String(u.id) || deletingUserId === u.id
+                            ? "#e9ecef"
+                            : "#dc3545",
+                        color:
+                          String(user?._id) === String(u.id) || deletingUserId === u.id
+                            ? "#6c757d"
+                            : "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        fontSize: "0.875rem",
+                        cursor:
+                          String(user?._id) === String(u.id) || deletingUserId === u.id
+                            ? "not-allowed"
+                            : "pointer",
+                      }}
+                    >
+                      {deletingUserId === u.id ? "…" : "Delete"}
                     </button>
                   </div>
                 </div>
@@ -1924,6 +1983,96 @@ const AdminDashboardPage: React.FC = () => {
                   <div>{t.description}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmUser && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-delete-user-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.45)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+          onClick={() => !deletingUserId && setDeleteConfirmUser(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "8px",
+              padding: "1.5rem",
+              maxWidth: "420px",
+              width: "100%",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              border: "1px solid #ddd",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="admin-delete-user-title"
+              style={{ margin: "0 0 0.75rem", fontSize: "1.125rem", color: "#212529" }}
+            >
+              Delete user?
+            </h3>
+            <p style={{ margin: "0 0 1.25rem", color: "#495057", fontSize: "0.9375rem", lineHeight: 1.5 }}>
+              This action cannot be undone.
+            </p>
+            {deleteConfirmUser.email ? (
+              <p
+                style={{
+                  margin: "0 0 1.25rem",
+                  fontSize: "0.875rem",
+                  color: "#6c757d",
+                  wordBreak: "break-word",
+                }}
+              >
+                {deleteConfirmUser.firstName} {deleteConfirmUser.lastName} ({deleteConfirmUser.email})
+              </p>
+            ) : null}
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => !deletingUserId && setDeleteConfirmUser(null)}
+                disabled={!!deletingUserId}
+                style={{
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontSize: "0.875rem",
+                  cursor: deletingUserId ? "not-allowed" : "pointer",
+                  opacity: deletingUserId ? 0.7 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteUser}
+                disabled={!!deletingUserId}
+                style={{
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#dc3545",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontSize: "0.875rem",
+                  cursor: deletingUserId ? "not-allowed" : "pointer",
+                  opacity: deletingUserId ? 0.85 : 1,
+                }}
+              >
+                {deletingUserId ? "Deleting…" : "Delete"}
+              </button>
             </div>
           </div>
         </div>
