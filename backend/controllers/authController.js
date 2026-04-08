@@ -1,4 +1,5 @@
-﻿const User = require("../models/User");
+const User = require("../models/User");
+const { withActiveUserFilter } = require("../utils/activeUser");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -46,9 +47,15 @@ exports.register = async (req, res) => {
 
     console.log("Registration attempt for:", email);
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      if (existingUser.isDeleted === true) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "This email was previously used on a closed account. Contact support to restore access, or use a different email.",
+        });
+      }
       return res.status(400).json({
         success: false,
         message: "User with this email already exists",
@@ -73,7 +80,7 @@ exports.register = async (req, res) => {
       let isUnique = false;
       while (!isUnique) {
         referralCode = generateCode();
-        const existing = await User.findOne({ referralCode });
+        const existing = await User.findOne(withActiveUserFilter({ referralCode }));
         if (!existing) isUnique = true;
       }
     }
@@ -96,7 +103,7 @@ exports.register = async (req, res) => {
 
     // Handle referral bonus for referrer
     if (referredBy) {
-      const referrer = await User.findOne({ referralCode: referredBy });
+      const referrer = await User.findOne(withActiveUserFilter({ referralCode: referredBy }));
       if (referrer) {
         referrer.shamCoins += 50;
         referrer.updatedAt = new Date();
@@ -188,6 +195,12 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+      });
+    }
+    if (user.isDeleted === true) {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been closed. Contact support to restore access.",
       });
     }
 

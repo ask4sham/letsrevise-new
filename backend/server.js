@@ -183,9 +183,11 @@ if (fs.existsSync(contentRootPath)) {
   console.log("Content root not found at:", contentRootPath);
 }
 
-// Serve visuals
-const visualsRootPath = path.join(__dirname, "public", "visuals");
-if (fs.existsSync(visualsRootPath)) {
+// Serve visuals (optional after CDN migration — see config/visualsServing.js)
+const { PUBLIC_VISUALS_DIR } = require("./config/paths");
+const { shouldServeLocalPublicVisuals } = require("./config/visualsServing");
+const visualsRootPath = PUBLIC_VISUALS_DIR;
+if (shouldServeLocalPublicVisuals() && fs.existsSync(visualsRootPath)) {
   console.log("Visuals folder found, serving at /visuals ...", visualsRootPath);
 
   app.use(
@@ -197,9 +199,23 @@ if (fs.existsSync(visualsRootPath)) {
       },
     })
   );
+} else if (!shouldServeLocalPublicVisuals()) {
+  console.log(
+    "Skipping local /visuals static (SERVE_LOCAL_PUBLIC_VISUALS=false or SKIP_LOCAL_VISUALS_STATIC). Use CDN + REACT_APP_PUBLIC_VISUALS_CDN_URL."
+  );
 } else {
   console.log("Visuals folder not found at:", visualsRootPath);
 }
+
+app.get("/api/visuals/__ping", (req, res) => {
+  res.json({
+    ok: true,
+    serveLocalVisuals: shouldServeLocalPublicVisuals(),
+    visualsDirExists: fs.existsSync(visualsRootPath),
+    hint:
+      "After migrating public/visuals to object storage, set REACT_APP_PUBLIC_VISUALS_CDN_URL to the public base (e.g. R2_PUBLIC_URL).",
+  });
+});
 
 // Static assets (admin-ops.js for CSP script-src 'self')
 const publicPath = path.join(__dirname, "public");

@@ -663,9 +663,24 @@ function getEntitlementSummary(user) {
    ========================================= */
 router.get("/users", auth, checkAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, userType, search, sortBy = "createdAt", sortOrder = "desc" } = req.query;
+    const {
+      page = 1,
+      limit = 20,
+      userType,
+      search,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      includeDeleted,
+      deletedOnly,
+    } = req.query;
 
     const query = {};
+
+    if (String(deletedOnly) === "true") {
+      query.isDeleted = true;
+    } else if (String(includeDeleted) !== "true") {
+      query.isDeleted = { $ne: true };
+    }
 
     // ✅ includes parent (backend already supported; keeping explicit)
     if (userType && ["teacher", "student", "admin", "parent"].includes(String(userType))) {
@@ -708,6 +723,8 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
         lastActive: u.userType === "student" ? u.studentStats?.lastActiveDate : u.updatedAt,
         stats: u.userType === "teacher" ? u.teacherStats : u.studentStats,
         entitlementSummary: getEntitlementSummary(u),
+        isDeleted: !!u.isDeleted,
+        deletedAt: u.deletedAt || null,
       })),
       pagination: {
         page: parseInt(page),
@@ -750,6 +767,10 @@ router.get("/users/:userId", auth, checkAdmin, async (req, res) => {
         subscription: user.subscription,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        isDeleted: !!user.isDeleted,
+        deletedAt: user.deletedAt || null,
+        deletedBy: user.deletedBy || null,
+        deleteReason: user.deleteReason || null,
       },
     });
   } catch (err) {
@@ -799,7 +820,49 @@ router.get("/users/:userId/entitlements-debug", auth, checkAdmin, async (req, re
 });
 
 /* =========================================
+   POST /api/admin/users/:userId/restore
+   ========================================= */
+router.post("/users/:userId/restore", auth, checkAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: "Invalid user id" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    if (user.isDeleted !== true) {
+      return res.status(400).json({ msg: "User is not deleted" });
+    }
+
+    user.isDeleted = false;
+    user.deletedAt = null;
+    user.deletedBy = null;
+    user.deleteReason = null;
+    await user.save();
+
+    const summary = { id: String(user._id), email: user.email, userType: user.userType };
+    auditAdminAction({
+      action: "user_restore",
+      actorId: req.user._id || req.user.id,
+      actorEmail: req.user.email,
+      targetType: "User",
+      targetId: userId,
+      details: summary,
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+
+    console.log("♻️ [Admin] Restored user:", summary, "by admin:", req.user.email);
+    return res.json({ success: true, msg: "User restored", user: summary });
+  } catch (err) {
+    console.error("Admin restore user error:", err);
+    return res.status(500).json({ msg: "Server error", error: err.message });
+  }
+});
+
+/* =========================================
    DELETE /api/admin/users/:userId
+   Soft-delete only — keeps User row so Lesson.teacherId and refs stay valid.
    ========================================= */
 router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
   try {
@@ -811,6 +874,9 @@ router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: "User not found" });
+    if (user.isDeleted === true) {
+      return res.status(400).json({ msg: "User is already deleted" });
+    }
 
     // Optional safety: prevent deleting yourself
     const requesterId = req.user?._id || req.user?.id;
@@ -818,12 +884,23 @@ router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
       return res.status(400).json({ msg: "You cannot delete your own admin account" });
     }
 
-    const summary = { id: String(user._id), email: user.email, userType: user.userType };
+    const reason = (req.body && typeof req.body.reason === "string" ? req.body.reason : "").trim() || null;
 
-    await user.deleteOne();
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.deletedBy = requesterId || null;
+    user.deleteReason = reason;
+    await user.save();
+
+    const summary = {
+      id: String(user._id),
+      email: user.email,
+      userType: user.userType,
+      softDelete: true,
+    };
 
     auditAdminAction({
-      action: "user_delete",
+      action: "user_soft_delete",
       actorId: req.user._id || req.user.id,
       actorEmail: req.user.email,
       targetType: "User",
@@ -832,9 +909,9 @@ router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
       ip: req.ip || req.connection?.remoteAddress,
     });
 
-    console.log("🧹 [Admin] Deleted user:", summary, "by admin:", req.user.email);
+    console.log("🧹 [Admin] Soft-deleted user:", summary, "by admin:", req.user.email);
 
-    return res.json({ success: true, msg: "User deleted", deleted: summary });
+    return res.json({ success: true, msg: "User deactivated (lessons and links preserved)", deleted: summary });
   } catch (err) {
     console.error("Admin delete user error:", err);
     return res.status(500).json({ msg: "Server error", error: err.message });

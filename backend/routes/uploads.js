@@ -2,10 +2,17 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const multer = require("multer");
+const {
+  allowLocalUploadFallback,
+  cloudUploadRequiredMessage,
+  warnLocalDiskFallback,
+} = require("../config/storage");
 const auth = require("../middleware/auth");
-const { uploadToR2, isR2Enabled } = require("../services/r2Storage");
-const { uploadToSupabase, isSupabaseStorageEnabled } = require("../services/supabaseStorage");
+const { isR2Enabled } = require("../services/r2Storage");
+const { isSupabaseStorageEnabled } = require("../services/supabaseStorage");
+const { tryPutBuffer } = require("../services/uploadObjectStorage");
 const {
   isPngMime,
   displayFilenameForPng,
@@ -27,12 +34,28 @@ const UPLOADS_BASE = FILE_STORAGE_PATH;
 const VIDEOS_DIR = path.join(__dirname, "..", "public", "visuals", "biology", "aqa-gcse", "cell-biology", "cell-structure");
 const VIDEO_PUBLIC_URL_PREFIX = "/visuals/biology/aqa-gcse/cell-biology/cell-structure";
 
+/** Temp dir for video uploads; we upload to cloud or move into VIDEOS_DIR (handles cross-device rename). */
+const TMP_VIDEO_DIR = path.join(os.tmpdir(), "letsrevise-video-upload");
+
 // Ensure base and video dir exist at load
 try {
   fs.mkdirSync(UPLOADS_BASE, { recursive: true });
   fs.mkdirSync(VIDEOS_DIR, { recursive: true });
 } catch (e) {
   console.error("[uploads] Failed to create uploads dirs:", e);
+}
+
+function moveFileSafe(src, dest) {
+  try {
+    fs.renameSync(src, dest);
+  } catch (e) {
+    if (e && e.code === "EXDEV") {
+      fs.copyFileSync(src, dest);
+      fs.unlinkSync(src);
+    } else {
+      throw e;
+    }
+  }
 }
 
 /**
@@ -164,9 +187,9 @@ function videoFileFilter(req, file, cb) {
 const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     try {
-      fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+      fs.mkdirSync(TMP_VIDEO_DIR, { recursive: true });
       req._uploadSafeFolder = "videos";
-      cb(null, VIDEOS_DIR);
+      cb(null, TMP_VIDEO_DIR);
     } catch (err) {
       console.error("[video upload] folder creation failed:", err);
       cb(err);
@@ -202,7 +225,7 @@ const uploadLessonMedia = multer({
 });
 
 /**
- * Persist image buffer (Supabase → R2 → local). For PNG, also writes a normalised `*.display.png` sibling.
+ * Persist image buffer via tryPutBuffer (Supabase → R2 → local). For PNG, also uploads a normalised `*.display.png` sibling.
  * Response `url` is the display PNG when that variant exists (lesson canonical), else the original.
  */
 async function finishImageUploadToStorage(buffer, mimetype, safeFolder, filename) {
@@ -217,43 +240,31 @@ async function finishImageUploadToStorage(buffer, mimetype, safeFolder, filename
     }
   }
 
-  if (isSupabaseStorageEnabled()) {
-    const origUrl = await uploadToSupabase(buffer, storagePath, mimetype || "image/png");
-    if (origUrl) {
-      let dispUrl = null;
-      if (displayBuffer && displayPath) {
-        dispUrl = await uploadToSupabase(displayBuffer, displayPath, "image/png");
-      }
-      return {
-        ok: true,
-        url: dispUrl || origUrl,
-        ...(dispUrl ? { originalUrl: origUrl, displayUrl: dispUrl } : {}),
-        filename,
-        folder: safeFolder,
-        storage: "supabase",
-      };
+  const origCloud = await tryPutBuffer(buffer, storagePath, mimetype || "image/png");
+  if (origCloud) {
+    let dispUrl = null;
+    const origUrl = origCloud.url;
+    if (displayBuffer && displayPath) {
+      const disp = await tryPutBuffer(displayBuffer, displayPath, "image/png");
+      if (disp) dispUrl = disp.url;
     }
-    console.warn("[uploads] Supabase upload failed, trying fallback");
+    return {
+      ok: true,
+      url: dispUrl || origUrl,
+      ...(dispUrl ? { originalUrl: origUrl, displayUrl: dispUrl } : {}),
+      filename,
+      folder: safeFolder,
+      storage: origCloud.storage,
+    };
   }
 
-  if (isR2Enabled()) {
-    const origUrl = await uploadToR2(buffer, storagePath, mimetype || "image/png");
-    if (origUrl) {
-      let dispUrl = null;
-      if (displayBuffer && displayPath) {
-        dispUrl = await uploadToR2(displayBuffer, displayPath, "image/png");
-      }
-      return {
-        ok: true,
-        url: dispUrl || origUrl,
-        ...(dispUrl ? { originalUrl: origUrl, displayUrl: dispUrl } : {}),
-        filename,
-        folder: safeFolder,
-        storage: "r2",
-      };
-    }
-    console.warn("[uploads] R2 upload failed, falling back to local");
+  if (!allowLocalUploadFallback()) {
+    const err = new Error(cloudUploadRequiredMessage());
+    err.statusCode = 503;
+    throw err;
   }
+
+  warnLocalDiskFallback(`uploads:image:${storagePath}`);
 
   try {
     const { abs } = sanitizeFolder(safeFolder);
@@ -278,6 +289,7 @@ async function finishImageUploadToStorage(buffer, mimetype, safeFolder, filename
     ...(dispPublic ? { originalUrl: origPublic, displayUrl: dispPublic } : {}),
     filename,
     folder: safeFolder,
+    storage: "local",
   };
 }
 
@@ -312,35 +324,96 @@ router.get("/__ping", (req, res) => {
 });
 
 /**
- * Robust video upload handler: catches multer errors (400), missing file (400), route crashes (500).
+ * Robust video upload handler: temp file → cloud (optional) → locked local dir.
  * Uses callback pattern so multer errors don't propagate to 500.
  */
-function handleVideoUploadSafe(req, res) {
+async function handleVideoUploadSafe(req, res) {
   try {
     if (!req.file) {
       console.warn("[video upload] no file in request");
       return res.status(400).json({ ok: false, error: "No video file uploaded. Use form field name: file" });
     }
 
-    const publicUrl = `${VIDEO_PUBLIC_URL_PREFIX}/${req.file.filename}`.replace(/\\/g, "/");
+    const tempPath = req.file.path;
+    const filename = req.file.filename;
+    const mimetype = req.file.mimetype;
 
-    console.log("[video upload] success:", {
+    const cloudEnabled = isSupabaseStorageEnabled() || isR2Enabled();
+    if (cloudEnabled) {
+      let buffer;
+      try {
+        buffer = fs.readFileSync(tempPath);
+      } catch (readErr) {
+        console.error("[video upload] temp read failed:", readErr.message);
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (_) {}
+        return res.status(500).json({ ok: false, error: "Video upload failed (temp read)." });
+      }
+
+      const videoKey = `visuals/biology/aqa-gcse/cell-biology/cell-structure/${filename}`.replace(/\\/g, "/");
+      const cloud = await tryPutBuffer(buffer, videoKey, mimetype || "video/mp4");
+      if (cloud) {
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (_) {}
+
+        console.log("[video upload] cloud success:", {
+          originalname: req.file.originalname,
+          filename,
+          url: cloud.url,
+          storage: cloud.storage,
+        });
+
+        return res.status(200).json({
+          ok: true,
+          url: cloud.url,
+          filename,
+          folder: VIDEO_PUBLIC_URL_PREFIX.replace(/^\//, ""),
+          type: "video",
+          storage: cloud.storage,
+        });
+      }
+
+      if (!allowLocalUploadFallback()) {
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (_) {}
+        return res.status(503).json({ ok: false, error: cloudUploadRequiredMessage() });
+      }
+    }
+
+    warnLocalDiskFallback(`uploads:video:${filename}`);
+
+    fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+    const destPath = path.join(VIDEOS_DIR, filename);
+    moveFileSafe(tempPath, destPath);
+
+    const publicUrl = `${VIDEO_PUBLIC_URL_PREFIX}/${filename}`.replace(/\\/g, "/");
+
+    console.log("[video upload] local success:", {
       originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      filename: req.file.filename,
-      path: req.file.path,
+      mimetype,
+      filename,
+      path: destPath,
       url: publicUrl,
     });
 
     return res.status(200).json({
       ok: true,
       url: publicUrl,
-      filename: req.file.filename,
+      filename,
       folder: VIDEO_PUBLIC_URL_PREFIX.replace(/^\//, ""),
       type: "video",
+      storage: "local",
     });
   } catch (e) {
     console.error("[video upload] route crash:", e);
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (_) {}
+    }
     return res.status(500).json({ ok: false, error: "Video upload failed." });
   }
 }
@@ -358,7 +431,10 @@ function videoUploadRoute(req, res, next) {
       console.error("[video upload] filter/storage error:", err);
       return res.status(400).json({ ok: false, error: err.message || "Only video files allowed (mp4/webm/mov)." });
     }
-    handleVideoUploadSafe(req, res);
+    handleVideoUploadSafe(req, res).catch((e) => {
+      console.error("[video upload] async error:", e);
+      res.status(500).json({ ok: false, error: "Video upload failed." });
+    });
   });
 }
 
@@ -397,6 +473,9 @@ router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => 
         );
         return res.json(payload);
       } catch (writeErr) {
+        if (writeErr.statusCode === 503) {
+          return res.status(503).json({ error: writeErr.message || cloudUploadRequiredMessage() });
+        }
         console.error("[uploads] Fallback disk write failed:", writeErr.message);
         return res.status(500).json({ error: "Upload failed. Storage unavailable." });
       }
@@ -412,6 +491,9 @@ router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => 
     });
   } catch (e) {
     console.error("Upload handler error:", e);
+    if (e && e.statusCode === 503) {
+      return res.status(503).json({ error: e.message || cloudUploadRequiredMessage() });
+    }
     return res
       .status(500)
       .json({ error: "Upload failed", details: e?.message || String(e) });
@@ -452,6 +534,9 @@ router.post(
           );
           return res.json(payload);
         } catch (writeErr) {
+          if (writeErr.statusCode === 503) {
+            return res.status(503).json({ error: writeErr.message || cloudUploadRequiredMessage() });
+          }
           console.error("[uploads] Lesson-media fallback write failed:", writeErr.message);
           return res.status(500).json({ error: "Upload failed. Storage unavailable." });
         }
@@ -461,6 +546,9 @@ router.post(
       return res.json({ ok: true, url: publicUrl, filename, folder: safeFolder });
     } catch (e) {
       console.error("Lesson-media upload error:", e);
+      if (e && e.statusCode === 503) {
+        return res.status(503).json({ error: e.message || cloudUploadRequiredMessage() });
+      }
       return res.status(500).json({ error: "Upload failed", details: e?.message || String(e) });
     }
   }
@@ -501,6 +589,9 @@ router.post(
           );
           return res.json(payload);
         } catch (writeErr) {
+          if (writeErr.statusCode === 503) {
+            return res.status(503).json({ error: writeErr.message || cloudUploadRequiredMessage() });
+          }
           console.error("[uploads] Lesson-image fallback write failed:", writeErr.message);
           return res.status(500).json({ error: "Upload failed. Storage unavailable." });
         }
@@ -510,6 +601,9 @@ router.post(
       return res.json({ ok: true, url: publicUrl, filename, folder: safeFolder });
     } catch (e) {
       console.error("Lesson-image upload handler error:", e);
+      if (e && e.statusCode === 503) {
+        return res.status(503).json({ error: e.message || cloudUploadRequiredMessage() });
+      }
       return res.status(500).json({
         error: "Upload failed",
         details: e?.message || String(e),

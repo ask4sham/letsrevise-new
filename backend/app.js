@@ -24,6 +24,15 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   console.log("Created uploads directory:", uploadsDir);
 }
+
+const { isTruthyEnv } = require("./config/storage");
+if (process.env.NODE_ENV === "production" && !isTruthyEnv("REQUIRE_CLOUD_UPLOADS")) {
+  console.warn(
+    "[storage] WARNING: production without REQUIRE_CLOUD_UPLOADS — uploads may fall back to local disk. " +
+      "Set REQUIRE_CLOUD_UPLOADS=true once Supabase or R2 is configured."
+  );
+}
+
 const { cors, corsMiddleware, getCorsOptions, logCorsConfigAtStartup } = require("./config/cors");
 let Sentry = null;
 const sentryPath = path.join(__dirname, "config", "sentry.js");

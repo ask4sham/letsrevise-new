@@ -8,6 +8,12 @@ const fs = require("fs");
 const path = require("path");
 
 const { FILE_STORAGE_PATH } = require("../config/paths");
+const {
+  allowLocalUploadFallback,
+  cloudUploadRequiredMessage,
+  warnLocalDiskFallback,
+} = require("../config/storage");
+const { tryPutBuffer } = require("./uploadObjectStorage");
 const UPLOADS_BASE = FILE_STORAGE_PATH;
 const AI_DIAGRAMS_FOLDER = "ai-diagrams";
 const IMAGE_MODEL = "dall-e-3";
@@ -87,11 +93,8 @@ async function callOpenAIImages(prompt) {
  * @returns {Promise<{ publicPath: string, localPath: string }>}
  */
 async function downloadAndSaveImage(remoteUrl, userId) {
-  const dir = path.join(UPLOADS_BASE, AI_DIAGRAMS_FOLDER, String(userId || "shared"));
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
   const filename = `diagram-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.png`;
-  const localPath = path.join(dir, filename);
+  const storageRel = `${AI_DIAGRAMS_FOLDER}/${userId || "shared"}/${filename}`.replace(/\\/g, "/");
 
   const resp = await axios.get(remoteUrl, {
     responseType: "arraybuffer",
@@ -99,10 +102,27 @@ async function downloadAndSaveImage(remoteUrl, userId) {
     maxContentLength: 10 * 1024 * 1024,
   });
 
-  fs.writeFileSync(localPath, resp.data);
+  const buffer = Buffer.from(resp.data);
 
-  const publicPath = `/uploads/${AI_DIAGRAMS_FOLDER}/${userId || "shared"}/${filename}`.replace(/\\/g, "/");
-  return { publicPath, localPath };
+  const cloud = await tryPutBuffer(buffer, storageRel, "image/png");
+  if (cloud) {
+    return { publicPath: cloud.url, localPath: null, storage: cloud.storage };
+  }
+
+  if (!allowLocalUploadFallback()) {
+    throw new Error(cloudUploadRequiredMessage());
+  }
+
+  warnLocalDiskFallback(`diagramGeneration:${storageRel}`);
+
+  const dir = path.join(UPLOADS_BASE, AI_DIAGRAMS_FOLDER, String(userId || "shared"));
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const localPath = path.join(dir, filename);
+  fs.writeFileSync(localPath, buffer);
+
+  const publicPath = `/uploads/${storageRel}`.replace(/\\/g, "/");
+  return { publicPath, localPath, storage: "local" };
 }
 
 /**

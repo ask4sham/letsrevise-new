@@ -23,12 +23,7 @@ export function toAbsoluteAssetUrl(path: string | null | undefined): string {
     return path;
   }
   const p = path.startsWith("/") ? path : `/${path}`;
-  if (p.startsWith("/uploads/") || p.startsWith("/visuals/") || p.startsWith("/content/")) {
-    const base = getUploadBaseUrl();
-    return `${base}${p}`;
-  }
-  const abs = makeAbsoluteAssetUrl(path);
-  return abs ?? path;
+  return makeAbsoluteAssetUrl(p) ?? path;
 }
 
 /** Base URL for upload API. Production always uses Render; local dev uses getAssetBaseUrl. */

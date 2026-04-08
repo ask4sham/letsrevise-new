@@ -1040,7 +1040,7 @@ const CreateLessonPage: React.FC = () => {
     <>
       <style>{`.create-lesson-page input:focus, .create-lesson-page select:focus, .create-lesson-page textarea:focus { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); outline: none; }`}</style>
       <div className="create-lesson-page" data-lesson-editor="true" style={ui.page}>
-      <div style={ui.shell}>
+      <div className="create-lesson-shell" style={ui.shell}>
         {/* Top bar: Back + Create Lesson only */}
         <div
           style={{
@@ -1084,18 +1084,11 @@ const CreateLessonPage: React.FC = () => {
           </div>
         ) : null}
 
-        <div style={ui.card}>
-            <div
-              className="create-lesson-editor-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(180px, 220px) minmax(0, 1fr) minmax(300px, 520px)",
-                gap: 14,
-              }}
-            >
-            {/* LEFT: Pages sidebar — desktop: optional sticky below header */}
+        <div style={ui.card} className="create-lesson-editor-column">
+            <div className="create-lesson-editor-grid">
+            {/* LEFT: Pages sidebar — desktop: sticky in wide layout (see App.css) */}
             <aside
-              className="lesson-editor-sidebar-sticky"
+              className="lesson-editor-sidebar-sticky create-lesson-left-rail"
               style={{
                 minWidth: 0,
                 ...ui.sidebar,
@@ -1404,7 +1397,7 @@ const CreateLessonPage: React.FC = () => {
             </aside>
 
             {/* MIDDLE: lesson details + page editors */}
-            <main style={{ minWidth: 0 }}>
+            <main className="create-lesson-main-column" style={{ minWidth: 0 }}>
               {/* Lesson details (lighter weight so Page editor is main canvas) */}
               <div style={ui.lessonDetailsSection}>
                 <div>
@@ -2015,7 +2008,7 @@ const CreateLessonPage: React.FC = () => {
             {/* RIGHT: Preview */}
             <aside
               id="create-lesson-preview"
-              className="lesson-editor-preview-sticky"
+              className="lesson-editor-preview-sticky create-lesson-preview-rail"
               style={{
                 minWidth: 0,
                 ...ui.sidebar,

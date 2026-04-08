@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
+const { isActiveUserDoc, withActiveUserFilter } = require("../utils/activeUser");
 const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
 const { validatePasswordStrength } = require("../utils/passwordStrength");
@@ -205,6 +206,9 @@ router.post("/debug-login", async (req, res) => {
     console.log("USER FOUND:", user ? "YES" : "NO");
 
     if (user) {
+      if (user.isDeleted === true) {
+        return res.json({ success: false, message: "Debug: User is soft-deleted" });
+      }
       console.log("User details:", {
         email: user.email,
         userType: user.userType,
@@ -319,9 +323,20 @@ router.post(
     console.log(`\n📝 Registration attempt for: ${normalizedEmail} (${normalizedType})`);
 
     try {
-      // Check if user exists (case-insensitive)
+      // Check if user exists (case-insensitive). Email unique index still holds the row for soft-deleted users.
       let user = await User.findOne({ email: new RegExp(`^${normalizedEmail}$`, "i") });
       if (user) {
+        /**
+         * Policy B (safest): do NOT auto-restore on re-register. Prevents silently merging a new signup
+         * with a deactivated account and avoids ambiguity if the email changed hands. Admin must restore.
+         */
+        if (user.isDeleted === true) {
+          console.log(`❌ Registration blocked (soft-deleted email): ${normalizedEmail}`);
+          return res.status(403).json({
+            msg: "This email was previously used on a closed account. Please contact support to restore access, or use a different email.",
+            code: "ACCOUNT_SOFT_DELETED",
+          });
+        }
         console.log(`❌ User already exists: ${normalizedEmail}`);
         return res.status(400).json({ msg: "User already exists" });
       }
@@ -347,10 +362,12 @@ router.post(
       // For parent accounts, if they provided a student email, ensure it exists (and is a student)
       let linkedStudent = null;
       if (normalizedType === "parent" && normalizedLinkedStudentEmail) {
-        linkedStudent = await User.findOne({
-          email: new RegExp(`^${normalizedLinkedStudentEmail}$`, "i"),
-          userType: "student",
-        }).select("_id email userType");
+        linkedStudent = await User.findOne(
+          withActiveUserFilter({
+            email: new RegExp(`^${normalizedLinkedStudentEmail}$`, "i"),
+            userType: "student",
+          })
+        ).select("_id email userType");
 
         if (!linkedStudent) {
           return res.status(400).json({
@@ -387,7 +404,7 @@ router.post(
 
       // Handle referral code
       if (referralCode) {
-        const referrer = await User.findOne({ referralCode });
+        const referrer = await User.findOne(withActiveUserFilter({ referralCode }));
         if (referrer) {
           referrer.shamCoins = (referrer.shamCoins || 0) + 50;
           await referrer.save();
@@ -558,6 +575,9 @@ router.get("/verify-email", async (req, res) => {
       }
       return res.status(400).json({ ok: false, msg: "Invalid verification token" });
     }
+    if (user.isDeleted === true) {
+      return res.status(403).json({ ok: false, msg: "This account is no longer active." });
+    }
 
     user.verificationStatus = "verified";
     user.emailVerificationToken = undefined;
@@ -586,6 +606,9 @@ router.post("/resend-verification", [check("email", "Valid email is required").i
     const user = await User.findOne({ email: new RegExp(`^${email}$`, "i") });
     if (!user) {
       // Don't reveal whether user exists
+      return res.json({ ok: true, msg: "If an unverified account exists, a new verification email has been sent." });
+    }
+    if (user.isDeleted === true) {
       return res.json({ ok: true, msg: "If an unverified account exists, a new verification email has been sent." });
     }
     const status = (user.verificationStatus || "pending").toString().toLowerCase();
@@ -632,7 +655,7 @@ router.post(
 
     try {
       const user = await User.findOne({ email: new RegExp(`^${email}$`, "i") });
-      if (!user) {
+      if (!user || user.isDeleted === true) {
         return res.json(genericSuccess);
       }
 
@@ -695,6 +718,12 @@ router.post(
         }
         return res.status(400).json({ msg: "Invalid or expired reset link. Please request a new one." });
       }
+      if (user.isDeleted === true) {
+        return res.status(403).json({
+          msg: "This account has been closed. Contact support to restore access.",
+          code: "ACCOUNT_DELETED",
+        });
+      }
 
       const hashedPassword = await bcrypt.hash(password, 12);
       user.password = hashedPassword;
@@ -738,6 +767,13 @@ router.post(
       if (!user) {
         console.log(`❌ User not found: ${normalizedEmail}`);
         return res.status(400).json({ msg: "Invalid credentials" });
+      }
+      if (user.isDeleted === true) {
+        console.log(`❌ Login blocked (soft-deleted): ${normalizedEmail}`);
+        return res.status(403).json({
+          msg: "This account has been closed. Contact support to restore access.",
+          code: "ACCOUNT_DELETED",
+        });
       }
 
       // Block login for unverified users (admins are typically verified via seed/admin)
@@ -909,6 +945,11 @@ router.put(
 
       const existing = await User.findOne({ email: new RegExp(`^${normalizedNew}$`, "i") });
       if (existing && String(existing._id) !== String(userId)) {
+        if (existing.isDeleted === true) {
+          return res.status(400).json({
+            msg: "That email is not available. Contact support if you need to recover a closed account.",
+          });
+        }
         return res.status(400).json({ msg: "That email is already in use" });
       }
 
@@ -977,6 +1018,9 @@ router.get("/confirm-email-change", async (req, res) => {
     if (!user) {
       return res.redirect("/#/confirm-email-change?error=invalid");
     }
+    if (user.isDeleted === true) {
+      return res.redirect("/#/confirm-email-change?error=inactive");
+    }
     const newEmail = user.pendingNewEmail;
     if (!newEmail) {
       return res.redirect("/#/confirm-email-change?error=invalid");
@@ -1015,6 +1059,15 @@ router.get("/user", async (req, res) => {
     }
 
     const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(401).json({ msg: "User not found" });
+    }
+    if (!isActiveUserDoc(user)) {
+      return res.status(401).json({
+        msg: "This account has been closed. Contact support if you need access.",
+        code: "ACCOUNT_DELETED",
+      });
+    }
 
     // ✅ Ensure yearGroup + stageKey are returned for gating
     res.json(user);

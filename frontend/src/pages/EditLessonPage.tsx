@@ -2702,15 +2702,6 @@ const EditLessonPage: React.FC = () => {
         boxSizing: "border-box",
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "100%",
-          minWidth: 0,
-          margin: 0,
-          boxSizing: "border-box",
-        }}
-      >
         <div
           ref={editorLayoutShellRef}
           className="edit-lesson-editor-column"
@@ -2851,14 +2842,12 @@ const EditLessonPage: React.FC = () => {
             {/* LEFT RAIL: Teacher guide + Pages + Readiness + Practice questions (in lesson) */}
             <div
               data-col="left"
+              className="edit-lesson-left-rail"
               style={{
                 display:
                   layoutBreakpoint === "narrow" && mobileEditorTab === "preview" ? "none" : "flex",
                 flexDirection: "column",
                 gap: 16,
-                position: layoutBreakpoint === "narrow" ? undefined : "sticky",
-                top: layoutBreakpoint === "narrow" ? undefined : 110,
-                alignSelf: "start",
                 minWidth: 0,
                 maxWidth: "100%",
               }}
@@ -3139,6 +3128,7 @@ const EditLessonPage: React.FC = () => {
             {/* CENTER: Lesson details + Description + Editing blocks */}
             <div
               data-col="center"
+              className="edit-lesson-main-column"
               style={{
                 minWidth: 0,
                 maxWidth: "100%",
@@ -4936,11 +4926,8 @@ const EditLessonPage: React.FC = () => {
             <aside
               id="edit-lesson-preview"
               data-col="right"
-              className="lesson-editor-preview-sticky edit-lesson-preview-aside"
+              className="lesson-editor-preview-sticky edit-lesson-preview-aside edit-lesson-preview-rail"
               style={{
-                position: layoutBreakpoint === "narrow" ? undefined : "sticky",
-                top: layoutBreakpoint === "narrow" ? undefined : 110,
-                alignSelf: "start",
                 width: "100%",
                 maxWidth: "100%",
                 minWidth: 0,
@@ -5355,7 +5342,6 @@ const EditLessonPage: React.FC = () => {
             </div>
 
           </div>
-        </div>
         </div>
       </div>
 

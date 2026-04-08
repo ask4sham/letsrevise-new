@@ -3196,8 +3196,27 @@ const LessonViewPage: React.FC = () => {
           )}
 
           {/* MOBILE: single-column block layout, no grid, no sidebars. DESKTOP: 3-column grid with sticky sidebars */}
+          {entry === "preview" && !layoutStacked && (
+            <style>
+              {`
+/* Preview Lesson (?entry=preview): reinforce sticky rails; document scroll only; scoped to this grid */
+[data-preview-lesson-sticky="true"] {
+  overflow: visible !important;
+}
+[data-preview-lesson-sticky="true"] > aside {
+  position: sticky !important;
+  top: ${STICKY_TOP}px !important;
+  align-self: start !important;
+  max-height: calc(100vh - ${STICKY_TOP + 24}px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+              `.trim()}
+            </style>
+          )}
           <div
             data-lesson-presentation={v12StudentPresentation ? "v12" : "legacy"}
+            data-preview-lesson-sticky={entry === "preview" && !layoutStacked ? "true" : undefined}
             style={
               layoutStacked
                 ? { display: "block", width: "100%", maxWidth: "100%", minWidth: 0 }

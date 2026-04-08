@@ -375,34 +375,46 @@ tr:hover td {
 .bg-red-50 { background-color: #fef2f2; }
 .bg-yellow-50 { background-color: #fffbeb; }
 
-/* ----- Lesson editor (Create): one page scroll; sticky preview + optional left below app header ----- */
+/* ----- Lesson editor (Create/Edit): same sticky rail numbers as Preview Lesson (LessonViewPage STICKY_TOP = 88px) ----- */
 :root {
-  --lesson-editor-sticky-top: 110px;
+  --lesson-editor-rail-sticky-top: 88px;
+}
+
+.create-lesson-editor-column {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.create-lesson-editor-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+  align-items: start;
+  box-sizing: border-box;
 }
 
 @media (min-width: 1101px) {
-  .create-lesson-page #create-lesson-preview.lesson-editor-preview-sticky {
-    position: sticky;
-    top: var(--lesson-editor-sticky-top);
-    align-self: start;
-    max-height: calc(100vh - var(--lesson-editor-sticky-top) - 24px);
-    overflow-y: auto;
-    overflow-x: hidden;
+  .create-lesson-editor-grid {
+    grid-template-columns: 240px minmax(0, 1fr) 320px;
+    gap: 16px;
   }
 
+  .create-lesson-page #create-lesson-preview.lesson-editor-preview-sticky,
   .create-lesson-page aside.lesson-editor-sidebar-sticky {
     position: sticky;
-    top: var(--lesson-editor-sticky-top);
+    top: var(--lesson-editor-rail-sticky-top);
     align-self: start;
-  }
-}
-
-/* Edit Lesson: preview column stays in view and scrolls independently (matches Create Lesson intent) */
-@media (min-width: 768px) {
-  [data-lesson-editor="true"] #edit-lesson-preview.lesson-editor-preview-sticky {
-    max-height: calc(100vh - var(--lesson-editor-sticky-top) - 24px);
+    max-height: calc(100vh - var(--lesson-editor-rail-sticky-top) - 24px);
+    overflow-x: hidden;
     overflow-y: auto;
-    overflow-x: auto;
+  }
+
+  .create-lesson-page .create-lesson-main-column {
+    min-width: 0;
   }
 }
 
@@ -436,6 +448,31 @@ tr:hover td {
 .edit-lesson-layout-grid--wide {
   grid-template-columns: minmax(0, 240px) minmax(0, 1fr) minmax(0, 320px);
   grid-template-rows: none;
+}
+
+.edit-lesson-layout-grid--wide .edit-lesson-left-rail,
+.edit-lesson-layout-grid--wide .edit-lesson-preview-rail {
+  position: sticky;
+  top: var(--lesson-editor-rail-sticky-top);
+  align-self: start;
+  max-height: calc(100vh - var(--lesson-editor-rail-sticky-top) - 24px);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.edit-lesson-layout-grid--medium .edit-lesson-left-rail,
+.edit-lesson-layout-grid--medium .edit-lesson-preview-rail,
+.edit-lesson-layout-grid--medium #edit-lesson-preview,
+.edit-lesson-layout-grid--narrow .edit-lesson-left-rail,
+.edit-lesson-layout-grid--narrow .edit-lesson-preview-rail,
+.edit-lesson-layout-grid--narrow #edit-lesson-preview {
+  position: static;
+  top: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 /* Laptop / tablet: two columns; preview spans full width below — no forced giant 3-col row */

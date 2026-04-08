@@ -4,6 +4,7 @@ console.log("🔐 Auth middleware (JWT)");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
+const { isActiveUserDoc } = require("../utils/activeUser");
 const { normalizeSubscriptionV2 } = require("../contracts/subscriptionV2");
 
 const { getJwtSecret } = require("../utils/jwtSecret");
@@ -49,6 +50,12 @@ module.exports = function auth(req, res, next) {
       const user = await User.findById(userId).select("-password").lean();
       if (!user) {
         return res.status(401).json({ msg: "User not found" });
+      }
+      if (!isActiveUserDoc(user)) {
+        return res.status(401).json({
+          msg: "This account has been closed. Contact support if you need access.",
+          code: "ACCOUNT_DELETED",
+        });
       }
       req.user = {
         _id: user._id,

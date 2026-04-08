@@ -72,3 +72,7 @@ backend/uploads/
 # Generated tree dumps / browser partial downloads (do not commit)
 full-project-tree.txt
 *.crdownload
+
+# Migration output (optional)
+**/visuals-migration-manifest.json
+**/uploads-migration-manifest.json

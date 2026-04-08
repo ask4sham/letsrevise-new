@@ -10,7 +10,7 @@ const MediaSchema = new mongoose.Schema(
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
     originalName: { type: String, default: null },
-    storage: { type: String, default: "local" }, // future: "s3"
+    storage: { type: String, default: "local" }, // "local" | "supabase" | "r2"
     path: { type: String, required: true }, // e.g. "uploads/<sha>.png"
     url: { type: String, required: true }, // e.g. "/uploads/<sha>.png"
     meta: { type: Object, default: {} },

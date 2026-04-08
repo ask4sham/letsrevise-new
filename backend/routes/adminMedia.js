@@ -13,6 +13,13 @@ const { sha256Buffer } = require("../utils/mediaHash");
 const router = express.Router();
 
 const { FILE_STORAGE_PATH } = require("../config/paths");
+const {
+  allowLocalUploadFallback,
+  cloudUploadRequiredMessage,
+  warnLocalDiskFallback,
+} = require("../config/storage");
+const { tryPutBuffer } = require("../services/uploadObjectStorage");
+
 const UPLOAD_DIR = FILE_STORAGE_PATH;
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -61,9 +68,9 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
     const sha256 = sha256Buffer(file.buffer);
     const ext = extFromMime(file.mimetype);
     const filename = `${sha256}${ext}`;
-    const relPath = path.join("uploads", filename);
+    const relPath = path.join("uploads", filename).replace(/\\/g, "/");
     const absPath = path.join(__dirname, "..", relPath);
-    const url = `/${relPath.replace(/\\/g, "/")}`;
+    const localPublicUrl = `/${relPath}`;
 
     const existing = await Media.findOne({ ownerId: actorId, sha256 }).lean();
     if (existing) {
@@ -77,7 +84,17 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
       });
     }
 
-    if (!fs.existsSync(absPath)) {
+    let finalUrl = localPublicUrl;
+    let storageKind = "local";
+
+    const cloud = await tryPutBuffer(file.buffer, relPath, file.mimetype);
+    if (cloud) {
+      finalUrl = cloud.url;
+      storageKind = cloud.storage;
+    } else if (!allowLocalUploadFallback()) {
+      return res.status(503).json({ error: cloudUploadRequiredMessage() });
+    } else if (!fs.existsSync(absPath)) {
+      warnLocalDiskFallback(`admin/media:${relPath}`);
       fs.writeFileSync(absPath, file.buffer);
     }
 
@@ -87,9 +104,9 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
       mimeType: file.mimetype,
       size: file.size,
       originalName: file.originalname,
-      storage: "local",
-      path: relPath.replace(/\\/g, "/"),
-      url,
+      storage: storageKind,
+      path: relPath,
+      url: finalUrl,
     });
 
     return res.status(201).json({

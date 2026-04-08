@@ -1,6 +1,19 @@
 const RENDER_BACKEND = "https://letsrevise-new.onrender.com";
 
 /**
+ * Public base for curated /visuals/* assets when hosted on R2, Supabase, or a CDN.
+ * Must satisfy: `${base}/visuals/...` === object public URL (no trailing slash on base).
+ * Examples:
+ *   R2: same as R2_PUBLIC_URL (e.g. https://pub-xxxxx.r2.dev)
+ *   Supabase: https://<project>.supabase.co/storage/v1/object/public/<SUPABASE_MEDIA_BUCKET>
+ */
+function getPublicVisualsCdnBase(): string | null {
+  const raw = process.env.REACT_APP_PUBLIC_VISUALS_CDN_URL?.trim();
+  if (!raw) return null;
+  return raw.replace(/\/$/, "");
+}
+
+/**
  * Get the asset base URL (API host root, no /api).
  * Local dev: same-origin so CRA setupProxy forwards /uploads, /visuals, /content to backend.
  * Production: same-origin so Netlify proxy forwards to Render.
@@ -53,6 +66,16 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
 
   const path = url.startsWith("/") ? url : `/${url}`;
   const normalized = path.startsWith("/api/") ? path.slice(4) : path;
+
+  // Migrated curated visuals on object storage / CDN (same keys as /visuals/... on the API)
+  const visualsCdn = getPublicVisualsCdnBase();
+  if (
+    visualsCdn &&
+    (normalized.startsWith("/visuals/") || normalized.startsWith("visuals/"))
+  ) {
+    const p = normalized.startsWith("/") ? normalized : `/${normalized}`;
+    return `${visualsCdn}${p}`;
+  }
 
   // /uploads, /visuals, /content: use backend when on Netlify (Netlify does not serve these)
   const isAssetPath = normalized.startsWith("/uploads/") || normalized.startsWith("/visuals/") || normalized.startsWith("/content/");

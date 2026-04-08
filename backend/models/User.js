@@ -85,6 +85,16 @@ const userSchema = new mongoose.Schema(
     emailChangeToken: { type: String, default: null },
     emailChangeExpires: { type: Date, default: null },
 
+    /**
+     * Soft-delete (admin): user row stays so Lesson.teacherId and FK-style refs remain valid.
+     * HARD deleteOne() on User is dangerous: lessons use teacherId; a new account with the same email
+     * gets a new _id and orphaned lessons disappear from "My lessons". Prefer soft-delete + restore.
+     */
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    deleteReason: { type: String, default: null, trim: true },
+
     shamCoins: {
       type: Number,
       default: 100,

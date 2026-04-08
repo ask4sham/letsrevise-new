@@ -10,7 +10,8 @@
     "generate:bundle": "node scripts/generate-lesson-bundle.js",
     "slotgen:stub": "node scripts/run-slot-generation.js",
     "slotgen:openai": "node scripts/run-slot-generation-openai.js",
-    "copy:magnification-video": "node scripts/copy-magnification-video.js"
+    "copy:magnification-video": "node scripts/copy-magnification-video.js",
+    "clean:artifacts": "node scripts/clean-dev-artifacts.js"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
