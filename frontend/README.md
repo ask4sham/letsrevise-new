@@ -2,6 +2,12 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## API and asset URLs (LetsRevise)
+
+See **[docs/URL_AND_ENV.md](docs/URL_AND_ENV.md)** for when to use `apiUrl()` / `getApiBaseUrl()`, asset helpers (`assetUrl`, `mediaUrl`), dev `setupProxy`, and production same-origin behavior.
+
+- **PRs:** do not introduce new hard-coded backend/API origins in `src/` — see the **Frontend PR checklist** in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 ## Available Scripts
 
 In the project directory, you can run:

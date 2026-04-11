@@ -35,6 +35,7 @@ const { makeLessonDbSafe } = require("../utils/lessonDbSafe");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 // ✅ ADDED: Import for revision validation
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -804,15 +805,7 @@ async function createLessonHandler(req, res) {
     }
     return res.json(resPayload);
   } catch (err) {
-    console.error("❌ [Lessons] Lesson creation error details:");
-    console.error("Error message:", err.message);
-    console.error("Error stack:", err.stack);
-
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-      ...(process.env.NODE_ENV !== "production" ? { message: err.message } : {}),
-    });
+    return sendInternalError("lessons/create", err, res, { extra: { success: false } });
   }
 }
 
@@ -1010,12 +1003,7 @@ async function cloneGoldLesson(req, res) {
       lesson: clonedLesson
     });
   } catch (err) {
-    console.error("❌ [Lessons] Clone gold lesson error:", err);
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-      message: err.message
-    });
+    return sendInternalError("lessons/clone-gold", err, res, { extra: { success: false } });
   }
 }
 
@@ -1481,8 +1469,7 @@ router.get("/teacher", auth, async (req, res) => {
 
     return res.json(lessonsWithStats);
   } catch (err) {
-    console.error("Error fetching teacher lessons:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("lessons/teacher-list", err, res);
   }
 });
 
@@ -1547,8 +1534,7 @@ router.get("/teacher/stats", auth, async (req, res) => {
 
     return res.json(stats);
   } catch (err) {
-    console.error("Error fetching teacher stats:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("lessons/teacher-stats", err, res);
   }
 });
 
@@ -1597,8 +1583,7 @@ router.get("/by-topicKey", auth, async (req, res) => {
     });
     return res.json({ lessons: list });
   } catch (err) {
-    console.error("Error fetching lessons by topicKey:", err);
-    return res.status(500).json({ error: "Server error", details: err.message });
+    return sendInternalError("lessons/by-topicKey", err, res);
   }
 });
 
@@ -1643,8 +1628,7 @@ router.get("/reuse-suggestions", auth, async (req, res) => {
     });
     return res.json({ lessons: list });
   } catch (err) {
-    console.error("Error fetching reuse-suggestions:", err);
-    return res.status(500).json({ error: "Server error", details: err.message });
+    return sendInternalError("lessons/reuse-suggestions", err, res);
   }
 });
 
@@ -1696,8 +1680,7 @@ router.post("/:id/duplicate", auth, async (req, res) => {
     await lesson.save();
     return res.json({ lessonId: lesson._id });
   } catch (err) {
-    console.error("Duplicate lesson error:", err);
-    return res.status(500).json({ msg: "Server error", details: err.message });
+    return sendInternalError("lessons/duplicate", err, res);
   }
 });
 
@@ -3842,12 +3825,7 @@ router.post("/:id/purchase", auth, async (req, res) => {
         error: "Purchase conflict; retry with the same idempotencyKey",
       });
     }
-    console.error("Purchase error:", err);
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-      details: err.message,
-    });
+    return sendInternalError("lessons/purchase", err, res, { extra: { success: false } });
   }
 });
 
@@ -3930,8 +3908,7 @@ router.post("/:id/unlock", auth, async (req, res) => {
       ...(trialExpiresAt && { trialExpiresAt }),
     });
   } catch (err) {
-    console.error("Unlock error:", err);
-    return res.status(500).json({ error: "Server error", details: err.message });
+    return sendInternalError("lessons/unlock", err, res);
   }
 });
 

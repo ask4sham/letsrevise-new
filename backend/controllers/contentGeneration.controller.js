@@ -17,6 +17,7 @@ const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { filterBankItemsByDrift } = require("../utils/topicDriftValidation");
 const { parseTopicKey } = require("../utils/topicKey");
+const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
 
 function requireTeacherOrAdmin(req, res) {
   if (!req.user) {
@@ -387,13 +388,11 @@ async function postStarterPack(req, res) {
     });
   } catch (err) {
     job.status = "failed";
-    job.errors = [err.message || String(err)];
+    job.errors = [IS_PRODUCTION ? "Generation failed" : err.message || String(err)];
     await job.save();
     console.error("[contentGeneration] starter-pack failed:", err);
-    return res.status(500).json({
-      error: "Generation failed",
-      message: err.message,
-      jobId: job._id,
+    return sendInternalError("contentGeneration/starter-pack", err, res, {
+      extra: { error: "Generation failed", jobId: job._id },
     });
   }
 }
@@ -659,13 +658,11 @@ async function postWeakEvidenceFix(req, res) {
     });
   } catch (err) {
     job.status = "failed";
-    job.errors = [err.message || String(err)];
+    job.errors = [IS_PRODUCTION ? "Generation failed" : err.message || String(err)];
     await job.save();
     console.error("[contentGeneration] weak-evidence-fix failed:", err);
-    return res.status(500).json({
-      error: "Generation failed",
-      message: err.message,
-      jobId: job._id,
+    return sendInternalError("contentGeneration/weak-evidence-fix", err, res, {
+      extra: { error: "Generation failed", jobId: job._id },
     });
   }
 }
@@ -892,13 +889,11 @@ async function postPracticeSet(req, res) {
     });
   } catch (err) {
     job.status = "failed";
-    job.errors = [err.message || String(err)];
+    job.errors = [IS_PRODUCTION ? "Generation failed" : err.message || String(err)];
     await job.save();
     console.error("[contentGeneration] practice-set failed:", err);
-    return res.status(500).json({
-      error: "Generation failed",
-      message: err.message,
-      jobId: job._id,
+    return sendInternalError("contentGeneration/practice-set", err, res, {
+      extra: { error: "Generation failed", jobId: job._id },
     });
   }
 }
@@ -919,10 +914,18 @@ async function getJobs(req, res) {
     (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user?.isAdmin === true;
   if (isAdmin) delete query.requestedBy;
 
-  const jobs = await ContentGenerationJob.find(query)
+  let jobs = await ContentGenerationJob.find(query)
     .sort({ createdAt: -1 })
     .limit(Math.min(50, Math.max(1, Number(limit) || 20)))
     .lean();
+
+  if (IS_PRODUCTION) {
+    jobs = jobs.map((j) =>
+      j.status === "failed" && Array.isArray(j.errors)
+        ? { ...j, errors: j.errors.map(() => "Generation failed") }
+        : j
+    );
+  }
 
   return res.json({ jobs });
 }

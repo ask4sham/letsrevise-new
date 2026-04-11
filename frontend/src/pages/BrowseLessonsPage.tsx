@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/LessonAccessBadge";
+import { getAxiosErrorMessage } from "../utils/apiErrorMessage";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API_BASE =
@@ -356,9 +357,9 @@ const BrowseLessons: React.FC = () => {
     } catch (error: any) {
       console.error("Purchase error:", error);
       if (error.response?.status === 400) {
-        alert(error.response.data.message || "Failed to purchase lesson");
+        alert(getAxiosErrorMessage(error, "Failed to purchase lesson"));
       } else {
-        alert("Failed to purchase lesson. Please try again.");
+        alert(getAxiosErrorMessage(error, "Failed to purchase lesson. Please try again."));
       }
     }
   };

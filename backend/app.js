@@ -303,7 +303,8 @@ app.use((err, req, res, next) => {
   const safeMessage =
     process.env.NODE_ENV === "production" && status === 500 ? "Internal error" : (err?.message || "Unknown error");
   console.error("[unhandled]", err);
-  res.status(status).json({ error: msg, message: safeMessage });
+  // `msg` matches sendInternalError shape so axios + UI prefer detail over generic `error` label
+  res.status(status).json({ error: msg, message: safeMessage, msg: safeMessage, code: "INTERNAL_ERROR" });
 });
 
 // ✅ Export for testing

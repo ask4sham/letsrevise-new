@@ -33,4 +33,4 @@
   status = 200
 
 # REACT_APP_API_BASE: Set to backend URL (https://letsrevise-new.onrender.com) for non-proxy builds.
-# On Netlify, api.ts uses same-origin so /api/* is proxied. Upload URLs are always built from backend (Render), never Netlify.
+# On Netlify, api.ts uses same-origin so /api/* is proxied. Upload/visual URLs use same-origin paths; these redirects proxy /uploads and /visuals to Render.

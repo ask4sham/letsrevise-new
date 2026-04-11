@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 const auth = require('../middleware/auth');
+const { sendInternalError } = require('../utils/safeErrorResponse');
 
 // @route   GET api/payouts/balance
 // @desc    Get teacher's earnings and payout balance
@@ -55,7 +56,7 @@ router.get('/balance', auth, async (req, res) => {
 
   } catch (err) {
     console.error('Get balance error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('payouts/balance', err, res, { extra: { success: false } });
   }
 });
 
@@ -144,7 +145,7 @@ router.post('/request', auth, async (req, res) => {
 
   } catch (err) {
     console.error('Request payout error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('payouts/request', err, res, { extra: { success: false } });
   }
 });
 
@@ -251,7 +252,7 @@ router.post('/cancel/:payoutId', auth, async (req, res) => {
 
   } catch (err) {
     console.error('Cancel payout error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('payouts/cancel', err, res, { extra: { success: false } });
   }
 });
 
@@ -299,7 +300,7 @@ router.get('/payment-methods', auth, async (req, res) => {
 
   } catch (err) {
     console.error('Get payment methods error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('payouts/payment-methods', err, res, { extra: { success: false } });
   }
 });
 
@@ -338,7 +339,7 @@ router.get('/withdrawal-limit', auth, async (req, res) => {
 
   } catch (err) {
     console.error('Get withdrawal limit error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('payouts/withdrawal-limit', err, res, { extra: { success: false } });
   }
 });
 

@@ -8,6 +8,7 @@ const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
 const ContentGenerationJob = require("../models/ContentGenerationJob");
 const { validatePublishableContent, validateStarterPackPublishability } = require("../services/publishGate/validatePublishableContent");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function requireTeacherOrAdmin(req, res) {
   if (!req.user) {
@@ -45,7 +46,7 @@ async function getCheck(req, res) {
     return res.json(result);
   } catch (err) {
     console.error("[publishGate] check error:", err);
-    return res.status(500).json({ error: err.message || "Check failed" });
+    return sendInternalError("publish-gate/check", err, res, { extra: { error: "Check failed" } });
   }
 }
 
@@ -154,7 +155,7 @@ async function postPublish(req, res) {
     });
   } catch (err) {
     console.error("[publishGate] publish error:", err);
-    return res.status(500).json({ error: err.message || "Publish failed" });
+    return sendInternalError("publish-gate/publish", err, res, { extra: { error: "Publish failed" } });
   }
 }
 

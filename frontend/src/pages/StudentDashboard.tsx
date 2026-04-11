@@ -8,6 +8,7 @@ import LessonAccessBadge, { LessonAccessBadgeLegend } from "../components/Lesson
 import { getKnowledgeGap, type KnowledgeGapResponse } from "../api/studentKnowledgeGap";
 import { getStudentDashboard, type DashboardResponse } from "../api/studentDashboard";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getApiClientErrorMessage, getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiErrorMessage";
 
 const API_BASE =
   process.env.REACT_APP_API_BASE ||
@@ -25,7 +26,13 @@ async function fetchLessonsByIds(ids: string[], token: string | null) {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`by-ids failed: ${res.status} ${text}`);
+    let parsed: unknown;
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      parsed = null;
+    }
+    throw new Error(getErrorMessageFromData(parsed, `by-ids failed: ${res.status}`));
   }
   return res.json();
 }
@@ -283,7 +290,7 @@ function RevisionFocusBlock({
     if (!dashboardLoading && !dashboardData?.ok && fallbackData === null && !fallbackError) {
       getKnowledgeGap()
         .then(setFallbackData)
-        .catch((err: any) => setFallbackError(err?.message || "Failed to load revision focus"));
+        .catch((err: unknown) => setFallbackError(getApiClientErrorMessage(err, "Failed to load revision focus")));
     }
   }, [dashboardLoading, dashboardData?.ok, fallbackData, fallbackError]);
 
@@ -479,8 +486,8 @@ const StudentDashboard: React.FC = () => {
               );
             }
           })
-          .catch(() => {
-            setRecError("Failed to load recommendations.");
+          .catch((err: unknown) => {
+            setRecError(getAxiosErrorMessage(err, "Failed to load recommendations."));
             setRecLessons([]);
             setRecTopics([]);
           })

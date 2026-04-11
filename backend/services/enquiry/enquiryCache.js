@@ -20,16 +20,20 @@ function normalizeQuestion(q) {
  * PR-019: Include conversationId so cache does not leak across conversations.
  * PR-020: Include responseMode so different modes return different cached responses.
  * PR-021: Include allowExternal so external vs curriculum-only are cached separately.
+ * Lesson-local retrieval: include lessonId when present so cache does not leak across lessons.
  */
-function buildCacheKey(specKey, topicKey, mode, question, conversationId = null, responseMode = null, allowExternal = false) {
-  const spec = (specKey || "").trim();
-  const topic = (topicKey || "").trim();
-  const m = (mode || "").trim();
+function buildCacheKey(specKey, topicKey, mode, question, conversationId = null, responseMode = null, allowExternal = false, lessonId = null) {
+  // Coerce to string — non-strings (e.g. numbers from JSON) would throw on .trim() and take down /api/enquiry.
+  const spec = String(specKey ?? "").trim();
+  const topic = String(topicKey ?? "").trim();
+  const m = String(mode ?? "").trim();
   const q = normalizeQuestion(question);
   const conv = conversationId ? String(conversationId).trim() : "";
-  const rm = (responseMode || "").trim() || "explain";
+  const rm = String(responseMode ?? "").trim() || "explain";
   const ext = allowExternal ? "1" : "0";
-  const raw = `${spec}|${topic}|${m}|${q}|${conv}|${rm}|${ext}`;
+  const les = lessonId ? String(lessonId).trim() : "";
+  // When no lessonId, keep raw string identical to pre–lesson-local keys (no trailing empty segment).
+  const raw = les ? `${spec}|${topic}|${m}|${q}|${conv}|${rm}|${ext}|${les}` : `${spec}|${topic}|${m}|${q}|${conv}|${rm}|${ext}`;
   return crypto.createHash("sha256").update(raw, "utf8").digest("hex");
 }
 
@@ -37,9 +41,9 @@ function buildCacheKey(specKey, topicKey, mode, question, conversationId = null,
  * Get cached response if exists.
  * @returns {{ hit: boolean, response?: object }}
  */
-async function getCached(specKey, topicKey, mode, question, conversationId = null, responseMode = null, allowExternal = false) {
+async function getCached(specKey, topicKey, mode, question, conversationId = null, responseMode = null, allowExternal = false, lessonId = null) {
   try {
-    const key = buildCacheKey(specKey, topicKey, mode, question, conversationId, responseMode, allowExternal);
+    const key = buildCacheKey(specKey, topicKey, mode, question, conversationId, responseMode, allowExternal, lessonId);
     const doc = await EnquiryCache.findOne({ key }).lean();
     if (!doc || !doc.response) return { hit: false };
     return {
@@ -69,9 +73,9 @@ async function getCached(specKey, topicKey, mode, question, conversationId = nul
 /**
  * Store response in cache.
  */
-async function setCached(specKey, topicKey, mode, question, response, conversationId = null, responseMode = null, allowExternal = false) {
+async function setCached(specKey, topicKey, mode, question, response, conversationId = null, responseMode = null, allowExternal = false, lessonId = null) {
   try {
-    const key = buildCacheKey(specKey, topicKey, mode, question, conversationId, responseMode, allowExternal);
+    const key = buildCacheKey(specKey, topicKey, mode, question, conversationId, responseMode, allowExternal, lessonId);
     await EnquiryCache.findOneAndUpdate(
       { key },
       {

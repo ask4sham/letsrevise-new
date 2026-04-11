@@ -32,6 +32,7 @@ import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
+import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
@@ -219,7 +220,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       });
       setPreviewResult(result);
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Preview failed");
+      setMessage(getApiClientErrorMessage(err, "Preview failed"));
     } finally {
       setPreviewLoading(false);
     }
@@ -263,7 +264,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       fetchItems();
       setActiveTab("list");
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Import failed");
+      setMessage(getApiClientErrorMessage(err, "Import failed"));
     } finally {
       setImportLoading(false);
     }
@@ -325,7 +326,11 @@ const TeacherPastPapersBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchItems();
     } catch (err: any) {
-      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk publish failed"));
+      setMessage(
+        getHttpStatus(err) === 404
+          ? "Some items could not be updated."
+          : getApiClientErrorMessage(err, "Bulk publish failed")
+      );
     } finally {
       setBulkLoading(false);
     }
@@ -339,7 +344,11 @@ const TeacherPastPapersBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchItems();
     } catch (err: any) {
-      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk unpublish failed"));
+      setMessage(
+        getHttpStatus(err) === 404
+          ? "Some items could not be updated."
+          : getApiClientErrorMessage(err, "Bulk unpublish failed")
+      );
     } finally {
       setBulkLoading(false);
     }
@@ -351,7 +360,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       const updated = await publishTopicPastPaper(id);
       setItems((prev) => prev.map((p) => (p._id === id ? updated : p)));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Publish failed");
+      setMessage(getApiClientErrorMessage(err, "Publish failed"));
     } finally {
       setActionLoading(null);
     }
@@ -363,7 +372,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       const updated = await unpublishTopicPastPaper(id);
       setItems((prev) => prev.map((p) => (p._id === id ? updated : p)));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Unpublish failed");
+      setMessage(getApiClientErrorMessage(err, "Unpublish failed"));
     } finally {
       setActionLoading(null);
     }
@@ -375,7 +384,7 @@ const TeacherPastPapersBankPage: React.FC = () => {
       await deleteTopicPastPaper(id);
       setItems((prev) => prev.filter((p) => p._id !== id));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Delete failed");
+      setMessage(getApiClientErrorMessage(err, "Delete failed"));
     } finally {
       setActionLoading(null);
     }

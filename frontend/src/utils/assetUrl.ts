@@ -1,4 +1,5 @@
-const RENDER_BACKEND = "https://letsrevise-new.onrender.com";
+/** Default backend origin when `window` is missing (SSR/tests) and for Netlify asset rewrites. See `docs/URL_AND_ENV.md`. */
+export const RENDER_BACKEND = "https://letsrevise-new.onrender.com";
 
 /**
  * Public base for curated /visuals/* assets when hosted on R2, Supabase, or a CDN.

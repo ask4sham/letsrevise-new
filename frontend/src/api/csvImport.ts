@@ -2,6 +2,8 @@
  * Phase 1: CSV import API for Flashcards and Exam Questions.
  */
 
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+
 export interface CsvImportResult {
   dryRun: boolean;
   summary: {
@@ -71,7 +73,7 @@ export async function importExamQuestionsCsv(params: {
     body: form,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Import failed");
+  if (!res.ok) throw new Error(getErrorMessageFromData(data, "Import failed"));
   return data as CsvImportResult;
 }
 

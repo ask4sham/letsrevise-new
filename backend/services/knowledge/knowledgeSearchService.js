@@ -18,7 +18,15 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, sourceTyp
   const spec = (specKey || "").trim();
   if (!spec) return [];
 
-  const [queryEmbedding] = await embedText([queryText]);
+  let queryEmbedding;
+  try {
+    [queryEmbedding] = await embedText([queryText]);
+  } catch (e) {
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("[knowledgeSearch] embedText failed:", e && e.message ? e.message : e);
+    }
+    return [];
+  }
   if (!queryEmbedding) return [];
 
   let vectorResults = [];
@@ -34,20 +42,34 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, sourceTyp
   if (ids.length === 0) return [];
 
   const specVariants = [spec, spec.replace(/_/g, "-").toLowerCase()];
-  const mongoQuery = {
-    _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
-    specKey: { $in: specVariants },
-  };
-  if (topicKey && String(topicKey).trim()) mongoQuery.topicKey = String(topicKey).trim();
+  const topicKeyTrim = topicKey && String(topicKey).trim() ? String(topicKey).trim() : "";
+
   const validTypes = ["specStatement", "lessonBlock", "lessonDiagram", "externalTrusted", "teacherNote"];
-  if (Array.isArray(sourceTypes) && sourceTypes.length > 0) {
-    const filtered = sourceTypes.filter((t) => validTypes.includes(String(t)));
-    if (filtered.length > 0) mongoQuery.sourceType = { $in: filtered };
-  } else if (sourceType && validTypes.includes(String(sourceType))) {
-    mongoQuery.sourceType = sourceType;
+
+  function buildMongoQuery(includeTopicKey) {
+    const q = {
+      _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
+      specKey: { $in: specVariants },
+    };
+    if (includeTopicKey && topicKeyTrim) q.topicKey = topicKeyTrim;
+    if (Array.isArray(sourceTypes) && sourceTypes.length > 0) {
+      const filtered = sourceTypes.filter((t) => validTypes.includes(String(t)));
+      if (filtered.length > 0) q.sourceType = { $in: filtered };
+    } else if (sourceType && validTypes.includes(String(sourceType))) {
+      q.sourceType = sourceType;
+    }
+    return q;
   }
 
-  const docs = await KnowledgeDocument.find(mongoQuery).lean();
+  let mongoQuery = buildMongoQuery(true);
+  let docs = await KnowledgeDocument.find(mongoQuery).lean();
+
+  // Lesson topic often ≠ where content was indexed (e.g. heart content under organisation vs lesson on another sub-topic).
+  // If strict topic filter removes every vector hit, fall back to spec-wide retrieval from the same embedding candidates.
+  if (docs.length === 0 && topicKeyTrim) {
+    mongoQuery = buildMongoQuery(false);
+    docs = await KnowledgeDocument.find(mongoQuery).lean();
+  }
   const scoreMap = new Map(vectorResults.map((r) => [r.knowledgeDocumentId, r.score]));
 
   const diagramBoostTerms = ["diagram", "label", "identify", "structure", "parts", "draw", "look at"];
@@ -61,6 +83,7 @@ async function searchKnowledge({ query, specKey, topicKey, sourceType, sourceTyp
       let boost =
         d.sourceType === "specStatement" ? 0.05 : d.sourceType === "teacherNote" ? 0.02 : 0;
       if (d.sourceType === "lessonDiagram" && hasDiagramIntent) boost += 0.03;
+      if (topicKeyTrim && String(d.topicKey || "").trim() === topicKeyTrim) boost += 0.02;
       return {
         knowledgeDocumentId: id,
         sourceType: d.sourceType,

@@ -21,9 +21,9 @@ function isStudent(req) {
   return t === "student";
 }
 
-router.post("/", auth, enquiryRateLimit, externalSearchRateLimit, async (req, res) => {
+router.post("/", auth, enquiryRateLimit, externalSearchRateLimit, (req, res, next) => {
   if (isTeacherOrAdmin(req)) {
-    return handleEnquiry(req, res);
+    return handleEnquiry(req, res).catch(next);
   }
   if (isStudent(req)) {
     const specKey = (req.body || {}).specKey;
@@ -32,19 +32,19 @@ router.post("/", auth, enquiryRateLimit, externalSearchRateLimit, async (req, re
         error: "AI Tutor is not enabled for this course yet.",
       });
     }
-    return handleEnquiry(req, res);
+    return handleEnquiry(req, res).catch(next);
   }
   return res.status(403).json({ error: "Teachers and admins only" });
 });
 
-router.post("/:id/feedback", auth, async (req, res) => {
+router.post("/:id/feedback", auth, (req, res, next) => {
   if (!isTeacherOrAdmin(req)) {
     return res.status(403).json({ error: "Teachers and admins only" });
   }
-  return handleEnquiryFeedback(req, res);
+  return handleEnquiryFeedback(req, res).catch(next);
 });
 
 /** PR-016b: Log action click — owner or admin (same as enquiry) */
-router.post("/:id/action", auth, handleEnquiryAction);
+router.post("/:id/action", auth, (req, res, next) => handleEnquiryAction(req, res).catch(next));
 
 module.exports = router;

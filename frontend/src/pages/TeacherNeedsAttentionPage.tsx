@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
 
 const DAYS_OPTIONS = [7, 14, 30] as const;
 
@@ -165,7 +166,7 @@ export default function TeacherNeedsAttentionPage() {
       setTimeout(() => setToast(null), 4000);
       load();
     } catch (e: any) {
-      setToast(e?.response?.data?.error || "Bulk fix failed");
+      setToast(getApiClientErrorMessage(e, "Bulk fix failed"));
       setTimeout(() => setToast(null), 3000);
     } finally {
       setFixingLessonId(null);
@@ -188,7 +189,7 @@ export default function TeacherNeedsAttentionPage() {
       }, 5000);
       load();
     } catch (e: any) {
-      setToast(e?.response?.data?.error || e?.response?.data?.msg || "Attach failed");
+      setToast(getApiClientErrorMessage(e, "Attach failed"));
       setTimeout(() => setToast(null), 3000);
     } finally {
       setAttachingLessonId(null);

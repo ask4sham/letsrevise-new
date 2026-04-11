@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import { getErrorMessageFromData } from '../utils/apiErrorMessage';
+import { apiUrl } from '../utils/apiBaseUrl';
 
 interface PayoutBalance {
   totalEarnings: number;
@@ -65,7 +67,7 @@ const TeacherPayoutPage: React.FC = () => {
       }
 
       // Fetch balance
-      const balanceResponse = await fetch('http://localhost:5000/api/payouts/balance', {
+      const balanceResponse = await fetch(apiUrl('/api/payouts/balance'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const balanceData = await balanceResponse.json();
@@ -74,7 +76,7 @@ const TeacherPayoutPage: React.FC = () => {
       }
 
       // Fetch payment methods
-      const methodsResponse = await fetch('http://localhost:5000/api/payouts/payment-methods', {
+      const methodsResponse = await fetch(apiUrl('/api/payouts/payment-methods'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const methodsData = await methodsResponse.json();
@@ -86,7 +88,7 @@ const TeacherPayoutPage: React.FC = () => {
       }
 
       // Fetch payout history
-      const historyResponse = await fetch('http://localhost:5000/api/payouts/history', {
+      const historyResponse = await fetch(apiUrl('/api/payouts/history'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const historyData = await historyResponse.json();
@@ -130,7 +132,7 @@ const TeacherPayoutPage: React.FC = () => {
         navigate('/login');
         return;
       }
-      const response = await fetch('http://localhost:5000/api/payouts/request', {
+      const response = await fetch(apiUrl('/api/payouts/request'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +153,7 @@ const TeacherPayoutPage: React.FC = () => {
         // Refresh data
         fetchPayoutData();
       } else {
-        setMessage({ type: 'error', text: data.msg || 'Failed to request payout' });
+        setMessage({ type: 'error', text: getErrorMessageFromData(data, 'Failed to request payout') });
       }
     } catch (error) {
       console.error('Request payout error:', error);
@@ -166,7 +168,7 @@ const TeacherPayoutPage: React.FC = () => {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/payouts/cancel/${payoutId}`, {
+      const response = await fetch(apiUrl(`/api/payouts/cancel/${payoutId}`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -180,7 +182,7 @@ const TeacherPayoutPage: React.FC = () => {
         // Refresh data
         fetchPayoutData();
       } else {
-        setMessage({ type: 'error', text: data.msg || 'Failed to cancel payout' });
+        setMessage({ type: 'error', text: getErrorMessageFromData(data, 'Failed to cancel payout') });
       }
     } catch (error) {
       console.error('Cancel payout error:', error);

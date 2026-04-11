@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import SubscriptionRequired from "../components/SubscriptionRequired";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+import { apiUrl } from "../utils/apiBaseUrl";
 
 interface AssessmentPaper {
   _id: string;
@@ -55,7 +57,7 @@ const AssessmentPapersList: React.FC = () => {
     const fetchPapers = async () => {
       try {
         setLoading(true);
-        const url = `http://localhost:5000/api/assessment-papers?kind=${encodeURIComponent(selectedMode)}`;
+        const url = `${apiUrl("/api/assessment-papers")}?kind=${encodeURIComponent(selectedMode)}`;
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token ?? ""}`,
@@ -64,10 +66,13 @@ const AssessmentPapersList: React.FC = () => {
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          if (response.status === 403 && (data.message || data.msg) === "Subscription required") {
+          if (
+            response.status === 403 &&
+            getErrorMessageFromData(data, "") === "Subscription required"
+          ) {
             setSubscriptionBlocked(true);
           } else {
-            throw new Error(`Failed to fetch: ${response.status}`);
+            throw new Error(getErrorMessageFromData(data, `Failed to fetch: ${response.status}`));
           }
         } else {
           const data = await response.json();

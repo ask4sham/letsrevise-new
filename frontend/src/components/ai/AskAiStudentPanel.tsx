@@ -253,6 +253,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
         limit: 6,
         includePractice: true,
           responseMode: modeOverride ?? responseMode,
+        lessonId: lessonId || undefined,
         });
 
         setMessages((prev) => [
@@ -266,8 +267,24 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
         ]);
         refreshRecent();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } }; message?: string };
-      setError(e?.response?.data?.error || e?.message || "Failed to get answer");
+      const e = err as {
+        message?: string;
+        data?: { msg?: string; message?: string; error?: string; detail?: string };
+      };
+      const fromInterceptor = typeof e?.message === "string" ? e.message : "";
+      const apiMsg =
+        (typeof e?.data?.msg === "string" && e.data.msg) ||
+        (typeof e?.data?.message === "string" && e.data.message) ||
+        (typeof e?.data?.detail === "string" && e.data.detail) ||
+        "";
+      const genericErr =
+        typeof e?.data?.error === "string" &&
+        (e.data.error === "Unhandled server error" || e.data.error === "Request failed" || e.data.error === "Server error")
+          ? ""
+          : typeof e?.data?.error === "string"
+            ? e.data.error
+            : "";
+      setError(fromInterceptor || apiMsg || genericErr || "Failed to get answer");
         setMessages((prev) => prev.slice(0, -1));
     } finally {
       setLoading(false);
@@ -570,6 +587,11 @@ function AssistantBubbleStudent({
   onToggleExplanation,
   onIntent,
 }: AssistantBubbleStudentProps) {
+  const fallbackNotice = (response.fallbackNotice || "").trim();
+  const noteWarnings = (response.answer.warnings || []).filter(
+    (w) => !fallbackNotice || w.trim() !== fallbackNotice
+  );
+
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
       {/* PR-036: Mode indicator above answer */}
@@ -578,7 +600,23 @@ function AssistantBubbleStudent({
           Mode: {modeLabels[responseMode]}
         </div>
       )}
-      {response.answer.warnings && response.answer.warnings.length > 0 && (
+      {response.source === "fallback_ai" && fallbackNotice && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 12,
+            borderRadius: 8,
+            background: "#fce7f3",
+            border: "1px solid #f9a8d4",
+            color: "#831843",
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>General knowledge:</strong> {fallbackNotice}
+        </div>
+      )}
+      {noteWarnings.length > 0 && (
         <div
           style={{
             marginBottom: 12,
@@ -590,7 +628,7 @@ function AssistantBubbleStudent({
                 fontSize: 14,
               }}
             >
-              <strong>Note:</strong> {response.answer.warnings.join(" ")}
+              <strong>Note:</strong> {noteWarnings.join(" ")}
             </div>
           )}
 

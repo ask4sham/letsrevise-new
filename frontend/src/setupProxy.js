@@ -1,4 +1,5 @@
 // Explicit proxy so /api/* and /uploads/* are forwarded to the backend.
+// CRA dev server is :3000; API runs on :5000 — localhost:5000 here is intentional (see docs/URL_AND_ENV.md).
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 // AI generate-and-save (two OpenAI passes + save) and other heavy API calls — avoid proxy cutting the connection early.

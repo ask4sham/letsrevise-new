@@ -25,6 +25,7 @@ import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SpecKey } from "../api/taxonomy";
+import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
 /** Minimal auto-detect for backend format: "csv" | "newline". */
 function detectFlashcardFormat(text: string): "csv" | "newline" {
@@ -250,7 +251,11 @@ const TeacherFlashcardBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchFlashcards();
     } catch (err: any) {
-      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk publish failed"));
+      setMessage(
+        getHttpStatus(err) === 404
+          ? "Some items could not be updated."
+          : getApiClientErrorMessage(err, "Bulk publish failed")
+      );
     } finally {
       setBulkLoading(false);
     }
@@ -264,7 +269,11 @@ const TeacherFlashcardBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchFlashcards();
     } catch (err: any) {
-      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk unpublish failed"));
+      setMessage(
+        getHttpStatus(err) === 404
+          ? "Some items could not be updated."
+          : getApiClientErrorMessage(err, "Bulk unpublish failed")
+      );
     } finally {
       setBulkLoading(false);
     }
@@ -288,7 +297,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
       const updated = await unpublishTopicFlashcard(id);
       setFlashcards((prev) => prev.map((f) => (f._id === id ? updated : f)));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Unpublish failed");
+      setMessage(getApiClientErrorMessage(err, "Unpublish failed"));
     } finally {
       setActionLoading(null);
     }
@@ -300,7 +309,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
       await deleteTopicFlashcard(id);
       setFlashcards((prev) => prev.filter((f) => f._id !== id));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.response?.data?.message || err?.message || "Delete failed");
+      setMessage(getApiClientErrorMessage(err, "Delete failed"));
     } finally {
       setActionLoading(null);
     }

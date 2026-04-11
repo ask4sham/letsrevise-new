@@ -7,6 +7,7 @@ const KnowledgeDocument = require("../models/KnowledgeDocument");
 const Lesson = require("../models/Lesson");
 const EnquiryLog = require("../models/EnquiryLog");
 const { normalizeSpecKey } = require("../config/featureFlags");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function getSpecVariants(specKey) {
   const normalized = normalizeSpecKey(specKey);
@@ -155,7 +156,7 @@ async function getDrilldown(req, res) {
     });
   } catch (err) {
     console.error("[coverageDrilldown] Error:", err);
-    res.status(500).json({ error: err.message || "Failed to load drill-down" });
+    return sendInternalError("coverage/drilldown", err, res);
   }
 }
 

@@ -36,6 +36,9 @@ console.log("  JWT_SECRET_KEY length:", process.env.JWT_SECRET_KEY ? process.env
 console.log("  JWT_SECRET exists:", !!process.env.JWT_SECRET);
 console.log("  JWT_SECRET length:", process.env.JWT_SECRET ? process.env.JWT_SECRET.length : "N/A");
 
+const { logEnquiryTutorStartup } = require("./services/llm/provider");
+logEnquiryTutorStartup();
+
 const connectDB = require("./config/database");
 
 // Import the app from app.js instead of creating new express app
@@ -90,8 +93,10 @@ const auditRoutes = require("./routes/audit");
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
-// Connect to database
-connectDB();
+/* ============================================================
+   MongoDB: connect BEFORE accepting HTTP traffic (avoids Mongoose
+   "buffering timed out" when requests arrive before connect completes).
+============================================================ */
 
 /* ============================================================
    CORS: Handled in app.js (runs first for all requests).
@@ -256,10 +261,13 @@ function debugEnabled() {
 ============================================================ */
 
 app.get("/api/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const mongoReady = mongoose.connection.readyState === 1;
   res.json({
     status: "OK",
     message: "LetsRevise API is running",
     commit: getCommit(),
+    mongo: mongoReady ? "connected" : "disconnected",
   });
 });
 
@@ -276,11 +284,21 @@ app.get("/api/ready", async (req, res) => {
   try {
     const mongoose = require("mongoose");
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ status: "not ready", mongo: "disconnected" });
+      return res.status(503).json({
+        status: "not ready",
+        mongo: "disconnected",
+        readyState: mongoose.connection.readyState,
+      });
+    }
+    try {
+      await mongoose.connection.db.admin().command({ ping: 1 });
+    } catch (pingErr) {
+      console.error("[api/ready] ping failed:", pingErr.message);
+      return res.status(503).json({ status: "not ready", mongo: "ping_failed" });
     }
     res.json({ status: "ready", mongo: "connected" });
   } catch (e) {
-    res.status(503).json({ status: "not ready", error: (e && e.message) || "unknown" });
+    res.status(503).json({ status: "not ready", mongo: "error" });
   }
 });
 
@@ -515,6 +533,7 @@ function tryListen(port) {
   const server = app.listen(port, () => {
     console.log(`\n=== Server running on port ${port} (${new Date().toISOString()}) ===`);
     console.log(`Health: http://localhost:${port}/api/health`);
+    console.log(`Ready (Mongo): http://localhost:${port}/api/ready`);
     console.log(`Uploads ping: http://localhost:${port}/api/uploads/__ping`);
     console.log(`Uploads: http://localhost:${port}/uploads`);
     console.log(`Visuals: http://localhost:${port}/visuals`);
@@ -533,4 +552,18 @@ function tryListen(port) {
   });
 }
 
-tryListen(PORT);
+(async function startServer() {
+  try {
+    require("./utils/jwtSecret").getJwtSecret();
+  } catch (e) {
+    console.error("[FATAL] JWT secret missing. Set JWT_SECRET or JWT_SECRET_KEY in environment.");
+    process.exit(1);
+  }
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error("[MongoDB] FATAL: could not connect. Exiting so the platform can restart.");
+    process.exit(1);
+  }
+  tryListen(PORT);
+})();

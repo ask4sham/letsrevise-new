@@ -23,6 +23,7 @@ const StudentTeacherLink = require("../models/StudentTeacherLink");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const { queryCandidates, buildTopicKey, parseTopicKey } = require("../utils/topicKey");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function isStudent(req) {
   if (!req.user) return false;
@@ -44,7 +45,7 @@ router.get("/dashboard", auth, async (req, res) => {
     return res.json(data);
   } catch (err) {
     console.error("Student dashboard error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("student/dashboard", err, res);
   }
 });
 
@@ -64,7 +65,7 @@ router.get("/topic-evidence", auth, async (req, res) => {
     return res.json(evidence);
   } catch (err) {
     console.error("Student topic-evidence error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("student/topic-evidence", err, res);
   }
 });
 
@@ -174,7 +175,7 @@ router.get("/my-work", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Student my-work error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("student/my-work", err, res);
   }
 });
 
@@ -297,7 +298,7 @@ router.get("/progress", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Student progress error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("student/progress", err, res);
   }
 });
 
@@ -447,7 +448,7 @@ router.get("/knowledge-gap", auth, async (req, res) => {
     return res.json({ summary, weakAreas });
   } catch (err) {
     console.error("Student knowledge-gap error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("student/knowledge-gap", err, res);
   }
 });
 
@@ -502,7 +503,7 @@ router.get("/content/topic-flashcards", auth, async (req, res) => {
     return res.json({ cards: out, topicKey });
   } catch (err) {
     console.error("Student topic-flashcards error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("student/content/topic-flashcards", err, res);
   }
 });
 

@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { getAxiosErrorMessage } from '../../utils/apiErrorMessage';
+import { apiUrl } from '../../utils/apiBaseUrl';
 import './NotificationBell.css';
 
 interface Notification {
@@ -30,7 +32,7 @@ const NotificationBell: React.FC = () => {
     try {
       if (!token) return;
 
-      const response = await axios.get('http://localhost:5000/api/notifications', {
+      const response = await axios.get(apiUrl('/api/notifications'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -38,7 +40,7 @@ const NotificationBell: React.FC = () => {
       const unread = response.data.filter((n: Notification) => !n.isRead).length;
       setUnreadCount(unread);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Error fetching notifications:', getAxiosErrorMessage(error, 'Request failed'));
     }
   };
 
@@ -46,13 +48,13 @@ const NotificationBell: React.FC = () => {
     try {
       if (!token) return;
 
-      const response = await axios.get('http://localhost:5000/api/notifications/unread-count', {
+      const response = await axios.get(apiUrl('/api/notifications/unread-count'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       setUnreadCount(response.data.count);
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error('Error fetching unread count:', getAxiosErrorMessage(error, 'Request failed'));
     }
   };
 
@@ -74,7 +76,7 @@ const NotificationBell: React.FC = () => {
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       if (!token) return;
-      await axios.put(`http://localhost:5000/api/notifications/${notificationId}/read`, {}, {
+      await axios.put(apiUrl(`/api/notifications/${notificationId}/read`), {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -84,21 +86,21 @@ const NotificationBell: React.FC = () => {
       ));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking as read:', error);
+      console.error('Error marking as read:', getAxiosErrorMessage(error, 'Request failed'));
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
       if (!token) return;
-      await axios.put('http://localhost:5000/api/notifications/mark-all-read', {}, {
+      await axios.put(apiUrl('/api/notifications/mark-all-read'), {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      console.error('Error marking all as read:', getAxiosErrorMessage(error, 'Request failed'));
     }
   };
 

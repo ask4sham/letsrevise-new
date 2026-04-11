@@ -1,6 +1,8 @@
 /**
  * PR-PAST-PAPERS-UI-2: Past paper questions — GET mine, POST (single create), POST link.
  */
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+
 export type PastPaperQuestionItem = {
   _id: string;
   pastPaperId: string;
@@ -40,7 +42,7 @@ export async function fetchPastPaperQuestions(
     headers: { Authorization: `Bearer ${token}` },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Failed to load questions");
+  if (!res.ok) throw new Error(getErrorMessageFromData(data, "Failed to load questions"));
   return data as { items: PastPaperQuestionItem[] };
 }
 
@@ -109,6 +111,6 @@ export async function linkPastPaperQuestions(
     body: JSON.stringify({ pastPaperId, specKey, items }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Failed to link questions");
+  if (!res.ok) throw new Error(getErrorMessageFromData(data, "Failed to link questions"));
   return data as { linked: number; pastPaperId: string };
 }

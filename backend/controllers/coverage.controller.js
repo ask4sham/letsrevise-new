@@ -4,6 +4,7 @@
 const { computeCoverage } = require("../services/coverage/coverageEngine");
 const CoverageSnapshot = require("../models/CoverageSnapshot");
 const { normalizeSpecKey } = require("../config/featureFlags");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 /**
  * GET /api/coverage — live computed coverage (no DB write).
@@ -19,7 +20,7 @@ async function getCoverage(req, res) {
     return res.json({ specKey: normalizeSpecKey(specKey), windowDays, rows });
   } catch (err) {
     console.error("[coverage] getCoverage error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("coverage/get", err, res);
   }
 }
 
@@ -67,7 +68,7 @@ async function getSnapshots(req, res) {
     return res.json({ specKey: normalized, rows });
   } catch (err) {
     console.error("[coverage] getSnapshots error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("coverage/snapshots", err, res);
   }
 }
 
@@ -123,7 +124,7 @@ async function getTopics(req, res) {
     });
   } catch (err) {
     console.error("[coverage] getTopics error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("coverage/topics", err, res);
   }
 }
 

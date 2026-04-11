@@ -4,6 +4,7 @@ const multer = require("multer");
 const auth = require("../middleware/auth");
 const { canAccessContent } = require("../middleware");
 const Lesson = require("../models/Lesson");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 const { createClient } = require("@supabase/supabase-js");
 
@@ -51,8 +52,7 @@ router.post("/lesson-block", auth, upload.single("file"), canAccessContent({ all
       path,
     });
   } catch (err) {
-    console.error("media upload error", err);
-    return res.status(500).json({ msg: "Server error" });
+    return sendInternalError("media/lesson-block", err, res);
   }
 });
 

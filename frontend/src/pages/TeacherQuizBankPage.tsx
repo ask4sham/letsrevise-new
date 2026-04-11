@@ -26,6 +26,7 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import type { SpecKey } from "../api/taxonomy";
+import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
 type TaxonomyUnit = { unit: string; topics: { topic: string; key: string }[] };
 
@@ -134,7 +135,7 @@ const TeacherQuizBankPage: React.FC = () => {
       const list = await listTopicQuizQuestions(topicKey, { specKey, status: statusFilter, mineOnly: true, kind });
       setQuestions(list);
     } catch (err: any) {
-      setError(err?.message || "Failed to load questions");
+      setError(getApiClientErrorMessage(err, "Failed to load questions"));
       setQuestions([]);
     } finally {
       setLoading(false);
@@ -169,7 +170,7 @@ const TeacherQuizBankPage: React.FC = () => {
       });
       setPreviewResult(result);
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Preview failed");
+      setMessage(getApiClientErrorMessage(err, "Preview failed"));
     } finally {
       setPreviewLoading(false);
     }
@@ -210,7 +211,7 @@ const TeacherQuizBankPage: React.FC = () => {
       setMessage(`Imported ${result.createdCount} draft(s). Skipped: ${result.skipped.duplicatesInPayload + result.skipped.duplicatesInDb} duplicate(s), ${result.skipped.invalid} invalid.`);
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Import failed");
+      setMessage(getApiClientErrorMessage(err, "Import failed"));
     } finally {
       setImportLoading(false);
     }
@@ -242,14 +243,14 @@ const TeacherQuizBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchQuestions();
     } catch (err: any) {
-      const data = err?.response?.data;
+      const data = err?.data ?? err?.response?.data;
       if (data?.errors && Array.isArray(data.errors)) {
         const lines = data.errors.map((e: { id?: string; questionText?: string; errors?: string[] }) =>
           `${(e.questionText ?? "").slice(0, 40)}…: ${(e.errors ?? []).join(", ")}`
         );
         setMessage(`Cannot publish: ${lines.join("; ")}`);
       } else {
-        setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (data?.message || data?.error || err?.message || "Bulk publish failed"));
+        setMessage(getHttpStatus(err) === 404 ? "Some items could not be updated." : getApiClientErrorMessage(err, "Bulk publish failed"));
       }
     } finally {
       setBulkLoading(false);
@@ -264,7 +265,7 @@ const TeacherQuizBankPage: React.FC = () => {
       setSelectedIds(new Set());
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.status === 404 ? "Some items could not be updated." : (err?.response?.data?.error || err?.message || "Bulk unpublish failed"));
+      setMessage(getHttpStatus(err) === 404 ? "Some items could not be updated." : getApiClientErrorMessage(err, "Bulk unpublish failed"));
     } finally {
       setBulkLoading(false);
     }
@@ -276,7 +277,7 @@ const TeacherQuizBankPage: React.FC = () => {
       const updated = await publishTopicQuizQuestion(id);
       setQuestions((prev) => prev.map((q) => (q._id === id ? updated : q)));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Publish failed");
+      setMessage(getApiClientErrorMessage(err, "Publish failed"));
     } finally {
       setActionLoading(null);
     }
@@ -288,7 +289,7 @@ const TeacherQuizBankPage: React.FC = () => {
       const updated = await unpublishTopicQuizQuestion(id);
       setQuestions((prev) => prev.map((q) => (q._id === id ? updated : q)));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Unpublish failed");
+      setMessage(getApiClientErrorMessage(err, "Unpublish failed"));
     } finally {
       setActionLoading(null);
     }
@@ -300,7 +301,7 @@ const TeacherQuizBankPage: React.FC = () => {
       await deleteTopicQuizQuestion(id);
       setQuestions((prev) => prev.filter((q) => q._id !== id));
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || "Delete failed");
+      setMessage(getApiClientErrorMessage(err, "Delete failed"));
     } finally {
       setActionLoading(null);
     }
@@ -368,7 +369,7 @@ const TeacherQuizBankPage: React.FC = () => {
       setMessage("Question saved.");
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Save failed");
+      setMessage(getApiClientErrorMessage(err, "Save failed"));
     } finally {
       setEditSaving(false);
     }
@@ -435,7 +436,7 @@ const TeacherQuizBankPage: React.FC = () => {
       setMessage("Question added as draft.");
       fetchQuestions();
     } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Add failed");
+      setMessage(getApiClientErrorMessage(err, "Add failed"));
     } finally {
       setAddSaving(false);
     }

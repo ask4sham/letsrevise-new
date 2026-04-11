@@ -10,6 +10,7 @@ const KnowledgeDocument = require("../models/KnowledgeDocument");
 const { upsertPolicy, normalizeDomain, normalizeUrl } = require("../services/externalSearch/policyService");
 const { enqueueKnowledgeRefresh } = require("../services/jobs/enqueueKnowledgeRefresh");
 const crypto = require("crypto");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function sha256(str) {
   return crypto.createHash("sha256").update(str, "utf8").digest("hex").slice(0, 32);
@@ -46,7 +47,7 @@ async function listPolicies(req, res) {
     return res.json({ items });
   } catch (err) {
     console.error("[externalSources] listPolicies:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("external-sources/policies", err, res, { extra: { error: "Server error" } });
   }
 }
 
@@ -96,7 +97,7 @@ async function deletePolicy(req, res) {
     return res.json({ ok: true });
   } catch (err) {
     console.error("[externalSources] deletePolicy:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("external-sources/delete-policy", err, res, { extra: { error: "Server error" } });
   }
 }
 
@@ -145,7 +146,7 @@ async function listRecent(req, res) {
     return res.json({ items: rows });
   } catch (err) {
     console.error("[externalSources] listRecent:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("external-sources/recent", err, res, { extra: { error: "Server error" } });
   }
 }
 
@@ -258,7 +259,7 @@ async function promoteToTeacherNote(req, res) {
     return res.json({ teacherNoteKnowledgeDocumentId: doc._id?.toString(), created: true });
   } catch (err) {
     console.error("[externalSources] promote:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("external-sources/promote", err, res, { extra: { error: "Server error" } });
   }
 }
 

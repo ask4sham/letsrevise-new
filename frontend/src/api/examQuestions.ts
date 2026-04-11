@@ -2,6 +2,8 @@
  * PR-PAST-PAPERS-UI-3: Exam question bank — list mine, attach from bank.
  */
 
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+
 export type ExamQuestion = {
   _id: string;
   specKey?: string;
@@ -81,6 +83,6 @@ export async function attachFromBank(params: {
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Attach failed");
+  if (!res.ok) throw new Error(getErrorMessageFromData(data, "Attach failed"));
   return data;
 }

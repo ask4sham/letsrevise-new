@@ -8,6 +8,7 @@ const LessonReview = require("../models/LessonReview");
 
 const mongoose = require("mongoose");
 const { createClient } = require("@supabase/supabase-js");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 /* =========================================================
    1) Mongo Review model (for Mongo lessonId = ObjectId)
@@ -171,8 +172,7 @@ router.post("/lesson/:lessonId/approve", auth, async (req, res) => {
       lesson: { id: lesson._id, status: lesson.status },
     });
   } catch (err) {
-    console.error("Approve lesson error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("reviews/approve", err, res);
   }
 });
 
@@ -222,8 +222,7 @@ router.post("/lesson/:lessonId/reject", auth, async (req, res) => {
       lesson: { id: lesson._id, status: lesson.status },
     });
   } catch (err) {
-    console.error("Reject lesson error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("reviews/reject", err, res);
   }
 });
 
@@ -377,8 +376,7 @@ router.get("/lesson/:lessonId", auth, canAccessContent({ requirePublished: true 
       currentPage: pageNum,
     });
   } catch (err) {
-    console.error("Get reviews error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("reviews/lesson-list", err, res);
   }
 });
 
@@ -437,7 +435,8 @@ router.post("/:lessonId", auth, canAccessContent({ requirePublished: true }), as
       .single();
 
     if (lessonError) {
-      return res.status(404).json({ msg: "Lesson not found", error: lessonError.message });
+      console.error("[reviews] supabase lesson lookup:", lessonError.message);
+      return res.status(404).json({ msg: "Lesson not found" });
     }
 
     const purchased = await hasPurchasedLessonSupabase(studentId, lessonId);
@@ -453,7 +452,8 @@ router.post("/:lessonId", auth, canAccessContent({ requirePublished: true }), as
       .limit(1);
 
     if (existingError) {
-      return res.status(500).json({ msg: "Server error", error: existingError.message });
+      console.error("[reviews] supabase existing review check:", existingError.message);
+      return sendInternalError("reviews/supabase-existing", existingError, res);
     }
 
     if (existing && existing.length > 0) {
@@ -483,7 +483,8 @@ router.post("/:lessonId", auth, canAccessContent({ requirePublished: true }), as
       .single();
 
     if (insertError) {
-      return res.status(500).json({ msg: "Server error", error: insertError.message });
+      console.error("[reviews] supabase insert:", insertError.message);
+      return sendInternalError("reviews/supabase-insert", insertError, res);
     }
 
     const aggregates = await updateLessonRatingsSupabase(lessonId);
@@ -498,8 +499,7 @@ router.post("/:lessonId", auth, canAccessContent({ requirePublished: true }), as
     if (err && err.code === 11000) {
       return res.status(400).json({ msg: "You have already reviewed this lesson" });
     }
-    console.error("Review submission error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("reviews/submit", err, res);
   }
 });
 

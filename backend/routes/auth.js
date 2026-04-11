@@ -1,6 +1,7 @@
 // /backend/routes/auth.js
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const rateLimit = require("express-rate-limit");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -10,6 +11,7 @@ const { isActiveUserDoc, withActiveUserFilter } = require("../utils/activeUser")
 const ParentLinkRequest = require("../models/ParentLinkRequest");
 const { check, validationResult } = require("express-validator");
 const { validatePasswordStrength } = require("../utils/passwordStrength");
+const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
 
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -494,25 +496,19 @@ router.post(
         },
       };
 
-      // ✅ CHANGED: Use JWT_SECRET_KEY directly from environment
-      const jwtSecretKey = process.env.JWT_SECRET_KEY;
-      if (!jwtSecretKey) {
-        console.error("❌ JWT_SECRET_KEY environment variable is not set");
-        return res.status(500).json({ msg: "Server configuration error" });
-      }
+      const { getJwtSecret } = require("../utils/jwtSecret");
+      const jwtSecretKey = getJwtSecret();
 
       if (shouldDebugJwt()) {
-        console.log(`🔑 JWT_SECRET_KEY fingerprint (SIGN/register): ${secretFingerprint(jwtSecretKey)}`);
+        console.log(`🔑 JWT fingerprint (SIGN/register): ${secretFingerprint(jwtSecretKey)}`);
       }
 
-      // ✅ CHANGED: Sign with JWT_SECRET_KEY
       jwt.sign(payload, jwtSecretKey, { 
         algorithm: "HS256",
         expiresIn: "7d" 
       }, (err, token) => {
         if (err) {
-          console.error("JWT error:", err);
-          return res.status(500).send("Server error");
+          return sendInternalError("auth/register/jwt", err, res);
         }
         console.log(`✅ Registration complete, token generated for ${normalizedEmail}`);
 
@@ -539,16 +535,12 @@ router.post(
         });
       });
     } catch (err) {
-      console.error("❌ Registration error:", err.message);
-      console.error("Error stack:", err.stack);
-
       if (err.name === "ValidationError") {
         const messages = Object.values(err.errors).map((val) => val.message);
-        console.log("Validation messages:", messages);
+        console.log("[auth/register] validation:", messages.join("; "));
         return res.status(400).json({ msg: messages.join(", ") });
       }
-
-      res.status(500).send("Server error");
+      return sendInternalError("auth/register", err, res);
     }
   }
 );
@@ -587,8 +579,7 @@ router.get("/verify-email", async (req, res) => {
     console.log(`✅ Email verified: ${user.email}`);
     return res.json({ ok: true, msg: "Email verified. You can now sign in." });
   } catch (err) {
-    console.error("Verify email error:", err);
-    return res.status(500).json({ ok: false, msg: "Server error" });
+    return sendInternalError("auth/verify-email", err, res, { extra: { ok: false } });
   }
 });
 
@@ -628,8 +619,7 @@ router.post("/resend-verification", [check("email", "Valid email is required").i
     console.log(`📧 Resent verification email to ${user.email}`);
     return res.json({ ok: true, msg: "A new verification email has been sent. Check your inbox." });
   } catch (err) {
-    console.error("Resend verification error:", err);
-    return res.status(500).json({ ok: false, msg: "Server error" });
+    return sendInternalError("auth/resend-verification", err, res, { extra: { ok: false } });
   }
 });
 
@@ -734,8 +724,7 @@ router.post(
       console.log(`✅ Password reset successful for ${user.email}`);
       return res.json({ ok: true, msg: "Password reset successfully. You can now sign in." });
     } catch (err) {
-      console.error("Reset password error:", err);
-      return res.status(500).json({ msg: "Server error" });
+      return sendInternalError("auth/reset-password", err, res);
     }
   }
 );
@@ -758,53 +747,68 @@ router.post(
 
     const { email, password } = req.body;
     const normalizedEmail = normEmail(email);
-    console.log(`\n🔐 Login attempt for: ${normalizedEmail}`);
+    // Role is UI-only on LoginPage; backend authorizes by persisted user.userType only.
+    if (IS_PRODUCTION) {
+      console.log(`[auth/login] attempt email=${normalizedEmail}`);
+    } else {
+      const bodyKeys = req.body && typeof req.body === "object" ? Object.keys(req.body) : [];
+      console.log(
+        `[auth/login] attempt email=${normalizedEmail} keys=[${bodyKeys.join(",")}] passwordPresent=${!!password}`
+      );
+    }
 
     try {
-      // Check if user exists - with case-insensitive search
+      if (mongoose.connection.readyState !== 1) {
+        console.error("[auth/login] MongoDB not connected readyState=", mongoose.connection.readyState);
+        return res.status(503).json({
+          msg: "Database is temporarily unavailable. Please try again shortly.",
+          code: "DATABASE_UNAVAILABLE",
+        });
+      }
+
       let user = await User.findOne({ email: new RegExp(`^${normalizedEmail}$`, "i") });
 
       if (!user) {
-        console.log(`❌ User not found: ${normalizedEmail}`);
+        if (!IS_PRODUCTION) console.log(`[auth/login] fail reason=user_not_found email=${normalizedEmail}`);
+        else console.log("[auth/login] fail reason=user_not_found");
         return res.status(400).json({ msg: "Invalid credentials" });
       }
       if (user.isDeleted === true) {
-        console.log(`❌ Login blocked (soft-deleted): ${normalizedEmail}`);
+        console.log(`[auth/login] fail reason=account_deleted userId=${user._id}`);
         return res.status(403).json({
           msg: "This account has been closed. Contact support to restore access.",
           code: "ACCOUNT_DELETED",
         });
       }
 
-      // Block login for unverified users (admins are typically verified via seed/admin)
       const status = (user.verificationStatus || "pending").toString().toLowerCase();
       if (status !== "verified") {
-        console.log(`❌ Login blocked: ${normalizedEmail} verificationStatus=${status}`);
+        console.log(`[auth/login] fail reason=email_not_verified userId=${user._id}`);
         return res.status(403).json({
           msg: "Please verify your email before signing in. Check your inbox for the verification link.",
           code: "EMAIL_NOT_VERIFIED",
         });
       }
 
-      console.log(`✅ User found: ${user.email} (${user.userType})`);
-      console.log(`Password hash: ${user.password.substring(0, 30)}...`);
+      if (!user.password || typeof user.password !== "string") {
+        console.error("[auth/login] fail reason=no_password_hash userId=", String(user._id));
+        return res.status(403).json({
+          msg: "This account has no password set. Use Forgot password or contact support.",
+          code: "NO_PASSWORD_SET",
+        });
+      }
 
-      // Check password
       const isMatch = await bcrypt.compare(password, user.password);
-      console.log(`Password match for ${normalizedEmail}: ${isMatch}`);
 
       if (!isMatch) {
-        // Try with trimmed password
         const trimmedMatch = await bcrypt.compare(password.trim(), user.password);
-        console.log(`Password match (trimmed): ${trimmedMatch}`);
-
         if (!trimmedMatch) {
-          console.log(`❌ Password does not match for ${normalizedEmail}`);
+          if (!IS_PRODUCTION) console.log(`[auth/login] fail reason=bad_password email=${normalizedEmail}`);
+          else console.log("[auth/login] fail reason=bad_password");
           return res.status(400).json({ msg: "Invalid credentials" });
         }
       }
 
-      // Create JWT (same rule as middleware — use getJwtSecret so sign and verify use same env var)
       const payload = {
         user: {
           id: user._id.toString(),
@@ -819,43 +823,44 @@ router.post(
         console.log(`🔑 JWT secret fingerprint (SIGN/login): ${secretFingerprint(jwtSecretKey)}`);
       }
 
-      jwt.sign(payload, jwtSecretKey, { 
-        algorithm: "HS256",
-        expiresIn: "7d" 
-      }, (err, token) => {
-        if (err) {
-          console.error("JWT error:", err);
-          return res.status(500).send("Server error");
+      jwt.sign(
+        payload,
+        jwtSecretKey,
+        {
+          algorithm: "HS256",
+          expiresIn: "7d",
+        },
+        (err, token) => {
+          if (err) {
+            console.error("[auth/login] JWT sign failed:", err.message);
+            return sendInternalError("auth/login/jwt", err, res);
+          }
+
+          if (process.env.NODE_ENV !== "test") {
+            console.log(`[auth/login] success userId=${user._id} userType=${user.userType}`);
+          }
+
+          res.json({
+            token,
+            user: {
+              id: user._id.toString(),
+              email: user.email,
+              userType: user.userType,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              shamCoins: user.shamCoins || 0,
+              referralCode: user.referralCode,
+              schoolName: user.schoolName || null,
+              verificationStatus: user.verificationStatus || "pending",
+              staffRole: user.staffRole || null,
+              yearGroup: user.yearGroup ?? null,
+              stageKey: user.stageKey ?? null,
+            },
+          });
         }
-
-        if (process.env.NODE_ENV !== "test") {
-          console.log(`✅ Login successful for ${normalizedEmail}, userType: ${user.userType}`);
-        }
-
-        res.json({
-          token,
-          user: {
-            id: user._id.toString(),
-            email: user.email,
-            userType: user.userType,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            shamCoins: user.shamCoins || 0,
-            referralCode: user.referralCode,
-            schoolName: user.schoolName || null,
-            verificationStatus: user.verificationStatus || "pending",
-            staffRole: user.staffRole || null,
-
-            // ✅ NEW (non-breaking): reliable gating for lessons
-            yearGroup: user.yearGroup ?? null,
-            stageKey: user.stageKey ?? null,
-          },
-        });
-      });
+      );
     } catch (err) {
-      console.error("❌ Login error:", err.message);
-      console.error("Error stack:", err.stack);
-      res.status(500).send("Server error");
+      return sendInternalError("auth/login", err, res);
     }
   }
 );
@@ -896,6 +901,9 @@ router.put(
     try {
       const user = await User.findById(userId);
       if (!user) return res.status(404).json({ msg: "User not found" });
+      if (!user.password || typeof user.password !== "string") {
+        return res.status(400).json({ msg: "Password change is not available for this account." });
+      }
 
       const match = await bcrypt.compare(currentPassword, user.password);
       if (!match) {
@@ -905,11 +913,14 @@ router.put(
       user.password = await bcrypt.hash(newPassword, 12);
       await user.save();
 
-      console.log(`✅ Password changed for ${user.email}`);
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`✅ Password changed for ${user.email}`);
+      } else {
+        console.log("[auth/me/password] success userId=", String(userId));
+      }
       return res.json({ ok: true, msg: "Password updated successfully." });
     } catch (err) {
-      console.error("Change password error:", err);
-      return res.status(500).json({ msg: "Server error" });
+      return sendInternalError("auth/me/password", err, res);
     }
   }
 );
@@ -938,6 +949,9 @@ router.put(
       const user = await User.findById(userId);
       if (!user) return res.status(404).json({ msg: "User not found" });
 
+      if (!user.password || typeof user.password !== "string") {
+        return res.status(400).json({ msg: "Email change requires a password on this account." });
+      }
       const match = await bcrypt.compare(currentPassword, user.password);
       if (!match) {
         return res.status(400).json({ msg: "Current password is incorrect" });
@@ -996,8 +1010,7 @@ router.put(
         requiresVerification: true,
       });
     } catch (err) {
-      console.error("Change email error:", err);
-      return res.status(500).json({ msg: "Server error" });
+      return sendInternalError("auth/me/email", err, res);
     }
   }
 );

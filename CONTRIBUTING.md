@@ -61,6 +61,10 @@ Admin media upload endpoint: `POST /api/admin/media/upload` (auth required). Acc
 
 Admin bulk import: `POST /api/admin/bulk-import/past-papers` and `POST /api/admin/bulk-import/past-paper-questions` (auth required). CSV→JSON converters: `npm run convert:past-papers-csv -- <specKey> <path/to.csv>` and `npm run convert:past-paper-questions-csv -- <specKey> <path/to.csv>`. See `backend/scripts/examples/` for PowerShell examples (dryRun by default).
 
+## Frontend PR checklist (URLs / env)
+
+- Do not introduce new hard-coded backend/API origins in `frontend/src/`. Use `apiUrl()` / `getApiBaseUrl()` for API calls and asset/media helpers for uploads/visuals. See [`frontend/docs/URL_AND_ENV.md`](frontend/docs/URL_AND_ENV.md).
+
 ## PR expectations
 
 Each new subject/spec should be delivered in:

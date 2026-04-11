@@ -11,6 +11,7 @@ const AssessmentItem = require("../models/AssessmentItem");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
 const requireActiveSubscription = require("../middleware/requireActiveSubscription");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 console.log("✅ assessmentPapers router file loaded");
 
@@ -267,7 +268,7 @@ router.get("/", auth, requireActiveSubscription, async (req, res) => {
     });
   } catch (err) {
     console.error("Error in GET /api/assessment-papers:", err);
-    return res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("assessment-papers/list", err, res, { extra: { success: false } });
   }
 });
 
@@ -414,7 +415,7 @@ router.get("/:id", auth, requireActiveSubscription, async (req, res) => {
     });
   } catch (err) {
     console.error("Error in GET /api/assessment-papers/:id:", err);
-    return res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("assessment-papers/get", err, res, { extra: { success: false } });
   }
 });
 
@@ -700,7 +701,7 @@ router.put("/:id", auth, async (req, res) => {
     if (err.message && err.message.includes("Duplicate itemId")) {
       return res.status(400).json({ success: false, msg: err.message });
     }
-    return res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("assessment-papers/update", err, res, { extra: { success: false } });
   }
 });
 
@@ -774,7 +775,9 @@ router.patch("/:id/questions", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("PATCH /assessment-papers/:id/questions error:", err);
-    return res.status(500).json({ success: false, error: "Failed to update questions", msg: err.message });
+    return sendInternalError("assessment-papers/patch-questions", err, res, {
+      extra: { success: false, error: "Failed to update questions" },
+    });
   }
 });
 
@@ -811,7 +814,7 @@ router.delete("/:id", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Error in DELETE /api/assessment-papers/:id:", err);
-    return res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("assessment-papers/delete", err, res, { extra: { success: false } });
   }
 });
 

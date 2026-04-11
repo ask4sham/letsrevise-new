@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { readAuth as readAuthStorage, clearAuth } from "../utils/authStorage";
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 
 export interface CurrentUser {
   _id: string;
@@ -61,7 +62,7 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
     if (!url) return;
     let cancelled = false;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return;
         if (res.status === 401) {
           clearAuth();
@@ -69,6 +70,21 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
           if (process.env.NODE_ENV !== "production") {
             console.info("[auth] Token invalid (401), cleared localStorage");
           }
+          return;
+        }
+        if (!res.ok && process.env.NODE_ENV !== "production") {
+          const text = await res.text();
+          let parsed: unknown;
+          try {
+            parsed = text ? JSON.parse(text) : null;
+          } catch {
+            parsed = null;
+          }
+          console.warn(
+            "[auth] /users/me:",
+            res.status,
+            getErrorMessageFromData(parsed, `HTTP ${res.status}`)
+          );
         }
       })
       .catch(() => {

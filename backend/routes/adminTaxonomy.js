@@ -11,6 +11,7 @@ const AdminTopicPlacement = require("../models/AdminTopicPlacement");
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { getMergedTaxonomyBySpecKey, toSlug, getLinkedContentCounts } = require("../services/adminTaxonomyService");
 const { queryCandidates } = require("../utils/topicKey");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 router.use(auth, requireContentManager);
 
@@ -76,7 +77,7 @@ router.get("/", async (req, res) => {
     return res.json({ hierarchy });
   } catch (err) {
     console.error("Admin taxonomy GET error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("admin-taxonomy/hierarchy", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -100,7 +101,7 @@ router.get("/specs", async (req, res) => {
     return res.json({ specs });
   } catch (err) {
     console.error("Admin taxonomy specs error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("admin-taxonomy/specs", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -137,7 +138,7 @@ router.post("/unit", async (req, res) => {
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Main topic already exists" });
     console.error("Admin taxonomy add unit error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("admin-taxonomy/unit", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -183,7 +184,7 @@ router.post("/subtopic", async (req, res) => {
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Sub-topic already exists" });
     console.error("Admin taxonomy add subtopic error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("admin-taxonomy/subtopic", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -194,7 +195,7 @@ router.get("/items", async (req, res) => {
     return res.json({ items });
   } catch (err) {
     console.error("Admin taxonomy items error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("admin-taxonomy/items", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -261,7 +262,7 @@ router.put("/items/:id", async (req, res) => {
     return res.status(400).json({ error: "Unknown type" });
   } catch (err) {
     console.error("Admin taxonomy edit error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("admin-taxonomy/put-item", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -307,7 +308,7 @@ router.delete("/items/:id", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("Admin taxonomy delete error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("admin-taxonomy/delete-item", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -340,7 +341,7 @@ router.patch("/main-topic/:id", async (req, res) => {
     return res.json({ item });
   } catch (err) {
     console.error("Admin taxonomy PATCH main-topic:", err);
-    return res.status(500).json({ error: err?.message || "Server error" });
+    return sendInternalError("admin-taxonomy/patch-main-topic", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -385,7 +386,7 @@ router.patch("/sub-topic/:id", async (req, res) => {
     return res.json({ item });
   } catch (err) {
     console.error("Admin taxonomy PATCH sub-topic:", err);
-    return res.status(500).json({ error: err?.message || "Server error" });
+    return sendInternalError("admin-taxonomy/patch-sub-topic", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -416,7 +417,7 @@ router.delete("/main-topic/:id", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("Admin taxonomy DELETE main-topic:", err);
-    return res.status(500).json({ error: err?.message || "Server error" });
+    return sendInternalError("admin-taxonomy/delete-main-topic", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -438,7 +439,7 @@ router.delete("/sub-topic/:id", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("Admin taxonomy DELETE sub-topic:", err);
-    return res.status(500).json({ error: err?.message || "Server error" });
+    return sendInternalError("admin-taxonomy/delete-sub-topic", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -481,7 +482,7 @@ router.post("/section", async (req, res) => {
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Section already exists" });
     console.error("Admin taxonomy add section error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("admin-taxonomy/section", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -497,7 +498,7 @@ router.delete("/section/:id", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("Admin taxonomy DELETE section:", err);
-    return res.status(500).json({ error: err?.message || "Server error" });
+    return sendInternalError("admin-taxonomy/delete-section", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -541,7 +542,7 @@ router.post("/topic-placement", async (req, res) => {
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Placement conflict" });
     console.error("Admin taxonomy topic-placement error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("admin-taxonomy/topic-placement", err, res, { extra: { error: "Server error" } });
   }
 });
 
@@ -615,7 +616,7 @@ router.post("/sub-topic/:id/move", async (req, res) => {
     return res.json({ item });
   } catch (err) {
     console.error("Admin taxonomy move sub-topic:", err);
-    return res.status(500).json({ error: err?.message || "Server error" });
+    return sendInternalError("admin-taxonomy/move-sub-topic", err, res, { extra: { error: "Server error" } });
   }
 });
 

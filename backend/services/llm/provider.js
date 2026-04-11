@@ -12,12 +12,104 @@
  * }
  */
 const { getProvider: getEmbeddingsProvider } = require("../embeddings/provider");
+const { isTruthyEnv } = require("../../config/storage");
 
 const MAX_CONTEXT_CHARS = 12000;
 
+/** Unified user-visible warning when enquiry uses general-knowledge fallback (non-strict). */
+const ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING =
+  "This answer uses general knowledge because trusted curriculum sources were limited.";
+
+/** @deprecated use ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING */
+const ENQUIRY_GENERAL_KNOWLEDGE_NOTICE = ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING;
+/** @deprecated use ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING */
+const ENQUIRY_NO_CURRICULUM_SOURCES_WARNING = ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING;
+
+/** Max OpenAI attempts for enquiry (initial try + retries). Default 3 in prod, 1 in test. */
+function getEnquiryLlmMaxAttempts() {
+  const raw = process.env.ENQUIRY_LLM_MAX_ATTEMPTS;
+  if (raw != null && String(raw).trim() !== "") {
+    const n = parseInt(String(raw), 10);
+    if (Number.isFinite(n) && n >= 1) return Math.min(8, n);
+  }
+  return process.env.NODE_ENV === "test" ? 1 : 3;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry only on likely-transient failures (rate limits, server errors, network).
+ * Does not retry missing API key, 400, 401, 403, 404.
+ */
+function shouldRetryOpenAiEnquiryError(err) {
+  if (!err) return false;
+  const msg = String(err.message || "");
+
+  if (msg.includes("LLM_API_KEY or OPENAI_API_KEY required")) return false;
+
+  const status = err.response?.status;
+  if (status === 400 || status === 401 || status === 403 || status === 404) return false;
+
+  if (status === 429 || status === 408 || (status >= 500 && status < 600)) return true;
+
+  const code = err.code;
+  if (code && ["ECONNRESET", "ETIMEDOUT", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ECONNABORTED"].includes(code)) {
+    return true;
+  }
+
+  if (!err.response) return true;
+
+  if (status >= 400 && status < 500) return false;
+
+  return false;
+}
+
+/**
+ * LetsRevise LLM (enquiry, topic summary, starter pack, etc.).
+ * - test: defaults to mock unless LLM_PROVIDER=openai (stable CI).
+ * - non-test: explicit LLM_PROVIDER=mock → mock; LLM_PROVIDER=openai → openai;
+ *   otherwise if OPENAI_API_KEY or LLM_API_KEY is set → openai (production default), else mock.
+ */
 function getProvider() {
-  const p = (process.env.LLM_PROVIDER || "mock").toLowerCase().trim();
-  return p === "openai" ? "openai" : "mock";
+  const raw = (process.env.LLM_PROVIDER || "").toLowerCase().trim();
+  if (process.env.NODE_ENV === "test") {
+    return raw === "openai" ? "openai" : "mock";
+  }
+  if (raw === "mock") return "mock";
+  if (raw === "openai") return "openai";
+  const hasKey = !!(process.env.LLM_API_KEY || process.env.OPENAI_API_KEY);
+  return hasKey ? "openai" : "mock";
+}
+
+/**
+ * Call once from server startup (not in test).
+ */
+function logEnquiryTutorStartup() {
+  if (process.env.NODE_ENV === "test") return;
+  const p = getProvider();
+  const hasKey = !!(process.env.LLM_API_KEY || process.env.OPENAI_API_KEY);
+  const explicit = String(process.env.LLM_PROVIDER || "").trim();
+  console.log(
+    `[llm] LetsRevise tutor effectiveProvider=${p}` +
+      (explicit ? ` (LLM_PROVIDER=${JSON.stringify(explicit)})` : " (LLM_PROVIDER unset; openai when API key present)")
+  );
+  if (p === "mock") {
+    if (hasKey && explicit === "mock") {
+      console.warn("[llm] LetsRevise tutor: LLM_PROVIDER=mock — using mock despite API key (dev/test).");
+    } else if (!hasKey) {
+      console.warn(
+        "[llm] LetsRevise tutor: mock — set OPENAI_API_KEY or LLM_API_KEY for OpenAI (or LLM_PROVIDER=openai)."
+      );
+    }
+    return;
+  }
+  if (!hasKey) {
+    console.error(
+      "[llm] LetsRevise tutor: effectiveProvider=openai but no OPENAI_API_KEY/LLM_API_KEY — generation will throw."
+    );
+  }
 }
 
 /**
@@ -47,12 +139,79 @@ function buildConversationContext(conversationContext) {
 }
 
 /**
+ * Mock: general-knowledge path when curriculum is empty (dev / no API key scenarios).
+ */
+function mockGeneralKnowledgeFallback(question, constraints) {
+  const responseMode = String(constraints?.responseMode ?? "explain").toLowerCase();
+  const q = (question || "").trim();
+  const noCurriculum = constraints?.noCurriculumSources === true;
+  const notice = ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING;
+
+  if (noCurriculum) {
+    const explanation =
+      responseMode === "quick"
+        ? `• Short answer (mock; no curriculum hits).\n• Topic: ${q.slice(0, 100)}`
+        : `Simplified mock answer (LLM_PROVIDER=mock). No trusted sources matched.\n\nQuestion: ${q.slice(0, 200)}`;
+    const keyPoints = ["Verify facts with your specification or teacher."];
+    const practice =
+      constraints?.includePractice !== false
+        ? [
+            {
+              type: "short",
+              question: `Key point for: ${q.slice(0, 50)}?`,
+              answer: "Check your class notes.",
+              markScheme: "1 mark for a valid point",
+            },
+          ]
+        : [];
+    return {
+      explanation,
+      keyPoints,
+      citations: [],
+      practice,
+      warnings: [notice],
+    };
+  }
+
+  const explanation =
+    responseMode === "quick"
+      ? `• Core idea: answer based on general science knowledge.\n• Typical GCSE focus: definitions + one application.\n• Verify with your specification when sources load.`
+      : `This is a **mock** general-knowledge answer (LLM_PROVIDER=mock). In production with OpenAI, you get a full tutor-style reply here.\n\nQuestion: ${q.slice(0, 200)}`;
+  const keyPoints = [
+    "Not sourced from LetsRevise curriculum documents.",
+    "Use your textbook or class notes to confirm exam wording.",
+  ];
+  const practice =
+    constraints?.includePractice !== false
+      ? [
+          {
+            type: "short",
+            question: `Explain one key idea related to: ${q.slice(0, 60)}`,
+            answer: "Compare with your specification statement.",
+            markScheme: "1 mark for a valid point",
+          },
+        ]
+      : [];
+  return {
+    explanation,
+    keyPoints,
+    citations: [],
+    practice,
+    warnings: [notice],
+  };
+}
+
+/**
  * Mock provider: deterministic response from context snippets.
  */
 function mockGenerate(question, contextChunks, constraints) {
+  if (constraints?.generalKnowledgeFallback) {
+    return mockGeneralKnowledgeFallback(question, constraints);
+  }
+
   const chunks = contextChunks || [];
   const hasWeakEvidence = constraints?.weakEvidence === true;
-  const responseMode = (constraints?.responseMode || "explain").toLowerCase();
+  const responseMode = String(constraints?.responseMode ?? "explain").toLowerCase();
 
   let explanation = "";
   const keyPoints = [];
@@ -140,9 +299,127 @@ function mockGenerate(question, contextChunks, constraints) {
 }
 
 /**
+ * OpenAI: general-knowledge fallback when no curriculum chunks exist.
+ */
+async function openaiGenerateGeneralKnowledge(question, constraints) {
+  const axios = require("axios");
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || !String(apiKey).trim()) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY required when LLM_PROVIDER=openai");
+  }
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+  const convCtx = buildConversationContext(constraints?.conversationContext || []);
+  const responseMode = String(constraints?.responseMode ?? "explain").toLowerCase();
+  const modeInstructions = {
+    quick:
+      "\n\nQUICK MODE: Answer in 3–5 bullet points, max ~600 chars. Include exactly 1 practice item. No long paragraphs.",
+    explain:
+      "\n\nEXPLAIN MODE: Clear explanation, simple structure, one short example. Include 2 practice items (1 mcq + 1 short).",
+    exam:
+      "\n\nEXAM MODE: Answer like an examiner—key points, command words. Include 1 exam-style question + mark scheme. Use syllabus language; no fluff.",
+    revision:
+      "\n\nREVISION MODE: Give a revision sheet—key facts, common mistakes, memory cues. Provide 3 flashcard prompts in practice array as type=flashcard with front and back fields.",
+  };
+  const modeNote = modeInstructions[responseMode] || modeInstructions.explain;
+  const specHint = constraints?.specKey ? ` Specification context (wording only): ${String(constraints.specKey)}.` : "";
+  const topicHint = constraints?.topicKey ? ` Sub-topic context: ${String(constraints.topicKey)}.` : "";
+  const studentNote =
+    constraints?.studentMode === true
+      ? `
+
+STUDENT MODE:
+- Use simple language suitable for GCSE/A-Level students.
+- Keep explanation <= 1200 characters.
+- Prefer bullet points.
+- Do not mention internal implementation details.`
+      : "";
+
+  const simplifiedNote =
+    constraints?.noCurriculumSources === true
+      ? `
+
+SIMPLIFIED: No trusted curriculum documents matched. Give a SHORT, clear answer (aim under ~800 characters). Prefer bullet points.`
+      : "";
+
+  const systemPrompt = `You are an educational AI tutor for UK GCSE/A-Level. No LetsRevise curriculum sources were retrieved for this question. Answer using well-established general knowledge and typical exam-board expectations. Do NOT claim your answer comes from a specific LetsRevise document or spec statement. If unsure, say so briefly.${simplifiedNote}
+
+Rules:
+- Return valid JSON only.
+- citations must be an empty array [].
+- Do not invent quotation marks from curriculum documents.
+- Do not put "Insufficient trusted sources" in warnings; the client shows a fixed curriculum notice.
+${modeNote}${studentNote}`;
+
+  const userPrompt = `${convCtx}${specHint}${topicHint}
+
+Question: ${question}
+
+Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [], "practice": [{ "type": "mcq|short|exam|flashcard", "question": "...", "options": [], "answer": "...", "markScheme": "...", "front": "...", "back": "..." }], "warnings": [] }`;
+
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.4,
+    },
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error("Invalid JSON from LLM: " + e.message);
+  }
+
+  const out = {
+    explanation: String(parsed.explanation || "").trim(),
+    keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map(String) : [],
+    citations: [],
+    practice: constraints?.includePractice !== false && Array.isArray(parsed.practice) ? parsed.practice : [],
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String) : [],
+  };
+
+  out.practice = (out.practice || [])
+    .filter((p) => p && (p.type === "flashcard" ? (p.front && p.back) : p.question))
+    .map((p) => {
+      if (p.type === "flashcard") {
+        return {
+          type: "flashcard",
+          front: String(p.front || "").slice(0, 300),
+          back: String(p.back || "").slice(0, 500),
+        };
+      }
+      return {
+        type: p.type || "short",
+        question: String(p.question || ""),
+        options: Array.isArray(p.options) ? p.options.map(String) : undefined,
+        answer: String(p.answer || ""),
+        markScheme: p.markScheme ? String(p.markScheme) : undefined,
+      };
+    });
+
+  out.warnings = [ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING];
+
+  return out;
+}
+
+/**
  * OpenAI chat completions with JSON output.
  */
 async function openaiGenerate(question, contextChunks, constraints) {
+  if (constraints?.generalKnowledgeFallback) {
+    return openaiGenerateGeneralKnowledge(question, constraints);
+  }
+
   const axios = require("axios");
   const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey || !String(apiKey).trim()) {
@@ -157,7 +434,7 @@ async function openaiGenerate(question, contextChunks, constraints) {
       ? "\n\nUse conversation context only to interpret follow-up questions. Do not invent new facts. Still cite trusted sources."
       : "";
 
-  const responseMode = (constraints?.responseMode || "explain").toLowerCase();
+  const responseMode = String(constraints?.responseMode ?? "explain").toLowerCase();
   const modeInstructions = {
     quick:
       "\n\nQUICK MODE: Answer in 3–5 bullet points, max ~600 chars. Include exactly 1 practice item. No long paragraphs.",
@@ -278,7 +555,44 @@ async function generateEnquiryAnswer({ question, contextChunks, constraints = {}
   if (!q) throw new Error("question is required");
 
   if (provider === "openai") {
-    return openaiGenerate(q, contextChunks, constraints);
+    const maxAttempts = getEnquiryLlmMaxAttempts();
+    let lastErr;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await openaiGenerate(q, contextChunks, constraints);
+      } catch (err) {
+        lastErr = err;
+        const canRetry = attempt < maxAttempts && shouldRetryOpenAiEnquiryError(err);
+        if (!canRetry) {
+          break;
+        }
+        const delayMs = Math.min(2500, 350 * 2 ** (attempt - 1));
+        if (process.env.NODE_ENV !== "test") {
+          console.warn(
+            `[llm/enquiry] OpenAI attempt ${attempt}/${maxAttempts} failed, retry in ${delayMs}ms:`,
+            err && err.message ? err.message : err
+          );
+        }
+        await sleep(delayMs);
+      }
+    }
+
+    if (isTruthyEnv("ENQUIRY_LLM_FALLBACK_MOCK")) {
+      const out = mockGenerate(q, contextChunks, constraints);
+      const fallbackMsg =
+        "Live AI was temporarily unavailable; showing a simplified offline-style response.";
+      const detail =
+        lastErr && lastErr.message
+          ? ` (${String(lastErr.message).slice(0, 120)})`
+          : "";
+      out.warnings = [...(out.warnings || []), fallbackMsg + detail];
+      if (process.env.NODE_ENV !== "test") {
+        console.warn("[llm/enquiry] ENQUIRY_LLM_FALLBACK_MOCK: using mock response after OpenAI failure");
+      }
+      return out;
+    }
+
+    throw lastErr;
   }
   return Promise.resolve(mockGenerate(q, contextChunks, constraints));
 }
@@ -1046,4 +1360,16 @@ async function generatePracticeSet({ specKey, topicKey, contextChunks, counts, w
   return Promise.resolve(mockGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }));
 }
 
-module.exports = { generateEnquiryAnswer, generateStarterPack, generateTopicSummary, generateWeakEvidenceFixPack, generatePracticeSet, getProvider, buildContext };
+module.exports = {
+  generateEnquiryAnswer,
+  generateStarterPack,
+  generateTopicSummary,
+  generateWeakEvidenceFixPack,
+  generatePracticeSet,
+  getProvider,
+  logEnquiryTutorStartup,
+  buildContext,
+  ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING,
+  ENQUIRY_GENERAL_KNOWLEDGE_NOTICE,
+  ENQUIRY_NO_CURRICULUM_SOURCES_WARNING,
+};

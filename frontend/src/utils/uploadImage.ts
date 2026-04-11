@@ -1,5 +1,7 @@
 // /frontend/src/utils/uploadImage.ts
 import { getUploadBaseUrl } from "../services/mediaUrl";
+import { getErrorMessageFromData } from "./apiErrorMessage";
+import { apiUrl } from "./apiBaseUrl";
 
 export type UploadImageResult = {
   ok: boolean;
@@ -8,11 +10,16 @@ export type UploadImageResult = {
   folder: string;     // e.g. "images/gcse"
 };
 
-const BACKEND_BASE =
-  (process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || process.env.REACT_APP_BACKEND_URL || "http://localhost:5000")
-    .trim()
-    .replace(/\/+$/, "")
-    .replace(/\/api\/?$/, "");
+/**
+ * Legacy override only. Prefer `REACT_APP_API_BASE` / `REACT_APP_API_URL` (see `docs/URL_AND_ENV.md`).
+ * `REACT_APP_BACKEND_URL` is supported only for older setups that pointed uploads at a separate host.
+ */
+function uploadImageEndpoint(): string {
+  const raw = (process.env.REACT_APP_BACKEND_URL || "").trim();
+  if (!raw) return apiUrl("/api/uploads/image");
+  const root = raw.replace(/\/+$/, "").replace(/\/api\/?$/, "");
+  return `${root}/api/uploads/image`;
+}
 
 /**
  * Upload an image file to the backend uploads API.
@@ -27,7 +34,7 @@ export async function uploadImage(
   form.append("file", file);
   form.append("folder", folder);
 
-  const res = await fetch(`${BACKEND_BASE}/api/uploads/image`, {
+  const res = await fetch(uploadImageEndpoint(), {
     method: "POST",
     body: form,
   });
@@ -35,9 +42,7 @@ export async function uploadImage(
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const msg =
-      (data && (data.error || data.message)) ||
-      `Upload failed (${res.status})`;
+    const msg = getErrorMessageFromData(data, `Upload failed (${res.status})`);
     throw new Error(msg);
   }
 

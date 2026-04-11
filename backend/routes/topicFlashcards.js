@@ -12,6 +12,7 @@ const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../util
 const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomyService");
 const { fingerprint, dedupeIncoming } = require("../utils/flashcardDedupe");
 const { parseValidateDedupe, validateBulkItems, MAX_ITEMS } = require("../utils/parseBulkFlashcards");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -72,7 +73,7 @@ router.get("/", auth, async (req, res) => {
     return res.json({ items });
   } catch (err) {
     console.error("TopicFlashcards GET error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/list", err, res);
   }
 });
 
@@ -213,7 +214,7 @@ router.post("/bulk/preview", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("TopicFlashcards preview error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/bulk-preview", err, res);
   }
 });
 
@@ -371,7 +372,7 @@ router.post("/bulk/publish", auth, async (req, res) => {
     return res.json({ ok: true, matchedCount: result.matchedCount, updatedCount: result.modifiedCount });
   } catch (err) {
     console.error("TopicFlashcards bulk publish error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/bulk-publish", err, res);
   }
 });
 
@@ -394,7 +395,7 @@ router.post("/bulk/unpublish", auth, requireAdmin, async (req, res) => {
     return res.json({ ok: true, matchedCount: result.matchedCount, updatedCount: result.modifiedCount });
   } catch (err) {
     console.error("TopicFlashcards bulk unpublish error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/bulk-unpublish", err, res);
   }
 });
 
@@ -434,7 +435,7 @@ router.post("/:id/publish", auth, async (req, res) => {
     return res.json({ flashcard: card.toObject() });
   } catch (err) {
     console.error("TopicFlashcards publish error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/publish", err, res);
   }
 });
 
@@ -455,7 +456,7 @@ router.post("/:id/unpublish", auth, requireAdmin, async (req, res) => {
     return res.json({ flashcard: card.toObject() });
   } catch (err) {
     console.error("TopicFlashcards unpublish error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/unpublish", err, res);
   }
 });
 
@@ -478,7 +479,7 @@ router.post("/:id/reassign", auth, requireAdmin, async (req, res) => {
     return res.json({ flashcard: card.toObject ? card.toObject() : card });
   } catch (err) {
     console.error("TopicFlashcards reassign error:", err);
-    return res.status(500).json({ error: err.message || "Reassign failed" });
+    return sendInternalError("topic-flashcards/reassign", err, res);
   }
 });
 
@@ -500,7 +501,9 @@ router.patch("/:id", auth, async (req, res) => {
     await item.save();
     return res.json({ item: item.toObject ? item.toObject() : item });
   } catch (err) {
-    return res.status(err.status || 400).json({ error: err.message || "Update failed" });
+    const st = err.status || 400;
+    if (st >= 500) return sendInternalError("topic-flashcards/patch", err, res);
+    return res.status(st).json({ error: err.message || "Update failed" });
   }
 });
 
@@ -565,7 +568,7 @@ router.delete("/:id", auth, async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("TopicFlashcards DELETE error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("topic-flashcards/delete", err, res);
   }
 });
 

@@ -19,6 +19,7 @@ const {
 // AI Generation Jobs admin/public routers (structural mounts only; minimal handlers; groundwork phase)
 const adminAiGenerationJobs = require("./adminAiGenerationJobs");
 const aiGenerationJobs = require("./aiGenerationJobs");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 // Middleware to check if user is admin
 const checkAdmin = (req, res, next) => {
@@ -454,7 +455,7 @@ router.get("/audit-log", auth, checkAdmin, async (req, res) => {
     return res.json({ success: true, logs });
   } catch (err) {
     console.error("GET audit-log error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -581,7 +582,7 @@ router.get("/stats", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Get admin stats error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -595,7 +596,7 @@ router.get("/revision-metrics", auth, checkAdmin, (req, res) => {
     res.json({ success: true, metrics: revisionMetrics.getSnapshot() });
   } catch (err) {
     console.error("Get revision metrics error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -615,7 +616,7 @@ router.get("/revision-alerts", auth, checkAdmin, (req, res) => {
     res.json({ success: true, ...result });
   } catch (err) {
     console.error("Get revision alerts error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -735,7 +736,7 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Get users error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -775,7 +776,7 @@ router.get("/users/:userId", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Get user detail error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -815,7 +816,7 @@ router.get("/users/:userId/entitlements-debug", auth, checkAdmin, async (req, re
     });
   } catch (err) {
     console.error("Entitlements debug error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -856,7 +857,7 @@ router.post("/users/:userId/restore", auth, checkAdmin, async (req, res) => {
     return res.json({ success: true, msg: "User restored", user: summary });
   } catch (err) {
     console.error("Admin restore user error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -914,7 +915,7 @@ router.delete("/users/:userId", auth, checkAdmin, async (req, res) => {
     return res.json({ success: true, msg: "User deactivated (lessons and links preserved)", deleted: summary });
   } catch (err) {
     console.error("Admin delete user error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -994,7 +995,7 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
     });
   } catch (err) {
     console.error("Get lessons error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1012,7 +1013,7 @@ router.get("/templates", auth, requireContentManager, async (req, res) => {
     return res.json({ success: true, templates });
   } catch (err) {
     console.error("Get admin templates error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1033,7 +1034,7 @@ router.get("/template-clones", auth, requireContentManager, async (req, res) => 
     return res.json({ success: true, clones });
   } catch (err) {
     console.error("Get admin template clones error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1067,7 +1068,7 @@ router.get("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
     });
   } catch (err) {
     console.error("Admin get lesson detail error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1264,7 +1265,7 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
     });
   } catch (err) {
     console.error("Admin update lesson error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1478,7 +1479,7 @@ router.put("/lessons/:lessonId/status", auth, requireContentManager, async (req,
     });
   } catch (err) {
     console.error("Update lesson status error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1537,7 +1538,7 @@ router.delete("/lessons/:lessonId", auth, requireContentManager, async (req, res
     return res.json({ success: true, msg: "Lesson deleted", deleted: summary });
   } catch (err) {
     console.error("Admin delete lesson error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1612,7 +1613,7 @@ router.get("/transactions", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Get transactions error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1666,7 +1667,7 @@ router.put("/users/:userId/verify", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Verify user error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1706,7 +1707,7 @@ router.put("/users/:userId/staff-role", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Update staff-role error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1746,7 +1747,7 @@ router.put("/users/:userId/role", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Update role error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1809,7 +1810,7 @@ router.post("/shamcoins", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Adjust sham coins error:", err);
-    res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1870,7 +1871,7 @@ router.post("/subscription/grant", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Admin subscription grant error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 
@@ -1920,7 +1921,7 @@ router.post("/subscription/expire", auth, checkAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("Admin subscription expire error:", err);
-    return res.status(500).json({ msg: "Server error", error: err.message });
+    return sendInternalError("admin", err, res);
   }
 });
 

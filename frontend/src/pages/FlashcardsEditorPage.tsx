@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import FlashcardsEditor, { Flashcard } from "../components/revision/FlashcardsEditor";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { resolveLessonTopicKeyForBankFromLesson } from "../utils/resolveLessonTopicKey";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
 type LessonResponse = {
   success?: boolean;
@@ -24,8 +25,7 @@ type LessonResponse = {
 export default function FlashcardsEditorPage() {
   const { id } = useParams<{ id: string }>();
 
-  // IMPORTANT: frontend dev server is usually 3000, backend API is 5000
-  const apiBaseUrl = "http://localhost:5000";
+  const apiBaseUrl = getApiBaseUrl();
 
   const [loading, setLoading] = useState(true);
   const [lessonTitle, setLessonTitle] = useState<string>("Lesson");

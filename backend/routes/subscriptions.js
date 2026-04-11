@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { sendInternalError } = require('../utils/safeErrorResponse');
 
 // Mock Stripe for now - we'll integrate real Stripe later
 const stripe = {
@@ -79,8 +80,7 @@ router.get('/plans', async (req, res) => {
 
     res.json({ success: true, plans });
   } catch (err) {
-    console.error('Get plans error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('subscriptions/plans', err, res);
   }
 });
 
@@ -167,8 +167,7 @@ router.post('/subscribe', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Subscribe error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('subscriptions/subscribe', err, res);
   }
 });
 
@@ -214,8 +213,7 @@ router.post('/cancel', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Cancel subscription error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('subscriptions/cancel', err, res);
   }
 });
 
@@ -281,8 +279,7 @@ router.post('/upgrade', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Upgrade subscription error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('subscriptions/upgrade', err, res);
   }
 });
 
@@ -340,8 +337,7 @@ router.post('/renew-shamcoins', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Renew sham coins error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('subscriptions/renew-shamcoins', err, res);
   }
 });
 
@@ -401,8 +397,7 @@ router.post('/create-checkout-session', auth, async (req, res) => {
       message: 'Mock checkout session created. In production, this would redirect to Stripe.'
     });
   } catch (err) {
-    console.error('Create checkout session error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
+    return sendInternalError('subscriptions/create-checkout-session', err, res);
   }
 });
 

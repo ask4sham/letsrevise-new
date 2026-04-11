@@ -1,9 +1,14 @@
 /**
  * Media URL service — canonical place for asset URL construction.
- * Use when inserting uploaded media into lesson markdown.
+ * Use when inserting uploaded media into lesson markdown. See `docs/URL_AND_ENV.md` (asset vs API URLs).
  *
- * Local dev: http://localhost:5000/uploads/...
- * Production: https://letsrevise-new.onrender.com/uploads/...
+ * Relative `/uploads/...` paths are resolved against the **same origin as the SPA**
+ * (`getAssetBaseUrl` → `window.location.origin` in the browser). That matches:
+ * - CRA + setupProxy (dev): `/uploads/*` → backend :5000
+ * - Netlify/production: redirects proxy `/uploads/*` to the backend (see netlify.toml)
+ *
+ * Full `http(s)://` URLs (R2, Supabase, Render, etc.) are left unchanged by callers that
+ * already store absolute URLs.
  *
  * Future: can be extended for S3, R2, Supabase Storage without changing callers.
  */
@@ -15,7 +20,7 @@ export { getAssetBaseUrl };
  * Convert a relative asset path to an absolute URL.
  * Use at upload-insert time so markdown stores canonical URLs.
  * - Full URLs (https://...r2.dev/..., Render, etc.): pass through unchanged
- * - Relative /uploads, /visuals, /content: resolve to backend (Render)
+ * - Relative /uploads, /visuals, /content: resolved via `makeAbsoluteAssetUrl` (same-origin + Netlify/CDN rules)
  */
 export function toAbsoluteAssetUrl(path: string | null | undefined): string {
   if (!path) return "";
@@ -26,9 +31,11 @@ export function toAbsoluteAssetUrl(path: string | null | undefined): string {
   return makeAbsoluteAssetUrl(p) ?? path;
 }
 
-/** Base URL for upload API. Production always uses Render; local dev uses getAssetBaseUrl. */
+/**
+ * Base for turning relative upload paths (e.g. `/uploads/...`) into absolute display URLs.
+ * Delegates to `getAssetBaseUrl()` so upload previews match lesson markdown asset resolution
+ * (same origin in the browser; SSR falls back to Render like `getAssetBaseUrl`).
+ */
 export function getUploadBaseUrl(): string {
-  if (typeof window === "undefined") return "https://letsrevise-new.onrender.com";
-  const isLocal = /localhost|127\.0\.0\.1/.test(window.location.hostname);
-  return isLocal ? (getAssetBaseUrl() || "http://localhost:5000") : "https://letsrevise-new.onrender.com";
+  return getAssetBaseUrl();
 }

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import { getAxiosErrorMessage } from '../utils/apiErrorMessage';
+import { apiUrl } from '../utils/apiBaseUrl';
 import { clearAuth, updateUser } from '../utils/authStorage';
 
 const Dashboard: React.FC = () => {
@@ -21,7 +23,7 @@ const Dashboard: React.FC = () => {
   const fetchUserProfile = async () => {
     if (!token) return;
     try {
-      const response = await axios.get('http://localhost:5000/api/users/profile', {
+      const response = await axios.get(apiUrl('/api/users/profile'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const profile = response.data;
@@ -39,7 +41,7 @@ const Dashboard: React.FC = () => {
       updateUser(profile);
       refresh();
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching user profile:', getAxiosErrorMessage(error, 'Profile request failed'));
       clearAuth();
       refresh();
       navigate('/login');

@@ -6,6 +6,7 @@ const fs = require("fs");
 const mongoose = require("mongoose");
 const router = express.Router();
 const auth = require("../middleware/auth");
+const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
 
 const Lesson = require("../models/Lesson");
 const LessonRAGChunk = require("../models/LessonRAGChunk");
@@ -5151,16 +5152,12 @@ router.post("/generate-lesson", auth, async (req, res) => {
         "OpenAI API error";
       return res.status(status === 429 ? 429 : 500).json({
         error: status === 429 ? "OpenAI rate limit exceeded" : "AI request failed",
-        details: msg,
+        details: IS_PRODUCTION ? "The AI service returned an error." : msg,
       });
     }
 
-    return res.status(500).json({
-      error: "Failed to generate lesson draft.",
-      details:
-        process.env.NODE_ENV === "development"
-          ? String(error?.message || error)
-          : undefined,
+    return sendInternalError("ai/generate-lesson-draft", error, res, {
+      extra: { error: "Failed to generate lesson draft." },
     });
   }
 });
@@ -5628,17 +5625,14 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
       const payload = {
         error: status === 429 ? "OpenAI rate limit exceeded" : "Failed to generate lesson materials",
-        details: msg,
-        ...(body?.error?.code && { code: body.error.code }),
+        details: IS_PRODUCTION ? "The AI service returned an error." : msg,
+        ...(!IS_PRODUCTION && body?.error?.code ? { code: body.error.code } : {}),
       };
       return res.status(status).json(payload);
     }
 
-    // Include actual error message so user can debug (e.g. missing key, invalid schema)
-    const details = error?.message ? String(error.message) : undefined;
-    return res.status(500).json({
-      error: "Failed to generate lesson materials",
-      ...(details && { details }),
+    return sendInternalError("ai/generate-and-save", error, res, {
+      extra: { error: "Failed to generate lesson materials" },
     });
   }
 });
@@ -5809,9 +5803,8 @@ router.post("/improve-lesson", auth, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ AI improve-lesson error:", error?.message || error);
-    return res.status(500).json({
-      error: "Failed to improve lesson",
-      details: process.env.NODE_ENV === "development" ? String(error?.message || error) : undefined,
+    return sendInternalError("ai/improve-lesson", error, res, {
+      extra: { error: "Failed to improve lesson" },
     });
   }
 });
@@ -6073,15 +6066,11 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
         "OpenAI API error";
       return res.status(status === 429 ? 429 : 500).json({
         error: status === 429 ? "OpenAI rate limit exceeded" : "AI request failed",
-        details: msg,
+        details: IS_PRODUCTION ? "The AI service returned an error." : msg,
       });
     }
-    return res.status(500).json({
-      error: "Failed to generate AQA GCSE Biology lesson.",
-      details:
-        process.env.NODE_ENV === "development"
-          ? String(error?.message || error)
-          : undefined,
+    return sendInternalError("ai/lesson-factory/aqa-gcse-biology", error, res, {
+      extra: { error: "Failed to generate AQA GCSE Biology lesson." },
     });
   }
 });
@@ -6149,7 +6138,9 @@ router.post("/explain-chunk", auth, async (req, res) => {
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/explain-chunk error:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to get explanation" });
+    return sendInternalError("ai/explain-chunk", err, res, {
+      extra: { error: "Failed to get explanation" },
+    });
   }
 });
 
@@ -6202,7 +6193,9 @@ Explain the likely misconception and clarify the correct concept.`;
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/explain-mistake error:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to get explanation" });
+    return sendInternalError("ai/explain-mistake", err, res, {
+      extra: { error: "Failed to get explanation" },
+    });
   }
 });
 
@@ -6311,7 +6304,9 @@ Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return 
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/generate-practice-quiz error:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to generate quiz" });
+    return sendInternalError("ai/generate-practice-quiz", err, res, {
+      extra: { error: "Failed to generate quiz" },
+    });
   }
 });
 
@@ -6596,7 +6591,11 @@ async function validateMarkSchemeAlignment(opts) {
     return {
       alignmentScore: 0,
       missingPoints: markPoints,
-      suggestions: ["Validation failed: " + (err.message || "unknown error")],
+      suggestions: [
+        IS_PRODUCTION
+          ? "Validation could not be completed."
+          : "Validation failed: " + (err.message || "unknown error"),
+      ],
     };
   }
 }
@@ -6635,7 +6634,9 @@ router.post("/ask", auth, requireLessonAccess({ allowBody: true }), async (req, 
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/ask error:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to answer question" });
+    return sendInternalError("ai/ask", err, res, {
+      extra: { error: "Failed to answer question" },
+    });
   }
 });
 
@@ -6696,9 +6697,8 @@ router.post("/validate-mark-scheme-alignment", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("POST /api/ai/validate-mark-scheme-alignment error:", err?.message || err);
-    return res.status(500).json({
-      error: "Mark scheme alignment check failed",
-      details: process.env.NODE_ENV === "development" ? String(err?.message || err) : undefined,
+    return sendInternalError("ai/validate-mark-scheme-alignment", err, res, {
+      extra: { error: "Mark scheme alignment check failed" },
     });
   }
 });
@@ -6830,9 +6830,8 @@ router.post("/generate-diagram", auth, async (req, res) => {
     if (err?.response?.status === 429) {
       return res.status(429).json({ error: "Rate limit exceeded", details: "Image generation limit reached." });
     }
-    return res.status(500).json({
-      error: "Diagram generation failed",
-      details: process.env.NODE_ENV === "development" ? String(err?.message || err) : undefined,
+    return sendInternalError("ai/generate-diagram", err, res, {
+      extra: { error: "Diagram generation failed" },
     });
   }
 });
@@ -6905,7 +6904,9 @@ router.post("/summarise", auth, requireLessonAccess({ allowBody: true }), async 
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/summarise error:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to summarise" });
+    return sendInternalError("ai/summarise", err, res, {
+      extra: { error: "Failed to summarise" },
+    });
   }
 });
 
@@ -6975,7 +6976,9 @@ router.post("/structure-notes", auth, async (req, res) => {
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/structure-notes error:", err.message);
-    return res.status(500).json({ error: err.message || "Failed to structure notes" });
+    return sendInternalError("ai/structure-notes", err, res, {
+      extra: { error: "Failed to structure notes" },
+    });
   }
 });
 

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { fetchPricing } from '../api/pricing';
 import { formatMoney } from '../utils/money';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import { getErrorMessageFromData } from '../utils/apiErrorMessage';
+import { apiUrl } from '../utils/apiBaseUrl';
 
 interface SubscriptionPlan {
   id: string;
@@ -100,7 +102,7 @@ const SubscriptionPage: React.FC = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
+      const response = await fetch(apiUrl('/api/subscriptions/subscribe'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +118,7 @@ const SubscriptionPage: React.FC = () => {
         // Refresh subscription data
         fetchSubscriptionData();
       } else {
-        setMessage({ type: 'error', text: data.msg || 'Failed to subscribe' });
+        setMessage({ type: 'error', text: getErrorMessageFromData(data, 'Failed to subscribe') });
       }
     } catch (error) {
       console.error('Subscribe error:', error);
@@ -140,7 +142,7 @@ const SubscriptionPage: React.FC = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/subscriptions/cancel', {
+      const response = await fetch(apiUrl('/api/subscriptions/cancel'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +157,7 @@ const SubscriptionPage: React.FC = () => {
         // Refresh subscription data
         fetchSubscriptionData();
       } else {
-        setMessage({ type: 'error', text: data.msg || 'Failed to cancel subscription' });
+        setMessage({ type: 'error', text: getErrorMessageFromData(data, 'Failed to cancel subscription') });
       }
     } catch (error) {
       console.error('Cancel error:', error);
@@ -177,7 +179,7 @@ const SubscriptionPage: React.FC = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/subscriptions/upgrade', {
+      const response = await fetch(apiUrl('/api/subscriptions/upgrade'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -215,7 +217,7 @@ const SubscriptionPage: React.FC = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/subscriptions/renew-shamcoins', {
+      const response = await fetch(apiUrl('/api/subscriptions/renew-shamcoins'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,7 +232,7 @@ const SubscriptionPage: React.FC = () => {
         // Refresh subscription data
         fetchSubscriptionData();
       } else {
-        setMessage({ type: 'error', text: data.msg || 'Failed to renew sham coins' });
+        setMessage({ type: 'error', text: getErrorMessageFromData(data, 'Failed to renew sham coins') });
       }
     } catch (error) {
       console.error('Renew error:', error);

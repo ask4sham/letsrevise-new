@@ -10,6 +10,7 @@ import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLig
 import { lessonMarkdownUrlTransform } from "../components/lesson/lessonMarkdownViewComponents";
 import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import api from "../services/api";
+import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
 
 type ReteachPlanResponse = {
   ok: boolean;
@@ -109,7 +110,7 @@ export default function LessonAttemptReportPage() {
         if (summaryResult.status === "fulfilled" && summaryResult.value?.data?.ok) {
           setSummary(summaryResult.value.data);
         } else if (summaryResult.status === "rejected") {
-          setError(summaryResult.reason?.response?.data?.error || summaryResult.reason?.message || "Failed to load report");
+          setError(getApiClientErrorMessage(summaryResult.reason, "Failed to load report"));
         }
         if (insightsResult.status === "fulfilled" && insightsResult.value?.data?.ok) {
           setInsights(insightsResult.value.data);
@@ -133,7 +134,7 @@ export default function LessonAttemptReportPage() {
       })
       .catch((e) => {
         setPlan(null);
-        if (e?.response?.status !== 404) setPlanError(e?.response?.data?.error || "Failed to load plan.");
+        if (getHttpStatus(e) !== 404) setPlanError(getApiClientErrorMessage(e, "Failed to load plan."));
       })
       .finally(() => setPlanLoading(false));
   }, [id, days]);
@@ -399,7 +400,7 @@ export default function LessonAttemptReportPage() {
                             }
                           }
                         } catch (e: any) {
-                          setPlanError(e?.response?.data?.error || "One-click fix failed.");
+                          setPlanError(getApiClientErrorMessage(e, "One-click fix failed."));
                         } finally {
                           setOneClickFixLoading(false);
                         }
@@ -439,7 +440,7 @@ export default function LessonAttemptReportPage() {
                           }
                         }
                       } catch (e: any) {
-                        setPlanError(e?.response?.data?.error || "Bulk fix failed.");
+                        setPlanError(getApiClientErrorMessage(e, "Bulk fix failed."));
                       } finally {
                         setBulkFixLoading(false);
                       }

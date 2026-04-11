@@ -8,6 +8,7 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const TopicMastery = require("../models/TopicMastery");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function isStudent(req) {
   const t = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
@@ -67,7 +68,7 @@ router.post("/record", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("[mastery] record:", err);
-    return res.status(500).json({ error: err.message || "Failed to record" });
+    return sendInternalError("mastery/record", err, res);
   }
 });
 
@@ -111,7 +112,7 @@ router.get("/", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("[mastery] get:", err);
-    return res.status(500).json({ error: err.message || "Failed to fetch mastery" });
+    return sendInternalError("mastery/get", err, res);
   }
 });
 
@@ -192,7 +193,7 @@ router.get("/aggregate", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("[mastery] aggregate:", err);
-    return res.status(500).json({ error: err.message || "Failed to aggregate mastery" });
+    return sendInternalError("mastery/aggregate", err, res);
   }
 });
 

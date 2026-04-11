@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth'); // Your auth middleware
 const User = require('../models/User');
+const { sendInternalError } = require('../utils/safeErrorResponse');
 
 // POST /api/earnings/cashout
 router.post('/cashout', auth, async (req, res) => {
@@ -51,8 +52,7 @@ router.post('/cashout', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Cash out error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return sendInternalError('earnings/cashout', error, res);
   }
 });
 
@@ -99,8 +99,7 @@ router.post('/fix-earnings', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Fix earnings error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return sendInternalError('earnings/fix-earnings', error, res);
   }
 });
 
@@ -119,8 +118,7 @@ router.get('/balance', auth, async (req, res) => {
       shamCoins: user.shamCoins || 0
     });
   } catch (error) {
-    console.error('Balance fetch error:', error);
-    res.status(500).json({ message: 'Server error' });
+    return sendInternalError('earnings/balance', error, res);
   }
 });
 
@@ -142,8 +140,7 @@ router.get('/transactions', auth, async (req, res) => {
       total: transactions.length
     });
   } catch (error) {
-    console.error('Transactions fetch error:', error);
-    res.status(500).json({ message: 'Server error' });
+    return sendInternalError('earnings/transactions', error, res);
   }
 });
 

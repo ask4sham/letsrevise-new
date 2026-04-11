@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { fetchQuestionBankAudit, type QuestionBankAuditRow, type QuestionBankAuditResponse } from "../api/questionBankAudit";
+import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
 import type { SpecKey } from "../api/taxonomy";
 import { sprintOrderFilename, questionBankAuditFilename } from "../utils/docFilenames";
 
@@ -133,11 +134,7 @@ const TeacherCoveragePage: React.FC = () => {
       .catch((err) => {
         if (!cancelled) {
           console.error("[Content Coverage] fetch failed", err);
-          const msg =
-            (err?.response?.data && typeof err.response.data === "object" && err.response.data.error) ||
-            err?.message ||
-            "Request failed";
-          setError(typeof msg === "string" ? msg : "Request failed");
+          setError(getApiClientErrorMessage(err, "Request failed"));
           setLoading(false);
         }
       });

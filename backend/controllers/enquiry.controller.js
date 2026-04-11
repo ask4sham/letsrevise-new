@@ -7,11 +7,13 @@ const { searchKnowledge } = require("../services/knowledge/knowledgeSearchServic
 const {
   generateEnquiryAnswer,
   getProvider: getLlmProvider,
-  ENQUIRY_GENERAL_KNOWLEDGE_NOTICE,
+  ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING,
 } = require("../services/llm/provider");
 const { isTruthyEnv } = require("../config/storage");
 const { getProvider: getEmbeddingsProvider } = require("../services/embeddings/provider");
+const mongoose = require("mongoose");
 const { getCached, setCached } = require("../services/enquiry/enquiryCache");
+const { getLessonLocalRetrieval, mergeRetrievalResults } = require("../services/enquiry/lessonLocalRetrieval");
 const { buildSuggestedActions } = require("../services/enquiry/suggestedActions");
 const { buildLearningSuggestions } = require("../services/enquiry/learningSuggestions");
 const { computeConfidence } = require("../services/enquiry/confidence");
@@ -26,9 +28,18 @@ const Conversation = require("../models/Conversation");
 const ConversationMessage = require("../models/ConversationMessage");
 
 const WEAK_SCORE_THRESHOLD = 0.35;
+/** Lesson-local scores use a different scale than embedding similarity; treat above this as “strong” for fallback/external. */
+const LESSON_LOCAL_STRONG_THRESHOLD = 0.18;
 const CONVERSATION_CONTEXT_PAIRS = 3; // last 3 user+assistant pairs = 6 messages
 
 const DEBUG_ENQUIRY = process.env.DEBUG_ENQUIRY === "1" || process.env.DEBUG_ENQUIRY === "true";
+/** Grep `[enquiry_tutor_v1]` — on by default in non-production; set ENQUIRY_TUTOR_V1_LOG=0 to disable. */
+const ENQUIRY_TUTOR_V1_LOG = (() => {
+  const v = String(process.env.ENQUIRY_TUTOR_V1_LOG || "").trim().toLowerCase();
+  if (v === "0" || v === "false" || v === "off") return false;
+  if (v === "1" || v === "true" || v === "on") return true;
+  return process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
+})();
 
 const ENQUIRY_MODES = new Set(["lesson", "revision", "exam"]);
 const RESPONSE_MODES = new Set(["quick", "explain", "exam", "revision"]);
@@ -87,6 +98,7 @@ async function handleEnquiry(req, res) {
         responseMode: b.responseMode,
         allowExternal: b.allowExternal,
         qLen: typeof b.question === "string" ? b.question.length : 0,
+        lessonId: b.lessonId ? String(b.lessonId).slice(0, 24) + "…" : undefined,
       });
     }
 
@@ -94,8 +106,12 @@ async function handleEnquiry(req, res) {
     const userRoleForLog = (req.user?.userType || req.user?.role || "").toString();
     const isStudentUser = userRoleLower === "student";
 
-    let { question, specKey, topicKey, mode, limit = 8, includePractice = true, conversationId, responseMode, allowExternal } = req.body || {};
+    let { question, specKey, topicKey, mode, limit = 8, includePractice = true, conversationId, responseMode, allowExternal, lessonId: lessonIdBody } =
+      req.body || {};
     topicKey = topicKey != null ? String(topicKey).trim() : topicKey;
+    const lessonIdRaw = lessonIdBody != null ? String(lessonIdBody).trim() : "";
+    const lessonIdForCache =
+      lessonIdRaw && mongoose.Types.ObjectId.isValid(lessonIdRaw) ? lessonIdRaw : null;
     responseMode = normalizeResponseMode(responseMode);
 
     // PR-019: Resolve conversationId and load context (fallback to single-turn if invalid)
@@ -145,7 +161,7 @@ async function handleEnquiry(req, res) {
     const modeVal = normalizeEnquiryMode(mode);
 
     // PR-006: Check cache before retrieval + LLM (PR-019: conversationId, PR-020: responseMode, PR-021: allowExternal in key)
-    const cached = await getCached(spec, topicKey || null, modeVal, q, convIdValid, responseMode, allowExternalVal);
+    const cached = await getCached(spec, topicKey || null, modeVal, q, convIdValid, responseMode, allowExternalVal, lessonIdForCache);
     if (cached.hit && cached.response) {
       const userId = req.user?._id || req.user?.userId || req.user?.id;
       const msgCount = await (convIdValid
@@ -191,10 +207,14 @@ async function handleEnquiry(req, res) {
 
       const usedSourcesCached = cached.response.usedSources || [];
       const answerCached = cached.response.answer || {};
+      const isFallbackCached = usedSourcesCached.some(
+        (s) => s && (s.sourceType === "fallback_ai" || s.knowledgeDocumentId === "__fallback_ai__")
+      );
       const confidence = computeConfidence({
         usedSources: usedSourcesCached,
         retrievalScores: usedSourcesCached.map((s) => s.score).filter((n) => typeof n === "number"),
         warnings: answerCached.warnings || [],
+        fallbackGeneralKnowledge: isFallbackCached,
       });
       const suggestedActions = buildSuggestedActions({
         role: (req.user?.userType || req.user?.role || "").toString(),
@@ -221,6 +241,11 @@ async function handleEnquiry(req, res) {
           cachePayload.externalExamContextUsed = true;
         }
       }
+      if (isFallbackCached) {
+        cachePayload.source = "fallback_ai";
+        cachePayload.confidence = "low";
+        cachePayload.fallbackNotice = ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING;
+      }
       // PR-038: Update student topic progress (aiEnquiries, weakAiEnquiries)
       if (isStudentUser && topicKey) {
         const uid = req.user?._id || req.user?.userId || req.user?.id;
@@ -236,21 +261,46 @@ async function handleEnquiry(req, res) {
     }
 
     if (DEBUG_ENQUIRY) console.log("[enquiry/post] before searchKnowledge");
-    let retrievalResults = await searchKnowledge({
+    let lessonLocalResults = [];
+    if (lessonIdForCache) {
+      lessonLocalResults = await getLessonLocalRetrieval({
+        question: q,
+        specKey: spec,
+        topicKey: topicKey || null,
+        lessonId: lessonIdForCache,
+        user: req.user,
+      });
+    }
+    const lessonTopScore =
+      lessonLocalResults.length > 0
+        ? Math.max(...lessonLocalResults.map((r) => Number(r.score) || 0))
+        : 0;
+    const lessonLocalStrong = lessonTopScore >= LESSON_LOCAL_STRONG_THRESHOLD;
+
+    let vectorResults = await searchKnowledge({
       query: q,
       specKey: spec,
       topicKey: topicKey || undefined,
       limit: topN,
       topK: 50,
     });
-    if (DEBUG_ENQUIRY) console.log("[enquiry/post] after searchKnowledge", { count: retrievalResults?.length ?? 0 });
+    const vectorResultCount = vectorResults.length;
+    let retrievalResults = mergeRetrievalResults(lessonLocalResults, vectorResults, topN);
+    if (DEBUG_ENQUIRY) {
+      console.log("[enquiry/post] after searchKnowledge", {
+        count: retrievalResults?.length ?? 0,
+        lessonLocal: lessonLocalResults.length,
+      });
+    }
 
     let externalUsed = false;
     let externalSources = [];
 
     // PR-021: External search fallback — only when weak, teacher/admin, allowExternal, feature enabled
     // PR-022: filterDenied before indexing; if all denied, keep externalUsed=false
+    // Strong lesson-local evidence skips external (same bar as GK fallback)
     if (
+      !lessonLocalStrong &&
       (retrievalResults.length === 0 || (retrievalResults[0]?.score ?? 0) < WEAK_SCORE_THRESHOLD) &&
       isTeacherOrAdmin &&
       allowExternalVal &&
@@ -272,13 +322,14 @@ async function handleEnquiry(req, res) {
           topicKey: topicKey || null,
         });
         await embedExternalDocs(indexed);
-        retrievalResults = await searchKnowledge({
+        const vectorAfterExternal = await searchKnowledge({
           query: q,
           specKey: spec,
           topicKey: topicKey || undefined,
           limit: topN,
           topK: 50,
         });
+        retrievalResults = mergeRetrievalResults(lessonLocalResults, vectorAfterExternal, topN);
         externalUsed = true;
         externalSources = indexed.map((x) => ({ url: x.url, title: x.title, domain: x.domain }));
       }
@@ -300,10 +351,34 @@ async function handleEnquiry(req, res) {
     }
     retrievalResults = retrievalFiltered;
 
-    const topScore = retrievalResults.length > 0 ? retrievalResults[0].score : 0;
-    const weakEvidence = retrievalResults.length === 0 || topScore < WEAK_SCORE_THRESHOLD;
+    const mergedTopScore = retrievalResults.length > 0 ? Number(retrievalResults[0].score) || 0 : 0;
+    // Vector top score can dominate merged order; lesson-local uses a different scale — treat strong lesson-local as non-weak.
+    const weakEvidence =
+      retrievalResults.length === 0 ||
+      (mergedTopScore < WEAK_SCORE_THRESHOLD && !lessonLocalStrong);
     const strictCurriculumOnly = isTruthyEnv("STRICT_CURRICULUM_ONLY");
+    const noCurriculumSources = retrievalResults.length === 0;
+    // Tutor fallback: curriculum retrieval above; GK answer only if weak AND not strict (never bypass strict).
     const useGeneralKnowledgeFallback = !strictCurriculumOnly && weakEvidence;
+
+    if (ENQUIRY_TUTOR_V1_LOG || DEBUG_ENQUIRY) {
+      console.log(
+        "[enquiry_tutor_v1]",
+        JSON.stringify({
+          lessonIdReceived: lessonIdForCache || null,
+          lessonLocalChunkCount: lessonLocalResults.length,
+          topLessonLocalScore: lessonTopScore,
+          lessonLocalStrong,
+          vectorResultCount,
+          mergedResultCount: retrievalResults.length,
+          mergedTopScore,
+          weakEvidence,
+          useGeneralKnowledgeFallback,
+          strictCurriculumOnly,
+          llmProvider: getLlmProvider(),
+        })
+      );
+    }
 
     // PR-007: suggestedTopics when weak evidence (for "Try these instead")
     const suggestedTopics = [];
@@ -330,10 +405,14 @@ async function handleEnquiry(req, res) {
     const docMap = new Map(retrievalResults.map((r) => [r.knowledgeDocumentId, r]));
 
     if (DEBUG_ENQUIRY) {
-      console.log("[enquiry/post] before generateEnquiryAnswer", {
-        chunks: contextChunks.length,
-        useGeneralKnowledgeFallback,
+      // TEMP: remove or trim after verifying fallback routing in staging
+      console.log("[enquiry/post] fallback routing (TEMP)", {
+        weakEvidence,
         strictCurriculumOnly,
+        useGeneralKnowledgeFallback,
+        noCurriculumSources,
+        mergedTopScore,
+        chunks: contextChunks.length,
       });
     }
     let answer = await generateEnquiryAnswer({
@@ -342,6 +421,7 @@ async function handleEnquiry(req, res) {
       constraints: {
         weakEvidence: weakEvidence && !useGeneralKnowledgeFallback,
         generalKnowledgeFallback: useGeneralKnowledgeFallback,
+        noCurriculumSources,
         specKey: spec,
         topicKey: topicKey || null,
         includePractice,
@@ -350,6 +430,16 @@ async function handleEnquiry(req, res) {
         responseMode: responseMode || undefined,
       },
     });
+
+    // Observability: confirms live requests completed the GK fallback LLM path (grep Render logs for this key).
+    if (useGeneralKnowledgeFallback && process.env.NODE_ENV !== "test") {
+      console.log("[enquiry/post] fallback_ai_live_path_completed", {
+        specKey: spec,
+        topicKey: topicKey || null,
+        noCurriculumSources,
+        llmProvider: getLlmProvider(),
+      });
+    }
 
     const { valid: validCitations, warnings: verifyWarnings } = verifyCitations(answer.citations, docMap);
     answer.citations = validCitations;
@@ -361,11 +451,15 @@ async function handleEnquiry(req, res) {
       answer.warnings = [...(answer.warnings || []), "External references used (exploratory)"];
     }
     if (useGeneralKnowledgeFallback) {
-      const notice = ENQUIRY_GENERAL_KNOWLEDGE_NOTICE;
-      const w = answer.warnings || [];
-      if (!w.some((x) => typeof x === "string" && x.includes("general knowledge"))) {
-        answer.warnings = [notice, ...w];
-      }
+      const notice = ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING;
+      const rest = (answer.warnings || []).filter(
+        (x) =>
+          typeof x === "string" &&
+          x.trim() !== notice &&
+          !x.toLowerCase().includes("insufficient trusted sources") &&
+          !/general knowledge because trusted curriculum sources were limited/i.test(x)
+      );
+      answer.warnings = [notice, ...rest];
     }
 
     const userId = req.user?._id || req.user?.userId || req.user?.id;
@@ -440,17 +534,31 @@ async function handleEnquiry(req, res) {
       return base;
     });
 
+    const usedSourcesForResponse = useGeneralKnowledgeFallback
+      ? [
+          {
+            knowledgeDocumentId: "__fallback_ai__",
+            sourceType: "fallback_ai",
+            sourceId: "",
+            title: "General knowledge (limited curriculum)",
+            topicKey: topicKey || "",
+            score: 0,
+          },
+        ]
+      : usedSourcesPayload;
+
     const confidence = computeConfidence({
-      usedSources: usedSourcesPayload,
+      usedSources: usedSourcesForResponse,
       retrievalScores: retrievalResults.slice(0, topN).map((s) => s.score).filter((n) => typeof n === "number"),
       warnings: answer.warnings || [],
+      fallbackGeneralKnowledge: useGeneralKnowledgeFallback,
     });
 
     const suggestedActions = buildSuggestedActions({
       role: (req.user?.userType || req.user?.role || "").toString(),
       specKey: spec,
       topicKey: topicKey || null,
-      usedSources: usedSourcesPayload,
+      usedSources: usedSourcesForResponse,
       answer: {
         practice: answer.practice,
         warnings: answer.warnings,
@@ -475,7 +583,7 @@ async function handleEnquiry(req, res) {
     // PR-006: Store in cache (PR-037: learningSuggestions)
     await setCached(spec, topicKey || null, modeVal, q, {
       question: q,
-      usedSources: usedSourcesPayload,
+      usedSources: usedSourcesForResponse,
       answer: {
         explanation: answer.explanation,
         keyPoints: answer.keyPoints,
@@ -489,7 +597,7 @@ async function handleEnquiry(req, res) {
         ...(externalExamContextUsed && { externalExamContextUsed: true }),
       }),
       ...(learningSuggestions.length > 0 && { learningSuggestions }),
-    }, convIdValid, responseMode, allowExternalVal);
+    }, convIdValid, responseMode, allowExternalVal, lessonIdForCache);
 
     const responsePayload = {
       enquiryLogId: logDoc._id?.toString() || null,
@@ -497,7 +605,7 @@ async function handleEnquiry(req, res) {
       question: q,
       specKey: spec,
       topicKey: topicKey || null,
-      usedSources: usedSourcesPayload,
+      usedSources: usedSourcesForResponse,
       answer: {
         explanation: answer.explanation,
         keyPoints: answer.keyPoints,
@@ -524,7 +632,7 @@ async function handleEnquiry(req, res) {
     if (useGeneralKnowledgeFallback) {
       responsePayload.confidence = "low";
       responsePayload.source = "fallback_ai";
-      responsePayload.fallbackNotice = ENQUIRY_GENERAL_KNOWLEDGE_NOTICE;
+      responsePayload.fallbackNotice = ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING;
     }
     // PR-038: Update student topic progress (aiEnquiries, weakAiEnquiries)
     if (isStudentUser && topicKey) {

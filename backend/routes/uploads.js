@@ -18,6 +18,7 @@ const {
   displayFilenameForPng,
   createLessonPngDisplayBuffer,
 } = require("../services/lessonPngDisplay");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 const router = express.Router();
 
@@ -474,7 +475,7 @@ router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => 
         return res.json(payload);
       } catch (writeErr) {
         if (writeErr.statusCode === 503) {
-          return res.status(503).json({ error: writeErr.message || cloudUploadRequiredMessage() });
+          return res.status(503).json({ error: cloudUploadRequiredMessage() });
         }
         console.error("[uploads] Fallback disk write failed:", writeErr.message);
         return res.status(500).json({ error: "Upload failed. Storage unavailable." });
@@ -490,13 +491,10 @@ router.post("/image", upload.single("file"), setUploadMeta, async (req, res) => 
       folder: safeFolder,
     });
   } catch (e) {
-    console.error("Upload handler error:", e);
     if (e && e.statusCode === 503) {
-      return res.status(503).json({ error: e.message || cloudUploadRequiredMessage() });
+      return res.status(503).json({ error: cloudUploadRequiredMessage() });
     }
-    return res
-      .status(500)
-      .json({ error: "Upload failed", details: e?.message || String(e) });
+    return sendInternalError("uploads/image", e, res);
   }
 });
 
@@ -535,7 +533,7 @@ router.post(
           return res.json(payload);
         } catch (writeErr) {
           if (writeErr.statusCode === 503) {
-            return res.status(503).json({ error: writeErr.message || cloudUploadRequiredMessage() });
+            return res.status(503).json({ error: cloudUploadRequiredMessage() });
           }
           console.error("[uploads] Lesson-media fallback write failed:", writeErr.message);
           return res.status(500).json({ error: "Upload failed. Storage unavailable." });
@@ -545,11 +543,10 @@ router.post(
       const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
       return res.json({ ok: true, url: publicUrl, filename, folder: safeFolder });
     } catch (e) {
-      console.error("Lesson-media upload error:", e);
       if (e && e.statusCode === 503) {
-        return res.status(503).json({ error: e.message || cloudUploadRequiredMessage() });
+        return res.status(503).json({ error: cloudUploadRequiredMessage() });
       }
-      return res.status(500).json({ error: "Upload failed", details: e?.message || String(e) });
+      return sendInternalError("uploads/lesson-media", e, res);
     }
   }
 );
@@ -590,7 +587,7 @@ router.post(
           return res.json(payload);
         } catch (writeErr) {
           if (writeErr.statusCode === 503) {
-            return res.status(503).json({ error: writeErr.message || cloudUploadRequiredMessage() });
+            return res.status(503).json({ error: cloudUploadRequiredMessage() });
           }
           console.error("[uploads] Lesson-image fallback write failed:", writeErr.message);
           return res.status(500).json({ error: "Upload failed. Storage unavailable." });
@@ -600,14 +597,10 @@ router.post(
       const publicUrl = `/uploads/${safeFolder}/${filename}`.replace(/\\/g, "/");
       return res.json({ ok: true, url: publicUrl, filename, folder: safeFolder });
     } catch (e) {
-      console.error("Lesson-image upload handler error:", e);
       if (e && e.statusCode === 503) {
-        return res.status(503).json({ error: e.message || cloudUploadRequiredMessage() });
+        return res.status(503).json({ error: cloudUploadRequiredMessage() });
       }
-      return res.status(500).json({
-        error: "Upload failed",
-        details: e?.message || String(e),
-      });
+      return sendInternalError("uploads/lesson-image", e, res);
     }
   }
 );

@@ -7,6 +7,7 @@ const Worksheet = require("../models/Worksheet");
 const WorksheetAssignment = require("../models/WorksheetAssignment");
 const WorksheetAttempt = require("../models/WorksheetAttempt");
 const ExamQuestion = require("../models/ExamQuestion");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -56,7 +57,7 @@ router.post("/", auth, async (req, res) => {
     return res.status(201).json({ assignment: doc.toObject() });
   } catch (err) {
     console.error("WorksheetAssignments POST error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("worksheet-assignments/create", err, res);
   }
 });
 
@@ -73,7 +74,7 @@ router.get("/", auth, async (req, res) => {
     return res.json({ assignments: list });
   } catch (err) {
     console.error("WorksheetAssignments list error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("worksheet-assignments/list", err, res);
   }
 });
 
@@ -130,7 +131,7 @@ router.get("/share/:shareId", async (req, res) => {
     });
   } catch (err) {
     console.error("WorksheetAssignments share GET error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("worksheet-assignments/share", err, res);
   }
 });
 
@@ -186,7 +187,7 @@ router.get("/:id", auth, async (req, res) => {
     return res.json({ assignment: doc });
   } catch (err) {
     console.error("WorksheetAssignments GET error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("worksheet-assignments/get", err, res);
   }
 });
 
@@ -209,7 +210,7 @@ router.post("/:id/close", auth, async (req, res) => {
     return res.json({ assignment: doc.toObject() });
   } catch (err) {
     console.error("WorksheetAssignments close error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return sendInternalError("worksheet-assignments/close", err, res);
   }
 });
 

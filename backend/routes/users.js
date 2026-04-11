@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const User = require("../models/User");
+const { isActiveUserDoc } = require("../utils/activeUser");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 // helper: support different auth shapes (userId vs id vs _id)
 function getAuthUserId(req) {
@@ -36,6 +38,31 @@ function normalizeStageKey(v) {
   return null;
 }
 
+// @route   GET /api/users/me
+// @desc    Current user (for SPA token validation). Same persistence as JWT — role is server-side only.
+// @access  Private
+router.get("/me", auth, async (req, res) => {
+  try {
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ msg: "Not authenticated (no user id)" });
+    }
+    const user = await User.findById(userId).select("-password -__v").lean();
+    if (!user) {
+      return res.status(404).json({ msg: "User not found", code: "USER_NOT_FOUND" });
+    }
+    if (!isActiveUserDoc(user)) {
+      return res.status(401).json({
+        msg: "This account has been closed.",
+        code: "ACCOUNT_DELETED",
+      });
+    }
+    res.json(user);
+  } catch (err) {
+    return sendInternalError("users/me", err, res);
+  }
+});
+
 // @route   GET /api/users/profile
 // @desc    Get current user profile
 // @access  Private
@@ -58,8 +85,7 @@ router.get("/profile", auth, async (req, res) => {
     // ✅ Return yearGroup + stageKey so frontend can enforce gating consistently
     res.json(user);
   } catch (error) {
-    console.error("Error fetching user profile:", error);
-    res.status(500).json({ msg: "Server error" });
+    return sendInternalError("users/profile", error, res);
   }
 });
 
@@ -145,8 +171,7 @@ router.put("/profile", auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(500).json({ msg: "Server error" });
+    return sendInternalError("users/profile", error, res);
   }
 });
 
@@ -175,8 +200,7 @@ router.get("/purchases", auth, async (req, res) => {
       totalPurchases: user.purchasedLessons?.length || 0,
     });
   } catch (error) {
-    console.error("Error fetching purchases:", error);
-    res.status(500).json({ msg: "Server error" });
+    return sendInternalError("users/purchases", error, res);
   }
 });
 

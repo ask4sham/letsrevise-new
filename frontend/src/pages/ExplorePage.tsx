@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
 type Ks3Topic = { topic: string; path: string; hasIndex: boolean };
 type Ks3Subject = {
@@ -43,7 +45,7 @@ type ALevelTree = { stage: "a-level"; exists: boolean; boards: ALevelBoard[]; su
 
 type Stage = "ks3" | "gcse" | "a-level";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = getApiBaseUrl();
 
 // Display-only list (your backend may return "Edexcel" etc — we normalize comparisons)
 const ALEVEL_BOARDS_UI = ["AQA", "OCR", "Edexcel", "WJEC"];
@@ -149,14 +151,24 @@ export default function ExplorePage() {
 
     try {
       const res = await fetch(`${API_BASE}/api/content-tree?stage=${encodeURIComponent(nextStage)}`);
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
+      const text = await res.text();
+      let data: unknown;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        setError(res.ok ? "Invalid response from server." : `API error ${res.status}`);
+        return;
+      }
+      if (!res.ok) {
+        setError(getErrorMessageFromData(data, `API error ${res.status}`));
+        return;
+      }
 
-      if (nextStage === "ks3") setKs3Tree(data);
-      if (nextStage === "gcse") setGcseTree(data);
-      if (nextStage === "a-level") setALevelTree(data);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load content tree");
+      if (nextStage === "ks3") setKs3Tree(data as Ks3Tree);
+      if (nextStage === "gcse") setGcseTree(data as GcseTree);
+      if (nextStage === "a-level") setALevelTree(data as ALevelTree);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load content tree");
     } finally {
       setLoading(false);
     }

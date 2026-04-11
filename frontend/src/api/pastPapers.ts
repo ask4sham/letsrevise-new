@@ -1,6 +1,8 @@
 /**
  * PR-PAST-PAPERS-API-1: PastPaper model + GET /api/past-papers/mine.
  */
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+
 export type PastPaper = {
   _id: string;
   specKey: string;
@@ -50,7 +52,7 @@ export async function fetchMyPastPapers(
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Failed to load past papers");
+  if (!res.ok) throw new Error(getErrorMessageFromData(data, "Failed to load past papers"));
 
   return data as { items: PastPaper[]; nextCursor: string | null };
 }

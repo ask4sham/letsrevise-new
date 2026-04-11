@@ -2,6 +2,8 @@
  * PR-PAST-PAPERS-UI-1: Admin media upload with confirmCopyright.
  */
 
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+
 export async function uploadPdfWithConfirmation(file: File, token: string): Promise<{
   mediaId: string;
   url: string;
@@ -25,7 +27,7 @@ export async function uploadPdfWithConfirmation(file: File, token: string): Prom
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data?.error || "Upload failed");
+    throw new Error(getErrorMessageFromData(data, "Upload failed"));
   }
   return data;
 }

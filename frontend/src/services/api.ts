@@ -47,6 +47,7 @@ const baseURL =
   isSameOriginProxy
     ? ""
     : rawFromEnv ||
+      // SSR/tests only: browser path always has `window` (see docs/URL_AND_ENV.md)
       (isDev ? "" : (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000"));
 const RAW_API_BASE = baseURL;
 
@@ -162,11 +163,12 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<any>) => {
     const data = error.response?.data as Record<string, unknown> | undefined;
+    // Prefer msg / message over generic `error` (e.g. Express guard uses error: "Unhandled server error" + message: err.message)
     let message =
       (typeof data?.details === "string" ? data.details : null) ||
-      (typeof data?.error === "string" ? data.error : null) ||
       (typeof data?.msg === "string" ? data.msg : null) ||
       (typeof data?.message === "string" ? data.message : null) ||
+      (typeof data?.error === "string" ? data.error : null) ||
       error.message ||
       "Something went wrong";
     // Axios "Network Error" = request never reached server (backend down, wrong URL, CORS, etc.)

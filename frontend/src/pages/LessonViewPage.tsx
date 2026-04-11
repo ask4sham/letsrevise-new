@@ -19,6 +19,12 @@ import { chunkBlocksForTeachingLayout } from "../components/lesson/student/chunk
 import { LessonStudentChunk } from "../components/lesson/student/LessonStudentChunk";
 import "../components/lesson/student/lessonStudentView.css";
 import axios from "axios";
+import {
+  getApiClientErrorMessage,
+  getAxiosErrorMessage,
+  getErrorMessageFromData,
+} from "../utils/apiErrorMessage";
+import { apiUrl } from "../utils/apiBaseUrl";
 import { supabase } from "../lib/supabaseClient";
 import api, { getVisual, getVisualById } from "../services/api";
 
@@ -2254,7 +2260,7 @@ const LessonViewPage: React.FC = () => {
 
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/lessons/${lesson.id}/purchase`,
+        apiUrl(`/api/lessons/${lesson.id}/purchase`),
         {},
         {
           headers: {
@@ -2265,7 +2271,7 @@ const LessonViewPage: React.FC = () => {
       );
 
       if ((response.data as any).success === false)
-        throw new Error((response.data as any).error || "Purchase failed");
+        throw new Error(getErrorMessageFromData(response.data, "Purchase failed"));
 
       const updatedUser = (response.data as any).user || {
         ...user,
@@ -2283,11 +2289,7 @@ const LessonViewPage: React.FC = () => {
       fetchLessonSmart();
     } catch (error: any) {
       console.error("Purchase failed:", error);
-      if (error.response?.data?.msg) alert(`❌ ${error.response.data.msg}`);
-      else if (error.response?.data?.error)
-        alert(`❌ ${error.response.data.error}`);
-      else if (error.message) alert(`❌ ${error.message}`);
-      else alert("❌ Purchase failed. Please try again.");
+      alert(`❌ ${getAxiosErrorMessage(error, "Purchase failed. Please try again.")}`);
     }
   };
 
@@ -2306,12 +2308,12 @@ const LessonViewPage: React.FC = () => {
       setUnlockError(null);
       await fetchLessonSmart();
     } catch (err: any) {
-      const status = err?.response?.status;
-      const msg = err?.response?.data?.message || err?.response?.data?.msg || "";
+      const status = err?.status ?? err?.response?.status;
+      const msg = getApiClientErrorMessage(err, "");
       if (status === 400 && msg === "Not enough ShamCoins") {
         setUnlockError("Not enough ShamCoins");
       } else {
-        setUnlockError(err?.message || "Unlock failed. Please try again.");
+        setUnlockError(getApiClientErrorMessage(err, "Unlock failed. Please try again."));
       }
     } finally {
       setUnlocking(false);

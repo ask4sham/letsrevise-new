@@ -3,6 +3,8 @@
  * Uses existing POST /api/admin/bulk-import/:type endpoints.
  */
 
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+
 export type IngestType = "flashcards" | "exam-questions" | "past-papers" | "past-paper-questions";
 
 export interface IngestReport {
@@ -72,7 +74,7 @@ export async function runIngest(params: {
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Import failed");
+  if (!res.ok) throw new Error(getErrorMessageFromData(data, "Import failed"));
   return data as IngestReport;
 }
 

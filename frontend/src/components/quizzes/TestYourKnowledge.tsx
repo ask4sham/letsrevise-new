@@ -1,6 +1,8 @@
 // frontend/src/quizzes/TestYourKnowledge.tsx — PR-AUTH-UI-3: use useCurrentUser for token.
 import React, { useEffect, useState } from "react";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { getErrorMessageFromData } from "../../utils/apiErrorMessage";
+import { apiUrl } from "../../utils/apiBaseUrl";
 
 // ✅ Define the actual Question type from your Lesson type
 type ActualQuestion = {
@@ -79,10 +81,6 @@ const convertToQuizQuestion = (actualQuestion: ActualQuestion): QuizQuestion => 
     explanation: actualQuestion.explanation
   };
 };
-
-// ✅ Use the same env pattern as the rest of the app (and avoid trailing slashes)
-const RAW_API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
-const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
 const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
   const { token } = useCurrentUser({ watchLocation: true });
@@ -171,7 +169,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
         params.append("is_published", "true");
         if (moduleKey) params.append("module", moduleKey);
 
-        const url = `${API_BASE}/api/quizzes?${params.toString()}`;
+        const url = apiUrl(`/api/quizzes?${params.toString()}`);
         console.log("[TestYourKnowledge] Fetching:", url);
 
         const res = await fetch(url);
@@ -186,7 +184,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
         }
 
         if (!res.ok) {
-          throw new Error(json.error || "Failed to load quizzes");
+          throw new Error(getErrorMessageFromData(json, "Failed to load quizzes"));
         }
 
         setQuizzes(json.quizzes || []);
@@ -269,7 +267,7 @@ const TestYourKnowledge: React.FC<Props> = ({ lesson }) => {
     if (!activeQuiz) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/quizzes/${activeQuiz.id}/attempt`, {
+      const res = await fetch(apiUrl(`/api/quizzes/${activeQuiz.id}/attempt`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

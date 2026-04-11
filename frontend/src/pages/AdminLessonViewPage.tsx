@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
 type TeacherObj = {
   _id?: string;
@@ -47,7 +49,7 @@ type Lesson = {
   updatedAt?: string;
 };
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = getApiBaseUrl();
 
 function safeTeacherName(lesson: Lesson): string {
   if (lesson.teacherName) return lesson.teacherName;
@@ -178,7 +180,7 @@ const AdminLessonViewPage: React.FC = () => {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        const msg = data?.msg || data?.error || `Delete failed (HTTP ${res.status})`;
+        const msg = getErrorMessageFromData(data, `Delete failed (HTTP ${res.status})`);
         throw new Error(msg);
       }
 

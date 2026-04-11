@@ -7,6 +7,8 @@ import { getStoredSpecKey, setStoredSpecKey } from "../../utils/specKey";
 import { useTaxonomy } from "../../hooks/useTaxonomy";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import type { SpecKey } from "../../api/taxonomy";
+import { getApiClientErrorMessage, getErrorMessageFromData } from "../../utils/apiErrorMessage";
+import { getApiBaseUrl } from "../../utils/apiBaseUrl";
 
 export type Flashcard = {
   id: string;
@@ -20,7 +22,7 @@ export type Flashcard = {
 type Props = {
   lessonId: string;
   initialCards: Flashcard[];
-  apiBaseUrl?: string; // default http://localhost:5000
+  apiBaseUrl?: string; // default from getApiBaseUrl() (proxy/env-aware)
   title?: string;
   topicKeyForBank?: string | null; // PR-CONTENT-TARGETING-1: namespaced key for AI generation
   /** Lesson's topic/topicKey; required to allow "Save to bank" (block if missing). */
@@ -292,7 +294,7 @@ function isCardBroken(c: Flashcard): boolean {
 export default function FlashcardsEditor({
   lessonId,
   initialCards,
-  apiBaseUrl = "http://localhost:5000",
+  apiBaseUrl = getApiBaseUrl(),
   title = "Flashcards",
   topicKeyForBank: topicKeyForBankProp,
   lessonTopicKey,
@@ -496,8 +498,8 @@ export default function FlashcardsEditor({
       setTimeout(() => {
         flashcardsListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
-    } catch (e: any) {
-      setError(e?.response?.data?.msg || e?.message || "Failed to load question bank.");
+    } catch (e: unknown) {
+      setError(getApiClientErrorMessage(e, "Failed to load question bank."));
     } finally {
       setBankImportLoading(false);
     }
@@ -526,8 +528,8 @@ export default function FlashcardsEditor({
       await importFlashcards(key, (topicNameForImport || "").trim() || key.replace(/-/g, " "), bankCards);
       setStatus(`Saved ${cards.length} cards to topic bank (${key}). You can "Load flashcards from bank" on any lesson with this topic.`);
       setShowSaveToBankConfirm(false);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || e?.message || "Failed to save to bank.");
+    } catch (e: unknown) {
+      setError(getApiClientErrorMessage(e, "Failed to save to bank."));
     } finally {
       setImportToBankLoading(false);
     }
@@ -709,7 +711,10 @@ export default function FlashcardsEditor({
       const data = ct.includes("application/json") ? await res.json() : await res.text();
 
       if (!res.ok) {
-        const msg = (data as any)?.msg || (data as any)?.message || `Save failed (HTTP ${res.status}).`;
+        const msg = getErrorMessageFromData(
+          typeof data === "object" && data !== null ? data : null,
+          `Save failed (HTTP ${res.status}).`
+        );
         throw new Error(msg);
       }
 
@@ -828,7 +833,10 @@ export default function FlashcardsEditor({
       const data = ct.includes("application/json") ? await res.json() : await res.text();
 
       if (!res.ok) {
-        const msg = (data as any)?.msg || (data as any)?.message || `AI generate failed (HTTP ${res.status}).`;
+        const msg = getErrorMessageFromData(
+          typeof data === "object" && data !== null ? data : null,
+          `AI generate failed (HTTP ${res.status}).`
+        );
         throw new Error(msg);
       }
 

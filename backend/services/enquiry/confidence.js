@@ -7,13 +7,14 @@
  * - strong: topScore >= 0.60 AND specSources >= 1 AND lessonSources >= 1 AND no weak warnings
  * - moderate: otherwise
  *
- * @param {{ usedSources: Array<{ sourceType: string, score?: number }>, retrievalScores?: number[], warnings?: string[] }} opts
+ * @param {{ usedSources: Array<{ sourceType: string, score?: number }>, retrievalScores?: number[], warnings?: string[], fallbackGeneralKnowledge?: boolean }} opts
  * @returns {{ confidenceLevel: "strong"|"moderate"|"weak", confidenceReason: string, confidenceSignals: object }}
  */
 function computeConfidence(opts = {}) {
   const usedSources = opts?.usedSources || [];
   const retrievalScores = opts?.retrievalScores || [];
   const warnings = opts?.warnings || [];
+  const fallbackGeneralKnowledge = opts?.fallbackGeneralKnowledge === true;
 
   const topScore =
     retrievalScores.length > 0
@@ -46,7 +47,9 @@ function computeConfidence(opts = {}) {
     (topScore != null && topScore < 0.35)
   ) {
     confidenceLevel = "weak";
-    confidenceReason = "Not enough trusted curriculum sources were found.";
+    confidenceReason = fallbackGeneralKnowledge
+      ? "General knowledge was used because trusted curriculum coverage was limited."
+      : "Not enough trusted curriculum sources were found.";
   } else if (
     (topScore == null || topScore >= 0.6) &&
     specSources >= 1 &&

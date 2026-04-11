@@ -137,8 +137,13 @@ const LoginPage: React.FC = () => {
       }
       refresh();
 
-      // Prefer backend userType; fallback to selected tab
-      redirectAfterLogin((response as any)?.data?.user?.userType || activeRole);
+      // Authorization is server-side only: redirect from persisted userType, never from the UI tab.
+      const userType = (response as any)?.data?.user?.userType as string | undefined;
+      if (!userType) {
+        setError("Login succeeded but user profile was incomplete. Please contact support.");
+        return;
+      }
+      redirectAfterLogin(userType);
     } catch (err: any) {
       console.error("Login error:", err);
 
@@ -148,8 +153,10 @@ const LoginPage: React.FC = () => {
       const backendMsg =
         err?.data?.msg ||
         err?.data?.message ||
+        err?.data?.error ||
         err?.response?.data?.msg ||
         err?.response?.data?.message ||
+        err?.response?.data?.error ||
         (err?.status === 401 || err?.response?.status === 401
           ? "Invalid email or password."
           : err?.message || "Server error.");

@@ -8,6 +8,7 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const requireAdmin = require("../middleware/requireAdmin");
 const KnowledgeDocument = require("../models/KnowledgeDocument");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -77,7 +78,7 @@ router.get("/search", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Knowledge search error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    return sendInternalError("knowledge/search", err, res, { extra: { error: "Server error" } });
   }
 });
 

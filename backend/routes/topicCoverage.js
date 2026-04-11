@@ -17,6 +17,7 @@ const ExamQuestion = require("../models/ExamQuestion");
 const PastPaperQuestion = require("../models/PastPaperQuestion");
 
 const auth = require("../middleware/auth");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 const CACHE_TTL_MS = 60 * 1000;
 const cache = new Map(); // key -> { at, data }
@@ -181,7 +182,7 @@ router.get("/", auth, async (req, res) => {
   } catch (err) {
     console.timeEnd(totalLabel);
     console.error("[topicCoverage]", err);
-    return res.status(500).json({ error: err?.message || "Failed to compute coverage" });
+    return sendInternalError("topic-coverage/get", err, res);
   }
 });
 

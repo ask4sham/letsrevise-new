@@ -7,6 +7,7 @@ console.log("✅ quizzes router file loaded");
 
 const { supabase } = require("../supabaseClient");
 const auth = require("../middleware/auth"); // ✅ use JWT auth for attempt saving
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 // ----------------- DEBUG TEST ROUTE (no auth) -----------------
 router.get("/test", (req, res) => {
@@ -113,7 +114,7 @@ router.get("/", async (req, res) => {
     res.json({ quizzes: data || [] });
   } catch (err) {
     console.error("Unexpected error in GET /api/quizzes:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return sendInternalError("quizzes/list", err, res);
   }
 });
 
@@ -197,7 +198,7 @@ router.get("/stats/all", async (req, res) => {
     res.json({ stats: result });
   } catch (err) {
     console.error("Unexpected error in GET /api/quizzes/stats/all:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return sendInternalError("quizzes/stats-all", err, res);
   }
 });
 
@@ -313,7 +314,7 @@ router.get("/:id", async (req, res) => {
     res.json({ quiz: data });
   } catch (err) {
     console.error("Unexpected error in GET /api/quizzes/:id:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return sendInternalError("quizzes/get-by-id", err, res);
   }
 });
 
@@ -385,7 +386,7 @@ router.post("/", async (req, res) => {
     res.status(201).json({ quiz: data });
   } catch (err) {
     console.error("Unexpected error in POST /api/quizzes:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return sendInternalError("quizzes/create", err, res);
   }
 });
 
@@ -449,7 +450,7 @@ router.post("/:id/attempt", auth, async (req, res) => {
     res.status(201).json({ attempt: data });
   } catch (err) {
     console.error("Unexpected error in POST /api/quizzes/:id/attempt:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return sendInternalError("quizzes/save-attempt", err, res);
   }
 });
 

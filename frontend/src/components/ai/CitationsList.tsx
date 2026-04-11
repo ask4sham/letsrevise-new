@@ -14,6 +14,7 @@ function badgeLabel(sourceType: string): string {
   if (sourceType === "lessonDiagram") return "DIAGRAM";
   if (sourceType === "teacherNote") return "NOTE";
   if (sourceType === "externalTrusted") return "EXTERNAL";
+  if (sourceType === "fallback_ai") return "AI";
   return "EXTERNAL";
 }
 
@@ -22,6 +23,7 @@ function badgeStyle(sourceType: string): { bg: string; color: string } {
   if (sourceType === "lessonBlock") return { bg: "#dcfce7", color: "#166534" };
   if (sourceType === "lessonDiagram") return { bg: "#ede9fe", color: "#5b21b6" };
   if (sourceType === "teacherNote") return { bg: "#e0e7ff", color: "#3730a3" };
+  if (sourceType === "fallback_ai") return { bg: "#fce7f3", color: "#9d174d" };
   return { bg: "#fef3c7", color: "#92400e" };
 }
 
@@ -61,8 +63,10 @@ export function CitationsList({
   const diagramCount = usedSources.filter((s) => s.sourceType === "lessonDiagram").length;
   const noteCount = usedSources.filter((s) => s.sourceType === "teacherNote").length;
   const externalCount = usedSources.filter((s) => s.sourceType === "externalTrusted").length;
+  const fallbackAiCount = usedSources.filter((s) => s.sourceType === "fallback_ai").length;
 
   const sourceQualityParts: string[] = [];
+  if (fallbackAiCount > 0) sourceQualityParts.push(`General knowledge (${fallbackAiCount})`);
   if (specCount > 0) sourceQualityParts.push(`Spec ✓ (${specCount})`);
   if (lessonCount > 0) sourceQualityParts.push(`Lesson ✓ (${lessonCount})`);
   if (noteCount > 0) sourceQualityParts.push(`Note ✓ (${noteCount})`);

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { validatePasswordStrength, PASSWORD_GUIDANCE } from "../utils/passwordStrength";
-
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+import { getAxiosErrorMessage } from "../utils/apiErrorMessage";
+import { apiUrl } from "../utils/apiBaseUrl";
 
 type UserType = "student" | "teacher" | "parent";
 
@@ -53,7 +53,7 @@ const RegisterPage: React.FC = () => {
 
   const checkBackend = async () => {
     try {
-      await axios.get(`${API_BASE}/api/health`);
+      await axios.get(apiUrl("/api/health"));
       setBackendStatus("✅ Backend connected");
     } catch {
       setBackendStatus("❌ Backend not connected");
@@ -109,7 +109,7 @@ const RegisterPage: React.FC = () => {
         payload.linkedStudentEmail = linkedStudentEmail.trim();
       }
 
-      const response = await axios.post(`${API_BASE}/api/auth/register`, payload);
+      const response = await axios.post(apiUrl("/api/auth/register"), payload);
 
       console.log("Register success:", response.data);
 
@@ -127,18 +127,15 @@ const RegisterPage: React.FC = () => {
 
       setMessage(`🎉 ${backendMsg}`);
       setLoading(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Register error:", err);
 
       let msg = "Registration failed. ";
 
-      if (!err.response) {
+      if (!(err as { response?: unknown })?.response) {
         msg += "Cannot connect to backend.";
       } else {
-        msg +=
-          err.response?.data?.message ||
-          err.response?.data?.msg ||
-          "Server error.";
+        msg += getAxiosErrorMessage(err, "Server error.");
       }
 
       setMessage(msg);

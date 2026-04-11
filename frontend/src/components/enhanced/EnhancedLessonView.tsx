@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { getAxiosErrorMessage } from '../../utils/apiErrorMessage';
+import { apiUrl } from '../../utils/apiBaseUrl';
 import { LessonMarkdown } from '../lesson/LessonMarkdown';
 import { LessonImageLightboxProvider } from '../lesson/LessonImageLightbox';
 import { lessonMarkdownUrlTransform } from '../lesson/lessonMarkdownViewComponents';
@@ -53,7 +55,7 @@ const EnhancedLessonView: React.FC = () => {
   const fetchLesson = async () => {
     if (!token) return;
     try {
-      const response = await axios.get(`http://localhost:5000/api/lessons/${id}`, {
+      const response = await axios.get(apiUrl(`/api/lessons/${id}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLesson(response.data);
@@ -70,7 +72,7 @@ const EnhancedLessonView: React.FC = () => {
     
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/lessons/${lesson._id}/purchase`,
+        apiUrl(`/api/lessons/${lesson._id}/purchase`),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -84,9 +86,9 @@ const EnhancedLessonView: React.FC = () => {
           refresh();
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Purchase error:', err);
-      alert(err.response?.data?.msg || 'Failed to purchase lesson');
+      alert(getAxiosErrorMessage(err, 'Failed to purchase lesson'));
     }
   };
 

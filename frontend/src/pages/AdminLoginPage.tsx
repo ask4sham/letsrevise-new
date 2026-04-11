@@ -37,8 +37,11 @@ const AdminLoginPage: React.FC = () => {
       navigate("/admin", { replace: true });
       window.location.reload();
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { msg?: string }; status?: number } };
-      const msg = ax?.response?.data?.msg || "Invalid credentials";
+      const ax = err as { response?: { data?: { msg?: string; error?: string }; status?: number } };
+      const msg =
+        ax?.response?.data?.msg ||
+        ax?.response?.data?.error ||
+        "Invalid credentials";
       if (ax?.response?.status === 403) {
         clearAuth();
         setError(msg);

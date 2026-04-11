@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const User = require("../models/User");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 // GET api/user/me  – get current user (sans password)
 router.get("/me", auth, async (req, res) => {
@@ -13,7 +14,7 @@ router.get("/me", auth, async (req, res) => {
     res.json({ success: true, user });
   } catch (err) {
     console.error("Get current user error:", err);
-    res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("userProfile/me-get", err, res, { extra: { success: false } });
   }
 });
 
@@ -39,7 +40,7 @@ router.put("/me", auth, async (req, res) => {
     res.json({ success: true, user });
   } catch (err) {
     console.error("Update own profile error:", err);
-    res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("userProfile/me-put", err, res, { extra: { success: false } });
   }
 });
 
@@ -74,7 +75,7 @@ router.put("/:id", auth, async (req, res) => {
     res.json({ success: true, user });
   } catch (err) {
     console.error("Admin update user error:", err);
-    res.status(500).json({ success: false, msg: "Server error", error: err.message });
+    return sendInternalError("userProfile/admin-put", err, res, { extra: { success: false } });
   }
 });
 

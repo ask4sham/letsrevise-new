@@ -16,6 +16,8 @@ export type PostEnquiryParams = {
   responseMode?: "quick" | "explain" | "exam" | "revision";
   /** PR-021: Allow external search fallback when course content is thin (teacher/admin only) */
   allowExternal?: boolean;
+  /** When set, enquiry prefers text from this lesson before vector retrieval */
+  lessonId?: string;
 };
 
 export type EnquiryCitation =
@@ -145,6 +147,10 @@ export type PostEnquiryResponse = {
   confidenceLevel?: "strong" | "moderate" | "weak";
   confidenceReason?: string;
   confidenceSignals?: ConfidenceSignals;
+  /** When no curriculum sources: general-knowledge fallback (not strict mode) */
+  confidence?: "low";
+  source?: "fallback_ai" | "curriculum";
+  fallbackNotice?: string;
   /** PR-021: External search was used */
   externalUsed?: boolean;
   externalSources?: Array<{ url: string; title: string; domain: string }>;
@@ -174,6 +180,7 @@ export async function postEnquiry(params: PostEnquiryParams): Promise<PostEnquir
     conversationId: params.conversationId || undefined,
     responseMode: params.responseMode || undefined,
     allowExternal: params.allowExternal ?? undefined,
+    lessonId: params.lessonId?.trim() || undefined,
   });
   return res.data;
 }

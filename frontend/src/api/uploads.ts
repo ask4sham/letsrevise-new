@@ -1,5 +1,7 @@
 // /frontend/src/api/uploads.ts
 import { getUploadBaseUrl } from "../services/mediaUrl";
+import { getErrorMessageFromData } from "../utils/apiErrorMessage";
+import { apiUrl } from "../utils/apiBaseUrl";
 
 export type UploadImageResult = {
   ok: boolean;
@@ -8,12 +10,9 @@ export type UploadImageResult = {
   folder: string;     // e.g. "images/gcse"
 };
 
-const API_BASE =
-  (process.env.REACT_APP_API_BASE as string) || "http://localhost:5000";
-
 /**
  * Upload an image to the backend uploads API.
- * Backend endpoint: POST http://localhost:5000/api/uploads/image
+ * Backend endpoint: POST /api/uploads/image (same-origin + proxy in dev, or env host)
  * Expects multipart/form-data with field name: "file"
  * Optional text field: "folder" (e.g. "images/gcse")
  */
@@ -25,7 +24,7 @@ export async function uploadImage(
   form.append("file", file);          // MUST be "file"
   form.append("folder", folder);      // optional
 
-  const res = await fetch(`${API_BASE}/api/uploads/image`, {
+  const res = await fetch(apiUrl("/api/uploads/image"), {
     method: "POST",
     body: form,
   });
@@ -33,8 +32,7 @@ export async function uploadImage(
   const data = (await res.json()) as UploadImageResult | { error: string };
 
   if (!res.ok) {
-    const msg = "error" in data ? data.error : "Upload failed";
-    throw new Error(msg);
+    throw new Error(getErrorMessageFromData(data, "Upload failed"));
   }
 
   const okData = data as UploadImageResult;

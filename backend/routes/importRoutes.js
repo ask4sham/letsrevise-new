@@ -12,6 +12,7 @@ const {
   importFlashcardsFromCsv,
   importExamQuestionsFromCsv,
 } = require("../services/csvContentImportService");
+const { sendInternalError } = require("../utils/safeErrorResponse");
 
 const { FILE_STORAGE_PATH } = require("../config/paths");
 const csvImportDir = path.join(FILE_STORAGE_PATH, "csv-import");
@@ -67,7 +68,7 @@ router.post("/flashcards/csv", auth, requireTeacherOrAdmin, uploadCsv.single("fi
     if (req.file?.path) {
       try { fs.unlinkSync(req.file.path); } catch (_) {}
     }
-    return res.status(500).json({ error: e.message || "Import failed" });
+    return sendInternalError("import/flashcards-csv", e, res, { extra: { error: "Import failed" } });
   }
 });
 
@@ -97,7 +98,7 @@ router.post("/exam-questions/csv", auth, requireTeacherOrAdmin, uploadCsv.single
     if (req.file?.path) {
       try { fs.unlinkSync(req.file.path); } catch (_) {}
     }
-    return res.status(500).json({ error: e.message || "Import failed" });
+    return sendInternalError("import/exam-questions-csv", e, res, { extra: { error: "Import failed" } });
   }
 });
 

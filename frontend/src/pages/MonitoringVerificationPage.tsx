@@ -4,12 +4,8 @@
  */
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
-
-const API_BASE =
-  (process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || "")
-    .trim()
-    .replace(/\/+$/, "")
-    .replace(/\/api\/?$/, "") || "http://localhost:5000";
+import { getApiClientErrorMessage, getHttpStatus } from "../utils/apiErrorMessage";
+import { apiUrl } from "../utils/apiBaseUrl";
 
 export default function MonitoringVerificationPage() {
   const [healthStatus, setHealthStatus] = useState<{
@@ -29,7 +25,7 @@ export default function MonitoringVerificationPage() {
   useEffect(() => {
     let cancelled = false;
     setLoadingHealth(true);
-    fetch(`${API_BASE}/api/health`)
+    fetch(apiUrl("/api/health"))
       .then((r) => r.json().catch(() => ({})))
       .then((data) => {
         if (!cancelled) {
@@ -62,12 +58,13 @@ export default function MonitoringVerificationPage() {
         ok: res.status >= 200 && res.status < 300,
         data: res.data,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = err as { data?: unknown; response?: { data?: unknown } };
       setTestResult({
-        status: err?.response?.status,
+        status: getHttpStatus(err),
         ok: false,
-        error: err?.message || "Request failed",
-        data: err?.response?.data,
+        error: getApiClientErrorMessage(err, "Request failed"),
+        data: e?.response?.data ?? e?.data,
       });
     } finally {
       setLoadingTest(false);

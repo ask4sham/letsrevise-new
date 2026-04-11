@@ -1,5 +1,7 @@
 // /backend/middleware/auth.js
-console.log("🔐 Auth middleware (JWT)");
+if (process.env.NODE_ENV !== "production") {
+  console.log("🔐 Auth middleware (JWT)");
+}
 
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -8,6 +10,7 @@ const { isActiveUserDoc } = require("../utils/activeUser");
 const { normalizeSubscriptionV2 } = require("../contracts/subscriptionV2");
 
 const { getJwtSecret } = require("../utils/jwtSecret");
+const { IS_PRODUCTION } = require("../utils/safeErrorResponse");
 
 function secretFingerprint(secret) {
   const hash = crypto.createHash("sha256").update(secret).digest("hex");
@@ -41,7 +44,13 @@ module.exports = function auth(req, res, next) {
     }
 
     try {
-      const secret = getJwtSecret();
+      let secret;
+      try {
+        secret = getJwtSecret();
+      } catch (configErr) {
+        console.error("[auth] JWT secret not configured");
+        return res.status(500).json({ msg: "Server configuration error", code: "AUTH_CONFIG" });
+      }
       const decoded = jwt.verify(token, secret, { algorithms: ["HS256"] });
       const userId = decoded.userId || decoded.user?.id || decoded.user?._id || decoded.id || decoded._id;
       if (!userId) {
@@ -73,8 +82,10 @@ module.exports = function auth(req, res, next) {
     } catch (err) {
       if (shouldDebugJwt()) {
         console.log("[auth] verify failed:", err.message);
+      } else if (IS_PRODUCTION) {
+        console.log("[auth] token rejected");
       }
-      return res.status(401).json({ msg: "Token is not valid" });
+      return res.status(401).json({ msg: "Token is not valid", code: "INVALID_TOKEN" });
     }
   })();
 };
