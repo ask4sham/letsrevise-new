@@ -32,14 +32,8 @@ const WEAK_SCORE_THRESHOLD = 0.35;
 const LESSON_LOCAL_STRONG_THRESHOLD = 0.18;
 const CONVERSATION_CONTEXT_PAIRS = 3; // last 3 user+assistant pairs = 6 messages
 
+/** Set DEBUG_ENQUIRY=1 for per-request enquiry diagnostics (retrieval, fallback routing). */
 const DEBUG_ENQUIRY = process.env.DEBUG_ENQUIRY === "1" || process.env.DEBUG_ENQUIRY === "true";
-/** Grep `[enquiry_tutor_v1]` — on by default in non-production; set ENQUIRY_TUTOR_V1_LOG=0 to disable. */
-const ENQUIRY_TUTOR_V1_LOG = (() => {
-  const v = String(process.env.ENQUIRY_TUTOR_V1_LOG || "").trim().toLowerCase();
-  if (v === "0" || v === "false" || v === "off") return false;
-  if (v === "1" || v === "true" || v === "on") return true;
-  return process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
-})();
 
 const ENQUIRY_MODES = new Set(["lesson", "revision", "exam"]);
 const RESPONSE_MODES = new Set(["quick", "explain", "exam", "revision"]);
@@ -361,7 +355,7 @@ async function handleEnquiry(req, res) {
     // Tutor fallback: curriculum retrieval above; GK answer only if weak AND not strict (never bypass strict).
     const useGeneralKnowledgeFallback = !strictCurriculumOnly && weakEvidence;
 
-    if (ENQUIRY_TUTOR_V1_LOG || DEBUG_ENQUIRY) {
+    if (DEBUG_ENQUIRY) {
       console.log(
         "[enquiry_tutor_v1]",
         JSON.stringify({
@@ -404,17 +398,6 @@ async function handleEnquiry(req, res) {
 
     const docMap = new Map(retrievalResults.map((r) => [r.knowledgeDocumentId, r]));
 
-    if (DEBUG_ENQUIRY) {
-      // TEMP: remove or trim after verifying fallback routing in staging
-      console.log("[enquiry/post] fallback routing (TEMP)", {
-        weakEvidence,
-        strictCurriculumOnly,
-        useGeneralKnowledgeFallback,
-        noCurriculumSources,
-        mergedTopScore,
-        chunks: contextChunks.length,
-      });
-    }
     let answer = await generateEnquiryAnswer({
       question: q,
       contextChunks,
@@ -431,14 +414,11 @@ async function handleEnquiry(req, res) {
       },
     });
 
-    // Observability: confirms live requests completed the GK fallback LLM path (grep Render logs for this key).
-    if (useGeneralKnowledgeFallback && process.env.NODE_ENV !== "test") {
-      console.log("[enquiry/post] fallback_ai_live_path_completed", {
-        specKey: spec,
-        topicKey: topicKey || null,
-        noCurriculumSources,
-        llmProvider: getLlmProvider(),
-      });
+    if (DEBUG_ENQUIRY && useGeneralKnowledgeFallback && process.env.NODE_ENV !== "test") {
+      console.log(
+        "[enquiry/post] fallback_ai_path",
+        JSON.stringify({ specKey: spec, topicKey: topicKey || null, noCurriculumSources })
+      );
     }
 
     const { valid: validCitations, warnings: verifyWarnings } = verifyCitations(answer.citations, docMap);

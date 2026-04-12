@@ -3,6 +3,39 @@
  * Extracted from enquiry.controller for reuse by topic summary.
  * Verify: cited knowledgeDocumentId must be in retrieved set, quote must appear in source text.
  */
+
+function isLessonLocalRetrievalDoc(doc) {
+  if (!doc) return false;
+  if (doc.metadata && doc.metadata.lessonLocal === true) return true;
+  const kid = doc.knowledgeDocumentId != null ? String(doc.knowledgeDocumentId) : "";
+  return kid.startsWith("lessonlocal:");
+}
+
+/** Strip light markdown so model quotes can match stored lesson markdown. */
+function stripLightMarkdown(s) {
+  return String(s || "")
+    .replace(/\*\*|__/g, "")
+    .replace(/(^|\s)#{1,6}\s+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Second-pass match for lesson-local chunks: model often quotes plain text from markdown sources.
+ */
+function quoteMatchesLessonLocalDoc(docText, quote) {
+  const dt = stripLightMarkdown(docText).toLowerCase();
+  const q = stripLightMarkdown(quote).toLowerCase();
+  if (!q) return true;
+  if (dt.includes(q.slice(0, 150))) return true;
+  const words = q.split(/\s+/).filter((w) => w.length > 2);
+  if (words.length === 0) return true;
+  const sig = words.filter((w) => w.length >= 4);
+  const toCheck = sig.length > 0 ? sig : words;
+  const matched = toCheck.filter((w) => dt.includes(w));
+  return matched.length >= Math.max(1, Math.ceil(toCheck.length * 0.5));
+}
+
 function verifyCitations(citations, docMap) {
   const valid = [];
   const warnings = [];
@@ -60,10 +93,15 @@ function verifyCitations(citations, docMap) {
       continue;
     }
 
-    const docText = (doc.text || "").toLowerCase();
+    const docTextRaw = doc.text || "";
+    const docText = docTextRaw.toLowerCase();
     const quoteNorm = quote.toLowerCase().replace(/\s+/g, " ").trim();
     const snippet = quoteNorm.slice(0, 150);
     if (docText.includes(snippet) || snippet.split(" ").every((w) => docText.includes(w))) {
+      valid.push(citationBase);
+      continue;
+    }
+    if (isLessonLocalRetrievalDoc(doc) && quoteMatchesLessonLocalDoc(docTextRaw, quote)) {
       valid.push(citationBase);
     }
   }

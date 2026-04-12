@@ -5,8 +5,6 @@
 const mongoose = require("mongoose");
 const Lesson = require("../../models/Lesson");
 
-const DEBUG_ENQUIRY = process.env.DEBUG_ENQUIRY === "1" || process.env.DEBUG_ENQUIRY === "true";
-
 const STOP = new Set([
   "the",
   "and",
@@ -258,27 +256,10 @@ async function getLessonLocalRetrieval({ question, specKey, topicKey, lessonId, 
 
   if (lesson.specKey && spec && normSpec(lesson.specKey) !== normSpec(spec)) return [];
 
+  // lessonId is authoritative for which lesson text to use; request topicKey may differ from
+  // lesson.topicKey — we do not skip lesson-local. Broader retrieval still uses request topicKey in the controller.
   const reqTopic = (topicKey || "").trim();
   const lesTopic = (lesson.topicKey || "").trim();
-  // lessonId is authoritative for which lesson text to use; URL/request topicKey may differ from
-  // lesson.topicKey — do not skip lesson-local. Broader retrieval still uses request topicKey in the controller.
-  if (
-    DEBUG_ENQUIRY &&
-    process.env.NODE_ENV !== "test" &&
-    reqTopic &&
-    lesTopic &&
-    reqTopic !== lesTopic
-  ) {
-    console.log(
-      "[lesson_local_topic_mismatch]",
-      JSON.stringify({
-        lessonId: String(lessonId),
-        reqTopic,
-        lessonTopicKey: lesTopic,
-        lessonLocalProceeds: true,
-      })
-    );
-  }
 
   const { segments, lessonIdStr } = extractLessonSegments(lesson);
   const lessonTitle = lesson.title || "";

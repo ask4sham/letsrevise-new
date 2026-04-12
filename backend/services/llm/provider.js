@@ -14,6 +14,8 @@
 const { getProvider: getEmbeddingsProvider } = require("../embeddings/provider");
 const { isTruthyEnv } = require("../../config/storage");
 
+const DEBUG_ENQUIRY = process.env.DEBUG_ENQUIRY === "1" || process.env.DEBUG_ENQUIRY === "true";
+
 const MAX_CONTEXT_CHARS = 12000;
 
 /** Unified user-visible warning when enquiry uses general-knowledge fallback (non-strict). */
@@ -92,23 +94,13 @@ function logEnquiryTutorStartup() {
   const hasKey = !!(process.env.LLM_API_KEY || process.env.OPENAI_API_KEY);
   const explicit = String(process.env.LLM_PROVIDER || "").trim();
   console.log(
-    `[llm] LetsRevise tutor effectiveProvider=${p}` +
-      (explicit ? ` (LLM_PROVIDER=${JSON.stringify(explicit)})` : " (LLM_PROVIDER unset; openai when API key present)")
+    `[llm] tutor startup provider=${p} apiKey=${hasKey ? "present" : "absent"}${explicit ? ` LLM_PROVIDER=${explicit}` : ""}`
   );
-  if (p === "mock") {
-    if (hasKey && explicit === "mock") {
-      console.warn("[llm] LetsRevise tutor: LLM_PROVIDER=mock — using mock despite API key (dev/test).");
-    } else if (!hasKey) {
-      console.warn(
-        "[llm] LetsRevise tutor: mock — set OPENAI_API_KEY or LLM_API_KEY for OpenAI (or LLM_PROVIDER=openai)."
-      );
-    }
-    return;
+  if (p === "openai" && !hasKey) {
+    console.error("[llm] tutor: OpenAI selected but OPENAI_API_KEY/LLM_API_KEY missing — generation will fail");
   }
-  if (!hasKey) {
-    console.error(
-      "[llm] LetsRevise tutor: effectiveProvider=openai but no OPENAI_API_KEY/LLM_API_KEY — generation will throw."
-    );
+  if (p === "mock" && explicit === "mock" && hasKey) {
+    console.warn("[llm] tutor: LLM_PROVIDER=mock — using mock despite API key");
   }
 }
 
@@ -312,13 +304,13 @@ async function openaiGenerateGeneralKnowledge(question, constraints) {
   const responseMode = String(constraints?.responseMode ?? "explain").toLowerCase();
   const modeInstructions = {
     quick:
-      "\n\nQUICK MODE: Answer in 3–5 bullet points, max ~600 chars. Include exactly 1 practice item. No long paragraphs.",
+      "\n\nQUICK MODE: 3–5 bullet points, max ~600 characters. One practice item. No filler.",
     explain:
-      "\n\nEXPLAIN MODE: Clear explanation, simple structure, one short example. Include 2 practice items (1 mcq + 1 short).",
+      "\n\nEXPLAIN MODE: Clear GCSE-style explanation; concise. Two practice items (1 mcq + 1 short).",
     exam:
-      "\n\nEXAM MODE: Answer like an examiner—key points, command words. Include 1 exam-style question + mark scheme. Use syllabus language; no fluff.",
+      "\n\nEXAM MODE: Structured points and command words; one exam question + mark scheme. No rambling.",
     revision:
-      "\n\nREVISION MODE: Give a revision sheet—key facts, common mistakes, memory cues. Provide 3 flashcard prompts in practice array as type=flashcard with front and back fields.",
+      "\n\nREVISION MODE: Key facts, common mistakes, cues. Three flashcards in practice (type=flashcard).",
   };
   const modeNote = modeInstructions[responseMode] || modeInstructions.explain;
   const specHint = constraints?.specKey ? ` Specification context (wording only): ${String(constraints.specKey)}.` : "";
@@ -341,13 +333,14 @@ STUDENT MODE:
 SIMPLIFIED: No trusted curriculum documents matched. Give a SHORT, clear answer (aim under ~800 characters). Prefer bullet points.`
       : "";
 
-  const systemPrompt = `You are an educational AI tutor for UK GCSE/A-Level. No LetsRevise curriculum sources were retrieved for this question. Answer using well-established general knowledge and typical exam-board expectations. Do NOT claim your answer comes from a specific LetsRevise document or spec statement. If unsure, say so briefly.${simplifiedNote}
+  const systemPrompt = `You are an educational AI tutor for UK GCSE/A-Level. No LetsRevise curriculum sources were retrieved for this question. Answer using well-established general knowledge and typical GCSE exam expectations. Sound like concise revision guidance—direct phrasing, no filler. Do NOT claim your answer comes from a specific LetsRevise document or spec statement. If unsure, say so briefly.${simplifiedNote}
 
 Rules:
 - Return valid JSON only.
 - citations must be an empty array [].
 - Do not invent quotation marks from curriculum documents.
 - Do not put "Insufficient trusted sources" in warnings; the client shows a fixed curriculum notice.
+- Avoid unsupported specifics; prefer widely taught syllabus ideas only.
 ${modeNote}${studentNote}`;
 
   const userPrompt = `${convCtx}${specHint}${topicHint}
@@ -437,13 +430,13 @@ async function openaiGenerate(question, contextChunks, constraints) {
   const responseMode = String(constraints?.responseMode ?? "explain").toLowerCase();
   const modeInstructions = {
     quick:
-      "\n\nQUICK MODE: Answer in 3–5 bullet points, max ~600 chars. Include exactly 1 practice item. No long paragraphs.",
+      "\n\nQUICK MODE: 3–5 bullet points, max ~600 characters total. Exactly 1 practice item. No preamble or filler.",
     explain:
-      "\n\nEXPLAIN MODE: Clear explanation, simple structure, small example. Include 2 practice items (1 mcq + 1 short).",
+      "\n\nEXPLAIN MODE: Clear, exam-style explanation—definitions first, then one short example only if the sources support it. Two practice items (1 mcq + 1 short).",
     exam:
-      "\n\nEXAM MODE: Answer like an examiner—key points, command words. Include 1 exam-style question + mark scheme. Use syllabus language; no fluff.",
+      "\n\nEXAM MODE: GCSE-style response—address command words, use precise terminology from sources where possible. One exam-style question + mark scheme. No padding.",
     revision:
-      "\n\nREVISION MODE: Give a revision sheet—key facts, common mistakes, memory cues. Provide 3 flashcard prompts in practice array as type=flashcard with front and back fields.",
+      "\n\nREVISION MODE: Compact revision notes—key facts, common mistakes, memory cues. Three flashcards in practice (type=flashcard, front+back).",
   };
   const modeNote = modeInstructions[responseMode] || modeInstructions.explain;
 
@@ -451,6 +444,17 @@ async function openaiGenerate(question, contextChunks, constraints) {
     constraints?.weakEvidence === true
       ? "\n\nIMPORTANT: The retrieved sources are weak or insufficient. You MUST include a warning 'Insufficient trusted sources' and explain what is missing. Do not make up facts."
       : "";
+
+  const strongCurriculumNote =
+    constraints?.weakEvidence === true
+      ? ""
+      : `
+
+STRONG TRUSTED SOURCES (preferred style):
+- Write like a GCSE revision tutor: direct, student-friendly, exam-appropriate wording.
+- Prefer vocabulary and phrasing from the supplied sources when accurate (use verbatim quotes in citations).
+- keyPoints: 3–6 short, accurate points you can support with citations—suitable for memorisation.
+- Avoid long generic essays, vague introductions, and claims you cannot cite.`;
 
   const studentNote =
     constraints?.studentMode === true
@@ -471,7 +475,7 @@ Rules:
 - Every citation must reference a knowledgeDocumentId from the context.
 - quote must be a snippet (<=200 chars) from that document's text.
 - If sources don't cover the question, add "Insufficient trusted sources" to warnings.
-- Return valid JSON only.${contextNote}${modeNote}${weakNote}${studentNote}`;
+- Return valid JSON only.${contextNote}${modeNote}${weakNote}${studentNote}${strongCurriculumNote}`;
 
   const userPrompt = `${convCtx}Question: ${question}
 
@@ -567,7 +571,7 @@ async function generateEnquiryAnswer({ question, contextChunks, constraints = {}
           break;
         }
         const delayMs = Math.min(2500, 350 * 2 ** (attempt - 1));
-        if (process.env.NODE_ENV !== "test") {
+        if (DEBUG_ENQUIRY && process.env.NODE_ENV !== "test") {
           console.warn(
             `[llm/enquiry] OpenAI attempt ${attempt}/${maxAttempts} failed, retry in ${delayMs}ms:`,
             err && err.message ? err.message : err
