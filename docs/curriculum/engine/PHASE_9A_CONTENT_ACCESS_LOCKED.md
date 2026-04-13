@@ -45,7 +45,7 @@ Backend-first lesson content access is **locked** at this tag. No change to poli
 
 - **No premium fields in list.** All items go through `toListSafe(lesson, extra)`.
 - **LIST_SAFE_KEYS** (no `pages`, `content`, `quiz`, `flashcards`):  
-  `id`, `_id`, `title`, `summary`, `subject`, `level`, `board`, `topic`, `tier`, `status`, `isPublished`, `teacherId`, `teacherName`, `createdAt`, `updatedAt`, `views`, `averageRating`, `shamCoinPrice`, `isFreePreview`, `preview`.
+  `id`, `_id`, `title`, `summary`, `subject`, `level`, `board`, `topic`, `tier`, `status`, `isPublished`, `teacherId`, `teacherName`, `createdAt`, `updatedAt`, `views`, `averageRating`, `isFreePreview`, `preview`.
 - **Extra fields allowed:** `locked`, `hasAccess`, `reason`, `isFreePreview`, `pageCount` (only for entitled users).
 - **Tripwire test:** Integration test asserts list items do **not** contain `pages`, `content`, `quiz`, `flashcards`; may contain `pageCount`.
 
@@ -97,4 +97,4 @@ npm run test:backend
 - [x] Purchased IDs normalized (Set of strings)
 - [x] Explicit preview/full payload helpers
 
-Next: Phase 9B (subscriptions/ShamCoin entitlements) layers on top of this access gate.
+Next: Phase 9B (subscription entitlements) layers on top of this access gate.

@@ -36,7 +36,6 @@ type LessonRow = {
   board?: string;
   examBoard?: string;
   tier?: string;
-  shamCoinPrice?: number;
   purchaseCount?: number;
   totalEarnings?: number;
   averageRating?: number;
@@ -368,7 +367,6 @@ const TeacherDashboard: React.FC = () => {
         examBoard: l.examBoard ?? l.board ?? undefined,
         tier: l.tier ?? undefined,
 
-        shamCoinPrice: l.shamCoinPrice ?? 0,
         purchaseCount: l.purchaseCount ?? 0,
         totalEarnings: l.totalEarnings ?? 0,
         averageRating: l.averageRating ?? 0,
@@ -531,7 +529,7 @@ const TeacherDashboard: React.FC = () => {
       return;
     }
 
-    if (!window.confirm(`Do you want to cash out ${stats.totalEarnings} ShamCoins?`)) {
+    if (!window.confirm(`Do you want to cash out ${stats.totalEarnings} in earnings?`)) {
       return;
     }
 
@@ -550,29 +548,6 @@ const TeacherDashboard: React.FC = () => {
     } catch (err: any) {
       console.error("Cash out failed:", err);
       alert(err?.data?.message || err?.message || "Cash out failed.");
-    }
-  };
-
-  const fixEarnings = async () => {
-    if (
-      !window.confirm(
-        "This will transfer your available ShamCoins to earnings for cash out. Continue?"
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const response = await api.post("/earnings/fix-earnings", {});
-      alert(
-        `Fixed! ${response.data.message}\nNew Earnings: ${response.data.newEarnings} coins\nRemaining ShamCoins: ${response.data.newShamCoins} coins`
-      );
-
-      refresh();
-
-      await fetchTeacherStatsFromBackend();
-    } catch (err: any) {
-      alert(err?.data?.message || err?.message || "Fix failed");
     }
   };
 
@@ -770,7 +745,7 @@ const TeacherDashboard: React.FC = () => {
         {/* MIDDLE: Main dashboard content */}
         <main className="teacher-dashboard-main" style={{ minWidth: 0 }}>
         <div style={{ marginBottom: "30px" }}>
-          {/* Row 1: Title + Welcome (left), ShamCoins (right) */}
+          {/* Row 1: Title + Welcome (left), earnings summary (right) */}
           <div
             style={{
               display: "flex",
@@ -805,7 +780,7 @@ const TeacherDashboard: React.FC = () => {
                   fontSize: "1.1rem",
                 }}
               >
-                💰 {user?.shamCoins || 0} ShamCoins
+                💰 Earnings: {stats.totalEarnings ?? 0}
               </div>
             </div>
           </div>
@@ -1410,7 +1385,7 @@ const TeacherDashboard: React.FC = () => {
             <div style={{ textAlign: "center", padding: "40px" }}>
               <div style={{ fontSize: "3rem", color: "#e2e8f0", marginBottom: "20px" }}>📚</div>
               <h3 style={{ color: "#666", marginBottom: "10px" }}>No lessons yet</h3>
-              <p style={{ color: "#999" }}>Create your first lesson to start earning ShamCoins!</p>
+              <p style={{ color: "#999" }}>Create your first lesson to reach students.</p>
 
               <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
                 <button
@@ -1524,11 +1499,11 @@ const TeacherDashboard: React.FC = () => {
                         <span style={{ color: "#d1d5db" }}>|</span>
                         <span>{lesson.level}</span>
                         <span style={{ color: "#d1d5db" }}>|</span>
-                        <span>{lesson.shamCoinPrice ?? 0} coins</span>
+                        <span>Subscription access</span>
                         <span style={{ color: "#d1d5db" }}>|</span>
                         <span>{lesson.purchaseCount ?? 0} purchases</span>
                         <span style={{ color: "#d1d5db" }}>|</span>
-                        <span style={{ color: "#16a34a", fontWeight: 600 }}>{lesson.totalEarnings ?? 0} coins earned</span>
+                        <span style={{ color: "#16a34a", fontWeight: 600 }}>{lesson.totalEarnings ?? 0} earnings</span>
                         <span style={{ color: "#d1d5db" }}>|</span>
                         <span
                           style={{
@@ -1694,9 +1669,6 @@ const TeacherDashboard: React.FC = () => {
               <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginTop: 4, marginBottom: 6, textTransform: "uppercase" }}>Business</div>
               <div style={{ marginBottom: 8 }}>
                 <button type="button" onClick={handleCashOut} style={{ width: "100%", padding: "10px 14px", background: "#ed8936", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Cash out earnings</button>
-              </div>
-              <div>
-                <button type="button" onClick={fixEarnings} style={{ width: "100%", padding: "10px 14px", background: "#9f7aea", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>Fix earnings</button>
               </div>
             </div>
           </div>

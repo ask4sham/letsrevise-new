@@ -25,9 +25,8 @@
 - **Frontend**: `SubscriptionPage.tsx`
 - **Features**:
   - Multiple subscription plans (Free, Basic, Premium, Enterprise)
-  - Monthly ShamCoin allowances
   - Plan management (subscribe, cancel, upgrade)
-  - Renewal system for monthly coins
+  - Access-based lesson entitlement (no per-lesson coin wallet)
   - Ready for Stripe integration (mock implementation included)
 
 ### 3. **Teacher Payout System** ✅
@@ -37,7 +36,7 @@
   - Earnings balance tracking
   - Payout requests with multiple payment methods
   - Payout history and status tracking
-  - Minimum withdrawal limits (1000 SC)
+  - Minimum withdrawal limits (platform units)
   - Payment methods: PayPal, Bank Transfer, Crypto
   - Cancel pending payouts
 
@@ -49,7 +48,7 @@
   - User management (verify teachers, change roles)
   - Lesson management (publish, archive, flag)
   - Transaction monitoring
-  - ShamCoin adjustments
+  - User and lesson oversight (legacy coin adjustment endpoint retired)
   - Subscription analytics
 
 ### 5. **Enhanced User Model** ✅
@@ -102,7 +101,7 @@
 - `POST /api/subscriptions/subscribe` - Subscribe to plan
 - `POST /api/subscriptions/cancel` - Cancel subscription
 - `POST /api/subscriptions/upgrade` - Upgrade plan
-- `POST /api/subscriptions/renew-shamcoins` - Renew monthly allowance
+- `POST /api/subscriptions/renew-shamcoins` - Retired (410); subscription is access-based
 
 #### Payouts:
 - `GET /api/payouts/balance` - Teacher earnings balance
@@ -119,7 +118,7 @@
 - `PUT /api/admin/users/:userId/verify` - Verify/reject teachers
 - `PUT /api/admin/users/:userId/role` - Change user role
 - `PUT /api/admin/lessons/:lessonId/status` - Update lesson status
-- `POST /api/admin/shamcoins` - Adjust user ShamCoins
+- `POST /api/admin/shamcoins` - Retired (410); legacy balance adjustments removed
 
 ## 🚀 Setup & Testing:
 

@@ -303,7 +303,7 @@ const LessonProgressTracker: React.FC<LessonProgressTrackerProps> = ({
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <span>🎉 Congratulations! You've earned ShamCoins for completing this lesson!</span>
+            <span>🎉 Lesson complete! Your progress has been saved.</span>
             <button
               onClick={() => setShowCompletionReward(false)}
               style={{

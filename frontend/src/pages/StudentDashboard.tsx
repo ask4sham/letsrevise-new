@@ -87,7 +87,6 @@ type MongoLessonRaw = {
   teacherName?: any;
   teacherId?: any;
   estimatedDuration?: any;
-  shamCoinPrice?: any;
   views?: any;
   averageRating?: any;
 };
@@ -112,7 +111,6 @@ type StudentLessonCard = {
   teacherId: string;
 
   estimatedDuration: number;
-  shamCoinPrice: number;
   views: number;
   averageRating: number;
   createdAt: string;
@@ -367,7 +365,7 @@ const StudentDashboard: React.FC = () => {
   const [recLessons, setRecLessons] = useState<StudentLessonCard[]>([]);
 
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
-    Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null; shamCoinPrice: number }>
+    Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null }>
   >({});
 
   // Filters (match BrowseLessons UX)
@@ -431,7 +429,6 @@ const StudentDashboard: React.FC = () => {
               teacherName: l.teacherName ?? "Teacher",
               teacherId: "",
               estimatedDuration: 0,
-              shamCoinPrice: 0,
               views: 0,
               averageRating: 0,
               createdAt: "",
@@ -472,7 +469,6 @@ const StudentDashboard: React.FC = () => {
                   teacherName: l.teacherName ?? "Teacher",
                   teacherId: "",
                   estimatedDuration: 0,
-                  shamCoinPrice: 0,
                   views: 0,
                   averageRating: 0,
                   createdAt: "",
@@ -572,9 +568,6 @@ const StudentDashboard: React.FC = () => {
             estimatedDuration: Number.isFinite(Number((l as any).estimatedDuration))
               ? Number((l as any).estimatedDuration)
               : 0,
-            shamCoinPrice: Number.isFinite(Number((l as any).shamCoinPrice))
-              ? Number((l as any).shamCoinPrice)
-              : 0,
             views: Number.isFinite(Number((l as any).views)) ? Number((l as any).views) : 0,
             averageRating: Number.isFinite(Number((l as any).averageRating))
               ? Number((l as any).averageRating)
@@ -655,7 +648,6 @@ const StudentDashboard: React.FC = () => {
           teacherName: "Teacher",
           teacherId: String(l.teacher_id ?? ""),
           estimatedDuration: 0,
-          shamCoinPrice: 0,
           views: 0,
           averageRating: 0,
           createdAt: safeCreatedAt,
@@ -843,10 +835,6 @@ const StudentDashboard: React.FC = () => {
     }));
   };
 
-  const handlePurchase = async (lessonId: string) => {
-    navigate(`/lesson/${lessonId}`);
-  };
-
   const handleExamPractice = () => {
     navigate("/assessments/papers"); // Changed from "/assessments" to "/assessments/papers"
   };
@@ -907,19 +895,21 @@ const StudentDashboard: React.FC = () => {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
-            <div
+            <Link
+              to="/subscription"
               style={{
                 background: "white",
                 padding: "10px 20px",
                 borderRadius: "20px",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                fontWeight: "bold",
-                color: "#333",
-                fontSize: "1.1rem",
+                fontWeight: 700,
+                color: "#4f46e5",
+                fontSize: "1rem",
+                textDecoration: "none",
               }}
             >
-              💰 {user?.shamCoins || 0} ShamCoins
-            </div>
+              Upgrade to access
+            </Link>
 
             {/* ✅ UPDATED: Exam Practice Link - Now goes to /assessments/papers */}
             <button
@@ -1598,9 +1588,12 @@ const StudentDashboard: React.FC = () => {
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#333" }}>
-                          {lesson.shamCoinPrice}{" "}
-                          <span style={{ fontSize: "1rem", color: "#666" }}>ShamCoins</span>
+                        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#333" }}>
+                          {isFreePreview
+                            ? "Free preview"
+                            : isUnlocked
+                            ? "Included in your subscription"
+                            : "Upgrade to access"}
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "#666" }}>⭐ {lesson.averageRating}/5</div>
                       </div>
@@ -1670,7 +1663,7 @@ const StudentDashboard: React.FC = () => {
                                   fontSize: "0.9rem",
                                 }}
                               >
-                                Subscribe
+                                Upgrade to access
                               </button>
                             </Link>
                           </>
@@ -1768,7 +1761,7 @@ const StudentDashboard: React.FC = () => {
                               {purchase.purchasedAt ? new Date(purchase.purchasedAt).toLocaleDateString() : purchase.timestamp ? new Date(purchase.timestamp).toLocaleDateString() : "—"}
                             </p>
                             <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", color: "#48bb78" }}>
-                              Price: {purchase.price ?? 0} ShamCoins
+                              Included in your subscription
                             </p>
                           </div>
                           {canOpen && !unavailable ? (
@@ -1817,8 +1810,7 @@ const StudentDashboard: React.FC = () => {
 
         {/* Footer Info */}
         <div style={{ marginTop: "40px", textAlign: "center", color: "#666", fontSize: "0.9rem" }}>
-          <p>Need more ShamCoins? Complete assignments or refer friends to earn more!</p>
-          <p>Purchases will be re-enabled after we migrate the purchase flow to Supabase.</p>
+          <p>Full lesson access is included in your subscription.</p>
         </div>
       </div>
     </div>

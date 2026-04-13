@@ -571,7 +571,7 @@ router.get("/stats", auth, checkAdmin, async (req, res) => {
           monthly: revenueStats?.[0]?.monthlyRevenue || 0,
         },
         subscriptions: subsMap,
-        platform: { totalShamCoins: 0, activeUsers },
+        platform: { activeUsers },
       },
     });
   } catch (err) {
@@ -717,6 +717,7 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
         lastActive: u.userType === "student" ? u.studentStats?.lastActiveDate : u.updatedAt,
         stats: u.userType === "teacher" ? u.teacherStats : u.studentStats,
         entitlementSummary: getEntitlementSummary(u),
+        earnings: typeof u.earnings === "number" ? u.earnings : 0,
         isDeleted: !!u.isDeleted,
         deletedAt: u.deletedAt || null,
       })),
@@ -950,7 +951,6 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
         const statusResolved = getLessonStatus(lesson);
 
         const purchases = lesson.purchases || 0;
-        const price = 0;
 
         return {
           id: lesson._id,
@@ -958,7 +958,7 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
           subject: lesson.subject,
           level: lesson.level,
           status: statusResolved,
-          shamCoinPrice: price,
+          lessonAccess: "subscription",
           views: lesson.views || 0,
           purchases,
           averageRating: lesson.averageRating || 0,
@@ -972,9 +972,9 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
               }
             : null,
           revenue: {
-            total: purchases * price,
-            platform: purchases * price * 0.3,
-            teacher: purchases * price * 0.7,
+            total: 0,
+            platform: 0,
+            teacher: 0,
           },
         };
       }),
@@ -1749,7 +1749,7 @@ router.post("/shamcoins", auth, checkAdmin, (req, res) => {
   return res.status(410).json({
     success: false,
     code: "ADMIN_SHAMCOINS_DEPRECATED",
-    msg: "Admin ShamCoin balance adjustments are no longer supported.",
+    msg: "Legacy admin balance adjustments are no longer supported.",
   });
 });
 

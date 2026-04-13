@@ -13,7 +13,6 @@ import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 export interface CurrentUser {
   _id: string;
   userType: string;
-  shamCoins?: number;
   firstName?: string;
   lastName?: string;
   name?: string;

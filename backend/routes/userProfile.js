@@ -53,7 +53,7 @@ router.put("/:id", auth, async (req, res) => {
         .json({ success: false, msg: "Admin access required" });
     }
 
-    const allowedFields = ["firstName", "lastName", "email", "userType", "shamCoins"];
+    const allowedFields = ["firstName", "lastName", "email", "userType"];
     const updates = {};
 
     allowedFields.forEach((field) => {

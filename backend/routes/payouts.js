@@ -34,7 +34,7 @@ router.get('/balance', auth, async (req, res) => {
         availableBalance: availableBalance,
         pendingPayouts: 0, // Will implement pending payouts later
         nextPayoutDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Weekly payouts
-        minimumPayout: 1000 // Minimum 1000 ShamCoins to withdraw
+        minimumPayout: 1000 // Minimum balance units to withdraw
       },
       earningsBreakdown: lessons.map((lesson) => ({
         lessonId: lesson._id,
@@ -80,7 +80,7 @@ router.post('/request', auth, async (req, res) => {
     
     // Check minimum payout amount
     if (amount < 1000) {
-      return res.status(400).json({ msg: 'Minimum payout amount is 1000 ShamCoins' });
+      return res.status(400).json({ msg: 'Minimum payout amount is 1000' });
     }
 
     // Check if teacher has sufficient balance

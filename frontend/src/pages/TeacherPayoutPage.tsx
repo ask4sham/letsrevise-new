@@ -115,7 +115,10 @@ const TeacherPayoutPage: React.FC = () => {
     }
 
     if (balance && amount < balance.minimumPayout) {
-      setMessage({ type: 'error', text: `Minimum payout amount is ${balance.minimumPayout} ShamCoins` });
+      setMessage({
+        type: 'error',
+        text: `Minimum payout amount is ${formatCurrency(balance.minimumPayout)}`,
+      });
       return;
     }
 
@@ -199,7 +202,7 @@ const TeacherPayoutPage: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('en-US') + ' SC';
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
   };
 
   if (loading) {
@@ -327,7 +330,7 @@ const TeacherPayoutPage: React.FC = () => {
           
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Amount (ShamCoins)
+              Amount (GBP)
             </label>
             <input
               type="number"
@@ -335,7 +338,7 @@ const TeacherPayoutPage: React.FC = () => {
               onChange={(e) => setPayoutAmount(e.target.value)}
               min={balance?.minimumPayout || 1000}
               max={balance?.availableBalance || 0}
-              placeholder={`Minimum: ${balance?.minimumPayout || 1000} SC`}
+              placeholder={`Minimum: ${formatCurrency(balance?.minimumPayout || 1000)}`}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -546,7 +549,7 @@ const TeacherPayoutPage: React.FC = () => {
       }}>
         <h3 style={{ marginTop: 0, color: '#856404' }}>Important Information</h3>
         <ul style={{ marginBottom: 0, paddingLeft: '1.5rem' }}>
-          <li>Minimum withdrawal amount is 1000 ShamCoins</li>
+          <li>Minimum withdrawal amount is £1,000</li>
           <li>Payouts are processed within 3-5 business days</li>
           <li>Transaction fees apply depending on the payment method</li>
           <li>You can cancel pending payout requests at any time</li>

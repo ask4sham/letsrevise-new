@@ -87,8 +87,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/rivisecoins" className="text-gray-300 hover:text-blue-400 text-sm">
-                  ShamCoins
+                <Link to="/subscription" className="text-gray-300 hover:text-blue-400 text-sm">
+                  Subscription
                 </Link>
               </li>
               <li>

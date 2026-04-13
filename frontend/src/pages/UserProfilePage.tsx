@@ -77,12 +77,6 @@ const UserProfilePage: React.FC = () => {
             ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1)
             : "Unknown"}
         </div>
-        {typeof user.shamCoins === "number" && (
-          <div style={{ marginBottom: "0.5rem" }}>
-            <strong>ShamCoins:</strong> {user.shamCoins}
-          </div>
-        )}
-
         <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
           <button
             onClick={() => navigate("/edit-profile")}

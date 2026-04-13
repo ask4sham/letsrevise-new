@@ -38,14 +38,14 @@ router.post('/cashout', auth, async (req, res) => {
       type: 'cashout',
       amount: amount,
       date: new Date(),
-      description: `Cash out of ${amount} ShamCoins`,
+      description: `Cash out of ${amount}`,
       status: 'completed'
     });
 
     await user.save();
 
     res.json({
-      message: `Successfully cashed out ${amount} ShamCoins`,
+      message: `Successfully cashed out ${amount}`,
       newBalance: user.balance,
       remainingEarnings: user.earnings,
       totalWithdrawn: user.totalWithdrawn
@@ -56,12 +56,12 @@ router.post('/cashout', auth, async (req, res) => {
   }
 });
 
-// Retired: was transfer shamCoins → earnings (Batch 2: no shamCoins mutation)
+// Retired legacy transfer endpoint (kept for old clients that POST here)
 router.post('/fix-earnings', auth, (req, res) => {
   return res.status(410).json({
     success: false,
-    code: 'FIX_EARNINGS_SHAMCOINS_DEPRECATED',
-    message: 'Transferring ShamCoins to earnings is no longer supported.',
+    code: 'FIX_EARNINGS_DEPRECATED',
+    message: 'That legacy transfer is no longer supported.',
   });
 });
 

@@ -161,7 +161,6 @@ interface Lesson {
   teacherName: string;
   teacherId: string;
   estimatedDuration: number;
-  shamCoinPrice: number;
   isFreePreview?: boolean;
   isPublished: boolean;
   status?: string;
@@ -884,9 +883,6 @@ const EditLessonPage: React.FC = () => {
         estimatedDuration: Number.isFinite(Number(data.estimatedDuration))
           ? Number(data.estimatedDuration)
           : 0,
-        shamCoinPrice: Number.isFinite(Number(data.shamCoinPrice))
-          ? Number(data.shamCoinPrice)
-          : 0,
         isFreePreview: Boolean(data.isFreePreview),
         isPublished: Boolean(data.isPublished),
         views: Number.isFinite(Number(data.views)) ? Number(data.views) : 0,
@@ -1063,7 +1059,6 @@ const EditLessonPage: React.FC = () => {
         teacherName: "Teacher",
         teacherId: safeStr((data as any)?.teacher_id, ""),
         estimatedDuration: 0,
-        shamCoinPrice: 0,
         isFreePreview: false,
         isPublished: Boolean((data as any)?.is_published),
         views: 0,
@@ -2311,7 +2306,6 @@ const EditLessonPage: React.FC = () => {
       subTopic: (lesson as { subTopic?: string }).subTopic ?? undefined,
       board: lesson.examBoardName || "",
       estimatedDuration: lesson.estimatedDuration,
-      shamCoinPrice: lesson.shamCoinPrice,
       isFreePreview: !!lesson.isFreePreview,
       pages: sanitizedPages,
       quiz: {

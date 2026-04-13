@@ -16,7 +16,6 @@ export async function GET(req: Request) {
       userId: user.userId,
       subscriptionActive: user.subscriptionActive,
       purchasedLessons: user.purchasedLessons,
-      // TODO: add shamCoinsBalance once DB is wired
     },
     { status: 200 }
   );

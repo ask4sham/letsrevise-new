@@ -89,28 +89,52 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* ShamCoins Card */}
-            <div className="bg-yellow-50 p-6 rounded-lg">
-              <h2 className="text-xl font-semibold mb-4">ShamCoins</h2>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-yellow-600 mb-2">
-                  {user?.shamCoins || 0}
+            {/* Students: subscription messaging. Teachers: earnings + referral */}
+            {user?.userType === 'student' ? (
+              <div className="bg-indigo-50 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Subscription</h2>
+                <div className="text-center">
+                  {user?.entitlements?.hasActiveSub ? (
+                    <p className="text-gray-700">Included in your subscription.</p>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 mb-4">Upgrade to access full lessons and quizzes.</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/subscription')}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold"
+                      >
+                        Upgrade to access
+                      </button>
+                    </>
+                  )}
                 </div>
-                <p className="text-gray-600 mb-4">Earn coins by completing lessons!</p>
-                
-                {user?.userType === 'teacher' && user?.referralCode && (
-                  <div className="mt-4 p-4 bg-blue-100 rounded">
-                    <p className="font-semibold">Your Referral Code:</p>
-                    <code className="bg-white px-3 py-1 rounded text-lg font-mono">
-                      {user.referralCode}
-                    </code>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Share this code with other teachers to earn commissions!
-                    </p>
-                  </div>
-                )}
               </div>
-            </div>
+            ) : (
+              <div className="bg-emerald-50 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Earnings</h2>
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-emerald-700 mb-2">
+                    {new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(
+                      Number(user?.earnings ?? 0)
+                    )}
+                  </div>
+                  <p className="text-gray-600 mb-4">Earnings from subscription access to your lessons.</p>
+                  
+                  {user?.userType === 'teacher' && user?.referralCode && (
+                    <div className="mt-4 p-4 bg-blue-100 rounded">
+                      <p className="font-semibold">Your Referral Code:</p>
+                      <code className="bg-white px-3 py-1 rounded text-lg font-mono">
+                        {user.referralCode}
+                      </code>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Share this code with other teachers to earn commissions!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Quick Actions */}
             <div className="md:col-span-2 bg-gray-50 p-6 rounded-lg">
@@ -148,8 +172,12 @@ const Dashboard: React.FC = () => {
                     <button className="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-lg transition">
                       Take Quiz
                     </button>
-                    <button className="bg-yellow-500 hover:bg-yellow-600 text-white p-4 rounded-lg transition">
-                      Redeem Coins
+                    <button
+                      type="button"
+                      onClick={() => navigate('/subscription')}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white p-4 rounded-lg transition"
+                    >
+                      Upgrade to access
                     </button>
                   </>
                 )}

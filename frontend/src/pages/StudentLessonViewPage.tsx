@@ -1,6 +1,6 @@
 // PR-AUTH-UI-3: use useCurrentUser (no direct localStorage auth read).
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
@@ -33,7 +33,6 @@ type StudentLessonCard = {
   teacherName: string;
   teacherId: string;
   estimatedDuration: number;
-  shamCoinPrice: number;
   views: number;
   averageRating: number;
   createdAt: string;
@@ -55,8 +54,6 @@ function isUuid(value: string) {
 }
 
 const StudentDashboard: React.FC = () => {
-  const navigate = useNavigate();
-
   const [lessons, setLessons] = useState<StudentLessonCard[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useCurrentUser({ watchLocation: true });
@@ -137,7 +134,6 @@ const StudentDashboard: React.FC = () => {
           teacherName: "Teacher",
           teacherId: String(l.teacher_id ?? ""),
           estimatedDuration: 0,
-          shamCoinPrice: 0,
           views: 0,
           averageRating: 0,
           createdAt: safeCreatedAt,
@@ -208,11 +204,6 @@ const StudentDashboard: React.FC = () => {
     }));
   };
 
-  // ✅ UPDATED: Get Access / Purchase goes to the lesson page (for MVP testing)
-  const handlePurchase = async (lessonId: string) => {
-    navigate(`/lesson/${lessonId}`);
-  };
-
   if (loading) {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
@@ -244,24 +235,25 @@ const StudentDashboard: React.FC = () => {
           <div>
             <h1 style={{ color: "#333", marginBottom: "5px" }}>👨‍🎓 Student Dashboard</h1>
             <p style={{ color: "#666" }}>
-              Welcome back, {user?.firstName}! Browse and purchase lessons from expert
-              teachers.
+              Welcome back, {user?.firstName}! Browse lessons — full access is included in your subscription.
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <div
+            <Link
+              to="/subscription"
               style={{
                 background: "white",
                 padding: "10px 20px",
                 borderRadius: "20px",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                fontWeight: "bold",
-                color: "#333",
-                fontSize: "1.1rem",
+                fontWeight: 700,
+                color: "#4f46e5",
+                fontSize: "1rem",
+                textDecoration: "none",
               }}
             >
-              💰 {user?.shamCoins || 0} ShamCoins
-            </div>
+              Upgrade to access
+            </Link>
             <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
               Back to Main Dashboard
             </Link>
@@ -455,15 +447,6 @@ const StudentDashboard: React.FC = () => {
                 (p: any) => p.lessonId === lesson.id
               );
 
-              const canAfford = (user?.shamCoins || 0) >= lesson.shamCoinPrice;
-              const buttonText = isPurchased
-                ? "Purchased"
-                : !canAfford
-                ? "Not Enough Coins"
-                : lesson.shamCoinPrice === 0
-                ? "Get Access"
-                : `Purchase (${lesson.shamCoinPrice} coins)`;
-
               return (
                 <div
                   key={lesson.id}
@@ -595,22 +578,19 @@ const StudentDashboard: React.FC = () => {
                       <div>
                         <div
                           style={{
-                            fontSize: "1.5rem",
-                            fontWeight: "bold",
+                            fontSize: "1rem",
+                            fontWeight: 700,
                             color: "#333",
                           }}
                         >
-                          {lesson.shamCoinPrice}{" "}
-                          <span style={{ fontSize: "1rem", color: "#666" }}>
-                            ShamCoins
-                          </span>
+                          Included in your subscription
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "#666" }}>
                           ⭐ {lesson.averageRating}/5
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", gap: "10px" }}>
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                         <Link to={`/lesson/${lesson.id}`}>
                           <button
                             style={{
@@ -623,32 +603,49 @@ const StudentDashboard: React.FC = () => {
                               fontSize: "0.9rem",
                             }}
                           >
-                            Preview
+                            Free preview
                           </button>
                         </Link>
 
-                        <button
-                          onClick={() => !isPurchased && canAfford && handlePurchase(lesson.id)}
-                          disabled={isPurchased || !canAfford}
-                          style={{
-                            padding: "8px 16px",
-                            background: isPurchased
-                              ? "#a0aec0"
-                              : !canAfford
-                              ? "#f56565"
-                              : "#48bb78",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
-                            cursor:
-                              isPurchased || !canAfford ? "not-allowed" : "pointer",
-                            fontSize: "0.9rem",
-                            fontWeight: "bold",
-                            minWidth: "120px",
-                          }}
-                        >
-                          {buttonText}
-                        </button>
+                        {isPurchased ? (
+                          <Link to={`/lesson/${lesson.id}`}>
+                            <button
+                              type="button"
+                              style={{
+                                padding: "8px 16px",
+                                background: "#48bb78",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontSize: "0.9rem",
+                                fontWeight: "bold",
+                                minWidth: "120px",
+                              }}
+                            >
+                              Open lesson
+                            </button>
+                          </Link>
+                        ) : (
+                          <Link to="/subscription">
+                            <button
+                              type="button"
+                              style={{
+                                padding: "8px 16px",
+                                background: "#4f46e5",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontSize: "0.9rem",
+                                fontWeight: "bold",
+                                minWidth: "120px",
+                              }}
+                            >
+                              Upgrade to access
+                            </button>
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -741,7 +738,7 @@ const StudentDashboard: React.FC = () => {
                               color: "#48bb78",
                             }}
                           >
-                            Price: {purchase.price ?? 0} ShamCoins
+                            Included in your subscription
                           </p>
                           {!canOpen && (
                             <p
@@ -809,8 +806,7 @@ const StudentDashboard: React.FC = () => {
             fontSize: "0.9rem",
           }}
         >
-          <p>Need more ShamCoins? Complete assignments or refer friends to earn more!</p>
-          <p>Purchases will be re-enabled after we migrate the purchase flow to Supabase.</p>
+          <p>Full lesson access is included in your subscription.</p>
         </div>
       </div>
     </div>

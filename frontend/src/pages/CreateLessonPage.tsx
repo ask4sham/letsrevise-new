@@ -277,7 +277,6 @@ const CreateLessonPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { token, user } = useCurrentUser({ watchLocation: true });
-  const isAdmin = Boolean(user?.isAdmin || user?.role === "admin" || user?.userType === "admin");
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -330,7 +329,6 @@ const CreateLessonPage: React.FC = () => {
     tags: "",
     externalResources: "",
     estimatedDuration: 60,
-    shamCoinPrice: 0,
     autoGenerateFromBanks: true,
   });
 
@@ -547,7 +545,7 @@ const CreateLessonPage: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "estimatedDuration" || name === "shamCoinPrice"
+        name === "estimatedDuration"
           ? Number(value)
           : (value as any),
     }));
@@ -941,7 +939,6 @@ const CreateLessonPage: React.FC = () => {
       content: "Structured lesson (see pages)",
       externalResources: formData.externalResources,
       estimatedDuration: formData.estimatedDuration,
-      shamCoinPrice: formData.shamCoinPrice,
       pages: sanitizedPages,
     };
     if (formData.topicKey.trim()) {
@@ -1538,21 +1535,6 @@ const CreateLessonPage: React.FC = () => {
                     style={{ marginBottom: 16 }}
                   />
                 ) : null}
-
-                {isAdmin && (
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block" }}>
-                      <div style={ui.label}>ShamCoin price</div>
-                      <input
-                        name="shamCoinPrice"
-                        type="number"
-                        value={formData.shamCoinPrice}
-                        onChange={onChange}
-                        style={ui.input}
-                      />
-                    </label>
-                  </div>
-                )}
 
                 <div
                     style={{

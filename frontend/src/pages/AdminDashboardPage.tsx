@@ -26,11 +26,9 @@ interface PlatformStats {
   subscriptions: {
     [key: string]: {
       count: number;
-      totalShamCoins: number;
     };
   };
   platform: {
-    totalShamCoins: number;
     activeUsers: number;
   };
 }
@@ -48,7 +46,7 @@ interface User {
   userType: string;
   staffRole?: string | null;
   verificationStatus: string;
-  shamCoins: number;
+  earnings: number;
   subscription: string;
   createdAt: string;
   lastActive: string | null;
@@ -65,7 +63,7 @@ interface Lesson {
   subject: string;
   level: string;
   status: string;
-  shamCoinPrice: number;
+  lessonAccess?: string;
   views: number;
   purchases: number;
   averageRating: number;
@@ -1034,8 +1032,8 @@ const AdminDashboardPage: React.FC = () => {
                 {stats.platform.activeUsers}
               </div>
               <div style={{ color: "#666" }}>Active Users (7 days)</div>
-              <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-                Total SC: {formatCurrency(stats.platform.totalShamCoins)}
+              <div style={{ fontSize: "0.875rem", marginTop: "0.5rem", color: "#888" }}>
+                Active users (7d) — legacy coin stats removed
               </div>
             </div>
           </div>
@@ -1247,7 +1245,7 @@ const AdminDashboardPage: React.FC = () => {
                 <div>Email</div>
                 <div>Type</div>
                 <div>Status</div>
-                <div>ShamCoins</div>
+                <div>Earnings</div>
                 <div>Access / Pass</div>
                 <div>Actions</div>
               </div>
@@ -1341,7 +1339,7 @@ const AdminDashboardPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div>{formatCurrency(u.shamCoins)}</div>
+                  <div>{formatCurrency(u.earnings)}</div>
 
                   <div
                     title="Derived from subscriptionV2 (backend enforced)"
@@ -1468,7 +1466,7 @@ const AdminDashboardPage: React.FC = () => {
                 <div>Title</div>
                 <div>Teacher</div>
                 <div>Subject</div>
-                <div>Price</div>
+                <div>Access</div>
                 <div>Status</div>
                 <div>Preview</div>
                 <div>Actions</div>
@@ -1500,7 +1498,7 @@ const AdminDashboardPage: React.FC = () => {
                       <div>{l.title}</div>
                       <div>{l.teacher?.name || "Unknown"}</div>
                       <div>{l.subject}</div>
-                      <div>{formatCurrency(l.shamCoinPrice)}</div>
+                      <div>{l.lessonAccess === "subscription" ? "Subscription" : "—"}</div>
                       <div>
                         {/* FIXED: Changed from dropdown to status badge */}
                         <span

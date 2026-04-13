@@ -11,7 +11,6 @@ router.get("/entitlements", auth, (req, res) => {
   const purchasedLessons = user.purchasedLessons ?? user.entitlements?.purchasedLessons ?? [];
   res.json({
     role: user.userType || user.role || null,
-    shamCoinsBalance: user.shamCoins != null ? user.shamCoins : 0,
     subscription: sub
       ? {
           status: sub.status,

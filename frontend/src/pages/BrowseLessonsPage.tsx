@@ -50,7 +50,6 @@ interface Lesson {
   teacherId: string;
   teacherName: string;
   estimatedDuration: number;
-  shamCoinPrice: number;
   views: number;
   averageRating: number;
   pages?: any[];
@@ -82,7 +81,7 @@ const BrowseLessons: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { user, token, refresh } = useCurrentUser({ watchLocation: true });
   const [purchasedLessonMap, setPurchasedLessonMap] = useState<
-    Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null; shamCoinPrice: number }>
+    Record<string, { _id: string; title: string | null; subject: string | null; level: string | null; topic: string | null }>
   >({});
   const [filters, setFilters] = useState<Filters>({
     subject: "",
@@ -333,37 +332,6 @@ const BrowseLessons: React.FC = () => {
     });
   };
 
-  const handlePurchase = async (lessonId: string) => {
-    try {
-      if (!token) {
-        alert("Please log in to purchase lessons");
-        navigate("/login");
-        return;
-      }
-
-      const response = await axios.post(
-        `${API_BASE}/api/lessons/${lessonId}/purchase`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (response.status === 200 || response.status === 201) {
-        alert("Lesson purchased successfully!");
-        refresh();
-        loadPublishedLessons(); // Refresh lessons list
-      }
-    } catch (error: any) {
-      console.error("Purchase error:", error);
-      if (error.response?.status === 400) {
-        alert(getAxiosErrorMessage(error, "Failed to purchase lesson"));
-      } else {
-        alert(getAxiosErrorMessage(error, "Failed to purchase lesson. Please try again."));
-      }
-    }
-  };
-
   if (loading) {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
@@ -411,19 +379,21 @@ const BrowseLessons: React.FC = () => {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <div
+            <Link
+              to="/subscription"
               style={{
                 background: "white",
                 padding: "10px 20px",
                 borderRadius: "20px",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                fontWeight: "bold",
-                color: "#2d3748",
-                fontSize: "1.1rem",
+                fontWeight: 700,
+                color: "#4f46e5",
+                fontSize: "1rem",
+                textDecoration: "none",
               }}
             >
-              💰 {user?.shamCoins || 0} ShamCoins
-            </div>
+              Upgrade to access
+            </Link>
 
             <Link
               to={userType === "teacher" ? "/teacher-dashboard" : "/dashboard"}
@@ -454,7 +424,7 @@ const BrowseLessons: React.FC = () => {
           }}
         >
           <div style={{ color: "#3730a3", fontWeight: 600, fontSize: "0.95rem" }}>
-            Subscribe to unlock all lessons and full content.
+            Full lesson access is included in your subscription.
           </div>
           <button
             type="button"
@@ -972,9 +942,12 @@ const BrowseLessons: React.FC = () => {
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#2d3748" }}>
-                          {lesson.shamCoinPrice}{" "}
-                          <span style={{ fontSize: "1rem", color: "#718096" }}>ShamCoins</span>
+                        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#2d3748" }}>
+                          {isFreePreview
+                            ? "Free preview"
+                            : isUnlocked
+                            ? "Included in your subscription"
+                            : "Upgrade to access"}
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "#718096" }}>
                           ⭐ {lesson.averageRating || 0}/5 • 👁️ {lesson.views || 0} views
@@ -1047,7 +1020,7 @@ const BrowseLessons: React.FC = () => {
                                   fontSize: "0.9rem",
                                 }}
                               >
-                                Subscribe
+                                Upgrade to access
                               </button>
                             </Link>
                           </>
@@ -1148,7 +1121,7 @@ const BrowseLessons: React.FC = () => {
                               {purchase.purchasedAt ? new Date(purchase.purchasedAt).toLocaleDateString() : purchase.timestamp ? new Date(purchase.timestamp).toLocaleDateString() : "—"}
                             </p>
                             <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", color: "#48bb78" }}>
-                              Price: {purchase.price ?? 0} ShamCoins
+                              Included in your subscription
                             </p>
                           </div>
                           {canOpen && !unavailable ? (
@@ -1197,7 +1170,7 @@ const BrowseLessons: React.FC = () => {
 
         {/* Footer */}
         <div style={{ marginTop: "40px", textAlign: "center", color: "#718096", fontSize: "0.9rem" }}>
-          <p>Need more ShamCoins? Complete assignments or refer friends to earn more!</p>
+          <p>Full lesson access is included in your subscription.</p>
           <p>Questions? Contact support@shamlearning.com</p>
         </div>
       </div>

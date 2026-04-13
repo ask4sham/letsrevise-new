@@ -133,7 +133,7 @@ LetsRevise is a UK curriculum revision platform (GCSE, A-Level, KS3) with teache
 | Coverage / taxonomy / question bank / content issues | Real | Mix | No |
 | AI coverage / paywall metrics | Real | Yes | No |
 
-**AdminLessonViewPage:** Some controls (shamCoinPrice, isFreePreview) may be TODO/partial.
+**AdminLessonViewPage:** Some controls (e.g. isFreePreview) may be TODO/partial.
 
 ---
 
@@ -188,7 +188,7 @@ LetsRevise is a UK curriculum revision platform (GCSE, A-Level, KS3) with teache
 
 - **Lesson reviews:** Enable for Supabase/UUID lessons if desired (or document as Mongo-only for now)
 - **AI generation:** Extend beyond Biology if needed
-- **Admin lesson controls:** Complete shamCoinPrice, isFreePreview if blocking content workflows
+- **Admin lesson controls:** Complete isFreePreview and related if blocking content workflows
 
 ### C. Defer
 

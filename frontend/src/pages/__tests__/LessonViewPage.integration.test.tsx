@@ -68,7 +68,6 @@ const baseLessonData = {
   teacherName: "Teacher",
   teacherId: "t1",
   estimatedDuration: 10,
-  shamCoinPrice: 0,
   views: 0,
   averageRating: 0,
   totalRatings: 0,

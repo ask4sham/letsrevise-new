@@ -12,7 +12,6 @@ interface LocalUser {
   lastName?: string;
   email?: string;
   userType?: string;
-  shamCoins?: number;
   schoolName?: string;
 }
 

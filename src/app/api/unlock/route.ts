@@ -2,16 +2,13 @@ import { NextResponse } from "next/server";
 import { getUserEntitlementsFromRequest } from "@/server";
 
 /**
- * Unlock a lesson (spend ShamCoins / record purchase).
+ * Unlock a lesson (subscription / entitlement check — no per-lesson coin spend).
  * IMPORTANT:
  * - Must be server-side (never trust client)
  * - Must verify auth
- * - Must be idempotent (unlocking twice should not double-charge)
+ * - Must be idempotent
  *
- * TODO: Wire to DB transaction:
- * - check coin balance
- * - decrement coins
- * - add lessonId to purchasedLessons
+ * TODO: Wire to DB: verify subscription or purchasedLessons, then grant access.
  */
 export async function POST(req: Request) {
   const user = await getUserEntitlementsFromRequest(req);
@@ -26,12 +23,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "MISSING_LESSON_ID" }, { status: 400 });
   }
 
-  // TEMP stub (no DB yet). Replace with real purchase logic.
+  // TEMP stub (no DB yet). Replace with real entitlement logic.
   return NextResponse.json(
     {
       ok: false,
       error: "NOT_IMPLEMENTED",
-      message: "Unlock flow requires DB transaction (coins + purchase record).",
+      message: "Unlock flow requires server-side entitlement checks.",
     },
     { status: 501 }
   );

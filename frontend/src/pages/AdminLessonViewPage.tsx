@@ -36,7 +36,6 @@ type Lesson = {
   teacherName?: string;
 
   estimatedDuration?: number;
-  shamCoinPrice?: number;
 
   isPublished?: boolean;
   status?: string;
@@ -375,9 +374,9 @@ const AdminLessonViewPage: React.FC = () => {
           <div>
             <b>Status:</b> {status}
           </div>
-          {/* TODO(admin): Add controls here to edit lesson shamCoinPrice and isFreePreview; these are admin-only, not in Teacher Edit Lesson. */}
+          {/* TODO(admin): isFreePreview controls; pricing is subscription-based. */}
           <div>
-            <b>Price:</b> {typeof lesson.shamCoinPrice === "number" ? `${lesson.shamCoinPrice} SC` : "0 SC"}
+            <b>Access:</b> Subscription (per-lesson coin pricing removed)
           </div>
           <div>
             <b>Views:</b> {lesson.views ?? 0}

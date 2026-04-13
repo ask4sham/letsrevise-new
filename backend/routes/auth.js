@@ -398,7 +398,7 @@ router.post(
 
       console.log(`Password hashed: ${hashedPassword.substring(0, 30)}...`);
 
-      // PR2: referral ShamCoin bonuses disabled
+      // PR2: referral currency bonuses disabled
 
       // Email verification token (24h expiry)
       const verificationToken = crypto.randomBytes(32).toString("hex");

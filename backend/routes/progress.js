@@ -84,7 +84,7 @@ router.put('/:lessonId', auth, async (req, res) => {
       if (progress === 100 && !purchasedLesson.completed) {
         purchasedLesson.completed = true;
         purchasedLesson.completedAt = new Date();
-        // PR2: no ShamCoin completion grants (progress + completion flags only)
+        // PR2: completion grants are flags only (no currency rewards)
       }
     }
 
@@ -93,7 +93,7 @@ router.put('/:lessonId', auth, async (req, res) => {
       if (completed) {
         purchasedLesson.completedAt = new Date();
         purchasedLesson.progress = 100;
-        // PR2: no ShamCoin completion grants
+        // PR2: no completion currency grants
       }
     }
 

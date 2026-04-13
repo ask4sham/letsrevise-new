@@ -34,7 +34,7 @@ const EarningsChart: React.FC<EarningsChartProps> = ({ monthlyEarnings }) => {
     labels: monthlyEarnings.map(item => item.month),
     datasets: [
       {
-        label: 'Monthly Earnings (ShamCoins)',
+        label: 'Monthly earnings (£)',
         data: monthlyEarnings.map(item => item.earnings),
         borderColor: 'rgb(72, 187, 120)',
         backgroundColor: 'rgba(72, 187, 120, 0.1)',
