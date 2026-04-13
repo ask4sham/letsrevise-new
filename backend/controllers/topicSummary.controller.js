@@ -122,8 +122,14 @@ async function postTopicSummary(req, res) {
       constraints: { studentSafe, allowExternal: allowExt },
     });
 
-    const docMap = new Map(contextChunks.map((c) => [c.knowledgeDocumentId, { ...c, text: c.text, metadata: c.metadata || {}, sourceType: c.sourceType, sourceId: c.sourceId }]));
-    const { valid: validCitations, warnings: verifyWarnings } = verifyCitations(llmResponse.citations || [], docMap);
+    const docMap = new Map(
+      contextChunks.map((c) => [String(c.knowledgeDocumentId), { ...c, text: c.text, metadata: c.metadata || {}, sourceType: c.sourceType, sourceId: c.sourceId }])
+    );
+    const { valid: validCitations, warnings: verifyWarnings } = verifyCitations(
+      llmResponse.citations || [],
+      docMap,
+      contextChunks
+    );
     llmResponse.citations = studentSafe
       ? validCitations.filter((c) => c.sourceType !== "teacherNote")
       : validCitations;

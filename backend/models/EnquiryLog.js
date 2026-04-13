@@ -33,6 +33,7 @@ const EnquiryLogSchema = new mongoose.Schema(
     response: {
       explanation: { type: String, default: "" },
       keyPoints: [{ type: String }],
+      memoryHook: { type: String, default: "" },
       practice: [
         {
           type: { type: String, enum: ["mcq", "short", "exam", "flashcard"] },

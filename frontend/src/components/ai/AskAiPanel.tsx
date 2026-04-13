@@ -1,6 +1,6 @@
 /**
  * PR-005: Teacher-only "Ask AI about this topic" panel.
- * PR-019: Threaded tutoring chat. PR-019.1: Recent chats, New chat, pagination.
+ * PR-019: Threaded tutoring (API); UI shows only the latest Q&A for focus.
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
@@ -9,12 +9,7 @@ import {
   postEnquiryAction,
   type PostEnquiryResponse,
 } from "../../api/enquiry";
-import {
-  createConversation,
-  getConversation,
-  listConversations,
-  type ConversationListItem,
-} from "../../api/conversations";
+import { createConversation, getConversation } from "../../api/conversations";
 import { CitationsList } from "./CitationsList";
 import { InlineDiagramBlock } from "./InlineDiagramBlock";
 import { SuggestedActionsBar } from "./SuggestedActionsBar";
@@ -57,6 +52,18 @@ function getSessionKey(specKey: string, topicKey: string, lessonId?: string): st
   return `${SESSION_KEY_PREFIX}${specKey}:${topicKey}:${lessonId || ""}`;
 }
 
+/** Keep only the last user + assistant exchange (single-turn focused UI). */
+function toLatestPair(messages: ChatMessage[]): ChatMessage[] {
+  if (messages.length === 0) return [];
+  const last = messages[messages.length - 1];
+  if (last.role === "assistant") {
+    const prev = messages[messages.length - 2];
+    if (prev && prev.role === "user") return [prev, last];
+    return [last];
+  }
+  return [last];
+}
+
 export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", suppressAutoScroll = false }: Props) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationInitFailed, setConversationInitFailed] = useState(false);
@@ -70,11 +77,6 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
   const [showCommentInput, setShowCommentInput] = useState<Record<string, boolean>>({});
   const [feedbackSubmitting, setFeedbackSubmitting] = useState<Record<string, boolean>>({});
   const [practiceHighlightId, setPracticeHighlightId] = useState<string | null>(null);
-  const [recentConversations, setRecentConversations] = useState<ConversationListItem[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [oldestReturnedAt, setOldestReturnedAt] = useState<string | null>(null);
-  const [loadingEarlier, setLoadingEarlier] = useState(false);
-  const [recentDropdownOpen, setRecentDropdownOpen] = useState(false);
   const [responseMode, setResponseMode] = useState<"quick" | "explain" | "exam" | "revision">("explain");
   const [allowExternal, setAllowExternal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -103,89 +105,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
     localStorage.setItem("askai:allowExternal:teacher", String(checked));
   };
 
-  const loadConversation = useCallback(
-    (id: string, opts?: { limit?: number; before?: string }) => {
-      getConversation(id, opts ?? { limit: 20 })
-        .then((conv) => {
-          const mapped = conv.messages.map((m) => ({
-            role: m.role as "user" | "assistant",
-            text: m.text,
-            createdAt: m.createdAt,
-            enquiryLogId: m.enquiryLogId,
-            fullResponse: null as PostEnquiryResponse | null,
-          }));
-          if (opts?.before) {
-            setMessages((prev) => [...mapped, ...prev]);
-          } else {
-            setMessages(mapped);
-          }
-          const pag = conv.pagination;
-          if (pag) {
-            setHasMore(pag.hasMore);
-            setOldestReturnedAt(pag.oldestReturnedAt);
-          }
-        })
-        .catch(() => {});
-    },
-    []
-  );
-
-  const refreshRecent = useCallback(() => {
-    listConversations({
-      specKey,
-      topicKey,
-      lessonId,
-      limit: 10,
-    }).then((r) => setRecentConversations(r.conversations || [])).catch(() => {});
-  }, [specKey, topicKey, lessonId]);
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem(sessionKey);
-    if (stored) {
-      setConversationId(stored);
-      loadConversation(stored);
-      refreshRecent();
-    } else {
-      createConversation({ specKey, topicKey, lessonId })
-        .then(({ conversationId: id }) => {
-          setConversationId(id);
-          sessionStorage.setItem(sessionKey, id);
-          setMessages([]);
-          setHasMore(false);
-          setOldestReturnedAt(null);
-          refreshRecent();
-        })
-        .catch(() => setConversationInitFailed(true));
-    }
-  }, [specKey, topicKey, lessonId, sessionKey, loadConversation, refreshRecent]);
-
-  const handleNewChat = () => {
-    createConversation({ specKey, topicKey, lessonId })
-      .then(({ conversationId: id }) => {
-        setConversationId(id);
-        sessionStorage.setItem(sessionKey, id);
-        setMessages([]);
-        setHasMore(false);
-        setOldestReturnedAt(null);
-        setRecentDropdownOpen(false);
-        refreshRecent();
-      })
-      .catch(() => {});
-  };
-
-  const handleSelectConversation = (id: string) => {
-    setConversationId(id);
-    sessionStorage.setItem(sessionKey, id);
-    setRecentDropdownOpen(false);
-    loadConversation(id);
-  };
-
-  const handleLoadEarlier = () => {
-    const id = conversationId;
-    const before = oldestReturnedAt;
-    if (!id || !before || loadingEarlier) return;
-    setLoadingEarlier(true);
-    getConversation(id, { limit: 20, before })
+  const loadConversation = useCallback((id: string) => {
+    getConversation(id, { limit: 40 })
       .then((conv) => {
         const mapped = conv.messages.map((m) => ({
           role: m.role as "user" | "assistant",
@@ -194,16 +115,26 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
           enquiryLogId: m.enquiryLogId,
           fullResponse: null as PostEnquiryResponse | null,
         }));
-        setMessages((prev) => [...mapped, ...prev]);
-        const pag = conv.pagination;
-        if (pag) {
-          setHasMore(pag.hasMore);
-          setOldestReturnedAt(pag.oldestReturnedAt);
-        }
+        setMessages(toLatestPair(mapped));
       })
-      .catch(() => {})
-      .finally(() => setLoadingEarlier(false));
-  };
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem(sessionKey);
+    if (stored) {
+      setConversationId(stored);
+      loadConversation(stored);
+    } else {
+      createConversation({ specKey, topicKey, lessonId })
+        .then(({ conversationId: id }) => {
+          setConversationId(id);
+          sessionStorage.setItem(sessionKey, id);
+          setMessages([]);
+        })
+        .catch(() => setConversationInitFailed(true));
+    }
+  }, [specKey, topicKey, lessonId, sessionKey, loadConversation]);
 
   useEffect(() => {
     if (suppressAutoScroll) {
@@ -240,7 +171,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
     setError(null);
     setQuestion("");
 
-    setMessages((prev) => [...prev, { role: "user", text: q }]);
+    setMessages([{ role: "user", text: q }]);
 
     try {
       const res = await postEnquiry({
@@ -256,8 +187,8 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
         lessonId: lessonId || undefined,
       });
 
-      setMessages((prev) => [
-        ...prev,
+      setMessages([
+        { role: "user", text: q },
         {
           role: "assistant",
           text: res.answer.explanation || "",
@@ -266,7 +197,6 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
           responseMode,
         },
       ]);
-      refreshRecent();
     } catch (err: unknown) {
       const e = err as {
         message?: string;
@@ -287,7 +217,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
             ? e.data.error
             : "";
       setError(fromInterceptor || apiMsg || genericErr || "Failed to get answer");
-      setMessages((prev) => prev.slice(0, -1));
+      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -317,6 +247,15 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
 
   const canSend = conversationId || conversationInitFailed;
 
+  const latestSlice = toLatestPair(messages);
+  const latestUser = latestSlice[0]?.role === "user" ? latestSlice[0] : null;
+  const latestAssistant =
+    latestSlice.length >= 2 && latestSlice[1].role === "assistant"
+      ? latestSlice[1]
+      : latestSlice.length === 1 && latestSlice[0].role === "assistant"
+        ? latestSlice[0]
+        : null;
+
   return (
     <div
       style={{
@@ -331,7 +270,7 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
         Ask the AI tutor about this topic
       </div>
       <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#0369a1" }}>
-        Get answers from trusted LetsRevise curriculum sources. Ask follow-ups in the same thread.
+        Get answers from trusted LetsRevise curriculum sources. Only your latest question and answer are shown here.
       </p>
 
       <div style={{ marginBottom: 12 }}>
@@ -370,81 +309,73 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
       </div>
 
       <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 12 }}>
-        {hasMore && (
-          <div style={{ padding: "8px 0", textAlign: "center" }}>
-            <button
-              type="button"
-              onClick={handleLoadEarlier}
-              disabled={loadingEarlier}
-              style={{
-                padding: "6px 14px",
-                fontSize: 13,
-                background: "#e0f2fe",
-                color: "#0369a1",
-                border: "1px solid #7dd3fc",
-                borderRadius: 8,
-                cursor: loadingEarlier ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
-            >
-              {loadingEarlier ? "Loading…" : "Load earlier"}
-            </button>
+        {(latestUser || latestAssistant) && (
+          <div style={{ marginBottom: 12 }}>
+            {latestUser && (
+              <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    marginBottom: 4,
+                  }}
+                >
+                  Your question:
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: "#334155",
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {latestUser.text}
+                </div>
+              </div>
+            )}
+            {latestAssistant && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  background: "#fff",
+                  color: "#334155",
+                  border: "1px solid #e2e8f0",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                }}
+              >
+                {latestAssistant.fullResponse ? (
+                  <AssistantBubbleTeacher
+                    response={latestAssistant.fullResponse}
+                    enquiryLogId={latestAssistant.enquiryLogId}
+                    specKey={specKey}
+                    topicKey={topicKey}
+                    practiceHighlightId={practiceHighlightId}
+                    showAnswer={showAnswer}
+                    feedbackSent={feedbackSent}
+                    feedbackComment={feedbackComment}
+                    showCommentInput={showCommentInput}
+                    feedbackSubmitting={feedbackSubmitting}
+                    onTogglePractice={togglePracticeAnswer}
+                    onFeedback={handleFeedback}
+                    onSetCommentInput={(id, v) =>
+                      setShowCommentInput((prev) => ({ ...prev, [id]: v }))
+                    }
+                    onCommentChange={(id, v) =>
+                      setFeedbackComment((prev) => ({ ...prev, [id]: v }))
+                    }
+                    onIntent={(p) => handleIntent(p, latestAssistant.enquiryLogId)}
+                  />
+                ) : (
+                  <div style={{ whiteSpace: "pre-wrap" }}>{latestAssistant.text}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            style={{
-              marginBottom: 12,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
-          >
-            <div
-              style={{
-                maxWidth: "90%",
-                padding: "10px 14px",
-                borderRadius: 12,
-                background: msg.role === "user" ? "#0284c7" : "#fff",
-                color: msg.role === "user" ? "#fff" : "#334155",
-                border: msg.role === "user" ? "none" : "1px solid #e2e8f0",
-                fontSize: 14,
-                lineHeight: 1.5,
-              }}
-            >
-              {msg.role === "user" ? (
-                <div style={{ whiteSpace: "pre-wrap" }}>{msg.text}</div>
-              ) : msg.fullResponse ? (
-                <AssistantBubbleTeacher
-                  response={msg.fullResponse}
-                  responseMode={(msg.responseMode ?? responseMode) as "quick" | "explain" | "exam" | "revision"}
-                  modeLabels={TEACHER_MODE_LABELS}
-                  enquiryLogId={msg.enquiryLogId}
-                  specKey={specKey}
-                  topicKey={topicKey}
-                  practiceHighlightId={practiceHighlightId}
-                  showAnswer={showAnswer}
-                  feedbackSent={feedbackSent}
-                  feedbackComment={feedbackComment}
-                  showCommentInput={showCommentInput}
-                  feedbackSubmitting={feedbackSubmitting}
-                  onTogglePractice={togglePracticeAnswer}
-                  onFeedback={handleFeedback}
-                  onSetCommentInput={(id, v) =>
-                    setShowCommentInput((prev) => ({ ...prev, [id]: v }))
-                  }
-                  onCommentChange={(id, v) =>
-                    setFeedbackComment((prev) => ({ ...prev, [id]: v }))
-                  }
-                  onIntent={(p) => handleIntent(p, msg.enquiryLogId)}
-                />
-              ) : (
-                <div style={{ whiteSpace: "pre-wrap" }}>{msg.text}</div>
-              )}
-            </div>
-          </div>
-        ))}
         {loading && (
           <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
             Searching trusted sources…
@@ -514,8 +445,6 @@ export function AskAiPanel({ topicKey, specKey, lessonId, defaultQuestion = "", 
 
 type AssistantBubbleTeacherProps = {
   response: PostEnquiryResponse;
-  responseMode?: "quick" | "explain" | "exam" | "revision";
-  modeLabels?: Record<"quick" | "explain" | "exam" | "revision", string>;
   enquiryLogId?: string | null;
   specKey?: string;
   topicKey?: string;
@@ -534,8 +463,6 @@ type AssistantBubbleTeacherProps = {
 
 function AssistantBubbleTeacher({
   response,
-  responseMode,
-  modeLabels = TEACHER_MODE_LABELS,
   enquiryLogId,
   specKey,
   topicKey,
@@ -564,12 +491,6 @@ function AssistantBubbleTeacher({
 
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
-      {/* PR-036: Mode indicator above answer */}
-      {responseMode && (
-        <div style={{ marginBottom: 8, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-          Mode: {modeLabels[responseMode]}
-        </div>
-      )}
       {response.source === "fallback_ai" && fallbackNotice && (
         <div
           style={{
@@ -602,135 +523,70 @@ function AssistantBubbleTeacher({
             </div>
           )}
 
-      {response.externalUsed && (
-        <div style={{ marginBottom: 12 }}>
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 8,
-              background: "#fefce8",
-              border: "1px solid #facc15",
-              color: "#854d0e",
-              fontSize: 14,
-            }}
-          >
-            {response.externalExamContextUsed ? (
-              <>⚠ External exam context used</>
-            ) : (
-              <>External references were used (exploratory). Check your course specification.</>
-            )}
-          </div>
-          {response.externalSources && response.externalSources.length > 0 && (
-            <details style={{ marginTop: 8 }}>
-              <summary style={{ cursor: "pointer", fontSize: 13, color: "#64748b" }}>
-                External sources ({response.externalSources.length})
-              </summary>
-              <ul style={{ margin: "8px 0 0 0", paddingLeft: 20, fontSize: 13 }}>
-                {response.externalSources.map((s, i) => (
-                  <li key={i}>
-                    <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0284c7" }}>
-                      {s.title || s.domain || s.url}
-                    </a>
-                    {s.domain && <span style={{ color: "#94a3b8" }}> ({s.domain})</span>}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
-      )}
-
-      {response.confidenceLevel && (
+      {response.answer.explanation && (
         <div
           style={{
-            marginBottom: 12,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
+            marginBottom: 16,
+            padding: 12,
+            background: "#f8fafc",
+            borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            fontSize: 15,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
           }}
         >
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              backgroundColor:
-                response.confidenceLevel === "strong"
-                  ? "#d1fae5"
-                  : response.confidenceLevel === "moderate"
-                    ? "#fef3c7"
-                    : "#fee2e2",
-              color:
-                response.confidenceLevel === "strong"
-                  ? "#065f46"
-                  : response.confidenceLevel === "moderate"
-                    ? "#92400e"
-                    : "#991b1b",
-            }}
-          >
-            Confidence:{" "}
-            {response.confidenceLevel === "strong"
-              ? "Strong"
-              : response.confidenceLevel === "moderate"
-                ? "Moderate"
-                : "Weak"}
-          </span>
-          {response.confidenceReason && (
-            <span style={{ fontSize: 13, color: "#64748b" }}>{response.confidenceReason}</span>
-          )}
+          {response.answer.explanation}
         </div>
       )}
 
-          <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
-            Sources used: {response.usedSources?.length ?? 0}
-            {response.source === "fallback_ai" && (
-              <span style={{ marginLeft: 8, color: "#9d174d", fontWeight: 600 }}>
-                (includes general knowledge — limited curriculum)
-              </span>
-            )}
-            {response.cached && (
-              <span style={{ marginLeft: 8, fontStyle: "italic" }}>(cached)</span>
-            )}
+      {response.answer.keyPoints && response.answer.keyPoints.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
+            Key points
           </div>
+          <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
+            {response.answer.keyPoints.map((kp, i) => (
+              <li key={i}>{kp}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-          {response.answer.explanation && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: 12,
+      {response.answer.memoryHook?.trim() && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 12px",
             background: "#f8fafc",
-                borderRadius: 8,
-                border: "1px solid #e2e8f0",
-                fontSize: 15,
-                lineHeight: 1.6,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {response.answer.explanation}
-            </div>
-          )}
-
-          {response.answer.keyPoints && response.answer.keyPoints.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#334155" }}>
-                Key points
-              </div>
-              <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
-                {response.answer.keyPoints.map((kp, i) => (
-                  <li key={i}>{kp}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+            borderLeft: "3px solid #94a3b8",
+            borderRadius: 6,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              marginBottom: 6,
+            }}
+          >
+            Memory hook
+          </div>
+          <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.45, fontWeight: 500 }}>
+            {response.answer.memoryHook.trim()}
+          </div>
+        </div>
+      )}
 
       {/* PR-034: Inline diagram rendering — after explanation/keyPoints, before citations */}
       {response.answer.citations && (
         <InlineDiagramBlock citations={response.answer.citations} studentMode={false} />
       )}
 
-          {response.answer.citations && response.answer.citations.length > 0 && (
+      {response.answer.citations && response.answer.citations.length > 0 && (
         <CitationsList
           citations={response.answer.citations}
           usedSources={response.usedSources}

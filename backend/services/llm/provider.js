@@ -6,6 +6,7 @@
  * {
  *   explanation: string,
  *   keyPoints: string[],
+ *   memoryHook: string,
  *   citations: [{ knowledgeDocumentId, sourceType, sourceId, quote (<=200), reason }],
  *   practice: [{ type: "mcq"|"short"|"exam", question, options?, answer, markScheme? }],
  *   warnings: string[]
@@ -17,6 +18,34 @@ const { isTruthyEnv } = require("../../config/storage");
 const DEBUG_ENQUIRY = process.env.DEBUG_ENQUIRY === "1" || process.env.DEBUG_ENQUIRY === "true";
 
 const MAX_CONTEXT_CHARS = 12000;
+
+/** LLM memoryHook: one short recall line; capped to ~12 words. */
+function normalizeMemoryHook(raw) {
+  let s = String(raw ?? "").trim().replace(/\s+/g, " ");
+  if (!s) return "";
+  const words = s.split(" ").filter(Boolean);
+  if (words.length > 12) return words.slice(0, 12).join(" ");
+  return s.slice(0, 120);
+}
+
+const ENQUIRY_MEMORY_HOOK_PROMPT = `
+MEMORY HOOK:
+- After explanation and keyPoints, output exactly ONE field "memoryHook": a single line for fast exam recall.
+- Max about 8–12 words. Compact, memorable, exam-relevant. Not vague, not jokey, not childish.
+- Base it ONLY on what the answer already supports (same facts as explanation/keyPoints). Do not invent facts.
+- Do NOT repeat or paraphrase the explanation verbatim. Do NOT output a full paragraph or multiple sentences.
+- No waffle. Prefer tight patterns such as: "X = Y", "X = Y + Z", "Think: …", "Rule: …", "Right side → lungs", arrows for direction/flow.
+- Match question type when possible:
+  - Name/list questions: summarise the category or list pattern cleanly (e.g. key names or "enzyme X, enzyme Y").
+  - What/function questions: state the function in one crisp line.
+  - Why/how questions: state the mechanism or reason in one line.
+- If no good hook fits without stretching the evidence, use "" for memoryHook.`;
+
+const ENQUIRY_MEMORY_HOOK_SUFFIX_CURRICULUM = `
+CURRICULUM MEMORY HOOK: memoryHook must only compress ideas already supported by your retrieved sources and cited answer—no new facts beyond that evidence.`;
+
+const ENQUIRY_MEMORY_HOOK_SUFFIX_GK = `
+GENERAL-KNOWLEDGE MEMORY HOOK: Be conservative; avoid speculative specifics; keep the hook safe, simple, and still useful when possible.`;
 
 /** Unified user-visible warning when enquiry uses general-knowledge fallback (non-strict). */
 const ENQUIRY_FALLBACK_LIMITED_CURRICULUM_WARNING =
@@ -131,6 +160,89 @@ function buildConversationContext(conversationContext) {
 }
 
 /**
+ * Strip polite / filler prefixes so "Please name…" is classified like "Name…".
+ */
+function stripEnquiryQuestionPrefix(q) {
+  return String(q || "")
+    .replace(/^(?:please|can you|could you|would you|tell me|i want to know)[,:]?\s+/i, "")
+    .trim();
+}
+
+/**
+ * Lightweight question-shape hints for GCSE-style precision (no retrieval change).
+ */
+function buildEnquiryQuestionIntentBlock(question) {
+  const q = stripEnquiryQuestionPrefix(String(question || "").trim());
+  const lower = q.toLowerCase();
+  if (!q) return "";
+
+  const precision = `PRECISION (always) — GCSE exam-style structure:
+- The FIRST sentence must directly answer the question in one clear sentence.
+- Do NOT start with background context, scene-setting, or general explanations.
+- Do NOT write introductions like "The stomach is an organ that…" unless that phrasing IS the direct answer to the question.
+- Keep the first sentence under ~20 words where possible.
+- After the first sentence, use bullet points for supporting facts only (concise, exam-style: one idea per bullet).
+- Do NOT repeat the same idea in prose and in bullets.
+- Do NOT expand beyond what the question asks; do not answer a broader question than the one asked.
+- Match the category the question requests (e.g. if it asks for enzymes, do not list non-enzymes such as hydrochloric acid unless sources justify it).
+- Prefer vocabulary from retrieved lesson/spec text when accurate.
+- Anti-waffle: if the answer can be given in one sentence, do NOT add extra paragraphs or filler; do not duplicate the first sentence in keyPoints—each key point must be a distinct fact.`;
+
+  if (
+    /\bdifference\b/.test(lower) ||
+    /\bcompare\b/.test(lower) ||
+    /\bversus\b|\bvs\.?\b/.test(lower) ||
+    /\bhow (is|are|do|does) .+ differ/.test(lower)
+  ) {
+    return `${precision}
+
+QUESTION SHAPE — COMPARE / DIFFERENCE:
+- First sentence: the direct comparison outcome or contrast (one sentence).
+- Then bullets: paired facts (e.g. A vs B) or short contrasts—no general chapter summary.
+- Do not substitute a topic overview for a comparison.`;
+  }
+
+  const nameListOpener =
+    /^(name|list|give (the )?names|state the|identify)\b/i.test(q) || /^which\b/i.test(q);
+
+  if (nameListOpener) {
+    return `${precision}
+
+QUESTION SHAPE — NAME / LIST:
+- First line MUST be only the answer: the names or list (use a short list or bullets). No sentence of explanation before the list.
+- Do not open with context (e.g. digestion overview) before the names.
+- After the list, optional short bullets for brief supporting facts only if sources support them—no essay.
+- Only include items in the category asked; do not pad with unrelated facts.`;
+  }
+
+  if (/^(why|how)\b/i.test(q)) {
+    return `${precision}
+
+QUESTION SHAPE — WHY / HOW:
+- First sentence: the direct reason or main mechanism that answers the question.
+- Then bullets: supporting mechanisms, steps, or evidence—one idea per bullet.
+- No preamble or unrelated context before the first sentence.`;
+  }
+
+  if (
+    /^(what is|what are|what does|what do|define|state what|explain what)\b/i.test(q) ||
+    /\bwhat is the function\b/.test(lower)
+  ) {
+    return `${precision}
+
+QUESTION SHAPE — WHAT / FUNCTION / DEFINE:
+- First sentence: definition or function ONLY (one clear sentence).
+- Then bullets: extra detail, conditions, or examples—no broad topic lecture.
+- If the question is narrow, do not wander into general chapter content.`;
+  }
+
+  return `${precision}
+
+QUESTION SHAPE — GENERAL:
+- First sentence: direct answer. Then bullets for support. Stay on the same object/terms as the question.`;
+}
+
+/**
  * Mock: general-knowledge path when curriculum is empty (dev / no API key scenarios).
  */
 function mockGeneralKnowledgeFallback(question, constraints) {
@@ -159,6 +271,7 @@ function mockGeneralKnowledgeFallback(question, constraints) {
     return {
       explanation,
       keyPoints,
+      memoryHook: "",
       citations: [],
       practice,
       warnings: [notice],
@@ -187,6 +300,7 @@ function mockGeneralKnowledgeFallback(question, constraints) {
   return {
     explanation,
     keyPoints,
+    memoryHook: "",
     citations: [],
     practice,
     warnings: [notice],
@@ -284,6 +398,7 @@ function mockGenerate(question, contextChunks, constraints) {
   return {
     explanation,
     keyPoints,
+    memoryHook: "",
     citations,
     practice: constraints?.includePractice !== false ? practice : [],
     warnings,
@@ -333,6 +448,8 @@ STUDENT MODE:
 SIMPLIFIED: No trusted curriculum documents matched. Give a SHORT, clear answer (aim under ~800 characters). Prefer bullet points.`
       : "";
 
+  const intentBlockGk = buildEnquiryQuestionIntentBlock(question);
+
   const systemPrompt = `You are an educational AI tutor for UK GCSE/A-Level. No LetsRevise curriculum sources were retrieved for this question. Answer using well-established general knowledge and typical GCSE exam expectations. Sound like concise revision guidance—direct phrasing, no filler. Do NOT claim your answer comes from a specific LetsRevise document or spec statement. If unsure, say so briefly.${simplifiedNote}
 
 Rules:
@@ -341,13 +458,16 @@ Rules:
 - Do not invent quotation marks from curriculum documents.
 - Do not put "Insufficient trusted sources" in warnings; the client shows a fixed curriculum notice.
 - Avoid unsupported specifics; prefer widely taught syllabus ideas only.
-${modeNote}${studentNote}`;
+${modeNote}${studentNote}
+${ENQUIRY_MEMORY_HOOK_PROMPT}${ENQUIRY_MEMORY_HOOK_SUFFIX_GK}
+
+${intentBlockGk}`;
 
   const userPrompt = `${convCtx}${specHint}${topicHint}
 
 Question: ${question}
 
-Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [], "practice": [{ "type": "mcq|short|exam|flashcard", "question": "...", "options": [], "answer": "...", "markScheme": "...", "front": "...", "back": "..." }], "warnings": [] }`;
+Return JSON: { "explanation": "...", "keyPoints": ["..."], "memoryHook": "", "citations": [], "practice": [{ "type": "mcq|short|exam|flashcard", "question": "...", "options": [], "answer": "...", "markScheme": "...", "front": "...", "back": "..." }], "warnings": [] }`;
 
   const res = await axios.post(
     "https://api.openai.com/v1/chat/completions",
@@ -376,6 +496,7 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [], "pra
   const out = {
     explanation: String(parsed.explanation || "").trim(),
     keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map(String) : [],
+    memoryHook: normalizeMemoryHook(parsed.memoryHook),
     citations: [],
     practice: constraints?.includePractice !== false && Array.isArray(parsed.practice) ? parsed.practice : [],
     warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String) : [],
@@ -468,6 +589,8 @@ STUDENT MODE:
 - Do not mention internal implementation details.`
       : "";
 
+  const intentBlock = buildEnquiryQuestionIntentBlock(question);
+
   const systemPrompt = `You are an educational AI tutor for UK GCSE/A-Level. Answer ONLY using the provided curriculum sources. Every key point must be supported by a citation. If sources are weak, say so clearly.
 
 Rules:
@@ -475,14 +598,17 @@ Rules:
 - Every citation must reference a knowledgeDocumentId from the context.
 - quote must be a snippet (<=200 chars) from that document's text.
 - If sources don't cover the question, add "Insufficient trusted sources" to warnings.
-- Return valid JSON only.${contextNote}${modeNote}${weakNote}${studentNote}${strongCurriculumNote}`;
+- Return valid JSON only.${contextNote}${modeNote}${weakNote}${studentNote}
+${ENQUIRY_MEMORY_HOOK_PROMPT}${ENQUIRY_MEMORY_HOOK_SUFFIX_CURRICULUM}
+
+${intentBlock}${strongCurriculumNote}`;
 
   const userPrompt = `${convCtx}Question: ${question}
 
 Context:
 ${context}
 
-Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "knowledgeDocumentId": "...", "sourceType": "...", "sourceId": "...", "quote": "...", "reason": "..." }], "practice": [{ "type": "mcq|short|exam|flashcard", "question": "...", "options": [], "answer": "...", "markScheme": "...", "front": "...(for flashcard)", "back": "...(for flashcard)" }], "warnings": [] }`;
+Return JSON: { "explanation": "...", "keyPoints": ["..."], "memoryHook": "", "citations": [{ "knowledgeDocumentId": "...", "sourceType": "...", "sourceId": "...", "quote": "...", "reason": "..." }], "practice": [{ "type": "mcq|short|exam|flashcard", "question": "...", "options": [], "answer": "...", "markScheme": "...", "front": "...(for flashcard)", "back": "...(for flashcard)" }], "warnings": [] }`;
 
   const res = await axios.post(
     "https://api.openai.com/v1/chat/completions",
@@ -511,6 +637,7 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "know
   const out = {
     explanation: String(parsed.explanation || "").trim(),
     keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map(String) : [],
+    memoryHook: normalizeMemoryHook(parsed.memoryHook),
     citations: Array.isArray(parsed.citations) ? parsed.citations : [],
     practice: constraints?.includePractice !== false && Array.isArray(parsed.practice) ? parsed.practice : [],
     warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String) : [],
@@ -551,7 +678,7 @@ Return JSON: { "explanation": "...", "keyPoints": ["..."], "citations": [{ "know
 /**
  * Generate structured enquiry answer.
  * @param {{ question: string, contextChunks: Array, constraints?: { weakEvidence?: boolean, includePractice?: boolean, studentMode?: boolean, conversationContext?: Array<{role,text}> } }}
- * @returns {Promise<{ explanation, keyPoints, citations, practice, warnings }>}
+ * @returns {Promise<{ explanation, keyPoints, memoryHook, citations, practice, warnings }>}
  */
 async function generateEnquiryAnswer({ question, contextChunks, constraints = {} }) {
   const provider = getProvider();
@@ -590,7 +717,7 @@ async function generateEnquiryAnswer({ question, contextChunks, constraints = {}
           ? ` (${String(lastErr.message).slice(0, 120)})`
           : "";
       out.warnings = [...(out.warnings || []), fallbackMsg + detail];
-      if (process.env.NODE_ENV !== "test") {
+      if (DEBUG_ENQUIRY && process.env.NODE_ENV !== "test") {
         console.warn("[llm/enquiry] ENQUIRY_LLM_FALLBACK_MOCK: using mock response after OpenAI failure");
       }
       return out;

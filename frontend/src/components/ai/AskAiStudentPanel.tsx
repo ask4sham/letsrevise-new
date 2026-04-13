@@ -1,6 +1,6 @@
 /**
  * PR-007: Student "Ask for help" panel — simplified UX, practice-first.
- * PR-019: Threaded tutoring chat. PR-019.1: Recent chats, New chat, pagination.
+ * PR-019: Threaded tutoring (API); UI shows only the latest Q&A for focus.
  * PR-033: Tutor action chips (Explain again, Explain simpler, Another example, Practice question, Show diagram).
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
@@ -9,16 +9,19 @@ import {
   postEnquiryAction,
   type PostEnquiryResponse,
 } from "../../api/enquiry";
-import {
-  createConversation,
-  getConversation,
-  listConversations,
-  type ConversationListItem,
-} from "../../api/conversations";
+import { createConversation, getConversation } from "../../api/conversations";
 import { Link } from "react-router-dom";
 import { CitationsList } from "./CitationsList";
 import { InlineDiagramBlock } from "./InlineDiagramBlock";
 import { SuggestedActionsBar } from "./SuggestedActionsBar";
+
+/** Learning reinforcement (not grading) — full string sent as the next enquiry in-thread. */
+const LEARNING_FOLLOW_UPS: { label: string; prompt: string }[] = [
+  { label: "Explain this in simpler terms", prompt: "Explain this in simpler terms" },
+  { label: "Give me another example", prompt: "Give me another example" },
+  { label: "What do I need to remember for the exam?", prompt: "What do I need to remember for the exam?" },
+  { label: "Test me on this topic", prompt: "Test me on this topic" },
+];
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -70,6 +73,18 @@ function getSessionKey(specKey: string, topicKey: string, lessonId?: string): st
   return `${SESSION_KEY_PREFIX}${specKey}:${topicKey}:${lessonId || ""}`;
 }
 
+/** Keep only the last user + assistant exchange (single-turn focused UI). */
+function toLatestPair(messages: ChatMessage[]): ChatMessage[] {
+  if (messages.length === 0) return [];
+  const last = messages[messages.length - 1];
+  if (last.role === "assistant") {
+    const prev = messages[messages.length - 2];
+    if (prev && prev.role === "user") return [prev, last];
+    return [last];
+  }
+  return [last];
+}
+
 export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScroll = false }: Props) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationInitFailed, setConversationInitFailed] = useState(false);
@@ -80,11 +95,6 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
   const [showExplanation, setShowExplanation] = useState<Record<string, boolean>>({});
   const [practiceHighlightId, setPracticeHighlightId] = useState<string | null>(null);
-  const [recentConversations, setRecentConversations] = useState<ConversationListItem[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [oldestReturnedAt, setOldestReturnedAt] = useState<string | null>(null);
-  const [loadingEarlier, setLoadingEarlier] = useState(false);
-  const [recentDropdownOpen, setRecentDropdownOpen] = useState(false);
   const [responseMode, setResponseMode] = useState<"quick" | "explain" | "revision">("explain");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -102,89 +112,8 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
     localStorage.setItem("askai:mode:student", mode);
   };
 
-  const loadConversation = useCallback(
-    (id: string, opts?: { limit?: number; before?: string }) => {
-      getConversation(id, opts ?? { limit: 20 })
-        .then((conv) => {
-          const mapped = conv.messages.map((m) => ({
-            role: m.role as "user" | "assistant",
-            text: m.text,
-            createdAt: m.createdAt,
-            enquiryLogId: m.enquiryLogId,
-            fullResponse: null as PostEnquiryResponse | null,
-          }));
-          if (opts?.before) {
-            setMessages((prev) => [...mapped, ...prev]);
-          } else {
-            setMessages(mapped);
-          }
-          const pag = conv.pagination;
-          if (pag) {
-            setHasMore(pag.hasMore);
-            setOldestReturnedAt(pag.oldestReturnedAt);
-          }
-        })
-        .catch(() => {});
-    },
-    []
-  );
-
-  const refreshRecent = useCallback(() => {
-    listConversations({
-      specKey,
-      topicKey,
-      lessonId,
-      limit: 10,
-    }).then((r) => setRecentConversations(r.conversations || [])).catch(() => {});
-  }, [specKey, topicKey, lessonId]);
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem(sessionKey);
-    if (stored) {
-      setConversationId(stored);
-      loadConversation(stored);
-      refreshRecent();
-    } else {
-      createConversation({ specKey, topicKey, lessonId })
-        .then(({ conversationId: id }) => {
-          setConversationId(id);
-          sessionStorage.setItem(sessionKey, id);
-          setMessages([]);
-          setHasMore(false);
-          setOldestReturnedAt(null);
-          refreshRecent();
-        })
-        .catch(() => setConversationInitFailed(true));
-    }
-  }, [specKey, topicKey, lessonId, sessionKey, loadConversation, refreshRecent]);
-
-  const handleNewChat = () => {
-    createConversation({ specKey, topicKey, lessonId })
-      .then(({ conversationId: id }) => {
-        setConversationId(id);
-        sessionStorage.setItem(sessionKey, id);
-        setMessages([]);
-        setHasMore(false);
-        setOldestReturnedAt(null);
-        setRecentDropdownOpen(false);
-        refreshRecent();
-      })
-      .catch(() => {});
-  };
-
-  const handleSelectConversation = (id: string) => {
-    setConversationId(id);
-    sessionStorage.setItem(sessionKey, id);
-    setRecentDropdownOpen(false);
-    loadConversation(id);
-  };
-
-  const handleLoadEarlier = () => {
-    const id = conversationId;
-    const before = oldestReturnedAt;
-    if (!id || !before || loadingEarlier) return;
-    setLoadingEarlier(true);
-    getConversation(id, { limit: 20, before })
+  const loadConversation = useCallback((id: string) => {
+    getConversation(id, { limit: 40 })
       .then((conv) => {
         const mapped = conv.messages.map((m) => ({
           role: m.role as "user" | "assistant",
@@ -193,16 +122,26 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
           enquiryLogId: m.enquiryLogId,
           fullResponse: null as PostEnquiryResponse | null,
         }));
-        setMessages((prev) => [...mapped, ...prev]);
-        const pag = conv.pagination;
-        if (pag) {
-          setHasMore(pag.hasMore);
-          setOldestReturnedAt(pag.oldestReturnedAt);
-        }
+        setMessages(toLatestPair(mapped));
       })
-      .catch(() => {})
-      .finally(() => setLoadingEarlier(false));
-  };
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem(sessionKey);
+    if (stored) {
+      setConversationId(stored);
+      loadConversation(stored);
+    } else {
+      createConversation({ specKey, topicKey, lessonId })
+        .then(({ conversationId: id }) => {
+          setConversationId(id);
+          sessionStorage.setItem(sessionKey, id);
+          setMessages([]);
+        })
+        .catch(() => setConversationInitFailed(true));
+    }
+  }, [specKey, topicKey, lessonId, sessionKey, loadConversation]);
 
   useEffect(() => {
     if (suppressAutoScroll) {
@@ -241,7 +180,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
       // Only clear input when sending user's typed text (form submit), not tutor chip messages
       if (q === question.trim()) setQuestion("");
 
-      setMessages((prev) => [...prev, { role: "user", text: q }]);
+      setMessages([{ role: "user", text: q }]);
 
     try {
       const res = await postEnquiry({
@@ -256,8 +195,8 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
         lessonId: lessonId || undefined,
         });
 
-        setMessages((prev) => [
-          ...prev,
+        setMessages([
+          { role: "user", text: q },
           {
             role: "assistant",
             text: res.answer.explanation || "",
@@ -265,7 +204,6 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
             fullResponse: res,
           },
         ]);
-        refreshRecent();
     } catch (err: unknown) {
       const e = err as {
         message?: string;
@@ -285,12 +223,12 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
             ? e.data.error
             : "";
       setError(fromInterceptor || apiMsg || genericErr || "Failed to get answer");
-        setMessages((prev) => prev.slice(0, -1));
+        setMessages([]);
     } finally {
       setLoading(false);
     }
     },
-    [conversationId, conversationInitFailed, loading, question, specKey, topicKey, responseMode, refreshRecent]
+    [conversationId, conversationInitFailed, loading, question, specKey, topicKey, responseMode, lessonId]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -314,6 +252,15 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
 
   const canSend = conversationId || conversationInitFailed;
 
+  const latestSlice = toLatestPair(messages);
+  const latestUser = latestSlice[0]?.role === "user" ? latestSlice[0] : null;
+  const latestAssistant =
+    latestSlice.length >= 2 && latestSlice[1].role === "assistant"
+      ? latestSlice[1]
+      : latestSlice.length === 1 && latestSlice[0].role === "assistant"
+        ? latestSlice[0]
+        : null;
+
   return (
     <div
       style={{
@@ -328,7 +275,8 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
         Ask for help on this topic
       </div>
       <p style={{ margin: "0 0 12px 0", fontSize: "0.9rem", color: "#15803d" }}>
-        Ask a question about this lesson… You can ask follow-ups like "Explain simpler" or "Give me another example".
+        Ask a question about this lesson… Tutor actions and follow-ups still use the same thread; only your latest
+        exchange is shown here.
       </p>
 
       <div style={{ marginBottom: 12 }}>
@@ -357,73 +305,67 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
       </div>
 
       <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 12 }}>
-        {hasMore && (
-          <div style={{ padding: "8px 0", textAlign: "center" }}>
-            <button
-              type="button"
-              onClick={handleLoadEarlier}
-              disabled={loadingEarlier}
-              style={{
-                padding: "6px 14px",
-                fontSize: 13,
-                background: "#dcfce7",
-                color: "#166534",
-                border: "1px solid #86efac",
-                borderRadius: 8,
-                cursor: loadingEarlier ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
-            >
-              {loadingEarlier ? "Loading…" : "Load earlier"}
-            </button>
+        {(latestUser || latestAssistant) && (
+          <div style={{ marginBottom: 12 }}>
+            {latestUser && (
+              <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    marginBottom: 4,
+                  }}
+                >
+                  Your question:
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: "#334155",
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {latestUser.text}
+                </div>
+              </div>
+            )}
+            {latestAssistant && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  background: "#fff",
+                  color: "#334155",
+                  border: "1px solid #bbf7d0",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                }}
+              >
+                {latestAssistant.fullResponse ? (
+                  <AssistantBubbleStudent
+                    response={latestAssistant.fullResponse}
+                    lessonId={lessonId}
+                    enquiryLogId={latestAssistant.enquiryLogId}
+                    practiceHighlightId={practiceHighlightId}
+                    showAnswer={showAnswer}
+                    showExplanation={showExplanation[latestAssistant.enquiryLogId || ""]}
+                    onTogglePractice={togglePracticeAnswer}
+                    onToggleExplanation={() =>
+                      latestAssistant.enquiryLogId && toggleExplanation(latestAssistant.enquiryLogId)
+                    }
+                    onIntent={(p) => handleIntent(p, latestAssistant.enquiryLogId)}
+                    onFollowUpPrompt={(prompt) => sendStudentMessage({ message: prompt })}
+                    followUpsDisabled={loading}
+                  />
+                ) : (
+                  <div style={{ whiteSpace: "pre-wrap" }}>{latestAssistant.text}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            style={{
-              marginBottom: 12,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
-          >
-            <div
-              style={{
-                maxWidth: "90%",
-                padding: "10px 14px",
-                borderRadius: 12,
-                background: msg.role === "user" ? "#16a34a" : "#fff",
-                color: msg.role === "user" ? "#fff" : "#334155",
-                border: msg.role === "user" ? "none" : "1px solid #bbf7d0",
-                fontSize: 14,
-                lineHeight: 1.5,
-              }}
-            >
-              {msg.role === "user" ? (
-                <div style={{ whiteSpace: "pre-wrap" }}>{msg.text}</div>
-              ) : msg.fullResponse ? (
-                <AssistantBubbleStudent
-                  response={msg.fullResponse}
-                  responseMode={(msg.responseMode ?? responseMode) as "quick" | "explain" | "revision"}
-                  modeLabels={STUDENT_MODE_LABELS}
-                  lessonId={lessonId}
-                  enquiryLogId={msg.enquiryLogId}
-                  practiceHighlightId={practiceHighlightId}
-                  showAnswer={showAnswer}
-                  showExplanation={showExplanation[msg.enquiryLogId || ""]}
-                  onTogglePractice={togglePracticeAnswer}
-                  onToggleExplanation={() =>
-                    msg.enquiryLogId && toggleExplanation(msg.enquiryLogId)
-                  }
-                  onIntent={(p) => handleIntent(p, msg.enquiryLogId)}
-                />
-              ) : (
-                <div style={{ whiteSpace: "pre-wrap" }}>{msg.text}</div>
-              )}
-            </div>
-          </div>
-        ))}
         {loading && (
           <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
             Searching trusted sources…
@@ -562,8 +504,6 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
 
 type AssistantBubbleStudentProps = {
   response: PostEnquiryResponse;
-  responseMode?: "quick" | "explain" | "revision";
-  modeLabels?: Record<"quick" | "explain" | "revision", string>;
   lessonId?: string;
   enquiryLogId?: string | null;
   practiceHighlightId: string | null;
@@ -572,12 +512,13 @@ type AssistantBubbleStudentProps = {
   onTogglePractice: (enquiryLogId: string, idx: number) => void;
   onToggleExplanation: () => void;
   onIntent: (payload: unknown) => void;
+  /** Sends a new enquiry with the given prompt (same conversation). */
+  onFollowUpPrompt?: (prompt: string) => void;
+  followUpsDisabled?: boolean;
 };
 
 function AssistantBubbleStudent({
   response,
-  responseMode,
-  modeLabels = STUDENT_MODE_LABELS,
   lessonId,
   enquiryLogId,
   practiceHighlightId,
@@ -586,6 +527,8 @@ function AssistantBubbleStudent({
   onTogglePractice,
   onToggleExplanation,
   onIntent,
+  onFollowUpPrompt,
+  followUpsDisabled = false,
 }: AssistantBubbleStudentProps) {
   const fallbackNotice = (response.fallbackNotice || "").trim();
   const noteWarnings = (response.answer.warnings || []).filter(
@@ -594,12 +537,6 @@ function AssistantBubbleStudent({
 
   return (
     <div style={{ width: "100%", textAlign: "left" }}>
-      {/* PR-036: Mode indicator above answer */}
-      {responseMode && (
-        <div style={{ marginBottom: 8, fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-          Mode: {modeLabels[responseMode]}
-        </div>
-      )}
       {response.source === "fallback_ai" && fallbackNotice && (
         <div
           style={{
@@ -631,43 +568,6 @@ function AssistantBubbleStudent({
               <strong>Note:</strong> {noteWarnings.join(" ")}
             </div>
           )}
-
-      {response.confidenceLevel && (
-        <div style={{ marginBottom: 12 }}>
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              backgroundColor:
-                response.confidenceLevel === "strong"
-                  ? "#dcfce7"
-                  : response.confidenceLevel === "moderate"
-                    ? "#fef3c7"
-                    : "#fee2e2",
-              color:
-                response.confidenceLevel === "strong"
-                  ? "#166534"
-                  : response.confidenceLevel === "moderate"
-                    ? "#92400e"
-                    : "#991b1b",
-            }}
-          >
-            Confidence:{" "}
-            {response.confidenceLevel === "strong"
-              ? "High"
-              : response.confidenceLevel === "moderate"
-                ? "Medium"
-                : "Low"}
-          </span>
-          {response.confidenceLevel === "weak" && (
-            <p style={{ margin: "8px 0 0 0", fontSize: 13, color: "#64748b" }}>
-              Your course content may not cover this fully yet.
-            </p>
-          )}
-        </div>
-      )}
 
           {/* PR-007: Practice first */}
       {response.answer.practice && response.answer.practice.length > 0 && enquiryLogId && (
@@ -851,6 +751,34 @@ function AssistantBubbleStudent({
             </div>
           )}
 
+      {response.answer.memoryHook?.trim() && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 12px",
+            background: "#f0fdf4",
+            borderLeft: "3px solid #22c55e",
+            borderRadius: 6,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: "#15803d",
+              marginBottom: 6,
+            }}
+          >
+            Memory hook
+          </div>
+          <div style={{ fontSize: 13, color: "#334155", lineHeight: 1.45, fontWeight: 500 }}>
+            {response.answer.memoryHook.trim()}
+          </div>
+        </div>
+      )}
+
       {/* PR-034: Inline diagram rendering — after explanation, before citations */}
       {response.answer.citations && (
         <InlineDiagramBlock citations={response.answer.citations} studentMode={true} />
@@ -948,6 +876,47 @@ function AssistantBubbleStudent({
         />
       )}
 
+      {onFollowUpPrompt &&
+        (response.answer.explanation?.trim() ||
+          (response.answer.keyPoints && response.answer.keyPoints.length > 0)) && (
+          <div style={{ marginTop: 14, marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#15803d",
+                marginBottom: 8,
+              }}
+            >
+              Keep learning
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {LEARNING_FOLLOW_UPS.map(({ label, prompt }) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={followUpsDisabled}
+                  onClick={() => onFollowUpPrompt(prompt)}
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: followUpsDisabled ? "#e2e8f0" : "#fff",
+                    color: followUpsDisabled ? "#94a3b8" : "#166534",
+                    border: "1px solid #86efac",
+                    borderRadius: 8,
+                    cursor: followUpsDisabled ? "not-allowed" : "pointer",
+                    textAlign: "left",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
       {response.suggestedActions && response.suggestedActions.length > 0 && (
         <SuggestedActionsBar
           actions={response.suggestedActions}
@@ -961,12 +930,6 @@ function AssistantBubbleStudent({
         />
       )}
 
-          {response.suggestedTopics && response.suggestedTopics.length > 0 && (
-            <div style={{ marginBottom: 12, fontSize: 14, color: "#64748b" }}>
-              <strong>Try these instead:</strong>{" "}
-              {response.suggestedTopics.map((s) => s.topicKey).join(", ")}
         </div>
-      )}
-    </div>
   );
 }

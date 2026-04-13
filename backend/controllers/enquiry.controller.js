@@ -2,7 +2,7 @@
  * PR-004: Enquiry (RAG) controller.
  * PR-006: Caching, deep links, enquiryLogId.
  */
-const { verifyCitations } = require("../utils/citationVerification");
+const { verifyCitations, traceCitationVerification } = require("../utils/citationVerification");
 const { searchKnowledge } = require("../services/knowledge/knowledgeSearchService");
 const {
   generateEnquiryAnswer,
@@ -32,8 +32,54 @@ const WEAK_SCORE_THRESHOLD = 0.35;
 const LESSON_LOCAL_STRONG_THRESHOLD = 0.18;
 const CONVERSATION_CONTEXT_PAIRS = 3; // last 3 user+assistant pairs = 6 messages
 
-/** Set DEBUG_ENQUIRY=1 for per-request enquiry diagnostics (retrieval, fallback routing). */
+/** Set DEBUG_ENQUIRY=1 for one JSON line per request: grep [enquiry_debug]. */
 const DEBUG_ENQUIRY = process.env.DEBUG_ENQUIRY === "1" || process.env.DEBUG_ENQUIRY === "true";
+/** Set ENQUIRY_CITATION_DEBUG=1 for [citation_debug] lines after verifyCitations (non-cached) or cache hit summary. */
+const CITATION_DEBUG =
+  process.env.ENQUIRY_CITATION_DEBUG === "1" || process.env.ENQUIRY_CITATION_DEBUG === "true";
+
+/** Must match backend/utils/citationVerification.js (blanket warning when all model citations drop). */
+const CITATION_VERIFY_FAIL_WARNING = "Some citations could not be verified";
+
+/**
+ * When the model cites ids that do not resolve but retrieval has trusted lesson-local chunks,
+ * attach canonical citations (empty quote → verifier uses doc excerpt) and drop the blanket fail warning.
+ */
+function applyLessonLocalCitationFallback({
+  citationsIn,
+  validCitations,
+  verifyWarnings,
+  retrievalResults,
+  docMap,
+  useGeneralKnowledgeFallback,
+}) {
+  if (useGeneralKnowledgeFallback) return { validCitations, verifyWarnings };
+  if (citationsIn.length === 0 || validCitations.length > 0) return { validCitations, verifyWarnings };
+  const hasLessonLocal = retrievalResults.some((r) =>
+    String(r.knowledgeDocumentId || "").startsWith("lessonlocal:")
+  );
+  if (!hasLessonLocal) return { validCitations, verifyWarnings };
+
+  const synthetic = retrievalResults
+    .filter((r) => String(r.knowledgeDocumentId || "").startsWith("lessonlocal:"))
+    .slice(0, 2)
+    .map((r) => ({
+      knowledgeDocumentId: String(r.knowledgeDocumentId),
+      sourceType: r.sourceType,
+      sourceId: r.sourceId,
+      quote: "",
+      reason: "",
+    }));
+  if (synthetic.length === 0) return { validCitations, verifyWarnings };
+
+  const resyn = verifyCitations(synthetic, docMap, retrievalResults);
+  if (resyn.valid.length === 0) return { validCitations, verifyWarnings };
+
+  return {
+    validCitations: resyn.valid,
+    verifyWarnings: verifyWarnings.filter((w) => w !== CITATION_VERIFY_FAIL_WARNING),
+  };
+}
 
 const ENQUIRY_MODES = new Set(["lesson", "revision", "exam"]);
 const RESPONSE_MODES = new Set(["quick", "explain", "exam", "revision"]);
@@ -81,21 +127,6 @@ function sanitizePracticeForEnquiryLog(practice) {
  */
 async function handleEnquiry(req, res) {
   try {
-    if (DEBUG_ENQUIRY) {
-      const b = req.body || {};
-      console.log("[enquiry/post] body (sanitized)", {
-        specKey: b.specKey,
-        topicKey: b.topicKey,
-        mode: b.mode,
-        limit: b.limit,
-        conversationId: b.conversationId ? String(b.conversationId).slice(0, 24) + "…" : undefined,
-        responseMode: b.responseMode,
-        allowExternal: b.allowExternal,
-        qLen: typeof b.question === "string" ? b.question.length : 0,
-        lessonId: b.lessonId ? String(b.lessonId).slice(0, 24) + "…" : undefined,
-      });
-    }
-
     const userRoleLower = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
     const userRoleForLog = (req.user?.userType || req.user?.role || "").toString();
     const isStudentUser = userRoleLower === "student";
@@ -177,6 +208,7 @@ async function handleEnquiry(req, res) {
         response: {
           explanation: cached.response.answer?.explanation || "",
           keyPoints: cached.response.answer?.keyPoints || [],
+          memoryHook: cached.response.answer?.memoryHook || "",
           practice: sanitizePracticeForEnquiryLog(cached.response.answer?.practice || []),
           citations: cached.response.answer?.citations || [],
           warnings: cached.response.answer?.warnings || [],
@@ -251,6 +283,25 @@ async function handleEnquiry(req, res) {
           if (weak) await upsertStudentTopicProgressSignal({ userId: uid, specKey: spec, topicKey, signalType: "weakAiEnquiries", value: 1 });
         })().catch(() => {});
       }
+      if (CITATION_DEBUG) {
+        const ac = answerCached;
+        const cit = ac.citations || [];
+        console.log(
+          "[citation_debug]",
+          JSON.stringify({
+            question: q.slice(0, 300),
+            cached: true,
+            citationsInLen: cit.length,
+            validCitationsOutLen: null,
+            verifyWarnings: [],
+            warningsBeforeMerge: ac.warnings || [],
+            warningsAfterMerge: ac.warnings || [],
+            usedSourcesCount: (usedSourcesCached || []).length,
+            firstThreeIds: cit.slice(0, 3).map((c) => (c && c.knowledgeDocumentId) || null),
+            note: "verifyCitations_not_run_cache_hit",
+          })
+        );
+      }
       return res.json(cachePayload);
     }
 
@@ -280,12 +331,6 @@ async function handleEnquiry(req, res) {
     });
     const vectorResultCount = vectorResults.length;
     let retrievalResults = mergeRetrievalResults(lessonLocalResults, vectorResults, topN);
-    if (DEBUG_ENQUIRY) {
-      console.log("[enquiry/post] after searchKnowledge", {
-        count: retrievalResults?.length ?? 0,
-        lessonLocal: lessonLocalResults.length,
-      });
-    }
 
     let externalUsed = false;
     let externalSources = [];
@@ -356,9 +401,15 @@ async function handleEnquiry(req, res) {
     const useGeneralKnowledgeFallback = !strictCurriculumOnly && weakEvidence;
 
     if (DEBUG_ENQUIRY) {
+      const b = req.body || {};
       console.log(
-        "[enquiry_tutor_v1]",
+        "[enquiry_debug]",
         JSON.stringify({
+          specKey: b.specKey,
+          topicKey: b.topicKey,
+          mode: b.mode,
+          responseMode: b.responseMode,
+          lessonId: b.lessonId ? String(b.lessonId).slice(0, 24) + "…" : null,
           lessonIdReceived: lessonIdForCache || null,
           lessonLocalChunkCount: lessonLocalResults.length,
           topLessonLocalScore: lessonTopScore,
@@ -396,7 +447,7 @@ async function handleEnquiry(req, res) {
       topicKey: r.topicKey,
     }));
 
-    const docMap = new Map(retrievalResults.map((r) => [r.knowledgeDocumentId, r]));
+    const docMap = new Map(retrievalResults.map((r) => [String(r.knowledgeDocumentId), r]));
 
     let answer = await generateEnquiryAnswer({
       question: q,
@@ -414,17 +465,45 @@ async function handleEnquiry(req, res) {
       },
     });
 
-    if (DEBUG_ENQUIRY && useGeneralKnowledgeFallback && process.env.NODE_ENV !== "test") {
-      console.log(
-        "[enquiry/post] fallback_ai_path",
-        JSON.stringify({ specKey: spec, topicKey: topicKey || null, noCurriculumSources })
-      );
+    const citationsIn = Array.isArray(answer.citations) ? answer.citations : [];
+    const warningsBeforeMerge = [...(answer.warnings || [])];
+    const { valid: validCitations, warnings: verifyWarnings } = verifyCitations(
+      answer.citations,
+      docMap,
+      retrievalResults
+    );
+    const { validCitations: finalCitations, verifyWarnings: finalVerifyWarnings } =
+      applyLessonLocalCitationFallback({
+        citationsIn,
+        validCitations,
+        verifyWarnings,
+        retrievalResults,
+        docMap,
+        useGeneralKnowledgeFallback,
+      });
+    const citationTraceItems = traceCitationVerification(citationsIn, docMap, retrievalResults);
+    answer.citations = finalCitations;
+    if (finalVerifyWarnings.length > 0) {
+      answer.warnings = [...(answer.warnings || []), ...finalVerifyWarnings];
     }
-
-    const { valid: validCitations, warnings: verifyWarnings } = verifyCitations(answer.citations, docMap);
-    answer.citations = validCitations;
-    if (verifyWarnings.length > 0) {
-      answer.warnings = [...(answer.warnings || []), ...verifyWarnings];
+    const warningsAfterMerge = [...(answer.warnings || [])];
+    if (CITATION_DEBUG) {
+      console.log(
+        "[citation_debug]",
+        JSON.stringify({
+          question: q.slice(0, 300),
+          cached: false,
+          citationsInLen: citationsIn.length,
+          validCitationsOutLen: finalCitations.length,
+          verifyWarnings: finalVerifyWarnings,
+          lessonLocalFallbackApplied: finalCitations.length > 0 && validCitations.length === 0,
+          warningsBeforeMerge,
+          warningsAfterMerge,
+          usedSourcesCount: Math.min(retrievalResults.length, topN),
+          firstThreeIds: citationsIn.slice(0, 3).map((c) => (c && c.knowledgeDocumentId) || null),
+          items: citationTraceItems,
+        })
+      );
     }
     // PR-021: Add external warning; never remove "Insufficient trusted sources"
     if (externalUsed) {
@@ -465,6 +544,7 @@ async function handleEnquiry(req, res) {
       response: {
         explanation: answer.explanation,
         keyPoints: answer.keyPoints || [],
+        memoryHook: answer.memoryHook != null ? String(answer.memoryHook) : "",
         practice: sanitizePracticeForEnquiryLog(answer.practice || []),
         citations: answer.citations || [],
         warnings: answer.warnings || [],
@@ -567,6 +647,7 @@ async function handleEnquiry(req, res) {
       answer: {
         explanation: answer.explanation,
         keyPoints: answer.keyPoints,
+        memoryHook: answer.memoryHook != null ? String(answer.memoryHook) : "",
         citations: answer.citations,
         practice: answer.practice,
         warnings: answer.warnings,
@@ -589,6 +670,7 @@ async function handleEnquiry(req, res) {
       answer: {
         explanation: answer.explanation,
         keyPoints: answer.keyPoints,
+        memoryHook: answer.memoryHook != null ? String(answer.memoryHook) : "",
         citations: answer.citations,
         practice: answer.practice,
         warnings: answer.warnings,

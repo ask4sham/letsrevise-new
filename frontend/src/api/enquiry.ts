@@ -98,6 +98,8 @@ export type EnquiryPracticeItem =
 export type EnquiryAnswer = {
   explanation: string;
   keyPoints: string[];
+  /** One-line exam recall hook from tutor (optional for older cached responses). */
+  memoryHook?: string;
   citations: EnquiryCitation[];
   practice: EnquiryPracticeItem[];
   warnings: string[];
