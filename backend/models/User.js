@@ -95,10 +95,6 @@ const userSchema = new mongoose.Schema(
     deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     deleteReason: { type: String, default: null, trim: true },
 
-    shamCoins: {
-      type: Number,
-      default: 100,
-    },
     earnings: {
       type: Number,
       default: 0,
@@ -146,15 +142,6 @@ const userSchema = new mongoose.Schema(
         type: Date,
       },
       cancelAtPeriodEnd: { type: Boolean, default: false },
-    },
-
-    monthlyShamCoinAllowance: {
-      type: Number,
-      default: 0,
-    },
-    shamCoinsEarnedThisMonth: {
-      type: Number,
-      default: 0,
     },
 
     referralCode: {
@@ -243,10 +230,6 @@ const userSchema = new mongoose.Schema(
         type: Number,
         default: 0,
       },
-      totalShamCoinsSpent: {
-        type: Number,
-        default: 0,
-      },
       totalLearningTimeMinutes: {
         type: Number,
         default: 0,
@@ -264,10 +247,6 @@ const userSchema = new mongoose.Schema(
 
     teacherStats: {
       totalLessonsCreated: {
-        type: Number,
-        default: 0,
-      },
-      totalEarningsShamCoins: {
         type: Number,
         default: 0,
       },
@@ -343,10 +322,6 @@ userSchema.pre("save", function () {
     this.studentStats.totalLessonsPurchased = purchasedLessons.length;
     this.studentStats.totalLessonsCompleted = purchasedLessons.filter((lesson) => lesson.completed)
       .length;
-    this.studentStats.totalShamCoinsSpent = purchasedLessons.reduce(
-      (sum, lesson) => sum + (lesson.price || 0),
-      0
-    );
     this.studentStats.totalLearningTimeMinutes = purchasedLessons.reduce(
       (sum, lesson) => sum + (lesson.timeSpentMinutes || 0),
       0
@@ -358,10 +333,6 @@ userSchema.pre("save", function () {
     }
   }
 
-  // Auto-update teacher stats
-  if (this.isModified("earnings") && this.userType === "teacher") {
-    this.teacherStats.totalEarningsShamCoins = this.earnings || 0;
-  }
 });
 
 module.exports = mongoose.model("User", userSchema);

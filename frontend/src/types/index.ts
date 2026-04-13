@@ -16,7 +16,6 @@ export interface User {
   lastName: string;
   userType: 'student' | 'teacher' | 'admin';
   verificationStatus: string;
-  shamCoins: number;
   subscription?: {
     plan: string;
     endDate: string;
@@ -42,7 +41,6 @@ export interface Lesson {
   teacherName: string;
   teacherId: string;
   estimatedDuration: number;
-  shamCoinPrice: number;
   isPublished: boolean;
   views: number;
   averageRating: number;

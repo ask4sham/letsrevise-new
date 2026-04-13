@@ -56,51 +56,13 @@ router.post('/cashout', auth, async (req, res) => {
   }
 });
 
-// TEMPORARY: Fix earnings for teachers (transfer shamCoins to earnings)
-router.post('/fix-earnings', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (user.userType !== 'teacher') {
-      return res.status(403).json({ message: 'Only teachers can use this endpoint' });
-    }
-
-    // Transfer available shamCoins to earnings
-    const transferAmount = user.shamCoins || 0;
-    
-    if (transferAmount <= 0) {
-      return res.status(400).json({ message: 'No shamCoins available to transfer' });
-    }
-
-    // Move shamCoins to earnings
-    user.shamCoins -= transferAmount;
-    user.earnings = (user.earnings || 0) + transferAmount;
-    
-    // Record transaction
-    user.transactions = user.transactions || [];
-    user.transactions.push({
-      type: 'transfer',
-      amount: transferAmount,
-      date: new Date(),
-      description: `Transferred ${transferAmount} ShamCoins to earnings`,
-      status: 'completed'
-    });
-
-    await user.save();
-
-    res.json({
-      message: `Transferred ${transferAmount} ShamCoins to earnings`,
-      transferAmount: transferAmount,
-      newShamCoins: user.shamCoins,
-      newEarnings: user.earnings
-    });
-
-  } catch (error) {
-    return sendInternalError('earnings/fix-earnings', error, res);
-  }
+// Retired: was transfer shamCoins → earnings (Batch 2: no shamCoins mutation)
+router.post('/fix-earnings', auth, (req, res) => {
+  return res.status(410).json({
+    success: false,
+    code: 'FIX_EARNINGS_SHAMCOINS_DEPRECATED',
+    message: 'Transferring ShamCoins to earnings is no longer supported.',
+  });
 });
 
 // GET /api/earnings/balance
@@ -115,7 +77,6 @@ router.get('/balance', auth, async (req, res) => {
       earnings: user.earnings || 0,
       balance: user.balance || 0,
       totalWithdrawn: user.totalWithdrawn || 0,
-      shamCoins: user.shamCoins || 0
     });
   } catch (error) {
     return sendInternalError('earnings/balance', error, res);

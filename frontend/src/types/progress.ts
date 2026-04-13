@@ -22,7 +22,6 @@ export interface StudentStats {
   completionRate: number;
   averageProgress: number;
   totalTimeSpentMinutes: number;
-  totalShamCoinsSpent: number;
   streakDays: number;
   estimatedTotalDurationMinutes: number;
   timeCompletionRatio: number;

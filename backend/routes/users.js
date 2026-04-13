@@ -47,7 +47,9 @@ router.get("/me", auth, async (req, res) => {
     if (!userId) {
       return res.status(401).json({ msg: "Not authenticated (no user id)" });
     }
-    const user = await User.findById(userId).select("-password -__v").lean();
+    const user = await User.findById(userId)
+      .select("-password -__v")
+      .lean();
     if (!user) {
       return res.status(404).json({ msg: "User not found", code: "USER_NOT_FOUND" });
     }
@@ -158,7 +160,6 @@ router.put("/profile", auth, async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         userType: user.userType,
-        shamCoins: user.shamCoins,
 
         // ✅ include new fields in response (non-breaking)
         yearGroup: user.yearGroup ?? null,
@@ -188,7 +189,7 @@ router.get("/purchases", auth, async (req, res) => {
 
     const user = await User.findById(userId).populate(
       "purchasedLessons.lessonId",
-      "title subject level teacherName estimatedDuration shamCoinPrice"
+      "title subject level teacherName estimatedDuration"
     );
 
     if (!user) {

@@ -538,20 +538,14 @@ router.get("/stats", auth, checkAdmin, async (req, res) => {
         $group: {
           _id: "$subscription",
           count: { $sum: 1 },
-          totalShamCoins: { $sum: "$shamCoins" },
         },
       },
     ]);
 
     const subsMap = subscriptionStats.reduce((acc, stat) => {
-      acc[stat._id] = { count: stat.count, totalShamCoins: stat.totalShamCoins };
+      acc[stat._id] = { count: stat.count };
       return acc;
     }, {});
-
-    const totalShamCoins = subscriptionStats.reduce(
-      (sum, stat) => sum + (stat.totalShamCoins || 0),
-      0
-    );
 
     const activeUsers = await User.countDocuments({
       $or: [
@@ -577,7 +571,7 @@ router.get("/stats", auth, checkAdmin, async (req, res) => {
           monthly: revenueStats?.[0]?.monthlyRevenue || 0,
         },
         subscriptions: subsMap,
-        platform: { totalShamCoins, activeUsers },
+        platform: { totalShamCoins: 0, activeUsers },
       },
     });
   } catch (err) {
@@ -718,7 +712,6 @@ router.get("/users", auth, checkAdmin, async (req, res) => {
         userType: u.userType,
         staffRole: u.staffRole || null,
         verificationStatus: u.verificationStatus,
-        shamCoins: u.shamCoins,
         subscription: u.subscription,
         createdAt: u.createdAt,
         lastActive: u.userType === "student" ? u.studentStats?.lastActiveDate : u.updatedAt,
@@ -764,7 +757,6 @@ router.get("/users/:userId", auth, checkAdmin, async (req, res) => {
         userType: user.userType,
         verificationStatus: user.verificationStatus,
         verificationNotes: user.verificationNotes,
-        shamCoins: user.shamCoins,
         subscription: user.subscription,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -944,7 +936,7 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
     const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
     const lessons = await Lesson.find(query)
-      .select("_id title subject level status isPublished teacherId shamCoinPrice views purchases averageRating createdAt isFreePreview")
+      .select("_id title subject level status isPublished teacherId views purchases averageRating createdAt isFreePreview")
       .populate("teacherId", "firstName lastName email")
       .sort(sort)
       .skip(skip)
@@ -958,7 +950,7 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
         const statusResolved = getLessonStatus(lesson);
 
         const purchases = lesson.purchases || 0;
-        const price = lesson.shamCoinPrice || 0;
+        const price = 0;
 
         return {
           id: lesson._id,
@@ -1099,7 +1091,6 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
       "topic",
       "tags",
       "estimatedDuration",
-      "shamCoinPrice",
       "isFreePreview",
       "resources",
       "board",
@@ -1752,66 +1743,14 @@ router.put("/users/:userId/role", auth, checkAdmin, async (req, res) => {
 });
 
 /* =========================================
-   POST /api/admin/shamcoins
+   POST /api/admin/shamcoins (retired — Batch 2)
    ========================================= */
-router.post("/shamcoins", auth, checkAdmin, async (req, res) => {
-  try {
-    const { userId, amount, reason } = req.body;
-
-    if (!userId || amount === undefined || amount === null) {
-      return res.status(400).json({ msg: "User ID and amount are required" });
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ msg: "Invalid user id" });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ msg: "User not found" });
-
-    const delta = Number(amount);
-    if (!Number.isFinite(delta) || delta === 0) {
-      return res.status(400).json({ msg: "Amount must be a non-zero number" });
-    }
-
-    const oldBalance = user.shamCoins || 0;
-    user.shamCoins = oldBalance + delta;
-
-    if (user.shamCoins < 0) {
-      return res.status(400).json({ msg: "Cannot set negative sham coins balance" });
-    }
-
-    const transactionType = delta > 0 ? "admin_deposit" : "admin_withdrawal";
-    user.transactions = user.transactions || [];
-    user.transactions.push({
-      type: transactionType,
-      amount: delta,
-      description: reason || `Admin adjustment: ${delta > 0 ? "+" : ""}${delta} ShamCoins`,
-      status: "completed",
-      reference: `ADMIN-${Date.now()}`,
-      date: new Date(),
-    });
-
-    await user.save();
-
-    res.json({
-      success: true,
-      msg: `Sham coins ${delta > 0 ? "added to" : "removed from"} user account`,
-      adjustment: {
-        userId: user._id,
-        userEmail: user.email,
-        userName: `${user.firstName} ${user.lastName}`,
-        amount: delta,
-        oldBalance,
-        newBalance: user.shamCoins,
-        reason,
-        transactionId: user.transactions[user.transactions.length - 1]._id,
-      },
-    });
-  } catch (err) {
-    console.error("Adjust sham coins error:", err);
-    return sendInternalError("admin", err, res);
-  }
+router.post("/shamcoins", auth, checkAdmin, (req, res) => {
+  return res.status(410).json({
+    success: false,
+    code: "ADMIN_SHAMCOINS_DEPRECATED",
+    msg: "Admin ShamCoin balance adjustments are no longer supported.",
+  });
 });
 
 /* =========================================

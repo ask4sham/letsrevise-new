@@ -96,21 +96,9 @@ exports.register = async (req, res) => {
       referralCode,
       ...(userType === "teacher" && { institution }),
       ...(referredBy && { referredBy }),
-      shamCoins: referredBy ? 150 : 100,
       createdAt: now,
       updatedAt: now,
     });
-
-    // Handle referral bonus for referrer
-    if (referredBy) {
-      const referrer = await User.findOne(withActiveUserFilter({ referralCode: referredBy }));
-      if (referrer) {
-        referrer.shamCoins += 50;
-        referrer.updatedAt = new Date();
-        await referrer.save();
-        console.log(`Added 50 coins to referrer: ${referrer.email}`);
-      }
-    }
 
     await user.save();
     console.log("User saved successfully:", user.email);
@@ -143,7 +131,6 @@ exports.register = async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       verificationStatus: user.verificationStatus,
-      shamCoins: user.shamCoins,
       referralCode: user.referralCode,
       institution: user.institution,
       referredBy: user.referredBy,
@@ -239,7 +226,6 @@ exports.login = async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       verificationStatus: user.verificationStatus,
-      shamCoins: user.shamCoins,
       referralCode: user.referralCode,
       institution: user.institution,
       createdAt: user.createdAt,

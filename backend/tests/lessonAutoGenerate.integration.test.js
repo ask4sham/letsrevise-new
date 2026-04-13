@@ -22,7 +22,6 @@ const basePayload = {
   topic: "Diffusion",
   tier: "foundation",
   estimatedDuration: 30,
-  shamCoinPrice: 0,
   pages: [{ pageId: "p1", title: "Page 1", order: 1, blocks: [{ type: "text", content: "Content" }] }],
 };
 

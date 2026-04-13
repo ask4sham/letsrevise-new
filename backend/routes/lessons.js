@@ -541,7 +541,6 @@ async function createLessonHandler(req, res) {
       return res.status(403).json({ msg: "Only teachers can create lessons" });
     }
 
-    const isAdminUser = isAdmin(req.user);
     let {
       title,
       description,
@@ -555,7 +554,6 @@ async function createLessonHandler(req, res) {
       subTopic,
       tags,
       estimatedDuration,
-      shamCoinPrice,
       resources,
       board,
       examBoard,
@@ -566,10 +564,6 @@ async function createLessonHandler(req, res) {
       quiz,
       autoGenerateFromBanks,
     } = req.body || {};
-    if (!isAdminUser) {
-      shamCoinPrice = 0;
-      delete req.body.shamCoinPrice;
-    }
 
     const missing = {};
     if (!title) missing.title = true;
@@ -623,7 +617,6 @@ async function createLessonHandler(req, res) {
       topic,
       tags: tagsArray,
       estimatedDuration,
-      shamCoinPrice: shamCoinPrice || 0,
       resources: resourcesArray,
 
       // Teachers create drafts by default.
@@ -768,34 +761,10 @@ async function createLessonHandler(req, res) {
       }
     }
 
-    let updatedShamCoins = 0;
-    try {
-      const dbUser = await User.findById(req.user._id);
-      if (dbUser) {
-        dbUser.shamCoins = (dbUser.shamCoins || 0) + 50;
-        await dbUser.save();
-        updatedShamCoins = dbUser.shamCoins;
-        console.log(
-          "✅ [Lessons] Awarded 50 ShamCoins to teacher:",
-          dbUser.email,
-          "New balance:",
-          updatedShamCoins
-        );
-      } else {
-        console.warn(
-          "⚠️ [Lessons] Could not find teacher in DB to award ShamCoins:",
-          req.user._id
-        );
-      }
-    } catch (coinErr) {
-      console.error("⚠️ [Lessons] Failed to award ShamCoins:", coinErr);
-    }
-
     const resPayload = {
       success: true,
-      msg: "Lesson created successfully! You earned 50 ShamCoins!",
+      msg: "Lesson created successfully!",
       lesson,
-      updatedShamCoins,
     };
     if (structureValidation.warnings.length > 0) {
       resPayload.structureWarnings = structureValidation.warnings;
@@ -855,7 +824,6 @@ async function cloneGoldLesson(req, res) {
         subTopic: "Photosynthesis",
         tags: ["biology", "photosynthesis", "plants", "respiration"],
         estimatedDuration: 60,
-        shamCoinPrice: 50,
         resources: [],
         board: "AQA",
         tier: "higher",
@@ -1659,7 +1627,6 @@ router.post("/:id/duplicate", auth, async (req, res) => {
       topicKey: source.topicKey || undefined,
       tags: Array.isArray(source.tags) ? source.tags : [],
       estimatedDuration: source.estimatedDuration ?? 0,
-      shamCoinPrice: source.shamCoinPrice ?? 0,
       resources: Array.isArray(source.resources) ? source.resources : [],
       board: source.board || "",
       tier: source.tier || undefined,
@@ -2611,9 +2578,6 @@ router.put("/:id", auth, async (req, res) => {
     }
 
     const updates = req.body || {};
-    if (!isAdminUser) {
-      delete updates.shamCoinPrice;
-    }
 
     // ✅ FIXED: Handle pages update with hero preservation
     if (updates.pages && Array.isArray(updates.pages)) {
@@ -3574,7 +3538,7 @@ function isValidIdempotencyKey(key) {
   return true;
 }
 
-// Purchase lesson (students only) — Phase 9C: idempotent, transactional, ledger-backed
+// Purchase lesson (students only) — subscription entitlement; ledger row at cost 0 (no coin debit)
 router.post("/:id/purchase", auth, async (req, res) => {
   const lessonIdParam = req.params.id;
   const idempotencyKeyRaw =
@@ -3582,7 +3546,6 @@ router.post("/:id/purchase", auth, async (req, res) => {
   const idempotencyKey = idempotencyKeyRaw ? String(idempotencyKeyRaw).trim() : null;
 
   const entitlementsPayload = (user) => ({
-    shamCoinsBalance: user.shamCoins ?? 0,
     purchasedLessonsCount: Array.isArray(user.purchasedLessons) ? user.purchasedLessons.length : 0,
   });
 
@@ -3592,7 +3555,13 @@ router.post("/:id/purchase", auth, async (req, res) => {
     idempotentReplay: payload.idempotentReplay ?? false,
     entitlements: payload.entitlements,
     ...(payload.purchaseId != null && { purchaseId: payload.purchaseId }),
+    ...(payload.via != null && { via: payload.via }),
+    ...(payload.coinsCharged !== undefined && { coinsCharged: payload.coinsCharged }),
+    ...(payload.subscriptionActive !== undefined && { subscriptionActive: payload.subscriptionActive }),
   });
+
+  const subscriptionMeta = (u) =>
+    u && isSubscriptionActive(u) ? { via: "subscription", coinsCharged: 0, subscriptionActive: true } : {};
 
   try {
     if (req.user.userType !== "student") {
@@ -3623,25 +3592,28 @@ router.post("/:id/purchase", auth, async (req, res) => {
       return res.status(400).json({ error: "Lesson is not published" });
     }
 
-    const cost = lesson.shamCoinPrice;
-    if (typeof cost !== "number" || !Number.isFinite(cost) || cost < 0) {
-      return res.status(400).json({ error: "Lesson has no valid price", code: "INVALID_COST" });
-    }
-
     const userId = req.user._id || req.user.userId;
+
+    if (req.user.userType === "student" && !isSubscriptionActive(req.user)) {
+      return res.status(403).json({
+        code: "SUBSCRIPTION_REQUIRED",
+        message: "Full lesson access requires an active subscription.",
+      });
+    }
 
     const existingByLesson = await LessonPurchase.findOne({
       userId,
       lessonId: lesson._id,
     }).lean();
     if (existingByLesson) {
-      const user = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+      const user = await User.findById(userId).select("purchasedLessons").lean();
       return res.status(200).json(
         stableResponse({
           success: true,
           alreadyPurchased: true,
           idempotentReplay: false,
           entitlements: entitlementsPayload(user || {}),
+          ...subscriptionMeta(req.user),
         })
       );
     }
@@ -3651,13 +3623,14 @@ router.post("/:id/purchase", auth, async (req, res) => {
       idempotencyKey,
     }).lean();
     if (existingByKey) {
-      const user = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+      const user = await User.findById(userId).select("purchasedLessons").lean();
       return res.status(200).json(
         stableResponse({
           success: true,
           alreadyPurchased: true,
           idempotentReplay: true,
           entitlements: entitlementsPayload(user || {}),
+          ...subscriptionMeta(req.user),
         })
       );
     }
@@ -3666,15 +3639,14 @@ router.post("/:id/purchase", auth, async (req, res) => {
     if (!user) {
       return res.status(500).json({ error: "User not found" });
     }
-    const balance = user.shamCoins != null ? user.shamCoins : 0;
-    if (balance < cost) {
-      return res.status(402).json({
-        error: "Insufficient ShamCoins",
-        code: "INSUFFICIENT_COINS",
-        required: cost,
-        available: balance,
+    if (!isSubscriptionActive(user)) {
+      return res.status(403).json({
+        code: "SUBSCRIPTION_REQUIRED",
+        message: "Full lesson access requires an active subscription.",
       });
     }
+
+    const cost = 0;
 
     // 9C hardening: fail closed if transactions not available (replica set required)
     let transactionsAvailable = false;
@@ -3726,7 +3698,6 @@ router.post("/:id/purchase", auth, async (req, res) => {
         await User.findByIdAndUpdate(
           userId,
           {
-            $inc: { shamCoins: -cost },
             $addToSet: { purchasedLessons: purchaseRecord },
           },
           { session }
@@ -3742,13 +3713,14 @@ router.post("/:id/purchase", auth, async (req, res) => {
           txErr.codeName === "DuplicateKey" ||
           (txErr.writeErrors && txErr.writeErrors.some((e) => e.code === 11000));
         if (isDuplicateKey) {
-          const userAfter = await User.findById(userId).select("shamCoins purchasedLessons").lean();
+          const userAfter = await User.findById(userId).select("purchasedLessons").lean();
           return res.status(200).json(
             stableResponse({
               success: true,
               alreadyPurchased: true,
               idempotentReplay: false,
               entitlements: entitlementsPayload(userAfter || {}),
+              ...subscriptionMeta(req.user),
             })
           );
         }
@@ -3766,18 +3738,16 @@ router.post("/:id/purchase", auth, async (req, res) => {
     }
     if (lastTxErr) throw lastTxErr;
 
-    const updatedUser = await User.findById(userId).select("shamCoins purchasedLessons").lean();
-    const teacherEarnings = Math.floor(cost * 0.7);
+    const updatedUser = await User.findById(userId).select("purchasedLessons").lean();
+    const teacherEarnings = 0;
     const teacher = await User.findById(lesson.teacherId);
     if (teacher) {
-      teacher.shamCoins = (teacher.shamCoins || 0) + teacherEarnings;
-      teacher.earnings = (teacher.earnings || 0) + teacherEarnings;
       teacher.transactions = teacher.transactions || [];
       teacher.transactions.push({
         type: "sale",
         amount: teacherEarnings,
         date: new Date(),
-        description: `Lesson sale: ${lesson.title}`,
+        description: `Lesson access recorded (subscription): ${lesson.title}`,
         lessonId: lesson._id,
         status: "completed",
       });
@@ -3787,8 +3757,8 @@ router.post("/:id/purchase", auth, async (req, res) => {
         await createNotification(
           teacher._id,
           "purchase_success",
-          "Lesson Sold!",
-          `A student purchased your lesson "${lesson.title}" for ${cost} ShamCoins`,
+          "Lesson access",
+          `A student accessed your lesson "${lesson.title}" via subscription.`,
           { lessonId: lesson._id, price: cost, earnings: teacherEarnings },
           `/lesson/${lesson._id}`
         );
@@ -3810,6 +3780,7 @@ router.post("/:id/purchase", auth, async (req, res) => {
         idempotentReplay: false,
         entitlements: entitlementsPayload(updatedUser || {}),
         purchaseId: ledgerDoc && ledgerDoc._id ? String(ledgerDoc._id) : undefined,
+        ...subscriptionMeta(req.user),
       })
     );
   } catch (err) {
@@ -3830,17 +3801,9 @@ router.post("/:id/purchase", auth, async (req, res) => {
 });
 
 /*
- * POST /api/lessons/:id/unlock — Unlock full lesson with 1 ShamCoin (students only).
+ * POST /api/lessons/:id/unlock — Legacy unlock; subscription or entitled access only (no coin debit).
  *
- * Manual test steps:
- * 1. Log in as a student with shamCoins >= 1.
- * 2. Open a lesson that shows "Free preview" (preview mode).
- * 3. Click "Unlock full lesson (1 ShamCoin)".
- * 4. Expect: lesson refetches and shows full content; card on dashboard shows "Unlocked".
- * 5. With 0 ShamCoins, expect 400 "Not enough ShamCoins" and UI message + Subscribe link.
- * 6. With active subscription or already purchased, expect 200 { alreadyHasAccess: true } and no deduction.
- *
- * Trial: granted on first unlock, once per user (grantTrialIfEligible); does not block unlock on failure.
+ * Trial: granted on first unlock attempt, once per user (grantTrialIfEligible); does not block unlock on failure.
  */
 router.post("/:id/unlock", auth, async (req, res) => {
   try {
@@ -3874,20 +3837,6 @@ router.post("/:id/unlock", auth, async (req, res) => {
       return res.status(200).json({ success: true, alreadyHasAccess: true });
     }
 
-    const coins = user.shamCoins != null ? user.shamCoins : 0;
-    if (coins < 1) {
-      return res.status(400).json({ message: "Not enough ShamCoins" });
-    }
-
-    user.shamCoins = coins - 1;
-    user.purchasedLessons = user.purchasedLessons || [];
-    user.purchasedLessons.push({
-      lessonId: lesson._id,
-      price: 1,
-      purchasedAt: new Date(),
-    });
-    await user.save();
-
     let trialGranted = false;
     let trialExpiresAt;
     try {
@@ -3900,10 +3849,20 @@ router.post("/:id/unlock", auth, async (req, res) => {
       console.warn("Unlock: trial grant failed", e?.message || e);
     }
 
-    return res.status(200).json({
-      success: true,
-      shamCoins: user.shamCoins,
-      purchasedLessons: user.purchasedLessons,
+    const userAfterTrial = await User.findById(req.user._id).lean();
+    if (userAfterTrial && isSubscriptionActive(userAfterTrial)) {
+      return res.status(200).json({
+        success: true,
+        alreadyHasAccess: true,
+        trialGranted,
+        ...(trialExpiresAt && { trialExpiresAt }),
+      });
+    }
+
+    return res.status(403).json({
+      success: false,
+      code: "SUBSCRIPTION_REQUIRED",
+      message: "Full lesson access requires an active subscription, purchasing this lesson, or an eligible trial.",
       trialGranted,
       ...(trialExpiresAt && { trialExpiresAt }),
     });
@@ -3933,7 +3892,7 @@ router.post("/by-ids", auth, async (req, res) => {
       return res.json({ ok: true, lessons: [] });
     }
     const lessons = await Lesson.find({ _id: { $in: unique } })
-      .select("_id title subject level board topic description teacherId isFreePreview shamCoinPrice status isPublished teacherName")
+      .select("_id title subject level board topic description teacherId isFreePreview status isPublished teacherName")
       .lean();
     const byId = {};
     lessons.forEach((l) => {
@@ -3950,7 +3909,6 @@ router.post("/by-ids", auth, async (req, res) => {
         description: l.description ?? null,
         teacherId: l.teacherId ?? null,
         teacherName: l.teacherName ?? null,
-        shamCoinPrice: l.shamCoinPrice ?? 0,
         status: l.status ?? null,
         isPublished: l.isPublished ?? false,
       };
@@ -4083,7 +4041,7 @@ router.get("/", auth, async (req, res) => {
     const LIST_SAFE_KEYS = [
       "id", "_id", "title", "summary", "description", "subject", "level", "board", "examBoard", "topic", "tier",
       "status", "isPublished", "teacherId", "teacherName", "createdAt", "updatedAt", "views",
-      "averageRating", "shamCoinPrice", "isFreePreview", "preview",
+      "averageRating", "isFreePreview", "preview",
     ];
     function toListSafe(lesson, extra = {}) {
       const safe = {};

@@ -378,11 +378,6 @@ router.post(
         }
       }
 
-      // Determine starting ShamCoins based on user type
-      let startingShamCoins = 500;
-      if (normalizedType === "teacher") startingShamCoins = 100;
-      if (normalizedType === "parent") startingShamCoins = 0;
-
       user = new User({
         email: normalizedEmail,
         password, // will be replaced with hashed version below
@@ -390,7 +385,6 @@ router.post(
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         schoolName: resolvedSchoolName,
-        shamCoins: startingShamCoins,
         verificationStatus: "pending",
 
         // ✅ Persist student yearGroup (User model derives stageKey automatically)
@@ -404,15 +398,7 @@ router.post(
 
       console.log(`Password hashed: ${hashedPassword.substring(0, 30)}...`);
 
-      // Handle referral code
-      if (referralCode) {
-        const referrer = await User.findOne(withActiveUserFilter({ referralCode }));
-        if (referrer) {
-          referrer.shamCoins = (referrer.shamCoins || 0) + 50;
-          await referrer.save();
-          user.shamCoins += 100; // bonus for using referral
-        }
-      }
+      // PR2: referral ShamCoin bonuses disabled
 
       // Email verification token (24h expiry)
       const verificationToken = crypto.randomBytes(32).toString("hex");
@@ -521,7 +507,6 @@ router.post(
             userType: user.userType,
             firstName: user.firstName,
             lastName: user.lastName,
-            shamCoins: user.shamCoins || 0,
             referralCode: user.referralCode,
             schoolName: user.schoolName || null,
             verificationStatus: user.verificationStatus || "pending",
@@ -848,7 +833,6 @@ router.post(
               userType: user.userType,
               firstName: user.firstName,
               lastName: user.lastName,
-              shamCoins: user.shamCoins || 0,
               referralCode: user.referralCode,
               schoolName: user.schoolName || null,
               verificationStatus: user.verificationStatus || "pending",

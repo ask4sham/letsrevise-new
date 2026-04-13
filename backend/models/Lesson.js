@@ -218,7 +218,6 @@ const LessonSchema = new mongoose.Schema(
     // optional metadata
     tags: { type: [String], default: [] },
     estimatedDuration: { type: Number, default: 0 },
-    shamCoinPrice: { type: Number, default: 0 },
 
     resources: { type: [String], default: [] },
 

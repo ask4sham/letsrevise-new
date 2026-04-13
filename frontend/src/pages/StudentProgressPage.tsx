@@ -245,11 +245,11 @@ const StudentProgressPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Time & coins row */}
+        {/* Time detail */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1.2fr 0.8fr',
+            gridTemplateColumns: '1fr',
             gap: '1.5rem',
             marginBottom: '2rem',
           }}
@@ -278,22 +278,6 @@ const StudentProgressPage: React.FC = () => {
             </p>
           </div>
 
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-            }}
-          >
-            <h3 style={{ marginBottom: '0.75rem' }}>ShamCoins Spent</h3>
-            <p style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-              {stats.totalShamCoinsSpent}
-            </p>
-            <p style={{ color: '#718096', fontSize: '0.9rem' }}>
-              Total ShamCoins used to purchase lessons.
-            </p>
-          </div>
         </div>
 
         {/* Subject progress + recent activity */}

@@ -10,7 +10,6 @@ function ensureStudentStats(user) {
   if (!user.studentStats) {
     user.studentStats = {
       averageProgress: 0,
-      totalShamCoinsSpent: 0,
       streakDays: 0,
       lastActiveDate: null,
     };
@@ -85,42 +84,16 @@ router.put('/:lessonId', auth, async (req, res) => {
       if (progress === 100 && !purchasedLesson.completed) {
         purchasedLesson.completed = true;
         purchasedLesson.completedAt = new Date();
-
-        // Award ShamCoins for completion (10% of lesson price)
-        const completionReward = Math.floor(lesson.shamCoinPrice * 0.1);
-        user.shamCoins += completionReward;
-
-        // Add transaction record
-        user.transactions.push({
-          type: 'deposit',
-          amount: completionReward,
-          description: `Completion reward for "${lesson.title}"`,
-          lessonId: lesson._id,
-          status: 'completed',
-        });
+        // PR2: no ShamCoin completion grants (progress + completion flags only)
       }
     }
 
     if (completed !== undefined) {
-      const wasCompleted = purchasedLesson.completed;
       purchasedLesson.completed = completed;
       if (completed) {
         purchasedLesson.completedAt = new Date();
         purchasedLesson.progress = 100;
-
-        // Award ShamCoins for completion if not already awarded
-        if (!wasCompleted) {
-          const completionReward = Math.floor(lesson.shamCoinPrice * 0.1);
-          user.shamCoins += completionReward;
-
-          user.transactions.push({
-            type: 'deposit',
-            amount: completionReward,
-            description: `Completion reward for "${lesson.title}"`,
-            lessonId: lesson._id,
-            status: 'completed',
-          });
-        }
+        // PR2: no ShamCoin completion grants
       }
     }
 
@@ -151,9 +124,7 @@ router.put('/:lessonId', auth, async (req, res) => {
       completed: purchasedLesson.completed,
       timeSpentMinutes: purchasedLesson.timeSpentMinutes,
       updatedAt: purchasedLesson.lastAccessed,
-      reward: purchasedLesson.completed
-        ? Math.floor(lesson.shamCoinPrice * 0.1)
-        : 0,
+      reward: 0,
     });
   } catch (err) {
     console.error('Progress update error:', err);
@@ -298,7 +269,6 @@ function getDefaultStatsResponse() {
       completionRate: 0,
       averageProgress: 0,
       totalTimeSpentMinutes: 0,
-      totalShamCoinsSpent: 0,
       streakDays: 0,
       estimatedTotalDurationMinutes: 0,
       timeCompletionRatio: 0,
@@ -409,7 +379,6 @@ router.get('/stats', auth, async (req, res) => {
             : 0,
         averageProgress: user.studentStats.averageProgress || 0,
         totalTimeSpentMinutes: totalTimeSpent,
-        totalShamCoinsSpent: user.studentStats.totalShamCoinsSpent || 0,
         streakDays: user.studentStats.streakDays || 0,
         estimatedTotalDurationMinutes: totalEstimatedDuration,
         timeCompletionRatio:
@@ -474,7 +443,7 @@ router.get('/teacher/:teacherId', auth, async (req, res) => {
     // Get all lessons by this teacher
     const lessons = await Lesson.find({
       teacherId: req.params.teacherId,
-    }).select('_id title subject level shamCoinPrice averageRating views');
+    }).select('_id title subject level averageRating views');
 
     // Get all purchases for these lessons
     const users = await User.find({
@@ -521,7 +490,7 @@ router.get('/teacher/:teacherId', auth, async (req, res) => {
         averageProgress: Math.round(averageProgress),
         averageRating: lesson.averageRating || 0,
         views: lesson.views || 0,
-        revenue: students.length * lesson.shamCoinPrice * 0.7,
+        revenue: 0,
       };
     });
 

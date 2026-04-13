@@ -1,8 +1,7 @@
 /**
- * Phase 9C — Integration tests for POST /api/lessons/:id/purchase (idempotent, ledger-backed).
+ * Integration tests for POST /api/lessons/:id/purchase (subscription path; ledger-backed).
  */
 const request = require("supertest");
-const mongoose = require("mongoose");
 const app = require("../app");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
@@ -14,10 +13,17 @@ function idemKey(s) {
   return s.length >= MIN_IDEM_KEY ? s : s + "-".repeat(MIN_IDEM_KEY - s.length);
 }
 
-describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
+const activeSubV2 = () => ({
+  status: "active",
+  planId: "integration-test",
+  expiresAt: new Date(Date.now() + 86400000 * 365),
+});
+
+describe("POST /api/lessons/:id/purchase", () => {
   let studentId;
   let lessonId;
   let token;
+  let unsubToken;
   const hashedPassword = bcrypt.hashSync("password123", 10);
 
   beforeAll(async () => {
@@ -41,7 +47,6 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
       status: "published",
       isPublished: true,
       isFreePreview: false,
-      shamCoinPrice: 10,
       pages: [{ pageId: "p1", order: 0, blocks: [] }],
       quiz: { questions: [] },
       flashcards: [],
@@ -54,15 +59,28 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
       email: "phase9c-student@test.com",
       password: hashedPassword,
       userType: "student",
-      shamCoins: 5,
+      subscriptionV2: activeSubV2(),
       purchasedLessons: [],
     });
     studentId = student._id;
 
+    const unsub = await User.create({
+      firstName: "U",
+      lastName: "Unsub",
+      email: "phase9c-unsub@test.com",
+      password: hashedPassword,
+      userType: "student",
+      purchasedLessons: [],
+    });
     const loginRes = await request(app)
       .post("/api/auth/login")
       .send({ email: "phase9c-student@test.com", password: "password123" });
     token = loginRes.body.token;
+
+    const loginUnsub = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "phase9c-unsub@test.com", password: "password123" });
+    unsubToken = loginUnsub.body.token;
   });
 
   test("missing idempotencyKey returns 400", async () => {
@@ -90,20 +108,17 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     expect(resLong.body.code).toBe("INVALID_IDEMPOTENCY_KEY");
   });
 
-  test("insufficient coins returns 402 with code and amounts", async () => {
+  test("student without active subscription returns 403 SUBSCRIPTION_REQUIRED", async () => {
     const res = await request(app)
       .post(`/api/lessons/${lessonId}/purchase`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ idempotencyKey: idemKey("key-insufficient") });
-    expect(res.status).toBe(402);
-    expect(res.body.error).toMatch(/insufficient/i);
-    expect(res.body.code).toBe("INSUFFICIENT_COINS");
-    expect(res.body.required).toBe(10);
-    expect(res.body.available).toBe(5);
+      .set("Authorization", `Bearer ${unsubToken}`)
+      .send({ idempotencyKey: idemKey("key-no-sub") });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("SUBSCRIPTION_REQUIRED");
   });
 
-  test("successful purchase decrements coins and grants access", async () => {
-    await User.findByIdAndUpdate(studentId, { shamCoins: 20, $set: { purchasedLessons: [] } });
+  test("successful purchase records entitlement", async () => {
+    await User.findByIdAndUpdate(studentId, { $set: { purchasedLessons: [] }, subscriptionV2: activeSubV2() });
     await LessonPurchase.deleteMany({ userId: studentId, lessonId });
 
     let res = await request(app)
@@ -118,7 +133,6 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     }
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.entitlements.shamCoinsBalance).toBe(10);
     expect(res.body.entitlements.purchasedLessonsCount).toBe(1);
 
     const getRes = await request(app)
@@ -129,9 +143,8 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     expect(getRes.body.quiz).toBeDefined();
   });
 
-  test("idempotency: same idempotencyKey again returns 200, no double debit", async () => {
-    const userBefore = await User.findById(studentId).select("shamCoins purchasedLessons").lean();
-    const balanceBefore = userBefore.shamCoins;
+  test("idempotency: same idempotencyKey again returns 200 already purchased", async () => {
+    const userBefore = await User.findById(studentId).select("purchasedLessons").lean();
     const countBefore = (userBefore.purchasedLessons || []).length;
 
     let res = await request(app)
@@ -146,14 +159,13 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     }
     expect(res.status).toBe(200);
     expect(res.body.alreadyPurchased).toBe(true);
-    expect(res.body.entitlements.shamCoinsBalance).toBe(balanceBefore);
     expect(res.body.entitlements.purchasedLessonsCount).toBe(countBefore);
 
     const ledgerCount = await LessonPurchase.countDocuments({ userId: studentId, lessonId });
     expect(ledgerCount).toBe(1);
   });
 
-  test("double-click simulation: two requests with same key → only one debit", async () => {
+  test("double-click simulation: two requests with same key → one ledger row", async () => {
     const otherLesson = await Lesson.create({
       title: "Other Paid",
       description: "D",
@@ -166,14 +178,13 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
       status: "published",
       isPublished: true,
       isFreePreview: false,
-      shamCoinPrice: 3,
       pages: [],
       quiz: { questions: [] },
       flashcards: [],
     });
 
     await User.findByIdAndUpdate(studentId, {
-      shamCoins: 10,
+      subscriptionV2: activeSubV2(),
       $pull: { purchasedLessons: { lessonId: otherLesson._id } },
     });
     await LessonPurchase.deleteMany({ userId: studentId, lessonId: otherLesson._id });
@@ -193,9 +204,6 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     const ok = res1.status === 200 || res2.status === 200;
     expect(ok).toBe(true);
 
-    const userAfter = await User.findById(studentId).select("shamCoins").lean();
-    expect(userAfter.shamCoins).toBe(7);
-
     const ledgerRows = await LessonPurchase.countDocuments({
       userId: studentId,
       lessonId: otherLesson._id,
@@ -203,7 +211,7 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     expect(ledgerRows).toBe(1);
   });
 
-  test("different idempotency keys, same lesson, concurrent → only one purchase and one debit", async () => {
+  test("different idempotency keys, same lesson, concurrent → one purchase row", async () => {
     const diffLesson = await Lesson.create({
       title: "Diff Keys Lesson",
       description: "D",
@@ -216,14 +224,13 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
       status: "published",
       isPublished: true,
       isFreePreview: false,
-      shamCoinPrice: 4,
       pages: [],
       quiz: { questions: [] },
       flashcards: [],
     });
 
     await User.findByIdAndUpdate(studentId, {
-      shamCoins: 15,
+      subscriptionV2: activeSubV2(),
       $pull: { purchasedLessons: { lessonId: diffLesson._id } },
     });
     await LessonPurchase.deleteMany({ userId: studentId, lessonId: diffLesson._id });
@@ -250,9 +257,6 @@ describe("POST /api/lessons/:id/purchase (Phase 9C)", () => {
     if (resA.status === 409 || resB.status === 409) {
       expect([resA.body?.code, resB.body?.code].includes("PURCHASE_CONFLICT")).toBe(true);
     }
-
-    const userAfter = await User.findById(studentId).select("shamCoins").lean();
-    expect(userAfter.shamCoins).toBe(11);
 
     const ledgerRows = await LessonPurchase.countDocuments({
       userId: studentId,

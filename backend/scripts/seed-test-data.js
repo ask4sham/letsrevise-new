@@ -1,7 +1,6 @@
 /**
  * Seed test data for LetsRevise
  * - Ensures a Teacher + Student exist in Mongo
- * - Gives Student ShamCoins
  * - Creates 2 Published Lessons in Supabase (matching your actual Supabase column names)
  *
  * Run: node scripts/seed-test-data.js
@@ -16,7 +15,6 @@ const User = require("../models/User");
 // ---------- CONFIG ----------
 const TEACHER_EMAIL = "teacher@example.com";
 const STUDENT_EMAIL = "student@example.com";
-const STUDENT_SHAMCOINS = 500;
 
 // ---------- Supabase ----------
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -51,7 +49,6 @@ async function ensureUser({ email, userType, firstName, lastName }) {
       firstName,
       lastName,
       password: "test12345",
-      shamCoins: 0,
       purchasedLessons: [],
     });
 
@@ -68,18 +65,6 @@ async function ensureUser({ email, userType, firstName, lastName }) {
   }
 
   return user;
-}
-
-async function giveStudentCoins(student, amount) {
-  if (typeof student.shamCoins === "number") {
-    student.shamCoins = amount;
-  } else if (typeof student.shamCoinBalance === "number") {
-    student.shamCoinBalance = amount;
-  } else {
-    student.shamCoins = amount;
-  }
-  await student.save();
-  console.log(`💰 Set ${student.email} coins → ${amount}`);
 }
 
 async function getLessonColumns() {
@@ -121,7 +106,6 @@ function buildLessonRow(cols, teacherMongoId, lesson) {
     ["level", ["level"]],
     ["topic", ["topic", "topicUnit", "topic_unit"]],
     ["estimatedDuration", ["estimatedDuration", "estimated_duration", "duration", "estimated_minutes"]],
-    ["shamCoinPrice", ["shamCoinPrice", "sham_coin_price", "price", "coin_price"]],
     ["isPublished", ["isPublished", "is_published", "published"]],
     ["views", ["views"]],
     ["averageRating", ["averageRating", "average_rating", "avg_rating"]],
@@ -164,7 +148,6 @@ async function createSupabaseLessons(teacherMongoId) {
       level: "GCSE",
       topic: "Algebra",
       estimatedDuration: 30,
-      shamCoinPrice: 50,
       isPublished: true,
       views: 0,
       averageRating: 0,
@@ -180,7 +163,6 @@ async function createSupabaseLessons(teacherMongoId) {
       level: "GCSE",
       topic: "Photosynthesis",
       estimatedDuration: 25,
-      shamCoinPrice: 60,
       isPublished: true,
       views: 0,
       averageRating: 0,
@@ -240,14 +222,11 @@ async function main() {
     lastName: "Student",
   });
 
-  await giveStudentCoins(student, STUDENT_SHAMCOINS);
-
   await createSupabaseLessons(teacher._id);
 
   console.log("🎉 Seed complete.");
   console.log("Next:");
   console.log(`- Login as student: ${STUDENT_EMAIL}`);
-  console.log(`- Student coins set to: ${STUDENT_SHAMCOINS}`);
   console.log("- Browse published lessons and purchase them.");
   process.exit(0);
 }

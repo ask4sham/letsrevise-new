@@ -1,4 +1,4 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -31,10 +31,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'pending',
     enum: ['pending', 'verified', 'rejected']
-  },
-  shamCoins: {
-    type: Number,
-    default: 100
   },
   createdAt: {
     type: Date,

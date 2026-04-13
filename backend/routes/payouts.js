@@ -19,38 +19,29 @@ router.get('/balance', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Teacher not found' });
     }
 
-    // Calculate total earnings from lesson sales
     const lessons = await Lesson.find({ teacherId: req.user._id });
-    const totalEarnings = lessons.reduce((sum, lesson) => {
-      // Teacher gets 70% of each lesson sale
-      return sum + (lesson.purchases || 0) * lesson.shamCoinPrice * 0.7;
-    }, 0);
-
-    // Update teacher's earnings if different
-    if (teacher.earnings !== totalEarnings) {
-      teacher.earnings = totalEarnings;
-      await teacher.save();
-    }
+    const totalEarnings =
+      typeof teacher.earnings === 'number' && Number.isFinite(teacher.earnings) ? teacher.earnings : 0;
 
     // Calculate available balance (earnings minus already withdrawn)
-    const availableBalance = teacher.earnings - teacher.totalWithdrawn;
+    const availableBalance = totalEarnings - (teacher.totalWithdrawn || 0);
 
     res.json({
       success: true,
       balance: {
-        totalEarnings: teacher.earnings,
+        totalEarnings,
         totalWithdrawn: teacher.totalWithdrawn,
         availableBalance: availableBalance,
         pendingPayouts: 0, // Will implement pending payouts later
         nextPayoutDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Weekly payouts
         minimumPayout: 1000 // Minimum 1000 ShamCoins to withdraw
       },
-      earningsBreakdown: lessons.map(lesson => ({
+      earningsBreakdown: lessons.map((lesson) => ({
         lessonId: lesson._id,
         title: lesson.title,
         purchases: lesson.purchases || 0,
-        price: lesson.shamCoinPrice,
-        earnings: (lesson.purchases || 0) * lesson.shamCoinPrice * 0.7
+        price: 0,
+        earnings: 0,
       }))
     });
 
