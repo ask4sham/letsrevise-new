@@ -2,8 +2,40 @@
  * PR-038: Today's study plan — personalised topic recommendations for students.
  */
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { getStudyPlan, type StudyPlanItem } from "../../api/studyCoach";
+
+const ACTION_LINK_STYLE: React.CSSProperties = {
+  padding: "6px 12px",
+  fontSize: 12,
+  fontWeight: 600,
+  background: "#dcfce7",
+  color: "#166534",
+  border: "1px solid #86efac",
+  borderRadius: 6,
+  textDecoration: "none",
+  display: "inline-block",
+};
+
+/** Pathname only — compare current page to action href without triggering navigation. */
+function pathnameFromHref(href: string): string {
+  if (!href) return "";
+  if (href.startsWith("/")) {
+    return href.split("?")[0].split("#")[0];
+  }
+  try {
+    return new URL(href, window.location.origin).pathname;
+  } catch {
+    return "";
+  }
+}
+
+function scrollToAskAiTutorAndFocus() {
+  document.getElementById("lesson-ask-ai-tutor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => {
+    document.getElementById("lesson-ask-ai-tutor-input")?.focus({ preventScroll: true });
+  }, 450);
+}
 
 interface StudyPlanPanelProps {
   specKey: string;
@@ -22,6 +54,7 @@ function statusLabel(status: string): string {
 }
 
 export function StudyPlanPanel({ specKey }: StudyPlanPanelProps) {
+  const location = useLocation();
   const [plan, setPlan] = useState<StudyPlanItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,24 +123,31 @@ export function StudyPlanPanel({ specKey }: StudyPlanPanelProps) {
             </div>
             <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{item.reason}</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {item.actions.slice(0, 4).map((a) => (
-                <Link
-                  key={a.id}
-                  to={a.href}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    background: "#dcfce7",
-                    color: "#166534",
-                    border: "1px solid #86efac",
-                    borderRadius: 6,
-                    textDecoration: "none",
-                  }}
-                >
-                  {a.label}
-                </Link>
-              ))}
+              {item.actions.slice(0, 4).map((a) => {
+                const askAiSameLesson =
+                  a.id === "ask-ai" && location.pathname === pathnameFromHref(a.href);
+                if (askAiSameLesson) {
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={scrollToAskAiTutorAndFocus}
+                      style={{
+                        ...ACTION_LINK_STYLE,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  );
+                }
+                return (
+                  <Link key={a.id} to={a.href} style={ACTION_LINK_STYLE}>
+                    {a.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}

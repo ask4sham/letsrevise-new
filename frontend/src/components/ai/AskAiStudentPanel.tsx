@@ -263,6 +263,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
 
   return (
     <div
+      id="lesson-ask-ai-tutor"
       style={{
         marginTop: 24,
         padding: "1rem 1.25rem",
@@ -461,6 +462,7 @@ export function AskAiStudentPanel({ topicKey, specKey, lessonId, suppressAutoScr
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <textarea
+          id="lesson-ask-ai-tutor-input"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="e.g. What do I need to know about…? / Explain simpler"
