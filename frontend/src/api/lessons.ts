@@ -175,7 +175,9 @@ export type CurriculumAiReviewResultPayload = {
 
 export type CurriculumAiReviewDoc = {
   status?: "idle" | "queued" | "running" | "completed" | "failed";
-  trigger?: "manual" | "draft_save";
+  trigger?: "manual" | "draft_save" | "phase1_first_save";
+  /** Server sets after first Phase 1 auto-run is claimed (cost control). */
+  phase1AutoOnceRun?: boolean;
   lastError?: string | null;
   generatedAt?: string | null;
   startedAt?: string | null;
@@ -204,5 +206,66 @@ export async function requestCurriculumAiReview(lessonId: string): Promise<{
     curriculumAiReview: CurriculumAiReviewDoc;
     lesson: unknown;
   }>(`/lessons/${lessonId}/curriculum-ai-review`, {});
+  return res.data!;
+}
+
+/** Phase 2: ranked draft lessons for manual curriculum check (GET /api/lessons/high-priority-for-review; opt-in on server). */
+export type HighPriorityLessonItem = {
+  _id: string;
+  title: string;
+  subject: string;
+  topicKey: string | null;
+  specKey: string | null;
+  views: number;
+  updatedAt: string;
+  priorityScore: number;
+  reasons: string[];
+};
+
+export async function getHighPriorityLessonsForReview(options?: {
+  limit?: number;
+  teacherId?: string;
+}): Promise<{ items: HighPriorityLessonItem[]; count: number }> {
+  const params = new URLSearchParams();
+  if (options?.limit != null) params.set("limit", String(options.limit));
+  if (options?.teacherId) params.set("teacherId", options.teacherId);
+  const q = params.toString();
+  const res = await api.get<{ items: HighPriorityLessonItem[]; count: number }>(
+    `/lessons/high-priority-for-review${q ? `?${q}` : ""}`
+  );
+  return res.data!;
+}
+
+/** Phase 3: lessons with weak student practice (GET /api/lessons/needs-curriculum-review; opt-in on server). */
+export type WeakLessonForReviewItem = {
+  _id: string;
+  title: string;
+  subject: string;
+  status: string;
+  isPublished: boolean;
+  attempts: number;
+  accuracy: number;
+  accuracyPercent: number;
+  highConfidenceWrong: number;
+  attemptsPerStudent: number;
+  weakScore: number;
+  reasons: string[];
+  windowDays: number;
+  since: string;
+};
+
+export async function getNeedsCurriculumReviewLessons(options?: {
+  limit?: number;
+  days?: number;
+  teacherId?: string;
+}): Promise<{ items: WeakLessonForReviewItem[]; count: number }> {
+  const params = new URLSearchParams();
+  if (options?.limit != null) params.set("limit", String(options.limit));
+  if (options?.days != null) params.set("days", String(options.days));
+  if (options?.teacherId) params.set("teacherId", options.teacherId);
+  const q = params.toString();
+  const res = await api.get<{ items: WeakLessonForReviewItem[]; count: number }>(
+    `/lessons/needs-curriculum-review${q ? `?${q}` : ""}`
+  );
   return res.data!;
 }

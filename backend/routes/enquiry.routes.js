@@ -7,7 +7,6 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const enquiryRateLimit = require("../middleware/enquiryRateLimit");
 const externalSearchRateLimit = require("../middleware/externalSearchRateLimit");
-const { isAiTutorEnabledForSpec } = require("../config/featureFlags");
 const { handleEnquiry, handleEnquiryFeedback, handleEnquiryAction } = require("../controllers/enquiry.controller");
 
 function isTeacherOrAdmin(req) {
@@ -26,12 +25,7 @@ router.post("/", auth, enquiryRateLimit, externalSearchRateLimit, (req, res, nex
     return handleEnquiry(req, res).catch(next);
   }
   if (isStudent(req)) {
-    const specKey = (req.body || {}).specKey;
-    if (!isAiTutorEnabledForSpec(specKey)) {
-      return res.status(403).json({
-        error: "AI Tutor is not enabled for this course yet.",
-      });
-    }
+    // Same as teachers: no per-spec env allowlist — students use the tutor on lessons they can access.
     return handleEnquiry(req, res).catch(next);
   }
   return res.status(403).json({ error: "Teachers and admins only" });

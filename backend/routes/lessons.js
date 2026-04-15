@@ -58,7 +58,10 @@ const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
 const {
   isCurriculumAiReviewEnabled,
   isAutoRunOnDraftSaveEnabled,
+  isPhase1AutoOnceEnabled,
+  getCurriculumReviewPublishWarning,
   runCurriculumAiReviewForLesson,
+  scheduleDraftSaveCurriculumReviewIfEligible,
 } = require("../services/curriculumAiReviewService");
 
 console.log("✅ lessons router file loaded");
@@ -1618,9 +1621,122 @@ router.get("/teacher", auth, async (req, res) => {
       })
     );
 
-    return res.json(lessonsWithStats);
+    const {
+      isRecommendInListEnabled,
+      buildRecommendedCurriculumCheckSet,
+    } = require("../utils/highPriorityLessonsForReview");
+    let recommendedSet = null;
+    if (isRecommendInListEnabled()) {
+      recommendedSet = buildRecommendedCurriculumCheckSet(lessonsWithStats, 25);
+    }
+
+    const {
+      isTagNeedsFromStudentsEnabled,
+      getWeakLessonIdSetForTeacher,
+    } = require("../utils/weakLessonsForCurriculumReview");
+    let weakStudentSet = null;
+    if (isCurriculumAiReviewEnabled() && isTagNeedsFromStudentsEnabled()) {
+      try {
+        weakStudentSet = await getWeakLessonIdSetForTeacher(req.user._id, {
+          days: parseInt(String(process.env.CURRICULUM_AI_REVIEW_WEAK_LESSONS_DAYS || "14"), 10) || 14,
+          limit: 60,
+        });
+      } catch (e) {
+        console.error("[lessons/teacher] weakStudentSet:", e?.message || e);
+      }
+    }
+
+    const payload = lessonsWithStats.map((lessonObj) => {
+      const id = String(lessonObj._id);
+      let row = lessonObj;
+      if (recommendedSet && recommendedSet.has(id)) {
+        row = { ...row, recommendedForCurriculumCheck: true };
+      }
+      if (weakStudentSet && weakStudentSet.has(id)) {
+        row = { ...row, needsCurriculumReview: true };
+      }
+      return row;
+    });
+
+    return res.json(payload);
   } catch (err) {
     return sendInternalError("lessons/teacher-list", err, res);
+  }
+});
+
+/* =========================================
+   Phase 2: ranked draft lessons for manual curriculum AI (no batch jobs)
+   GET /api/lessons/high-priority-for-review
+   ========================================= */
+
+router.get("/high-priority-for-review", auth, async (req, res) => {
+  try {
+    const {
+      isHighPriorityEndpointEnabled,
+      getHighPriorityLessonsForReview,
+    } = require("../utils/highPriorityLessonsForReview");
+    if (!isHighPriorityEndpointEnabled()) {
+      return res.status(404).json({ msg: "Not found" });
+    }
+    if (!isCurriculumAiReviewEnabled()) {
+      return res.status(404).json({ msg: "Curriculum AI review is not enabled" });
+    }
+
+    let teacherId = req.user._id;
+    if (isAdmin(req.user) && req.query.teacherId && mongoose.Types.ObjectId.isValid(String(req.query.teacherId))) {
+      teacherId = req.query.teacherId;
+    } else if (req.user.userType !== "teacher" && !isAdmin(req.user)) {
+      return res.status(403).json({ msg: "Not authorized" });
+    }
+    if (req.user.userType === "teacher" && String(teacherId) !== String(req.user._id)) {
+      return res.status(403).json({ msg: "Not authorized" });
+    }
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const items = await getHighPriorityLessonsForReview({ teacherId, limit });
+    return res.json({ items, count: items.length });
+  } catch (err) {
+    return sendInternalError("lessons/high-priority-for-review", err, res);
+  }
+});
+
+/* =========================================
+   Phase 3: lessons with weak student practice signals (PracticeAttempt; no new analytics)
+   GET /api/lessons/needs-curriculum-review
+   ========================================= */
+
+router.get("/needs-curriculum-review", auth, async (req, res) => {
+  try {
+    const {
+      isWeakLessonsApiEnabled,
+      getWeakLessonsForCurriculumReview,
+    } = require("../utils/weakLessonsForCurriculumReview");
+    if (!isWeakLessonsApiEnabled()) {
+      return res.status(404).json({ msg: "Not found" });
+    }
+    if (!isCurriculumAiReviewEnabled()) {
+      return res.status(404).json({ msg: "Curriculum AI review is not enabled" });
+    }
+
+    let teacherId = req.user._id;
+    if (isAdmin(req.user) && req.query.teacherId && mongoose.Types.ObjectId.isValid(String(req.query.teacherId))) {
+      teacherId = req.query.teacherId;
+    } else if (req.user.userType !== "teacher" && !isAdmin(req.user)) {
+      return res.status(403).json({ msg: "Not authorized" });
+    }
+    if (req.user.userType === "teacher" && String(teacherId) !== String(req.user._id)) {
+      return res.status(403).json({ msg: "Not authorized" });
+    }
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 100);
+    let days = parseInt(String(req.query.days || ""), 10);
+    if (!Number.isFinite(days) || days < 1) days = undefined;
+    if (days != null && days > 60) days = 60;
+
+    const items = await getWeakLessonsForCurriculumReview({ teacherId, limit, days });
+    return res.json({ items, count: items.length });
+  } catch (err) {
+    return sendInternalError("lessons/needs-curriculum-review", err, res);
   }
 });
 
@@ -1924,6 +2040,8 @@ async function publishToggleHandler(req, res, mode) {
     let publishWarningSummary = null;
     let publishValidationMode = null;
     let publishQualityScore = null;
+    /** Phase 1: soft-only curriculum AI hint (never blocks publish). */
+    let curriculumReviewPublishWarning = null;
 
     if (willBePublished) {
       const { checkPublishGateForGenerated } = require("../middleware/requirePublishGateIfGenerated");
@@ -1951,7 +2069,7 @@ async function publishToggleHandler(req, res, mode) {
 
       if (structureValidation.mode === "manual_teacher") {
         publishWarningSummary = buildPublishWarningSummary(structureValidation, qualityResult);
-      } else if (qualityResult.score < 70) {
+      } else       if (qualityResult.score < 70) {
         return res.status(400).json({
           error: "Lesson quality too low to publish",
           msg: "Lesson quality too low to publish",
@@ -1963,6 +2081,8 @@ async function publishToggleHandler(req, res, mode) {
           publishValidationMode: structureValidation.mode,
         });
       }
+
+      curriculumReviewPublishWarning = getCurriculumReviewPublishWarning(lesson);
     }
 
     if (mode === "publish") {
@@ -2036,6 +2156,9 @@ async function publishToggleHandler(req, res, mode) {
         : lesson.isPublished && publishValidationMode
           ? { publishValidationMode, qualityScore: publishQualityScore }
           : {}),
+      ...(lesson.isPublished && curriculumReviewPublishWarning
+        ? { curriculumReviewPublishWarning, publishedWithCurriculumHint: true }
+        : {}),
       lesson: updatedLesson,
     });
   } catch (err) {
@@ -2942,19 +3065,41 @@ router.put("/:id", auth, async (req, res) => {
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
 
-    if (
-      isCurriculumAiReviewEnabled() &&
-      isAutoRunOnDraftSaveEnabled() &&
-      !updatedLesson.isPublished &&
-      String(updatedLesson.status || "draft").toLowerCase() === "draft"
-    ) {
-      setImmediate(() => {
-        runCurriculumAiReviewForLesson({
-          lessonId: updatedLesson._id,
-          trigger: "draft_save",
-          internal: true,
-        }).catch((e) => console.error("[curriculumAiReview] draft_save:", e?.message || e));
-      });
+    if (isCurriculumAiReviewEnabled() && !updatedLesson.isPublished) {
+      const st = String(updatedLesson.status || "draft").toLowerCase();
+      const draftLike = st === "draft" || st === "in_review";
+      if (draftLike) {
+        const phase1On = isPhase1AutoOnceEnabled();
+        const draftSaveOn = isAutoRunOnDraftSaveEnabled();
+
+        let ranPhase1ThisRequest = false;
+        if (phase1On && st === "draft") {
+          try {
+            const resPhase = await Lesson.updateOne(
+              { _id: updatedLesson._id, "curriculumAiReview.phase1AutoOnceRun": { $ne: true } },
+              { $set: { "curriculumAiReview.phase1AutoOnceRun": true } }
+            );
+            if (resPhase.modifiedCount > 0) {
+              ranPhase1ThisRequest = true;
+              setImmediate(() => {
+                runCurriculumAiReviewForLesson({
+                  lessonId: updatedLesson._id,
+                  trigger: "phase1_first_save",
+                  internal: true,
+                }).catch((e) => console.error("[curriculumAiReview] phase1_first_save:", e?.message || e));
+              });
+            }
+          } catch (e) {
+            console.error("[curriculumAiReview] phase1 flag:", e?.message || e);
+          }
+        }
+
+        if (draftSaveOn && st === "draft" && !(phase1On && ranPhase1ThisRequest)) {
+          scheduleDraftSaveCurriculumReviewIfEligible(updatedLesson._id).catch((e) =>
+            console.error("[curriculumAiReview] draft_save_schedule:", e?.message || e)
+          );
+        }
+      }
     }
 
     return res.json({

@@ -460,9 +460,11 @@ const LessonSchema = new mongoose.Schema(
           },
           trigger: {
             type: String,
-            enum: ["manual", "draft_save"],
+            enum: ["manual", "draft_save", "phase1_first_save"],
             default: "manual",
           },
+          /** Phase 1: one-time auto-review queued for new/first-save lessons (cost control). */
+          phase1AutoOnceRun: { type: Boolean, default: false },
           lastError: { type: String, default: null },
           generatedAt: { type: Date, default: null },
           startedAt: { type: Date, default: null },

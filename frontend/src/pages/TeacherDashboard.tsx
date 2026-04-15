@@ -52,6 +52,10 @@ type LessonRow = {
   examQuestions?: unknown[];
   /** PR19 Quick setup: mark lessons reviewed */
   reviewedAt?: string | null;
+  /** Phase 2: draft lesson is a priority candidate for manual curriculum AI (server-ranked). */
+  recommendedForCurriculumCheck?: boolean;
+  /** Phase 3: student practice signals suggest reviewing curriculum (manual AI only). */
+  needsCurriculumReview?: boolean;
 };
 
 /** PR4: topicKey -> taxonomy metadata from AQA GCSE Biology */
@@ -1464,8 +1468,42 @@ const TeacherDashboard: React.FC = () => {
                   >
                     {/* Left: lesson content */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ margin: "0 0 6px 0", fontSize: "1.1rem", fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>
-                        {lesson.title}
+                      <h3 style={{ margin: "0 0 6px 0", fontSize: "1.1rem", fontWeight: 700, color: "#111827", lineHeight: 1.3, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                        <span>{lesson.title}</span>
+                        {lesson.needsCurriculumReview ? (
+                          <span
+                            title="Student practice on this lesson shows low accuracy, repeated attempts, and/or high-confidence wrong answers. Run a curriculum check when you edit (no automatic AI)."
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              background: "rgba(234,88,12,0.12)",
+                              color: "#9a3412",
+                              border: "1px solid rgba(234,88,12,0.4)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Needs curriculum review
+                          </span>
+                        ) : null}
+                        {lesson.recommendedForCurriculumCheck ? (
+                          <span
+                            title="This draft is a good candidate to open and run “Check against curriculum” (no automatic AI)."
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              background: "rgba(99,102,241,0.12)",
+                              color: "#4338ca",
+                              border: "1px solid rgba(99,102,241,0.35)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Curriculum check recommended
+                          </span>
+                        ) : null}
                       </h3>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 10 }}>
                         <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, background: "#e5e7eb", color: "#374151" }}>

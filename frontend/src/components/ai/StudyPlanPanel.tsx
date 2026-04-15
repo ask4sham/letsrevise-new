@@ -2,7 +2,7 @@
  * PR-038: Today's study plan — personalised topic recommendations for students.
  */
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getStudyPlan, type StudyPlanItem } from "../../api/studyCoach";
 
 const ACTION_LINK_STYLE: React.CSSProperties = {
@@ -17,7 +17,7 @@ const ACTION_LINK_STYLE: React.CSSProperties = {
   display: "inline-block",
 };
 
-/** Pathname only — compare current page to action href without triggering navigation. */
+/** Pathname only (no query/hash). */
 function pathnameFromHref(href: string): string {
   if (!href) return "";
   if (href.startsWith("/")) {
@@ -30,15 +30,40 @@ function pathnameFromHref(href: string): string {
   }
 }
 
+/** Lesson id from /lesson/:id — stable compare for same-page Ask AI (avoids basename/trailing-slash mismatches). */
+function lessonIdFromLessonHref(href: string): string | null {
+  const p = pathnameFromHref(href).replace(/\/+$/, "");
+  const m = p.match(/^\/lesson\/([^/]+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * Scroll to student AskAiStudentPanel (#lesson-ask-ai-tutor). Retries while the panel is still mounting.
+ */
 function scrollToAskAiTutorAndFocus() {
-  document.getElementById("lesson-ask-ai-tutor")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  window.setTimeout(() => {
-    document.getElementById("lesson-ask-ai-tutor-input")?.focus({ preventScroll: true });
-  }, 450);
+  const maxAttempts = 80;
+  let n = 0;
+  const tryScroll = () => {
+    const el = document.getElementById("lesson-ask-ai-tutor");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => {
+        document.getElementById("lesson-ask-ai-tutor-input")?.focus({ preventScroll: true });
+      }, 450);
+      return;
+    }
+    n += 1;
+    if (n < maxAttempts) {
+      window.setTimeout(tryScroll, 50);
+    }
+  };
+  tryScroll();
 }
 
 interface StudyPlanPanelProps {
   specKey: string;
+  /** Current lesson route id — when Ask AI href matches this lesson, use in-page scroll (no Link navigation). */
+  currentLessonId?: string | null;
 }
 
 function topicKeyToTitle(topicKey: string): string {
@@ -53,8 +78,7 @@ function statusLabel(status: string): string {
   return "New";
 }
 
-export function StudyPlanPanel({ specKey }: StudyPlanPanelProps) {
-  const location = useLocation();
+export function StudyPlanPanel({ specKey, currentLessonId }: StudyPlanPanelProps) {
   const [plan, setPlan] = useState<StudyPlanItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,14 +148,24 @@ export function StudyPlanPanel({ specKey }: StudyPlanPanelProps) {
             <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{item.reason}</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {item.actions.slice(0, 4).map((a) => {
+                const hrefLessonId = lessonIdFromLessonHref(a.href);
+                const cur = currentLessonId != null && String(currentLessonId).trim() !== "" ? String(currentLessonId).trim() : null;
                 const askAiSameLesson =
-                  a.id === "ask-ai" && location.pathname === pathnameFromHref(a.href);
+                  a.id === "ask-ai" &&
+                  cur != null &&
+                  hrefLessonId != null &&
+                  hrefLessonId === cur;
+
                 if (askAiSameLesson) {
                   return (
                     <button
                       key={a.id}
                       type="button"
-                      onClick={scrollToAskAiTutorAndFocus}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        scrollToAskAiTutorAndFocus();
+                      }}
                       style={{
                         ...ACTION_LINK_STYLE,
                         cursor: "pointer",

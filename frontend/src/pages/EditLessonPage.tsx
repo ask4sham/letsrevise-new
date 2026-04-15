@@ -287,6 +287,11 @@ function sanitizeTeacherMarkdown(input: string) {
 const MEDIA_BUCKET =
   (process.env.REACT_APP_SUPABASE_MEDIA_BUCKET as string) || "lesson-media";
 
+/** Align with server CURRICULUM_AI_REVIEW_MIN_PUBLISH_SCORE (default 60) for soft publish gate copy. */
+const CURRICULUM_PUBLISH_MIN_SCORE = Number(
+  process.env.REACT_APP_CURRICULUM_AI_REVIEW_MIN_SCORE || 60
+);
+
 function slugifyFilename(name: string) {
   return name
     .toLowerCase()
@@ -2428,8 +2433,11 @@ const EditLessonPage: React.FC = () => {
       if (curriculumAiReviewFeatureRef.current && id) {
         const pollId = id;
         void (async () => {
-          for (let i = 0; i < 14; i++) {
-            await new Promise((r) => setTimeout(r, i === 0 ? 1000 : 2800));
+          const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+          let sawRunningOrQueued = false;
+          const maxIterations = 24;
+          for (let i = 0; i < maxIterations; i++) {
+            await delay(i === 0 ? 1000 : 2000);
             try {
               const { curriculumAiReview } = await getCurriculumAiReview(pollId);
               setLesson((prev) =>
@@ -2438,10 +2446,33 @@ const EditLessonPage: React.FC = () => {
                   : null
               );
               const st = curriculumAiReview?.status;
-              if (st !== "running" && st !== "queued") break;
+              if (st === "running" || st === "queued") {
+                sawRunningOrQueued = true;
+                setSaveMsg("⏳ Curriculum review running…");
+                continue;
+              }
+              if (st === "failed") {
+                setSaveMsg("⚠️ Curriculum review failed. See details in the panel below.");
+                setTimeout(() => setSaveMsg(""), 8000);
+                return;
+              }
+              if (st === "completed") {
+                if (sawRunningOrQueued) {
+                  setSaveMsg("✅ Saved! Curriculum review updated.");
+                  setTimeout(() => setSaveMsg(""), 6000);
+                }
+                return;
+              }
+              break;
             } catch {
               break;
             }
+          }
+          if (sawRunningOrQueued) {
+            setSaveMsg("⏳ Curriculum review still running — refresh the panel or save again to update.");
+            setTimeout(() => setSaveMsg(""), 6000);
+          } else {
+            setTimeout(() => setSaveMsg(""), 3000);
           }
         })();
       }
@@ -2450,7 +2481,9 @@ const EditLessonPage: React.FC = () => {
       setSaveMsg(e?.message || "❌ Save failed.");
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMsg(""), 2500);
+      if (!curriculumAiReviewFeatureRef.current) {
+        setTimeout(() => setSaveMsg(""), 2500);
+      }
     }
   };
 
@@ -2500,6 +2533,20 @@ const EditLessonPage: React.FC = () => {
     if (notReviewed) issues.push("Lesson not marked as reviewed");
     // Contract structure validation
     issues.push(...validateLessonStructure(l));
+    /** Phase 1: soft curriculum AI hints (same modal — “Publish anyway” still allowed). */
+    if (curriculumAiReviewFeature && l && canRunCurriculumReview(l)) {
+      const cr = l.curriculumAiReview;
+      if (!cr || cr.status !== "completed" || !cr.result) {
+        issues.push("Curriculum AI review not completed yet (recommended before publish)");
+      } else {
+        const m = Number((cr.result as { curriculumMatchScore?: number }).curriculumMatchScore);
+        if (Number.isFinite(m) && m < CURRICULUM_PUBLISH_MIN_SCORE) {
+          issues.push(
+            `Curriculum match score (${m}) is below recommended (${CURRICULUM_PUBLISH_MIN_SCORE}) — you can still publish`
+          );
+        }
+      }
+    }
     return { issues, checkpointsCount, diagramsCount, practiceAttachedCount, notReviewed };
   }
 
@@ -2560,6 +2607,8 @@ const EditLessonPage: React.FC = () => {
         publishWarningSummary?: PublishWarningSummary;
         publishWarnings?: string[];
         msg?: string;
+        curriculumReviewPublishWarning?: { message?: string; code?: string };
+        publishedWithCurriculumHint?: boolean;
       } | null = null;
 
       if (newStatus) {
@@ -2594,11 +2643,13 @@ const EditLessonPage: React.FC = () => {
       }
 
       if (newStatus && publishData?.publishedWithWarnings && publishData?.publishWarningSummary) {
-        setSaveMsg(
-          formatPublishWithQualityWarningsMessage(publishData.publishWarningSummary, {
-            leadingSuccessEmoji: true,
-          })
-        );
+        let msg = formatPublishWithQualityWarningsMessage(publishData.publishWarningSummary, {
+          leadingSuccessEmoji: true,
+        });
+        if (publishData.curriculumReviewPublishWarning?.message) {
+          msg += `\n\n${publishData.curriculumReviewPublishWarning.message}`;
+        }
+        setSaveMsg(msg);
         setTimeout(() => setSaveMsg(""), 16000);
       } else if (
         newStatus &&
@@ -2606,10 +2657,15 @@ const EditLessonPage: React.FC = () => {
         Array.isArray(publishData.publishWarnings) &&
         publishData.publishWarnings.length > 0
       ) {
-        setSaveMsg(
-          `✅ Lesson published successfully, with quality warnings.\n\n${publishData.publishWarnings.map((w) => `• ${w}`).join("\n")}`
-        );
+        let msg = `✅ Lesson published successfully, with quality warnings.\n\n${publishData.publishWarnings.map((w) => `• ${w}`).join("\n")}`;
+        if (publishData.curriculumReviewPublishWarning?.message) {
+          msg += `\n\n${publishData.curriculumReviewPublishWarning.message}`;
+        }
+        setSaveMsg(msg);
         setTimeout(() => setSaveMsg(""), 16000);
+      } else if (newStatus && publishData?.curriculumReviewPublishWarning?.message) {
+        setSaveMsg(`✅ Lesson published.\n\n${publishData.curriculumReviewPublishWarning.message}`);
+        setTimeout(() => setSaveMsg(""), 12000);
       } else {
         setSaveMsg(newStatus ? "✅ Lesson published!" : "✅ Lesson unpublished.");
         setTimeout(() => setSaveMsg(""), 2500);
@@ -2831,7 +2887,18 @@ const EditLessonPage: React.FC = () => {
             {uploadMsg ? <span style={{ fontWeight: 900, color: "#15803d" }}>{uploadMsg}</span> : null}
 
             {saveMsg ? (
-              <span style={{ fontWeight: 800, color: saveMsg.startsWith("✅") ? "#15803d" : (saveMsg.startsWith("🚫") ? "#b45309" : "#b91c1c") }}>
+              <span
+                style={{
+                  fontWeight: 800,
+                  color: saveMsg.startsWith("✅")
+                    ? "#15803d"
+                    : saveMsg.startsWith("🚫") || saveMsg.startsWith("✋")
+                      ? "#b45309"
+                      : saveMsg.startsWith("⏳") || saveMsg.startsWith("⚠️")
+                        ? "#92400e"
+                        : "#b91c1c",
+                }}
+              >
                 {saveMsg}
               </span>
             ) : null}
@@ -2882,20 +2949,28 @@ const EditLessonPage: React.FC = () => {
                   borderRadius: 10,
                   border: "2px solid rgba(99,102,241,0.45)",
                   background:
-                    curriculumReviewLoading || lesson.curriculumAiReview?.status === "running"
+                    curriculumReviewLoading ||
+                    lesson.curriculumAiReview?.status === "running" ||
+                    lesson.curriculumAiReview?.status === "queued"
                       ? "#e5e7eb"
                       : "rgba(238,242,255,0.95)",
                   cursor:
-                    curriculumReviewLoading || lesson.curriculumAiReview?.status === "running"
+                    curriculumReviewLoading ||
+                    lesson.curriculumAiReview?.status === "running" ||
+                    lesson.curriculumAiReview?.status === "queued"
                       ? "not-allowed"
                       : "pointer",
                   fontWeight: 800,
                   color: "#3730a3",
                 }}
               >
-                {curriculumReviewLoading || lesson.curriculumAiReview?.status === "running"
+                {curriculumReviewLoading ||
+                lesson.curriculumAiReview?.status === "running" ||
+                lesson.curriculumAiReview?.status === "queued"
                   ? "Checking…"
-                  : "Check against curriculum"}
+                  : lesson.curriculumAiReview?.status === "failed"
+                    ? "Retry curriculum check"
+                    : "Check against curriculum"}
               </button>
             ) : null}
           </div>
@@ -3012,6 +3087,9 @@ const EditLessonPage: React.FC = () => {
                   </div>
                   <p style={{ color: "#64748b", fontSize: "0.88rem", margin: "0 0 10px" }}>
                     Suggestions only — your lesson text is not changed. Apply edits yourself when ready.
+                  </p>
+                  <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "0 0 10px", fontStyle: "italic" }}>
+                    Tip: run a curriculum check before publish if you can — publishing stays available either way.
                   </p>
                   {lesson.curriculumAiReview?.status === "failed" && lesson.curriculumAiReview.lastError ? (
                     <div

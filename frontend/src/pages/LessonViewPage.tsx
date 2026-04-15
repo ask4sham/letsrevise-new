@@ -41,17 +41,18 @@ import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
-import { AskAboutLesson } from "../components/ai/AskAboutLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
 import { TopicSummaryStudentModal } from "../components/ai/TopicSummaryStudentModal";
 import { StudyPlanPanel } from "../components/ai/StudyPlanPanel";
-import { getAiTutorEnabled } from "../api/featureFlags";
 import { postLessonView } from "../api/studyCoach";
 import { LessonPrevNextBar } from "../components/lesson/LessonPrevNextBar";
 import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
 import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
-import { resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
+import {
+  getSpecKeyFromLesson,
+  resolveLessonTopicKeyForBankFromLesson,
+} from "../utils/resolveLessonTopicKey";
 import { recordMastery, getMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
@@ -185,21 +186,6 @@ interface Lesson {
   assessmentPaperIds?: string[];
   /** Past papers (from topic bank snapshot) */
   pastPapers?: Array<unknown>;
-}
-
-/** PR-STUDENT-LESSON-NAV-1: Map lesson metadata to taxonomy specKey (same order as topic picker). */
-function getSpecKeyFromLesson(lesson: Lesson | null): SpecKey | null {
-  if (!lesson) return null;
-  const board = (lesson.examBoardName || "").trim();
-  if (board !== "AQA") return null;
-  if ((lesson.level || "").trim() !== "GCSE") return null;
-  const sub = (lesson.subject || "").trim().toLowerCase();
-  if (sub === "biology") return "aqa-gcse-biology";
-  if (sub === "chemistry") return "aqa-gcse-chemistry";
-  if (sub === "physics") return "aqa-gcse-physics";
-  if (sub === "mathematics" || sub === "maths") return "aqa-gcse-maths-higher";
-  if (sub === "english") return "aqa-gcse-english-language";
-  return null;
 }
 
 // ✅ Define a type for the flashcards with proper difficulty
@@ -1146,9 +1132,6 @@ const LessonViewPage: React.FC = () => {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const { user, refresh, token } = useCurrentUser({ watchLocation: true });
 
-  // PR-007: AI Tutor feature flag (must be at top — hooks rules)
-  const [aiTutorEnabled, setAiTutorEnabled] = useState<boolean | null>(null);
-  const aiTutorFetchedRef = useRef<string | null>(null);
   // PR-024.1: Student topic summary modal
   const [showTopicSummaryModal, setShowTopicSummaryModal] = useState(false);
 
@@ -1432,33 +1415,19 @@ const LessonViewPage: React.FC = () => {
     return [];
   }, [lesson]);
 
-  // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering)
-  const specKey = useMemo(() => getSpecKeyFromLesson(lesson), [lesson]);
+  // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering). Prefer API specKey; else shared util (allows empty exam board like topic picker).
+  const specKey = useMemo((): SpecKey | null => {
+    if (!lesson) return null;
+    const explicit = (lesson as { specKey?: string }).specKey;
+    if (typeof explicit === "string" && explicit.trim()) return explicit.trim() as SpecKey;
+    return getSpecKeyFromLesson(lesson) as SpecKey | null;
+  }, [lesson]);
 
-  // PR-007: Fetch AI Tutor flag when student + specKey (cached per specKey for session)
-  useEffect(() => {
-    const isStudent = user?.userType === "student";
-    if (!isStudent || !specKey || !user) return;
-    if (aiTutorFetchedRef.current === specKey) return;
-    aiTutorFetchedRef.current = specKey;
-    getAiTutorEnabled(specKey)
-      .then((enabled) => setAiTutorEnabled(enabled))
-      .catch(() => setAiTutorEnabled(false));
-  }, [specKey, user]);
-
-  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank (specKey:topicSlug). Priority: URL topicKey first (from browse), then lesson.topicKey, then lesson.topicSlug.
-  const topicKeyForBank = useMemo(() => {
-    if (!lesson || !specKey) return null;
-    const topicKeyFromUrl = searchParams.get("topicKey")?.trim() || null;
-    const lessonKey = (lesson as { topicKey?: string }).topicKey;
-    const lessonSlug = (lesson as { topicSlug?: string }).topicSlug;
-    const rawCandidate =
-      topicKeyFromUrl ||
-      (typeof lessonKey === "string" && lessonKey.trim() ? lessonKey.trim() : null) ||
-      (typeof lessonSlug === "string" && lessonSlug.trim() ? lessonSlug.trim() : null) ||
-      null;
-    return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: rawCandidate || undefined });
-  }, [lesson, specKey, searchParams]);
+  // PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — URL topicKey, lesson.topicKey/topicSlug, or slugified lesson.topic (same as bank resolution).
+  const topicKeyForBank = useMemo(
+    () => resolveLessonTopicKeyForBankFromLesson(lesson, searchParams.get("topicKey")?.trim() || null),
+    [lesson, searchParams]
+  );
 
   // PR — Adaptive Testing Loop: handleQuestionAnswered and fetch mastery (must be after topicKeyForBank, hasStructuredPages, currentPage, etc.)
   const handleQuestionAnswered = useCallback(
@@ -1610,14 +1579,14 @@ const LessonViewPage: React.FC = () => {
   useEffect(() => {
     if (searchParams.get("openTopicSummary") !== "1") return;
     const isStudentUser = (user?.userType ?? "").toString().toLowerCase() === "student";
-    if (!isStudentUser || !aiTutorEnabled || !specKey) return;
+    if (!isStudentUser || !specKey) return;
     const tk = topicKeyForBank || (lesson as { topicKey?: string })?.topicKey;
     if (!tk) return;
     setShowTopicSummaryModal(true);
     const next = new URLSearchParams(searchParams);
     next.delete("openTopicSummary");
     setSearchParams(next, { replace: true });
-  }, [searchParams, user?.userType, aiTutorEnabled, specKey, topicKeyForBank, lesson]);
+  }, [searchParams, user?.userType, specKey, topicKeyForBank, lesson]);
 
   // PR-038: record lesson view for StudentTopicProgress (once per session per lesson)
   useEffect(() => {
@@ -3687,8 +3656,8 @@ const LessonViewPage: React.FC = () => {
                     suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
                 )}
-                {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
-                {isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+                {/* PR-007: Student Ask AI — same taxonomy gates as teacher (spec + topic) */}
+                {isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
                   <AskAiStudentPanel
                     specKey={specKey}
                     topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
@@ -3698,7 +3667,7 @@ const LessonViewPage: React.FC = () => {
                 )}
                 {/* PR-038: Today's study plan — student only */}
                 {isStudent && specKey && (
-                  <StudyPlanPanel specKey={specKey} />
+                  <StudyPlanPanel specKey={specKey} currentLessonId={id} />
                 )}
 
                 {/* Testing section: Quick Quiz, Practice papers, Practice questions, Flashcards — only after final page */}
@@ -4330,7 +4299,7 @@ const LessonViewPage: React.FC = () => {
             />
           )}
           {/* PR-024.1: Student topic summary modal (structured view) */}
-          {showTopicSummaryModal && isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+          {showTopicSummaryModal && isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
             <TopicSummaryStudentModal
               specKey={specKey}
               topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
@@ -4573,8 +4542,8 @@ const LessonViewPage: React.FC = () => {
             suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
           />
         )}
-        {/* PR-007: Student Ask AI — only when feature flag enabled for spec */}
-        {isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+        {/* PR-007: Student Ask AI — same taxonomy gates as teacher panel (spec + topic); enquiry API rate-limits */}
+        {isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
               <button
@@ -4604,7 +4573,7 @@ const LessonViewPage: React.FC = () => {
         )}
         {/* PR-038: Today's study plan — student only */}
         {isStudent && specKey && (
-          <StudyPlanPanel specKey={specKey} />
+          <StudyPlanPanel specKey={specKey} currentLessonId={id} />
         )}
 
         {/* Page Quiz — gate on hasFullLessonAccess (legacy view, no pages) */}
@@ -4986,7 +4955,7 @@ const LessonViewPage: React.FC = () => {
           />
         )}
         {/* PR-024.1: Student topic summary modal */}
-        {showTopicSummaryModal && isStudent && aiTutorEnabled && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+        {showTopicSummaryModal && isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
           <TopicSummaryStudentModal
             specKey={specKey}
             topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}

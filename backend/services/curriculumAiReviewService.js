@@ -20,7 +20,177 @@ function isAutoRunOnDraftSaveEnabled() {
   return String(process.env.CURRICULUM_AI_REVIEW_ON_DRAFT_SAVE || "").toLowerCase() === "true";
 }
 
+/** Phase 1: single auto-run on first qualifying draft save (new lesson / first edit path). */
+function isPhase1AutoOnceEnabled() {
+  return String(process.env.CURRICULUM_AI_REVIEW_PHASE1_AUTO_ONCE || "").toLowerCase() === "true";
+}
+
+/** Soft publish warnings (never blocks publish in v1). */
+function isPublishCurriculumWarningEnabled() {
+  return String(process.env.CURRICULUM_AI_REVIEW_PUBLISH_WARNINGS || "").toLowerCase() === "true";
+}
+
+function getCurriculumPublishMinScore() {
+  const n = Number(process.env.CURRICULUM_AI_REVIEW_MIN_PUBLISH_SCORE);
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 60;
+}
+
+/**
+ * Non-blocking publish hint: missing review or match score below threshold.
+ * @returns {null | { code: string, message: string, severity: string, curriculumMatchScore?: number, minScore?: number }}
+ */
+function getCurriculumReviewPublishWarning(lesson) {
+  if (!isCurriculumAiReviewEnabled() || !isPublishCurriculumWarningEnabled()) return null;
+  const cr = lesson.curriculumAiReview;
+  const minScore = getCurriculumPublishMinScore();
+  if (!cr || cr.status !== "completed" || !cr.result || typeof cr.result !== "object") {
+    return {
+      code: "CURRICULUM_REVIEW_MISSING_OR_INCOMPLETE",
+      message:
+        "No completed curriculum AI review yet. Run “Check against curriculum” for spec-aligned feedback before publishing.",
+      severity: "warning",
+    };
+  }
+  const score = Number(cr.result.curriculumMatchScore);
+  if (Number.isFinite(score) && score < minScore) {
+    return {
+      code: "CURRICULUM_REVIEW_BELOW_THRESHOLD",
+      message: `Curriculum match score (${score}) is below the recommended minimum (${minScore}). You can still publish.`,
+      severity: "warning",
+      curriculumMatchScore: Math.round(score),
+      minScore,
+    };
+  }
+  return null;
+}
+
 const _running = new Set();
+
+/**
+ * Phase 4 — controlled auto-run on draft save (PUT) when CURRICULUM_AI_REVIEW_ON_DRAFT_SAVE=true.
+ * Safe conditions: lesson.status==="draft", not published, feature flags on; skips if review running/queued,
+ * if last completed review is within CURRICULUM_AI_REVIEW_AUTO_MIN_INTERVAL_* (default 6h), or within
+ * CURRICULUM_AI_REVIEW_DRAFT_SAVE_DEBOUNCE_MS since last scheduled run (default 2m). Concurrent runs use _running.
+ * Logging: set CURRICULUM_AI_REVIEW_LOG_AUTO=true for JSON lines on schedule/skip in all environments.
+ */
+const _draftSaveDebounceLast = new Map();
+
+function getDraftSaveDebounceMs() {
+  const n = Number(process.env.CURRICULUM_AI_REVIEW_DRAFT_SAVE_DEBOUNCE_MS);
+  if (Number.isFinite(n) && n >= 0) return Math.min(n, 600000);
+  return 120000;
+}
+
+/** Minimum time after a completed review before auto draft_save runs again (Phase 4). */
+function getAutoMinIntervalMs() {
+  const h = Number(process.env.CURRICULUM_AI_REVIEW_AUTO_MIN_INTERVAL_HOURS);
+  if (Number.isFinite(h) && h >= 0) return Math.min(h * 3600000, 168 * 3600000);
+  const ms = Number(process.env.CURRICULUM_AI_REVIEW_AUTO_MIN_INTERVAL_MS);
+  if (Number.isFinite(ms) && ms >= 0) return ms;
+  return 6 * 3600000;
+}
+
+function shouldLogCurriculumAuto() {
+  return String(process.env.CURRICULUM_AI_REVIEW_LOG_AUTO || "").toLowerCase() === "true";
+}
+
+function logCurriculumAuto(message, meta = {}) {
+  if (!shouldLogCurriculumAuto() && process.env.NODE_ENV === "production") return;
+  const payload = { msg: message, ...meta };
+  if (shouldLogCurriculumAuto()) {
+    console.info("[curriculumAiReview:auto]", JSON.stringify(payload));
+  } else if (process.env.NODE_ENV !== "production") {
+    console.info("[curriculumAiReview:auto]", message, meta);
+  }
+}
+
+/**
+ * Phase 4: safe auto-run on draft save — only status=draft, not published, not if review recent or debounced.
+ * @returns {{ skip: boolean, reason?: string }}
+ */
+function shouldSkipAutoDraftSaveReview(lesson) {
+  if (!lesson) return { skip: true, reason: "no_lesson" };
+  if (lesson.isPublished === true) return { skip: true, reason: "published" };
+  const st = String(lesson.status || "draft").toLowerCase();
+  if (st === "published") return { skip: true, reason: "published" };
+  if (st !== "draft") {
+    return { skip: true, reason: "not_draft" };
+  }
+  const cr = lesson.curriculumAiReview;
+  if (cr && (cr.status === "running" || cr.status === "queued")) {
+    return { skip: true, reason: "already_running" };
+  }
+  if (cr && cr.status === "completed" && cr.generatedAt) {
+    const t = new Date(cr.generatedAt).getTime();
+    if (Number.isFinite(t) && Date.now() - t < getAutoMinIntervalMs()) {
+      return { skip: true, reason: "recent_completed_review" };
+    }
+  }
+  return { skip: false };
+}
+
+function isDebouncedDraftSave(lessonId) {
+  const id = String(lessonId);
+  const ms = getDraftSaveDebounceMs();
+  if (ms === 0) return false;
+  const last = _draftSaveDebounceLast.get(id);
+  return !!(last && Date.now() - last < ms);
+}
+
+function markDraftSaveScheduled(lessonId) {
+  _draftSaveDebounceLast.set(String(lessonId), Date.now());
+}
+
+/**
+ * Phase 4: controlled draft_save auto-run — debounce, skip if recent success, reuse _running.
+ * @returns {Promise<{ scheduled: boolean, reason?: string }>}
+ */
+async function scheduleDraftSaveCurriculumReviewIfEligible(lessonId) {
+  const id = String(lessonId);
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return { scheduled: false, reason: "invalid_id" };
+  }
+  if (_running.has(id)) {
+    logCurriculumAuto("skip_draft_save", { lessonId: id, reason: "concurrent_in_running_set" });
+    return { scheduled: false, reason: "concurrent_in_running_set" };
+  }
+
+  const lesson = await Lesson.findById(id).select("status isPublished curriculumAiReview").lean();
+  const skip = shouldSkipAutoDraftSaveReview(lesson);
+  if (skip.skip) {
+    logCurriculumAuto("skip_draft_save", { lessonId: id, reason: skip.reason });
+    return { scheduled: false, reason: skip.reason };
+  }
+
+  if (isDebouncedDraftSave(id)) {
+    logCurriculumAuto("skip_draft_save", { lessonId: id, reason: "debounce" });
+    return { scheduled: false, reason: "debounce" };
+  }
+
+  markDraftSaveScheduled(id);
+
+  setImmediate(() => {
+    runCurriculumAiReviewForLesson({
+      lessonId,
+      trigger: "draft_save",
+      internal: true,
+    })
+      .then(() => {
+        logCurriculumAuto("draft_save_completed", { lessonId: id });
+      })
+      .catch((e) => {
+        const msg = e?.message || String(e);
+        if (msg.includes("already running")) {
+          logCurriculumAuto("draft_save_race", { lessonId: id, error: msg });
+        } else {
+          console.error("[curriculumAiReview] draft_save:", msg);
+        }
+      });
+  });
+
+  logCurriculumAuto("draft_save_scheduled", { lessonId: id });
+  return { scheduled: true };
+}
 
 function safeStr(v, fb = "") {
   const s = v === undefined || v === null ? "" : String(v);
@@ -317,6 +487,14 @@ module.exports = {
   PROMPT_VERSION,
   isCurriculumAiReviewEnabled,
   isAutoRunOnDraftSaveEnabled,
+  isPhase1AutoOnceEnabled,
+  isPublishCurriculumWarningEnabled,
+  getCurriculumPublishMinScore,
+  getCurriculumReviewPublishWarning,
+  shouldSkipAutoDraftSaveReview,
+  scheduleDraftSaveCurriculumReviewIfEligible,
+  getDraftSaveDebounceMs,
+  getAutoMinIntervalMs,
   extractLessonTextForReview,
   validateAndNormalizeReviewResult,
   buildSpecContextBlock,
