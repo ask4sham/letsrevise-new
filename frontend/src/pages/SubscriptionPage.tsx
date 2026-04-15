@@ -5,6 +5,7 @@ import { formatMoney } from '../utils/money';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { getErrorMessageFromData } from '../utils/apiErrorMessage';
 import { apiUrl } from '../utils/apiBaseUrl';
+import VerificationGate from '../components/auth/VerificationGate';
 
 interface SubscriptionPlan {
   id: string;
@@ -219,7 +220,9 @@ const SubscriptionPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <>
+    <VerificationGate>
+      <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
           Subscription Plans
@@ -411,7 +414,9 @@ const SubscriptionPage: React.FC = () => {
         <strong>Free plan:</strong> You can continue with access to free previews and basic features.
         Subscribe or upgrade anytime for full lesson access and the benefits above.
       </div>
-    </div>
+      </div>
+    </VerificationGate>
+    </>
   );
 };
 

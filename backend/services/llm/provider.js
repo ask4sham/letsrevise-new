@@ -1491,12 +1491,154 @@ async function generatePracticeSet({ specKey, topicKey, contextChunks, counts, w
   return Promise.resolve(mockGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }));
 }
 
+/**
+ * Post-publish checkpoint draft: one item per page (MCQ or shortExplain) aligned to lesson text.
+ * @param {{ lessonTitle: string, specKey: string, topicKey: string, subject?: string, level?: string, extracted: { text: string, pages: { pageId: string, title: string }[] } }} params
+ * @returns {Promise<{ checkpointItems: object[], usage: { promptTokens: number, completionTokens: number, totalTokens: number, model: string } }>}
+ */
+function mockGenerateLessonCheckpointDraft({ lessonTitle, specKey, topicKey, extracted }) {
+  const pages = (Array.isArray(extracted?.pages) ? extracted.pages : []).filter((p) => String(p?.pageId || "").trim());
+  const checkpointItems = pages.slice(0, Math.min(6, pages.length)).map((p, i) => {
+    const pageId = String(p.pageId || "").trim();
+    const titleHint = String(p.title || "topic").slice(0, 60);
+    if (i % 2 === 0) {
+      return {
+        pageId,
+        type: "mcq",
+        question: `Recall (${lessonTitle || "this lesson"}): which statement best matches "${titleHint}"?`,
+        options: [
+          "A key idea from the lesson content",
+          "A plausible but incorrect statement",
+          "An unrelated statement",
+          "A vague statement",
+        ],
+        answer: "A key idea from the lesson content",
+      };
+    }
+    return {
+      pageId,
+      type: "shortExplain",
+      question: `In 2–3 sentences, explain one main idea from the section "${titleHint || "this page"}".`,
+      markScheme: ["1 mark: relevant point linked to lesson content", "1 mark: use of appropriate terminology"],
+      autoMark: {
+        canonicalAnswer: "Students should link the explanation to ideas taught on this page.",
+        requiredKeywords: ["because", "this"],
+        optionalKeywords: [titleHint.split(/\s+/)[0] || "structure"],
+        minMatchThreshold: 0.4,
+      },
+    };
+  });
+
+  return {
+    checkpointItems,
+    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, model: "mock" },
+  };
+}
+
+async function openaiGenerateLessonCheckpointDraft({ lessonTitle, specKey, topicKey, subject, level, extracted }) {
+  const axios = require("axios");
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || !String(apiKey).trim()) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY required when LLM_PROVIDER=openai");
+  }
+  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+
+  const pages = Array.isArray(extracted?.pages) ? extracted.pages : [];
+  const pageList = pages
+    .map((p) => `- pageId: ${p.pageId} | title: ${(p.title || "").slice(0, 120)}`)
+    .join("\n");
+
+  const systemPrompt = `You are a GCSE science assessment author. Generate CHECKPOINT questions that match ONLY the provided lesson excerpt.
+Rules:
+- Output valid JSON only (response_format json_object).
+- For EACH listed pageId produce exactly ONE checkpoint item for that pageId.
+- Alternate MCQ and shortExplain across pages when possible (start with MCQ on first page).
+- MCQ: exactly 4 options, "answer" must equal one option exactly.
+- shortExplain: include "markScheme" (1–4 bullet strings) and "autoMark" with canonicalAnswer, requiredKeywords (3–8 short tokens), optionalKeywords, forbiddenMisconceptions if relevant, minMatchThreshold 0.5–0.7.
+- Questions must be answerable from the excerpt alone; do not require facts not implied by the excerpt.
+- British English; exam-neutral wording.`;
+
+  const userPrompt = `Lesson title: ${lessonTitle}
+Spec: ${specKey || "unknown"}
+Topic key: ${topicKey || "unknown"}
+Subject: ${subject || ""}
+Level: ${level || ""}
+
+Pages (generate one checkpoint each):
+${pageList || "(no pages)"}
+
+Lesson content excerpt:
+${(extracted?.text || "").slice(0, 12000)}
+
+Return JSON:
+{
+  "checkpointItems": [
+    {
+      "pageId": "<must match>",
+      "type": "mcq" | "shortExplain",
+      "question": "...",
+      "options": ["...","...","...","..."],
+      "answer": "<one of options for mcq>",
+      "markScheme": ["..."],
+      "autoMark": { }
+    }
+  ]
+}`;
+
+  const res = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.35,
+      max_tokens: 4096,
+    },
+    { headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty OpenAI response");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error("Invalid JSON from LLM: " + e.message);
+  }
+
+  const usage = res.data?.usage || {};
+  const checkpointItems = Array.isArray(parsed.checkpointItems) ? parsed.checkpointItems : [];
+
+  return {
+    checkpointItems,
+    usage: {
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      totalTokens: usage.total_tokens || 0,
+      model,
+    },
+  };
+}
+
+async function generateLessonCheckpointDraft(params) {
+  const provider = getProvider();
+  if (provider === "openai") {
+    return openaiGenerateLessonCheckpointDraft(params);
+  }
+  return Promise.resolve(mockGenerateLessonCheckpointDraft(params));
+}
+
 module.exports = {
   generateEnquiryAnswer,
   generateStarterPack,
   generateTopicSummary,
   generateWeakEvidenceFixPack,
   generatePracticeSet,
+  generateLessonCheckpointDraft,
   getProvider,
   logEnquiryTutorStartup,
   buildContext,

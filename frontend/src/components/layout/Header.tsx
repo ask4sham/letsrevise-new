@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getTrialDaysRemaining } from "../../utils/trial";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { clearAuth } from "../../utils/authStorage";
+import EmailVerificationBanner from "../auth/EmailVerificationBanner";
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -91,6 +92,7 @@ const Header: React.FC = () => {
             : `Trial ends in ${trialDaysRemaining} day(s)`}
         </div>
       )}
+      <EmailVerificationBanner />
       <div
         style={{
           maxWidth: "1200px",

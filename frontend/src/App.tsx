@@ -75,6 +75,7 @@ import SpecStatementsPage from "./pages/SpecStatementsPage";
 
 // ✅ Settings page (new)
 import SettingsPage from "./pages/SettingsPage";
+import CompleteProfilePage from "./pages/CompleteProfilePage";
 
 // ✅ NEW: Create Quiz page (teacher only)
 import CreateQuizPage from "./pages/CreateQuizPage";
@@ -265,6 +266,14 @@ function App() {
 
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/complete-profile"
+            element={
+              <ProtectedRoute>
+                <CompleteProfilePage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

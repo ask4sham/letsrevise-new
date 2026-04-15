@@ -32,6 +32,10 @@ export interface LessonCheckpointProps {
   /** Unique ID for radio inputs (e.g. pageId) */
   name: string;
   lessonId?: string;
+  /** Stable lesson page id (`lesson.pages[].pageId`) for attempt analytics. */
+  pageId?: string;
+  /** Optional revision token for analytics when checkpoint content changes. */
+  checkpointRevision?: string | number;
   entitled?: boolean;
   /** V12 student view: calmer chrome, no "Explanation:" / "Checkpoint" visible labels */
   presentation?: "default" | "v12";
@@ -45,6 +49,8 @@ export function LessonCheckpoint({
   explanation,
   name,
   lessonId,
+  pageId,
+  checkpointRevision,
   entitled = false,
   presentation = "default",
 }: LessonCheckpointProps) {
@@ -84,6 +90,8 @@ function LessonCheckpointMCQ({
   explanation,
   name,
   lessonId,
+  pageId,
+  checkpointRevision,
   entitled,
   presentation = "default",
 }: {
@@ -93,6 +101,8 @@ function LessonCheckpointMCQ({
   explanation?: string;
   name: string;
   lessonId?: string;
+  pageId?: string;
+  checkpointRevision?: string | number;
   entitled: boolean;
   presentation?: "default" | "v12";
 }) {
@@ -208,7 +218,16 @@ function LessonCheckpointMCQ({
                     onClick={() => {
                       setConfidence(c);
                       if (lessonId) {
-                        logAttempt({ lessonId, source: "checkpoint", questionType: "mcq", selected: selected ?? "", isCorrect, confidence: c });
+                        logAttempt({
+                          lessonId,
+                          source: "checkpoint",
+                          questionType: "mcq",
+                          selected: selected ?? "",
+                          isCorrect,
+                          confidence: c,
+                          ...(pageId ? { pageId } : {}),
+                          ...(checkpointRevision !== undefined ? { checkpointRevision } : {}),
+                        });
                       }
                       setRecorded(true);
                     }}
@@ -260,6 +279,8 @@ function LessonCheckpointShort({
   correctAnswer,
   explanation,
   lessonId,
+  pageId,
+  checkpointRevision,
   entitled,
   presentation = "default",
 }: {
@@ -267,6 +288,8 @@ function LessonCheckpointShort({
   correctAnswer: string;
   explanation?: string;
   lessonId?: string;
+  pageId?: string;
+  checkpointRevision?: string | number;
   entitled: boolean;
   presentation?: "default" | "v12";
 }) {
@@ -279,9 +302,18 @@ function LessonCheckpointShort({
 
   useEffect(() => {
     if (!entitled || !lessonId || selfMarked === null || confidence === null || recorded) return;
-    logAttempt({ lessonId, source: "checkpoint", questionType: "short", answerText: answer.trim(), isCorrect: selfMarked, confidence });
+    logAttempt({
+      lessonId,
+      source: "checkpoint",
+      questionType: "short",
+      answerText: answer.trim(),
+      isCorrect: selfMarked,
+      confidence,
+      ...(pageId ? { pageId } : {}),
+      ...(checkpointRevision !== undefined ? { checkpointRevision } : {}),
+    });
     setRecorded(true);
-  }, [entitled, lessonId, selfMarked, confidence, recorded, answer]);
+  }, [entitled, lessonId, pageId, checkpointRevision, selfMarked, confidence, recorded, answer]);
 
   const v12 = presentation === "v12";
 

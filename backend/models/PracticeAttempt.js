@@ -78,6 +78,25 @@ const PracticeAttemptSchema = new mongoose.Schema(
     answerText: { type: String, required: false },
     isCorrect: { type: Boolean, required: false },
     confidence: { type: Number, min: 1, max: 3, default: null },
+    /** Snapshot from checkpointAutoMark.autoMarkShortAnswer; teacher may override outcome later. */
+    checkpointAutoMark: { type: mongoose.Schema.Types.Mixed, default: null },
+    /** When set, this outcome replaces auto-mark for reporting (teacher override). */
+    teacherMarkedOutcome: {
+      type: String,
+      enum: ["correct", "partial", "wrong"],
+      default: null,
+    },
+    teacherMarkedAt: { type: Date, default: null },
+    /**
+     * Lesson page checkpoint (source=checkpoint): stable page id from lesson.pages[].pageId.
+     * Optional for backward compatibility with older clients/attempts.
+     */
+    pageId: { type: String, required: false, trim: true, default: undefined },
+    /**
+     * Optional revision token when checkpoint content changes (string or number from client).
+     * Stored flexibly for analytics grouping; omit if unknown.
+     */
+    checkpointRevision: { type: mongoose.Schema.Types.Mixed, required: false, default: undefined },
   },
   { timestamps: true }
 );
@@ -86,6 +105,8 @@ PracticeAttemptSchema.index({ teacherId: 1, specKey: 1, topicKey: 1, createdAt: 
 PracticeAttemptSchema.index({ studentId: 1, createdAt: -1 });
 PracticeAttemptSchema.index({ lessonId: 1, createdAt: -1 });
 PracticeAttemptSchema.index({ userId: 1, lessonId: 1, questionId: 1, createdAt: -1 });
+/** Checkpoint attempts grouped by lesson + page (sparse pageId is OK) */
+PracticeAttemptSchema.index({ lessonId: 1, source: 1, pageId: 1, createdAt: -1 });
 
 PracticeAttemptSchema.pre("validate", function (next) {
   const hasLegacy = this.lessonId != null && this.userId != null && this.source != null && typeof this.isCorrect === "boolean";

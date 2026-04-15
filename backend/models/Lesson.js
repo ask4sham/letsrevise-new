@@ -117,6 +117,23 @@ const LessonPageHeroSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * Keyword-bank auto-mark metadata for shortExplain checkpoints (optional, non-breaking).
+ * Used by backend/services/checkpointAutoMark/keywordBankMark.js
+ */
+const LessonPageCheckpointAutoMarkSchema = new mongoose.Schema(
+  {
+    canonicalAnswer: { type: String, default: "" },
+    requiredKeywords: { type: [String], default: undefined },
+    optionalKeywords: { type: [String], default: undefined },
+    forbiddenMisconceptions: { type: [String], default: undefined },
+    acceptedVariants: { type: [String], default: undefined },
+    /** Fraction of required keywords that must match for "partial" (0–1). Default 0.6 in service. */
+    minMatchThreshold: { type: Number, min: 0, max: 1, default: 0.6 },
+  },
+  { _id: false }
+);
+
 const LessonPageCheckpointSchema = new mongoose.Schema(
   {
     // Existing (MCQ)
@@ -137,13 +154,14 @@ const LessonPageCheckpointSchema = new mongoose.Schema(
       default: "mcq",
     },
     markScheme: { type: [String], default: undefined },
+    autoMark: { type: LessonPageCheckpointAutoMarkSchema, default: undefined },
   },
   { _id: false }
 );
 
 const LessonPageSchema = new mongoose.Schema(
   {
-    // IMPORTANT: frontend uses pageId
+    // IMPORTANT: frontend uses pageId (matches PracticeAttempt.pageId for checkpoint analytics)
     pageId: { type: String, required: true },
 
     title: { type: String, default: "" },
@@ -401,6 +419,63 @@ const LessonSchema = new mongoose.Schema(
 
     /** Lesson↔AssessmentPaper linking: papers attached to this lesson (teacher attach; students access from lesson). */
     assessmentPaperIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: "AssessmentPaper" }], default: [] },
+
+    /**
+     * Post-publish AI checkpoint generation (CheckpointGenerationJob) — optional summary for teacher UI.
+     * Full payload lives on the job document (resultPayload).
+     */
+    checkpointDraft: {
+      type: new mongoose.Schema(
+        {
+          jobId: { type: mongoose.Schema.Types.ObjectId, ref: "CheckpointGenerationJob", default: null },
+          status: {
+            type: String,
+            enum: ["pending_review", "auto_applied", "applied_manually", "rejected"],
+            default: undefined,
+          },
+          qualityScore: { type: Number, default: null },
+          generatedAt: { type: Date, default: null },
+          itemCounts: {
+            mcq: { type: Number, default: 0 },
+            shortExplain: { type: Number, default: 0 },
+          },
+          lastError: { type: String, default: null },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
+
+    /**
+     * Draft-only AI curriculum alignment review (suggestions; never auto-applied by this feature).
+     * Distinct from checkpointDraft (post-publish checkpoint jobs) and qualityScore (heuristic scoring).
+     */
+    curriculumAiReview: {
+      type: new mongoose.Schema(
+        {
+          status: {
+            type: String,
+            enum: ["idle", "queued", "running", "completed", "failed"],
+            default: "idle",
+          },
+          trigger: {
+            type: String,
+            enum: ["manual", "draft_save"],
+            default: "manual",
+          },
+          lastError: { type: String, default: null },
+          generatedAt: { type: Date, default: null },
+          startedAt: { type: Date, default: null },
+          /** Normalised review payload + optional token usage */
+          result: { type: mongoose.Schema.Types.Mixed, default: null },
+          model: { type: String, default: "" },
+          provider: { type: String, default: "" },
+          promptVersion: { type: String, default: "v1" },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true }
 );

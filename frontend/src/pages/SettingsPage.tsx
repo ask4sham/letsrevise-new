@@ -5,6 +5,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import api from "../services/api";
 import { updateUser } from "../utils/authStorage";
 import { validatePasswordStrength, PASSWORD_GUIDANCE } from "../utils/passwordStrength";
+import { isEmailVerified } from "../utils/emailVerification";
 
 const SettingsPage: React.FC = () => {
   const { user, refresh } = useCurrentUser({ watchLocation: true });
@@ -22,6 +23,7 @@ const SettingsPage: React.FC = () => {
   const [capsLockOn, setCapsLockOn] = useState(false);
 
   const passwordsMatch = pwForm.newPassword === pwForm.confirm;
+  const verified = isEmailVerified(user);
 
   return (
     <div
@@ -98,6 +100,11 @@ const SettingsPage: React.FC = () => {
           <h2 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: "#111827", fontWeight: 600 }}>
             Change password
           </h2>
+          {!verified && (
+            <p style={{ padding: "12px 14px", background: "#fef3c7", color: "#92400e", borderRadius: 8, marginBottom: "1rem" }}>
+              Verify your email to use this feature. Use the banner at the top to resend or refresh your status.
+            </p>
+          )}
           <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "1rem" }}>{PASSWORD_GUIDANCE}</p>
           {pwMsg && (
             <div style={{ padding: "12px", marginBottom: "1rem", background: pwMsg.type === "success" ? "#d1fae5" : "#fee2e2", color: pwMsg.type === "success" ? "#065f46" : "#991b1b", borderRadius: 8 }}>
@@ -107,6 +114,7 @@ const SettingsPage: React.FC = () => {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (!verified) return;
               if (pwForm.newPassword !== pwForm.confirm) {
                 setPwMsg({ type: "error", text: "New passwords do not match." });
                 return;
@@ -195,7 +203,7 @@ const SettingsPage: React.FC = () => {
                 </p>
               )}
             </div>
-            <button type="submit" disabled={pwLoading || !passwordsMatch} style={{ padding: "10px 16px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: pwLoading || !passwordsMatch ? "not-allowed" : "pointer" }}>
+            <button type="submit" disabled={!verified || pwLoading || !passwordsMatch} style={{ padding: "10px 16px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: !verified || pwLoading || !passwordsMatch ? "not-allowed" : "pointer" }}>
               {pwLoading ? "Updating..." : "Update password"}
             </button>
           </form>
@@ -214,6 +222,11 @@ const SettingsPage: React.FC = () => {
           <h2 style={{ fontSize: "1.25rem", marginBottom: "1rem", color: "#111827", fontWeight: 600 }}>
             Change email
           </h2>
+          {!verified && (
+            <p style={{ padding: "12px 14px", background: "#fef3c7", color: "#92400e", borderRadius: 8, marginBottom: "1rem" }}>
+              Verify your email to use this feature. Use the banner at the top to resend or refresh your status.
+            </p>
+          )}
           {emailMsg && (
             <div style={{ padding: "12px", marginBottom: "1rem", background: emailMsg.type === "success" ? "#d1fae5" : "#fee2e2", color: emailMsg.type === "success" ? "#065f46" : "#991b1b", borderRadius: 8 }}>
               {emailMsg.text}
@@ -222,6 +235,7 @@ const SettingsPage: React.FC = () => {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (!verified) return;
               setEmailLoading(true);
               setEmailMsg(null);
               try {
@@ -282,7 +296,7 @@ const SettingsPage: React.FC = () => {
               required
               style={{ padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8 }}
             />
-            <button type="submit" disabled={emailLoading} style={{ padding: "10px 16px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: emailLoading ? "not-allowed" : "pointer" }}>
+            <button type="submit" disabled={!verified || emailLoading} style={{ padding: "10px 16px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, fontWeight: 600, cursor: !verified || emailLoading ? "not-allowed" : "pointer" }}>
               {emailLoading ? "Updating..." : "Update email"}
             </button>
           </form>

@@ -38,6 +38,28 @@ function normEmail(v) {
   return (v || "").toString().trim().toLowerCase();
 }
 
+/** Cooldown between verification emails (signup + resend), per user. */
+const VERIFICATION_EMAIL_COOLDOWN_MS = 45 * 1000;
+
+function buildAuthUserPayload(userDoc) {
+  const u = userDoc;
+  const status = (u.verificationStatus || "pending").toString().toLowerCase();
+  return {
+    id: u._id.toString(),
+    email: u.email,
+    userType: u.userType,
+    firstName: u.firstName,
+    lastName: u.lastName || "",
+    referralCode: u.referralCode,
+    schoolName: u.schoolName || null,
+    verificationStatus: u.verificationStatus || "pending",
+    emailVerified: status === "verified",
+    staffRole: u.staffRole || null,
+    yearGroup: u.yearGroup ?? null,
+    stageKey: u.stageKey ?? null,
+  };
+}
+
 function shouldDebugJwt() {
   return process.env.DEBUG_JWT === "1" || process.env.DEBUG_JWT === "true";
 }
@@ -339,23 +361,36 @@ router.post(
             code: "ACCOUNT_SOFT_DELETED",
           });
         }
+        const vStatus = (user.verificationStatus || "pending").toString().toLowerCase();
+        if (vStatus !== "verified") {
+          console.log(`❌ Registration blocked (existing unverified account): ${normalizedEmail}`);
+          return res.status(400).json({
+            msg: "This email is already registered but not verified yet. Sign in with your password, then verify your email from the banner or resend a verification link.",
+            code: "EMAIL_ALREADY_REGISTERED_UNVERIFIED",
+          });
+        }
         console.log(`❌ User already exists: ${normalizedEmail}`);
-        return res.status(400).json({ msg: "User already exists" });
+        return res.status(400).json({
+          msg: "This email is already registered. Sign in instead, or use Forgot password if you need to reset your password.",
+          code: "EMAIL_ALREADY_REGISTERED",
+        });
       }
 
-      // Validate required fields
-      if (!firstName || !lastName) {
-        console.log("❌ Missing first/last name");
-        return res.status(400).json({ msg: "First name and last name are required" });
+      // Minimal signup: first name only (last name optional — can be completed in profile/onboarding)
+      if (!firstName || !String(firstName).trim()) {
+        console.log("❌ Missing first name");
+        return res.status(400).json({ msg: "First name is required" });
       }
 
-      // ✅ Student yearGroup validation (7..13)
+      const normalizedLastName = typeof lastName === "string" ? lastName.trim() : "";
+
+      // ✅ Student yearGroup optional at signup (7..13) — can be set in onboarding
       let parsedYearGroup = null;
-      if (normalizedType === "student") {
+      if (normalizedType === "student" && yearGroup !== undefined && yearGroup !== null && String(yearGroup).trim() !== "") {
         const n = Number(yearGroup);
         if (!Number.isFinite(n) || n < 7 || n > 13) {
           return res.status(400).json({
-            msg: "Year group is required for students (7 to 13).",
+            msg: "Year group must be between 7 and 13.",
           });
         }
         parsedYearGroup = n;
@@ -383,12 +418,12 @@ router.post(
         password, // will be replaced with hashed version below
         userType: normalizedType,
         firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        lastName: normalizedLastName,
         schoolName: resolvedSchoolName,
         verificationStatus: "pending",
 
         // ✅ Persist student yearGroup (User model derives stageKey automatically)
-        ...(normalizedType === "student" ? { yearGroup: parsedYearGroup } : {}),
+        ...(normalizedType === "student" && parsedYearGroup != null ? { yearGroup: parsedYearGroup } : {}),
       });
 
       // Hash password
@@ -408,14 +443,37 @@ router.post(
       await user.save();
       console.log(`✅ User registered: ${normalizedEmail} as ${normalizedType}`);
 
-      // Send verification email
+      // Send verification email — account is kept even if email fails; client can resend
       const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
       const verifyUrl = `${baseUrl}/#/verify-email?token=${encodeURIComponent(verificationToken)}`;
-      await sendVerificationEmail({
-        to: normalizedEmail,
-        firstName: user.firstName,
-        verifyUrl,
-      });
+
+      let verificationEmailSent = false;
+      let verificationEmailWarning = null;
+
+      if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+        console.error(
+          "[auth/register] Verification email not sent: missing RESEND_API_KEY or RESEND_FROM_EMAIL"
+        );
+        verificationEmailSent = false;
+        verificationEmailWarning =
+          "We could not send a verification email right now (email not configured). Use Resend email from your account when ready.";
+      } else {
+        try {
+          await sendVerificationEmail({
+            to: normalizedEmail,
+            firstName: user.firstName,
+            verifyUrl,
+          });
+          user.verificationEmailLastSentAt = new Date();
+          await user.save();
+          verificationEmailSent = true;
+        } catch (emailErr) {
+          console.error("[auth/register] Resend verification email failed:", emailErr);
+          verificationEmailSent = false;
+          verificationEmailWarning =
+            "Your account was created, but we could not send the verification email. Please use “Resend email” from the app.";
+        }
+      }
 
       /**
        * ✅ Parent-link approval flow (NEW)
@@ -499,22 +557,13 @@ router.post(
         console.log(`✅ Registration complete, token generated for ${normalizedEmail}`);
 
         return res.status(201).json({
-          msg: "Account created. Check your email to verify your account, then sign in.",
+          msg: verificationEmailSent
+            ? "Account created. Check your email to verify your account."
+            : "Account created. We could not send a verification email automatically — use Resend from the app when you are ready.",
           token,
-          user: {
-            id: user._id.toString(),
-            email: user.email,
-            userType: user.userType,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            referralCode: user.referralCode,
-            schoolName: user.schoolName || null,
-            verificationStatus: user.verificationStatus || "pending",
-
-            // ✅ NEW (non-breaking): these allow frontend gating reliably
-            yearGroup: user.yearGroup ?? null,
-            stageKey: user.stageKey ?? null,
-          },
+          user: buildAuthUserPayload(user),
+          verificationEmailSent,
+          ...(verificationEmailWarning ? { verificationEmailWarning } : {}),
           // extra, non-breaking field (frontend can ignore)
           link: linkInfo,
         });
@@ -536,24 +585,39 @@ router.post(
 router.get("/verify-email", async (req, res) => {
   const token = (req.query.token || "").toString().trim();
   if (!token) {
-    return res.status(400).json({ ok: false, msg: "Missing verification token" });
+    return res.status(400).json({ ok: false, code: "invalid", msg: "Missing verification token" });
   }
 
   try {
-    const user = await User.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: new Date() },
-    });
+    const user = await User.findOne({ emailVerificationToken: token });
 
     if (!user) {
-      const expired = await User.findOne({ emailVerificationToken: token });
-      if (expired) {
-        return res.status(400).json({ ok: false, msg: "Verification link has expired. Please request a new one." });
-      }
-      return res.status(400).json({ ok: false, msg: "Invalid verification token" });
+      return res.status(400).json({
+        ok: false,
+        code: "invalid",
+        msg: "This verification link is invalid.",
+      });
     }
     if (user.isDeleted === true) {
-      return res.status(403).json({ ok: false, msg: "This account is no longer active." });
+      return res.status(403).json({ ok: false, code: "invalid", msg: "This account is no longer active." });
+    }
+
+    const status = (user.verificationStatus || "pending").toString().toLowerCase();
+    if (status === "verified") {
+      return res.json({
+        ok: true,
+        code: "already_verified",
+        msg: "Your email is already verified.",
+      });
+    }
+
+    const exp = user.emailVerificationExpires;
+    if (!exp || exp.getTime() <= Date.now()) {
+      return res.status(400).json({
+        ok: false,
+        code: "expired",
+        msg: "This verification link has expired.",
+      });
     }
 
     user.verificationStatus = "verified";
@@ -562,7 +626,7 @@ router.get("/verify-email", async (req, res) => {
     await user.save();
 
     console.log(`✅ Email verified: ${user.email}`);
-    return res.json({ ok: true, msg: "Email verified. You can now sign in." });
+    return res.json({ ok: true, code: "success", msg: "Your email has been verified." });
   } catch (err) {
     return sendInternalError("auth/verify-email", err, res, { extra: { ok: false } });
   }
@@ -574,7 +638,7 @@ router.get("/verify-email", async (req, res) => {
 router.post("/resend-verification", [check("email", "Valid email is required").isEmail()], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ msg: "Valid email is required" });
+    return res.status(400).json({ ok: false, msg: "Valid email is required" });
   }
   const email = normEmail(req.body.email);
 
@@ -589,20 +653,53 @@ router.post("/resend-verification", [check("email", "Valid email is required").i
     }
     const status = (user.verificationStatus || "pending").toString().toLowerCase();
     if (status === "verified") {
-      return res.json({ ok: true, msg: "This account is already verified. You can sign in." });
+      return res.json({ ok: true, code: "already_verified", msg: "This account is already verified." });
+    }
+
+    const last = user.verificationEmailLastSentAt;
+    if (last instanceof Date && Date.now() - last.getTime() < VERIFICATION_EMAIL_COOLDOWN_MS) {
+      const retryAfterSeconds = Math.ceil(
+        (VERIFICATION_EMAIL_COOLDOWN_MS - (Date.now() - last.getTime())) / 1000
+      );
+      return res.status(429).json({
+        ok: false,
+        code: "RATE_LIMIT",
+        msg: `Please wait ${retryAfterSeconds}s before requesting another email.`,
+        retryAfterSeconds,
+      });
     }
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
     user.emailVerificationToken = verificationToken;
     user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.verificationEmailLastSentAt = new Date();
     await user.save();
 
     const baseUrl = (process.env.APP_BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
     const verifyUrl = `${baseUrl}/#/verify-email?token=${encodeURIComponent(verificationToken)}`;
-    await sendVerificationEmail({ to: user.email, firstName: user.firstName, verifyUrl });
+
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+      console.warn("[auth/resend-verification] Email not sent: missing RESEND config");
+      return res.status(503).json({
+        ok: false,
+        code: "EMAIL_UNAVAILABLE",
+        msg: "Verification email could not be sent (email service not configured).",
+      });
+    }
+
+    try {
+      await sendVerificationEmail({ to: user.email, firstName: user.firstName, verifyUrl });
+    } catch (emailErr) {
+      console.error("[auth/resend-verification] send failed:", emailErr);
+      return res.status(503).json({
+        ok: false,
+        code: "EMAIL_SEND_FAILED",
+        msg: "Could not send the verification email. Please try again shortly.",
+      });
+    }
 
     console.log(`📧 Resent verification email to ${user.email}`);
-    return res.json({ ok: true, msg: "A new verification email has been sent. Check your inbox." });
+    return res.json({ ok: true, code: "sent", msg: "A new verification email has been sent." });
   } catch (err) {
     return sendInternalError("auth/resend-verification", err, res, { extra: { ok: false } });
   }
@@ -766,15 +863,6 @@ router.post(
         });
       }
 
-      const status = (user.verificationStatus || "pending").toString().toLowerCase();
-      if (status !== "verified") {
-        console.log(`[auth/login] fail reason=email_not_verified userId=${user._id}`);
-        return res.status(403).json({
-          msg: "Please verify your email before signing in. Check your inbox for the verification link.",
-          code: "EMAIL_NOT_VERIFIED",
-        });
-      }
-
       if (!user.password || typeof user.password !== "string") {
         console.error("[auth/login] fail reason=no_password_hash userId=", String(user._id));
         return res.status(403).json({
@@ -827,19 +915,7 @@ router.post(
 
           res.json({
             token,
-            user: {
-              id: user._id.toString(),
-              email: user.email,
-              userType: user.userType,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              referralCode: user.referralCode,
-              schoolName: user.schoolName || null,
-              verificationStatus: user.verificationStatus || "pending",
-              staffRole: user.staffRole || null,
-              yearGroup: user.yearGroup ?? null,
-              stageKey: user.stageKey ?? null,
-            },
+            user: buildAuthUserPayload(user),
           });
         }
       );

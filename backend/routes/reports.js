@@ -25,6 +25,7 @@ const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions"
 const VisualModel = require("../models/VisualModel");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
+const { buildCheckpointPageBreakdown } = require("../utils/checkpointPageBreakdown");
 
 function isAdmin(user) {
   return user?.userType === "admin" || user?.role === "admin" || user?.isAdmin === true;
@@ -307,7 +308,7 @@ router.get("/lessons/:lessonId/attempts-summary", auth, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ error: "Invalid lessonId" });
     }
-    const lesson = await Lesson.findById(lessonId).select("teacherId").lean();
+    const lesson = await Lesson.findById(lessonId).select("teacherId pages.pageId pages.title").lean();
     if (!lesson) {
       return res.status(404).json({ error: "Lesson not found" });
     }
@@ -316,6 +317,9 @@ router.get("/lessons/:lessonId/attempts-summary", auth, async (req, res) => {
     if (ownerId !== userId && !isAdmin(req.user)) {
       return res.status(403).json({ error: "Not the lesson owner" });
     }
+    const pageTitleById = new Map(
+      (Array.isArray(lesson.pages) ? lesson.pages : []).map((p) => [String(p.pageId || "").trim(), p.title || ""])
+    );
     const since = new Date();
     since.setDate(since.getDate() - days);
     const attempts = await PracticeAttempt.find({
@@ -338,6 +342,9 @@ router.get("/lessons/:lessonId/attempts-summary", auth, async (req, res) => {
       if (a.isCorrect) confidenceCorrectCounts[c] = (confidenceCorrectCounts[c] || 0) + 1;
       else confidenceWrongCounts[c] = (confidenceWrongCounts[c] || 0) + 1;
     });
+
+    const checkpointPageBreakdown = buildCheckpointPageBreakdown(attempts, pageTitleById);
+
     return res.json({
       ok: true,
       lessonId,
@@ -349,6 +356,7 @@ router.get("/lessons/:lessonId/attempts-summary", auth, async (req, res) => {
       confidenceCounts,
       confidenceCorrectCounts,
       confidenceWrongCounts,
+      checkpointPageBreakdown,
     });
   } catch (err) {
     console.error("GET attempts-summary error:", err);

@@ -10,6 +10,23 @@ const { topicToKey } = require("./topicTaxonomy");
  * @param {Object} lesson - Lesson doc (lean or populated).
  * @returns {string|null} Owner id string or null.
  */
+/**
+ * Remove keyword-bank auto-mark config so students cannot see rubric answers (GET full lesson).
+ * Teachers/admins receive unmodified pages via caller.
+ * @param {Object} lesson - Lesson doc (mutates copy only)
+ * @returns {Object} Lesson-like object with checkpoint.autoMark removed from each page.
+ */
+function stripCheckpointAutoMarkFromLesson(lesson) {
+  if (!lesson || !Array.isArray(lesson.pages)) return lesson;
+  const pages = lesson.pages.map((p) => {
+    if (!p?.checkpoint || typeof p.checkpoint !== "object") return p;
+    const cp = { ...p.checkpoint };
+    delete cp.autoMark;
+    return { ...p, checkpoint: cp };
+  });
+  return { ...lesson, pages };
+}
+
 function getLessonOwnerId(lesson) {
   if (!lesson) return null;
   const raw =
@@ -42,6 +59,7 @@ function sanitizePageForPreview(page) {
     delete cp.answer;
     delete cp.markScheme;
     delete cp.correctAnswer;
+    delete cp.autoMark;
     out.checkpoint = cp;
   }
   if (Array.isArray(out.blocks)) {
@@ -132,4 +150,5 @@ module.exports = {
   toLessonFullPayload,
   PREVIEW_SAFE_KEYS,
   sanitizePageForPreview,
+  stripCheckpointAutoMarkFromLesson,
 };

@@ -25,6 +25,10 @@ export type AttemptPayload = {
   isCorrect: boolean;
   /** PR12.3: 1=low, 2=medium, 3=high. Optional; backend defaults to 2. */
   confidence?: 1 | 2 | 3;
+  /** Lesson `pages[].pageId` for checkpoint source — optional but recommended for analytics. */
+  pageId?: string;
+  /** Optional revision when checkpoint content changes (string or number). */
+  checkpointRevision?: string | number;
 };
 
 export async function logAttempt(payload: AttemptPayload): Promise<void> {

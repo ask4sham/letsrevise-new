@@ -17,6 +17,8 @@ const MOBILE_BREAKPOINT = 768;
  * REACT_APP_SHOW_TEST_HELPERS=true
  */
 const SHOW_TEST_HELPERS = String(process.env.REACT_APP_SHOW_TEST_HELPERS) === "true";
+const IS_DEV = process.env.NODE_ENV === "development";
+
 
 /** Public roles only — Admin is site-owner reserved, not shown in public UI */
 type PublicRole = "student" | "teacher" | "parent";
@@ -51,6 +53,8 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [backendStatus, setBackendStatus] = useState("");
+  /** Dev / health-check: null = not yet probed */
+  const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -85,8 +89,10 @@ const LoginPage: React.FC = () => {
     try {
       // ✅ Use the same api instance as the rest of the app
       await api.get("/health");
+      setApiHealthy(true);
       setBackendStatus("✅ Backend connected");
     } catch {
+      setApiHealthy(false);
       setBackendStatus("❌ Backend not connected");
     }
   };
@@ -103,7 +109,7 @@ const LoginPage: React.FC = () => {
     // Helpful debug: shows the axios baseURL from the shared api instance
     // eslint-disable-next-line no-console
     console.log("LoginPage api.baseURL =", (api as any)?.defaults?.baseURL);
-    if (SHOW_TEST_HELPERS) checkBackend();
+    if (SHOW_TEST_HELPERS || IS_DEV) checkBackend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -249,7 +255,23 @@ const LoginPage: React.FC = () => {
             Login to Your Account
           </h2>
 
-          {SHOW_TEST_HELPERS && backendStatus && (
+          {IS_DEV && apiHealthy !== null && (
+            <div
+              style={{
+                background: apiHealthy ? "#e6f4ea" : "#fce8e8",
+                color: apiHealthy ? "#1e7e34" : "#b71c1c",
+                padding: "10px",
+                borderRadius: "6px",
+                marginBottom: "16px",
+                fontSize: "14px",
+                textAlign: "center",
+              }}
+            >
+              {apiHealthy ? "✅ Backend connected" : "❌ Backend unreachable"}
+            </div>
+          )}
+
+          {SHOW_TEST_HELPERS && !IS_DEV && backendStatus && (
             <div
               style={{
                 textAlign: "center",

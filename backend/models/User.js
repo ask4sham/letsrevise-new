@@ -49,7 +49,8 @@ const userSchema = new mongoose.Schema(
     },
     lastName: {
       type: String,
-      required: true,
+      required: false,
+      default: "",
       trim: true,
     },
 
@@ -75,6 +76,8 @@ const userSchema = new mongoose.Schema(
     /** Email verification: token sent on signup, cleared when verified. */
     emailVerificationToken: { type: String, default: null },
     emailVerificationExpires: { type: Date, default: null },
+    /** Last time a verification email was sent (signup or resend) — server-side cooldown. */
+    verificationEmailLastSentAt: { type: Date, default: null },
 
     /** Password reset: token sent on forgot-password, cleared after successful reset. */
     passwordResetToken: { type: String, default: null },

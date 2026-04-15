@@ -13,6 +13,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import VerificationGate from "../components/auth/VerificationGate";
 
 /**
  * ParentDashboard
@@ -390,45 +391,36 @@ const ParentDashboard: React.FC = () => {
     );
   }
 
-  if (loadingChildren) {
-    return (
-      <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
-        <p style={{ marginTop: 0, color: "#555" }}>Loading linked children…</p>
-      </div>
-    );
-  }
-
-  if (errorChildren) {
-    return (
-      <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
-        <p style={{ marginTop: 0, color: "#c00" }}>⚠️ {errorChildren}</p>
-        <p style={{ marginTop: 10, color: "#555" }}>
-          Backend: <span style={{ fontFamily: "monospace" }}>{backendLabel}</span>
-        </p>
-      </div>
-    );
-  }
-
-  if (children.length === 0) {
-    return (
-      <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
-        <p style={{ marginTop: 0, color: "#555" }}>
-          No child profiles are linked to this parent account yet.
-        </p>
-        <p style={{ marginTop: 10, color: "#555" }}>
-          Backend: <span style={{ fontFamily: "monospace" }}>{backendLabel}</span>
-        </p>
-      </div>
-    );
-  }
-
   const selected = bundle;
 
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+    <VerificationGate>
+      <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+      {loadingChildren ? (
+        <>
+          <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
+          <p style={{ marginTop: 0, color: "#555" }}>Loading linked children…</p>
+        </>
+      ) : errorChildren ? (
+        <>
+          <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
+          <p style={{ marginTop: 0, color: "#c00" }}>⚠️ {errorChildren}</p>
+          <p style={{ marginTop: 10, color: "#555" }}>
+            Backend: <span style={{ fontFamily: "monospace" }}>{backendLabel}</span>
+          </p>
+        </>
+      ) : children.length === 0 ? (
+        <>
+          <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
+          <p style={{ marginTop: 0, color: "#555" }}>
+            No child profiles are linked to this parent account yet.
+          </p>
+          <p style={{ marginTop: 10, color: "#555" }}>
+            Backend: <span style={{ fontFamily: "monospace" }}>{backendLabel}</span>
+          </p>
+        </>
+      ) : (
+        <>
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ marginBottom: 6 }}>Child Progress</h1>
         <p style={{ marginTop: 0, color: "#555" }}>
@@ -797,7 +789,10 @@ const ParentDashboard: React.FC = () => {
           </div>
         </>
       )}
+        </>
+      )}
     </div>
+    </VerificationGate>
   );
 };
 

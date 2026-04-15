@@ -1,0 +1,246 @@
+{
+  "spec": "aqa-gcse-biology",
+  "topic": "Circulatory system",
+  "questions": [
+    {
+      "id": "circ-01",
+      "prompt": "Name the main blood vessels that carry blood away from the heart.",
+      "autoMark": {
+        "canonicalAnswer": "Arteries carry blood away from the heart.",
+        "requiredKeywords": ["artery"],
+        "optionalKeywords": ["away", "heart", "oxygenated", "deoxygenated"],
+        "forbiddenMisconceptions": ["veins carry blood away from the heart"],
+        "acceptedVariants": ["arteries carry blood away from the heart"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-02",
+      "prompt": "Name the vessels that carry blood towards the heart.",
+      "autoMark": {
+        "canonicalAnswer": "Veins carry blood towards the heart.",
+        "requiredKeywords": ["vein"],
+        "optionalKeywords": ["towards", "heart", "valve"],
+        "forbiddenMisconceptions": ["arteries carry blood towards the heart"],
+        "acceptedVariants": ["veins carry blood towards the heart"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-03",
+      "prompt": "Where does exchange of substances between blood and tissues mainly occur?",
+      "autoMark": {
+        "canonicalAnswer": "In capillaries.",
+        "requiredKeywords": ["capillar"],
+        "optionalKeywords": ["exchange", "diffusion", "thin", "wall"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["capillaries", "in the capillaries"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-04",
+      "prompt": "What is the main function of red blood cells?",
+      "autoMark": {
+        "canonicalAnswer": "To transport oxygen (bound to haemoglobin).",
+        "requiredKeywords": ["oxygen", "haemoglobin"],
+        "optionalKeywords": ["transport", "red", "blood"],
+        "forbiddenMisconceptions": ["fight infection", "clot blood"],
+        "acceptedVariants": ["carry oxygen using haemoglobin"],
+        "minMatchThreshold": 0.65
+      }
+    },
+    {
+      "id": "circ-05",
+      "prompt": "Give one function of white blood cells.",
+      "autoMark": {
+        "canonicalAnswer": "To defend against pathogens / produce antibodies.",
+        "requiredKeywords": ["pathogen"],
+        "optionalKeywords": ["antibody", "immune", "defend", "infection", "phagocyte"],
+        "forbiddenMisconceptions": ["carry oxygen"],
+        "acceptedVariants": ["fight infection", "immune response"],
+        "minMatchThreshold": 0.5
+      }
+    },
+    {
+      "id": "circ-06",
+      "prompt": "What is the role of platelets?",
+      "autoMark": {
+        "canonicalAnswer": "Platelets help blood clot at a wound.",
+        "requiredKeywords": ["clot"],
+        "optionalKeywords": ["platelet", "wound", "fibrin"],
+        "forbiddenMisconceptions": ["carry oxygen"],
+        "acceptedVariants": ["blood clotting", "form clots"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-07",
+      "prompt": "Which side of the heart pumps deoxygenated blood to the lungs?",
+      "autoMark": {
+        "canonicalAnswer": "The right ventricle (via pulmonary artery).",
+        "requiredKeywords": ["right", "lung"],
+        "optionalKeywords": ["ventricle", "pulmonary", "deoxygenated"],
+        "forbiddenMisconceptions": ["left side pumps to the lungs"],
+        "acceptedVariants": ["right side of the heart to the lungs"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-08",
+      "prompt": "Which vessel carries deoxygenated blood from the heart to the lungs?",
+      "autoMark": {
+        "canonicalAnswer": "The pulmonary artery.",
+        "requiredKeywords": ["pulmonary", "artery"],
+        "optionalKeywords": ["deoxygenated", "lungs"],
+        "forbiddenMisconceptions": ["pulmonary vein carries deoxygenated blood to the lungs"],
+        "acceptedVariants": ["pulmonary arteries"],
+        "minMatchThreshold": 0.65
+      }
+    },
+    {
+      "id": "circ-09",
+      "prompt": "Which vessel brings oxygenated blood from the lungs to the heart?",
+      "autoMark": {
+        "canonicalAnswer": "The pulmonary vein.",
+        "requiredKeywords": ["pulmonary", "vein"],
+        "optionalKeywords": ["oxygenated", "left atrium"],
+        "forbiddenMisconceptions": ["pulmonary artery brings oxygenated blood to the heart"],
+        "acceptedVariants": ["pulmonary veins"],
+        "minMatchThreshold": 0.65
+      }
+    },
+    {
+      "id": "circ-10",
+      "prompt": "What prevents backflow of blood in the veins?",
+      "autoMark": {
+        "canonicalAnswer": "Valves in veins.",
+        "requiredKeywords": ["valve"],
+        "optionalKeywords": ["vein", "backflow", "one way"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["valves"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-11",
+      "prompt": "Why do arteries have thick muscular walls?",
+      "autoMark": {
+        "canonicalAnswer": "To withstand high pressure from ventricular contraction.",
+        "requiredKeywords": ["pressure", "muscle"],
+        "optionalKeywords": ["thick", "elastic", "stretch"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["high blood pressure"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-12",
+      "prompt": "Why are capillary walls only one cell thick?",
+      "autoMark": {
+        "canonicalAnswer": "Short diffusion distance for faster exchange.",
+        "requiredKeywords": ["diffusion", "thin"],
+        "optionalKeywords": ["distance", "exchange", "one cell"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["short distance for diffusion"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-13",
+      "prompt": "Name the chamber of the heart that receives oxygenated blood from the lungs.",
+      "autoMark": {
+        "canonicalAnswer": "Left atrium.",
+        "requiredKeywords": ["left", "atrium"],
+        "optionalKeywords": ["oxygenated", "pulmonary vein"],
+        "forbiddenMisconceptions": ["right atrium receives oxygenated blood from the lungs"],
+        "acceptedVariants": ["the left atrium"],
+        "minMatchThreshold": 0.65
+      }
+    },
+    {
+      "id": "circ-14",
+      "prompt": "Which heart chamber pumps oxygenated blood to the body?",
+      "autoMark": {
+        "canonicalAnswer": "Left ventricle.",
+        "requiredKeywords": ["left", "ventricle"],
+        "optionalKeywords": ["aorta", "body", "oxygenated"],
+        "forbiddenMisconceptions": ["right ventricle pumps oxygenated blood to the body"],
+        "acceptedVariants": ["left ventricle pumps blood to the body"],
+        "minMatchThreshold": 0.65
+      }
+    },
+    {
+      "id": "circ-15",
+      "prompt": "What carries electrical signals across the heart to coordinate contraction?",
+      "autoMark": {
+        "canonicalAnswer": "Specialised muscle tissue / conducting system (SAN, AVN).",
+        "requiredKeywords": ["electrical", "heart"],
+        "optionalKeywords": ["SAN", "AVN", "node", "signal"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["pacemaker cells", "sinoatrial node"],
+        "minMatchThreshold": 0.55
+      }
+    },
+    {
+      "id": "circ-16",
+      "prompt": "In a closed double circulation, name the two circuits.",
+      "autoMark": {
+        "canonicalAnswer": "Pulmonary and systemic.",
+        "requiredKeywords": ["pulmonary", "systemic"],
+        "optionalKeywords": ["circuit", "double"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["pulmonary circulation and systemic circulation"],
+        "minMatchThreshold": 0.7
+      }
+    },
+    {
+      "id": "circ-17",
+      "prompt": "Why is the left ventricle wall thicker than the right?",
+      "autoMark": {
+        "canonicalAnswer": "It pumps blood at higher pressure around the whole body.",
+        "requiredKeywords": ["pressure", "body"],
+        "optionalKeywords": ["thick", "muscle", "systemic"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["higher pressure to the body"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-18",
+      "prompt": "What is the main component of blood plasma?",
+      "autoMark": {
+        "canonicalAnswer": "Water.",
+        "requiredKeywords": ["water"],
+        "optionalKeywords": ["plasma", "dissolved"],
+        "forbiddenMisconceptions": ["cells are the main component of plasma"],
+        "acceptedVariants": ["mostly water"],
+        "minMatchThreshold": 0.6
+      }
+    },
+    {
+      "id": "circ-19",
+      "prompt": "State one adaptation of red blood cells for oxygen transport.",
+      "autoMark": {
+        "canonicalAnswer": "Biconcave shape / large surface area; contains haemoglobin.",
+        "requiredKeywords": ["haemoglobin", "surface"],
+        "optionalKeywords": ["biconcave", "shape", "no nucleus"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["large surface area to volume ratio"],
+        "minMatchThreshold": 0.55
+      }
+    },
+    {
+      "id": "circ-20",
+      "prompt": "Why are valves important in veins but not needed in the same way in arteries?",
+      "autoMark": {
+        "canonicalAnswer": "Veins are low pressure; blood can flow backwards without valves. Arteries have high pressure from the heart.",
+        "requiredKeywords": ["valve", "pressure"],
+        "optionalKeywords": ["vein", "artery", "low", "high"],
+        "forbiddenMisconceptions": [],
+        "acceptedVariants": ["veins have low pressure so valves stop backflow"],
+        "minMatchThreshold": 0.55
+      }
+    }
+  ]
+}

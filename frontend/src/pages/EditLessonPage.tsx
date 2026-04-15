@@ -42,6 +42,11 @@ import Toast from "../components/Toast";
 import { listReports, updateReportStatus, REPORT_PRIORITY, type LessonIssueReport } from "../api/lessonIssues";
 import { fetchLessonGraph, fetchTopicCoverage, rebuildLessonGraph } from "../api/contentGraph";
 import {
+  getCurriculumAiReview,
+  requestCurriculumAiReview,
+  type CurriculumAiReviewDoc,
+} from "../api/lessons";
+import {
   collapseExactDuplicatePaste,
   getLessonPasteInsertText,
   guardLessonBlockPatchForDuplicatePaste,
@@ -188,6 +193,8 @@ interface Lesson {
   reviewedBy?: string | null;
   /** PR-014.1: generatedFrom { jobId, statementCodes, seed } */
   metadata?: { generatedFrom?: { jobId?: string } };
+  /** Draft-only AI curriculum review (suggestions; no auto-apply) */
+  curriculumAiReview?: CurriculumAiReviewDoc | null;
   /** Lesson↔AssessmentPaper: IDs of attached assessment papers */
   assessmentPaperIds?: string[];
   /** PR-PP2: Past papers (snapshot from topic bank) */
@@ -232,6 +239,13 @@ function isUuid(value: string | undefined) {
 function safeStr(v: any, fallback = "") {
   const s = v === undefined || v === null ? "" : String(v);
   return s.trim() ? s : fallback;
+}
+
+/** Draft / in_review only; server rejects published */
+function canRunCurriculumReview(lesson: Lesson | null): boolean {
+  if (!lesson || lesson.isPublished) return false;
+  const s = String(lesson.status || (lesson.isPublished ? "published" : "draft")).toLowerCase();
+  return s === "draft" || s === "in_review";
 }
 
 function sortPages(pages: LessonPage[]) {
@@ -410,6 +424,10 @@ const EditLessonPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string>("");
+  /** null = not probed yet; server 404 = feature off (CURRICULUM_AI_REVIEW_ENABLED) */
+  const [curriculumAiReviewFeature, setCurriculumAiReviewFeature] = useState<boolean | null>(null);
+  const [curriculumReviewLoading, setCurriculumReviewLoading] = useState(false);
+  const curriculumAiReviewFeatureRef = useRef(false);
   const [uploadingKey, setUploadingKey] = useState<string>("");
   const [uploadMsg, setUploadMsg] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -798,6 +816,36 @@ const EditLessonPage: React.FC = () => {
       .catch(() => setLessonIssueReports([]));
   }, [id]);
 
+  useEffect(() => {
+    curriculumAiReviewFeatureRef.current = curriculumAiReviewFeature === true;
+  }, [curriculumAiReviewFeature]);
+
+  /** Probe GET /curriculum-ai-review: feature flag + refresh running/completed snapshot */
+  useEffect(() => {
+    if (!id || !isMongoObjectId(id) || !lesson || String(lesson.id) !== String(id)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { curriculumAiReview } = await getCurriculumAiReview(id);
+        if (cancelled) return;
+        setCurriculumAiReviewFeature(true);
+        setLesson((prev) =>
+          prev && String(prev.id) === String(id)
+            ? { ...prev, curriculumAiReview: curriculumAiReview ?? prev.curriculumAiReview }
+            : prev
+        );
+      } catch (e: unknown) {
+        if (cancelled) return;
+        const st = (e as { response?: { status?: number } })?.response?.status;
+        if (st === 404) setCurriculumAiReviewFeature(false);
+        else setCurriculumAiReviewFeature(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, lesson?.id]);
+
   /** Deep links (e.g. from Create Lesson sidebar) — scroll to #revision-materials, #edit-lesson-practice-lane, etc. */
   useEffect(() => {
     if (loading || !lesson) return;
@@ -885,6 +933,13 @@ const EditLessonPage: React.FC = () => {
           : 0,
         isFreePreview: Boolean(data.isFreePreview),
         isPublished: Boolean(data.isPublished),
+        status:
+          typeof data.status === "string"
+            ? data.status
+            : data.isPublished
+              ? "published"
+              : "draft",
+        curriculumAiReview: data.curriculumAiReview ?? undefined,
         views: Number.isFinite(Number(data.views)) ? Number(data.views) : 0,
         averageRating: Number.isFinite(Number(data.averageRating))
           ? Number(data.averageRating)
@@ -2316,6 +2371,29 @@ const EditLessonPage: React.FC = () => {
     };
   };
 
+  const handleCurriculumCheck = async () => {
+    if (!id || !lesson || !canRunCurriculumReview(lesson)) return;
+    if (!curriculumAiReviewFeature) return;
+    try {
+      setCurriculumReviewLoading(true);
+      const data = await requestCurriculumAiReview(id);
+      const cr = data.curriculumAiReview;
+      setLesson((prev) => (prev ? { ...prev, curriculumAiReview: cr } : null));
+      setSaveMsg("✅ Curriculum review ready.");
+      setTimeout(() => setSaveMsg(""), 4500);
+    } catch (e: unknown) {
+      const ax = e as { response?: { status?: number; data?: { msg?: string; code?: string } }; message?: string };
+      if (ax?.response?.status === 409) {
+        setSaveMsg("⏳ A curriculum review is already in progress.");
+      } else {
+        setSaveMsg(ax?.response?.data?.msg || ax?.message || "❌ Curriculum check failed.");
+      }
+      setTimeout(() => setSaveMsg(""), 6000);
+    } finally {
+      setCurriculumReviewLoading(false);
+    }
+  };
+
   const saveToBackend = async () => {
     if (!lesson || !id) return;
     if (!isMongoObjectId(id)) {
@@ -2347,6 +2425,26 @@ const EditLessonPage: React.FC = () => {
 
       setSaveMsg("✅ Saved!");
       await fetchLessonSmart();
+      if (curriculumAiReviewFeatureRef.current && id) {
+        const pollId = id;
+        void (async () => {
+          for (let i = 0; i < 14; i++) {
+            await new Promise((r) => setTimeout(r, i === 0 ? 1000 : 2800));
+            try {
+              const { curriculumAiReview } = await getCurriculumAiReview(pollId);
+              setLesson((prev) =>
+                prev && prev.id === pollId
+                  ? { ...prev, curriculumAiReview: curriculumAiReview ?? undefined }
+                  : null
+              );
+              const st = curriculumAiReview?.status;
+              if (st !== "running" && st !== "queued") break;
+            } catch {
+              break;
+            }
+          }
+        })();
+      }
     } catch (e: any) {
       console.error(e);
       setSaveMsg(e?.message || "❌ Save failed.");
@@ -2768,6 +2866,38 @@ const EditLessonPage: React.FC = () => {
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
+
+            {curriculumAiReviewFeature && lesson && canRunCurriculumReview(lesson) ? (
+              <button
+                type="button"
+                onClick={() => void handleCurriculumCheck()}
+                disabled={
+                  curriculumReviewLoading ||
+                  lesson.curriculumAiReview?.status === "running" ||
+                  lesson.curriculumAiReview?.status === "queued"
+                }
+                title="AI compares this draft to your spec/topic context. Nothing is changed automatically."
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "2px solid rgba(99,102,241,0.45)",
+                  background:
+                    curriculumReviewLoading || lesson.curriculumAiReview?.status === "running"
+                      ? "#e5e7eb"
+                      : "rgba(238,242,255,0.95)",
+                  cursor:
+                    curriculumReviewLoading || lesson.curriculumAiReview?.status === "running"
+                      ? "not-allowed"
+                      : "pointer",
+                  fontWeight: 800,
+                  color: "#3730a3",
+                }}
+              >
+                {curriculumReviewLoading || lesson.curriculumAiReview?.status === "running"
+                  ? "Checking…"
+                  : "Check against curriculum"}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -2864,6 +2994,217 @@ const EditLessonPage: React.FC = () => {
                   Edit pages/blocks. Use "Upload image / video" inside blocks to insert media exactly where your cursor is.
                 </div>
               </div>
+
+              {/* Curriculum AI review (draft; opt-in on server) */}
+              {curriculumAiReviewFeature && lesson && canRunCurriculumReview(lesson) ? (
+                <div
+                  id="curriculum-ai-review"
+                  style={{
+                    background: "white",
+                    borderRadius: 14,
+                    padding: 14,
+                    boxShadow: "0 10px 22px rgba(0,0,0,0.08)",
+                    border: "2px solid rgba(99,102,241,0.22)",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, marginBottom: 6, color: "#1e1b4b" }}>
+                    Curriculum alignment (AI)
+                  </div>
+                  <p style={{ color: "#64748b", fontSize: "0.88rem", margin: "0 0 10px" }}>
+                    Suggestions only — your lesson text is not changed. Apply edits yourself when ready.
+                  </p>
+                  {lesson.curriculumAiReview?.status === "failed" && lesson.curriculumAiReview.lastError ? (
+                    <div
+                      role="alert"
+                      style={{
+                        fontSize: "0.88rem",
+                        color: "#b91c1c",
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        marginBottom: 10,
+                      }}
+                    >
+                      {lesson.curriculumAiReview.lastError}
+                    </div>
+                  ) : null}
+                  {(lesson.curriculumAiReview?.status === "running" ||
+                    lesson.curriculumAiReview?.status === "queued") && (
+                    <p style={{ fontSize: "0.9rem", color: "#4f46e5", marginBottom: 8 }}>
+                      Review in progress… You can keep editing; refresh this page or save again to update status.
+                    </p>
+                  )}
+                  {lesson.curriculumAiReview?.status === "completed" && lesson.curriculumAiReview.result ? (
+                    <div style={{ fontSize: "0.88rem", color: "#334155" }}>
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                        <span>
+                          <strong>Spec match:</strong>{" "}
+                          {lesson.curriculumAiReview.result.curriculumMatchScore ?? "—"}%
+                        </span>
+                        <span>
+                          <strong>Lesson quality:</strong>{" "}
+                          {lesson.curriculumAiReview.result.lessonQualityScore ?? "—"}%
+                        </span>
+                        {lesson.curriculumAiReview.generatedAt ? (
+                          <span style={{ color: "#94a3b8" }}>
+                            {new Date(lesson.curriculumAiReview.generatedAt).toLocaleString()}
+                          </span>
+                        ) : null}
+                      </div>
+                      {Array.isArray(lesson.curriculumAiReview.result.issues) &&
+                      lesson.curriculumAiReview.result.issues.length > 0 ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Issues</summary>
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                            {lesson.curriculumAiReview.result.issues.map((t: string, i: number) => (
+                              <li key={`iss-${i}`}>{t}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
+                      {Array.isArray(lesson.curriculumAiReview.result.warnings) &&
+                      lesson.curriculumAiReview.result.warnings.length > 0 ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Warnings</summary>
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                            {lesson.curriculumAiReview.result.warnings.map((t: string, i: number) => (
+                              <li key={`warn-${i}`}>{t}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
+                      {Array.isArray(lesson.curriculumAiReview.result.missingCoverage) &&
+                      lesson.curriculumAiReview.result.missingCoverage.length > 0 ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Missing coverage</summary>
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                            {lesson.curriculumAiReview.result.missingCoverage.map((t: string, i: number) => (
+                              <li key={`miss-${i}`}>{t}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
+                      {Array.isArray(lesson.curriculumAiReview.result.terminologyFixes) &&
+                      lesson.curriculumAiReview.result.terminologyFixes.length > 0 ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Terminology</summary>
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                            {lesson.curriculumAiReview.result.terminologyFixes.map(
+                              (x: { from: string; to: string; note: string }, i: number) => (
+                                <li key={`term-${i}`}>
+                                  <em>{x.from}</em> → <strong>{x.to}</strong>
+                                  {x.note ? ` — ${x.note}` : ""}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </details>
+                      ) : null}
+                      {Array.isArray(lesson.curriculumAiReview.result.suggestedRewrites) &&
+                      lesson.curriculumAiReview.result.suggestedRewrites.length > 0 ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Suggested rewrites</summary>
+                          <ul style={{ margin: "6px 0 0", paddingLeft: 18, listStyle: "none" }}>
+                            {lesson.curriculumAiReview.result.suggestedRewrites.map(
+                              (
+                                x: {
+                                  section: string;
+                                  originalSnippet: string;
+                                  suggestion: string;
+                                  note: string;
+                                },
+                                i: number
+                              ) => (
+                                <li
+                                  key={`rw-${i}`}
+                                  style={{
+                                    marginBottom: 10,
+                                    borderLeft: "3px solid #c7d2fe",
+                                    paddingLeft: 10,
+                                  }}
+                                >
+                                  {x.section ? <div style={{ fontWeight: 600 }}>{x.section}</div> : null}
+                                  {x.originalSnippet ? (
+                                    <div style={{ color: "#64748b", whiteSpace: "pre-wrap" }}>
+                                      {x.originalSnippet}
+                                    </div>
+                                  ) : null}
+                                  {x.suggestion ? (
+                                    <div style={{ whiteSpace: "pre-wrap" }}>{x.suggestion}</div>
+                                  ) : null}
+                                  {x.note ? <div style={{ color: "#94a3b8" }}>{x.note}</div> : null}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </details>
+                      ) : null}
+                      {(Array.isArray(lesson.curriculumAiReview.result.suggestedObjectives) &&
+                        lesson.curriculumAiReview.result.suggestedObjectives.length > 0) ||
+                      (Array.isArray(lesson.curriculumAiReview.result.suggestedPriorKnowledge) &&
+                        lesson.curriculumAiReview.result.suggestedPriorKnowledge.length > 0) ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                            Objectives / prior knowledge
+                          </summary>
+                          {Array.isArray(lesson.curriculumAiReview.result.suggestedObjectives) &&
+                          lesson.curriculumAiReview.result.suggestedObjectives.length > 0 ? (
+                            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                              {lesson.curriculumAiReview.result.suggestedObjectives.map((t: string, i: number) => (
+                                <li key={`obj-${i}`}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {Array.isArray(lesson.curriculumAiReview.result.suggestedPriorKnowledge) &&
+                          lesson.curriculumAiReview.result.suggestedPriorKnowledge.length > 0 ? (
+                            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                              {lesson.curriculumAiReview.result.suggestedPriorKnowledge.map((t: string, i: number) => (
+                                <li key={`pk-${i}`}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </details>
+                      ) : null}
+                      {Array.isArray(lesson.curriculumAiReview.result.suggestedKeywords) &&
+                      lesson.curriculumAiReview.result.suggestedKeywords.length > 0 ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Keywords to consider</summary>
+                          <p style={{ margin: "6px 0 0" }}>
+                            {lesson.curriculumAiReview.result.suggestedKeywords.join(", ")}
+                          </p>
+                        </details>
+                      ) : null}
+                      {(Array.isArray(lesson.curriculumAiReview.result.examAlignmentNotes) &&
+                        lesson.curriculumAiReview.result.examAlignmentNotes.length > 0) ||
+                      (Array.isArray(lesson.curriculumAiReview.result.checkpointAlignmentNotes) &&
+                        lesson.curriculumAiReview.result.checkpointAlignmentNotes.length > 0) ? (
+                        <details style={{ marginBottom: 8 }}>
+                          <summary style={{ cursor: "pointer", fontWeight: 700 }}>Exam / checkpoint notes</summary>
+                          {Array.isArray(lesson.curriculumAiReview.result.examAlignmentNotes) &&
+                          lesson.curriculumAiReview.result.examAlignmentNotes.length > 0 ? (
+                            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                              {lesson.curriculumAiReview.result.examAlignmentNotes.map((t: string, i: number) => (
+                                <li key={`ex-${i}`}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {Array.isArray(lesson.curriculumAiReview.result.checkpointAlignmentNotes) &&
+                          lesson.curriculumAiReview.result.checkpointAlignmentNotes.length > 0 ? (
+                            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                              {lesson.curriculumAiReview.result.checkpointAlignmentNotes.map((t: string, i: number) => (
+                                <li key={`ck-${i}`}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </details>
+                      ) : null}
+                    </div>
+                  ) : lesson.curriculumAiReview?.status === "completed" && !lesson.curriculumAiReview.result ? (
+                    <p style={{ fontSize: "0.88rem", color: "#64748b" }}>No structured result stored.</p>
+                  ) : null}
+                </div>
+              ) : null}
 
               {/* Card 2: Pages */}
               <div

@@ -30,7 +30,11 @@ const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
 const { canAccessContent } = require("../utils/canAccessContent");
 const { isSubscriptionActive } = require("../utils/isSubscriptionActive");
-const { toLessonPreviewPayload, toLessonFullPayload } = require("../utils/lessonPayload");
+const {
+  toLessonPreviewPayload,
+  toLessonFullPayload,
+  stripCheckpointAutoMarkFromLesson,
+} = require("../utils/lessonPayload");
 const { makeLessonDbSafe } = require("../utils/lessonDbSafe");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
@@ -51,6 +55,11 @@ const {
   mergeStructureValidationForScoring,
 } = require("../services/lessonDraftValidation");
 const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
+const {
+  isCurriculumAiReviewEnabled,
+  isAutoRunOnDraftSaveEnabled,
+  runCurriculumAiReviewForLesson,
+} = require("../services/curriculumAiReviewService");
 
 console.log("✅ lessons router file loaded");
 
@@ -111,6 +120,46 @@ function isStudent(user) {
 
 function makePageIdFallback(idx) {
   return `p_${Date.now()}_${idx}_${Math.random().toString(16).slice(2)}`;
+}
+
+/** Sanitize checkpoint.autoMark (keyword-bank auto-marking); omit if empty. */
+function sanitiseCheckpointAutoMark(raw) {
+  if (!raw || typeof raw !== "object") return undefined;
+  const clamp01 = (x) => {
+    const n = Number(x);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.6;
+  };
+  const strArr = (a, maxLen, maxItems) => {
+    if (!Array.isArray(a)) return undefined;
+    const out = a
+      .map((x) => String(x || "").trim())
+      .filter(Boolean)
+      .slice(0, maxItems)
+      .map((s) => s.slice(0, maxLen));
+    return out.length ? out : undefined;
+  };
+  const canonicalAnswer =
+    typeof raw.canonicalAnswer === "string" ? raw.canonicalAnswer.trim().slice(0, 4000) : "";
+  const requiredKeywords = strArr(raw.requiredKeywords, 120, 40);
+  const optionalKeywords = strArr(raw.optionalKeywords, 120, 40);
+  const forbiddenMisconceptions = strArr(raw.forbiddenMisconceptions, 200, 30);
+  const acceptedVariants = strArr(raw.acceptedVariants, 2000, 25);
+  const minMatchThreshold = clamp01(raw.minMatchThreshold);
+  const hasAny =
+    canonicalAnswer ||
+    requiredKeywords ||
+    optionalKeywords ||
+    forbiddenMisconceptions ||
+    acceptedVariants;
+  if (!hasAny) return undefined;
+  return {
+    canonicalAnswer,
+    ...(requiredKeywords ? { requiredKeywords } : {}),
+    ...(optionalKeywords ? { optionalKeywords } : {}),
+    ...(forbiddenMisconceptions ? { forbiddenMisconceptions } : {}),
+    ...(acceptedVariants ? { acceptedVariants } : {}),
+    minMatchThreshold,
+  };
 }
 
 // ✅ UPDATED: Separate sanitization from merging logic
@@ -264,28 +313,58 @@ function sanitisePageInput(p, isUpdate = false) {
       })
     : [];
 
-  let checkpoint =
-    p?.checkpoint && typeof p.checkpoint === "object"
-      ? {
-          question: typeof p.checkpoint.question === "string" ? p.checkpoint.question : "",
-          options: Array.isArray(p.checkpoint.options)
-            ? p.checkpoint.options.map((x) => String(x)).slice(0, 4)
-            : [],
-          answer: typeof p.checkpoint.answer === "string" ? p.checkpoint.answer : "",
-        }
-      : undefined;
-
-  // PR: Guardrail — never save invalid checkpoint placeholder; replace with valid default
   const VALID_DEFAULT_CHECKPOINT = {
     question: "Which statement is correct?",
     options: ["Option 1", "Option 2", "Option 3", "Option 4"],
     answer: "Option 1",
+    type: "mcq",
   };
-  const nonEmptyOpts = (checkpoint?.options || []).filter((o) => String(o || "").trim());
-  const hasValidQuestion = String(checkpoint?.question || "").trim().length > 0;
-  const hasEnoughOptions = nonEmptyOpts.length >= 2;
-  const answerMatches = nonEmptyOpts.some((o) => String(o).trim() === String(checkpoint?.answer || "").trim());
-  if (!checkpoint || !hasValidQuestion || !hasEnoughOptions || !answerMatches) {
+
+  let checkpoint;
+  if (p?.checkpoint && typeof p.checkpoint === "object") {
+    const cp = p.checkpoint;
+    const cpType = cp.type === "shortExplain" ? "shortExplain" : "mcq";
+    const markScheme = Array.isArray(cp.markScheme)
+      ? cp.markScheme.map((x) => String(x).trim()).filter(Boolean).slice(0, 20)
+      : undefined;
+    const autoMark = sanitiseCheckpointAutoMark(cp.autoMark);
+
+    const base = {
+      question: typeof cp.question === "string" ? cp.question : "",
+      options: Array.isArray(cp.options) ? cp.options.map((x) => String(x)).slice(0, 4) : [],
+      answer: typeof cp.answer === "string" ? cp.answer : "",
+      type: cpType,
+      ...(markScheme && markScheme.length ? { markScheme } : {}),
+      ...(autoMark ? { autoMark } : {}),
+    };
+
+    if (cpType === "shortExplain") {
+      const hasValidQuestion = String(base.question || "").trim().length > 0;
+      checkpoint = hasValidQuestion ? base : VALID_DEFAULT_CHECKPOINT;
+    } else {
+      const nonEmptyOpts = (base.options || []).filter((o) => String(o || "").trim());
+      const hasValidQuestion = String(base.question || "").trim().length > 0;
+      const hasEnoughOptions = nonEmptyOpts.length >= 2;
+      const answerMatches = nonEmptyOpts.some((o) => String(o).trim() === String(base.answer || "").trim());
+      if (!hasValidQuestion || !hasEnoughOptions || !answerMatches) {
+        checkpoint = VALID_DEFAULT_CHECKPOINT;
+      } else {
+        checkpoint = { ...base, options: nonEmptyOpts.slice(0, 4) };
+      }
+    }
+  } else {
+    checkpoint = undefined;
+  }
+
+  const nonEmptyOptsMcq = (checkpoint?.options || []).filter((o) => String(o || "").trim());
+  const hasValidQuestionMcq = String(checkpoint?.question || "").trim().length > 0;
+  const hasEnoughOptionsMcq = nonEmptyOptsMcq.length >= 2;
+  const answerMatchesMcq = nonEmptyOptsMcq.some((o) => String(o).trim() === String(checkpoint?.answer || "").trim());
+  if (
+    !checkpoint ||
+    (checkpoint.type !== "shortExplain" &&
+      (!hasValidQuestionMcq || !hasEnoughOptionsMcq || !answerMatchesMcq))
+  ) {
     checkpoint = VALID_DEFAULT_CHECKPOINT;
   }
 
@@ -1341,8 +1420,112 @@ router.put("/:id/revision-draft", auth, async (req, res) => {
 });
 
 /* =========================================
-   Phase 9E: POST revision-draft/apply — copy draft to lesson (then teacher can submit-review)
+   Post-publish AI checkpoint generation — owner/admin (background job)
    ========================================= */
+router.get("/:id/checkpoint-generation/latest", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId checkpointDraft").lean();
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only lesson owner or admin can view checkpoint generation" });
+    }
+
+    const CheckpointGenerationJob = require("../models/CheckpointGenerationJob");
+    const jobId = lesson.checkpointDraft?.jobId;
+    const query = jobId
+      ? { _id: jobId, lessonId }
+      : { lessonId };
+    const job = await CheckpointGenerationJob.findOne(query).sort({ createdAt: -1 }).lean();
+    if (!job) return res.status(404).json({ error: "No checkpoint generation job for this lesson" });
+
+    return res.json({
+      job: {
+        id: job._id,
+        status: job.status,
+        reviewStatus: job.reviewStatus,
+        qualityScore: job.qualityScore,
+        validationIssues: job.validationIssues || [],
+        usage: job.usage || {},
+        error: job.error || null,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      },
+      resultPayload: job.resultPayload || null,
+    });
+  } catch (err) {
+    console.error("GET checkpoint-generation/latest error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * Merge validated checkpoint items from a completed job into lesson.pages (teacher review).
+ * Works for published lessons — only updates page.checkpoint fields.
+ */
+router.post("/:id/checkpoint-draft/apply", auth, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner && !isAdmin(req.user)) {
+      return res.status(403).json({ error: "Only lesson owner or admin can apply checkpoint draft" });
+    }
+
+    const CheckpointGenerationJob = require("../models/CheckpointGenerationJob");
+    const { applyCheckpointItemsToLesson } = require("../services/checkpointGeneration/applyDraftToLesson");
+
+    const jobId = req.body?.jobId || lesson.checkpointDraft?.jobId;
+    if (!jobId || !mongoose.Types.ObjectId.isValid(String(jobId))) {
+      return res.status(400).json({ error: "jobId required (or save checkpoint draft first)" });
+    }
+
+    const job = await CheckpointGenerationJob.findOne({ _id: jobId, lessonId });
+    if (!job) return res.status(404).json({ error: "Checkpoint job not found" });
+    if (job.status !== "completed") {
+      return res.status(409).json({ code: "JOB_NOT_READY", error: "Job is not completed yet" });
+    }
+
+    const items = job.resultPayload?.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "No checkpoint items in this job" });
+    }
+
+    const { updatedPages } = applyCheckpointItemsToLesson(lesson, items, { onlyIfCheckpointEmpty: false });
+    lesson.checkpointDraft = {
+      ...(lesson.checkpointDraft || {}),
+      jobId: job._id,
+      status: "applied_manually",
+      qualityScore: job.qualityScore,
+      generatedAt: lesson.checkpointDraft?.generatedAt || job.updatedAt,
+      itemCounts: lesson.checkpointDraft?.itemCounts || { mcq: 0, shortExplain: 0 },
+    };
+    job.reviewStatus = "applied_manually";
+    await job.save();
+    await lesson.save({ runValidators: true });
+
+    return res.json({
+      success: true,
+      msg: "Checkpoint draft applied to lesson pages",
+      updatedPages,
+      jobId: job._id,
+    });
+  } catch (err) {
+    console.error("POST checkpoint-draft/apply error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.post("/:id/revision-draft/apply", auth, async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -1812,6 +1995,24 @@ async function publishToggleHandler(req, res, mode) {
           sourceTypes: ["lessonBlock"],
           userId: req.user?._id,
         }).catch((e) => console.error("[lessons] enqueueKnowledgeRefresh error:", e?.message));
+      }
+    }
+
+    // Post-publish: AI checkpoint drafts (background job; CHECKPOINT_GEN_ON_PUBLISH=1)
+    if (lesson.isPublished && Array.isArray(lesson.pages) && lesson.pages.length > 0) {
+      const { enqueueCheckpointGenerationAfterPublish } = require("../services/jobs/enqueueCheckpointGeneration");
+      let specKey = lesson.specKey ? String(lesson.specKey).trim() : "";
+      if (!specKey && lesson.topicKey) {
+        specKey = String(lesson.topicKey).split(":")[0] || "";
+      }
+      const topicKey = lesson.topicKey ? String(lesson.topicKey).trim() : null;
+      if (specKey) {
+        enqueueCheckpointGenerationAfterPublish({
+          lessonId: lesson._id,
+          specKey,
+          topicKey,
+          userId: req.user,
+        }).catch((e) => console.error("[lessons] enqueueCheckpointGeneration error:", e?.message));
       }
     }
 
@@ -2494,6 +2695,76 @@ router.get(
 );
 
 /* =========================================
+   Curriculum AI review (draft lessons only; opt-in via CURRICULUM_AI_REVIEW_ENABLED)
+   GET/POST /api/lessons/:id/curriculum-ai-review
+   ========================================= */
+
+router.get("/:id/curriculum-ai-review", auth, async (req, res) => {
+  try {
+    if (!isCurriculumAiReviewEnabled()) {
+      return res.status(404).json({ msg: "Curriculum AI review is not enabled" });
+    }
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId curriculumAiReview status isPublished").lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    if (!isOwner && !isAdmin(req.user)) return res.status(401).json({ msg: "Not authorized" });
+    return res.json({ curriculumAiReview: lesson.curriculumAiReview || null });
+  } catch (err) {
+    return sendInternalError("lessons/curriculum-ai-review GET", err, res);
+  }
+});
+
+router.post("/:id/curriculum-ai-review", auth, async (req, res) => {
+  try {
+    if (!isCurriculumAiReviewEnabled()) {
+      return res.status(403).json({
+        msg: "Curriculum AI review is disabled. Set CURRICULUM_AI_REVIEW_ENABLED=true on the server.",
+      });
+    }
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ msg: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).select("teacherId status isPublished").lean();
+    if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    const allow = isOwner || isAdmin(req.user);
+    if (!allow) return res.status(401).json({ msg: "Not authorized" });
+
+    const st = String(lesson.status || "draft").toLowerCase();
+    if (lesson.isPublished || st === "published") {
+      return res.status(403).json({ msg: "Curriculum review is only available for unpublished draft lessons" });
+    }
+    if (st !== "draft" && st !== "in_review") {
+      return res.status(403).json({ msg: "Curriculum review is only for draft or in_review lessons" });
+    }
+
+    const updated = await runCurriculumAiReviewForLesson({
+      lessonId,
+      userId: req.user._id,
+      isAdmin: isAdmin(req.user),
+      trigger: "manual",
+    });
+    return res.json({
+      ok: true,
+      curriculumAiReview: updated.curriculumAiReview,
+      lesson: updated,
+    });
+  } catch (err) {
+    const msg = err?.message || "Curriculum review failed";
+    if (String(msg).includes("already running")) {
+      return res.status(409).json({ msg, code: "REVIEW_IN_PROGRESS" });
+    }
+    console.error("[curriculum-ai-review] POST", err);
+    return res.status(500).json({ msg });
+  }
+});
+
+/* =========================================
    Get lesson by ID (private)
    GET /api/lessons/:id — Gate: applyLessonAccess (deny-by-default; 402 NOT_ENTITLED, 403 other)
    ✅ FREE_PREVIEW → partial response; SUB_ACTIVE/PURCHASED/ADMIN/OWNER → full
@@ -2536,7 +2807,13 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
       const payload = toLessonPreviewPayload(lesson);
       return res.json({ ...payload, accessDecision });
     }
-    const payload = toLessonFullPayload(lesson);
+    const isOwner = String(lesson.teacherId) === String(req.user._id);
+    const isPrivilegedViewer = isAdmin(req.user) || isOwner;
+    const lessonForResponse =
+      !isPrivilegedViewer && req.user?.userType === "student"
+        ? stripCheckpointAutoMarkFromLesson(lesson)
+        : lesson;
+    const payload = toLessonFullPayload(lessonForResponse);
     payload.readiness = computeLessonReadiness(lesson);
     return res.json({ ...payload, accessDecision });
   } catch (err) {
@@ -2578,6 +2855,7 @@ router.put("/:id", auth, async (req, res) => {
     }
 
     const updates = req.body || {};
+    delete updates.curriculumAiReview;
 
     // ✅ FIXED: Handle pages update with hero preservation
     if (updates.pages && Array.isArray(updates.pages)) {
@@ -2663,7 +2941,22 @@ router.put("/:id", auth, async (req, res) => {
 
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
-    
+
+    if (
+      isCurriculumAiReviewEnabled() &&
+      isAutoRunOnDraftSaveEnabled() &&
+      !updatedLesson.isPublished &&
+      String(updatedLesson.status || "draft").toLowerCase() === "draft"
+    ) {
+      setImmediate(() => {
+        runCurriculumAiReviewForLesson({
+          lessonId: updatedLesson._id,
+          trigger: "draft_save",
+          internal: true,
+        }).catch((e) => console.error("[curriculumAiReview] draft_save:", e?.message || e));
+      });
+    }
+
     return res.json({
       msg: "Lesson updated successfully",
       lesson: updatedLesson,

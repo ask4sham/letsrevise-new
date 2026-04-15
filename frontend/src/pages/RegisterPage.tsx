@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { validatePasswordStrength, PASSWORD_GUIDANCE } from "../utils/passwordStrength";
-import { getAxiosErrorMessage } from "../utils/apiErrorMessage";
+import { getAxiosErrorMessage, getErrorMessageFromData } from "../utils/apiErrorMessage";
 import { apiUrl } from "../utils/apiBaseUrl";
+import { setAuth } from "../utils/authStorage";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import api from "../services/api";
 
 type UserType = "student" | "teacher" | "parent";
 
@@ -16,14 +19,21 @@ function deriveStageKeyFromYearGroup(yearGroup: string) {
   return "";
 }
 
+const COOLDOWN_SEC = 45;
+const IS_DEV = process.env.NODE_ENV === "development";
+
 const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { refresh } = useCurrentUser({ watchLocation: true });
+
+  const [step, setStep] = useState<"form" | "success">("form");
+  const [advancedMode, setAdvancedMode] = useState(false);
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [userType, setUserType] = useState<UserType>("student");
   const [linkedStudentEmail, setLinkedStudentEmail] = useState("");
-
-  // ✅ NEW: student year group (drives level gating)
   const [yearGroup, setYearGroup] = useState<string>("");
 
   const [email, setEmail] = useState("");
@@ -33,15 +43,25 @@ const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [backendStatus, setBackendStatus] = useState("");
+  /** Dev / health-check: null = not yet probed */
+  const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [successEmail, setSuccessEmail] = useState("");
+  const [registeredUserType, setRegisteredUserType] = useState<UserType>("student");
+  const [registeredYearGroup, setRegisteredYearGroup] = useState<number | null>(null);
+  const [verificationEmailSent, setVerificationEmailSent] = useState(true);
+  const [verificationEmailWarning, setVerificationEmailWarning] = useState<string | null>(null);
+
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+
   useEffect(() => {
-    checkBackend();
+    if (IS_DEV) checkBackend();
   }, []);
 
-  // if user toggles away from student, clear year group (non-breaking)
   useEffect(() => {
     if (userType !== "student") setYearGroup("");
   }, [userType]);
@@ -54,10 +74,60 @@ const RegisterPage: React.FC = () => {
   const checkBackend = async () => {
     try {
       await axios.get(apiUrl("/api/health"));
-      setBackendStatus("✅ Backend connected");
+      setApiHealthy(true);
     } catch {
-      setBackendStatus("❌ Backend not connected");
+      setApiHealthy(false);
     }
+  };
+
+  const cooldownActive = Date.now() < cooldownUntil;
+  const waitSec = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+
+  const handleResend = async () => {
+    const em = successEmail.trim();
+    if (!em || resendLoading || cooldownActive) return;
+    setResendLoading(true);
+    setResendMsg(null);
+    try {
+      const res = await api.post("/auth/resend-verification", { email: em });
+      const data = res?.data ?? {};
+      if (data.ok !== false) {
+        setResendMsg("A new verification email has been sent.");
+        setCooldownUntil(Date.now() + COOLDOWN_SEC * 1000);
+      } else {
+        setResendMsg(getErrorMessageFromData(data, "Could not send email."));
+      }
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: Record<string, unknown>; status?: number } };
+      const data = ax?.response?.data;
+      if (ax?.response?.status === 429 && data?.retryAfterSeconds != null) {
+        const s = Number(data.retryAfterSeconds);
+        setCooldownUntil(Date.now() + (Number.isFinite(s) ? s : COOLDOWN_SEC) * 1000);
+        setResendMsg(String(data.msg || "Please wait before resending."));
+      } else {
+        setResendMsg(getErrorMessageFromData(data, "Could not send email."));
+      }
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleContinueDashboard = () => {
+    refresh();
+    const ut = registeredUserType;
+    if (ut === "student" && registeredYearGroup == null) {
+      navigate("/complete-profile", { replace: true });
+      return;
+    }
+    if (ut === "teacher") {
+      navigate("/teacher-dashboard", { replace: true });
+      return;
+    }
+    if (ut === "parent") {
+      navigate("/parent-dashboard", { replace: true });
+      return;
+    }
+    navigate("/student-dashboard", { replace: true });
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -75,57 +145,77 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
-    // ✅ Student must pick year group (7–13)
-    if (userType === "student") {
+    const effectiveType = advancedMode ? userType : "student";
+
+    if (advancedMode && effectiveType === "student" && yearGroup) {
       const n = Number(yearGroup);
       if (!Number.isFinite(n) || n < 7 || n > 13) {
-        setMessage("❌ Please select a valid Year Group (7 to 13).");
+        setMessage("❌ Please select a valid Year Group (7 to 13), or leave it blank to set later.");
         return;
+      }
+    }
+
+    if (advancedMode && effectiveType === "parent") {
+      if (!linkedStudentEmail.trim()) {
+        setMessage("❌ Please enter your student’s email to link a parent account.");
+        return;
+      }
+    }
+
+    if (advancedMode && (effectiveType === "student" || effectiveType === "teacher")) {
+      if (!schoolName.trim()) {
+        // optional in onboarding — allow empty
       }
     }
 
     setLoading(true);
 
     try {
-      console.log("Sending register request");
-
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         email,
         password,
-        firstName,
-        lastName,
-        userType,
-        schoolName: schoolName || null,
+        firstName: firstName.trim(),
+        userType: effectiveType,
       };
 
-      // ✅ send yearGroup only for students
-      if (userType === "student") {
-        payload.yearGroup = Number(yearGroup);
-        // (optional) if your backend later supports explicit stageKey, we can also send it
-        // payload.stageKey = (deriveStageKeyFromYearGroup(yearGroup) || "").toLowerCase();
+      if (advancedMode && lastName.trim()) {
+        payload.lastName = lastName.trim();
       }
 
-      if (userType === "parent" && linkedStudentEmail.trim()) {
+      if (advancedMode && schoolName.trim()) {
+        payload.schoolName = schoolName.trim();
+      }
+
+      if (advancedMode && effectiveType === "student" && yearGroup) {
+        payload.yearGroup = Number(yearGroup);
+      }
+
+      if (advancedMode && effectiveType === "parent" && linkedStudentEmail.trim()) {
         payload.linkedStudentEmail = linkedStudentEmail.trim();
       }
 
       const response = await axios.post(apiUrl("/api/auth/register"), payload);
 
-      console.log("Register success:", response.data);
+      const token = response.data?.token;
+      const userData = response.data?.user;
+      if (token && userData) {
+        setAuth(token, userData);
+      }
+      refresh();
 
-      const backendMsg =
-        response.data?.message ||
-        response.data?.msg ||
-        "Check your email to verify your account, then sign in.";
-
-      // ✅ store selectedStage locally for your current browse gating
-      if (userType === "student") {
+      if (effectiveType === "student" && yearGroup) {
         const stage = deriveStageKeyFromYearGroup(yearGroup);
         if (stage) localStorage.setItem("selectedStage", stage);
         localStorage.setItem("selectedYearGroup", String(yearGroup));
       }
 
-      setMessage(`🎉 ${backendMsg}`);
+      setSuccessEmail(email.trim());
+      setRegisteredUserType(effectiveType);
+      const yg = userData?.yearGroup;
+      setRegisteredYearGroup(typeof yg === "number" ? yg : yg != null ? Number(yg) : null);
+      setVerificationEmailSent(response.data?.verificationEmailSent !== false);
+      setVerificationEmailWarning(response.data?.verificationEmailWarning || null);
+      setStep("success");
       setLoading(false);
     } catch (err: unknown) {
       console.error("Register error:", err);
@@ -143,25 +233,106 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  const isParent = userType === "parent";
+  const isParent = advancedMode && userType === "parent";
+
+  if (step === "success") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div
+            style={{
+              background: "white",
+              padding: 40,
+              borderRadius: 15,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+              width: "100%",
+              maxWidth: 520,
+              textAlign: "center",
+            }}
+          >
+            <h2 style={{ marginTop: 0, color: "#111827" }}>
+              {verificationEmailSent ? "Check your email" : "Account created"}
+            </h2>
+            {verificationEmailSent ? (
+              <p style={{ color: "#4b5563", lineHeight: 1.6, marginBottom: 8 }}>
+                We’ve sent a verification link to <strong>{successEmail}</strong>
+              </p>
+            ) : (
+              <>
+                <p style={{ color: "#4b5563", lineHeight: 1.6, marginBottom: 8 }}>
+                  We couldn’t send a verification email to <strong>{successEmail}</strong> just now.
+                </p>
+                <p style={{ color: "#b45309", fontSize: "0.95rem", marginBottom: 16 }}>
+                  {verificationEmailWarning ||
+                    "Use “Resend email” below once email is configured, or contact support if this keeps happening."}
+                </p>
+              </>
+            )}
+            {resendMsg && (
+              <p style={{ color: resendMsg.includes("sent") ? "#059669" : "#b45309", fontSize: "0.9rem" }}>{resendMsg}</p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
+              <a
+                href={`mailto:${encodeURIComponent(successEmail)}`}
+                style={{
+                  display: "block",
+                  padding: "14px 16px",
+                  background: "#f3f4f6",
+                  color: "#111827",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                Open email app
+              </a>
+              <button
+                type="button"
+                disabled={resendLoading || cooldownActive}
+                onClick={() => void handleResend()}
+                style={{
+                  padding: "14px 16px",
+                  background: cooldownActive ? "#9ca3af" : "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: cooldownActive || resendLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                {resendLoading ? "Sending…" : cooldownActive ? `Resend email (${waitSec}s)` : "Resend email"}
+              </button>
+              <button
+                type="button"
+                onClick={handleContinueDashboard}
+                style={{
+                  padding: "14px 16px",
+                  background: "#059669",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Continue to dashboard
+              </button>
+            </div>
+            <p style={{ marginTop: 24, fontSize: "0.9rem" }}>
+              <Link to="/login" style={{ color: "#2563eb", fontWeight: 600 }}>
+                Back to sign in
+              </Link>
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <main
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-        }}
-      >
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
         <div
           style={{
             background: "white",
@@ -169,32 +340,27 @@ const RegisterPage: React.FC = () => {
             borderRadius: "15px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
             width: "100%",
-            maxWidth: "600px",
+            maxWidth: "560px",
           }}
         >
-          <h2
-            style={{
-              textAlign: "center",
-              marginBottom: "10px",
-              color: "#333",
-            }}
-          >
-            Create an Account
-          </h2>
+          <h2 style={{ textAlign: "center", marginBottom: "8px", color: "#111827" }}>Start learning smarter today</h2>
+          <p style={{ textAlign: "center", marginTop: 0, marginBottom: "24px", color: "#6b7280", fontSize: "1rem" }}>
+            Free access to lessons, AI tutor, and exam prep
+          </p>
 
-          {backendStatus && (
+          {IS_DEV && apiHealthy !== null && (
             <div
               style={{
+                background: apiHealthy ? "#e6f4ea" : "#fce8e8",
+                color: apiHealthy ? "#1e7e34" : "#b71c1c",
+                padding: "10px",
+                borderRadius: "6px",
+                marginBottom: "16px",
+                fontSize: "14px",
                 textAlign: "center",
-                marginBottom: "20px",
-                padding: "8px",
-                background: backendStatus.includes("✅") ? "#d4edda" : "#f8d7da",
-                color: backendStatus.includes("✅") ? "#155724" : "#721c24",
-                borderRadius: "5px",
-                fontSize: "0.9rem",
               }}
             >
-              {backendStatus}
+              {apiHealthy ? "✅ Backend connected" : "❌ Backend unreachable"}
             </div>
           )}
 
@@ -213,10 +379,43 @@ const RegisterPage: React.FC = () => {
             </div>
           )}
 
+          {!advancedMode && (
+            <p style={{ textAlign: "center", marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => setAdvancedMode(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#2563eb",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Register as teacher or parent
+              </button>
+            </p>
+          )}
+
           <form onSubmit={handleRegister}>
-            {/* First name */}
+            {advancedMode && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>I am a…</label>
+                <select
+                  value={userType}
+                  onChange={(e) => setUserType(e.target.value as UserType)}
+                  style={{ ...inputStyle, background: "white" }}
+                >
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="parent">Parent / Guardian</option>
+                </select>
+              </div>
+            )}
+
             <div style={{ marginBottom: "16px" }}>
-              <label style={labelStyle}>First Name</label>
+              <label style={labelStyle}>First name</label>
               <input
                 type="text"
                 required
@@ -227,44 +426,28 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Last name */}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={labelStyle}>Last Name</label>
-              <input
-                type="text"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                style={inputStyle}
-                placeholder="Last name"
-              />
-            </div>
-
-            {/* Role selection */}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={labelStyle}>I am a...</label>
-              <select
-                value={userType}
-                onChange={(e) => setUserType(e.target.value as UserType)}
-                style={{ ...inputStyle, background: "white" }}
-              >
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-                <option value="parent">Parent / Guardian</option>
-              </select>
-            </div>
-
-            {/* ✅ NEW: Year Group (students only) */}
-            {userType === "student" && (
+            {advancedMode && (
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Year Group</label>
+                <label style={labelStyle}>Last name (optional)</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Last name"
+                />
+              </div>
+            )}
+
+            {advancedMode && userType === "student" && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>Year group (optional)</label>
                 <select
                   value={yearGroup}
                   onChange={(e) => setYearGroup(e.target.value)}
-                  required
                   style={{ ...inputStyle, background: "white" }}
                 >
-                  <option value="">Select year group…</option>
+                  <option value="">Set later in profile…</option>
                   <option value="7">Year 7 (KS3)</option>
                   <option value="8">Year 8 (KS3)</option>
                   <option value="9">Year 9 (KS3)</option>
@@ -273,7 +456,6 @@ const RegisterPage: React.FC = () => {
                   <option value="12">Year 12 (A-level)</option>
                   <option value="13">Year 13 (A-level)</option>
                 </select>
-
                 {stageLabel ? (
                   <p style={{ marginTop: 6, fontSize: "0.9rem", color: "#555" }}>
                     Your level will be set to: <b>{stageLabel}</b>
@@ -282,23 +464,22 @@ const RegisterPage: React.FC = () => {
               </div>
             )}
 
-            {/* School name */}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={labelStyle}>School Name</label>
-              <input
-                type="text"
-                required={userType === "student" || userType === "teacher"}
-                value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value)}
-                style={inputStyle}
-                placeholder="School name (for verification)"
-              />
-            </div>
+            {advancedMode && (userType === "student" || userType === "teacher") && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>School name (optional)</label>
+                <input
+                  type="text"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  style={inputStyle}
+                  placeholder="School name"
+                />
+              </div>
+            )}
 
-            {/* Linked student email for parents */}
             {isParent && (
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Student’s Email (linked account)</label>
+                <label style={labelStyle}>Student’s email (linked account)</label>
                 <input
                   type="email"
                   required
@@ -308,14 +489,13 @@ const RegisterPage: React.FC = () => {
                   placeholder="student@example.com"
                 />
                 <p style={{ marginTop: "6px", fontSize: "0.85rem", color: "#555" }}>
-                  This links your parent account to an existing student so their details stay private.
+                  Links your parent account to an existing student account.
                 </p>
               </div>
             )}
 
-            {/* Email */}
             <div style={{ marginBottom: "16px" }}>
-              <label style={labelStyle}>Your Email (for login & verification)</label>
+              <label style={labelStyle}>Email</label>
               <input
                 type="email"
                 required
@@ -326,7 +506,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Password */}
             <div style={{ marginBottom: "16px" }}>
               <label style={labelStyle}>Password</label>
               <p style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: "6px" }}>{PASSWORD_GUIDANCE}</p>
@@ -338,7 +517,7 @@ const RegisterPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={inputWithEyeStyle}
-                  placeholder="Enter password"
+                  placeholder="Create a password"
                 />
                 <button
                   type="button"
@@ -351,9 +530,8 @@ const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Confirm Password */}
             <div style={{ marginBottom: "24px" }}>
-              <label style={labelStyle}>Confirm Password</label>
+              <label style={labelStyle}>Confirm password</label>
               <div style={{ position: "relative" }}>
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -390,7 +568,7 @@ const RegisterPage: React.FC = () => {
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              {loading ? "Registering..." : "Register"}
+              {loading ? "Creating account…" : "Create free account"}
             </button>
           </form>
 

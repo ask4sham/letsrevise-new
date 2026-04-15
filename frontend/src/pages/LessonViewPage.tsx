@@ -3562,6 +3562,7 @@ const LessonViewPage: React.FC = () => {
                       explanation={checkpointData.explanation}
                       name={checkpointData.name}
                       lessonId={id ?? undefined}
+                      pageId={typeof currentPage.pageId === "string" ? currentPage.pageId : undefined}
                       entitled={Boolean(accessDecision?.allowed)}
                       presentation={v12StudentPresentation ? "v12" : "default"}
                     />

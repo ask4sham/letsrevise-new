@@ -11,12 +11,15 @@ import { readAuth as readAuthStorage, clearAuth } from "../utils/authStorage";
 import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 
 export interface CurrentUser {
-  _id: string;
+  _id?: string;
+  id?: string;
   userType: string;
   firstName?: string;
   lastName?: string;
   name?: string;
   email?: string;
+  verificationStatus?: string;
+  emailVerified?: boolean;
   purchasedLessons?: Array<{ lessonId: string; purchasedAt: string }>;
   entitlements?: any;
   level?: string;

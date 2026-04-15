@@ -142,3 +142,67 @@ export async function detachAutoAttachedContent(lessonId: string): Promise<Detac
   const res = await api.post<DetachAutoAttachedResult>(`/lessons/${lessonId}/detach-auto-attached-content`, {});
   return res.data!;
 }
+
+/**
+ * Draft-only curriculum AI review (server: CURRICULUM_AI_REVIEW_ENABLED).
+ * Suggestions are stored on the lesson; teacher content is never overwritten by this feature.
+ */
+export type CurriculumAiReviewResultPayload = {
+  status: string;
+  curriculumMatchScore: number;
+  lessonQualityScore: number;
+  issues: string[];
+  warnings: string[];
+  missingCoverage: string[];
+  terminologyFixes: Array<{ from: string; to: string; note: string }>;
+  suggestedRewrites: Array<{
+    section: string;
+    originalSnippet: string;
+    suggestion: string;
+    note: string;
+  }>;
+  suggestedObjectives: string[];
+  suggestedPriorKnowledge: string[];
+  suggestedKeywords: string[];
+  examAlignmentNotes: string[];
+  checkpointAlignmentNotes: string[];
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+};
+
+export type CurriculumAiReviewDoc = {
+  status?: "idle" | "queued" | "running" | "completed" | "failed";
+  trigger?: "manual" | "draft_save";
+  lastError?: string | null;
+  generatedAt?: string | null;
+  startedAt?: string | null;
+  result?: CurriculumAiReviewResultPayload | null;
+  model?: string;
+  provider?: string;
+  promptVersion?: string;
+};
+
+export async function getCurriculumAiReview(lessonId: string): Promise<{
+  curriculumAiReview: CurriculumAiReviewDoc | null;
+}> {
+  const res = await api.get<{ curriculumAiReview: CurriculumAiReviewDoc | null }>(
+    `/lessons/${lessonId}/curriculum-ai-review`
+  );
+  return res.data!;
+}
+
+export async function requestCurriculumAiReview(lessonId: string): Promise<{
+  ok: boolean;
+  curriculumAiReview: CurriculumAiReviewDoc;
+  lesson: unknown;
+}> {
+  const res = await api.post<{
+    ok: boolean;
+    curriculumAiReview: CurriculumAiReviewDoc;
+    lesson: unknown;
+  }>(`/lessons/${lessonId}/curriculum-ai-review`, {});
+  return res.data!;
+}
