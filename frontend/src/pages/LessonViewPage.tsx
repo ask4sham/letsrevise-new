@@ -51,6 +51,7 @@ import { ReportIssueModal } from "../components/lesson/ReportIssueModal";
 import { AdaptiveFeedbackCard } from "../components/lesson/AdaptiveFeedbackCard";
 import {
   getSpecKeyFromLesson,
+  resolveLessonTopicKeyForBank,
   resolveLessonTopicKeyForBankFromLesson,
 } from "../utils/resolveLessonTopicKey";
 import { recordMastery, getMastery } from "../api/mastery";
@@ -1429,6 +1430,32 @@ const LessonViewPage: React.FC = () => {
     [lesson, searchParams]
   );
 
+  /**
+   * Topic key for student AI tutor + topic summary: prefer bank resolution, then lesson.topicKey,
+   * then slug from lesson.topic / lesson.title so the tutor can show whenever specKey exists
+   * (parity with “Today’s study plan”, selling point on production).
+   */
+  const studentTutorTopicKey = useMemo(() => {
+    if (topicKeyForBank) return topicKeyForBank;
+    const raw = (lesson as { topicKey?: string })?.topicKey?.trim();
+    if (raw) {
+      if (raw.includes(":")) return raw;
+      if (specKey) return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: raw }) || raw;
+      return raw;
+    }
+    if (!specKey || !lesson) return null;
+    const topicSlug =
+      typeof lesson.topic === "string" && lesson.topic.trim()
+        ? lesson.topic.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "").slice(0, 80)
+        : "";
+    const titleSlug =
+      typeof lesson.title === "string" && lesson.title.trim()
+        ? lesson.title.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "").slice(0, 80)
+        : "";
+    const candidate = topicSlug || titleSlug || "lesson";
+    return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: candidate });
+  }, [topicKeyForBank, lesson, specKey]);
+
   // PR — Adaptive Testing Loop: handleQuestionAnswered and fetch mastery (must be after topicKeyForBank, hasStructuredPages, currentPage, etc.)
   const handleQuestionAnswered = useCallback(
     async (correct: boolean) => {
@@ -1580,25 +1607,25 @@ const LessonViewPage: React.FC = () => {
     if (searchParams.get("openTopicSummary") !== "1") return;
     const isStudentUser = (user?.userType ?? "").toString().toLowerCase() === "student";
     if (!isStudentUser || !specKey) return;
-    const tk = topicKeyForBank || (lesson as { topicKey?: string })?.topicKey;
+    const tk = studentTutorTopicKey;
     if (!tk) return;
     setShowTopicSummaryModal(true);
     const next = new URLSearchParams(searchParams);
     next.delete("openTopicSummary");
     setSearchParams(next, { replace: true });
-  }, [searchParams, user?.userType, specKey, topicKeyForBank, lesson]);
+  }, [searchParams, user?.userType, specKey, studentTutorTopicKey]);
 
   // PR-038: record lesson view for StudentTopicProgress (once per session per lesson)
   useEffect(() => {
     const isStudentUser = (user?.userType ?? "").toString().toLowerCase() === "student";
     if (!isStudentUser || !specKey || !id) return;
-    const tk = topicKeyForBank || (lesson as { topicKey?: string })?.topicKey;
+    const tk = studentTutorTopicKey;
     if (!tk) return;
     const sessionKey = `${id}:${specKey}:${tk}`;
     if (lessonViewProgressLoggedRef.current === sessionKey) return;
     lessonViewProgressLoggedRef.current = sessionKey;
     postLessonView(specKey, tk, id).catch(() => {});
-  }, [id, specKey, topicKeyForBank, lesson, user?.userType]);
+  }, [id, specKey, studentTutorTopicKey, user?.userType]);
 
   // PR3b + PR-PRACTICE-1: Fetch practice questions with limit, seed, source
   const practiceSeed = useMemo(() => {
@@ -3657,10 +3684,10 @@ const LessonViewPage: React.FC = () => {
                   />
                 )}
                 {/* PR-007: Student Ask AI — same taxonomy gates as teacher (spec + topic) */}
-                {isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+                {isStudent && specKey && studentTutorTopicKey && (
                   <AskAiStudentPanel
                     specKey={specKey}
-                    topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+                    topicKey={studentTutorTopicKey}
                     lessonId={id || undefined}
                     suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
                   />
@@ -4299,10 +4326,10 @@ const LessonViewPage: React.FC = () => {
             />
           )}
           {/* PR-024.1: Student topic summary modal (structured view) */}
-          {showTopicSummaryModal && isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+          {showTopicSummaryModal && isStudent && specKey && studentTutorTopicKey && (
             <TopicSummaryStudentModal
               specKey={specKey}
-              topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+              topicKey={studentTutorTopicKey}
               lessonId={id || undefined}
               onClose={() => setShowTopicSummaryModal(false)}
             />
@@ -4543,7 +4570,7 @@ const LessonViewPage: React.FC = () => {
           />
         )}
         {/* PR-007: Student Ask AI — same taxonomy gates as teacher panel (spec + topic); enquiry API rate-limits */}
-        {isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+        {isStudent && specKey && studentTutorTopicKey && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
               <button
@@ -4565,7 +4592,7 @@ const LessonViewPage: React.FC = () => {
             </div>
             <AskAiStudentPanel
               specKey={specKey}
-              topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+              topicKey={studentTutorTopicKey}
               lessonId={id || undefined}
               suppressAutoScroll={isPreviewEntry || previewEntrySuppressScroll || suppressAskAiScrollOnMount}
             />
@@ -4955,10 +4982,10 @@ const LessonViewPage: React.FC = () => {
           />
         )}
         {/* PR-024.1: Student topic summary modal */}
-        {showTopicSummaryModal && isStudent && specKey && (topicKeyForBank || (lesson as { topicKey?: string })?.topicKey) && (
+        {showTopicSummaryModal && isStudent && specKey && studentTutorTopicKey && (
           <TopicSummaryStudentModal
             specKey={specKey}
-            topicKey={topicKeyForBank || (lesson as { topicKey?: string }).topicKey || ""}
+            topicKey={studentTutorTopicKey}
             lessonId={id || undefined}
             onClose={() => setShowTopicSummaryModal(false)}
           />
