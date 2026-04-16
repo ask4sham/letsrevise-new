@@ -6,6 +6,11 @@ const mongoose = require("mongoose");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
+const {
+  ensureLeanFlashcardScored,
+  ensureLeanQuizScored,
+  ensureLeanExamScored,
+} = require("../utils/draftQualityScoring");
 
 const ITEM_TYPES = ["flashcard", "quizQuestion", "examQuestion"];
 const AUTOPILOT_META = "metadata.generatedBy";
@@ -37,46 +42,61 @@ function topicDisplayName(topicKey) {
  * Map DB doc to draft item shape.
  */
 function toDraftItem(itemType, doc) {
-  const topicKey = doc.topicKey || "";
-  const specKey = deriveSpecKey(topicKey, doc);
+  let lean = doc;
+  if (itemType === "flashcard") lean = ensureLeanFlashcardScored({ ...doc });
+  else if (itemType === "quizQuestion") lean = ensureLeanQuizScored({ ...doc });
+  else if (itemType === "examQuestion") lean = ensureLeanExamScored({ ...doc });
+  const m = lean.metadata || {};
+
+  const topicKey = lean.topicKey || "";
+  const specKey = deriveSpecKey(topicKey, lean);
   let titlePreview = "";
   let contentPreview = "";
 
   if (itemType === "flashcard") {
-    titlePreview = (doc.front || "").slice(0, 80);
-    contentPreview = (doc.back || "").slice(0, 120);
+    titlePreview = (lean.front || "").slice(0, 80);
+    contentPreview = (lean.back || "").slice(0, 120);
   } else if (itemType === "quizQuestion") {
-    titlePreview = (doc.questionText || "").slice(0, 80);
-    contentPreview = (doc.explanation || "").slice(0, 120);
+    titlePreview = (lean.questionText || "").slice(0, 80);
+    contentPreview = (lean.explanation || "").slice(0, 120);
   } else if (itemType === "examQuestion") {
-    titlePreview = (doc.question || "").slice(0, 80);
-    contentPreview = Array.isArray(doc.markScheme) ? doc.markScheme[0]?.slice(0, 120) : "";
+    titlePreview = (lean.question || "").slice(0, 80);
+    contentPreview = Array.isArray(lean.markScheme) ? lean.markScheme[0]?.slice(0, 120) : "";
   }
 
   return {
     itemType,
-    itemId: String(doc._id),
+    itemId: String(lean._id),
     specKey: specKey || "",
     topicKey,
     topicTitle: topicDisplayName(topicKey),
     titlePreview,
     contentPreview,
-    status: doc.status || "draft",
-    generatedBy: doc.metadata?.generatedBy || AUTOPILOT_VALUE,
-    createdAt: doc.createdAt,
-    readinessSummary: doc.metadata?.readinessSummary ?? null,
-    gapSummary: doc.metadata?.gapSummary ?? null,
+    status: lean.status || "draft",
+    generatedBy:
+      m.generatedBy || (m.source === "ai_lesson_assets" ? "ai_lesson_assets" : AUTOPILOT_VALUE),
+    createdAt: lean.createdAt,
+    readinessSummary: m.readinessSummary ?? null,
+    gapSummary: m.gapSummary ?? null,
+    qualityScore: m.qualityScore != null ? Number(m.qualityScore) : undefined,
+    qualityBand: m.qualityBand || undefined,
+    qualityFlags: Array.isArray(m.qualityFlags) ? m.qualityFlags : undefined,
+    qualityScoredAt: m.qualityScoredAt || undefined,
+    qualityScoredBy: m.qualityScoredBy || undefined,
+    approvalConfidence: m.approvalConfidence != null ? Number(m.approvalConfidence) : undefined,
+    scoreVersion: m.scoreVersion || undefined,
+    suggestedForApproval: m.suggestedForApproval === true,
   };
 }
 
 /**
- * Base query for autopilot drafts: status draft, metadata.generatedBy autopilot, not archived.
+ * Base query for autopilot drafts: starter-pack autopilot OR AI lesson-asset drafts (same review queue).
  */
 function baseQuery() {
   return {
     status: "draft",
-    [AUTOPILOT_META]: AUTOPILOT_VALUE,
     isArchived: { $ne: true },
+    $or: [{ [AUTOPILOT_META]: AUTOPILOT_VALUE }, { "metadata.source": "ai_lesson_assets" }],
   };
 }
 
@@ -131,7 +151,11 @@ async function getAutopilotDrafts(filters = {}) {
     }
   }
 
-  items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  items.sort((a, b) => {
+    const qs = (b.qualityScore ?? -1) - (a.qualityScore ?? -1);
+    if (qs !== 0) return qs;
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
   return items;
 }
 
@@ -169,9 +193,9 @@ async function approveAutopilotItem({ itemType, itemId, reviewerId }) {
   if (itemType === "flashcard") {
     const doc = await TopicFlashcard.findOne({
       _id: itemId,
-      [AUTOPILOT_META]: AUTOPILOT_VALUE,
       status: "draft",
       isArchived: { $ne: true },
+      $or: [{ [AUTOPILOT_META]: AUTOPILOT_VALUE }, { "metadata.source": "ai_lesson_assets" }],
     });
     if (!doc) return null;
     doc.status = "published";
@@ -199,9 +223,9 @@ async function approveAutopilotItem({ itemType, itemId, reviewerId }) {
   if (itemType === "examQuestion") {
     const doc = await ExamQuestion.findOne({
       _id: itemId,
-      [AUTOPILOT_META]: AUTOPILOT_VALUE,
       status: "draft",
       isArchived: { $ne: true },
+      $or: [{ [AUTOPILOT_META]: AUTOPILOT_VALUE }, { "metadata.source": "ai_lesson_assets" }],
     });
     if (!doc) return null;
     doc.status = "published";
@@ -235,9 +259,9 @@ async function rejectAutopilotItem({ itemType, itemId, reviewerId, reason }) {
   if (itemType === "flashcard") {
     doc = await TopicFlashcard.findOne({
       _id: itemId,
-      [AUTOPILOT_META]: AUTOPILOT_VALUE,
       status: "draft",
       isArchived: { $ne: true },
+      $or: [{ [AUTOPILOT_META]: AUTOPILOT_VALUE }, { "metadata.source": "ai_lesson_assets" }],
     });
     if (!doc) return null;
     doc.isArchived = true;
@@ -249,9 +273,9 @@ async function rejectAutopilotItem({ itemType, itemId, reviewerId, reason }) {
   if (itemType === "quizQuestion") {
     doc = await TopicQuizQuestion.findOne({
       _id: itemId,
-      [AUTOPILOT_META]: AUTOPILOT_VALUE,
       status: "draft",
       isArchived: { $ne: true },
+      $or: [{ [AUTOPILOT_META]: AUTOPILOT_VALUE }, { "metadata.source": "ai_lesson_assets" }],
     });
     if (!doc) return null;
     doc.isArchived = true;
@@ -263,9 +287,9 @@ async function rejectAutopilotItem({ itemType, itemId, reviewerId, reason }) {
   if (itemType === "examQuestion") {
     doc = await ExamQuestion.findOne({
       _id: itemId,
-      [AUTOPILOT_META]: AUTOPILOT_VALUE,
       status: "draft",
       isArchived: { $ne: true },
+      $or: [{ [AUTOPILOT_META]: AUTOPILOT_VALUE }, { "metadata.source": "ai_lesson_assets" }],
     });
     if (!doc) return null;
     doc.isArchived = true;

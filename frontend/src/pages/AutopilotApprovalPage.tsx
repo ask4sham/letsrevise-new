@@ -350,6 +350,7 @@ const AutopilotApprovalPage: React.FC = () => {
               <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Type</th>
               <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Topic</th>
               <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Preview</th>
+              <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Quality</th>
               <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Status</th>
               <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Created</th>
               <th style={{ padding: "10px 12px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Actions</th>
@@ -358,7 +359,7 @@ const AutopilotApprovalPage: React.FC = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
+                <td colSpan={8} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
                   Loading…
                 </td>
               </tr>
@@ -393,6 +394,29 @@ const AutopilotApprovalPage: React.FC = () => {
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", display: "block", whiteSpace: "nowrap" }}>
                         {item.titlePreview || "—"}
                       </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0", fontSize: 12 }}>
+                      {item.qualityScore != null ? (
+                        <span
+                          title={(item.qualityFlags || []).join(", ") || "No flags"}
+                          style={{
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            fontWeight: 600,
+                            background:
+                              item.qualityBand === "high"
+                                ? "#d1fae5"
+                                : item.qualityBand === "medium"
+                                ? "#fef3c7"
+                                : "#fee2e2",
+                            color: "#0f172a",
+                          }}
+                        >
+                          {item.qualityScore} {item.qualityBand ? `· ${item.qualityBand}` : ""}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>
                       <span style={{ padding: "2px 8px", background: "#fef3c7", color: "#92400e", borderRadius: 4, fontSize: 12 }}>

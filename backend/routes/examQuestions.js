@@ -6,6 +6,26 @@ const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomyService");
+const { enrichExamItems } = require("../utils/reviewQualityFlags");
+const { ensureLeanExamScored } = require("../utils/draftQualityScoring");
+const { applyExamAiRewrite, EXAM_ACTIONS } = require("../services/aiRewriteDraftAsset");
+
+/** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
+function finalizeExamQuestionsForList(items, query) {
+  const { sortBy, qualityBand: qualityBandQ } = query || {};
+  let list = (items || []).map((d) => ensureLeanExamScored(d));
+  if (qualityBandQ && ["high", "medium", "low"].includes(String(qualityBandQ).toLowerCase())) {
+    const b = String(qualityBandQ).toLowerCase();
+    list = list.filter((d) => d.metadata && d.metadata.qualityBand === b);
+  }
+  const sortKey = (sortBy && String(sortBy).toLowerCase()) || "updatedAt";
+  if (sortKey === "qualityscore") {
+    list.sort((a, b) => (b.metadata?.qualityScore ?? -1) - (a.metadata?.qualityScore ?? -1));
+  } else {
+    list.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  }
+  return list;
+}
 
 function isTeacher(req) {
   return req.user && req.user.userType === "teacher";
@@ -69,10 +89,43 @@ router.get("/mine", auth, async (req, res) => {
     const teacherId = req.user.userId || req.user._id;
     if (!teacherId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { specKey, topicKey: topicKeyQ, q, limit, difficulty, difficultyMin, difficultyMax, skill, estimatedTimeMaxSec } = req.query || {};
+    const {
+      specKey,
+      topicKey: topicKeyQ,
+      q,
+      limit,
+      difficulty,
+      difficultyMin,
+      difficultyMax,
+      skill,
+      estimatedTimeMaxSec,
+      metadataSource,
+      lessonId,
+      status: statusQ,
+      generationType,
+      sortBy,
+      qualityBand,
+    } = req.query || {};
     const lim = clampInt(limit, { min: 1, max: 200, fallback: 50 });
+    const needsQualityPass =
+      (sortBy && String(sortBy).toLowerCase() === "qualityscore") ||
+      (qualityBand && ["high", "medium", "low"].includes(String(qualityBand).toLowerCase()));
 
-    const query = { teacherId, status: { $in: ["draft", "published"] }, isArchived: { $ne: true } };
+    const query = { teacherId, isArchived: { $ne: true } };
+    if (statusQ && String(statusQ).trim() && ["draft", "published"].includes(String(statusQ).toLowerCase())) {
+      query.status = String(statusQ).toLowerCase();
+    } else {
+      query.status = { $in: ["draft", "published"] };
+    }
+    if (metadataSource && String(metadataSource).trim()) {
+      query["metadata.source"] = String(metadataSource).trim();
+    }
+    if (lessonId && mongoose.Types.ObjectId.isValid(String(lessonId))) {
+      query["metadata.lessonId"] = String(lessonId);
+    }
+    if (generationType && ["flashcard", "quiz", "exam"].includes(String(generationType).toLowerCase())) {
+      query["metadata.generationType"] = String(generationType).toLowerCase();
+    }
 
     // STRICT TAXONOMY: Only exact sub-topic matching. No specKey-only broadening.
     if (topicKeyQ && String(topicKeyQ).trim()) {
@@ -106,8 +159,16 @@ router.get("/mine", auth, async (req, res) => {
       if (Number.isFinite(t) && t >= 1) query.estimatedTimeSec = { $lte: t };
     }
 
-    const items = await ExamQuestion.find(query).sort({ updatedAt: -1 }).limit(lim).lean();
-    return res.status(200).json({ items: items.map(toResponseQuestion) });
+    let items;
+    if (needsQualityPass) {
+      items = await ExamQuestion.find(query).sort({ updatedAt: -1 }).lean();
+      items = finalizeExamQuestionsForList(items, { sortBy, qualityBand }).slice(0, lim);
+    } else {
+      items = await ExamQuestion.find(query).sort({ updatedAt: -1 }).limit(lim).lean();
+      items = finalizeExamQuestionsForList(items, { sortBy: "updatedAt" });
+    }
+    const enriched = enrichExamItems(items);
+    return res.status(200).json({ items: enriched.map(toResponseQuestion) });
   } catch (err) {
     console.error("ExamQuestions GET /mine error:", err);
     return res.status(400).json({ error: err.message || "Failed to load exam questions" });
@@ -125,13 +186,39 @@ router.get("/", auth, async (req, res) => {
   }
   try {
     const teacherId = req.user.userId || req.user._id;
-    const { subject, examBoard, level, topic, topicKey, specKey: specKeyQ, type, status, mineOnly, page: pageQ, limit: limitQ } = req.query;
+    const {
+      subject,
+      examBoard,
+      level,
+      topic,
+      topicKey,
+      specKey: specKeyQ,
+      type,
+      status,
+      mineOnly,
+      page: pageQ,
+      limit: limitQ,
+      metadataSource,
+      lessonId,
+      generationType,
+      sortBy,
+      qualityBand,
+    } = req.query;
     const query = {};
     // Teacher/admin: default = both draft and published (Worksheet Builder shows all bank questions)
     if (status !== undefined && status !== "") {
       query.status = String(status).trim().toLowerCase();
     } else {
       query.status = { $in: ["draft", "published"] };
+    }
+    if (metadataSource && String(metadataSource).trim()) {
+      query["metadata.source"] = String(metadataSource).trim();
+    }
+    if (lessonId && mongoose.Types.ObjectId.isValid(String(lessonId))) {
+      query["metadata.lessonId"] = String(lessonId);
+    }
+    if (generationType && ["flashcard", "quiz", "exam"].includes(String(generationType).toLowerCase())) {
+      query["metadata.generationType"] = String(generationType).toLowerCase();
     }
     // Restrict to current teacher only when mineOnly=1 (e.g. "my questions only")
     if (String(mineOnly) === "1" || String(mineOnly) === "true") {
@@ -153,20 +240,44 @@ router.get("/", auth, async (req, res) => {
     const page = usePagination ? clampInt(pageQ, { min: 1, max: 1000, fallback: 1 }) : 1;
     const limit = usePagination ? clampInt(limitQ, { min: 1, max: 100, fallback: 50 }) : 50;
 
+    const needsQualityPass =
+      (sortBy && String(sortBy).toLowerCase() === "qualityscore") ||
+      (qualityBand && ["high", "medium", "low"].includes(String(qualityBand).toLowerCase()));
+
     if (usePagination) {
+      if (needsQualityPass) {
+        let all = await ExamQuestion.find(query).lean();
+        all = finalizeExamQuestionsForList(all, { sortBy, qualityBand });
+        const total = all.length;
+        const questions = all.slice((page - 1) * limit, page * limit);
+        const enriched = enrichExamItems(questions);
+        return res.json({
+          success: true,
+          questions: enriched.map(toResponseQuestion),
+          pagination: { page, limit, total },
+        });
+      }
       const [questions, total] = await Promise.all([
         ExamQuestion.find(query).sort({ updatedAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
         ExamQuestion.countDocuments(query),
       ]);
+      const ordered = finalizeExamQuestionsForList(questions, { sortBy: "updatedAt" });
+      const enriched = enrichExamItems(ordered);
       return res.json({
         success: true,
-        questions: questions.map(toResponseQuestion),
+        questions: enriched.map(toResponseQuestion),
         pagination: { page, limit, total },
       });
     }
 
-    const questions = await ExamQuestion.find(query).sort({ updatedAt: -1 }).lean();
-    return res.json({ success: true, questions: questions.map(toResponseQuestion) });
+    let questions = await ExamQuestion.find(query).sort({ updatedAt: -1 }).lean();
+    if (needsQualityPass) {
+      questions = finalizeExamQuestionsForList(questions, { sortBy, qualityBand });
+    } else {
+      questions = finalizeExamQuestionsForList(questions, { sortBy: "updatedAt" });
+    }
+    const enriched = enrichExamItems(questions);
+    return res.json({ success: true, questions: enriched.map(toResponseQuestion) });
   } catch (err) {
     console.error("ExamQuestions GET error:", err);
     return res.status(500).json({ success: false, msg: "Server error" });
@@ -266,6 +377,40 @@ router.put("/:id", auth, async (req, res) => {
   } catch (err) {
     console.error("ExamQuestions PUT error:", err);
     return res.status(500).json({ success: false, msg: "Server error" });
+  }
+});
+
+// POST /api/exam-questions/:id/ai-rewrite — draft mcq/short only; LLM JSON (owner/admin)
+router.post("/:id/ai-rewrite", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers and admins only" });
+  }
+  try {
+    const id = req.params.id;
+    const action = String(req.body?.action || "").trim();
+    if (!action || !EXAM_ACTIONS.has(action)) {
+      return res.status(400).json({
+        success: false,
+        msg: `Invalid action. Allowed: ${[...EXAM_ACTIONS].join(", ")}`,
+      });
+    }
+    const teacherId = req.user.userId || req.user._id;
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, msg: "Invalid ID" });
+    const query = isAdmin ? { _id: id } : { _id: id, teacherId };
+    const ex = await ExamQuestion.findOne(query);
+    if (!ex) return res.status(404).json({ success: false, msg: "Question not found" });
+    if (String(ex.status) !== "draft") return res.status(400).json({ success: false, msg: "AI rewrite is only for drafts" });
+    await applyExamAiRewrite(ex, action);
+    const enriched = enrichExamItems([ex.toObject ? ex.toObject() : ex])[0];
+    return res.json({ success: true, question: toResponseQuestion(enriched) });
+  } catch (err) {
+    if (err.code === "LLM_NOT_CONFIGURED" || err.code === "LLM_EMPTY" || err.code === "LLM_BAD_JSON") {
+      return res.status(503).json({ success: false, msg: err.message || "LLM unavailable" });
+    }
+    const code = err.statusCode || 400;
+    console.error("ExamQuestions ai-rewrite error:", err);
+    return res.status(code >= 400 && code < 500 ? code : 400).json({ success: false, msg: err.message || "Bad request" });
   }
 });
 

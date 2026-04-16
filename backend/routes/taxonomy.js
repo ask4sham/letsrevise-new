@@ -4,9 +4,12 @@
  */
 const express = require("express");
 const router = express.Router();
+const auth = require("../middleware/auth");
+const requireContentManager = require("../middleware/requireContentManager");
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { getMergedTaxonomyBySpecKey } = require("../services/adminTaxonomyService");
 const { getCreateLessonOptionsMerged } = require("../services/taxonomyService");
+const { postAdminSubtopic } = require("./adminTaxonomy");
 
 /**
  * GET /api/taxonomy/aqa-gcse-biology
@@ -82,5 +85,19 @@ router.get("/aqa-gcse-maths-higher", (req, res) => serveMergedTaxonomy("aqa-gcse
 router.get("/aqa-l2-further-maths", (req, res) => serveMergedTaxonomy("aqa-l2-further-maths", res));
 router.get("/aqa-gcse-english-literature", (req, res) => serveMergedTaxonomy("aqa-gcse-english-literature", res));
 router.get("/aqa-gcse-english-language", (req, res) => serveMergedTaxonomy("aqa-gcse-english-language", res));
+
+/**
+ * POST /api/taxonomy/topics — Pattern B: create validated custom sub-topic (alias of POST /api/admin/taxonomy/topics).
+ * Body: specKey, parentKey (or unitKey), title (or subTopicTitle), optional mapsToCanonicalKey, inheritQuestionBankFrom, inheritAnalyticsFrom.
+ */
+router.post("/topics", auth, requireContentManager, async (req, res) => {
+  const b = req.body || {};
+  req.body = {
+    ...b,
+    subTopicTitle: b.title || b.subTopicTitle,
+    unitKey: b.parentKey || b.unitKey,
+  };
+  return postAdminSubtopic(req, res);
+});
 
 module.exports = router;

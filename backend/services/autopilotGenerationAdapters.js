@@ -15,6 +15,7 @@ const { filterBankItemsByDrift } = require("../utils/topicDriftValidation");
 const { parseTopicKey } = require("../utils/topicKey");
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { buildAutopilotPromptMetadata } = require("./autopilotPromptMetadata");
+const { scoreFlashcardDraft, scoreQuizMcqDraft, scoreExamDraft, metadataQualityPatch } = require("../utils/draftQualityScoring");
 
 function parseSpecToMeta(specKey) {
   const parts = (specKey || "").split("-").filter(Boolean);
@@ -127,7 +128,10 @@ async function generateFlashcardsForTopic({ specKey, topicKey, count = 5, adminU
       back,
       status: initialStatus === "published" ? "published" : "draft",
       fingerprint: fp,
-      metadata: { ...generatedFrom },
+      metadata: {
+        ...generatedFrom,
+        ...metadataQualityPatch(scoreFlashcardDraft({ front, back }), "heuristic"),
+      },
     });
     await doc.save();
     ids.push(String(doc._id));
@@ -139,7 +143,7 @@ async function generateFlashcardsForTopic({ specKey, topicKey, count = 5, adminU
  * Generate quiz questions for topic. Uses starter pack; saves as draft or published per initialStatus.
  * @param {{ specKey, topicKey, count?, adminUserId, promptPack? }}
  */
-async function generateQuizForTopic({ specKey, topicKey, count = 3, adminUserId, promptPack }) {
+async function generateQuizForTopic({ specKey, topicKey, count = 3, adminUserId, promptPack, initialStatus = "draft" }) {
   if (!adminUserId) return { status: "skipped", reason: "adminUserId required" };
   const pack = await _getStarterPack(specKey, topicKey, adminUserId);
   const quizItems = pack?.quiz || [];
@@ -248,6 +252,7 @@ async function generateExamQuestionsForTopic({ specKey, topicKey, count = 2, adm
       ids.push(`dry-run-${fp.slice(0, 8)}`);
       continue;
     }
+    const msArr = markScheme ? [markScheme] : [];
     const doc = new ExamQuestion({
       teacherId: adminUserId,
       subject: meta.subject,
@@ -258,10 +263,21 @@ async function generateExamQuestionsForTopic({ specKey, topicKey, count = 2, adm
       type: "short",
       marks,
       question,
-      markScheme: markScheme ? [markScheme] : [],
+      markScheme: msArr,
       status: initialStatus === "published" ? "published" : "draft",
       fingerprint: fp,
-      metadata: { ...generatedFrom },
+      metadata: {
+        ...generatedFrom,
+        ...metadataQualityPatch(
+          scoreExamDraft({
+            question,
+            marks,
+            markScheme: msArr,
+            type: "short",
+          }),
+          "heuristic"
+        ),
+      },
     });
     await doc.save();
     ids.push(String(doc._id));

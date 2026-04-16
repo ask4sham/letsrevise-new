@@ -62,6 +62,25 @@ export async function autoGenerateFromBanks(
   return res.data!;
 }
 
+/** AI: draft flashcards + quiz MCQs (+ optional exam) into topic banks from lesson page content. Never auto-publishes. */
+export type GenerateLessonAssetsResult = {
+  lessonId: string;
+  /** ISO timestamp of lesson `updatedAt` at generation time (matches metadata on new drafts). */
+  lessonUpdatedAtSnapshot?: string;
+  generated: { flashcards: number; quizQuestions: number; examQuestions: number };
+  skipped: Array<{ type: string; reason: string }>;
+  errors: Array<{ type: string; message: string }>;
+  status: string;
+};
+
+export async function generateLessonAssets(
+  lessonId: string,
+  opts?: { generateFlashcards?: boolean; generateQuizQuestions?: boolean; generateExamQuestions?: boolean }
+): Promise<GenerateLessonAssetsResult> {
+  const res = await api.post<GenerateLessonAssetsResult>(`/lessons/${lessonId}/generate-assets`, opts ?? {});
+  return res.data!;
+}
+
 /** Reuse suggestions: lessons matching topicKey (max 10). includeDrafts defaults true for teachers. */
 export type LessonByTopicKeyItem = {
   _id: string;

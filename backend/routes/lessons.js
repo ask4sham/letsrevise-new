@@ -19,12 +19,14 @@ const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("../utils/topicTaxonomy");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
+const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { fetchTopicFlashcardsForSeed, fetchTopicFlashcardsForTopicOnly } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
+const { generateLessonAssets } = require("../services/generateLessonAssets");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
@@ -115,6 +117,37 @@ function isTeacherOrAdmin(user) {
 
 function isStudent(user) {
   return user?.userType === "student";
+}
+
+/**
+ * Pattern B: validate lesson topic (registry) and build ExamQuestion bank filter using
+ * resolveQuestionBankNamespacedTopicKey (inheritQuestionBankFrom / mapsToCanonicalKey).
+ * @returns {{ namespacedKey: string|null, examBankTopicFilter: { topicKey: unknown }|null }}
+ */
+function examBankTopicQueryFromLessonTopicKey(topicKeyRaw) {
+  if (!topicKeyRaw || typeof topicKeyRaw !== "string" || !topicKeyRaw.trim()) {
+    return { namespacedKey: null, examBankTopicFilter: null };
+  }
+  const trimmed = topicKeyRaw.trim();
+  const parsed = parseTopicKey(trimmed);
+  const specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
+  const topicOnly = parsed.topicKey || trimmed.toLowerCase();
+  const namespaced = trimmed.includes(":") ? trimmed : buildTopicKey(specKey, topicOnly);
+  try {
+    const nsSpec = parseTopicKey(namespaced).specKey || specKey;
+    assertValidNamespacedTopicKey(nsSpec, namespaced);
+  } catch (_) {
+    return { namespacedKey: null, examBankTopicFilter: null };
+  }
+  const nsSpec = parseTopicKey(namespaced).specKey || specKey;
+  const bankNs = resolveQuestionBankNamespacedTopicKey(nsSpec, namespaced);
+  const bankParsed = parseTopicKey(bankNs);
+  const bankSpec = bankParsed.specKey || nsSpec;
+  const bankTopicOnly = bankParsed.topicKey || topicOnly;
+  const candidates = queryCandidates(bankSpec, bankTopicOnly);
+  const examBankTopicFilter =
+    candidates.length > 0 ? { topicKey: { $in: candidates } } : { topicKey: bankNs };
+  return { namespacedKey: namespaced, examBankTopicFilter };
 }
 
 /* =========================================
@@ -811,6 +844,26 @@ async function createLessonHandler(req, res) {
         : 0,
       hasHero: lessonData.pages?.[0]?.hero ? true : false,
     });
+
+    // Pattern B: reject unregistered topicKey; normalize to namespaced form
+    if (typeof lessonData.topicKey === "string" && lessonData.topicKey.trim()) {
+      try {
+        const spec =
+          (lessonData.specKey && String(lessonData.specKey).trim()) ||
+          parseTopicKey(lessonData.topicKey).specKey ||
+          DEFAULT_SPEC_LEGACY;
+        const raw = lessonData.topicKey.trim();
+        const namespaced = raw.includes(":") ? raw : buildTopicKey(spec, raw);
+        assertValidNamespacedTopicKey(spec, namespaced);
+        lessonData.topicKey = namespaced;
+        lessonData.specKey = lessonData.specKey || spec;
+      } catch (e) {
+        if (e.code === "INVALID_SPEC_KEY" || e.code === "INVALID_TOPIC_KEY") {
+          return res.status(400).json({ msg: e.message || "Invalid topicKey for this specification." });
+        }
+        throw e;
+      }
+    }
 
     const lesson = new Lesson(lessonData);
     await lesson.save();
@@ -2377,25 +2430,17 @@ router.get(
       // PR-CONTENT-TARGETING-1: prefer query topicKey (namespaced) when valid so practice is strictly scoped
       const queryTopicKey = typeof req.query.topicKey === "string" ? req.query.topicKey.trim() : null;
       let topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
-      let parsed = parseTopicKey(topicKey);
-      let specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
-      let topicOnly = parsed.topicKey || topicKey.trim().toLowerCase();
       if (queryTopicKey && queryTopicKey.includes(":")) {
         try {
           const qParsed = parseTopicKey(queryTopicKey);
           const qSpec = qParsed.specKey || DEFAULT_SPEC_LEGACY;
-          const qSlug = qParsed.topicKey || queryTopicKey.slice(queryTopicKey.indexOf(":") + 1).trim();
-          if (findTopicBySpecAndKey(qSpec, qSlug) || findTopicByKey(queryTopicKey)) {
-            topicKey = queryTopicKey;
-            parsed = qParsed;
-            specKey = qSpec;
-            topicOnly = qSlug;
-          }
-        } catch (_) { /* keep lesson-derived topicKey */ }
+          assertValidNamespacedTopicKey(qSpec, queryTopicKey.trim());
+          topicKey = queryTopicKey;
+        } catch (_) {
+          /* keep lesson-derived topicKey */
+        }
       }
-      const validatedKey =
-        topicKey && (findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(topicKey)) ? topicKey : null;
-      const topicQueryCandidates = validatedKey ? queryCandidates(specKey, topicOnly) : [];
+      const { namespacedKey: validatedKey, examBankTopicFilter } = examBankTopicQueryFromLessonTopicKey(topicKey);
 
       const mapQuestion = (q) => {
         const options = Array.isArray(q.options) ? q.options : [];
@@ -2439,7 +2484,7 @@ router.get(
         source = "attached";
       }
 
-      if (questions.length === 0 && validatedKey && topicQueryCandidates.length > 0) {
+      if (questions.length === 0 && validatedKey && examBankTopicFilter) {
         const ownershipFilter = {
           $or: [
             { teacherId: lesson.teacherId },
@@ -2448,7 +2493,7 @@ router.get(
           ],
         };
         let bankRaw = await ExamQuestion.find({
-          topicKey: { $in: topicQueryCandidates },
+          ...examBankTopicFilter,
           status: "published",
           ...ownershipFilter,
         })
@@ -2523,13 +2568,8 @@ router.get(
         .lean();
       if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
       const topicKey = lesson.topicKey || topicToKey(lesson.topic) || "";
-      const parsed = parseTopicKey(topicKey);
-      const specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
-      const topicOnly = parsed.topicKey || topicKey.trim().toLowerCase();
-      const validatedKey =
-        topicKey && (findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(topicKey)) ? topicKey : null;
-      const topicQueryCandidates = validatedKey ? queryCandidates(specKey, topicOnly) : [];
-      if (!validatedKey || topicQueryCandidates.length === 0) {
+      const { namespacedKey: validatedKey, examBankTopicFilter } = examBankTopicQueryFromLessonTopicKey(topicKey);
+      if (!validatedKey || !examBankTopicFilter) {
         return res.status(200).json({
           ok: true,
           allowed: true,
@@ -2545,7 +2585,7 @@ router.get(
         ],
       };
       const bankQuestions = await ExamQuestion.find({
-        topicKey: { $in: topicQueryCandidates },
+        ...examBankTopicFilter,
         status: "published",
         ...ownershipFilter,
       })
@@ -3027,7 +3067,25 @@ router.put("/:id", auth, async (req, res) => {
     if (typeof updates.specKey === "string" && updates.specKey.trim()) lesson.specKey = updates.specKey.trim();
     if (typeof updates.mainTopic === "string" && updates.mainTopic.trim()) lesson.mainTopic = updates.mainTopic.trim();
     if (typeof updates.subTopic === "string" && updates.subTopic.trim()) lesson.subTopic = updates.subTopic.trim();
-    if (typeof updates.topicKey === "string" && updates.topicKey.trim()) lesson.topicKey = updates.topicKey.trim();
+    if (typeof updates.topicKey === "string" && updates.topicKey.trim()) {
+      try {
+        const spec =
+          (typeof updates.specKey === "string" && updates.specKey.trim()) ||
+          lesson.specKey ||
+          parseTopicKey(updates.topicKey).specKey ||
+          DEFAULT_SPEC_LEGACY;
+        const raw = updates.topicKey.trim();
+        const namespaced = raw.includes(":") ? raw : buildTopicKey(spec, raw);
+        assertValidNamespacedTopicKey(spec, namespaced);
+        lesson.topicKey = namespaced;
+        if (!lesson.specKey) lesson.specKey = spec;
+      } catch (e) {
+        if (e.code === "INVALID_SPEC_KEY" || e.code === "INVALID_TOPIC_KEY") {
+          return res.status(400).json({ msg: e.message || "Invalid topicKey for this specification." });
+        }
+        throw e;
+      }
+    }
     delete updates.specKey;
     delete updates.mainTopic;
     delete updates.subTopic;
@@ -3296,6 +3354,47 @@ router.post("/:id/auto-generate", auth, requireLessonOwnerOrAdmin, async (req, r
   }
 });
 
+/**
+ * POST /api/lessons/:id/generate-assets — AI draft flashcards + quiz MCQs (+ optional exam) into topic banks.
+ * Manual trigger only; all items saved as draft. Requires OPENAI_API_KEY / LLM_API_KEY.
+ * Body: { generateFlashcards?: true, generateQuizQuestions?: true, generateExamQuestions?: false }
+ */
+router.post("/:id/generate-assets", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const b = req.body || {};
+    const result = await generateLessonAssets({
+      lessonId,
+      ownerId: req.user._id || req.user.userId || req.user.id,
+      generateFlashcards: b.generateFlashcards !== false,
+      generateQuizQuestions: b.generateQuizQuestions !== false,
+      generateExamQuestions: b.generateExamQuestions === true,
+    });
+    return res.status(200).json({
+      lessonId: result.lessonId,
+      generated: result.generated,
+      skipped: result.skipped,
+      errors: result.errors,
+      status: result.status,
+    });
+  } catch (err) {
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: err.message || "Lesson not found" });
+    }
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message, code: err.code });
+    }
+    if (err.code === "LLM_NOT_CONFIGURED") {
+      return res.status(503).json({ error: err.message, code: err.code });
+    }
+    console.error("generate-assets error:", err);
+    return sendInternalError("lessons/generate-assets", err, res, { extra: { error: err.message || "Generation failed" } });
+  }
+});
+
 // Auto-attach content (fill-only when empty): flashcards + quiz (+ optional assessments) from topic banks
 router.post("/:id/auto-attach-content", auth, requireLessonOwnerOrAdmin, async (req, res) => {
   try {
@@ -3424,11 +3523,12 @@ async function handleGenerateFlashcardsFromTopic(req, res) {
       }
       throw err;
     }
+    const bankTopicKey = resolveQuestionBankNamespacedTopicKey(specKey, namespacedTopicKey);
     const ownerId = lesson.teacherId || lesson.createdBy;
     if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
-    let bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 20, { publishedOnly: true });
+    let bankCards = await fetchTopicFlashcardsForSeed(ownerId, bankTopicKey, 20, { publishedOnly: true });
     if (bankCards.length === 0) {
-      bankCards = await fetchTopicFlashcardsForTopicOnly(namespacedTopicKey, 20, {
+      bankCards = await fetchTopicFlashcardsForTopicOnly(bankTopicKey, 20, {
         publishedOnly: true,
         specKey,
       });
@@ -3462,10 +3562,14 @@ async function handleSyncTopicBankFlashcards(req, res) {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
     let namespacedTopicKey;
+    let bankTopicKey;
+    let bankSpecKey;
     try {
       const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
+      bankSpecKey = resolved.specKey;
       namespacedTopicKey = (req.body && req.body.topicKey) ? String(req.body.topicKey).trim() : resolved.namespacedTopicKey;
       if (req.body && req.body.topicKey) assertValidNamespacedTopicKey(resolved.specKey, namespacedTopicKey);
+      bankTopicKey = resolveQuestionBankNamespacedTopicKey(resolved.specKey, namespacedTopicKey);
     } catch (err) {
       if (err.code === "INVALID_SPEC_KEY" || err.code === "INVALID_TOPIC_KEY") {
         return res.status(400).json({
@@ -3477,19 +3581,18 @@ async function handleSyncTopicBankFlashcards(req, res) {
     const ownerId = lesson.teacherId || lesson.createdBy;
     if (!ownerId) return res.status(400).json({ msg: "Lesson has no owner" });
 
-    let bankCards = await fetchTopicFlashcardsForSeed(ownerId, namespacedTopicKey, 50, { publishedOnly: true });
+    let bankCards = await fetchTopicFlashcardsForSeed(ownerId, bankTopicKey, 50, { publishedOnly: true });
     const usedFallback = bankCards.length === 0;
     if (bankCards.length === 0) {
-      const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
-      bankCards = await fetchTopicFlashcardsForTopicOnly(namespacedTopicKey, 50, {
+      bankCards = await fetchTopicFlashcardsForTopicOnly(bankTopicKey, 50, {
         publishedOnly: true,
-        specKey: resolved.specKey,
+        specKey: bankSpecKey,
       });
     }
 
     if (process.env.NODE_ENV !== "production") {
       const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
-      console.log("[sync-topic-bank] lessonId:", lessonId, "namespacedTopicKey:", namespacedTopicKey, "specKey:", resolved.specKey, "req.body.topicKey:", req.body?.topicKey, "ownerId:", ownerId, "usedFallback:", usedFallback, "bankCards.length:", bankCards.length);
+      console.log("[sync-topic-bank] lessonId:", lessonId, "namespacedTopicKey:", namespacedTopicKey, "bankTopicKey:", bankTopicKey, "specKey:", resolved.specKey, "req.body.topicKey:", req.body?.topicKey, "ownerId:", ownerId, "usedFallback:", usedFallback, "bankCards.length:", bankCards.length);
       if (bankCards.length > 0) {
         console.log("[sync-topic-bank] first 3 bank cards:", bankCards.slice(0, 3).map((tc) => ({ id: tc.id, topicBankId: tc.topicBankId })));
       }
@@ -3650,9 +3753,11 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
     let namespacedTopicKey;
+    let bankTopicKey;
     try {
       const resolved = getValidNamespacedTopicKeyFromLesson(lesson);
       namespacedTopicKey = resolved.namespacedTopicKey;
+      bankTopicKey = resolveQuestionBankNamespacedTopicKey(resolved.specKey, resolved.namespacedTopicKey);
     } catch (err) {
       if (err.code === "INVALID_TOPIC_KEY") {
         return res.status(400).json({ msg: err.message || "Lesson must have a valid topicKey." });
@@ -3671,7 +3776,7 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
 
     const bankQuestions = await TopicQuizQuestion.find({
       _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
-      topicKey: namespacedTopicKey,
+      topicKey: bankTopicKey,
       status: "published",
       kind: "quiz",
       isArchived: { $ne: true },

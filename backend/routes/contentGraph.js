@@ -678,6 +678,88 @@ router.get("/autopilot/spec/:specKey/preview", auth, requireContentManager, asyn
   }
 });
 
+/** Lean content engine (coverage → asset → quality → approval) — draft-only; no auto-publish */
+const autopilotContentEngineRunner = require("../services/autopilots/autopilotRunner");
+
+/**
+ * POST /api/content-graph/autopilot/content-engine/run
+ * Body: { phase, specKey?, dryRun?, limit?, minPriorityScore?, lessonLimit?, maxQualityItems?, approvalLimit? }
+ */
+router.post("/autopilot/content-engine/run", auth, requireContentManager, async (req, res) => {
+  try {
+    const {
+      phase,
+      specKey,
+      dryRun,
+      limit,
+      minPriorityScore,
+      lessonLimit,
+      maxQualityItems,
+      approvalLimit,
+    } = req.body || {};
+    if (!phase || typeof phase !== "string") {
+      return res.status(400).json({ error: "phase required (coverage | asset | quality | approval)" });
+    }
+    const adminUserId = req.user?._id?.toString?.() || req.user?.userId || req.user?.id;
+    if (!adminUserId) return res.status(401).json({ error: "User id required" });
+    const teacherName =
+      `${req.user?.firstName || ""} ${req.user?.lastName || ""}`.trim() || req.user?.email || "Admin";
+    const result = await autopilotContentEngineRunner.runContentEngine({
+      phase: String(phase).trim().toLowerCase(),
+      specKey: specKey != null && specKey !== "" ? String(specKey).trim() : "all-specs",
+      adminUserId,
+      teacherName,
+      dryRun: !!dryRun,
+      limit: typeof limit === "number" ? limit : undefined,
+      minPriorityScore: typeof minPriorityScore === "number" ? minPriorityScore : undefined,
+      lessonLimit: typeof lessonLimit === "number" ? lessonLimit : undefined,
+      maxQualityItems: typeof maxQualityItems === "number" ? maxQualityItems : undefined,
+      approvalLimit: typeof approvalLimit === "number" ? approvalLimit : undefined,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[content-graph] autopilot/content-engine/run", err);
+    res.status(500).json({ error: err?.message || "Content engine run failed" });
+  }
+});
+
+/**
+ * POST /api/content-graph/autopilot/content-engine/run-pipeline
+ * Runs all four phases in order (isolated failures).
+ */
+router.post("/autopilot/content-engine/run-pipeline", auth, requireContentManager, async (req, res) => {
+  try {
+    const {
+      specKey,
+      dryRun,
+      limit,
+      minPriorityScore,
+      lessonLimit,
+      maxQualityItems,
+      approvalLimit,
+    } = req.body || {};
+    const adminUserId = req.user?._id?.toString?.() || req.user?.userId || req.user?.id;
+    if (!adminUserId) return res.status(401).json({ error: "User id required" });
+    const teacherName =
+      `${req.user?.firstName || ""} ${req.user?.lastName || ""}`.trim() || req.user?.email || "Admin";
+    const result = await autopilotContentEngineRunner.runSafePipeline({
+      specKey: specKey != null && specKey !== "" ? String(specKey).trim() : "all-specs",
+      adminUserId,
+      teacherName,
+      dryRun: !!dryRun,
+      limit: typeof limit === "number" ? limit : undefined,
+      minPriorityScore: typeof minPriorityScore === "number" ? minPriorityScore : undefined,
+      lessonLimit: typeof lessonLimit === "number" ? lessonLimit : undefined,
+      maxQualityItems: typeof maxQualityItems === "number" ? maxQualityItems : undefined,
+      approvalLimit: typeof approvalLimit === "number" ? approvalLimit : undefined,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[content-graph] autopilot/content-engine/run-pipeline", err);
+    res.status(500).json({ error: err?.message || "Pipeline failed" });
+  }
+});
+
 /** Autopilot Readiness Diagnostics */
 const autopilotReadinessService = require("../services/autopilotReadinessService");
 
@@ -883,6 +965,7 @@ router.get("/autopilot/runs", auth, requireContentManager, async (req, res) => {
     const q = {};
     if (req.query.specKey) q.specKey = String(req.query.specKey).trim();
     if (req.query.topicKey) q.topicKey = { $regex: new RegExp(req.query.topicKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") };
+    if (req.query.contentEnginePhase) q.contentEnginePhase = String(req.query.contentEnginePhase).trim();
     if (req.query.runType) q.runType = String(req.query.runType).trim();
     if (req.query.dryRun !== undefined && req.query.dryRun !== "") q.dryRun = req.query.dryRun === "true";
     if (req.query.status) q.status = String(req.query.status).trim();

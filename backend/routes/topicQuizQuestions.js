@@ -11,6 +11,9 @@ const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../util
 const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomyService");
 const { fingerprint, dedupeIncoming } = require("../utils/quizDedupe");
 const { parseValidateDedupe, validateBulkItems, MAX_ITEMS } = require("../utils/parseBulkQuizQuestions");
+const { enrichQuizMcqItems } = require("../utils/reviewQualityFlags");
+const { ensureLeanQuizScored } = require("../utils/draftQualityScoring");
+const { applyQuizMcqAiRewrite, QUIZ_MCQ_ACTIONS } = require("../services/aiRewriteDraftAsset");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -39,7 +42,20 @@ router.get("/", auth, async (req, res) => {
   try {
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const { topicKey, specKey: specKeyQ, status, mineOnly, kind, exactMatch, forAttach } = req.query;
+    const {
+      topicKey,
+      specKey: specKeyQ,
+      status,
+      mineOnly,
+      kind,
+      exactMatch,
+      forAttach,
+      metadataSource,
+      lessonId,
+      generationType,
+      sortBy,
+      qualityBand: qualityBandQ,
+    } = req.query;
 
     if (!topicKey) {
       return res.status(400).json({ error: "topicKey query is required" });
@@ -59,6 +75,15 @@ router.get("/", auth, async (req, res) => {
     }
 
     const query = { ...topicQuery, isArchived: { $ne: true } };
+    if (metadataSource && String(metadataSource).trim()) {
+      query["metadata.source"] = String(metadataSource).trim();
+    }
+    if (lessonId && mongoose.Types.ObjectId.isValid(String(lessonId))) {
+      query["metadata.lessonId"] = String(lessonId);
+    }
+    if (generationType && ["flashcard", "quiz", "exam"].includes(String(generationType).toLowerCase())) {
+      query["metadata.generationType"] = String(generationType).toLowerCase();
+    }
     if (String(forAttach) === "1" || String(forAttach) === "true") {
       query.status = "published";
     } else if (String(mineOnly) === "1" || String(mineOnly) === "true" || !isAdmin) {
@@ -74,8 +99,20 @@ router.get("/", auth, async (req, res) => {
     const kindVal = ["quiz", "assessment"].includes(String(kind || "").toLowerCase()) ? String(kind).toLowerCase() : "quiz";
     query.kind = kindVal;
 
-    const items = await TopicQuizQuestion.find(query).sort({ updatedAt: -1 }).lean();
-    return res.json({ items });
+    let items = await TopicQuizQuestion.find(query).sort({ updatedAt: -1 }).lean();
+    items = items.map((doc) => ensureLeanQuizScored(doc));
+    if (qualityBandQ && ["high", "medium", "low"].includes(String(qualityBandQ).toLowerCase())) {
+      const b = String(qualityBandQ).toLowerCase();
+      items = items.filter((d) => d.metadata && d.metadata.qualityBand === b);
+    }
+    const sortKey = (sortBy && String(sortBy).toLowerCase()) || "updatedAt";
+    if (sortKey === "qualityscore") {
+      items.sort((a, b) => (b.metadata?.qualityScore ?? -1) - (a.metadata?.qualityScore ?? -1));
+    } else {
+      items.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+    }
+    const withReviewFlags = enrichQuizMcqItems(items);
+    return res.json({ items: withReviewFlags });
   } catch (err) {
     console.error("TopicQuizQuestions GET error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -291,11 +328,9 @@ router.post("/bulk", auth, async (req, res) => {
 
 const BULK_IDS_MAX = 500;
 
-// PR-EDGE-2: POST /api/topic-quiz-questions/bulk/publish (admin only)
+// PR-EDGE-2: POST /api/topic-quiz-questions/bulk/publish — teachers publish own items; admins any
 router.post("/bulk/publish", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
-  const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-  if (!isAdmin) return res.status(403).json({ error: "Publishing is admin-only" });
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
     if (!ids.length) return res.status(400).json({ error: "ids array is required and must not be empty" });
@@ -304,6 +339,7 @@ router.post("/bulk/publish", auth, async (req, res) => {
     if (validIds.length !== ids.length) return res.status(400).json({ error: "All ids must be valid ObjectIds" });
     const objIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
     const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
     const query = { _id: { $in: objIds } };
     if (!isAdmin) query.ownerId = ownerId;
     const permitted = await TopicQuizQuestion.countDocuments(query);
@@ -337,6 +373,63 @@ router.post("/bulk/unpublish", auth, async (req, res) => {
   } catch (err) {
     console.error("TopicQuizQuestions bulk unpublish error:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/topic-quiz-questions/bulk/delete — teachers delete own drafts; admins may delete any selected
+router.post("/bulk/delete", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) return res.status(400).json({ error: "ids array is required and must not be empty" });
+    if (ids.length > BULK_IDS_MAX) return res.status(400).json({ error: `Too many ids (max ${BULK_IDS_MAX})` });
+    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+    if (validIds.length !== ids.length) return res.status(400).json({ error: "All ids must be valid ObjectIds" });
+    const objIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const query = { _id: { $in: objIds } };
+    if (!isAdmin) {
+      query.ownerId = ownerId;
+      query.status = "draft";
+    }
+    const permitted = await TopicQuizQuestion.countDocuments(query);
+    if (!isAdmin && permitted === 0) return res.status(404).json({ error: "Not found" });
+    const result = await TopicQuizQuestion.deleteMany(query);
+    return res.json({ ok: true, deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error("TopicQuizQuestions bulk delete error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/topic-quiz-questions/:id/ai-rewrite — draft MCQ only; LLM JSON (owner/admin)
+router.post("/:id/ai-rewrite", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const id = req.params.id;
+    const action = String(req.body?.action || "").trim();
+    if (!action || !QUIZ_MCQ_ACTIONS.has(action)) {
+      return res.status(400).json({ error: `Invalid action. Allowed: ${[...QUIZ_MCQ_ACTIONS].join(", ")}` });
+    }
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+    const doc = await TopicQuizQuestion.findById(id);
+    if (!doc) return res.status(404).json({ error: "Question not found" });
+    if (!isAdmin && String(doc.ownerId) !== String(ownerId)) return res.status(404).json({ error: "Question not found" });
+    if (String(doc.status) !== "draft") return res.status(400).json({ error: "AI rewrite is only for drafts" });
+    await applyQuizMcqAiRewrite(doc, action);
+    const lean = doc.toObject ? doc.toObject() : doc;
+    const enriched = enrichQuizMcqItems([lean])[0];
+    return res.json({ question: enriched });
+  } catch (err) {
+    if (err.code === "LLM_NOT_CONFIGURED" || err.code === "LLM_EMPTY" || err.code === "LLM_BAD_JSON") {
+      return res.status(503).json({ error: err.message || "LLM unavailable" });
+    }
+    const code = err.statusCode || 400;
+    console.error("TopicQuizQuestions ai-rewrite error:", err);
+    return res.status(code >= 400 && code < 500 ? code : 400).json({ error: err.message || "Bad request" });
   }
 });
 

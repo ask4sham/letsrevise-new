@@ -92,6 +92,10 @@ export default function AdminTaxonomyPage() {
   const [formUnit, setFormUnit] = useState("");
   const [formUnitKey, setFormUnitKey] = useState("");
   const [formSubTopicTitle, setFormSubTopicTitle] = useState("");
+  /** Pattern B: optional mapping to canonical topic for bank / analytics */
+  const [formMapCanonical, setFormMapCanonical] = useState("");
+  const [formInheritBank, setFormInheritBank] = useState("");
+  const [formInheritAnalytics, setFormInheritAnalytics] = useState("");
   const [formSaving, setFormSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -158,10 +162,16 @@ export default function AdminTaxonomyPage() {
         unitKey: formUnitKey,
         unit: formUnit,
         subTopicTitle: title,
+        mapsToCanonicalKey: formMapCanonical.trim() || undefined,
+        inheritQuestionBankFrom: formInheritBank.trim() || undefined,
+        inheritAnalyticsFrom: formInheritAnalytics.trim() || undefined,
       });
       setMessage({ type: "success", text: `Sub-topic "${title}" added (${topicKey}).` });
       setAddSubtopicModal(false);
       setFormSubTopicTitle("");
+      setFormMapCanonical("");
+      setFormInheritBank("");
+      setFormInheritAnalytics("");
       setFormUnit("");
       setFormUnitKey("");
       setFormSpecKey("");
@@ -561,6 +571,36 @@ export default function AdminTaxonomyPage() {
                     slug: {toSlug(formSubTopicTitle)} → topicKey: {formSpecKey}:{toSlug(formSubTopicTitle)}
                   </p>
                 )}
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: 13 }}>Map to canonical topic (optional)</label>
+                <input
+                  type="text"
+                  value={formMapCanonical}
+                  onChange={(e) => setFormMapCanonical(e.target.value)}
+                  placeholder="e.g. aqa-gcse-biology:digestive-system"
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+                />
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: 13 }}>Question bank topicKey (optional)</label>
+                <input
+                  type="text"
+                  value={formInheritBank}
+                  onChange={(e) => setFormInheritBank(e.target.value)}
+                  placeholder="defaults to map above if set"
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+                />
+              </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontWeight: 600, marginBottom: 4, fontSize: 13 }}>Analytics rollup topicKey (optional)</label>
+                <input
+                  type="text"
+                  value={formInheritAnalytics}
+                  onChange={(e) => setFormInheritAnalytics(e.target.value)}
+                  placeholder="defaults to map above if set"
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+                />
               </div>
               <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                 <button type="button" onClick={() => setAddSubtopicModal(false)} style={{ padding: "0.5rem 1rem", background: "#f3f4f6", border: "none", borderRadius: 6, cursor: "pointer" }}>Cancel</button>

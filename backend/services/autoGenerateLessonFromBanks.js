@@ -6,7 +6,8 @@
  */
 const Lesson = require("../models/Lesson");
 const { topicToKey } = require("../utils/topicTaxonomy");
-const { parseTopicKey, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
+const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
@@ -48,7 +49,10 @@ async function autoGenerateLessonFromBanks({ lessonId, userId, mode = "all" }) {
   // Flashcards
   try {
     const specKey = (lesson.specKey && String(lesson.specKey).trim()) || parseTopicKey(topicKey).specKey || DEFAULT_SPEC_LEGACY;
-    const bankCards = await fetchTopicFlashcardsForSeed(lesson.teacherId, topicKey, 20, { publishedOnly: true, specKey });
+    const topicOnly = parseTopicKey(topicKey).topicKey || topicKey.trim().toLowerCase();
+    const namespaced = topicKey.includes(":") ? topicKey.trim() : buildTopicKey(specKey, topicOnly);
+    const bankTopicKey = resolveQuestionBankNamespacedTopicKey(specKey, namespaced);
+    const bankCards = await fetchTopicFlashcardsForSeed(lesson.teacherId, bankTopicKey, 20, { publishedOnly: true, specKey });
     lesson.flashcards = bankCards;
     await lesson.save();
     results.flashcardsAdded = bankCards.length;

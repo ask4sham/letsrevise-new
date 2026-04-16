@@ -7,7 +7,8 @@ const Lesson = require("../models/Lesson");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const { topicToKey } = require("../utils/topicTaxonomy");
-const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
+const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFromTopic");
 
 const FLASHCARD_LIMIT = 20;
@@ -81,16 +82,21 @@ async function autoAttachLessonContent({ lessonId, topicKey: topicKeyOverride, u
     parseTopicKey(topicKey).specKey ||
     DEFAULT_SPEC_LEGACY;
   const topicOnly = parseTopicKey(topicKey).topicKey || topicKey.trim().toLowerCase();
-  const candidates = queryCandidates(specKey, topicOnly);
-  const topicQuery = candidates.length ? { $in: candidates } : topicOnly;
+  const namespaced = topicKey.includes(":") ? topicKey.trim() : buildTopicKey(specKey, topicOnly);
+  const bankNs = resolveQuestionBankNamespacedTopicKey(specKey, namespaced);
+  const bankParsed = parseTopicKey(bankNs);
+  const bankSpec = bankParsed.specKey || specKey;
+  const bankTopicOnly = bankParsed.topicKey || topicOnly;
+  const candidates = queryCandidates(bankSpec, bankTopicOnly);
+  const topicQuery = candidates.length ? { $in: candidates } : bankNs;
 
   // 1) Flashcards: only if lesson has none
   const existingFlashcards = Array.isArray(lesson.flashcards) ? lesson.flashcards : [];
   if (existingFlashcards.length === 0) {
     try {
-      const bankCards = await fetchTopicFlashcardsForSeed(ownerId, topicKey, 50, {
+      const bankCards = await fetchTopicFlashcardsForSeed(ownerId, bankNs, 50, {
         publishedOnly: true,
-        specKey,
+        specKey: bankSpec,
       });
       const selected = deterministicTake(bankCards, seed + "flash", FLASHCARD_LIMIT);
       if (selected.length > 0) {

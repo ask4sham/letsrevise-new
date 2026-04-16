@@ -30,6 +30,14 @@ const AdminTaxonomyItemSchema = new mongoose.Schema(
     tier: { type: [String], default: ["foundation", "higher"] },
     requiredPractical: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
+    /** Pattern B: active sub-topics validate; archived are not valid for new lessons/banks. */
+    status: { type: String, enum: ["active", "archived"], default: "active", index: true },
+    /** Optional namespaced key of canonical topic (e.g. aqa-gcse-biology:digestive-system). */
+    mapsToCanonicalKey: { type: String, trim: true, default: "" },
+    inheritQuestionBankFrom: { type: String, trim: true, default: "" },
+    inheritAnalyticsFrom: { type: String, trim: true, default: "" },
+    /** Unit slug parent for admin tree (same as unitKey for subTopic). */
+    parentKey: { type: String, trim: true, default: "" },
   },
   { timestamps: true }
 );

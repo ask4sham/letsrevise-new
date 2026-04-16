@@ -9,6 +9,7 @@ const auth = require("../middleware/auth");
 const TopicMastery = require("../models/TopicMastery");
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const { sendInternalError } = require("../utils/safeErrorResponse");
+const { rollupTopicKeyForMastery } = require("../utils/resolveTopicRuntimeKeys");
 
 function isStudent(req) {
   const t = (req.user?.userType || req.user?.role || "").toString().toLowerCase();
@@ -38,13 +39,14 @@ router.post("/record", auth, async (req, res) => {
     if (!tk) {
       return res.status(400).json({ error: "topicKey is required" });
     }
+    const rollupKey = rollupTopicKeyForMastery(tk);
     const userId = req.user?._id || req.user?.userId || req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     const doc = await TopicMastery.findOneAndUpdate(
-      { userId, topicKey: tk },
+      { userId, topicKey: rollupKey },
       {
         $inc: { attempts: 1, correct: correct === true ? 1 : 0 },
       },
@@ -61,7 +63,7 @@ router.post("/record", auth, async (req, res) => {
     );
 
     return res.status(200).json({
-      topicKey: tk,
+      topicKey: rollupKey,
       attempts,
       correct: correctCount,
       masteryScore,
@@ -85,15 +87,16 @@ router.get("/", auth, async (req, res) => {
     if (!topicKey) {
       return res.status(400).json({ error: "topicKey query param is required" });
     }
+    const rollupKey = rollupTopicKeyForMastery(topicKey);
     const userId = req.user?._id || req.user?.userId || req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const doc = await TopicMastery.findOne({ userId, topicKey }).lean();
+    const doc = await TopicMastery.findOne({ userId, topicKey: rollupKey }).lean();
     if (!doc) {
       return res.json({
-        topicKey,
+        topicKey: rollupKey,
         attempts: 0,
         correct: 0,
         masteryScore: 0,
@@ -105,7 +108,7 @@ router.get("/", auth, async (req, res) => {
     const masteryScore = attempts > 0 ? correct / attempts : 0;
 
     return res.json({
-      topicKey: doc.topicKey,
+      topicKey: rollupKey,
       attempts,
       correct,
       masteryScore,
@@ -158,14 +161,16 @@ router.get("/aggregate", auth, async (req, res) => {
     for (const d of docs) {
       const tk = String(d.topicKey || "").trim();
       if (!tk) continue;
+      const rollupKey = rollupTopicKeyForMastery(tk);
+      const groupKey = rollupKey || tk;
       const attempts = d.attempts || 0;
       const correct = d.correct || 0;
       const score = attempts > 0 ? correct / attempts : 0;
 
-      if (!byTopic.has(tk)) {
-        byTopic.set(tk, { topicKey: tk, scores: [], strugglingCount: 0 });
+      if (!byTopic.has(groupKey)) {
+        byTopic.set(groupKey, { topicKey: groupKey, scores: [], strugglingCount: 0 });
       }
-      const entry = byTopic.get(tk);
+      const entry = byTopic.get(groupKey);
       entry.scores.push(score);
       if (score < 0.5 && attempts >= 1) {
         entry.strugglingCount += 1;

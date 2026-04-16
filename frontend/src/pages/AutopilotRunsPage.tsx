@@ -7,6 +7,8 @@ import { Link } from "react-router-dom";
 import {
   fetchAutopilotRuns,
   fetchAutopilotRunById,
+  runContentEngineAutopilot,
+  runContentEnginePipeline,
   type AutopilotRunSummary,
   type AutopilotRunDetail,
   type AutopilotRunsFilters,
@@ -67,6 +69,8 @@ const AutopilotRunsPage: React.FC = () => {
   const [detailRun, setDetailRun] = useState<AutopilotRunDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [engineSpec, setEngineSpec] = useState("aqa-gcse-biology");
+  const [engineBusy, setEngineBusy] = useState<string | null>(null);
 
   const loadRuns = useCallback(async () => {
     setLoading(true);
@@ -81,6 +85,45 @@ const AutopilotRunsPage: React.FC = () => {
       setLoading(false);
     }
   }, [filters]);
+
+  const runEnginePhase = async (phase: "coverage" | "asset" | "quality" | "approval") => {
+    setEngineBusy(phase);
+    try {
+      await runContentEngineAutopilot({
+        phase,
+        specKey: engineSpec || undefined,
+        dryRun: false,
+      });
+      setToast({ message: `Content engine (${phase}) finished — see run list below.`, type: "success" });
+      await loadRuns();
+    } catch (err: any) {
+      setToast({
+        message: err?.response?.data?.error || err?.message || "Content engine run failed",
+        type: "error",
+      });
+    } finally {
+      setEngineBusy(null);
+    }
+  };
+
+  const runEnginePipeline = async () => {
+    setEngineBusy("pipeline");
+    try {
+      await runContentEnginePipeline({
+        specKey: engineSpec || undefined,
+        dryRun: false,
+      });
+      setToast({ message: "Safe pipeline finished — see run list below.", type: "success" });
+      await loadRuns();
+    } catch (err: any) {
+      setToast({
+        message: err?.response?.data?.error || err?.message || "Pipeline failed",
+        type: "error",
+      });
+    } finally {
+      setEngineBusy(null);
+    }
+  };
 
   useEffect(() => {
     loadRuns();
@@ -129,6 +172,75 @@ const AutopilotRunsPage: React.FC = () => {
           ← Back to Admin
         </Link>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>Autopilot Run History</h1>
+      </div>
+
+      {/* Lean content engine — manual triggers; draft-only */}
+      <div
+        style={{
+          marginBottom: "1.25rem",
+          padding: "1rem",
+          border: "1px solid #cbd5e1",
+          borderRadius: 8,
+          background: "#f8fafc",
+        }}
+      >
+        <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 15 }}>Content engine (safe pipeline)</div>
+        <p style={{ margin: "0 0 10px", fontSize: 13, color: "#475569" }}>
+          Runs coverage → asset → quality → approval helpers. Does not publish lessons or banks. Pick a spec for
+          coverage-scoped runs; other phases filter when a spec is set.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10 }}>
+          <select
+            value={engineSpec}
+            onChange={(e) => setEngineSpec(e.target.value)}
+            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
+          >
+            {SPEC_OPTIONS.filter((o) => o.value).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label} (engine)
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {(["coverage", "asset", "quality", "approval"] as const).map((phase) => (
+            <button
+              key={phase}
+              type="button"
+              disabled={!!engineBusy}
+              onClick={() => runEnginePhase(phase)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "1px solid #0369a1",
+                background: engineBusy === phase ? "#e2e8f0" : "#fff",
+                color: "#0369a1",
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: engineBusy ? "not-allowed" : "pointer",
+              }}
+            >
+              {engineBusy === phase ? "…" : `Run ${phase}`}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={!!engineBusy}
+            onClick={runEnginePipeline}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 6,
+              border: "none",
+              background: engineBusy === "pipeline" ? "#e2e8f0" : "#0369a1",
+              color: "#fff",
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: engineBusy ? "not-allowed" : "pointer",
+            }}
+          >
+            {engineBusy === "pipeline" ? "…" : "Run safe pipeline"}
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -223,13 +335,13 @@ const AutopilotRunsPage: React.FC = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
+                <td colSpan={9} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
                   Loading…
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
+                <td colSpan={9} style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
                   No runs found. Run Autopilot from Content Coverage to create records.
                 </td>
               </tr>
@@ -242,6 +354,7 @@ const AutopilotRunsPage: React.FC = () => {
                 >
                   <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>{formatDate(run.createdAt)}</td>
                   <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>{run.runType}</td>
+                  <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>{run.contentEnginePhase || "—"}</td>
                   <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>{run.specKey}</td>
                   <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>{run.topicKey || "—"}</td>
                   <td style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>{run.dryRun ? "Yes" : "No"}</td>

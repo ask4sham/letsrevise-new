@@ -2,6 +2,7 @@
  * PR-PAST-PAPERS-UI-3: Exam question bank — list mine, attach from bank.
  */
 
+import api from "../services/api";
 import { getErrorMessageFromData } from "../utils/apiErrorMessage";
 
 export type ExamQuestion = {
@@ -85,4 +86,16 @@ export async function attachFromBank(params: {
   const data = await res.json();
   if (!res.ok) throw new Error(getErrorMessageFromData(data, "Attach failed"));
   return data;
+}
+
+/** Draft mcq/short only: LLM rewrite (validate + save). */
+export async function aiRewriteExamQuestion(id: string, action: string): Promise<ExamQuestion & Record<string, unknown>> {
+  const res = await api.post<{ success: boolean; question: ExamQuestion & Record<string, unknown>; msg?: string }>(
+    `/exam-questions/${id}/ai-rewrite`,
+    { action }
+  );
+  if (!res.data?.success || !res.data.question) {
+    throw new Error(res.data?.msg || "Rewrite failed");
+  }
+  return res.data.question;
 }

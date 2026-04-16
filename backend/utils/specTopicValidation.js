@@ -1,4 +1,5 @@
 const { getTaxonomyBySpecKey } = require("./topicTaxonomy");
+const { isValidTopicSlugForSpec } = require("./specTopicRegistry");
 
 /**
  * Ensures specKey exists in taxonomy. Use before processing items to fail fast (e.g. 400).
@@ -14,26 +15,22 @@ function assertValidSpecKey(specKey) {
 }
 
 /**
- * Ensures the provided (specKey, topicKey) exists in taxonomy.
+ * Ensures the provided (specKey, topicKey) exists in taxonomy (static JSON OR active admin sub-topic).
  * IMPORTANT: topicKey here must be the NON-namespaced slug (taxonomy key).
  */
 function assertValidSpecTopic({ specKey, topicKey }) {
-  const taxonomy = getTaxonomyBySpecKey(specKey);
-  if (!taxonomy) {
-    const err = new Error(`Unknown specKey: ${specKey}`);
-    err.code = "INVALID_SPEC_KEY";
-    throw err;
-  }
-
-  const allTopicKeys = taxonomy.units.flatMap((u) => (u.topics || []).map((t) => t.key));
-  const exists = allTopicKeys.includes(topicKey);
-
-  if (!exists) {
+  assertValidSpecKey(specKey);
+  const slug = String(topicKey || "").trim();
+  if (!slug) {
     const err = new Error(`Unknown topicKey for specKey "${specKey}": ${topicKey}`);
     err.code = "INVALID_TOPIC_KEY";
     throw err;
   }
-
+  if (!isValidTopicSlugForSpec(specKey, slug)) {
+    const err = new Error(`Unknown topicKey for specKey "${specKey}": ${topicKey}`);
+    err.code = "INVALID_TOPIC_KEY";
+    throw err;
+  }
   return true;
 }
 

@@ -48,7 +48,7 @@ describe("autopilotApprovalService", () => {
       expect(items[0].status).toBe("draft");
     });
 
-    it("queries only for autopilot-generated content", async () => {
+    it("queries for autopilot starter-pack drafts and AI lesson-asset drafts", async () => {
       TopicFlashcard.find.mockReturnValue({ sort: () => ({ lean: () => Promise.resolve([]) }) });
       TopicQuizQuestion.find.mockReturnValue({ sort: () => ({ lean: () => Promise.resolve([]) }) });
       ExamQuestion.find.mockReturnValue({ sort: () => ({ lean: () => Promise.resolve([]) }) });
@@ -56,8 +56,8 @@ describe("autopilotApprovalService", () => {
       await autopilotApprovalService.getAutopilotDrafts({});
       expect(TopicFlashcard.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          "metadata.generatedBy": "autopilot",
           status: "draft",
+          $or: [{ "metadata.generatedBy": "autopilot" }, { "metadata.source": "ai_lesson_assets" }],
         })
       );
     });

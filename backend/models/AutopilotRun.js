@@ -63,6 +63,8 @@ const SummarySchema = new mongoose.Schema(
 const AutopilotRunSchema = new mongoose.Schema(
   {
     runType: { type: String, enum: ["topic", "spec"], required: true, index: true },
+    /** Content engine (lean autopilots): coverage | asset | quality | approval | pipeline */
+    contentEnginePhase: { type: String, default: null, trim: true, index: true },
     specKey: { type: String, required: true, trim: true, index: true },
     topicKey: { type: String, default: null, trim: true, index: true },
     dryRun: { type: Boolean, default: false, index: true },
