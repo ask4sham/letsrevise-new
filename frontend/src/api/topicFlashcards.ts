@@ -14,6 +14,15 @@ export type TopicFlashcard = {
   front: string;
   back: string;
   status: "draft" | "published";
+  /** Heuristic review flags (server-computed on list). */
+  reviewFlags?: string[];
+  metadata?: {
+    qualityScore?: number;
+    qualityBand?: "high" | "medium" | "low";
+    qualityFlags?: string[];
+    source?: string;
+    [k: string]: unknown;
+  };
   createdAt?: string;
   updatedAt?: string;
 };
@@ -25,6 +34,14 @@ export type ListParams = {
   mineOnly?: boolean;
   /** Unit slug for legacy unit__topic format matching (e.g. "cell-biology") */
   unitKey?: string;
+  /** Filter metadata.source (e.g. ai_lesson_assets) */
+  metadataSource?: string;
+  /** Filter metadata.lessonId (Mongo ObjectId string) */
+  lessonId?: string;
+  /** Filter metadata.generationType */
+  generationType?: "flashcard" | "quiz" | "exam";
+  sortBy?: "updatedAt" | "qualityScore";
+  qualityBand?: "high" | "medium" | "low";
 };
 
 export async function listTopicFlashcards(params: ListParams = {}): Promise<TopicFlashcard[]> {
@@ -34,6 +51,11 @@ export async function listTopicFlashcards(params: ListParams = {}): Promise<Topi
   if (params.status) q.set("status", params.status);
   if (params.mineOnly) q.set("mineOnly", "1");
   if (params.unitKey) q.set("unitKey", params.unitKey);
+  if (params.metadataSource) q.set("metadataSource", params.metadataSource);
+  if (params.lessonId) q.set("lessonId", params.lessonId);
+  if (params.generationType) q.set("generationType", params.generationType);
+  if (params.sortBy) q.set("sortBy", params.sortBy);
+  if (params.qualityBand) q.set("qualityBand", params.qualityBand);
   const res = await api.get<{ items: TopicFlashcard[] }>(
     `/topic-flashcards${q.toString() ? `?${q.toString()}` : ""}`
   );
@@ -192,6 +214,17 @@ export async function bulkPublishTopicFlashcards(ids: string[]): Promise<BulkPub
 export async function bulkUnpublishTopicFlashcards(ids: string[]): Promise<BulkPublishResult> {
   const res = await api.post<BulkPublishResult>("/topic-flashcards/bulk/unpublish", { ids });
   return res.data!;
+}
+
+export async function bulkDeleteTopicFlashcards(ids: string[]): Promise<{ ok: boolean; deletedCount: number }> {
+  const res = await api.post<{ ok: boolean; deletedCount: number }>("/topic-flashcards/bulk/delete", { ids });
+  return res.data!;
+}
+
+/** Draft-only LLM rewrite (validate + save). */
+export async function aiRewriteTopicFlashcard(id: string, action: string): Promise<TopicFlashcard> {
+  const res = await api.post<{ flashcard: TopicFlashcard }>(`/topic-flashcards/${id}/ai-rewrite`, { action });
+  return res.data!.flashcard;
 }
 
 export async function generateFlashcardsFromTopic(

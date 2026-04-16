@@ -5,6 +5,7 @@ import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import type { SpecKey } from "../api/taxonomy";
+import { aiRewriteExamQuestion } from "../api/examQuestions";
 
 const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
 const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "Other"];
@@ -27,6 +28,13 @@ type ExamQuestion = {
   correctAnswer?: string | null;
   markScheme?: string[];
   status: string;
+  reviewFlags?: string[];
+  metadata?: {
+    qualityScore?: number;
+    qualityBand?: "high" | "medium" | "low";
+    qualityFlags?: string[];
+    [k: string]: unknown;
+  };
   createdAt?: string;
   updatedAt?: string;
 };
@@ -44,6 +52,12 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [filterTopicKey, setFilterTopicKey] = useState<string>(topicKeyFromUrl);
+  const [aiLessonAssetsOnly, setAiLessonAssetsOnly] = useState(false);
+  const [lessonIdFilter, setLessonIdFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "draft" | "published">("");
+  const [sortBy, setSortBy] = useState<"updatedAt" | "qualityScore">("updatedAt");
+  const [qualityBand, setQualityBand] = useState<"" | "high" | "medium" | "low">("");
+  const [aiRewriteLoadingId, setAiRewriteLoadingId] = useState<string | null>(null);
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
   const [form, setForm] = useState({
@@ -77,6 +91,14 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       setError(null);
       const params: Record<string, string> = {};
       if (filterTopicKey) params.topicKey = filterTopicKey;
+      if (aiLessonAssetsOnly) {
+        params.metadataSource = "ai_lesson_assets";
+        params.generationType = "exam";
+      }
+      if (lessonIdFilter.trim()) params.lessonId = lessonIdFilter.trim();
+      if (statusFilter) params.status = statusFilter;
+      if (sortBy === "qualityScore") params.sortBy = "qualityScore";
+      if (qualityBand) params.qualityBand = qualityBand;
       const res = await api.get("/exam-questions", { params });
       const data = res?.data;
       setQuestions(Array.isArray(data?.questions) ? data.questions : []);
@@ -97,12 +119,21 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   useEffect(() => {
     const key = searchParams.get("topicKey");
     if (key) setFilterTopicKey(key);
+    const ms = searchParams.get("metadataSource");
+    if (ms === "ai_lesson_assets") {
+      setAiLessonAssetsOnly(true);
+      setSortBy("qualityScore");
+    }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (aiLessonAssetsOnly) setSortBy("qualityScore");
+  }, [aiLessonAssetsOnly]);
 
   useEffect(() => {
     setLoading(true);
     fetchQuestions();
-  }, [filterTopicKey, specKey]);
+  }, [filterTopicKey, specKey, aiLessonAssetsOnly, lessonIdFilter, statusFilter, sortBy, qualityBand]);
 
   function validateForm(): string | null {
     const q = form.questionText.trim();
@@ -160,6 +191,21 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     setFormError(null);
     setEditingId(q._id);
     setModalOpen(true);
+  };
+
+  const handleAiRewriteExam = async (id: string, action: string) => {
+    if (!action) return;
+    setAiRewriteLoadingId(id);
+    setError(null);
+    try {
+      const updated = (await aiRewriteExamQuestion(id, action)) as ExamQuestion;
+      setQuestions((prev) => prev.map((x) => (x._id === id ? { ...x, ...updated } : x)));
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err?.message || "AI rewrite failed");
+    } finally {
+      setAiRewriteLoadingId(null);
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -282,6 +328,57 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         </select>
       </div>
 
+      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.875rem" }}>
+          <input
+            type="checkbox"
+            checked={aiLessonAssetsOnly}
+            onChange={(e) => setAiLessonAssetsOnly(e.target.checked)}
+          />
+          AI lesson drafts only
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.875rem" }}>
+          Lesson ID
+          <input
+            type="text"
+            value={lessonIdFilter}
+            onChange={(e) => setLessonIdFilter(e.target.value)}
+            placeholder="optional"
+            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db", width: 200 }}
+          />
+        </label>
+        <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Status:</label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as "" | "draft" | "published")}
+          style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+        >
+          <option value="">All</option>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+        <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Sort:</label>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as "updatedAt" | "qualityScore")}
+          style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+        >
+          <option value="updatedAt">Updated</option>
+          <option value="qualityScore">Quality score</option>
+        </select>
+        <label style={{ fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>Band:</label>
+        <select
+          value={qualityBand}
+          onChange={(e) => setQualityBand(e.target.value as "" | "high" | "medium" | "low")}
+          style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
+        >
+          <option value="">All</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+
       {loading && (
         <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading questions...</div>
       )}
@@ -309,6 +406,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Marks</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Question</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Options</th>
+                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Quality</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Status</th>
                 <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Actions</th>
               </tr>
@@ -330,8 +428,52 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                         ))
                       : "—"}
                   </td>
-                  <td style={{ padding: "12px", color: "#374151" }}>{q.status}</td>
-                  <td style={{ padding: "12px", color: "#374151" }}>
+                  <td style={{ padding: "12px", color: "#374151", verticalAlign: "top", fontSize: "0.8rem" }}>
+                    {q.metadata?.qualityScore != null ? (
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background:
+                            q.metadata?.qualityBand === "high"
+                              ? "#d1fae5"
+                              : q.metadata?.qualityBand === "medium"
+                              ? "#fef3c7"
+                              : "#fee2e2",
+                        }}
+                        title="Heuristic quality (AI drafts)"
+                      >
+                        {q.metadata.qualityScore}
+                        {q.metadata.qualityBand ? ` · ${q.metadata.qualityBand}` : ""}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td style={{ padding: "12px", color: "#374151", verticalAlign: "top" }}>
+                    {q.status}
+                    {Array.isArray(q.reviewFlags) && q.reviewFlags.length > 0 && (
+                      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {q.reviewFlags.map((flag) => (
+                          <span
+                            key={flag}
+                            style={{
+                              fontSize: 10,
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                            }}
+                            title="Heuristic review hint"
+                          >
+                            {flag.replace(/_/g, " ")}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: "12px", color: "#374151", verticalAlign: "top" }}>
                     <button
                       type="button"
                       onClick={() => openEditModal(q)}
@@ -343,10 +485,33 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                         border: "1px solid #d1d5db",
                         borderRadius: "6px",
                         cursor: "pointer",
+                        marginBottom: 8,
+                        display: "block",
                       }}
                     >
                       Edit
                     </button>
+                    {q.status === "draft" && (q.type === "mcq" || q.type === "short") && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 200 }}>
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            e.target.value = "";
+                            if (v) void handleAiRewriteExam(q._id, v);
+                          }}
+                          disabled={aiRewriteLoadingId === q._id}
+                          style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #d8b4fe" }}
+                        >
+                          <option value="">AI improve…</option>
+                          <option value="improve_mark_scheme">Improve mark scheme</option>
+                          <option value="make_more_gcse_style">More GCSE-style</option>
+                          <option value="make_easier">Make easier</option>
+                          <option value="make_harder">Make harder</option>
+                        </select>
+                        {aiRewriteLoadingId === q._id && <span style={{ fontSize: 11, color: "#6b7280" }}>Working…</span>}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

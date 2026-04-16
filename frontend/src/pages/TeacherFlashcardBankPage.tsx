@@ -16,6 +16,8 @@ import {
   unpublishTopicFlashcard,
   bulkPublishTopicFlashcards,
   bulkUnpublishTopicFlashcards,
+  bulkDeleteTopicFlashcards,
+  aiRewriteTopicFlashcard,
   type TopicFlashcard,
   type ListParams,
   type BulkPreviewResponse,
@@ -48,6 +50,8 @@ const TeacherFlashcardBankPage: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<string>("");
   const [topicKey, setTopicKey] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<ListParams["status"]>("all");
+  const [aiLessonAssetsOnly, setAiLessonAssetsOnly] = useState(false);
+  const [lessonIdFilter, setLessonIdFilter] = useState("");
   const [flashcards, setFlashcards] = useState<TopicFlashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +78,9 @@ const TeacherFlashcardBankPage: React.FC = () => {
   const [reassignTargetKey, setReassignTargetKey] = useState("");
   const [reassignSaving, setReassignSaving] = useState(false);
   const [moveSuccessToast, setMoveSuccessToast] = useState<string | null>(null);
+  const [aiRewriteLoadingId, setAiRewriteLoadingId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"updatedAt" | "qualityScore">("updatedAt");
+  const [qualityBand, setQualityBand] = useState<"" | "high" | "medium" | "low">("");
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
@@ -82,7 +89,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
     setTopicKey("");
   };
 
-  // Prefill from Gap Priorities: ?specKey=&topicKey= from generate_flashcards action
+  // Prefill from Gap Priorities / AI review: ?specKey=&topicKey=&metadataSource=&lessonId=&status=
   useEffect(() => {
     const sk = searchParams.get("specKey");
     const tk = searchParams.get("topicKey");
@@ -91,7 +98,20 @@ const TeacherFlashcardBankPage: React.FC = () => {
       setStoredSpecKey(sk as SpecKey);
     }
     if (tk) setTopicKey(tk);
+    const ms = searchParams.get("metadataSource");
+    if (ms === "ai_lesson_assets") {
+      setAiLessonAssetsOnly(true);
+      setSortBy("qualityScore");
+    }
+    const lid = searchParams.get("lessonId");
+    if (lid) setLessonIdFilter(lid);
+    const st = searchParams.get("status");
+    if (st === "draft" || st === "published" || st === "all") setStatusFilter(st);
   }, [searchParams]);
+
+  useEffect(() => {
+    if (aiLessonAssetsOnly) setSortBy("qualityScore");
+  }, [aiLessonAssetsOnly]);
 
   const fetchFlashcards = async () => {
     if (!topicKey) {
@@ -109,6 +129,12 @@ const TeacherFlashcardBankPage: React.FC = () => {
         status: statusFilter,
         mineOnly: !isAdmin,
         unitKey: unitSlug,
+        ...(aiLessonAssetsOnly
+          ? { metadataSource: "ai_lesson_assets", generationType: "flashcard" as const }
+          : {}),
+        ...(lessonIdFilter.trim() ? { lessonId: lessonIdFilter.trim() } : {}),
+        ...(sortBy === "qualityScore" ? { sortBy: "qualityScore" as const } : {}),
+        ...(qualityBand ? { qualityBand } : {}),
       });
       setFlashcards(list);
     } catch (err: any) {
@@ -121,7 +147,7 @@ const TeacherFlashcardBankPage: React.FC = () => {
 
   useEffect(() => {
     fetchFlashcards();
-  }, [topicKey, specKey, statusFilter, isAdmin, selectedUnit]);
+  }, [topicKey, specKey, statusFilter, isAdmin, selectedUnit, aiLessonAssetsOnly, lessonIdFilter, sortBy, qualityBand]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,6 +302,37 @@ const TeacherFlashcardBankPage: React.FC = () => {
       );
     } finally {
       setBulkLoading(false);
+    }
+  };
+
+  const handleBulkRejectDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} draft card(s)? This cannot be undone.`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await bulkDeleteTopicFlashcards(Array.from(selectedIds));
+      setMessage(`Deleted ${res.deletedCount} draft card(s).`);
+      setSelectedIds(new Set());
+      fetchFlashcards();
+    } catch (err: any) {
+      setMessage(getApiClientErrorMessage(err, "Bulk delete failed"));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleAiRewriteFlashcard = async (cardId: string, action: string) => {
+    if (!action) return;
+    setAiRewriteLoadingId(cardId);
+    setMessage(null);
+    try {
+      const updated = await aiRewriteTopicFlashcard(cardId, action);
+      setFlashcards((prev) => prev.map((x) => (x._id === cardId ? updated : x)));
+      setMessage("Draft updated with AI suggestion.");
+    } catch (err: any) {
+      setMessage(getApiClientErrorMessage(err, "AI rewrite failed"));
+    } finally {
+      setAiRewriteLoadingId(null);
     }
   };
 
@@ -456,6 +513,27 @@ const TeacherFlashcardBankPage: React.FC = () => {
             {s === "all" ? "All" : s === "draft" ? "Draft" : "Published"}
           </button>
         ))}
+      </div>
+
+      <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={aiLessonAssetsOnly}
+            onChange={(e) => setAiLessonAssetsOnly(e.target.checked)}
+          />
+          AI lesson drafts only
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+          Lesson ID
+          <input
+            type="text"
+            value={lessonIdFilter}
+            onChange={(e) => setLessonIdFilter(e.target.value)}
+            placeholder="optional filter"
+            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db", width: 220 }}
+          />
+        </label>
       </div>
 
       {message && (
@@ -640,6 +718,32 @@ const TeacherFlashcardBankPage: React.FC = () => {
           )}
           {topicKey && !loading && flashcards.length > 0 && (
             <>
+              <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 13 }}>
+                <label>
+                  Sort:{" "}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as "updatedAt" | "qualityScore")}
+                    style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="updatedAt">Updated</option>
+                    <option value="qualityScore">Quality score</option>
+                  </select>
+                </label>
+                <label>
+                  Band:{" "}
+                  <select
+                    value={qualityBand}
+                    onChange={(e) => setQualityBand(e.target.value as "" | "high" | "medium" | "low")}
+                    style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="">All</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+              </div>
               <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 13, color: "#6b7280" }}>Bulk:</span>
                 <button
@@ -648,7 +752,15 @@ const TeacherFlashcardBankPage: React.FC = () => {
                   disabled={selectedIds.size === 0 || bulkLoading}
                   style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: selectedIds.size > 0 && !bulkLoading ? "pointer" : "not-allowed" }}
                 >
-                  {bulkLoading ? "…" : "Publish"}
+                  {bulkLoading ? "…" : "Approve selected"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkRejectDelete}
+                  disabled={selectedIds.size === 0 || bulkLoading}
+                  style={{ padding: "6px 12px", fontSize: 13, borderRadius: 6, border: "1px solid #fecaca", background: "#fff", color: "#991b1b", cursor: selectedIds.size > 0 && !bulkLoading ? "pointer" : "not-allowed" }}
+                >
+                  {bulkLoading ? "…" : "Reject selected"}
                 </button>
                 {isAdmin && (
                   <button
@@ -725,6 +837,66 @@ const TeacherFlashcardBankPage: React.FC = () => {
                         <div style={{ fontWeight: 600, marginBottom: 4 }}>{f.front}</div>
                         <div style={{ fontSize: 14, color: "#4b5563" }}>{f.back}</div>
                         <span style={{ fontSize: 12, color: "#9ca3af" }}>{f.status}</span>
+                        {f.metadata?.qualityScore != null && (
+                          <span
+                            style={{
+                              marginLeft: 8,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              background:
+                                f.metadata?.qualityBand === "high"
+                                  ? "#d1fae5"
+                                  : f.metadata?.qualityBand === "medium"
+                                  ? "#fef3c7"
+                                  : "#fee2e2",
+                            }}
+                            title="Heuristic quality (AI drafts)"
+                          >
+                            {f.metadata.qualityScore}
+                            {f.metadata.qualityBand ? ` · ${f.metadata.qualityBand}` : ""}
+                          </span>
+                        )}
+                        {Array.isArray(f.reviewFlags) && f.reviewFlags.length > 0 && (
+                          <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {f.reviewFlags.map((flag) => (
+                              <span
+                                key={flag}
+                                style={{
+                                  fontSize: 11,
+                                  background: "#fef3c7",
+                                  color: "#92400e",
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                }}
+                                title="Heuristic review hint"
+                              >
+                                {flag.replace(/_/g, " ")}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {f.status === "draft" && (
+                          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                e.target.value = "";
+                                if (v) void handleAiRewriteFlashcard(f._id, v);
+                              }}
+                              disabled={aiRewriteLoadingId === f._id}
+                              style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #d8b4fe", maxWidth: 200 }}
+                            >
+                              <option value="">AI improve…</option>
+                              <option value="simplify_answer">Simplify answer</option>
+                              <option value="shorten_answer">Shorten answer</option>
+                              <option value="improve_recall_prompt">Improve recall prompt</option>
+                            </select>
+                            {aiRewriteLoadingId === f._id && <span style={{ fontSize: 12, color: "#6b7280" }}>Working…</span>}
+                          </div>
+                        )}
                       </div>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         <button

@@ -12,6 +12,8 @@ import {
   unpublishTopicQuizQuestion,
   bulkPublishTopicQuizQuestions,
   bulkUnpublishTopicQuizQuestions,
+  bulkDeleteTopicQuizQuestions,
+  aiRewriteTopicQuizQuestion,
   deleteTopicQuizQuestion,
   patchTopicQuizQuestion,
   type TopicQuizQuestion,
@@ -47,10 +49,36 @@ const TeacherQuizBankPage: React.FC = () => {
   const [topicKey, setTopicKey] = useState<string>("");
   const [kind, setKind] = useState<QuizKind>(initialKind);
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
+  const [aiLessonAssetsOnly, setAiLessonAssetsOnly] = useState(false);
+  const [lessonIdFilter, setLessonIdFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"updatedAt" | "qualityScore">("updatedAt");
+  const [qualityBand, setQualityBand] = useState<"" | "high" | "medium" | "low">("");
 
   useEffect(() => {
     setKind(initialKind);
   }, [kindFromUrl]);
+
+  /** Deep-link: filters from URL (?metadataSource=&lessonId=&status=&specKey=) */
+  useEffect(() => {
+    const ms = searchParams.get("metadataSource");
+    if (ms === "ai_lesson_assets") {
+      setAiLessonAssetsOnly(true);
+      setSortBy("qualityScore");
+    }
+    const lid = searchParams.get("lessonId");
+    if (lid) setLessonIdFilter(lid);
+    const st = searchParams.get("status");
+    if (st === "draft" || st === "published" || st === "all") setStatusFilter(st);
+    const sk = searchParams.get("specKey");
+    if (sk) {
+      setSpecKey(sk as SpecKey);
+      setStoredSpecKey(sk as SpecKey);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (aiLessonAssetsOnly) setSortBy("qualityScore");
+  }, [aiLessonAssetsOnly]);
 
   /** Deep-link: pre-select topic from URL (?topicKey=...) when coming from lesson editor */
   useEffect(() => {
@@ -132,7 +160,14 @@ const TeacherQuizBankPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const list = await listTopicQuizQuestions(topicKey, { specKey, status: statusFilter, mineOnly: true, kind });
+      const list = await listTopicQuizQuestions(topicKey, {
+        specKey,
+        status: statusFilter,
+        mineOnly: true,
+        kind,
+        ...(aiLessonAssetsOnly ? { metadataSource: "ai_lesson_assets", generationType: "quiz" as const } : {}),
+        ...(lessonIdFilter.trim() ? { lessonId: lessonIdFilter.trim() } : {}),
+      });
       setQuestions(list);
     } catch (err: any) {
       setError(getApiClientErrorMessage(err, "Failed to load questions"));
@@ -144,7 +179,7 @@ const TeacherQuizBankPage: React.FC = () => {
 
   useEffect(() => {
     fetchQuestions();
-  }, [topicKey, specKey, statusFilter]);
+  }, [topicKey, specKey, statusFilter, kind, aiLessonAssetsOnly, lessonIdFilter, sortBy, qualityBand]);
 
   const handlePreview = async () => {
     if (!topicKey) {
@@ -268,6 +303,38 @@ const TeacherQuizBankPage: React.FC = () => {
       setMessage(getHttpStatus(err) === 404 ? "Some items could not be updated." : getApiClientErrorMessage(err, "Bulk unpublish failed"));
     } finally {
       setBulkLoading(false);
+    }
+  };
+
+  const handleBulkRejectDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} draft question(s)? This cannot be undone.`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await bulkDeleteTopicQuizQuestions(Array.from(selectedIds));
+      setMessage(`Deleted ${res.deletedCount} draft question(s).`);
+      setSelectedIds(new Set());
+      fetchQuestions();
+    } catch (err: any) {
+      setMessage(getApiClientErrorMessage(err, "Bulk delete failed"));
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleAiRewriteQuiz = async (questionId: string, action: string) => {
+    if (!action) return;
+    const loadingKey = `ai:${questionId}`;
+    setActionLoading(loadingKey);
+    setMessage(null);
+    try {
+      const updated = await aiRewriteTopicQuizQuestion(questionId, action);
+      setQuestions((prev) => prev.map((x) => (x._id === questionId ? updated : x)));
+      setMessage("Draft updated with AI suggestion.");
+    } catch (err: any) {
+      setMessage(getApiClientErrorMessage(err, "AI rewrite failed"));
+    } finally {
+      setActionLoading((cur) => (cur === loadingKey ? null : cur));
     }
   };
 
@@ -582,6 +649,27 @@ const TeacherQuizBankPage: React.FC = () => {
         ))}
       </div>
 
+      <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={aiLessonAssetsOnly}
+            onChange={(e) => setAiLessonAssetsOnly(e.target.checked)}
+          />
+          AI lesson drafts only
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+          Lesson ID
+          <input
+            type="text"
+            value={lessonIdFilter}
+            onChange={(e) => setLessonIdFilter(e.target.value)}
+            placeholder="optional filter"
+            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db", width: 220 }}
+          />
+        </label>
+      </div>
+
       {message && (
         <div style={{ padding: 10, marginBottom: 12, borderRadius: 8, background: "#f0f9ff", border: "1px solid #bae6fd" }}>
           {message}
@@ -770,6 +858,7 @@ const TeacherQuizBankPage: React.FC = () => {
                       onChange={(e) => {
                         const v = e.target.value;
                         if (v === "publish") handleBulkPublish();
+                        else if (v === "reject") handleBulkRejectDelete();
                         else if (v === "unpublish") handleBulkUnpublish();
                         e.target.value = "";
                       }}
@@ -777,7 +866,8 @@ const TeacherQuizBankPage: React.FC = () => {
                       style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db" }}
                     >
                       <option value="">Bulk actions</option>
-                      <option value="publish">Publish selected ({selectedIds.size})</option>
+                      <option value="publish">Approve selected ({selectedIds.size})</option>
+                      <option value="reject">Reject selected ({selectedIds.size})</option>
                       <option value="unpublish">Unpublish selected ({selectedIds.size})</option>
                     </select>
                   </>
@@ -789,6 +879,33 @@ const TeacherQuizBankPage: React.FC = () => {
           {topicKey && loading && <p>Loading…</p>}
           {topicKey && !loading && questions.length === 0 && <p style={{ color: "#6b7280" }}>No questions yet. Import above.</p>}
           {topicKey && !loading && questions.length > 0 && (
+            <>
+              <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 13 }}>
+                <label>
+                  Sort:{" "}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as "updatedAt" | "qualityScore")}
+                    style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="updatedAt">Updated</option>
+                    <option value="qualityScore">Quality score</option>
+                  </select>
+                </label>
+                <label>
+                  Band:{" "}
+                  <select
+                    value={qualityBand}
+                    onChange={(e) => setQualityBand(e.target.value as "" | "high" | "medium" | "low")}
+                    style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                  >
+                    <option value="">All</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+              </div>
             <ul className="teacher-quiz-bank-questions-list" style={{ listStyle: "none", padding: 0, margin: 0, width: "100%", minWidth: 0 }}>
               {questions.map((q) => {
                 const isShortAnswer = q.type === "short-answer" || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0 && !(Array.isArray(q.choices) && q.choices.length >= 2));
@@ -809,7 +926,7 @@ const TeacherQuizBankPage: React.FC = () => {
                     boxSizing: "border-box",
                   }}
                 >
-                  {isAdmin && (
+                  {canManageQuizBank && (
                     <label style={{ flexShrink: 0, marginTop: 2 }}>
                       <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => toggleSelect(q._id)} />
                     </label>
@@ -837,6 +954,68 @@ const TeacherQuizBankPage: React.FC = () => {
                     <span style={{ fontSize: 12, color: "#9ca3af" }}>
                       {isShortAnswer ? `Match: ${q.matchMode ?? "contains"}` : `Correct: ${getCorrectLabel(q)}`} · {q.status}
                     </span>
+                    {q.metadata?.qualityScore != null && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background:
+                            q.metadata?.qualityBand === "high"
+                              ? "#d1fae5"
+                              : q.metadata?.qualityBand === "medium"
+                              ? "#fef3c7"
+                              : "#fee2e2",
+                        }}
+                        title="Heuristic quality (AI drafts)"
+                      >
+                        {q.metadata.qualityScore}
+                        {q.metadata.qualityBand ? ` · ${q.metadata.qualityBand}` : ""}
+                      </span>
+                    )}
+                    {Array.isArray(q.reviewFlags) && q.reviewFlags.length > 0 && !isShortAnswer && (
+                      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {q.reviewFlags.map((flag) => (
+                          <span
+                            key={flag}
+                            style={{
+                              fontSize: 11,
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                            }}
+                            title="Heuristic review hint"
+                          >
+                            {flag.replace(/_/g, " ")}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {q.status === "draft" && !isShortAnswer && (
+                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            e.target.value = "";
+                            if (v) void handleAiRewriteQuiz(q._id, v);
+                          }}
+                          disabled={!!actionLoading}
+                          style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid #d8b4fe", maxWidth: 220 }}
+                        >
+                          <option value="">AI improve…</option>
+                          <option value="improve_distractors">Improve distractors</option>
+                          <option value="make_easier">Make easier</option>
+                          <option value="make_harder">Make harder</option>
+                          <option value="improve_explanation">Improve explanation</option>
+                          <option value="reword_question">Reword question</option>
+                        </select>
+                        {actionLoading === `ai:${q._id}` && <span style={{ fontSize: 12, color: "#6b7280" }}>Working…</span>}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                     <button
@@ -892,6 +1071,7 @@ const TeacherQuizBankPage: React.FC = () => {
                 );
               })}
             </ul>
+            </>
           )}
         </section>
       </div>

@@ -21,6 +21,15 @@ export type TopicQuizQuestion = {
   difficulty?: number;
   skill?: string;
   status: "draft" | "published";
+  /** Heuristic review flags (server-computed on list; MCQ only). */
+  reviewFlags?: string[];
+  metadata?: {
+    qualityScore?: number;
+    qualityBand?: "high" | "medium" | "low";
+    qualityFlags?: string[];
+    source?: string;
+    [k: string]: unknown;
+  };
   publishedBy?: string;
   publishedAt?: string;
   createdAt?: string;
@@ -39,6 +48,14 @@ export type ListParams = {
   exactMatch?: boolean;
   /** For attach: show all published for topic (no owner filter). */
   forAttach?: boolean;
+  /** Filter metadata.source (e.g. ai_lesson_assets) */
+  metadataSource?: string;
+  /** Filter metadata.lessonId (Mongo ObjectId string) */
+  lessonId?: string;
+  /** Filter metadata.generationType */
+  generationType?: "flashcard" | "quiz" | "exam";
+  sortBy?: "updatedAt" | "qualityScore";
+  qualityBand?: "high" | "medium" | "low";
 };
 
 export type BulkPreviewSummary = {
@@ -74,7 +91,19 @@ export type BulkPreviewResponse = {
 
 export async function listTopicQuizQuestions(
   topicKey: string,
-  opts: { specKey?: string; status?: ListParams["status"]; mineOnly?: boolean; kind?: QuizKind; exactMatch?: boolean; forAttach?: boolean } = {}
+  opts: {
+    specKey?: string;
+    status?: ListParams["status"];
+    mineOnly?: boolean;
+    kind?: QuizKind;
+    exactMatch?: boolean;
+    forAttach?: boolean;
+    metadataSource?: string;
+    lessonId?: string;
+    generationType?: ListParams["generationType"];
+    sortBy?: ListParams["sortBy"];
+    qualityBand?: ListParams["qualityBand"];
+  } = {}
 ): Promise<TopicQuizQuestion[]> {
   const q = new URLSearchParams();
   q.set("topicKey", topicKey);
@@ -84,6 +113,11 @@ export async function listTopicQuizQuestions(
   if (opts.kind) q.set("kind", opts.kind);
   if (opts.exactMatch) q.set("exactMatch", "1");
   if (opts.forAttach) q.set("forAttach", "1");
+  if (opts.metadataSource) q.set("metadataSource", opts.metadataSource);
+  if (opts.lessonId) q.set("lessonId", opts.lessonId);
+  if (opts.generationType) q.set("generationType", opts.generationType);
+  if (opts.sortBy) q.set("sortBy", opts.sortBy);
+  if (opts.qualityBand) q.set("qualityBand", opts.qualityBand);
   const res = await api.get<{ items: TopicQuizQuestion[] }>(`/topic-quiz-questions?${q.toString()}`);
   return res.data?.items ?? [];
 }
@@ -171,6 +205,17 @@ export async function bulkPublishTopicQuizQuestions(ids: string[]): Promise<Bulk
 export async function bulkUnpublishTopicQuizQuestions(ids: string[]): Promise<BulkPublishResult> {
   const res = await api.post<BulkPublishResult>("/topic-quiz-questions/bulk/unpublish", { ids });
   return res.data!;
+}
+
+export async function bulkDeleteTopicQuizQuestions(ids: string[]): Promise<{ ok: boolean; deletedCount: number }> {
+  const res = await api.post<{ ok: boolean; deletedCount: number }>("/topic-quiz-questions/bulk/delete", { ids });
+  return res.data!;
+}
+
+/** Draft MCQ only: LLM rewrite (validate + save). */
+export async function aiRewriteTopicQuizQuestion(id: string, action: string): Promise<TopicQuizQuestion> {
+  const res = await api.post<{ question: TopicQuizQuestion }>(`/topic-quiz-questions/${id}/ai-rewrite`, { action });
+  return res.data!.question;
 }
 
 export async function deleteTopicQuizQuestion(id: string): Promise<void> {
