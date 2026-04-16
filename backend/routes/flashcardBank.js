@@ -8,7 +8,8 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const FlashcardBank = require("../models/FlashcardBank");
 const Lesson = require("../models/Lesson");
-const { findTopicByKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { findTopicByKey } = require("../utils/topicTaxonomy");
+const { isValidTopicSlugForSpec } = require("../utils/specTopicRegistry");
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
@@ -39,7 +40,7 @@ function resolveTopicKeyForQuery(topicKey) {
   const { specKey: parsedSpec, topicKey: topicOnly, isNamespaced } = parseTopicKey(trimmed);
   const specKey = (parsedSpec && String(parsedSpec).trim()) || DEFAULT_SPEC_LEGACY;
   const slug = (topicOnly && topicOnly.trim()) || trimmed;
-  if (!isValidTopicForSpec(specKey, slug)) return null;
+  if (!isValidTopicSlugForSpec(specKey, slug)) return null;
   const candidates = queryCandidates(specKey, slug);
   const storedKey = isNamespaced && parsedSpec ? trimmed : buildTopicKey(specKey, slug);
   return { candidates, storedKey };
