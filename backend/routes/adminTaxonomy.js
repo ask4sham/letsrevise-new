@@ -10,10 +10,31 @@ const AdminTaxonomyItem = require("../models/AdminTaxonomyItem");
 const AdminTopicPlacement = require("../models/AdminTopicPlacement");
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { getMergedTaxonomyBySpecKey, toSlug, getLinkedContentCounts } = require("../services/adminTaxonomyService");
-const { queryCandidates } = require("../utils/topicKey");
+const { queryCandidates, parseTopicKey } = require("../utils/topicKey");
+const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
+const { refreshSpecTopicRegistryCache } = require("../utils/specTopicRegistry");
 const { sendInternalError } = require("../utils/safeErrorResponse");
 
 router.use(auth, requireContentManager);
+
+async function refreshTopicRegistrySafe() {
+  try {
+    await refreshSpecTopicRegistryCache();
+  } catch (e) {
+    console.error("[adminTaxonomy] refreshSpecTopicRegistryCache:", e?.message || e);
+  }
+}
+
+/**
+ * Optional mapping fields must be valid registered namespaced topicKeys (canonical or admin).
+ */
+function normalizeOptionalMapping(specKey, val) {
+  if (val == null || !String(val).trim()) return "";
+  const trimmed = String(val).trim();
+  const spec = parseTopicKey(trimmed).specKey || specKey;
+  assertValidNamespacedTopicKey(spec, trimmed);
+  return trimmed;
+}
 
 const SPEC_KEYS = [
   "aqa-gcse-biology",
@@ -134,6 +155,7 @@ router.post("/unit", async (req, res) => {
       unitKey,
       key: unitKey,
     });
+    await refreshTopicRegistrySafe();
     return res.status(201).json({ item });
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Main topic already exists" });
@@ -142,15 +164,23 @@ router.post("/unit", async (req, res) => {
   }
 });
 
-/** POST /api/admin/taxonomy/subtopic — add sub-topic */
-router.post("/subtopic", async (req, res) => {
+/** POST /api/admin/taxonomy/subtopic — add sub-topic (Pattern B: optional canonical / bank / analytics mapping) */
+async function postAdminSubtopic(req, res) {
   try {
-    const { specKey, unitKey, unit, subTopicTitle } = req.body || {};
+    const {
+      specKey,
+      unitKey,
+      unit,
+      subTopicTitle,
+      mapsToCanonicalKey,
+      inheritQuestionBankFrom,
+      inheritAnalyticsFrom,
+    } = req.body || {};
     if (!specKey || !SPEC_KEYS.includes(String(specKey).trim())) {
       return res.status(400).json({ error: "Valid specKey required" });
     }
+    const sk = String(specKey).trim();
     const mainTopicKey = (unitKey && String(unitKey).trim()) || toSlug(unit || "").toLowerCase();
-    const mainTopicName = (unit && String(unit).trim()) || "";
     const title = (subTopicTitle && String(subTopicTitle).trim()) || "";
 
     if (!title) return res.status(400).json({ error: "subTopicTitle required" });
@@ -158,7 +188,7 @@ router.post("/subtopic", async (req, res) => {
     const key = toSlug(title);
     if (!key) return res.status(400).json({ error: "Invalid sub-topic title" });
 
-    const topicKey = `${String(specKey).trim()}:${key}`;
+    const topicKey = `${sk}:${key}`;
 
     const merged = await getMergedTaxonomyBySpecKey(specKey);
     if (!merged || !merged.units) return res.status(400).json({ error: "Spec not found" });
@@ -171,21 +201,72 @@ router.post("/subtopic", async (req, res) => {
     const duplicate = (targetUnit.topics || []).some((t) => (t.key || "").toLowerCase() === key);
     if (duplicate) return res.status(400).json({ error: "Sub-topic already exists under this main topic" });
 
+    const globalDup = await AdminTaxonomyItem.findOne({ specKey: sk, type: "subTopic", key });
+    if (globalDup) {
+      return res.status(400).json({ error: "Sub-topic slug already exists for this specification" });
+    }
+
+    let mapsTo = "";
+    let inheritBank = "";
+    let inheritAnalytics = "";
+    try {
+      mapsTo = mapsToCanonicalKey ? normalizeOptionalMapping(sk, mapsToCanonicalKey) : "";
+      inheritBank = inheritQuestionBankFrom ? normalizeOptionalMapping(sk, inheritQuestionBankFrom) : "";
+      inheritAnalytics = inheritAnalyticsFrom ? normalizeOptionalMapping(sk, inheritAnalyticsFrom) : "";
+    } catch (ve) {
+      if (ve.code === "INVALID_SPEC_KEY" || ve.code === "INVALID_TOPIC_KEY") {
+        return res.status(400).json({ error: ve.message || "Invalid mapping target" });
+      }
+      throw ve;
+    }
+
     const item = await AdminTaxonomyItem.create({
-      specKey: String(specKey).trim(),
+      specKey: sk,
       type: "subTopic",
       unit: targetUnit.unit,
       unitKey: mainTopicKey,
+      parentKey: mainTopicKey,
       topic: title,
       key,
       topicKey,
+      status: "active",
+      mapsToCanonicalKey: mapsTo,
+      inheritQuestionBankFrom: inheritBank,
+      inheritAnalyticsFrom: inheritAnalytics,
     });
-    return res.status(201).json({ item });
+    await refreshTopicRegistrySafe();
+    return res.status(201).json({
+      item,
+      topic: {
+        specKey: sk,
+        key,
+        namespacedKey: topicKey,
+        title,
+        parentKey: mainTopicKey,
+        source: "custom",
+        mapsToCanonicalKey: mapsTo || undefined,
+        inheritQuestionBankFrom: inheritBank || undefined,
+        inheritAnalyticsFrom: inheritAnalytics || undefined,
+      },
+    });
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ error: "Sub-topic already exists" });
     console.error("Admin taxonomy add subtopic error:", err);
     return sendInternalError("admin-taxonomy/subtopic", err, res, { extra: { error: "Server error" } });
   }
+}
+
+router.post("/subtopic", postAdminSubtopic);
+
+/** POST /api/admin/taxonomy/topics — same as /subtopic; accepts title + parentKey (Pattern B contract) */
+router.post("/topics", async (req, res) => {
+  const b = req.body || {};
+  req.body = {
+    ...b,
+    subTopicTitle: b.title || b.subTopicTitle,
+    unitKey: b.parentKey || b.unitKey,
+  };
+  return postAdminSubtopic(req, res);
 });
 
 /** GET /api/admin/taxonomy/items — list admin items (for edit/delete) */
@@ -208,7 +289,15 @@ router.put("/items/:id", async (req, res) => {
     const item = await AdminTaxonomyItem.findById(id);
     if (!item) return res.status(404).json({ error: "Not found" });
 
-    const { unit, subTopicTitle } = req.body || {};
+    const {
+      unit,
+      subTopicTitle,
+      mapsToCanonicalKey,
+      inheritQuestionBankFrom,
+      inheritAnalyticsFrom,
+      status: statusBody,
+    } = req.body || {};
+    const body = req.body || {};
 
     if (item.type === "unit") {
       const unitName = (unit && String(unit).trim()) || item.unit;
@@ -230,6 +319,50 @@ router.put("/items/:id", async (req, res) => {
     }
 
     if (item.type === "subTopic") {
+      const sk = item.specKey;
+
+      if (statusBody !== undefined) {
+        const next = String(statusBody).trim();
+        if (next !== "active" && next !== "archived") {
+          return res.status(400).json({ error: "Invalid status" });
+        }
+        if (next === "archived" && item.status !== "archived") {
+          const c = await getLinkedContentCounts(sk, item.key || item.topicKey);
+          if ((c.lessons || 0) + (c.flashcards || 0) + (c.quizzes || 0) + (c.examQuestions || 0) > 0) {
+            return res.status(409).json({
+              error: "Cannot archive topic with linked content",
+              linkedCounts: {
+                lessons: c.lessons || 0,
+                flashcards: c.flashcards || 0,
+                quizzes: c.quizzes || 0,
+                examQuestions: c.examQuestions || 0,
+              },
+            });
+          }
+        }
+        item.status = next;
+      }
+
+      try {
+        if (Object.prototype.hasOwnProperty.call(body, "mapsToCanonicalKey")) {
+          const v = body.mapsToCanonicalKey;
+          item.mapsToCanonicalKey = v && String(v).trim() ? normalizeOptionalMapping(sk, v) : "";
+        }
+        if (Object.prototype.hasOwnProperty.call(body, "inheritQuestionBankFrom")) {
+          const v = body.inheritQuestionBankFrom;
+          item.inheritQuestionBankFrom = v && String(v).trim() ? normalizeOptionalMapping(sk, v) : "";
+        }
+        if (Object.prototype.hasOwnProperty.call(body, "inheritAnalyticsFrom")) {
+          const v = body.inheritAnalyticsFrom;
+          item.inheritAnalyticsFrom = v && String(v).trim() ? normalizeOptionalMapping(sk, v) : "";
+        }
+      } catch (ve) {
+        if (ve.code === "INVALID_SPEC_KEY" || ve.code === "INVALID_TOPIC_KEY") {
+          return res.status(400).json({ error: ve.message || "Invalid mapping target" });
+        }
+        throw ve;
+      }
+
       const title = (subTopicTitle && String(subTopicTitle).trim()) || item.topic;
       if (!title) return res.status(400).json({ error: "subTopicTitle required" });
       const key = toSlug(title);
@@ -244,6 +377,14 @@ router.put("/items/:id", async (req, res) => {
       });
       if (duplicate) return res.status(400).json({ error: "Sub-topic already exists" });
 
+      const globalDup = await AdminTaxonomyItem.findOne({
+        specKey: item.specKey,
+        type: "subTopic",
+        key,
+        _id: { $ne: item._id },
+      });
+      if (globalDup) return res.status(400).json({ error: "Sub-topic slug already exists for this specification" });
+
       const staticTax = getTaxonomyBySpecKey(item.specKey);
       if (staticTax && staticTax.units) {
         const u = staticTax.units.find((x) => (x.unitKey || toSlug(x.unit)).toLowerCase() === item.unitKey);
@@ -256,6 +397,7 @@ router.put("/items/:id", async (req, res) => {
       item.key = key;
       item.topicKey = topicKey;
       await item.save();
+      await refreshTopicRegistrySafe();
       return res.json({ item });
     }
 
@@ -305,6 +447,7 @@ router.delete("/items/:id", async (req, res) => {
     } else {
       return res.status(400).json({ error: "Invalid type" });
     }
+    await refreshTopicRegistrySafe();
     return res.json({ ok: true });
   } catch (err) {
     console.error("Admin taxonomy delete error:", err);
@@ -383,6 +526,7 @@ router.patch("/sub-topic/:id", async (req, res) => {
     item.key = finalKey;
     item.topicKey = finalTopicKey;
     await item.save();
+    await refreshTopicRegistrySafe();
     return res.json({ item });
   } catch (err) {
     console.error("Admin taxonomy PATCH sub-topic:", err);
@@ -436,6 +580,7 @@ router.delete("/sub-topic/:id", async (req, res) => {
       });
     }
     await AdminTaxonomyItem.findByIdAndDelete(id);
+    await refreshTopicRegistrySafe();
     return res.json({ ok: true });
   } catch (err) {
     console.error("Admin taxonomy DELETE sub-topic:", err);
@@ -621,3 +766,5 @@ router.post("/sub-topic/:id/move", async (req, res) => {
 });
 
 module.exports = router;
+/** Used by POST /api/taxonomy/topics (Pattern B alias). */
+module.exports.postAdminSubtopic = postAdminSubtopic;

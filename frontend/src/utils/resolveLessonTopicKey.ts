@@ -83,3 +83,5 @@ export function resolveLessonTopicKeyForBankFromLesson(
       : null);
   return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: raw || undefined });
 }
+
+// Pattern B: Topic quiz bank attach + mastery rollup resolve inheritance on the server from AdminTaxonomyItem mappings.

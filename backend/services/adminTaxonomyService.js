@@ -220,6 +220,11 @@ function mergeTaxonomySync(staticTaxonomy, adminItems = []) {
   return { ...staticTaxonomy, units };
 }
 
+/** Pattern B: admin sub-topics with status archived must not match registry-backed validation. */
+function excludeArchivedSubTopics(adminItems) {
+  return (adminItems || []).filter((i) => i.status !== "archived");
+}
+
 /** Check if topicKey exists in static or admin taxonomy for spec (async) */
 async function isValidTopicForSpecWithAdmin(specKey, topicKey) {
   const adminItems = await AdminTaxonomyItem.find({ specKey, type: "subTopic" }).lean();
@@ -242,7 +247,9 @@ async function resolveStoredTopicKeyWithAdmin(specKeyFromReq, topicKeyFromReq) {
 
   if (isNamespaced && parsedSpec && rawTopic) {
     if (!isValidTopicForSpec(parsedSpec, rawTopic)) {
-      const adminItems = await AdminTaxonomyItem.find({ specKey: parsedSpec, type: "subTopic" }).lean();
+      const adminItems = excludeArchivedSubTopics(
+        await AdminTaxonomyItem.find({ specKey: parsedSpec, type: "subTopic" }).lean()
+      );
       if (!isValidTopicForSpecWithItems(parsedSpec, rawTopic, adminItems)) {
         return { error: `Invalid topicKey for spec ${parsedSpec}` };
       }
@@ -253,7 +260,9 @@ async function resolveStoredTopicKeyWithAdmin(specKeyFromReq, topicKeyFromReq) {
 
   const topicOnly = rawTopic || trimmed;
   if (!isValidTopicForSpec(specKey, topicOnly)) {
-    const adminItems = await AdminTaxonomyItem.find({ specKey, type: "subTopic" }).lean();
+    const adminItems = excludeArchivedSubTopics(
+      await AdminTaxonomyItem.find({ specKey, type: "subTopic" }).lean()
+    );
     if (!isValidTopicForSpecWithItems(specKey, topicOnly, adminItems)) {
       return { error: `Invalid topicKey for spec ${specKey}` };
     }
