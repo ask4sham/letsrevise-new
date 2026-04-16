@@ -565,5 +565,12 @@ function tryListen(port) {
     console.error("[MongoDB] FATAL: could not connect. Exiting so the platform can restart.");
     process.exit(1);
   }
+  try {
+    const { refreshSpecTopicRegistryCache } = require("./utils/specTopicRegistry");
+    await refreshSpecTopicRegistryCache();
+    console.log("[specTopicRegistry] admin sub-topic cache loaded");
+  } catch (e) {
+    console.warn("[specTopicRegistry] cache refresh skipped:", e?.message || e);
+  }
   tryListen(PORT);
 })();

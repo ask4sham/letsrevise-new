@@ -22,6 +22,7 @@ const studentTopicEvidenceService = require("../services/studentTopicEvidenceSer
 const StudentTeacherLink = require("../models/StudentTeacherLink");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const { queryCandidates, buildTopicKey, parseTopicKey } = require("../utils/topicKey");
+const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { sendInternalError } = require("../utils/safeErrorResponse");
 
@@ -480,8 +481,12 @@ router.get("/content/topic-flashcards", auth, async (req, res) => {
       return res.json({ cards: [], topicKey, message: "Link to a teacher to access flashcards." });
     }
 
-    const candidates = queryCandidates(specKey, parseTopicKey(topicKey).topicKey || topicKey);
-    const topicQuery = candidates.length ? { topicKey: { $in: candidates } } : { topicKey };
+    const bankNs = resolveQuestionBankNamespacedTopicKey(specKey, topicKey);
+    const bankParsed = parseTopicKey(bankNs);
+    const bankSpec = bankParsed.specKey || specKey;
+    const bankSlug = bankParsed.topicKey || parseTopicKey(topicKey).topicKey || topicKey;
+    const candidates = queryCandidates(bankSpec, bankSlug);
+    const topicQuery = candidates.length ? { topicKey: { $in: candidates } } : { topicKey: bankNs };
 
     const cards = await TopicFlashcard.find({
       ownerId: { $in: teacherIds },

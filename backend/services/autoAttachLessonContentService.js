@@ -12,7 +12,8 @@ const FlashcardBank = require("../models/FlashcardBank");
 const ExamQuestion = require("../models/ExamQuestion");
 const contentGraphService = require("./contentGraphService");
 const { topicToKey, topicDisplayToCanonicalKey } = require("../utils/topicTaxonomy");
-const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
+const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 
 const FLASHCARD_LIMIT = 20;
 const QUIZ_MCQ_TARGET = 10;
@@ -70,8 +71,13 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
     parseTopicKey(topicKey).specKey ||
     DEFAULT_SPEC_LEGACY;
   const topicOnly = parseTopicKey(topicKey).topicKey || topicKey.trim().toLowerCase();
-  const candidates = queryCandidates(specKey, topicOnly);
-  const topicQuery = candidates.length ? { $in: candidates } : topicKey;
+  const namespaced = topicKey.includes(":") ? topicKey.trim() : buildTopicKey(specKey, topicOnly);
+  const bankNs = resolveQuestionBankNamespacedTopicKey(specKey, namespaced);
+  const bankParsed = parseTopicKey(bankNs);
+  const bankSpec = bankParsed.specKey || specKey;
+  const bankTopicOnly = bankParsed.topicKey || topicOnly;
+  const candidates = queryCandidates(bankSpec, bankTopicOnly);
+  const topicQuery = candidates.length ? { $in: candidates } : bankNs;
 
   // Graph-first: try content graph for linked content IDs. Fall back to legacy topicQuery when empty/fails.
   let graphFlashcardIds = [];

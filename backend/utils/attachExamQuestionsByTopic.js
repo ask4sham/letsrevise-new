@@ -6,8 +6,10 @@
 const mongoose = require("mongoose");
 const Lesson = require("../models/Lesson");
 const ExamQuestion = require("../models/ExamQuestion");
-const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("./topicTaxonomy");
-const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("./topicKey");
+const { findTopicByKey, topicToKey } = require("./topicTaxonomy");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("./topicKey");
+const { assertValidNamespacedTopicKey } = require("./specTopicValidation");
+const { resolveQuestionBankNamespacedTopicKey } = require("./resolveTopicRuntimeKeys");
 
 /**
  * Attach top N exam questions by topicKey to a lesson (only those not already attached).
@@ -20,22 +22,9 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
   const limit = typeof options.limit === "number" ? options.limit : parseInt(String(options.limit || "10"), 10);
   const requested = Number.isFinite(limit) && limit >= 1 ? Math.min(20, Math.max(1, limit)) : 10;
 
-  let topicKeyToUse;
-  let specKey = DEFAULT_SPEC_LEGACY;
-  let topicOnly;
-
+  let rawTopic;
   if (options.topicKey != null && String(options.topicKey).trim() !== "") {
-    const raw = String(options.topicKey).trim();
-    const parsed = parseTopicKey(raw);
-    specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
-    topicOnly = (parsed.topicKey || raw).toLowerCase();
-    const found = findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(raw);
-    if (!found) {
-      const err = new Error("Invalid topicKey");
-      err.code = "INVALID_TOPIC_KEY";
-      throw err;
-    }
-    topicKeyToUse = found.key;
+    rawTopic = String(options.topicKey).trim();
   } else {
     const lessonKey = (lesson.topicKey && String(lesson.topicKey).trim()) || topicToKey(lesson.topic || "");
     if (!lessonKey) {
@@ -43,28 +32,39 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
       err.code = "INVALID_TOPIC";
       throw err;
     }
-    const parsed = parseTopicKey(lessonKey);
-    specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
-    topicOnly = (parsed.topicKey || lessonKey).toLowerCase();
-    const found = findTopicBySpecAndKey(specKey, topicOnly) || findTopicByKey(lessonKey);
-    if (!found) {
-      const err = new Error("Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.");
-      err.code = "INVALID_TOPIC";
-      throw err;
-    }
-    topicKeyToUse = found.key;
+    rawTopic = lessonKey;
   }
 
-  const queryCands = queryCandidates(specKey, topicOnly || topicKeyToUse);
-  if (!queryCands.length) {
-    return {
-      topicKey: topicKeyToUse,
-      topic: findTopicByKey(topicKeyToUse)?.topic ?? null,
-      requested,
-      added: 0,
-      addedIds: [],
-    };
+  const parsed = parseTopicKey(rawTopic);
+  const specKey = parsed.specKey || DEFAULT_SPEC_LEGACY;
+  const topicOnly = (parsed.topicKey || rawTopic).toLowerCase();
+  const namespaced = rawTopic.includes(":") ? rawTopic : buildTopicKey(specKey, topicOnly);
+  try {
+    const nsSpec = parseTopicKey(namespaced).specKey || specKey;
+    assertValidNamespacedTopicKey(nsSpec, namespaced);
+  } catch (e) {
+    const err = new Error(
+      options.topicKey != null && String(options.topicKey).trim() !== ""
+        ? "Invalid topicKey"
+        : "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic."
+    );
+    err.code = options.topicKey != null && String(options.topicKey).trim() !== "" ? "INVALID_TOPIC_KEY" : "INVALID_TOPIC";
+    throw err;
   }
+  const nsSpec = parseTopicKey(namespaced).specKey || specKey;
+  const bankNs = resolveQuestionBankNamespacedTopicKey(nsSpec, namespaced);
+  const bankParsed = parseTopicKey(bankNs);
+  const bankSpec = bankParsed.specKey || nsSpec;
+  const bankTopicOnly = bankParsed.topicKey || topicOnly;
+  const queryCands = queryCandidates(bankSpec, bankTopicOnly);
+  const examTopicFilter =
+    queryCands.length > 0 ? { topicKey: { $in: queryCands } } : { topicKey: bankNs };
+
+  const topicKeyToUse = namespaced;
+  const topicTitle =
+    findTopicByKey(namespaced)?.topic ??
+    findTopicByKey(bankNs)?.topic ??
+    null;
 
   const existingRefs = Array.isArray(lesson.examQuestions) ? lesson.examQuestions : [];
   const existingIds = new Set(existingRefs.map((r) => String(r.questionId)));
@@ -77,7 +77,7 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
     ],
   };
   const candidates = await ExamQuestion.find({
-    topicKey: { $in: queryCands },
+    ...examTopicFilter,
     ...ownershipFilter,
   })
     .select("_id marks createdAt")
@@ -124,7 +124,7 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
 
   return {
     topicKey: topicKeyToUse,
-    topic: findTopicByKey(topicKeyToUse)?.topic ?? null,
+    topic: topicTitle,
     requested,
     added: toAdd.length,
     addedIds: toAdd,

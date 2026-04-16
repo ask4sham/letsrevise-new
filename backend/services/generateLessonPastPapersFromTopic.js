@@ -5,7 +5,8 @@
 const Lesson = require("../models/Lesson");
 const TopicPastPaper = require("../models/TopicPastPaper");
 const { topicToKey } = require("../utils/topicTaxonomy");
-const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
+const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 
 /**
  * @param {Object} opts
@@ -28,11 +29,16 @@ async function generateLessonPastPapersFromTopic({ lessonId, userId }) {
   const ownerId = lesson.teacherId || lesson.createdBy;
   const specKey = (lesson.specKey && String(lesson.specKey).trim()) || parseTopicKey(topicKey).specKey || DEFAULT_SPEC_LEGACY;
   const topicOnly = parseTopicKey(topicKey).topicKey || topicKey.trim().toLowerCase();
-  const candidates = queryCandidates(specKey, topicOnly);
+  const namespaced = topicKey.includes(":") ? topicKey.trim() : buildTopicKey(specKey, topicOnly);
+  const bankNs = resolveQuestionBankNamespacedTopicKey(specKey, namespaced);
+  const bankParsed = parseTopicKey(bankNs);
+  const bankSpec = bankParsed.specKey || specKey;
+  const bankTopicOnly = bankParsed.topicKey || topicOnly;
+  const candidates = queryCandidates(bankSpec, bankTopicOnly);
 
   const bankItems = await TopicPastPaper.find({
     ownerId,
-    topicKey: candidates.length ? { $in: candidates } : topicOnly,
+    topicKey: candidates.length ? { $in: candidates } : bankNs,
     status: "published",
   })
     .sort({ createdAt: 1 })

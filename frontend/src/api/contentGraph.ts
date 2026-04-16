@@ -678,6 +678,16 @@ export type AutopilotDraftItem = {
   createdAt: string;
   readinessSummary?: unknown;
   gapSummary?: unknown;
+  /** Heuristic quality (0–100) for AI drafts */
+  qualityScore?: number;
+  qualityBand?: "high" | "medium" | "low";
+  qualityFlags?: string[];
+  qualityScoredAt?: string;
+  qualityScoredBy?: string;
+  approvalConfidence?: number;
+  scoreVersion?: string;
+  /** Set by Approval Autopilot; human must still approve */
+  suggestedForApproval?: boolean;
 };
 
 export type AutopilotDraftsFilters = {
@@ -788,6 +798,8 @@ export type AutopilotRunTopicResult = {
 export type AutopilotRunSummary = {
   _id: string;
   runType: "topic" | "spec";
+  /** Lean content engine phase when set (coverage | asset | quality | approval) */
+  contentEnginePhase?: string | null;
   specKey: string;
   topicKey?: string | null;
   dryRun: boolean;
@@ -821,6 +833,7 @@ export type AutopilotRunsFilters = {
   specKey?: string;
   topicKey?: string;
   runType?: string;
+  contentEnginePhase?: string;
   dryRun?: boolean;
   status?: string;
   limit?: number;
@@ -849,6 +862,32 @@ export async function fetchAutopilotRuns(
 /** Get single run by id. GET /api/content-graph/autopilot/runs/:id */
 export async function fetchAutopilotRunById(id: string): Promise<AutopilotRunDetail> {
   const res = await api.get<AutopilotRunDetail>(`/content-graph/autopilot/runs/${encodeURIComponent(id)}`);
+  return res.data;
+}
+
+export type ContentEnginePhase = "coverage" | "asset" | "quality" | "approval";
+
+export type ContentEngineRunBody = {
+  phase: ContentEnginePhase;
+  specKey?: string;
+  dryRun?: boolean;
+  limit?: number;
+  /** Coverage only: minimum gap priority score (default 30 server-side). */
+  minPriorityScore?: number;
+  lessonLimit?: number;
+  maxQualityItems?: number;
+  approvalLimit?: number;
+};
+
+/** POST /api/content-graph/autopilot/content-engine/run */
+export async function runContentEngineAutopilot(body: ContentEngineRunBody): Promise<unknown> {
+  const res = await api.post("/content-graph/autopilot/content-engine/run", body);
+  return res.data;
+}
+
+/** POST /api/content-graph/autopilot/content-engine/run-pipeline */
+export async function runContentEnginePipeline(body: Omit<ContentEngineRunBody, "phase">): Promise<unknown> {
+  const res = await api.post("/content-graph/autopilot/content-engine/run-pipeline", body);
   return res.data;
 }
 
