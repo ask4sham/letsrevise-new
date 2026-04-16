@@ -13,6 +13,9 @@ const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomySer
 const { fingerprint, dedupeIncoming } = require("../utils/flashcardDedupe");
 const { parseValidateDedupe, validateBulkItems, MAX_ITEMS } = require("../utils/parseBulkFlashcards");
 const { sendInternalError } = require("../utils/safeErrorResponse");
+const { enrichFlashcardItems } = require("../utils/reviewQualityFlags");
+const { ensureLeanFlashcardScored } = require("../utils/draftQualityScoring");
+const { applyFlashcardAiRewrite, FLASHCARD_ACTIONS } = require("../services/aiRewriteDraftAsset");
 
 function isTeacherOrAdmin(req) {
   if (!req.user) return false;
@@ -49,7 +52,18 @@ router.get("/", auth, async (req, res) => {
   try {
     const ownerId = getOwnerId(req);
     const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
-    const { topicKey, specKey: specKeyQ, status, mineOnly, unitKey: unitKeyQ } = req.query;
+    const {
+      topicKey,
+      specKey: specKeyQ,
+      status,
+      mineOnly,
+      unitKey: unitKeyQ,
+      metadataSource,
+      lessonId,
+      generationType,
+      sortBy,
+      qualityBand: qualityBandQ,
+    } = req.query;
 
     if (!topicKey) {
       return res.status(400).json({ error: "topicKey query is required" });
@@ -58,6 +72,15 @@ router.get("/", auth, async (req, res) => {
     if (!candidates || candidates.length === 0) return res.status(400).json({ error: "Invalid topicKey" });
 
     const query = { topicKey: { $in: candidates }, isArchived: { $ne: true } };
+    if (metadataSource && String(metadataSource).trim()) {
+      query["metadata.source"] = String(metadataSource).trim();
+    }
+    if (lessonId && mongoose.Types.ObjectId.isValid(String(lessonId))) {
+      query["metadata.lessonId"] = String(lessonId);
+    }
+    if (generationType && ["flashcard", "quiz", "exam"].includes(String(generationType).toLowerCase())) {
+      query["metadata.generationType"] = String(generationType).toLowerCase();
+    }
     if (String(mineOnly) === "1" || String(mineOnly) === "true" || !isAdmin) {
       query.ownerId = ownerId;
     }
@@ -69,8 +92,20 @@ router.get("/", auth, async (req, res) => {
       query.status = { $in: ["draft", "published"] };
     }
 
-    const items = await TopicFlashcard.find(query).sort({ updatedAt: -1 }).lean();
-    return res.json({ items });
+    let items = await TopicFlashcard.find(query).sort({ updatedAt: -1 }).lean();
+    items = items.map((doc) => ensureLeanFlashcardScored(doc));
+    if (qualityBandQ && ["high", "medium", "low"].includes(String(qualityBandQ).toLowerCase())) {
+      const b = String(qualityBandQ).toLowerCase();
+      items = items.filter((d) => d.metadata && d.metadata.qualityBand === b);
+    }
+    const sortKey = (sortBy && String(sortBy).toLowerCase()) || "updatedAt";
+    if (sortKey === "qualityscore") {
+      items.sort((a, b) => (b.metadata?.qualityScore ?? -1) - (a.metadata?.qualityScore ?? -1));
+    } else {
+      items.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+    }
+    const withReviewFlags = enrichFlashcardItems(items);
+    return res.json({ items: withReviewFlags });
   } catch (err) {
     console.error("TopicFlashcards GET error:", err);
     return sendInternalError("topic-flashcards/list", err, res);
@@ -396,6 +431,62 @@ router.post("/bulk/unpublish", auth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("TopicFlashcards bulk unpublish error:", err);
     return sendInternalError("topic-flashcards/bulk-unpublish", err, res);
+  }
+});
+
+// POST /api/topic-flashcards/bulk/delete — teachers delete own drafts; admins may delete any selected
+router.post("/bulk/delete", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) return res.status(400).json({ error: "ids array is required and must not be empty" });
+    if (ids.length > BULK_IDS_MAX) return res.status(400).json({ error: `Too many ids (max ${BULK_IDS_MAX})` });
+    const validIds = ids.filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+    if (validIds.length !== ids.length) return res.status(400).json({ error: "All ids must be valid ObjectIds" });
+    const objIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    const query = { _id: { $in: objIds } };
+    if (!isAdmin) {
+      query.ownerId = ownerId;
+      query.status = "draft";
+    }
+    const permitted = await TopicFlashcard.countDocuments(query);
+    if (!isAdmin && permitted === 0) return res.status(404).json({ error: "Not found" });
+    const result = await TopicFlashcard.deleteMany(query);
+    return res.json({ ok: true, deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error("TopicFlashcards bulk delete error:", err);
+    return sendInternalError("topic-flashcards/bulk-delete", err, res);
+  }
+});
+
+// POST /api/topic-flashcards/:id/ai-rewrite — draft only; LLM JSON patch (owner/admin)
+router.post("/:id/ai-rewrite", auth, async (req, res) => {
+  if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
+  try {
+    const id = req.params.id;
+    const action = String(req.body?.action || "").trim();
+    if (!action || !FLASHCARD_ACTIONS.has(action)) {
+      return res.status(400).json({ error: `Invalid action. Allowed: ${[...FLASHCARD_ACTIONS].join(", ")}` });
+    }
+    const ownerId = getOwnerId(req);
+    const isAdmin = (req.user.userType || req.user.role || "").toString().toLowerCase() === "admin" || req.user.isAdmin === true;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+    const card = await TopicFlashcard.findById(id);
+    if (!card) return res.status(404).json({ error: "Flashcard not found" });
+    if (!isAdmin && String(card.ownerId) !== String(ownerId)) return res.status(404).json({ error: "Flashcard not found" });
+    if (String(card.status) !== "draft") return res.status(400).json({ error: "AI rewrite is only for drafts" });
+    await applyFlashcardAiRewrite(card, action);
+    const lean = card.toObject ? card.toObject() : card;
+    return res.json({ flashcard: enrichFlashcardItems([lean])[0] });
+  } catch (err) {
+    if (err.code === "LLM_NOT_CONFIGURED" || err.code === "LLM_EMPTY" || err.code === "LLM_BAD_JSON") {
+      return res.status(503).json({ error: err.message || "LLM unavailable" });
+    }
+    const code = err.statusCode || 400;
+    if (code >= 500) return sendInternalError("topic-flashcards/ai-rewrite", err, res);
+    return res.status(code).json({ error: err.message || "Bad request" });
   }
 });
 
