@@ -107,8 +107,11 @@ export default function StudentMyWorkPage() {
         </Link>
       </div>
       <h1 style={{ margin: "0 0 8px 0", fontSize: "1.5rem" }}>My Work</h1>
-      <p style={{ margin: "0 0 16px 0", color: "#6b7280", fontSize: "0.95rem" }}>
+      <p style={{ margin: "0 0 8px 0", color: "#6b7280", fontSize: "0.95rem" }}>
         Worksheets, quizzes and assessments
+      </p>
+      <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "0.85rem", lineHeight: 1.45 }}>
+        Your saved notes, completed work, and progress are kept here so you can pick up anytime.
       </p>
 
       <div style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>

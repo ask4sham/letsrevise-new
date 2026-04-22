@@ -16,6 +16,8 @@ const { parseTopicKey } = require("../utils/topicKey");
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { buildAutopilotPromptMetadata } = require("./autopilotPromptMetadata");
 const { scoreFlashcardDraft, scoreQuizMcqDraft, scoreExamDraft, metadataQualityPatch } = require("../utils/draftQualityScoring");
+const { normalizeGeneratedExamQuestionForBank } = require("../utils/examQuestionBankGeneratedItem");
+const adminTaxonomyService = require("./adminTaxonomyService");
 
 function parseSpecToMeta(specKey) {
   const parts = (specKey || "").split("-").filter(Boolean);
@@ -72,6 +74,11 @@ async function _getStarterPack(specKey, topicKey, adminUserId, statementCodes, s
  */
 async function generateFlashcardsForTopic({ specKey, topicKey, count = 5, adminUserId, promptPack, initialStatus = "draft", statementCodes, dryRun }) {
   if (!adminUserId) return { status: "skipped", reason: "adminUserId required" };
+  const normalizedPre = normalizeSpecKey(specKey);
+  const topicForGroup = (topicKey || "").includes(":") ? topicKey : `${normalizedPre}:${(topicKey || "").trim()}`;
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalizedPre, topicForGroup)) {
+    return { status: "skipped", reason: "topic_is_group" };
+  }
   const sourceType = promptPack?.generatorMode === "draft_library" ? "spec_statements_only" : undefined;
   const pack = await _getStarterPack(specKey, topicKey, adminUserId, statementCodes, sourceType);
   if (!pack || !Array.isArray(pack.flashcards) || pack.flashcards.length === 0) {
@@ -145,6 +152,11 @@ async function generateFlashcardsForTopic({ specKey, topicKey, count = 5, adminU
  */
 async function generateQuizForTopic({ specKey, topicKey, count = 3, adminUserId, promptPack, initialStatus = "draft" }) {
   if (!adminUserId) return { status: "skipped", reason: "adminUserId required" };
+  const normalizedPre = normalizeSpecKey(specKey);
+  const topicForGroup = (topicKey || "").includes(":") ? topicKey : `${normalizedPre}:${(topicKey || "").trim()}`;
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalizedPre, topicForGroup)) {
+    return { status: "skipped", reason: "topic_is_group" };
+  }
   const pack = await _getStarterPack(specKey, topicKey, adminUserId);
   const quizItems = pack?.quiz || [];
   if (!pack || quizItems.length === 0) {
@@ -203,19 +215,24 @@ async function generateQuizForTopic({ specKey, topicKey, count = 3, adminUserId,
  * Generate exam questions for topic. Uses starter pack; saves as draft or published per initialStatus.
  * @param {{ specKey, topicKey, count?, adminUserId, promptPack?, initialStatus?, statementCodes?, dryRun? }}
  */
-async function generateExamQuestionsForTopic({ specKey, topicKey, count = 2, adminUserId, promptPack, initialStatus = "draft", statementCodes, dryRun }) {
+async function generateExamQuestionsForTopic({ specKey, topicKey, count = 10, adminUserId, promptPack, initialStatus = "draft", statementCodes, dryRun }) {
   if (!adminUserId) return { status: "skipped", reason: "adminUserId required" };
+  const normalizedPre = normalizeSpecKey(specKey);
+  const topicForGroup = (topicKey || "").includes(":") ? topicKey : `${normalizedPre}:${(topicKey || "").trim()}`;
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalizedPre, topicForGroup)) {
+    return { status: "skipped", reason: "topic_is_group" };
+  }
   const sourceType = promptPack?.generatorMode === "draft_library" ? "spec_statements_only" : undefined;
   const pack = await _getStarterPack(specKey, topicKey, adminUserId, statementCodes, sourceType);
   const examQuestions = pack?.examQuestions || [];
   if (!pack || examQuestions.length === 0) {
     return { status: "skipped", reason: "generation_not_available" };
   }
-  const normalized = normalizeSpecKey(specKey);
-  const topic = (topicKey || "").includes(":") ? topicKey : `${normalized}:${(topicKey || "").trim()}`;
-  const meta = parseSpecToMeta(normalized);
+  const normalizedSpecKey = normalizeSpecKey(specKey);
+  const topic = (topicKey || "").includes(":") ? topicKey : `${normalizedSpecKey}:${(topicKey || "").trim()}`;
+  const meta = parseSpecToMeta(normalizedSpecKey);
   const topicDisplay = topicDisplayName(topic);
-  const specKeyForDrift = parseTopicKey(topic).specKey || normalized;
+  const specKeyForDrift = parseTopicKey(topic).specKey || normalizedSpecKey;
   const topicKeyShort = parseTopicKey(topic).topicKey || topic;
   const filtered = filterBankItemsByDrift({
     topicKey: topicKeyShort,
@@ -228,14 +245,14 @@ async function generateExamQuestionsForTopic({ specKey, topicKey, count = 2, adm
   const toSave = (filtered.examQuestions || []).slice(0, count);
   const promptMeta = buildAutopilotPromptMetadata({
     contentType: "examQuestion",
-    specKey: normalized,
+    specKey: normalizedSpecKey,
     topicKey: topic,
     generatorMode: promptPack?.generatorMode,
     promptPack,
   });
   const generatedFrom = {
     generatedBy: "autopilot",
-    specKey: normalized,
+    specKey: normalizedSpecKey,
     topicKey: topic,
     generatedAt: new Date(),
     ...promptMeta,
@@ -243,16 +260,15 @@ async function generateExamQuestionsForTopic({ specKey, topicKey, count = 2, adm
   if (promptPack?.sourceType) generatedFrom.sourceType = promptPack.sourceType;
   const ids = [];
   for (const eq of toSave) {
-    const question = (eq.question || "").trim();
-    const markScheme = (eq.markScheme || "").trim();
-    const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
-    if (!question) continue;
-    const fp = examQuestionFingerprint({ specKey: normalized, topicKey: topic, question, markScheme, marks });
+    const bankNorm = normalizeGeneratedExamQuestionForBank(eq);
+    if (!bankNorm) continue;
+    const { question, marks, markScheme, modelAnswer } = bankNorm;
+    const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
+    const fp = examQuestionFingerprint({ specKey: normalizedSpecKey, topicKey: topic, question, markScheme: msJoin, marks });
     if (dryRun) {
       ids.push(`dry-run-${fp.slice(0, 8)}`);
       continue;
     }
-    const msArr = markScheme ? [markScheme] : [];
     const doc = new ExamQuestion({
       teacherId: adminUserId,
       subject: meta.subject,
@@ -263,17 +279,20 @@ async function generateExamQuestionsForTopic({ specKey, topicKey, count = 2, adm
       type: "short",
       marks,
       question,
-      markScheme: msArr,
+      markScheme,
+      correctAnswer: modelAnswer,
       status: initialStatus === "published" ? "published" : "draft",
       fingerprint: fp,
       metadata: {
         ...generatedFrom,
+        modelAnswer,
         ...metadataQualityPatch(
           scoreExamDraft({
             question,
             marks,
-            markScheme: msArr,
+            markScheme,
             type: "short",
+            modelAnswer,
           }),
           "heuristic"
         ),

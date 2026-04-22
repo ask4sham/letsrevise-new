@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const { searchKnowledge } = require("../knowledge/knowledgeSearchService");
 const { generatePracticeSet: llmGeneratePracticeSet } = require("../llm/provider");
 const { normalizeSpecKey } = require("../../config/featureFlags");
+const adminTaxonomyService = require("../adminTaxonomyService");
 
 const VALID_SOURCE_TYPES = ["specStatement", "lessonBlock", "teacherNote", "lessonDiagram"];
 const DEFAULT_COUNTS = {
@@ -123,6 +124,11 @@ async function runPracticeSetGeneration({
   const topic = String(topicKey || "").trim();
   if (!normalized || !topic) {
     throw new Error("specKey and topicKey are required");
+  }
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalized, topic)) {
+    const err = new Error("TOPIC_IS_GROUP");
+    err.code = "TOPIC_IS_GROUP";
+    throw err;
   }
 
   const effectiveCounts = { ...DEFAULT_COUNTS, ...counts };

@@ -9,6 +9,8 @@ export type CreateLessonSubTopic = {
   topicSlug: string;
   topicKey: string;
   path: string;
+  /** When true, topic is a folder only — excluded from API; optional client guard */
+  isGroup?: boolean;
 };
 
 export type CreateLessonMainTopic = {

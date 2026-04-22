@@ -6,6 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getMergedTaxonomyBySpecKey } = require("./adminTaxonomyService");
+const { isTopicGroup } = require("../utils/topicTaxonomy");
 
 const CONFIG_DIR = path.join(__dirname, "..", "config");
 
@@ -77,6 +78,7 @@ function getCreateLessonOptions() {
       const subTopics = [];
 
       for (const t of topics) {
+        if (isTopicGroup(t)) continue;
         const leafTitle = typeof t.topic === "string" && t.topic.trim() ? t.topic.trim() : null;
         const topicSlug = typeof t.key === "string" && t.key.trim() ? t.key.trim() : null;
         if (!leafTitle || !topicSlug) continue;
@@ -127,6 +129,7 @@ async function getCreateLessonOptionsMerged() {
       for (const sec of unit.sections || []) {
         const sectionTitle = (sec.title && String(sec.title).trim()) || sec.slug;
         for (const t of sec.topics || []) {
+          if (isTopicGroup(t)) continue;
           const leafTitle = (t.topic && String(t.topic).trim()) || null;
           const topicSlug = (t.key && String(t.key).trim()) || null;
           if (!leafTitle || !topicSlug) continue;
@@ -148,6 +151,7 @@ async function getCreateLessonOptionsMerged() {
         }
       }
       for (const t of unit.topics || []) {
+        if (isTopicGroup(t)) continue;
         const topicSlug = (t.key && String(t.key).trim()) || null;
         if (!topicSlug || inSection.has(topicSlug.toLowerCase())) continue;
         const leafTitle = (t.topic && String(t.topic).trim()) || null;

@@ -1,5 +1,7 @@
 # Proxy API to Render (must precede SPA fallback)
 /api/*  https://letsrevise-new.onrender.com/api/:splat  200
+/uploads/*  https://letsrevise-new.onrender.com/uploads/:splat  200
+/visuals/*  https://letsrevise-new.onrender.com/visuals/:splat  200
 # Serve /docs/* as static files (e.g. PDF); do not SPA fallback
 /docs/*  /docs/:splat  200
 # SPA fallback: all other routes → index.html for React Router

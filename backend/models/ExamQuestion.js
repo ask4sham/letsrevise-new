@@ -117,6 +117,8 @@ const ExamQuestionSchema = new mongoose.Schema(
     skill: { type: String, enum: ["recall", "application", "analysis", "exam-technique"], default: null },
     estimatedTimeSec: { type: Number, min: 1, default: null },
     isArchived: { type: Boolean, default: false },
+    /** Optional image URL (platform upload) shown with the question stem in Exam Practice / bank UI. */
+    imageUrl: { type: String, trim: true, default: null },
     /** PR-014.1: generatedFrom { jobId, statementCodes, seed } for publish gate */
     metadata: { type: mongoose.Schema.Types.Mixed, default: null },
   },

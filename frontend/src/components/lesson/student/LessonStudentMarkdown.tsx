@@ -4,6 +4,10 @@ import { LessonMarkdown } from "../LessonMarkdown";
 import { lessonMarkdownUrlTransform } from "../lessonMarkdownViewComponents";
 import { preprocessMarkdownAssetUrls } from "../../../utils/assetUrl";
 import { stripStudentStructuralLabels } from "./stripStudentStructuralLabels";
+import {
+  mergeLessonMarkdownComponentsWithKeywordHighlight,
+  type ContentKeywordItem,
+} from "./contentKeywordHighlight";
 
 type Props = {
   children: string;
@@ -11,6 +15,8 @@ type Props = {
   className?: string;
   /** Strip leading "Explanation" / "Key points" scaffold lines (student view) */
   stripStructuralLabels?: boolean;
+  /** Lesson/page metadata — render-time highlights only */
+  highlightKeywords?: ContentKeywordItem[];
 };
 
 /**
@@ -21,6 +27,7 @@ export function LessonStudentMarkdown({
   components,
   className = "lesson-md-body lesson-student-md",
   stripStructuralLabels = true,
+  highlightKeywords,
 }: Props) {
   const processed = useMemo(() => {
     let raw = children ?? "";
@@ -28,8 +35,13 @@ export function LessonStudentMarkdown({
     return preprocessMarkdownAssetUrls(raw);
   }, [children, stripStructuralLabels]);
 
+  const mergedComponents = useMemo(
+    () => mergeLessonMarkdownComponentsWithKeywordHighlight(components, highlightKeywords),
+    [components, highlightKeywords]
+  );
+
   return (
-    <LessonMarkdown className={className} components={components} urlTransform={lessonMarkdownUrlTransform}>
+    <LessonMarkdown className={className} components={mergedComponents} urlTransform={lessonMarkdownUrlTransform}>
       {processed}
     </LessonMarkdown>
   );

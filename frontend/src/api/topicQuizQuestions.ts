@@ -250,15 +250,16 @@ export async function generateAssessmentFromTopic(
   return res.data!;
 }
 
-/** Attach selected Topic Quiz Bank questions to a lesson page (published-only, exact topicKey). */
+/** Attach selected Topic Quiz Bank questions to a lesson page (published by default; draft allowed with allowDraft). */
 export async function attachPageQuizFromBank(
   lessonId: string,
   pageId: string,
-  questionIds: string[]
+  questionIds: string[],
+  opts?: { allowDraft?: boolean }
 ): Promise<{ ok: boolean; addedCount: number; alreadyExisted: number; lesson: any }> {
   const res = await api.post<{ ok: boolean; addedCount: number; alreadyExisted: number; lesson: any }>(
     `/lessons/${lessonId}/attach-page-quiz-from-bank`,
-    { pageId, questionIds }
+    { pageId, questionIds, ...(opts?.allowDraft ? { allowDraft: true } : {}) }
   );
   return res.data!;
 }

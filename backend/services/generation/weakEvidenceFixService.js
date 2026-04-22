@@ -8,6 +8,7 @@ const EnquiryLog = require("../../models/EnquiryLog");
 const { searchKnowledge } = require("../knowledge/knowledgeSearchService");
 const { generateWeakEvidenceFixPack } = require("../llm/provider");
 const { normalizeSpecKey } = require("../../config/featureFlags");
+const adminTaxonomyService = require("../adminTaxonomyService");
 
 const VALID_SOURCE_TYPES = ["specStatement", "lessonBlock", "teacherNote", "lessonDiagram"];
 const MAX_MISSING_STATEMENTS = 5;
@@ -178,6 +179,11 @@ async function runWeakEvidenceFixGeneration({
   user,
 }) {
   const normalized = normalizeSpecKey(specKey);
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalized, topicKey)) {
+    const err = new Error("TOPIC_IS_GROUP");
+    err.code = "TOPIC_IS_GROUP";
+    throw err;
+  }
 
   const codes =
     missingStatementCodes && missingStatementCodes.length > 0

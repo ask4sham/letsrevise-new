@@ -4,7 +4,7 @@
  */
 const AdminTaxonomyItem = require("../models/AdminTaxonomyItem");
 const AdminTopicPlacement = require("../models/AdminTopicPlacement");
-const { getTaxonomyBySpecKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const { getTaxonomyBySpecKey, isValidTopicForSpec, isTopicGroup } = require("../utils/topicTaxonomy");
 const { buildTopicKey, parseTopicKey, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
 
 /** Generate slug from display name */
@@ -301,6 +301,42 @@ async function getLinkedContentCounts(specKey, topicKeyOrSlug) {
   return { lessons, flashcards, quizzes, examQuestions };
 }
 
+/**
+ * Whether this topicSlug/namespaced key is flagged as a group (folder) in merged taxonomy.
+ * @param {string} specKey
+ * @param {string} topicKeyOrNamespaced - e.g. "cell-structure" or "aqa-gcse-biology:cell-structure"
+ * @returns {Promise<boolean>}
+ */
+async function topicIsGroupInMerged(specKey, topicKeyOrNamespaced) {
+  if (!specKey || !topicKeyOrNamespaced) return false;
+  const { parseTopicKey } = require("../utils/topicKey");
+  let slug = (parseTopicKey(topicKeyOrNamespaced).topicKey || "").trim();
+  if (!slug) slug = String(topicKeyOrNamespaced).trim();
+  slug = slug.split(":").pop().trim().toLowerCase();
+  if (!slug) return false;
+
+  const taxonomy = await getMergedTaxonomyBySpecKey(specKey);
+  if (!taxonomy?.units) return false;
+
+  for (const unit of taxonomy.units) {
+    for (const t of unit.topics || []) {
+      const k = String(t.key || "")
+        .trim()
+        .toLowerCase();
+      if (k === slug) return isTopicGroup(t);
+    }
+    for (const sec of unit.sections || []) {
+      for (const t of sec.topics || []) {
+        const k = String(t.key || "")
+          .trim()
+          .toLowerCase();
+        if (k === slug) return isTopicGroup(t);
+      }
+    }
+  }
+  return false;
+}
+
 /** Sync check with pre-fetched admin items */
 function isValidTopicForSpecWithItems(specKey, topicKey, adminItems = []) {
   const { topicKey: raw } = require("../utils/topicKey").parseTopicKey(topicKey || "");
@@ -320,6 +356,7 @@ function isValidTopicForSpecWithItems(specKey, topicKey, adminItems = []) {
 
 module.exports = {
   getMergedTaxonomyBySpecKey,
+  topicIsGroupInMerged,
   mergeTaxonomySync,
   isValidTopicForSpecWithAdmin,
   isValidTopicForSpecWithItems,

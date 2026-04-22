@@ -2,18 +2,22 @@ import React from "react";
 import type { Components } from "react-markdown";
 import { LessonStudentMarkdown } from "./LessonStudentMarkdown";
 import { StudentMarkdownMediaSplit } from "./StudentMarkdownMediaSplit";
+import type { ContentKeywordItem } from "./contentKeywordHighlight";
 
 type MdProps = {
   content: string;
   markdownComponents: Partial<Components>;
   /** V12: split first standalone markdown image into text-left / image-right */
   enableMarkdownMediaSplit?: boolean;
+  /** Lesson/page metadata — render-time highlights only */
+  highlightKeywords?: ContentKeywordItem[];
 };
 
 export function StudentExplanationBlock({
   content,
   markdownComponents,
   enableMarkdownMediaSplit,
+  highlightKeywords,
 }: MdProps) {
   if (enableMarkdownMediaSplit) {
     return (
@@ -21,12 +25,15 @@ export function StudentExplanationBlock({
         content={content}
         markdownComponents={markdownComponents}
         wrapperClassName="lesson-content student-block student-block--text"
+        highlightKeywords={highlightKeywords}
       />
     );
   }
   return (
     <div className="lesson-content student-block student-block--text">
-      <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
     </div>
   );
 }
@@ -52,10 +59,12 @@ export function StudentKeyIdeaBlock({
   );
 }
 
-export function StudentExamTipBlock({ content, markdownComponents }: MdProps) {
+export function StudentExamTipBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
   return (
     <div className="lesson-content student-block student-block--exam-tip">
-      <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
     </div>
   );
 }
@@ -69,26 +78,32 @@ export function StudentMisconceptionBlock({ content, markdownComponents }: MdPro
 }
 
 /** Maps `stretch` (deeper knowledge) — summary / extension tone */
-export function StudentSynthesisBlock({ content, markdownComponents }: MdProps) {
+export function StudentSynthesisBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
   return (
     <div className="lesson-content student-block student-block--synthesis">
-      <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
     </div>
   );
 }
 
-export function StudentWorkedExampleBlock({ content, markdownComponents }: MdProps) {
+export function StudentWorkedExampleBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
   return (
     <div className="lesson-content student-block student-block--example">
-      <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
     </div>
   );
 }
 
-export function StudentHookBlock({ content, markdownComponents }: MdProps) {
+export function StudentHookBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
   return (
     <div className="lesson-content student-block student-block--hook">
-      <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
     </div>
   );
 }

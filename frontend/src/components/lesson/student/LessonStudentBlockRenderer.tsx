@@ -11,6 +11,7 @@ import {
   StudentSynthesisBlock,
   StudentWorkedExampleBlock,
 } from "./studentLessonBlocks";
+import type { ContentKeywordItem } from "./contentKeywordHighlight";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -21,6 +22,8 @@ export type LessonStudentBlockRendererProps = {
   renderDiagramBlock: (block: StudentLessonPageBlock, idx: number) => React.ReactNode;
   /** V12: first `![](url)` line in text/keyIdea → SS2 side-by-side layout */
   enableMarkdownMediaSplit?: boolean;
+  /** Lesson/page metadata — render-time highlights only (not applied to pageQuiz) */
+  highlightKeywords?: ContentKeywordItem[];
 };
 
 /**
@@ -34,6 +37,7 @@ export function LessonStudentBlockRenderer({
   maybeParseKeywordsFromText,
   renderDiagramBlock,
   enableMarkdownMediaSplit,
+  highlightKeywords,
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
   const kind = String(block.type || "").trim() || "text";
   const raw = typeof block.content === "string" ? block.content : "";
@@ -49,7 +53,8 @@ export function LessonStudentBlockRenderer({
     );
   }
 
-  const mdProps = { content: raw, markdownComponents, enableMarkdownMediaSplit };
+  const safeHighlightKeywords = kind === "pageQuiz" ? undefined : highlightKeywords;
+  const mdProps = { content: raw, markdownComponents, enableMarkdownMediaSplit, highlightKeywords: safeHighlightKeywords };
 
   if (kind === "keyIdea") {
     return <StudentKeyIdeaBlock {...mdProps} />;

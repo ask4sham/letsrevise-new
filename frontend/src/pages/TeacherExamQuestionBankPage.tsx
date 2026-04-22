@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
 import type { SpecKey } from "../api/taxonomy";
-import { aiRewriteExamQuestion } from "../api/examQuestions";
+import { aiRewriteExamQuestion, publishExamQuestion } from "../api/examQuestions";
+import { getApiClientErrorMessage } from "../utils/apiErrorMessage";
+import { getExamPublishReadinessUi } from "../utils/examQuestionPublishReadinessUi";
+import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 
 const QUESTION_TYPES = ["mcq", "short", "label", "table", "data"] as const;
 const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "Other"];
 const EXAM_BOARDS = ["AQA", "Edexcel", "OCR", "CIE", "WJEC", "Other"];
 const LEVELS = ["GCSE", "A-Level", "IB", "KS3", "Other"];
+
+/** Set `REACT_APP_DEBUG_EXAM_BANK=true` in `.env.local` to enable fetch logging (only when `NODE_ENV === "development"`). */
+const DEBUG_EXAM_BANK = process.env.REACT_APP_DEBUG_EXAM_BANK === "true";
 
 type ExamQuestion = {
   _id: string;
@@ -23,6 +29,8 @@ type ExamQuestion = {
   type: string;
   marks: number;
   question: string;
+  /** From POST /api/uploads/lesson-media — optional stem image */
+  imageUrl?: string | null;
   options?: string[];
   correctIndex?: number | null;
   correctAnswer?: string | null;
@@ -46,7 +54,12 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const topicKeyFromUrl = searchParams.get("topicKey") ?? "";
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const fetchGenRef = React.useRef(0);
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgePreview, setPurgePreview] = useState<{ count: number } | null>(null);
+  const [publishErrorById, setPublishErrorById] = useState<Record<string, string>>({});
+  const [aiRewriteErrorById, setAiRewriteErrorById] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -58,6 +71,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<"updatedAt" | "qualityScore">("updatedAt");
   const [qualityBand, setQualityBand] = useState<"" | "high" | "medium" | "low">("");
   const [aiRewriteLoadingId, setAiRewriteLoadingId] = useState<string | null>(null);
+  const [publishLoadingId, setPublishLoadingId] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [specKey, setSpecKey] = useState<SpecKey>(getStoredSpecKey);
   const { data: taxonomy } = useTaxonomy(specKey);
   const [form, setForm] = useState({
@@ -66,12 +82,13 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     level: "GCSE",
     topic: "",
     topicKey: "",
-    questionType: "mcq" as (typeof QUESTION_TYPES)[number],
-    marks: 1,
+    questionType: "short" as (typeof QUESTION_TYPES)[number],
+    marks: 2,
     questionText: "",
     correctAnswerMarkScheme: "",
     mcqOptions: ["", "", "", "", ""] as string[],
     correctIndex: 0,
+    imageUrl: "",
   });
 
   const keyToTopic = React.useMemo(() => {
@@ -86,9 +103,19 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     return map;
   }, [taxonomy]);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
+    const gen = ++fetchGenRef.current;
+    if (process.env.NODE_ENV === "development" && DEBUG_EXAM_BANK) {
+      console.log("fetchQuestions triggered with:", {
+        filterTopicKey,
+        aiLessonAssetsOnly,
+        lessonIdFilter,
+        statusFilter,
+        sortBy,
+        qualityBand,
+      });
+    }
     try {
-      setError(null);
       const params: Record<string, string> = {};
       if (filterTopicKey) params.topicKey = filterTopicKey;
       if (aiLessonAssetsOnly) {
@@ -100,54 +127,73 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       if (sortBy === "qualityScore") params.sortBy = "qualityScore";
       if (qualityBand) params.qualityBand = qualityBand;
       const res = await api.get("/exam-questions", { params });
+      if (gen !== fetchGenRef.current) return;
       const data = res?.data;
       setQuestions(Array.isArray(data?.questions) ? data.questions : []);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load questions");
+      setLoadError(null);
+    } catch (err: unknown) {
+      if (gen !== fetchGenRef.current) return;
+      setLoadError(getApiClientErrorMessage(err, "Failed to load questions"));
       setQuestions([]);
     } finally {
-      setLoading(false);
+      if (gen === fetchGenRef.current) setLoading(false);
     }
-  };
+  }, [filterTopicKey, aiLessonAssetsOnly, lessonIdFilter, statusFilter, sortBy, qualityBand]);
 
   const onSpecChange = (v: SpecKey) => {
     setSpecKey(v);
     setStoredSpecKey(v);
   };
 
-  // Pre-set topic filter from URL when opening from Misconceptions panel
+  // Pre-set topic / AI filters from URL (e.g. "Review exam drafts"). Functional updates avoid redundant setState when already in sync.
   useEffect(() => {
     const key = searchParams.get("topicKey");
-    if (key) setFilterTopicKey(key);
+    if (key) setFilterTopicKey((prev) => (prev === key ? prev : key));
     const ms = searchParams.get("metadataSource");
     if (ms === "ai_lesson_assets") {
-      setAiLessonAssetsOnly(true);
-      setSortBy("qualityScore");
+      setAiLessonAssetsOnly((prev) => (prev ? prev : true));
+      setSortBy((prev) => (prev === "qualityScore" ? prev : "qualityScore"));
     }
   }, [searchParams]);
 
   useEffect(() => {
-    if (aiLessonAssetsOnly) setSortBy("qualityScore");
+    if (aiLessonAssetsOnly) setSortBy((prev) => (prev === "qualityScore" ? prev : "qualityScore"));
   }, [aiLessonAssetsOnly]);
 
+  // Runs when fetchQuestions identity changes — that only happens when filter deps in useCallback change (not every render).
   useEffect(() => {
     setLoading(true);
-    fetchQuestions();
-  }, [filterTopicKey, specKey, aiLessonAssetsOnly, lessonIdFilter, statusFilter, sortBy, qualityBand]);
+    void fetchQuestions();
+  }, [fetchQuestions]);
 
   function validateForm(): string | null {
+    if (!form.topicKey?.trim()) {
+      return "Cannot save: select a topic from the taxonomy list (canonical topicKey required for Exam Practice to match lessons).";
+    }
     const q = form.questionText.trim();
     if (!q) return "Question text is required.";
-    if (form.marks < 1) return "Marks must be at least 1.";
+    if (!editingId && form.questionType === "mcq") {
+      return "New Exam Bank items cannot be multiple choice. Use the Topic Quiz Bank for MCQs.";
+    }
+    if (form.marks < 2) return "Marks must be at least 2 for Exam Question Bank entries.";
     if (form.questionType === "mcq") {
       const opts = form.mcqOptions.map((s) => s.trim()).filter(Boolean);
       if (opts.length < 2) return "MCQ requires at least 2 options.";
       if (opts.length > 5) return "MCQ allows at most 5 options.";
       if (form.correctIndex < 0 || form.correctIndex >= opts.length) return "Please select the correct option.";
-      return null;
     }
-    const answer = form.correctAnswerMarkScheme.trim();
-    if (form.questionType === "short" && !answer) return "Correct answer or mark scheme is required for short answer.";
+    const markSchemeLines = form.correctAnswerMarkScheme
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const pub = getExamPublishReadinessUi({
+      type: form.questionType,
+      marks: form.marks,
+      question: q,
+      markScheme: form.questionType === "mcq" ? [] : markSchemeLines,
+      correctAnswer: form.questionType === "mcq" ? form.mcqOptions[form.correctIndex]?.trim() ?? null : form.correctAnswerMarkScheme.trim() || null,
+    });
+    if (!pub.ok) return pub.reasons[0] || "Does not meet publish rules for the Exam Bank yet.";
     return null;
   }
 
@@ -157,17 +203,49 @@ const TeacherExamQuestionBankPage: React.FC = () => {
     level: "GCSE",
     topic: "",
     topicKey: "",
-    questionType: "mcq" as (typeof QUESTION_TYPES)[number],
-    marks: 1,
+    questionType: "short" as (typeof QUESTION_TYPES)[number],
+    marks: 2,
     questionText: "",
     correctAnswerMarkScheme: "",
     mcqOptions: ["", "", "", "", ""] as string[],
     correctIndex: 0,
+    imageUrl: "",
+  };
+
+  const onExamQuestionImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setImageUploadError("Please choose an image file (PNG, JPEG, WebP, or GIF).");
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setImageUploadError("Image must be 12MB or smaller.");
+      return;
+    }
+    setImageUploadError(null);
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await api.post<{ url?: string; ok?: boolean }>("/uploads/lesson-media", fd, {
+        params: { folder: "exam-questions" },
+      });
+      const url = res.data?.url;
+      if (!url || typeof url !== "string") throw new Error("Upload did not return a URL.");
+      setForm((f) => ({ ...f, imageUrl: url }));
+    } catch (err: unknown) {
+      setImageUploadError(getApiClientErrorMessage(err, "Image upload failed."));
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const openCreateModal = () => {
     setEditingId(null);
     setFormError(null);
+    setImageUploadError(null);
     setForm(defaultForm);
     setModalOpen(true);
   };
@@ -187,24 +265,99 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       correctAnswerMarkScheme: Array.isArray(q.markScheme) ? q.markScheme.join("\n") : (q.correctAnswer != null ? String(q.correctAnswer) : ""),
       mcqOptions,
       correctIndex: q.correctIndex != null && q.correctIndex >= 0 ? q.correctIndex : 0,
+      imageUrl: typeof q.imageUrl === "string" ? q.imageUrl : "",
     });
     setFormError(null);
+    setImageUploadError(null);
     setEditingId(q._id);
     setModalOpen(true);
+  };
+
+  const handlePublishExam = async (id: string) => {
+    setPublishLoadingId(id);
+    setPublishErrorById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const updated = await publishExamQuestion(id);
+      setQuestions((prev) =>
+        prev.map((x) => (x._id === id ? { ...x, ...(updated as ExamQuestion), status: String((updated as ExamQuestion).status || "published") } : x))
+      );
+      setPublishErrorById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (e: unknown) {
+      const ex = e as { message?: string; data?: { msg?: string; issues?: unknown[] } };
+      let line = getApiClientErrorMessage(e, "Publish failed");
+      const issues = ex.data?.issues;
+      if (Array.isArray(issues) && issues.length > 0) {
+        const detail = issues
+          .map((it: unknown) =>
+            typeof it === "string" ? it : (it as { message?: string })?.message || (it as { msg?: string })?.msg
+          )
+          .filter(Boolean)
+          .join(" · ");
+        if (detail) line = `${line}${line.includes(detail) ? "" : ` · ${detail}`}`;
+      }
+      setPublishErrorById((prev) => ({ ...prev, [id]: line }));
+    } finally {
+      setPublishLoadingId(null);
+    }
   };
 
   const handleAiRewriteExam = async (id: string, action: string) => {
     if (!action) return;
     setAiRewriteLoadingId(id);
-    setError(null);
+    setAiRewriteErrorById((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     try {
       const updated = (await aiRewriteExamQuestion(id, action)) as ExamQuestion;
       setQuestions((prev) => prev.map((x) => (x._id === id ? { ...x, ...updated } : x)));
     } catch (e: unknown) {
-      const err = e as { message?: string };
-      setError(err?.message || "AI rewrite failed");
+      setAiRewriteErrorById((prev) => ({
+        ...prev,
+        [id]: getApiClientErrorMessage(e, "AI rewrite failed"),
+      }));
     } finally {
       setAiRewriteLoadingId(null);
+    }
+  };
+
+  const handlePurgeDryRun = async () => {
+    setPurgeBusy(true);
+    setPurgePreview(null);
+    try {
+      const res = await api.post<{ success?: boolean; count?: number }>(
+        "/exam-questions/bulk/purge-invalid-ai-exam-drafts",
+        { dryRun: true }
+      );
+      setPurgePreview({ count: Number(res.data?.count ?? 0) });
+    } catch (e: unknown) {
+      alert(getApiClientErrorMessage(e, "Could not preview cleanup"));
+    } finally {
+      setPurgeBusy(false);
+    }
+  };
+
+  const handlePurgeConfirm = async () => {
+    if (!purgePreview || purgePreview.count < 1) return;
+    if (!window.confirm(`Permanently delete ${purgePreview.count} unpublishable AI exam draft(s)? This cannot be undone.`)) return;
+    setPurgeBusy(true);
+    try {
+      await api.post("/exam-questions/bulk/purge-invalid-ai-exam-drafts", { confirm: true });
+      setPurgePreview(null);
+      await fetchQuestions();
+    } catch (e: unknown) {
+      alert(getApiClientErrorMessage(e, "Cleanup failed"));
+    } finally {
+      setPurgeBusy(false);
     }
   };
 
@@ -228,7 +381,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
       const correctAnswerVal = form.questionType === "mcq"
         ? (mcqOpts[correctIdx!] ?? null)
         : (form.correctAnswerMarkScheme.trim() || null);
-      const payload = {
+      const payload: Record<string, unknown> = {
         subject: form.subject,
         examBoard: form.examBoard || undefined,
         level: form.level || undefined,
@@ -243,6 +396,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         markScheme: form.questionType === "mcq" ? [] : (markScheme.length ? markScheme : []),
         options: form.questionType === "mcq" ? mcqOpts : [],
       };
+      const trimmedImg = form.imageUrl.trim();
+      if (trimmedImg) payload.imageUrl = trimmedImg;
+      else if (editingId) payload.imageUrl = null;
       if (editingId) {
         await api.put(`/exam-questions/${editingId}`, payload);
         setEditingId(null);
@@ -260,10 +416,13 @@ const TeacherExamQuestionBankPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: "960px", margin: "0 auto", minHeight: "100vh" }}>
+    <div
+      className="teacher-exam-question-bank"
+      style={{ padding: "1.5rem", maxWidth: "min(1280px, 100%)", margin: "0 auto", minHeight: "100vh", boxSizing: "border-box" }}
+    >
       <div style={{ marginBottom: "1.5rem" }}>
         <Link
-          to="/teacher"
+          to="/teacher-dashboard"
           style={{
             textDecoration: "none",
             color: "#4f46e5",
@@ -290,6 +449,13 @@ const TeacherExamQuestionBankPage: React.FC = () => {
           <h1 style={{ margin: 0, fontSize: "1.75rem", color: "#111827" }}>Exam Question Bank</h1>
           <p style={{ margin: "0.35rem 0 0", color: "#6b7280", fontSize: "1rem" }}>
             Create, edit, and organise exam questions
+          </p>
+          <p style={{ margin: "0.5rem 0 0", color: "#64748b", fontSize: "0.875rem", maxWidth: 720, lineHeight: 1.5 }}>
+            <strong>Exam Bank</strong> is for longer structured answers (Explain, Describe, Compare…). Quick recall MCQs belong in the{" "}
+            <Link to="/teacher/topic-banks/quizzes" style={{ color: "#4f46e5", fontWeight: 600 }}>
+              Topic Quiz Bank
+            </Link>
+            . Publishing requires a solid mark scheme (see publish rules).
           </p>
         </div>
         <button
@@ -379,56 +545,110 @@ const TeacherExamQuestionBankPage: React.FC = () => {
         </select>
       </div>
 
+      <div
+        style={{
+          marginBottom: "1rem",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: "10px",
+          padding: "10px 12px",
+          background: "#f8fafc",
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0",
+        }}
+      >
+        <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155" }}>
+          AI exam drafts (from lesson asset generation) that cannot be published:
+        </span>
+        <button
+          type="button"
+          disabled={purgeBusy}
+          onClick={() => void handlePurgeDryRun()}
+          style={{
+            padding: "6px 12px",
+            fontSize: "0.8125rem",
+            background: "white",
+            border: "1px solid #cbd5e1",
+            borderRadius: "6px",
+            cursor: purgeBusy ? "not-allowed" : "pointer",
+          }}
+        >
+          {purgeBusy ? "Working…" : "Preview unpublishable"}
+        </button>
+        <button
+          type="button"
+          disabled={purgeBusy || !purgePreview || purgePreview.count < 1}
+          onClick={() => void handlePurgeConfirm()}
+          style={{
+            padding: "6px 12px",
+            fontSize: "0.8125rem",
+            background: !purgePreview || purgePreview.count < 1 ? "#e5e7eb" : "#fee2e2",
+            color: !purgePreview || purgePreview.count < 1 ? "#9ca3af" : "#991b1b",
+            border: "1px solid #fecaca",
+            borderRadius: "6px",
+            cursor: purgeBusy || !purgePreview || purgePreview.count < 1 ? "not-allowed" : "pointer",
+            fontWeight: 600,
+          }}
+        >
+          Delete listed drafts
+        </button>
+        {purgePreview != null && (
+          <span style={{ fontSize: 12, color: "#64748b" }}>Preview: {purgePreview.count} draft(s) would be deleted.</span>
+        )}
+      </div>
+
       {loading && (
         <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading questions...</div>
       )}
-      {error && (
+      {loadError && !loading && questions.length === 0 && (
         <div style={{ padding: "1rem", marginBottom: "1rem", background: "#fef2f2", color: "#991b1b", borderRadius: "8px" }}>
-          {error}
+          {loadError}
         </div>
       )}
       {!loading && questions.length > 0 && (
-        <div
-          style={{
-            background: "white",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-            border: "1px solid #e5e7eb",
-            overflow: "hidden",
-          }}
-        >
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="table-wrapper">
+          <table>
             <thead>
-              <tr style={{ borderBottom: "2px solid #e5e7eb", background: "#f9fafb" }}>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Subject</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Topic</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Type</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Marks</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Question</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Options</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Quality</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Status</th>
-                <th style={{ textAlign: "left", padding: "12px", fontWeight: 600, color: "#374151" }}>Actions</th>
+              <tr>
+                <th className="small">Subject</th>
+                <th className="topic-col">Topic</th>
+                <th className="small">Type</th>
+                <th className="small">Marks</th>
+                <th className="col-question">Question</th>
+                <th className="col-options">Options</th>
+                <th>Quality</th>
+                <th className="status-col">Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {questions.map((q) => (
-                <tr key={q._id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                  <td style={{ padding: "12px", color: "#374151" }}>{q.subject}</td>
-                  <td style={{ padding: "12px", color: "#374151", fontSize: "0.875rem" }}>
+                <tr key={q._id}>
+                  <td className="small">{q.subject}</td>
+                  <td className="topic-cell">
                     {q.topicKey ? (keyToTopic[q.topicKey] ?? q.topicKey) : (q.topic || "—")}
                   </td>
-                  <td style={{ padding: "12px", color: "#374151" }}>{q.type}</td>
-                  <td style={{ padding: "12px", color: "#374151" }}>{q.marks}</td>
-                  <td style={{ padding: "12px", color: "#374151", maxWidth: "320px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={q.question}>{q.question || "—"}</td>
-                  <td style={{ padding: "12px", color: "#374151", fontSize: "0.875rem", maxWidth: "200px" }}>
+                  <td className="small">{q.type}</td>
+                  <td className="small">{q.marks}</td>
+                  <td className="question-cell">
+                    {q.imageUrl ? (
+                      <span title="Has question image" style={{ marginRight: 6 }} aria-hidden>
+                        📷
+                      </span>
+                    ) : null}
+                    {q.question || "—"}
+                  </td>
+                  <td className="options-cell">
                     {q.type === "mcq" && Array.isArray(q.options) && q.options.length > 0
                       ? q.options.map((opt, i) => (
-                          <span key={i} style={{ display: "block" }}>{String.fromCharCode(65 + i)}: {opt}</span>
+                          <span key={i} style={{ display: "block", marginBottom: 4 }}>
+                            {String.fromCharCode(65 + i)}: {opt}
+                          </span>
                         ))
                       : "—"}
                   </td>
-                  <td style={{ padding: "12px", color: "#374151", verticalAlign: "top", fontSize: "0.8rem" }}>
+                  <td className="quality-cell">
                     {q.metadata?.qualityScore != null ? (
                       <span
                         style={{
@@ -451,8 +671,60 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                       "—"
                     )}
                   </td>
-                  <td style={{ padding: "12px", color: "#374151", verticalAlign: "top" }}>
-                    {q.status}
+                  <td className="status-cell">
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                        <span>{q.status}</span>
+                        {String(q.status).toLowerCase() === "draft" &&
+                          (() => {
+                            const pub = getExamPublishReadinessUi(q);
+                            if (!pub.ok) {
+                              return (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.3,
+                                    padding: "2px 6px",
+                                    borderRadius: 4,
+                                    background: "#fef3c7",
+                                    color: "#92400e",
+                                    border: "1px solid #fcd34d",
+                                    maxWidth: "100%",
+                                  }}
+                                >
+                                  Needs improvement
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                      </div>
+                      {String(q.status).toLowerCase() === "draft" &&
+                        (() => {
+                          const pub = getExamPublishReadinessUi(q);
+                          if (!pub.ok && pub.reasons.length) {
+                            return (
+                              <ul
+                                style={{
+                                  margin: 0,
+                                  paddingLeft: 18,
+                                  fontSize: 11,
+                                  color: "#78350f",
+                                  lineHeight: 1.45,
+                                  maxWidth: 320,
+                                }}
+                              >
+                                {pub.reasons.map((reason) => (
+                                  <li key={reason}>{reason}</li>
+                                ))}
+                              </ul>
+                            );
+                          }
+                          return null;
+                        })()}
+                    </div>
                     {Array.isArray(q.reviewFlags) && q.reviewFlags.length > 0 && (
                       <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {q.reviewFlags.map((flag) => (
@@ -473,7 +745,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "12px", color: "#374151", verticalAlign: "top" }}>
+                  <td className="actions-cell">
                     <button
                       type="button"
                       onClick={() => openEditModal(q)}
@@ -491,6 +763,41 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                     >
                       Edit
                     </button>
+                    {publishErrorById[q._id] && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#b91c1c",
+                          marginBottom: 8,
+                          lineHeight: 1.35,
+                          maxWidth: 200,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {publishErrorById[q._id]}
+                      </div>
+                    )}
+                    {String(q.status).toLowerCase() !== "published" && (
+                      <button
+                        type="button"
+                        onClick={() => void handlePublishExam(q._id)}
+                        disabled={publishLoadingId === q._id}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "0.875rem",
+                          background: publishLoadingId === q._id ? "#e5e7eb" : "#d1fae5",
+                          color: publishLoadingId === q._id ? "#9ca3af" : "#065f46",
+                          border: "1px solid #6ee7b7",
+                          borderRadius: "6px",
+                          cursor: publishLoadingId === q._id ? "not-allowed" : "pointer",
+                          marginBottom: 8,
+                          display: "block",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {publishLoadingId === q._id ? "Publishing…" : "Publish"}
+                      </button>
+                    )}
                     {q.status === "draft" && (q.type === "mcq" || q.type === "short") && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 200 }}>
                         <select
@@ -519,7 +826,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
           </table>
         </div>
       )}
-      {!loading && questions.length === 0 && !error && (
+      {!loading && questions.length === 0 && !loadError && (
         <div
           style={{
             background: "white",
@@ -533,7 +840,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
           <div style={{ fontSize: "3rem", color: "#d1d5db", marginBottom: "1rem" }}>📝</div>
           <h3 style={{ margin: "0 0 0.5rem", color: "#374151" }}>No questions yet</h3>
           <p style={{ margin: 0, color: "#6b7280", maxWidth: "400px", marginLeft: "auto", marginRight: "auto" }}>
-            Click <strong>Create Question</strong> to add your first exam question. You can build MCQ, short answer, label-the-diagram, table, and data interpretation questions.
+            Click <strong>Create Question</strong> to add structured exam-style questions (short answer and other formats suitable for assessed responses — not quick quiz MCQs).
           </p>
         </div>
       )}
@@ -551,7 +858,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
             padding: "20px",
             zIndex: 9999,
           }}
-          onClick={() => { setModalOpen(false); setEditingId(null); setForm(defaultForm); }}
+          onClick={() => { setModalOpen(false); setEditingId(null); setImageUploadError(null); setForm(defaultForm); }}
         >
           <div
             style={{
@@ -645,7 +952,7 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                   onChange={(e) => setForm((f) => ({ ...f, questionType: e.target.value as (typeof QUESTION_TYPES)[number] }))}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 >
-                  {QUESTION_TYPES.map((t) => (
+                  {(editingId ? QUESTION_TYPES : QUESTION_TYPES.filter((t) => t !== "mcq")).map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
@@ -654,9 +961,9 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Marks</label>
                 <input
                   type="number"
-                  min={1}
+                  min={form.questionType === "mcq" ? 1 : 2}
                   value={form.marks}
-                  onChange={(e) => setForm((f) => ({ ...f, marks: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                  onChange={(e) => setForm((f) => ({ ...f, marks: Math.max(f.questionType === "mcq" ? 1 : 2, parseInt(e.target.value, 10) || (f.questionType === "mcq" ? 1 : 2)) }))}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 />
               </div>
@@ -716,27 +1023,63 @@ const TeacherExamQuestionBankPage: React.FC = () => {
                 </div>
               )}
               <div>
-                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>Image (placeholder)</label>
-                <div
-                  style={{
-                    width: "100%",
-                    padding: "24px",
-                    border: "2px dashed #d1d5db",
-                    borderRadius: "8px",
-                    textAlign: "center",
-                    color: "#9ca3af",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  Image upload — not connected yet
-                </div>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 600 }}>
+                  Question image (optional)
+                </label>
+                <p style={{ margin: "0 0 8px", fontSize: 12, color: "#6b7280" }}>
+                  Shown above the question stem in Exam Practice. PNG, JPEG, WebP, or GIF — max ~12MB.
+                </p>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                  disabled={imageUploading || saving}
+                  onChange={(e) => void onExamQuestionImageSelected(e)}
+                  style={{ fontSize: 13, marginBottom: 8 }}
+                />
+                {imageUploading && <p style={{ margin: "4px 0", fontSize: 12, color: "#6b7280" }}>Uploading…</p>}
+                {imageUploadError && (
+                  <p style={{ margin: "4px 0 8px", fontSize: 12, color: "#b91c1c" }}>{imageUploadError}</p>
+                )}
+                {form.imageUrl.trim() ? (
+                  <div style={{ marginTop: 8 }}>
+                    <img
+                      src={makeAbsoluteAssetUrl(form.imageUrl.trim())}
+                      alt="Question illustration preview"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 200,
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb",
+                        display: "block",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={saving || imageUploading}
+                      onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                      style={{
+                        marginTop: 8,
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#b91c1c",
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: 6,
+                        cursor: saving || imageUploading ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "1.5rem" }}>
               <button
                 type="button"
-                onClick={() => { setModalOpen(false); setEditingId(null); setForm(defaultForm); }}
+                onClick={() => { setModalOpen(false); setEditingId(null); setImageUploadError(null); setForm(defaultForm); }}
                 style={{
                   padding: "8px 16px",
                   background: "white",

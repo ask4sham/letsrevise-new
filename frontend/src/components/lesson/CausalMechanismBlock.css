@@ -1,0 +1,140 @@
+/**
+ * Causal mechanism grid — risk → body effect → outcome.
+ * GCSE-friendly contrast; stacks on narrow viewports.
+ */
+
+.causal-mechanism-block {
+  --causal-risk: #1e3a5f;
+  --causal-risk-bg: #e8f0fe;
+  --causal-body: #5b4b00;
+  --causal-body-bg: #fef9c3;
+  --causal-outcome: #14532d;
+  --causal-outcome-bg: #dcfce7;
+  --causal-border: rgba(15, 23, 42, 0.1);
+  --causal-radius: 12px;
+  --causal-gap: 14px;
+  margin: 0;
+  padding: 0;
+}
+
+.causal-mechanism-block__title {
+  margin: 0 0 1rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.causal-mechanism-block__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--causal-gap);
+  margin-bottom: var(--causal-gap);
+  align-items: stretch;
+}
+
+.causal-mechanism-block__row:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 719px) {
+  .causal-mechanism-block__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.causal-mechanism-block__card {
+  border-radius: var(--causal-radius);
+  border: 1px solid var(--causal-border);
+  padding: 14px 16px;
+  min-height: 4.5rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.causal-mechanism-block__card--risk {
+  background: var(--causal-risk-bg);
+  border-color: rgba(30, 58, 95, 0.18);
+}
+
+.causal-mechanism-block__card--body {
+  background: var(--causal-body-bg);
+  border-color: rgba(180, 150, 0, 0.22);
+}
+
+.causal-mechanism-block__card--outcome {
+  background: var(--causal-outcome-bg);
+  border-color: rgba(20, 83, 45, 0.2);
+}
+
+.causal-mechanism-block__label {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
+
+.causal-mechanism-block__card--risk .causal-mechanism-block__label {
+  color: var(--causal-risk);
+}
+
+.causal-mechanism-block__card--body .causal-mechanism-block__label {
+  color: var(--causal-body);
+}
+
+.causal-mechanism-block__card--outcome .causal-mechanism-block__label {
+  color: var(--causal-outcome);
+}
+
+.causal-mechanism-block__text {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+/* Visual flow on desktop: subtle arrow between columns */
+@media (min-width: 720px) {
+  .causal-mechanism-block__row {
+    position: relative;
+  }
+
+  .causal-mechanism-block__card--risk,
+  .causal-mechanism-block__card--body {
+    position: relative;
+  }
+
+  .causal-mechanism-block__card--risk::after,
+  .causal-mechanism-block__card--body::after {
+    content: "→";
+    position: absolute;
+    right: -11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #94a3b8;
+    z-index: 1;
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 719px) {
+  .causal-mechanism-block__card--risk::after,
+  .causal-mechanism-block__card--body::after {
+    display: none;
+  }
+
+  .causal-mechanism-block__card:not(:last-child)::after {
+    content: "↓";
+    display: block;
+    text-align: center;
+    margin: -6px 0 2px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #94a3b8;
+  }
+}

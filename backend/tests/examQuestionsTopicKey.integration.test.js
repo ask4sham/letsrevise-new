@@ -37,14 +37,20 @@ describe("ExamQuestion topicKey validation", () => {
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
         subject: "Biology",
+        specKey: "aqa-gcse-biology",
         examBoard: "AQA",
         level: "GCSE",
         topicKey: "photosynthesis",
-        type: "mcq",
-        marks: 2,
-        question: "What is the product of photosynthesis?",
-        options: ["Glucose", "Starch", "Protein", "Lipid"],
-        correctIndex: 0,
+        type: "short",
+        marks: 4,
+        question:
+          "Explain how limiting factors such as carbon dioxide concentration can affect the rate of photosynthesis in a plant.",
+        markScheme: [
+          "Carbon dioxide is used in the Calvin cycle to make sugars, so more CO2 can raise the rate until another factor limits.",
+          "At very high CO2 the rate may plateau when light or temperature becomes limiting.",
+        ],
+        correctAnswer:
+          "Increasing CO2 raises the rate of carbon fixation until light intensity or enzyme/temperature limits the reaction.",
       });
     expect(res.status).toBe(201);
     expect(res.body.question).toBeDefined();
@@ -57,6 +63,7 @@ describe("ExamQuestion topicKey validation", () => {
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
         subject: "Biology",
+        specKey: "aqa-gcse-biology",
         type: "short",
         marks: 1,
         question: "Test?",
@@ -64,6 +71,30 @@ describe("ExamQuestion topicKey validation", () => {
       });
     expect(res.status).toBe(400);
     expect(res.body.error || res.body.msg).toMatch(/topicKey|Invalid/);
+  });
+
+  test("POST without topicKey returns 400", async () => {
+    const res = await request(app)
+      .post("/api/exam-questions")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        subject: "Biology",
+        specKey: "aqa-gcse-biology",
+        examBoard: "AQA",
+        level: "GCSE",
+        type: "short",
+        marks: 4,
+        question:
+          "Explain how limiting factors such as carbon dioxide concentration can affect the rate of photosynthesis in a plant.",
+        markScheme: [
+          "Carbon dioxide is used in the Calvin cycle to make sugars, so more CO2 can raise the rate until another factor limits.",
+          "At very high CO2 the rate may plateau when light or temperature becomes limiting.",
+        ],
+        correctAnswer:
+          "Increasing CO2 raises the rate of carbon fixation until light intensity or enzyme/temperature limits the reaction.",
+      });
+    expect(res.status).toBe(400);
+    expect(String(res.body.msg || "")).toMatch(/canonical topicKey|topicKey|taxonomy/i);
   });
 
   test("GET list with topicKey filter returns only matching questions", async () => {

@@ -276,6 +276,48 @@ describe("Attach Page Quiz from Bank", () => {
     expect(eolQuestions.some((q) => q.question === "End of lesson Q?")).toBe(true);
   });
 
+  test("allowDraft attaches teacher draft without publishing bank row", async () => {
+    const topicKey = "aqa-gcse-biology:cell-structure";
+    const bulkRes = await request(app)
+      .post("/api/topic-quiz-questions/bulk")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        topicKey,
+        items: [{ questionText: "Draft-only attach Q?", choices: ["A", "B"], correctIndex: 0 }],
+      });
+    expect(bulkRes.status).toBe(200);
+    const draftId = bulkRes.body.createdIds[0];
+    // Intentionally not published — attach uses allowDraft
+
+    const lesson = await Lesson.create({
+      title: "Draft attach lesson",
+      description: "Test",
+      content: "Content",
+      teacherId,
+      teacherName: "Attach Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+      topic: "Draft bridge",
+      topicKey,
+      status: "draft",
+      pages: [{ pageId: "pDraft", title: "Page 1", order: 0, blocks: [] }],
+      quiz: { timeSeconds: 600, questions: [] },
+    });
+
+    const attachRes = await request(app)
+      .post(`/api/lessons/${lesson._id}/attach-page-quiz-from-bank`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({ pageId: "pDraft", questionIds: [draftId], allowDraft: true });
+    expect(attachRes.status).toBe(200);
+    expect(attachRes.body.ok).toBe(true);
+    expect(attachRes.body.addedCount).toBe(1);
+    const q = (attachRes.body.lesson?.quiz?.questions || []).find((x) => x.sourceQuestionId === String(draftId));
+    expect(q).toBeTruthy();
+    expect(q.pageId).toBe("pDraft");
+    expect(q.source).toBe("topic_quiz_bank");
+  });
+
   test("pageId required -> 400", async () => {
     const lesson = await Lesson.create({
       title: "Bad req lesson",

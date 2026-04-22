@@ -296,6 +296,9 @@ const LessonSchema = new mongoose.Schema(
           pageId: { type: String, default: undefined },
           sourceQuestionId: { type: String, default: undefined },
           sourceType: { type: String, default: undefined },
+          /** Stable label e.g. topic_quiz_bank (attach bridge); optional */
+          source: { type: String, default: undefined },
+          aiGenerated: { type: Boolean, default: undefined },
         }
       ]
     },

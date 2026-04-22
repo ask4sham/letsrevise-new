@@ -1,23 +1,40 @@
 /**
  * Attach page quiz from Topic Quiz Bank.
- * Shows published TopicQuizQuestion for exact lesson.topicKey.
- * Multi-select, confirm attach → writes to lesson.quiz.questions with pageId.
+ * - Published bank: shows published TopicQuizQuestion for exact lesson.topicKey (forAttach).
+ * - AI drafts: shows teacher's draft quiz rows (e.g. ai_lesson_assets for this lesson) without requiring publish.
+ * Multi-select, confirm attach → copies into lesson.quiz.questions with pageId (does not remove bank rows).
  */
 import React, { useEffect, useState } from "react";
 import { listTopicQuizQuestions, attachPageQuizFromBank } from "../../api/topicQuizQuestions";
 import type { TopicQuizQuestion } from "../../api/topicQuizQuestions";
+
+export type AttachPageQuizModalMode = "published" | "aiDrafts";
 
 export function AttachPageQuizModal(props: {
   open: boolean;
   onClose: () => void;
   lessonId: string;
   topicKey: string;
+  /** Syllabus spec key — required for AI draft list filters */
+  specKey?: string;
+  mode?: AttachPageQuizModalMode;
   pageId: string;
   pageTitle?: string;
   alreadyAttachedSourceIds: string[];
   onAttachSuccess: (lesson: any, result?: { addedCount: number; alreadyExisted: number }) => void;
 }) {
-  const { open, onClose, lessonId, topicKey, pageId, pageTitle, alreadyAttachedSourceIds, onAttachSuccess } = props;
+  const {
+    open,
+    onClose,
+    lessonId,
+    topicKey,
+    specKey,
+    mode = "published",
+    pageId,
+    pageTitle,
+    alreadyAttachedSourceIds,
+    onAttachSuccess,
+  } = props;
 
   const [items, setItems] = useState<TopicQuizQuestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,21 +49,34 @@ export function AttachPageQuizModal(props: {
     const load = async () => {
       setLoading(true);
       try {
-        const list = await listTopicQuizQuestions(topicKey, {
-          status: "published",
-          kind: "quiz",
-          exactMatch: true,
-          forAttach: true,
-        });
-        setItems(list);
+        if (mode === "aiDrafts") {
+          const list = await listTopicQuizQuestions(topicKey, {
+            specKey: specKey || undefined,
+            status: "draft",
+            mineOnly: true,
+            kind: "quiz",
+            exactMatch: true,
+            metadataSource: "ai_lesson_assets",
+            lessonId,
+          });
+          setItems(list);
+        } else {
+          const list = await listTopicQuizQuestions(topicKey, {
+            status: "published",
+            kind: "quiz",
+            exactMatch: true,
+            forAttach: true,
+          });
+          setItems(list);
+        }
       } catch (e: any) {
         setError(e?.response?.data?.error || e?.message || "Failed to load questions");
       } finally {
         setLoading(false);
       }
     };
-    load();
-  }, [open, topicKey]);
+    void load();
+  }, [open, topicKey, mode, lessonId, specKey]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -66,7 +96,9 @@ export function AttachPageQuizModal(props: {
     if (selected.size === 0) return;
     setAttaching(true);
     try {
-      const result = await attachPageQuizFromBank(lessonId, pageId, Array.from(selected));
+      const result = await attachPageQuizFromBank(lessonId, pageId, Array.from(selected), {
+        allowDraft: mode === "aiDrafts",
+      });
       onAttachSuccess(result.lesson, { addedCount: result.addedCount, alreadyExisted: result.alreadyExisted });
       onClose();
     } catch (e: any) {
@@ -79,6 +111,13 @@ export function AttachPageQuizModal(props: {
   const available = items.filter((q) => !alreadyAttachedSourceIds.includes(String(q._id)));
 
   if (!open) return null;
+
+  const title =
+    mode === "aiDrafts" ? "Attach AI quiz drafts to this page" : "Attach Quiz Page From Question Bank";
+  const subtitle =
+    mode === "aiDrafts"
+      ? "Select draft MCQs from your Topic Quiz Bank (e.g. from Generate AI assets). Copies are added to this page — bank rows are not removed or published."
+      : "Attach published quiz questions from the Topic Quiz Bank to this page.";
 
   return (
     <div
@@ -108,10 +147,8 @@ export function AttachPageQuizModal(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ padding: 20, borderBottom: "1px solid #e5e7eb" }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Attach Quiz Page From Question Bank</h3>
-          <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6b7280" }}>
-            Attach published quiz questions from the Topic Quiz Bank to this page.
-          </p>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{title}</h3>
+          <p style={{ margin: "8px 0 0", fontSize: 13, color: "#6b7280" }}>{subtitle}</p>
           {pageTitle && (
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "#9ca3af" }}>
               Page: {pageTitle}
@@ -124,7 +161,9 @@ export function AttachPageQuizModal(props: {
           {error && <p style={{ color: "#dc2626", margin: "0 0 12px" }}>{error}</p>}
           {!loading && items.length === 0 && !error && (
             <p style={{ color: "#6b7280", margin: 0 }}>
-              No published quiz questions for this topic. Add and publish questions in Question Banks first.
+              {mode === "aiDrafts"
+                ? "No AI quiz drafts for this lesson/topic yet. Use Generate AI assets (draft lesson), then review drafts in the Topic Quiz Bank."
+                : "No published quiz questions for this topic. Add and publish questions in Question Banks first."}
             </p>
           )}
           {!loading && items.length > 0 && (
@@ -196,6 +235,11 @@ export function AttachPageQuizModal(props: {
                           {isAttached && (
                             <span style={{ fontSize: 11, color: "#059669", marginTop: 4, display: "inline-block" }}>
                               Already on this page
+                            </span>
+                          )}
+                          {mode === "aiDrafts" && q.status === "draft" && (
+                            <span style={{ fontSize: 11, color: "#92400e", marginTop: 4, marginLeft: 8, display: "inline-block" }}>
+                              Draft
                             </span>
                           )}
                         </div>

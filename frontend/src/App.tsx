@@ -64,6 +64,7 @@ import AdminIngestPage from "./pages/AdminIngestPage";
 import AdminQuestionBanksPage from "./pages/AdminQuestionBanksPage";
 import AdminTaxonomyPage from "./pages/AdminTaxonomyPage";
 import ContentCoveragePage from "./pages/ContentCoveragePage";
+import AdminLaunchCoveragePage from "./pages/AdminLaunchCoveragePage";
 import TopicCommandCenterPage from "./pages/TopicCommandCenterPage";
 import AutopilotApprovalPage from "./pages/AutopilotApprovalPage";
 import AutopilotRunsPage from "./pages/AutopilotRunsPage";
@@ -890,6 +891,14 @@ function App() {
             element={
               <ProtectedRoute requireAdminOrContentManager>
                 <ContentCoveragePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/launch-coverage"
+            element={
+              <ProtectedRoute requireAdminOrContentManager>
+                <AdminLaunchCoveragePage />
               </ProtectedRoute>
             }
           />

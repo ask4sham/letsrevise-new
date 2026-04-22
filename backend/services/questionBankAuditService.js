@@ -4,7 +4,8 @@
  * Platform-wide counts (no owner filter). No external calls (no OpenAI).
  */
 const { queryCandidates } = require("../utils/topicKey");
-const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
+const { isTopicGroup } = require("../utils/topicTaxonomy");
+const { getMergedTaxonomyBySpecKey } = require("./adminTaxonomyService");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const ExamQuestion = require("../models/ExamQuestion");
@@ -51,7 +52,7 @@ async function runQuestionBankAudit({ specKey }) {
     throw new Error("specKey is required");
   }
 
-  const taxonomy = getTaxonomyBySpecKey(specKey);
+  const taxonomy = await getMergedTaxonomyBySpecKey(specKey);
   if (!taxonomy || !Array.isArray(taxonomy.units)) {
     throw new Error(`Taxonomy not found for specKey: ${specKey}`);
   }
@@ -60,6 +61,7 @@ async function runQuestionBankAudit({ specKey }) {
   const allTopics = [];
   for (const unit of taxonomy.units) {
     for (const t of unit.topics || []) {
+      if (isTopicGroup(t)) continue;
       allTopics.push({
         subject,
         mainTopicTitle: unit.unit,

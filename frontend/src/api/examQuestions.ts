@@ -88,6 +88,18 @@ export async function attachFromBank(params: {
   return data;
 }
 
+/** Publish a draft exam question (same gate as full PUT). */
+export async function publishExamQuestion(id: string): Promise<Record<string, unknown>> {
+  const res = await api.put<{ success: boolean; question: Record<string, unknown>; msg?: string; issues?: string[] }>(
+    `/exam-questions/${id}`,
+    { status: "published" }
+  );
+  if (!res.data?.success || !res.data.question) {
+    throw new Error(res.data?.msg || "Publish failed");
+  }
+  return res.data.question as Record<string, unknown>;
+}
+
 /** Draft mcq/short only: LLM rewrite (validate + save). */
 export async function aiRewriteExamQuestion(id: string, action: string): Promise<ExamQuestion & Record<string, unknown>> {
   const res = await api.post<{ success: boolean; question: ExamQuestion & Record<string, unknown>; msg?: string }>(

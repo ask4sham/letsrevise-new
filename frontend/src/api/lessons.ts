@@ -68,6 +68,14 @@ export type GenerateLessonAssetsResult = {
   /** ISO timestamp of lesson `updatedAt` at generation time (matches metadata on new drafts). */
   lessonUpdatedAtSnapshot?: string;
   generated: { flashcards: number; quizQuestions: number; examQuestions: number };
+  /** Present when exam drafts were requested: truthful LLM vs insert vs quality skips. */
+  examQuestionStats?: {
+    requestedCount: number;
+    llmReturnedCount: number;
+    insertedCount: number;
+    skippedInvalidCount: number;
+    skippedInvalidReasons?: string[];
+  };
   skipped: Array<{ type: string; reason: string }>;
   errors: Array<{ type: string; message: string }>;
   status: string;

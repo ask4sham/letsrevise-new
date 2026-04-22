@@ -6,6 +6,7 @@ const contentGraphService = require("./contentGraphService");
 const adminTaxonomyService = require("./adminTaxonomyService");
 const LessonIssueReport = require("../models/LessonIssueReport");
 const { parseTopicKey } = require("../utils/topicKey");
+const { isTopicGroup } = require("../utils/topicTaxonomy");
 const mongoose = require("mongoose");
 
 /** Scoring weights (v1) */
@@ -136,6 +137,7 @@ async function getSpecCoverage(specKey) {
   const topicEntries = [];
   for (const unit of taxonomy.units) {
     for (const t of unit.topics || []) {
+      if (isTopicGroup(t)) continue;
       const key = t.key || t.topicKey;
       if (!key) continue;
       const topicKey = key.includes(":") ? key : `${specKey}:${key}`;

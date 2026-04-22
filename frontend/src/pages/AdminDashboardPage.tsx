@@ -649,7 +649,37 @@ const AdminDashboardPage: React.FC = () => {
           </h1>
           <p style={{ color: "#666" }}>Platform administration and management</p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <Link
+          to="/admin/launch-coverage"
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#16a34a",
+            color: "white",
+            borderRadius: 6,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: "0.9rem",
+            border: "none",
+            display: "inline-flex",
+            alignItems: "center",
+          }}
+        >
+          Launch Coverage (Topics) →
+          <span
+            style={{
+              marginLeft: 6,
+              fontSize: "0.7rem",
+              background: "#dcfce7",
+              color: "#166534",
+              padding: "2px 6px",
+              borderRadius: 6,
+            }}
+          >
+            KEY
+          </span>
+        </Link>
         <Link
           to="/admin/ingest"
           style={{
@@ -878,6 +908,19 @@ const AdminDashboardPage: React.FC = () => {
         >
           Draft Library →
         </Link>
+      </div>
+      <p
+        style={{
+          fontSize: "0.85rem",
+          opacity: 0.7,
+          marginTop: 8,
+          marginBottom: 0,
+          textAlign: "right",
+          maxWidth: 720,
+        }}
+      >
+        Use Launch Coverage to see which topics are ready and what content is missing before launch.
+      </p>
       </div>
       </div>
 

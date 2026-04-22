@@ -3375,7 +3375,9 @@ router.post("/:id/generate-assets", auth, requireLessonOwnerOrAdmin, async (req,
     });
     return res.status(200).json({
       lessonId: result.lessonId,
+      lessonUpdatedAtSnapshot: result.lessonUpdatedAtSnapshot,
       generated: result.generated,
+      examQuestionStats: result.examQuestionStats,
       skipped: result.skipped,
       errors: result.errors,
       status: result.status,
@@ -3774,13 +3776,23 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
       return res.status(400).json({ msg: "questionIds array with at least one valid id is required" });
     }
 
-    const bankQuestions = await TopicQuizQuestion.find({
+    const allowDraft = req.body && req.body.allowDraft === true;
+    const teacherIdForDraft = lesson.teacherId || lesson.ownerId;
+    const bankQuery = {
       _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
       topicKey: bankTopicKey,
-      status: "published",
       kind: "quiz",
       isArchived: { $ne: true },
-    }).lean();
+    };
+    if (allowDraft) {
+      bankQuery.$or = [
+        { status: "published" },
+        { status: "draft", ownerId: teacherIdForDraft },
+      ];
+    } else {
+      bankQuery.status = "published";
+    }
+    const bankQuestions = await TopicQuizQuestion.find(bankQuery).lean();
 
     const existingQuiz = lesson.quiz && Array.isArray(lesson.quiz.questions) ? lesson.quiz.questions : [];
     const existingSourceIds = new Set(
@@ -3802,6 +3814,7 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
       const correctAnswer = isShort
         ? (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers[0] ? q.acceptableAnswers[0] : "")
         : (choices[correctIndex] || "");
+      const meta = q.metadata && typeof q.metadata === "object" ? q.metadata : {};
       toAttach.push({
         id: `pq_${pageId}_${Date.now()}_${toAttach.length}`,
         type: isShort ? "short" : "mcq",
@@ -3812,6 +3825,8 @@ router.post("/:id/attach-page-quiz-from-bank", auth, requireLessonOwnerOrAdmin, 
         pageId: pageId.trim(),
         sourceQuestionId: sid,
         sourceType: "topicQuizQuestion",
+        source: "topic_quiz_bank",
+        aiGenerated: meta.aiGenerated === true,
       });
       existingSourceIds.add(sid);
     }

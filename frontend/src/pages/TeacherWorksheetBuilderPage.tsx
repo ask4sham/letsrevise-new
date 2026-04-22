@@ -320,7 +320,7 @@ const TeacherWorksheetBuilderPage: React.FC = () => {
     return (
       <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
         <p style={{ color: "#b91c1c", marginBottom: "1rem" }}>{loadError}</p>
-        <button type="button" onClick={() => navigate("/teacher")} style={{ padding: "8px 16px" }}>
+        <button type="button" onClick={() => navigate("/teacher-dashboard")} style={{ padding: "8px 16px" }}>
           Back to Dashboard
         </button>
       </div>

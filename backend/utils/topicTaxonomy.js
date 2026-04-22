@@ -475,6 +475,16 @@ function getSiblingTopicKeysAndKeywords(topicKey, specKey) {
 }
 
 /**
+ * Taxonomy topic that only groups children (no leaf content / generation target).
+ * Optional flag on topic objects in config JSON or merged admin taxonomy.
+ * @param {Object|null|undefined} topic
+ * @returns {boolean}
+ */
+function isTopicGroup(topic) {
+  return !!(topic && topic.isGroup === true);
+}
+
+/**
  * Get taxonomy by spec key (for routes / generic dispatch).
  * @param {string} specKey
  * @returns {Object|null} Full taxonomy or null
@@ -512,6 +522,7 @@ module.exports = {
   getEnglishLiteratureTopics,
   getEnglishLanguageTopics,
   getTaxonomyBySpecKey,
+  isTopicGroup,
   findTopicByKey,
   findChemistryTopicByKey,
   findPhysicsTopicByKey,

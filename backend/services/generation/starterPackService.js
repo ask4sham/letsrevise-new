@@ -8,6 +8,7 @@ const KnowledgeDocument = require("../../models/KnowledgeDocument");
 const { searchKnowledge } = require("../knowledge/knowledgeSearchService");
 const { generateStarterPack } = require("../llm/provider");
 const { normalizeSpecKey } = require("../../config/featureFlags");
+const adminTaxonomyService = require("../adminTaxonomyService");
 
 function getSpecVariants(specKey) {
   const normalized = normalizeSpecKey(specKey);
@@ -91,6 +92,11 @@ async function retrieveContext(specKey, topicKey, statements) {
  */
 async function runStarterPackGeneration({ specKey, topicKey, statementCodes, tier, seed, user, sourceType }) {
   const normalized = normalizeSpecKey(specKey);
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalized, topicKey)) {
+    const err = new Error("TOPIC_IS_GROUP");
+    err.code = "TOPIC_IS_GROUP";
+    throw err;
+  }
   const codes = statementCodes && statementCodes.length > 0
     ? statementCodes
     : await getMissingStatementCodes(normalized, topicKey);

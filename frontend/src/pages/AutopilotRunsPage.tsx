@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import {
   fetchAutopilotRuns,
   fetchAutopilotRunById,
-  runContentEngineAutopilot,
+  runContentEngine,
   runContentEnginePipeline,
   type AutopilotRunSummary,
   type AutopilotRunDetail,
@@ -89,7 +89,7 @@ const AutopilotRunsPage: React.FC = () => {
   const runEnginePhase = async (phase: "coverage" | "asset" | "quality" | "approval") => {
     setEngineBusy(phase);
     try {
-      await runContentEngineAutopilot({
+      await runContentEngine({
         phase,
         specKey: engineSpec || undefined,
         dryRun: false,
@@ -220,7 +220,7 @@ const AutopilotRunsPage: React.FC = () => {
                 cursor: engineBusy ? "not-allowed" : "pointer",
               }}
             >
-              {engineBusy === phase ? "…" : `Run ${phase}`}
+              {engineBusy === phase ? "…" : `Run ${phase.charAt(0).toUpperCase()}${phase.slice(1)}`}
             </button>
           ))}
           <button
@@ -238,7 +238,7 @@ const AutopilotRunsPage: React.FC = () => {
               cursor: engineBusy ? "not-allowed" : "pointer",
             }}
           >
-            {engineBusy === "pipeline" ? "…" : "Run safe pipeline"}
+            {engineBusy === "pipeline" ? "…" : "Run Safe Pipeline"}
           </button>
         </div>
       </div>

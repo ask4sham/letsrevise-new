@@ -259,6 +259,14 @@ const BASE_SUBJECTS = [
   "PE",
 ] as const;
 
+/** Display-only: align legacy API placeholder (no behaviour change). */
+function revisionFocusDisplayCopy(text: string): string {
+  return text.replace(
+    /Keep practising to see personalised revision focus\.?/gi,
+    "We'll highlight your weak topics here after a few quizzes."
+  );
+}
+
 /** Step 6: Your revision focus — uses dashboardData when available, fallback to knowledge-gap. */
 function RevisionFocusBlock({
   dashboardData,
@@ -272,7 +280,7 @@ function RevisionFocusBlock({
 
   const data: KnowledgeGapResponse | null = dashboardData?.ok
     ? {
-        summary: dashboardData.summary?.revisionFocus ?? "Keep practising to see personalised revision focus.",
+        summary: dashboardData.summary?.revisionFocus ?? "Complete quizzes and practice to unlock your personalised revision focus.",
         weakAreas: (dashboardData.weakTopics ?? []).map((w) => ({
           topicKey: w.topicKey,
           topicName: w.topicName ?? w.topicKey,
@@ -326,7 +334,12 @@ function RevisionFocusBlock({
     >
       <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8 }}>Your revision focus</div>
       <p style={{ margin: "0 0 10px 0", color: "#78350f", fontSize: "0.95rem", lineHeight: 1.5 }}>
-        {data?.summary || "Keep practising to see personalised revision focus."}
+        {revisionFocusDisplayCopy(
+          data?.summary ||
+            (!data?.weakAreas?.length
+              ? "We'll highlight your weak topics here after a few quizzes."
+              : "Complete quizzes and practice to unlock your personalised revision focus.")
+        )}
       </p>
       {data?.weakAreas && data.weakAreas.length > 0 && (
         <ul style={{ margin: 0, paddingLeft: 20, color: "#92400e", fontSize: "0.9rem", lineHeight: 1.6 }}>
@@ -397,6 +410,14 @@ const StudentDashboard: React.FC = () => {
   const lockedLevelLabel = useMemo(() => {
     return isStudent && studentStageKey ? stageLabel(studentStageKey) : "";
   }, [isStudent, studentStageKey]);
+
+  /** True when the unified dashboard reports real learning activity (not just recommendations). */
+  const hasDashboardActivity = useMemo(() => {
+    if (!dashboardData?.ok) return false;
+    const ra = dashboardData.recentActivity?.length ?? 0;
+    const wt = dashboardData.weakTopics?.length ?? 0;
+    return ra > 0 || wt > 0;
+  }, [dashboardData]);
 
   useEffect(() => {
     loadPublishedLessons();
@@ -889,188 +910,165 @@ const StudentDashboard: React.FC = () => {
                 🔥 Advanced mode enabled (Deeper knowledge)
               </div>
             )}
-            <p style={{ color: "#6b7280", fontSize: "0.9rem", margin: "8px 0 0 0" }}>
-              This week: Start a lesson to begin tracking progress.
-            </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
-            <Link
-              to="/subscription"
-              style={{
-                background: "white",
-                padding: "10px 20px",
-                borderRadius: "20px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                fontWeight: 700,
-                color: "#4f46e5",
-                fontSize: "1rem",
-                textDecoration: "none",
-              }}
-            >
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+            <Link to="/subscription" style={{ color: "#64748b", fontSize: "0.9rem", fontWeight: 600, textDecoration: "underline" }}>
               Upgrade to access
             </Link>
-
-            {/* ✅ UPDATED: Exam Practice Link - Now goes to /assessments/papers */}
-            <button
-              onClick={handleExamPractice}
-              style={{
-                padding: "10px 16px",
-                background: "#4f46e5",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                textDecoration: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📝 Exam Practice
-            </button>
-
-            <Link to="/dashboard" style={{ color: "#667eea", textDecoration: "none" }}>
-              Back to Main Dashboard
+            <Link to="/dashboard" style={{ color: "#64748b", fontSize: "0.9rem", textDecoration: "underline" }}>
+              Back to main dashboard
             </Link>
           </div>
         </div>
 
-        {/* Start learning - PR-UX-STU-DASH-2: compact */}
+        {/* Primary next step — hero CTA + supporting line */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+            padding: "20px 22px",
+            borderRadius: "14px",
+            boxShadow: "0 6px 20px rgba(16,185,129,0.15)",
+            marginBottom: "16px",
+            border: "1px solid #6ee7b7",
+          }}
+        >
+          <h2 style={{ color: "#065f46", margin: "0 0 8px 0", fontSize: "1.25rem" }}>
+            {!dashboardLoading && hasDashboardActivity ? "Continue learning" : "What to do next"}
+          </h2>
+          <p style={{ color: "#047857", margin: "0 0 0 0", fontSize: "0.95rem", lineHeight: 1.5 }}>
+            {!dashboardLoading && hasDashboardActivity
+              ? "Pick up where you left off or strengthen a weak topic."
+              : "Start your first lesson to unlock progress, revision focus, and personalised practice."}
+          </p>
+          <div style={{ marginTop: 12 }}>
+            {!dashboardLoading && hasDashboardActivity && recLessons.length > 0 && recLessons[0]?.id ? (
+              <Link className="btn-primary" to={`/lesson/${recLessons[0].id}`}>
+                Continue
+              </Link>
+            ) : (
+              <button type="button" className="btn-primary" onClick={() => navigate("/browse-lessons")}>
+                {!dashboardLoading && hasDashboardActivity ? "Continue" : "Start learning"}
+              </button>
+            )}
+          </div>
+          {!dashboardLoading && !hasDashboardActivity && recLessons.length > 0 && recLessons[0]?.id && (
+            <p style={{ margin: "12px 0 0 0", fontSize: "0.88rem" }}>
+              <Link
+                to={`/lesson/${recLessons[0].id}`}
+                style={{ color: "#047857", fontWeight: 600, textDecoration: "underline" }}
+              >
+                Continue suggested lesson: {recLessons[0].title}
+              </Link>
+            </p>
+          )}
+          <div style={{ fontSize: "0.85rem", opacity: 0.75, marginTop: 6 }}>
+            {hasDashboardActivity
+              ? "Build on your progress with another lesson or quiz — it keeps your revision focus up to date."
+              : "Each quiz you finish helps personalise your revision focus."}
+          </div>
+        </div>
+
+        {/* Today's goal — static motivator (copy only) */}
+        <div className="today-goal">
+          <strong style={{ color: "#334155" }}>Today&apos;s goal:</strong> Complete 1 quick quiz (2–3 mins)
+          <div style={{ fontSize: "0.85rem", opacity: 0.7, marginTop: 4 }}>
+            Small steps add up — come back tomorrow to see your weak topics and revision focus sharpen.
+          </div>
+        </div>
+
+        {/* Secondary actions — grouped; same routes as before */}
         <div
           style={{
             background: "white",
-            padding: "14px 20px",
+            padding: "16px 20px",
             borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
             marginBottom: "16px",
           }}
         >
-          <h3 style={{ color: "#333", margin: "0 0 12px 0", fontSize: "1rem" }}>Start learning</h3>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-            <button
-              onClick={() => navigate("/browse-lessons")}
-              style={{
-                padding: "10px 18px",
-                background: "#48bb78",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              🔍 Browse Lessons
+          <h3 style={{ color: "#64748b", margin: "0 0 6px 0", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Practise
+          </h3>
+          <div style={{ fontSize: "0.85rem", opacity: 0.75, marginBottom: 8 }}>
+            <strong style={{ color: "#64748b" }}>Quick quiz</strong> — fast recall ·{" "}
+            <strong style={{ color: "#64748b" }}>Topic practice</strong> — reinforce learning ·{" "}
+            <strong style={{ color: "#64748b" }}>Exam practice</strong> — exam-style answers
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "14px" }}>
+            <Link className="btn-primary" to="/student/quick-quiz" style={{ fontSize: "0.875rem", padding: "8px 14px", fontWeight: 700 }}>
+              Quick quiz
+            </Link>
+            <Link className="btn-outline" to="/student/practice">
+              Topic practice
+            </Link>
+            <button type="button" className="btn-outline" onClick={handleExamPractice}>
+              Exam practice
             </button>
-            <button
-              onClick={handleExamPractice}
-              style={{
-                padding: "10px 18px",
-                background: "#4f46e5",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              📝 Exam Practice
-            </button>
+          </div>
+          <h3
+            style={{
+              color: "#64748b",
+              margin: "0 0 10px 0",
+              paddingTop: "14px",
+              borderTop: "1px solid #f1f5f9",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Track &amp; organise
+          </h3>
+          <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "0 0 12px 0", lineHeight: 1.45 }}>
+            Your saved notes, completed work, and progress are kept here so you can pick up anytime.
+          </p>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
             <Link
               to="/student/my-work"
               style={{
-                padding: "10px 18px",
-                background: "#059669",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
+                padding: "8px 12px",
+                background: "#f8fafc",
+                color: "#334155",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontWeight: 600,
+                fontSize: "0.875rem",
                 textDecoration: "none",
               }}
             >
-              📋 My Work
+              My work
             </Link>
             <button
+              type="button"
               onClick={() => navigate("/student/my-progress")}
               style={{
-                padding: "10px 18px",
-                background: "#667eea",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
+                padding: "8px 12px",
+                background: "#f8fafc",
+                color: "#334155",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontWeight: 600,
+                fontSize: "0.875rem",
                 cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
               }}
             >
-              📊 View Progress
+              My progress
             </button>
-            <Link
-              to="/student/practice"
-              style={{
-                padding: "10px 18px",
-                background: "#7c3aed",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                textDecoration: "none",
-              }}
-            >
-              ✏️ Practice recommendations
-            </Link>
-            <Link
-              to="/student/quick-quiz"
-              style={{
-                padding: "10px 18px",
-                background: "#0d9488",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                textDecoration: "none",
-              }}
-            >
-              🧠 Quick quiz
-            </Link>
             <Link
               to="/student/structure-notes"
               style={{
-                padding: "10px 18px",
-                background: "#c026d3",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
+                padding: "8px 12px",
+                background: "#f8fafc",
+                color: "#334155",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontWeight: 600,
+                fontSize: "0.875rem",
                 textDecoration: "none",
               }}
             >
-              📝 Create your own notes
+              Create your own notes
             </Link>
           </div>
         </div>
@@ -1294,99 +1292,6 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* PR-UX-STU-DASH-1: Recommended next - PR-UX-STU-DASH-2.2: slim, single row */}
-        <div
-          style={{
-            background: "white",
-            padding: "12px 16px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            marginBottom: "16px",
-          }}
-        >
-          {filteredLessons.length > 0 ? (
-            (() => {
-              const recommendedLesson = filteredLessons[0];
-              return (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b7280", marginRight: 4 }}>Recommended next</span>
-                  <span style={{ fontSize: "1rem", fontWeight: 600, color: "#111827" }}>{recommendedLesson.title}</span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    <span
-                      style={{
-                        padding: "2px 8px",
-                        background: "#e2e8f0",
-                        borderRadius: 12,
-                        fontSize: "0.75rem",
-                        color: "#4a5568",
-                      }}
-                    >
-                      {recommendedLesson.subject}
-                    </span>
-                    {recommendedLesson.examBoardName && recommendedLesson.examBoardName !== "Not set" && (
-                      <span
-                        style={{
-                          padding: "2px 8px",
-                          background: "#fef3c7",
-                          borderRadius: 12,
-                          fontSize: "0.75rem",
-                          color: "#92400e",
-                        }}
-                      >
-                        {recommendedLesson.examBoardName}
-                      </span>
-                    )}
-                  </div>
-                  <Link to={`/lesson/${recommendedLesson.id}`} style={{ marginLeft: "auto" }}>
-                    <button
-                      style={{
-                        padding: "8px 16px",
-                        background: "#48bb78",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        fontWeight: 600,
-                        fontSize: 13,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Continue
-                    </button>
-                  </Link>
-                </div>
-              );
-            })()
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b7280" }}>Recommended next</span>
-              <span style={{ fontSize: "0.95rem", color: "#374151" }}>Start your first lesson</span>
-              <Link to="/browse-lessons">
-                <button
-                  style={{
-                    padding: "8px 16px",
-                    background: "#48bb78",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  Browse lessons
-                </button>
-              </Link>
-            </div>
-          )}
-        </div>
-
         {/* Results Count - PR-UX-STU-DASH-2.3: reduced spacing */}
         <div
           style={{
@@ -1440,11 +1345,11 @@ const StudentDashboard: React.FC = () => {
               return (
                 <div
                   key={lesson.id}
+                  className="lesson-card"
                   style={{
                     background: "white",
                     borderRadius: "12px",
                     overflow: "hidden",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     cursor: "pointer",
                     display: "flex",
                     flexDirection: "column",

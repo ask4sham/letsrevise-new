@@ -29,6 +29,7 @@ const { findCuratedVisual } = require("../utils/curatedVisuals");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { generateContextAwareDiagram } = require("../services/diagramGeneration");
 const { findTopicByKey, findTopicBySpecAndKey, topicToKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
+const adminTaxonomyService = require("../services/adminTaxonomyService");
 const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftValidation");
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
@@ -5259,6 +5260,15 @@ router.post("/generate-and-save", auth, async (req, res) => {
     if (!specKey) {
       return res.status(400).json({
         error: "Could not determine exam board and subject. Please provide board and subject.",
+      });
+    }
+
+    const topicKeyForGroupCheck = String(canonicalTopicKey || "").includes(":")
+      ? canonicalTopicKey
+      : `${specKey}:${canonicalTopicKey}`;
+    if (await adminTaxonomyService.topicIsGroupInMerged(specKey, topicKeyForGroupCheck)) {
+      return res.status(400).json({
+        error: "This topic is a group folder; select a leaf sub-topic for AI generation.",
       });
     }
 

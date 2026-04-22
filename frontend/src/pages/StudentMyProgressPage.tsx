@@ -222,31 +222,108 @@ export default function StudentMyProgressPage() {
             textAlign: "center",
           }}
         >
-          <p style={{ color: "#6b7280", margin: "0 0 20px 0", fontSize: 15 }}>
-            You haven&apos;t attempted any quizzes yet.
-            <br />
-            Once you start, your progress will appear here.
+          <p style={{ color: "#374151", margin: "0 0 8px 0", fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
+            No activity yet
           </p>
-          <Link
-            to="/browse-lessons"
-            style={{
-              display: "inline-block",
-              padding: "10px 20px",
-              background: "#2563eb",
-              color: "white",
-              borderRadius: 8,
-              textDecoration: "none",
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
-            Browse lessons
-          </Link>
+          <p style={{ color: "#6b7280", margin: "0 0 12px 0", fontSize: 15, lineHeight: 1.5 }}>
+            As you complete lessons, quizzes, and practice, your scores, strengths, and revision focus will appear here — so you always know what to improve next.
+          </p>
+          <p style={{ color: "#9ca3af", margin: "0 0 20px 0", fontSize: 13, lineHeight: 1.5 }}>
+            Your progress becomes more useful after your first few activities.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+            <Link
+              to="/browse-lessons"
+              style={{
+                display: "inline-block",
+                padding: "10px 20px",
+                background: "#2563eb",
+                color: "white",
+                borderRadius: 8,
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              Browse lessons
+            </Link>
+            <Link
+              to="/student/quick-quiz"
+              style={{
+                display: "inline-block",
+                padding: "10px 20px",
+                background: "white",
+                color: "#0f766e",
+                border: "1px solid #99f6e4",
+                borderRadius: 8,
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              Quick quiz
+            </Link>
+          </div>
         </div>
       )}
 
       {!loading && !error && hasAnyAttempts && (
         <>
+          {useCanonicalMastery && dashboardData?.ok && (canonicalOverall?.lastActivityAt || canonicalTopics.length > 0) && (
+            <section
+              style={{
+                marginBottom: 24,
+                padding: 16,
+                background: "#f0fdf4",
+                borderRadius: 12,
+                border: "1px solid #bbf7d0",
+              }}
+            >
+              {canonicalOverall?.lastActivityAt && (
+                <p style={{ margin: "0 0 12px 0", fontSize: 14, color: "#166534" }}>
+                  <strong>Latest activity:</strong>{" "}
+                  {new Date(canonicalOverall.lastActivityAt).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </p>
+              )}
+              {canonicalTopics.length > 0 &&
+                (() => {
+                  const focus =
+                    canonicalTopics.find(
+                      (t) => (t.quizStats?.attempts ?? 0) + (t.examStats?.attempts ?? 0) > 0
+                    ) ?? canonicalTopics[0];
+                  const action = getTopicRevisionAction({
+                    masteryScore: focus.derivedMetrics?.masteryScore ?? null,
+                    topicKey: focus.topicKey,
+                  });
+                  return (
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 14, color: "#166534" }}>
+                        <strong>Focus next:</strong> {topicKeyToTitle(focus.topicKey)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => navigate(action.route)}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          background: "#22c55e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    </div>
+                  );
+                })()}
+            </section>
+          )}
           {useCanonicalMastery && (dashboardData?.overdueTopics?.length ?? 0) > 0 && (
             <section style={{ marginBottom: 24 }}>
               <h2 style={{ margin: "0 0 12px 0", fontSize: "1.15rem", color: "#b91c1c" }}>Overdue review</h2>

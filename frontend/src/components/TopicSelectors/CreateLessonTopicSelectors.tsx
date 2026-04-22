@@ -88,7 +88,7 @@ export function CreateLessonTopicSelectors({
   const currentSubject = subjects.find((s) => s.subject === value.subject);
   const currentSpec = currentSubject?.specs?.find((s) => s.specKey === value.specKey);
   const currentMainTopic = currentSpec?.mainTopics?.find((m) => m.title === value.mainTopicTitle);
-  const subTopicOptions = currentMainTopic?.subTopics ?? [];
+  const subTopicOptions = (currentMainTopic?.subTopics ?? []).filter((st) => !st.isGroup);
 
   const selectCss = { ...defaultSelectStyle, ...selectStyle };
   const labelCss = { ...defaultLabelStyle, ...labelStyle };

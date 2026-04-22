@@ -17,6 +17,7 @@ const { generateFlashcardsForTopic, generateExamQuestionsForTopic } = require(".
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { buildTopicKey } = require("../utils/topicKey");
 const { queryCandidates } = require("../utils/topicKey");
+const { isTopicGroup } = require("../utils/topicTaxonomy");
 
 function getSpecVariants(specKey) {
   const normalized = normalizeSpecKey(specKey);
@@ -25,7 +26,7 @@ function getSpecVariants(specKey) {
 }
 
 const DEFAULT_LIMIT_FLASHCARDS = 6;
-const DEFAULT_LIMIT_EXAM_QUESTIONS = 2;
+const DEFAULT_LIMIT_EXAM_QUESTIONS = 10;
 
 /**
  * Check if topicKey is a leaf topic in the taxonomy.
@@ -37,6 +38,7 @@ async function isLeafTopic(specKey, topicOnly) {
   const slug = (topicOnly || "").toLowerCase();
   for (const unit of taxonomy.units) {
     for (const t of unit.topics || []) {
+      if (isTopicGroup(t)) continue;
       const key = (t.key || t.topicKey || "").toLowerCase();
       if (key === slug) return true;
     }
@@ -252,6 +254,7 @@ async function generateDraftLibraryForSpec({
     const leafTopics = [];
     for (const unit of taxonomy.units) {
       for (const t of unit.topics || []) {
+        if (isTopicGroup(t)) continue;
         const key = t.key || t.topicKey;
         if (!key) continue;
         const topicKey = key.includes(":") ? key : `${normalized}:${key}`;

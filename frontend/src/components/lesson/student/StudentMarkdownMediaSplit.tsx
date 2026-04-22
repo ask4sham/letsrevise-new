@@ -6,12 +6,14 @@ import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { LessonStudentMarkdown } from "./LessonStudentMarkdown";
 import { partitionMarkdownAtFirstBlockImage } from "./partitionMarkdownAtFirstBlockImage";
 import { stripStandaloneImageLinesFromMarkdown } from "./stripStandaloneImageLines";
+import type { ContentKeywordItem } from "./contentKeywordHighlight";
 
 type Props = {
   content: string;
   markdownComponents: Partial<Components>;
   /** e.g. "lesson-content student-block student-block--text" */
   wrapperClassName: string;
+  highlightKeywords?: ContentKeywordItem[];
 };
 
 /**
@@ -22,13 +24,16 @@ export function StudentMarkdownMediaSplit({
   content,
   markdownComponents,
   wrapperClassName,
+  highlightKeywords,
 }: Props): React.ReactElement {
   const split = partitionMarkdownAtFirstBlockImage(content);
   const rawSrc = split?.src?.trim() ?? "";
   if (!split || !hasRenderableLessonImageSrc(rawSrc)) {
     return (
       <div className={wrapperClassName}>
-        <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+        <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+          {content}
+        </LessonStudentMarkdown>
       </div>
     );
   }
@@ -48,7 +53,7 @@ export function StudentMarkdownMediaSplit({
         aria-label="Lesson content"
       >
         <div className="lesson-student-md-media-split__text">
-          <LessonStudentMarkdown components={markdownComponents}>
+          <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
             {split.leftMarkdown}
           </LessonStudentMarkdown>
         </div>
@@ -64,7 +69,7 @@ export function StudentMarkdownMediaSplit({
       </section>
       {tailTextOnly.trim() ? (
         <div className="lesson-student-md-media-split__tail">
-          <LessonStudentMarkdown components={markdownComponents}>
+          <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
             {tailTextOnly}
           </LessonStudentMarkdown>
         </div>

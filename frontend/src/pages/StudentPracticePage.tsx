@@ -82,6 +82,9 @@ export default function StudentPracticePage() {
         </Link>
         <h1 className="text-xl font-semibold">Practice</h1>
       </div>
+      <p className="text-sm text-gray-600 mb-4 max-w-xl">
+        Choose a subject and topic, then open <span className="font-medium">Advanced options</span> if you need to enter your teacher&apos;s ID or a specific topic code.
+      </p>
 
       <PracticeSetBuilder
         specKey={specKey}

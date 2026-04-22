@@ -31,6 +31,7 @@ const TopicQuizQuestion = require("../models/TopicQuizQuestion");
 const ExamQuestion = require("../models/ExamQuestion");
 const AutopilotRun = require("../models/AutopilotRun");
 const { getCurrentAutopilotPromptPack, getAutopilotPromptPackById, resolvePromptPackForRun } = require("./autopilotPromptMetadata");
+const adminTaxonomyService = require("./adminTaxonomyService");
 
 const FLASHCARD_THRESHOLD = 5;
 const QUIZ_THRESHOLD = 3;
@@ -309,6 +310,37 @@ function resolvePromptPack(promptPackId, promptPackVersion) {
  */
 async function runTopicAutopilot({ specKey, topicKey, actions, dryRun = false, adminUserId, promptPackId, promptPackVersion }) {
   const topicOnly = (topicKey || "").split(":").pop() || topicKey;
+  const topicFullForGroup = (topicKey || "").includes(":") ? topicKey : `${specKey}:${(topicOnly || "").trim()}`;
+  if (await adminTaxonomyService.topicIsGroupInMerged(specKey, topicFullForGroup)) {
+    const errResult = {
+      specKey,
+      topicKey: topicOnly,
+      topicTitle: topicOnly,
+      dryRun,
+      gapSummary: null,
+      plannedActions: [],
+      executedActions: [],
+      graphRebuilt: false,
+      updatedCoverage: null,
+      requiresReview: true,
+      gateStatus: "block",
+      gateReasons: ["Topic is a group folder; select a leaf sub-topic."],
+      allowedActions: [],
+      blockedActions: autopilotGatingService.ALL_ACTIONS,
+      error: "Topic is a group",
+    };
+    saveAutopilotRun({
+      runType: "topic",
+      specKey,
+      topicKey: topicOnly,
+      dryRun,
+      triggeredByUserId: adminUserId || null,
+      status: "failed",
+      errorMessage: "Topic is a group",
+      topicResults: [],
+    }).catch(() => {});
+    return errResult;
+  }
   let resolvedPack;
   let experimentIdRes = null;
 

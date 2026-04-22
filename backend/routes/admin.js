@@ -1864,4 +1864,6 @@ router.post("/subscription/expire", auth, checkAdmin, async (req, res) => {
   }
 });
 
+router.use(require("./adminCoverageSummary"));
+
 module.exports = router;

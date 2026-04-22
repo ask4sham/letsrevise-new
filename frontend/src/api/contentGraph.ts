@@ -885,6 +885,9 @@ export async function runContentEngineAutopilot(body: ContentEngineRunBody): Pro
   return res.data;
 }
 
+/** Same as runContentEngineAutopilot — alias for phase-scoped runs. */
+export const runContentEngine = runContentEngineAutopilot;
+
 /** POST /api/content-graph/autopilot/content-engine/run-pipeline */
 export async function runContentEnginePipeline(body: Omit<ContentEngineRunBody, "phase">): Promise<unknown> {
   const res = await api.post("/content-graph/autopilot/content-engine/run-pipeline", body);

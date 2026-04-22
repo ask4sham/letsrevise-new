@@ -14,10 +14,12 @@ const { runPracticeSetGeneration } = require("../services/generation/practiceSet
 const { fingerprint: flashcardFingerprint } = require("../utils/flashcardDedupe");
 const { fingerprintItem: quizFingerprintItem } = require("../utils/quizDedupe");
 const { examQuestionFingerprint } = require("../utils/examQuestionDedupe");
+const { normalizeGeneratedExamQuestionForBank } = require("../utils/examQuestionBankGeneratedItem");
 const { normalizeSpecKey } = require("../config/featureFlags");
 const { filterBankItemsByDrift } = require("../utils/topicDriftValidation");
 const { parseTopicKey } = require("../utils/topicKey");
 const { sendInternalError, IS_PRODUCTION } = require("../utils/safeErrorResponse");
+const adminTaxonomyService = require("../services/adminTaxonomyService");
 
 function requireTeacherOrAdmin(req, res) {
   if (!req.user) {
@@ -188,6 +190,12 @@ async function postStarterPack(req, res) {
     return res.status(400).json({ error: "specKey and topicKey are required" });
   }
 
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalizedSpec, topic)) {
+    return res.status(400).json({
+      error: "This topic is a group folder; select a leaf sub-topic for generation.",
+    });
+  }
+
   const seed = crypto
     .createHash("sha256")
     .update(`${normalizedSpec}|${topic}|${(statementCodes || []).join(",")}|${Date.now()}`)
@@ -333,15 +341,15 @@ async function postStarterPack(req, res) {
 
     const examIds = [];
     for (const eq of filtered.examQuestions) {
-      const question = (eq.question || "").trim();
-      const markScheme = (eq.markScheme || "").trim();
-      const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
-      if (!question) continue;
+      const normalized = normalizeGeneratedExamQuestionForBank(eq);
+      if (!normalized) continue;
+      const { question, marks, markScheme, modelAnswer } = normalized;
+      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
       const fp = examQuestionFingerprint({
         specKey: normalizedSpec,
         topicKey: topic,
         question,
-        markScheme,
+        markScheme: msJoin,
         marks,
       });
       const doc = new ExamQuestion({
@@ -354,10 +362,11 @@ async function postStarterPack(req, res) {
         type: "short",
         marks,
         question,
-        markScheme: markScheme ? [markScheme] : [],
+        markScheme,
+        correctAnswer: modelAnswer,
         status: "draft",
         fingerprint: fp,
-        metadata: { generatedFrom },
+        metadata: { ...generatedFrom, modelAnswer },
       });
       await doc.save();
       examIds.push(doc._id);
@@ -387,6 +396,15 @@ async function postStarterPack(req, res) {
       },
     });
   } catch (err) {
+    if (err && err.code === "TOPIC_IS_GROUP") {
+      job.status = "failed";
+      job.errors = ["Topic is a group folder"];
+      await job.save();
+      return res.status(400).json({
+        error: "This topic is a group folder; select a leaf sub-topic for generation.",
+        jobId: job._id,
+      });
+    }
     job.status = "failed";
     job.errors = [IS_PRODUCTION ? "Generation failed" : err.message || String(err)];
     await job.save();
@@ -410,6 +428,12 @@ async function postWeakEvidenceFix(req, res) {
 
   if (!normalizedSpec || !topic) {
     return res.status(400).json({ error: "specKey and topicKey are required" });
+  }
+
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalizedSpec, topic)) {
+    return res.status(400).json({
+      error: "This topic is a group folder; select a leaf sub-topic for generation.",
+    });
   }
 
   const seed = crypto
@@ -600,15 +624,15 @@ async function postWeakEvidenceFix(req, res) {
 
     const examIds = [];
     for (const eq of filtered.examQuestions) {
-      const question = (eq.question || "").trim();
-      const markScheme = (eq.markScheme || "").trim();
-      const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
-      if (!question) continue;
+      const normalized = normalizeGeneratedExamQuestionForBank(eq);
+      if (!normalized) continue;
+      const { question, marks, markScheme, modelAnswer } = normalized;
+      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
       const fp = examQuestionFingerprint({
         specKey: normalizedSpec,
         topicKey: topic,
         question,
-        markScheme,
+        markScheme: msJoin,
         marks,
       });
       const doc = new ExamQuestion({
@@ -621,10 +645,11 @@ async function postWeakEvidenceFix(req, res) {
         type: "short",
         marks,
         question,
-        markScheme: markScheme ? [markScheme] : [],
+        markScheme,
+        correctAnswer: modelAnswer,
         status: "draft",
         fingerprint: fp,
-        metadata: { generatedFrom },
+        metadata: { ...generatedFrom, modelAnswer },
       });
       await doc.save();
       examIds.push(doc._id);
@@ -680,6 +705,12 @@ async function postPracticeSet(req, res) {
 
   if (!normalizedSpec || !topic) {
     return res.status(400).json({ error: "specKey and topicKey are required" });
+  }
+
+  if (await adminTaxonomyService.topicIsGroupInMerged(normalizedSpec, topic)) {
+    return res.status(400).json({
+      error: "This topic is a group folder; select a leaf sub-topic for generation.",
+    });
   }
 
   const seed = crypto
@@ -836,15 +867,15 @@ async function postPracticeSet(req, res) {
 
     const examIds = [];
     for (const eq of filteredPractice.examQuestions) {
-      const question = (eq.question || "").trim();
-      const markScheme = (eq.markScheme || "").trim();
-      const marks = Math.min(10, Math.max(1, Number(eq.marks) || 1));
-      if (!question) continue;
+      const normalized = normalizeGeneratedExamQuestionForBank(eq);
+      if (!normalized) continue;
+      const { question, marks, markScheme, modelAnswer } = normalized;
+      const msJoin = [...(markScheme || []), modelAnswer].filter(Boolean).join("\n");
       const fp = examQuestionFingerprint({
         specKey: normalizedSpec,
         topicKey: topic,
         question,
-        markScheme,
+        markScheme: msJoin,
         marks,
       });
       const doc = new ExamQuestion({
@@ -857,10 +888,11 @@ async function postPracticeSet(req, res) {
         type: "short",
         marks,
         question,
-        markScheme: markScheme ? [markScheme] : [],
+        markScheme,
+        correctAnswer: modelAnswer,
         status: "draft",
         fingerprint: fp,
-        metadata: { generatedFrom },
+        metadata: { ...generatedFrom, modelAnswer },
       });
       await doc.save();
       examIds.push(doc._id);

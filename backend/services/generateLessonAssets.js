@@ -13,7 +13,7 @@ const { extractLessonTextForAssets } = require("../utils/extractLessonTextForAss
 const {
   validateFlashcardDraft,
   validateQuizMcqDraft,
-  validateExamQuestionDraft,
+  validateExamQuestionDraftForAiLessonBank,
   namespacedTopicKeyFromLesson,
 } = require("../schemas/lessonAssetDrafts");
 const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
@@ -252,7 +252,7 @@ async function generateLessonAssets(opts) {
         kind: "quiz",
         fingerprint: fp,
         metadata: {
-          ...baseMetadata(lesson._id, q.pageId),
+          ...baseMetadata(lesson._id, q.pageId, "quiz", lesson),
           kind: "quiz_mcq",
           ...metadataQualityPatch(
             scoreQuizMcqDraft({
@@ -272,11 +272,12 @@ async function generateLessonAssets(opts) {
     }
   }
 
+  const EXAM_TARGET = 10;
   /** Exam questions */
   let examRaw = [];
   if (genFlags.examQuestions) {
     try {
-      examRaw = await generateExamQuestionsFromLesson({ ...runOpts, maxItems: 3 });
+      examRaw = await generateExamQuestionsFromLesson({ ...runOpts, maxItems: EXAM_TARGET });
     } catch (e) {
       if (e.code === "LLM_NOT_CONFIGURED") throw e;
       summary.errors.push({ type: "exam", message: e.message || String(e) });
@@ -284,10 +285,15 @@ async function generateLessonAssets(opts) {
   }
 
   for (const ex of examRaw) {
+    const t = String(ex.type || "").toLowerCase();
+    if (t === "mcq" || (Array.isArray(ex.options) && ex.options.length > 0)) {
+      summary.skipped.push({ type: "exam", reason: "MCQ or multiple-choice options are not saved to the Exam Question Bank" });
+      continue;
+    }
     if ((!ex.markScheme || !ex.markScheme.length) && ex.modelAnswer) {
       ex.markScheme = [String(ex.modelAnswer).trim()];
     }
-    const v = validateExamQuestionDraft(ex, specKey, namespacedTopicKey, validPageIds);
+    const v = validateExamQuestionDraftForAiLessonBank(ex, specKey, namespacedTopicKey, validPageIds);
     if (!v.ok) {
       summary.skipped.push({ type: "exam", reason: v.errors.join("; ") });
       continue;
@@ -314,12 +320,12 @@ async function generateLessonAssets(opts) {
       level: lesson.level || "GCSE",
       topic: lesson.subTopic || lesson.topic || "",
       topicKey: namespacedTopicKey,
-      type: ex.type,
+      type: "short",
       marks: ex.marks,
       question: ex.question,
-      options: ex.type === "mcq" ? ex.options.slice(0, 6) : [],
-      correctIndex: ex.type === "mcq" ? ex.correctIndex : null,
-      correctAnswer: ex.type === "short" ? ex.modelAnswer : null,
+      options: [],
+      correctIndex: null,
+      correctAnswer: ex.modelAnswer,
       markScheme: ex.markScheme,
       status: "draft",
       fingerprint: fp,
@@ -348,6 +354,8 @@ async function generateLessonAssets(opts) {
     }
   }
 
+  const examSkippedInvalid = summary.skipped.filter((s) => s.type === "exam");
+
   return {
     lessonId: String(lesson._id),
     lessonUpdatedAtSnapshot,
@@ -356,6 +364,15 @@ async function generateLessonAssets(opts) {
       quizQuestions: summary.quizQuestions,
       examQuestions: summary.examQuestions,
     },
+    examQuestionStats: genFlags.examQuestions
+      ? {
+          requestedCount: EXAM_TARGET,
+          llmReturnedCount: examRaw.length,
+          insertedCount: summary.examQuestions,
+          skippedInvalidCount: examSkippedInvalid.length,
+          skippedInvalidReasons: examSkippedInvalid.slice(0, 12).map((s) => s.reason),
+        }
+      : undefined,
     skipped: summary.skipped,
     errors: summary.errors,
     status: summary.errors.length ? "partial" : "ok",

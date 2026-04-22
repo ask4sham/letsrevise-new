@@ -2,14 +2,14 @@
 import React, { useMemo, useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { defaultUrlTransform } from "react-markdown";
-import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { LessonRenderer } from "../components/lesson/LessonRenderer";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank, listTopicFlashcards } from "../api/topicFlashcards";
 import { listTopicQuizQuestions } from "../api/topicQuizQuestions";
-import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -66,6 +66,18 @@ function buildAiLessonAssetBankReviewUrl(
   q.set("lessonId", p.lessonId);
   q.set("status", "draft");
   return `/teacher/topic-banks/${which}?${q.toString()}`;
+}
+
+/** Topic exam bank — same lesson-scoped AI draft filters as flashcard/quiz banks. */
+function buildAiLessonAssetExamReviewUrl(p: { topicKeySlug: string; specKey: string; lessonId: string }) {
+  const q = new URLSearchParams();
+  q.set("topicKey", p.topicKeySlug);
+  q.set("specKey", p.specKey);
+  q.set("metadataSource", "ai_lesson_assets");
+  q.set("generationType", "exam");
+  q.set("lessonId", p.lessonId);
+  q.set("status", "draft");
+  return `/teacher/exam-question-bank?${q.toString()}`;
 }
 
 function blockEditorSizeVariant(type: LessonBlockType): "default" | "long" {
@@ -449,6 +461,8 @@ const EditLessonPage: React.FC = () => {
   const [curriculumAiReviewFeature, setCurriculumAiReviewFeature] = useState<boolean | null>(null);
   const [curriculumReviewLoading, setCurriculumReviewLoading] = useState(false);
   const curriculumAiReviewFeatureRef = useRef(false);
+  /** Set when saveToBackend returns false so Generate AI assets can show the real reason. */
+  const lastSaveFailureReasonRef = useRef<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string>("");
   const [uploadMsg, setUploadMsg] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -467,16 +481,18 @@ const EditLessonPage: React.FC = () => {
   const [seedFlashcardsLoading, setSeedFlashcardsLoading] = useState(false);
   const [aiAssetsMessage, setAiAssetsMessage] = useState<string | null>(null);
   const [aiAssetsLoading, setAiAssetsLoading] = useState(false);
+  /** Optional exam draft generation (default off). */
+  const [includeExamInAiAssets, setIncludeExamInAiAssets] = useState(false);
   const [aiReviewPanel, setAiReviewPanel] = useState<{
     lastRunAt: string | null;
     lessonUpdatedAtSnapshot: string | null;
     lastGenerated: { flashcards: number; quizQuestions: number; examQuestions: number } | null;
-    pendingDrafts: { flashcards: number; quizQuestions: number };
+    pendingDrafts: { flashcards: number; quizQuestions: number; examQuestions: number };
   }>({
     lastRunAt: null,
     lessonUpdatedAtSnapshot: null,
     lastGenerated: null,
-    pendingDrafts: { flashcards: 0, quizQuestions: 0 },
+    pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 },
   });
   const [seedFlashcardsError, setSeedFlashcardsError] = useState<string | null>(null);
   const [seedFlashcardsSuccess, setSeedFlashcardsSuccess] = useState<string | null>(null);
@@ -504,6 +520,7 @@ const EditLessonPage: React.FC = () => {
   const [attachedPapersSummaries, setAttachedPapersSummaries] = useState<Array<{ _id: string; title: string; kind: string; questionCount: number; timeSeconds?: number; subject?: string; level?: string; examBoard?: string }>>([]);
   const [attachPaperModalOpen, setAttachPaperModalOpen] = useState(false);
   const [attachPageQuizModalOpen, setAttachPageQuizModalOpen] = useState(false);
+  const [attachPageQuizModalMode, setAttachPageQuizModalMode] = useState<"published" | "aiDrafts">("published");
   const [attachPageQuizToast, setAttachPageQuizToast] = useState<string | null>(null);
   /** PR20: Publish gate modal + Make classroom-ready + Post-publish CTA */
   const [publishGateOpen, setPublishGateOpen] = useState(false);
@@ -673,13 +690,13 @@ const EditLessonPage: React.FC = () => {
 
   const refreshAiLessonDraftCounts = useCallback(async () => {
     if (!id || !topicKeyForBank) {
-      setAiReviewPanel((p) => ({ ...p, pendingDrafts: { flashcards: 0, quizQuestions: 0 } }));
+      setAiReviewPanel((p) => ({ ...p, pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 } }));
       return;
     }
     const specKey = (lesson as { specKey?: string })?.specKey || topicKeyForBank.split(":")[0];
     const topicKeySlug = topicKeyForBank.includes(":") ? topicKeyForBank.split(":")[1] || topicKeyForBank : topicKeyForBank;
     try {
-      const [fc, qq] = await Promise.all([
+      const [fc, qq, examRes] = await Promise.all([
         listTopicFlashcards({
           topicKey: topicKeySlug,
           specKey,
@@ -698,19 +715,42 @@ const EditLessonPage: React.FC = () => {
           lessonId: id,
           generationType: "quiz",
         }),
+        api.get<{ success?: boolean; questions?: unknown[] }>("/exam-questions", {
+          params: {
+            topicKey: topicKeySlug,
+            specKey,
+            status: "draft",
+            metadataSource: "ai_lesson_assets",
+            lessonId: id,
+            generationType: "exam",
+            ...(isAdmin ? {} : { mineOnly: "1" }),
+          },
+        }),
       ]);
+      const examList = Array.isArray(examRes?.data?.questions) ? examRes.data!.questions! : [];
       setAiReviewPanel((prev) => ({
         ...prev,
-        pendingDrafts: { flashcards: fc.length, quizQuestions: qq.length },
+        pendingDrafts: {
+          flashcards: fc.length,
+          quizQuestions: qq.length,
+          examQuestions: examList.length,
+        },
       }));
     } catch {
-      setAiReviewPanel((prev) => ({ ...prev, pendingDrafts: { flashcards: 0, quizQuestions: 0 } }));
+      setAiReviewPanel((prev) => ({ ...prev, pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 } }));
     }
   }, [id, topicKeyForBank, lesson, isAdmin]);
 
   useEffect(() => {
     void refreshAiLessonDraftCounts();
   }, [refreshAiLessonDraftCounts]);
+
+  /** Purple review links: show from live bank draft counts (persists across navigation), not only post-generate session state. */
+  const hasAiLessonDraftReviewToolbar = useMemo(() => {
+    if (!topicKeyForBank || !id || !isMongoObjectId(id)) return false;
+    const { flashcards: fc, quizQuestions: qq, examQuestions: ex } = aiReviewPanel.pendingDrafts;
+    return fc > 0 || qq > 0 || ex > 0;
+  }, [topicKeyForBank, id, aiReviewPanel.pendingDrafts]);
 
   /** Fetch lesson graph + topic coverage when lesson has topicKey/specKey */
   useEffect(() => {
@@ -2419,10 +2459,18 @@ const EditLessonPage: React.FC = () => {
           });
         }
       }
+      const pageIdsInLesson = new Set(
+        sanitizedPages.map((p: { pageId?: string }) => String(p.pageId || "").trim()).filter(Boolean)
+      );
+      const bankAttachedPageQuiz = (lesson.quiz?.questions || []).filter((q: QuizQuestion & { sourceQuestionId?: string; sourceType?: string }) => {
+        const pid = String(q?.pageId ?? "").trim();
+        if (!pid || pid === "END" || !pageIdsInLesson.has(pid)) return false;
+        return Boolean(q.sourceQuestionId || q.sourceType === "topicQuizQuestion");
+      });
       const endOfLessonQuestions = (lesson.quiz?.questions || []).filter(
         (q: QuizQuestion) => !q.pageId || String(q.pageId) === "END"
       );
-      const mergedQuizQuestions = [...pageQuizQuestions, ...endOfLessonQuestions];
+      const mergedQuizQuestions = [...pageQuizQuestions, ...bankAttachedPageQuiz, ...endOfLessonQuestions];
 
     return {
       title: lesson.title,
@@ -2469,13 +2517,18 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
-  const saveToBackend = async () => {
-    if (!lesson || !id) return;
+  const saveToBackend = async (): Promise<boolean> => {
+    lastSaveFailureReasonRef.current = null;
+    if (!lesson || !id) {
+      lastSaveFailureReasonRef.current = "Lesson is not loaded or id is missing.";
+      return false;
+    }
     if (!isMongoObjectId(id)) {
-      setSaveMsg(
-        "This lesson is a legacy (Supabase) lesson. (UUID). Editing pages is currently supported for Mongo lessons."
-      );
-      return;
+      const msg =
+        "This lesson is a legacy (Supabase) lesson. (UUID). Editing pages is currently supported for Mongo lessons.";
+      setSaveMsg(msg);
+      lastSaveFailureReasonRef.current = msg;
+      return false;
     }
 
     try {
@@ -2483,7 +2536,12 @@ const EditLessonPage: React.FC = () => {
       setSaveMsg("");
 
       const payload = getLessonPersistPayload();
-      if (!payload) return;
+      if (!payload) {
+        const msg = "Could not build the save payload. Try reloading the lesson.";
+        setSaveMsg(`❌ ${msg}`);
+        lastSaveFailureReasonRef.current = msg;
+        return false;
+      }
 
       let saved = false;
 
@@ -2499,7 +2557,14 @@ const EditLessonPage: React.FC = () => {
       }
 
       setSaveMsg("✅ Saved!");
-      await fetchLessonSmart();
+      // Refetch is for editor UI only. Server already has persisted content for /generate-assets.
+      // It must not flip save success — a failed/odd refetch used to make saveToBackend return false incorrectly.
+      try {
+        await fetchLessonSmart();
+      } catch (refetchErr: unknown) {
+        console.warn("[EditLesson] Refetch after save failed:", refetchErr);
+        setSaveMsg("✅ Saved! (Could not reload the editor — refresh the page if content looks wrong.)");
+      }
       if (curriculumAiReviewFeatureRef.current && id) {
         const pollId = id;
         void (async () => {
@@ -2546,14 +2611,86 @@ const EditLessonPage: React.FC = () => {
           }
         })();
       }
+      return true;
     } catch (e: any) {
       console.error(e);
-      setSaveMsg(e?.message || "❌ Save failed.");
+      const detail =
+        (typeof e?.response?.data?.error === "string" && e.response.data.error) ||
+        (typeof e?.response?.data?.msg === "string" && e.response.data.msg) ||
+        (typeof e?.response?.data?.message === "string" && e.response.data.message) ||
+        (typeof e?.message === "string" && e.message) ||
+        "Save failed.";
+      lastSaveFailureReasonRef.current = detail;
+      setSaveMsg(`❌ ${detail}`);
+      return false;
     } finally {
       setSaving(false);
       if (!curriculumAiReviewFeatureRef.current) {
         setTimeout(() => setSaveMsg(""), 2500);
       }
+    }
+  };
+
+  const AI_ASSETS_PUBLISHED_MESSAGE =
+    "AI assets can only be generated while the lesson is unpublished. Unpublish the lesson, then try again.";
+
+  /** Saves the lesson, then generates draft topic-bank assets (flashcards + quiz; optional exam). Draft-only. */
+  const handleGenerateAiLessonAssets = async () => {
+    if (!id || !isMongoObjectId(id)) {
+      setAiAssetsMessage("Cannot generate: lesson must be saved as a Mongo-backed lesson.");
+      return;
+    }
+    if (lesson?.isPublished) {
+      setAiAssetsMessage(AI_ASSETS_PUBLISHED_MESSAGE);
+      return;
+    }
+    if (!topicKeyForBank) {
+      setAiAssetsMessage("Map this lesson to a syllabus subtopic first, then try again.");
+      return;
+    }
+    setAiAssetsMessage(null);
+    setAiAssetsLoading(true);
+    try {
+      const saved = await saveToBackend();
+      if (!saved) {
+        const why = lastSaveFailureReasonRef.current?.trim();
+        setAiAssetsMessage(
+          why
+            ? `Cannot generate yet: ${why}`
+            : "Save failed or incomplete — fix errors, then click Generate AI assets again."
+        );
+        return;
+      }
+      const r = await generateLessonAssets(id, {
+        generateFlashcards: true,
+        generateQuizQuestions: true,
+        generateExamQuestions: includeExamInAiAssets,
+      });
+      const g = r.generated;
+      const st = r.examQuestionStats;
+      const examLine =
+        includeExamInAiAssets && st
+          ? st.skippedInvalidCount > 0
+            ? `${st.insertedCount} valid exam question${st.insertedCount === 1 ? "" : "s"}; ${st.skippedInvalidCount} skipped (failed exam quality rules).`
+            : st.llmReturnedCount < st.requestedCount
+              ? `${st.insertedCount} exam inserted (target ${st.requestedCount}; LLM returned ${st.llmReturnedCount})`
+              : `${st.insertedCount} exam (target ${st.requestedCount})`
+          : `${g.examQuestions} exam`;
+      setAiAssetsMessage(
+        `Drafts saved to your topic banks (not published): ${g.flashcards} flashcards, ${g.quizQuestions} quiz, ${examLine}.`
+      );
+      setAiReviewPanel((prev) => ({
+        ...prev,
+        lastRunAt: new Date().toISOString(),
+        lessonUpdatedAtSnapshot: r.lessonUpdatedAtSnapshot ?? null,
+        lastGenerated: g,
+      }));
+      await refreshAiLessonDraftCounts();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      setAiAssetsMessage(err?.response?.data?.error || err?.message || "Generation failed.");
+    } finally {
+      setAiAssetsLoading(false);
     }
   };
 
@@ -3004,6 +3141,63 @@ const EditLessonPage: React.FC = () => {
               {saving ? "Saving..." : "Save Changes"}
             </button>
 
+            {lesson && isMongoObjectId(id || "") ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "2px solid rgba(124,58,237,0.35)",
+                  background: "rgba(245,243,255,0.95)",
+                }}
+              >
+                <span style={{ fontWeight: 800, fontSize: 13, color: "#5b21b6" }}>AI topic banks</span>
+                <span style={{ fontSize: 12, color: "#6d28d9", opacity: 0.9 }}>
+                  Generate while lesson is draft/unpublished.
+                </span>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#4c1d95", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={includeExamInAiAssets}
+                    onChange={(e) => setIncludeExamInAiAssets(e.target.checked)}
+                    disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
+                  />
+                  Include exam drafts
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleGenerateAiLessonAssets()}
+                  disabled={aiAssetsLoading || saving || !topicKeyForBank || !!lesson?.isPublished}
+                  title={
+                    lesson?.isPublished
+                      ? AI_ASSETS_PUBLISHED_MESSAGE
+                      : !topicKeyForBank
+                        ? "Set a syllabus subtopic on this lesson first."
+                        : "Saves your lesson, then creates draft flashcards and quiz in your topic banks (optional exam)."
+                  }
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: 10,
+                    border: "none",
+                    background:
+                      aiAssetsLoading || saving || !topicKeyForBank || !!lesson?.isPublished ? "#d8b4fe" : "#7c3aed",
+                    color: "#fff",
+                    cursor:
+                      aiAssetsLoading || saving || !topicKeyForBank || !!lesson?.isPublished
+                        ? "not-allowed"
+                        : "pointer",
+                    fontWeight: 900,
+                    fontSize: 14,
+                  }}
+                >
+                  {aiAssetsLoading ? "Working…" : "Generate AI assets"}
+                </button>
+              </div>
+            ) : null}
+
             {curriculumAiReviewFeature && lesson && canRunCurriculumReview(lesson) ? (
               <button
                 type="button"
@@ -3044,6 +3238,101 @@ const EditLessonPage: React.FC = () => {
               </button>
             ) : null}
           </div>
+          {(aiAssetsMessage || hasAiLessonDraftReviewToolbar) ? (
+            <div
+              style={{
+                marginTop: 10,
+                padding: "10px 14px",
+                fontSize: 13,
+                color: "#5b21b6",
+                background: "#faf5ff",
+                borderRadius: 10,
+                border: "1px solid #e9d5ff",
+                maxWidth: 720,
+              }}
+            >
+              {aiAssetsMessage ? <div>{aiAssetsMessage}</div> : null}
+              {hasAiLessonDraftReviewToolbar && topicKeyForBank && id ? (
+                  <div style={{ marginTop: aiAssetsMessage ? 10 : 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
+                    <Link
+                      to={buildAiLessonAssetBankReviewUrl("flashcards", {
+                        topicKeySlug: topicKeyForBank.includes(":")
+                          ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                          : topicKeyForBank,
+                        specKey:
+                          (lesson as { specKey?: string })?.specKey ||
+                          topicKeyForBank.split(":")[0] ||
+                          getStoredSpecKey(),
+                        lessonId: id,
+                      })}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 6,
+                        background: "#7c3aed",
+                        color: "#fff",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Review flashcard drafts
+                    </Link>
+                    ) : null}
+                    {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
+                    <Link
+                      to={buildAiLessonAssetBankReviewUrl("quizzes", {
+                        topicKeySlug: topicKeyForBank.includes(":")
+                          ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                          : topicKeyForBank,
+                        specKey:
+                          (lesson as { specKey?: string })?.specKey ||
+                          topicKeyForBank.split(":")[0] ||
+                          getStoredSpecKey(),
+                        lessonId: id,
+                      })}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 6,
+                        background: "#7c3aed",
+                        color: "#fff",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Review quiz drafts
+                    </Link>
+                    ) : null}
+                    {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+                      <Link
+                        to={buildAiLessonAssetExamReviewUrl({
+                          topicKeySlug: topicKeyForBank.includes(":")
+                            ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                            : topicKeyForBank,
+                          specKey:
+                            (lesson as { specKey?: string })?.specKey ||
+                            topicKeyForBank.split(":")[0] ||
+                            getStoredSpecKey(),
+                          lessonId: id,
+                        })}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          background: "#7c3aed",
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          textDecoration: "none",
+                        }}
+                      >
+                        Review exam drafts
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -3987,7 +4276,10 @@ const EditLessonPage: React.FC = () => {
                         })()}
                         <button
                           type="button"
-                          onClick={() => setAttachPageQuizModalOpen(true)}
+                          onClick={() => {
+                            setAttachPageQuizModalMode("published");
+                            setAttachPageQuizModalOpen(true);
+                          }}
                           disabled={!topicKeyForBank}
                           title={!topicKeyForBank ? "This lesson needs a valid syllabus topic before quiz questions can be attached." : "Attach published quiz questions from the Topic Quiz Bank to this page."}
                           style={{
@@ -4004,11 +4296,39 @@ const EditLessonPage: React.FC = () => {
                         >
                           Attach Quiz Page From Question Bank
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAttachPageQuizModalMode("aiDrafts");
+                            setAttachPageQuizModalOpen(true);
+                          }}
+                          disabled={!topicKeyForBank || !id}
+                          title={
+                            !topicKeyForBank
+                              ? "Map a syllabus subtopic first."
+                              : !id
+                                ? "Save the lesson first."
+                                : "Attach AI-generated quiz drafts from your Topic Quiz Bank to this page (no publish required)."
+                          }
+                          style={{
+                            padding: "8px 14px",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            border: "1px solid #7c3aed",
+                            borderRadius: 8,
+                            background: "rgba(245,243,255,0.95)",
+                            color: "#5b21b6",
+                            cursor: topicKeyForBank && id ? "pointer" : "not-allowed",
+                            opacity: topicKeyForBank && id ? 1 : 0.6,
+                          }}
+                        >
+                          Attach AI quiz drafts
+                        </button>
                       </div>
                     </div>
                     {topicKeyForBank && (
                       <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
-                        Attach published quiz questions from the Topic Quiz Bank to this page.
+                        Published bank: attach reviewed MCQs. AI drafts: attach generated drafts to this page without publishing bank rows.
                       </div>
                     )}
 
@@ -5495,10 +5815,10 @@ const EditLessonPage: React.FC = () => {
                         }}
                       >
                         <div className="lesson-content" style={getBlockStyle(blockType)}>
-                          <LessonMarkdown
-                            key={`preview-md-${currentPage!.pageId}-${idx}-${blockContent.length}`}
-                            className="lesson-md-body"
-                            components={markdownComponents as any}
+                          <LessonRenderer
+                            key={`preview-lr-${currentPage!.pageId}-${idx}-${blockContent.length}`}
+                            text={blockContent}
+                            markdownComponents={markdownComponents as any}
                             urlTransform={(url: string) => {
                               try {
                                 const decoded = url?.includes("%") ? decodeURIComponent(url) : (url ?? "");
@@ -5509,9 +5829,7 @@ const EditLessonPage: React.FC = () => {
                                 return defaultUrlTransform(url ?? "");
                               }
                             }}
-                          >
-                            {preprocessMarkdownAssetUrls(blockContent)}
-                          </LessonMarkdown>
+                          />
                         </div>
                       </div>
                     );
@@ -5794,57 +6112,9 @@ const EditLessonPage: React.FC = () => {
                         <Link to={topicKeyForBank ? `/teacher/topic-banks/flashcards?topicKey=${encodeURIComponent(topicKeyForBank)}` : "/teacher/topic-banks/flashcards"} style={{ fontSize: 14, color: "#2563eb", fontWeight: 600 }}>
                           Edit flashcards in Topic Bank →
                         </Link>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!id) return;
-                            setAiAssetsMessage(null);
-                            setAiAssetsLoading(true);
-                            try {
-                              const r = await generateLessonAssets(id, {
-                                generateFlashcards: true,
-                                generateQuizQuestions: true,
-                                generateExamQuestions: false,
-                              });
-                              const g = r.generated;
-                              setAiAssetsMessage(
-                                `AI drafts saved (topic bank, status=draft): ${g.flashcards} flashcards, ${g.quizQuestions} quiz questions, ${g.examQuestions} exam.`
-                              );
-                              setAiReviewPanel((prev) => ({
-                                ...prev,
-                                lastRunAt: new Date().toISOString(),
-                                lessonUpdatedAtSnapshot: r.lessonUpdatedAtSnapshot ?? null,
-                                lastGenerated: g,
-                              }));
-                              await refreshAiLessonDraftCounts();
-                            } catch (e: unknown) {
-                              const err = e as { response?: { data?: { error?: string } }; message?: string };
-                              setAiAssetsMessage(err?.response?.data?.error || err?.message || "Generation failed.");
-                            } finally {
-                              setAiAssetsLoading(false);
-                            }
-                          }}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            border: "1px solid #7c3aed",
-                            background: "#f5f3ff",
-                            color: "#5b21b6",
-                            fontWeight: 600,
-                            cursor: aiAssetsLoading || !id || !topicKeyForBank ? "not-allowed" : "pointer",
-                          }}
-                          disabled={aiAssetsLoading || !id || !topicKeyForBank}
-                          title={
-                            !topicKeyForBank
-                              ? "Map this lesson to a syllabus subtopic first."
-                              : "Creates draft flashcards and quiz MCQs in your topic banks from lesson page text (requires OPENAI_API_KEY)."
-                          }
-                        >
-                          {aiAssetsLoading ? "Generating…" : "Generate draft assets (AI)"}
-                        </button>
-                        {aiAssetsMessage && (
-                          <span style={{ color: "#5b21b6", fontSize: 13, maxWidth: 480 }}>{aiAssetsMessage}</span>
-                        )}
+                        <span style={{ fontSize: 13, color: "#64748b", maxWidth: 420 }}>
+                          Draft flashcards/quiz from lesson pages: use <strong>Generate AI assets</strong> in the toolbar above.
+                        </span>
                         {topicKeyForBank && id && (
                           <div
                             style={{
@@ -5888,9 +6158,11 @@ const EditLessonPage: React.FC = () => {
                             <div style={{ marginBottom: 8 }}>
                               Pending drafts (AI, this lesson):{" "}
                               <strong>{aiReviewPanel.pendingDrafts.flashcards}</strong> flashcards,{" "}
-                              <strong>{aiReviewPanel.pendingDrafts.quizQuestions}</strong> quiz
+                              <strong>{aiReviewPanel.pendingDrafts.quizQuestions}</strong> quiz,{" "}
+                              <strong>{aiReviewPanel.pendingDrafts.examQuestions}</strong> exam
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
                               <Link
                                 to={buildAiLessonAssetBankReviewUrl("flashcards", {
                                   topicKeySlug: topicKeyForBank.includes(":")
@@ -5912,6 +6184,8 @@ const EditLessonPage: React.FC = () => {
                               >
                                 Review flashcard drafts
                               </Link>
+                              ) : null}
+                              {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
                               <Link
                                 to={buildAiLessonAssetBankReviewUrl("quizzes", {
                                   topicKeySlug: topicKeyForBank.includes(":")
@@ -5933,6 +6207,32 @@ const EditLessonPage: React.FC = () => {
                               >
                                 Review quiz drafts
                               </Link>
+                              ) : null}
+                              {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+                                <Link
+                                  to={buildAiLessonAssetExamReviewUrl({
+                                    topicKeySlug: topicKeyForBank.includes(":")
+                                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                                      : topicKeyForBank,
+                                    specKey:
+                                      (lesson as { specKey?: string })?.specKey ||
+                                      topicKeyForBank.split(":")[0] ||
+                                      getStoredSpecKey(),
+                                    lessonId: id,
+                                  })}
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: 6,
+                                    background: "#7c3aed",
+                                    color: "#fff",
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Review exam drafts
+                                </Link>
+                              ) : null}
                             </div>
                           </div>
                         )}
@@ -6125,6 +6425,12 @@ const EditLessonPage: React.FC = () => {
         onClose={() => setAttachPageQuizModalOpen(false)}
         lessonId={id ?? ""}
         topicKey={topicKeyForBank ?? ""}
+        specKey={
+          (lesson as { specKey?: string })?.specKey?.trim() ||
+          (topicKeyForBank?.includes(":") ? topicKeyForBank.split(":")[0] : undefined) ||
+          getStoredSpecKey()
+        }
+        mode={attachPageQuizModalMode}
         pageId={currentPage?.pageId ?? ""}
         pageTitle={currentPage?.title}
         alreadyAttachedSourceIds={

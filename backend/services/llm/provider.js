@@ -774,10 +774,13 @@ function mockGenerateStarterPack({ specKey, topicKey, statementCodes, statements
         explanation: "",
       },
     ],
-    examQuestions: [
-      { question: "Explain the key concept. [4 marks]", markScheme: "1 mark per valid point.", marks: 4 },
-      { question: "Describe the process. [3 marks]", markScheme: "Credit correct sequence.", marks: 3 },
-    ],
+    examQuestions: Array.from({ length: 10 }, (_, i) => ({
+      question: `Explain how concept ${i + 1} for this sub-topic is important in GCSE Biology and what examiners look for. [4 marks]`,
+      markScheme:
+        "First marking point with enough characters to count as substantive detail for GCSE.\nSecond marking point with enough characters to count.\nThird point where appropriate for four marks.",
+      marks: 4,
+      modelAnswer: `A developed model answer that demonstrates understanding and would earn full marks for this structured question (${i + 1}).`,
+    })),
   };
 }
 
@@ -812,8 +815,8 @@ Rules:
 - Do NOT create separate pages for: Core Concept 1, Core Concept 2, Comparison, Check Understanding, Exam Tips, Stretch.
 - Lesson: exactly 1 page, 4-10 blocks (mix of text, keyIdea, examTip, checkpoint, etc.).
 - Flashcards: 5-10 items.
-- Quiz: 8-12 MCQ items.
-- Exam questions: 3-5 items with marks 1-6.`;
+- Quiz: 8-12 MCQ items (Topic Quiz Bank only — never put MCQs in examQuestions).
+- Exam questions: aim for 10 structured GCSE-style written questions (2–6 marks each). No MCQs in examQuestions. Each needs question, markScheme (multi-line or bullets), modelAnswer, marks ≥ 2. Command words: Explain, Describe, Compare, Suggest, etc.`;
 
   const userPrompt = `Spec: ${specKey}
 Topic: ${topicKey}
@@ -846,7 +849,7 @@ Return JSON (exactly 1 lesson page, all content in blocks):
   },
   "flashcards": [{ "front": "...", "back": "...", "tags": [] }],
   "quiz": [{ "kind": "mcq", "question": "...", "options": ["..."], "correctIndex": 0, "explanation": "..." }],
-  "examQuestions": [{ "question": "...", "markScheme": "...", "marks": 4 }]
+  "examQuestions": [{ "question": "...", "markScheme": "Line one...\\nLine two...", "marks": 4, "modelAnswer": "..." }]
 }`;
 
   const res = await axios.post(
@@ -859,7 +862,7 @@ Return JSON (exactly 1 lesson page, all content in blocks):
       ],
       response_format: { type: "json_object" },
       temperature: 0.4,
-      max_tokens: 4000,
+      max_tokens: 6000,
     },
     { headers: { Authorization: `Bearer ${apiKey}` } }
   );
@@ -902,10 +905,11 @@ Return JSON (exactly 1 lesson page, all content in blocks):
       correctIndex: Math.max(0, Math.min(Number(q.correctIndex) || 0, 5)),
       explanation: String(q.explanation || "").slice(0, 500),
     })),
-    examQuestions: examQuestions.slice(0, 5).map((eq) => ({
+    examQuestions: examQuestions.slice(0, 10).map((eq) => ({
       question: String(eq.question || "").slice(0, 2000),
-      markScheme: String(eq.markScheme || "").slice(0, 1000),
-      marks: Math.max(1, Math.min(Number(eq.marks) || 4, 10)),
+      markScheme: String(eq.markScheme || "").slice(0, 3000),
+      marks: Math.max(2, Math.min(Number(eq.marks) || 4, 10)),
+      modelAnswer: String(eq.modelAnswer || eq.answer || "").slice(0, 2000),
     })),
   };
 }
@@ -957,8 +961,19 @@ function mockGenerateWeakEvidenceFixPack({ specKey, topicKey, statementCodes, st
       { kind: "short", question: "What is the main concept?", acceptableAnswers: ["Key concept"], explanation: "" },
     ],
     examQuestions: [
-      { question: "Explain the key concept. [4 marks]", markScheme: "1 mark per valid point.", marks: 4 },
-      { question: "Describe the process. [3 marks]", markScheme: "Credit correct sequence.", marks: 3 },
+      {
+        question: "Explain the key concept for this sub-topic in detail. [4 marks]",
+        markScheme:
+          "First substantive marking point with enough characters to count.\nSecond substantive marking point with enough characters to count.",
+        marks: 4,
+        modelAnswer: "A developed model answer that demonstrates understanding and would earn full marks.",
+      },
+      {
+        question: "Describe the process using correct terminology and sequence. [3 marks]",
+        markScheme: "Credit correct first step with sufficient detail.\nCredit correct second step with sufficient detail.",
+        marks: 3,
+        modelAnswer: "A clear description that would earn full marks for this structured question.",
+      },
     ],
   };
 }
@@ -986,7 +1001,7 @@ Rules:
 - Return valid JSON only.
 - Blocks: use "text", "bulletList", "keyIdea", "examTip", "commonMistake", "checkpoint".
 - Quiz: kind "mcq" (options, correctIndex) or "short" (acceptableAnswers array).
-- Exam: question, markScheme, marks (1-6).`;
+- Exam (examQuestions): ONLY structured written exam-style items for the Exam Question Bank — no MCQs, no options arrays. Include question, markScheme (multi-line), modelAnswer, marks 2–6.`;
 
   const userPrompt = `Spec: ${specKey}
 Topic: ${topicKey}
@@ -1014,7 +1029,7 @@ Return JSON (exactly 1 lesson page, all content in blocks):
     { "kind": "mcq", "question": "...", "options": ["..."], "correctIndex": 0, "explanation": "..." },
     { "kind": "short", "question": "...", "acceptableAnswers": ["..."], "explanation": "..." }
   ],
-  "examQuestions": [{ "question": "...", "markScheme": "...", "marks": 4 }]
+  "examQuestions": [{ "question": "...", "markScheme": "...", "marks": 4, "modelAnswer": "..." }]
 }`;
 
   const res = await axios.post(
@@ -1081,10 +1096,11 @@ Return JSON (exactly 1 lesson page, all content in blocks):
         explanation: String(q.explanation || "").slice(0, 500),
       };
     }),
-    examQuestions: examQuestions.slice(0, 2).map((eq) => ({
+    examQuestions: examQuestions.slice(0, 5).map((eq) => ({
       question: String(eq.question || "").slice(0, 2000),
-      markScheme: String(eq.markScheme || "").slice(0, 1000),
-      marks: Math.max(1, Math.min(Number(eq.marks) || 4, 10)),
+      markScheme: String(eq.markScheme || "").slice(0, 3000),
+      marks: Math.max(2, Math.min(Number(eq.marks) || 4, 10)),
+      modelAnswer: String(eq.modelAnswer || eq.answer || "").slice(0, 2000),
     })),
   };
 }

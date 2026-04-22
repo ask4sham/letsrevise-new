@@ -4,11 +4,15 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const ExamQuestion = require("../models/ExamQuestion");
 const auth = require("../middleware/auth");
-const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY } = require("../utils/topicKey");
+const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, normalizeToStoredKey } = require("../utils/topicKey");
 const { resolveStoredTopicKeyWithAdmin } = require("../services/adminTaxonomyService");
 const { enrichExamItems } = require("../utils/reviewQualityFlags");
 const { ensureLeanExamScored } = require("../utils/draftQualityScoring");
 const { applyExamAiRewrite, EXAM_ACTIONS } = require("../services/aiRewriteDraftAsset");
+const {
+  validateExamQuestionPublishReadiness,
+  validateNewExamQuestionBankDraft,
+} = require("../utils/examQuestionPublishValidation");
 
 /** In-memory score-on-read, optional band filter, sort (matches topic flashcards/quiz list). */
 function finalizeExamQuestionsForList(items, query) {
@@ -59,6 +63,10 @@ router.post("/", auth, async (req, res) => {
       req.body.topicKey = resolved.storedKey;
     } else if (req.body.topicKey != null) {
       req.body.topicKey = undefined;
+    }
+    const bankReady = validateNewExamQuestionBankDraft(req.body);
+    if (!bankReady.ok) {
+      return res.status(400).json({ success: false, msg: bankReady.msg || "Invalid exam question" });
     }
     const teacherId = req.user.userId || req.user._id;
     const question = await ExamQuestion.create({
@@ -175,6 +183,50 @@ router.get("/mine", auth, async (req, res) => {
   }
 });
 
+// GET /api/exam-questions/for-topic — published exam-bank items for a syllabus topic (students + authenticated users; no drafts).
+router.get("/for-topic", auth, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, msg: "Unauthorized" });
+    }
+    const specKeyQ = String(req.query.specKey || "").trim();
+    const topicKeyQ = String(req.query.topicKey || "").trim();
+    if (!specKeyQ || !topicKeyQ) {
+      return res.status(400).json({ success: false, msg: "specKey and topicKey are required" });
+    }
+    const lim = clampInt(req.query.limit, { min: 5, max: 10, fallback: 8 });
+    const spec = specKeyQ || DEFAULT_SPEC_LEGACY;
+    const normalizedTopic = normalizeToStoredKey(topicKeyQ, spec);
+    const parsed = parseTopicKey(normalizedTopic || topicKeyQ);
+    if (parsed.isNamespaced && parsed.specKey && parsed.specKey !== spec) {
+      return res.status(400).json({
+        success: false,
+        msg: "specKey query does not match the namespaced topicKey (canonical identity mismatch).",
+        error: "SPEC_TOPIC_MISMATCH",
+      });
+    }
+    const candidates = queryCandidates(spec, parsed.topicKey || topicKeyQ);
+    if (!candidates.length) {
+      return res.json({ success: true, questions: [] });
+    }
+    const query = {
+      status: "published",
+      topicKey: { $in: candidates },
+      isArchived: { $ne: true },
+    };
+    let questions = await ExamQuestion.find(query).sort({ updatedAt: -1 }).limit(lim).lean();
+    questions = finalizeExamQuestionsForList(questions, { sortBy: "updatedAt" });
+    const enriched = enrichExamItems(questions);
+    return res.json({
+      success: true,
+      questions: enriched.map(toResponseQuestion),
+    });
+  } catch (err) {
+    console.error("ExamQuestions GET /for-topic error:", err);
+    return res.status(500).json({ success: false, msg: "Server error" });
+  }
+});
+
 // GET /api/exam-questions — list (teacher/admin only; filters: subject, examBoard, level, topic, topicKey, type, status)
 // PR-W2.2: Teacher/admin see draft + published by default so Worksheet Builder Question Bank shows seeded drafts.
 // PR-W2.2.2: Response must include topicKey (and topic) on every item — do not use .select() that omits them.
@@ -284,6 +336,52 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+// POST /api/exam-questions/bulk/purge-invalid-ai-exam-drafts — delete AI lesson exam drafts that fail publish-readiness (no new MCQs / weak schemes).
+router.post("/bulk/purge-invalid-ai-exam-drafts", auth, async (req, res) => {
+  if (!isTeacher(req)) {
+    return res.status(403).json({ success: false, msg: "Teachers only" });
+  }
+  try {
+    const teacherId = req.user.userId || req.user._id;
+    const dryRun = req.body?.dryRun === true || String(req.query?.dryRun || "") === "1";
+    const confirmed = req.body?.confirm === true || req.body?.confirm === "true";
+
+    const query = {
+      teacherId,
+      status: "draft",
+      "metadata.source": "ai_lesson_assets",
+      "metadata.generationType": "exam",
+    };
+    const docs = await ExamQuestion.find(query).select("_id type marks question markScheme correctAnswer metadata").lean();
+    const invalid = docs.filter((d) => !validateExamQuestionPublishReadiness(d).ok);
+    const ids = invalid.map((d) => d._id);
+
+    if (dryRun) {
+      return res.status(200).json({
+        success: true,
+        dryRun: true,
+        count: ids.length,
+        ids: ids.map((id) => String(id)),
+      });
+    }
+    if (!confirmed) {
+      return res.status(400).json({
+        success: false,
+        msg: "Send { confirm: true } after reviewing dryRun, or use dryRun: true to preview counts only.",
+      });
+    }
+    const del = await ExamQuestion.deleteMany({ _id: { $in: ids } });
+    return res.status(200).json({
+      success: true,
+      deletedCount: del.deletedCount,
+      ids: ids.map((id) => String(id)),
+    });
+  } catch (err) {
+    console.error("ExamQuestions bulk purge error:", err);
+    return res.status(500).json({ success: false, msg: err.message || "Server error" });
+  }
+});
+
 // PATCH /api/exam-questions/:id — partial update (teacher owner or admin)
 router.patch("/:id", auth, async (req, res) => {
   if (!isTeacherOrAdmin(req)) return res.status(403).json({ error: "Teachers and admins only" });
@@ -300,6 +398,10 @@ router.patch("/:id", auth, async (req, res) => {
     if (patch.markScheme != null) item.markScheme = Array.isArray(patch.markScheme) ? patch.markScheme.map(String) : [String(patch.markScheme)];
     if (patch.marks != null) item.marks = Number(patch.marks);
     if (patch.isArchived != null) item.isArchived = !!patch.isArchived;
+    if (patch.imageUrl !== undefined) {
+      const u = patch.imageUrl;
+      item.imageUrl = u != null && String(u).trim() ? String(u).trim() : null;
+    }
     await item.save();
     return res.json({ item: toResponseQuestion(item.toObject ? item.toObject() : item) });
   } catch (err) {
@@ -333,7 +435,23 @@ router.put("/:id", auth, async (req, res) => {
         question.topicKey = undefined;
       }
     }
-    const { subject, examBoard, level, topic, unitKey, type, marks, question: qText, options, correctIndex, correctAnswer, markScheme, content, status } = req.body;
+    const {
+      subject,
+      examBoard,
+      level,
+      topic,
+      unitKey,
+      type,
+      marks,
+      question: qText,
+      options,
+      correctIndex,
+      correctAnswer,
+      markScheme,
+      content,
+      status,
+      imageUrl,
+    } = req.body;
     if (subject !== undefined) question.subject = subject;
     if (examBoard !== undefined) question.examBoard = examBoard;
     if (level !== undefined) question.level = level;
@@ -347,6 +465,9 @@ router.put("/:id", auth, async (req, res) => {
     if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
     if (markScheme !== undefined) question.markScheme = markScheme;
     if (content !== undefined) question.content = content;
+    if (imageUrl !== undefined) {
+      question.imageUrl = imageUrl != null && String(imageUrl).trim() ? String(imageUrl).trim() : null;
+    }
     let justPublished = false;
     if (status !== undefined) {
       const newStatus = String(status).trim().toLowerCase();
@@ -356,6 +477,19 @@ router.put("/:id", auth, async (req, res) => {
         const gate = await checkPublishGateForGenerated(qObj, req.user);
         if (!gate.ok) {
           return res.status(400).json({ success: false, msg: "Fix issues first", issues: gate.issues, blocks: gate.blocks });
+        }
+        const mergedForPub = {
+          ...qObj,
+          question: qText !== undefined ? qText : question.question,
+          type: type !== undefined ? type : question.type,
+          marks: marks !== undefined ? marks : question.marks,
+          markScheme: markScheme !== undefined ? markScheme : question.markScheme,
+          correctAnswer: correctAnswer !== undefined ? correctAnswer : question.correctAnswer,
+          metadata: question.metadata,
+        };
+        const ready = validateExamQuestionPublishReadiness(mergedForPub);
+        if (!ready.ok) {
+          return res.status(400).json({ success: false, msg: ready.msg || "Not ready to publish" });
         }
         justPublished = true;
       }

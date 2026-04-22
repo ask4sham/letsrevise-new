@@ -62,6 +62,13 @@ import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
 import { hasFullLessonAccess as computeFullLessonAccess } from "../utils/lessonAccess";
 import Toast from "../components/Toast";
+import {
+  mergeContentKeywordLists,
+  mergeLessonMarkdownComponentsWithKeywordHighlight,
+  normalizeContentKeywords,
+} from "../components/lesson/student/contentKeywordHighlight";
+import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
+import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
 
 /** PR11: diagram annotation overlay */
 interface DiagramAnnotation {
@@ -82,7 +89,16 @@ interface DiagramStep {
 }
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram" | "keyWords";
+  type:
+    | "text"
+    | "keyIdea"
+    | "examTip"
+    | "commonMistake"
+    | "stretch"
+    | "checkpoint"
+    | "diagram"
+    | "keyWords"
+    | "pageQuiz";
   content?: string;
   prompt?: string;
   questionType?: "mcq" | "short";
@@ -116,6 +132,18 @@ interface LessonPage {
   pageType?: string;
   hero?: LessonPageHero;
   blocks?: LessonPageBlock[];
+  /** Optional; Mixed on backend — e.g. contentKeywords for student keyword highlights */
+  metadata?: {
+    contentKeywords?: Array<{
+      term: string;
+      type?: string;
+      definition?: string;
+      specKey?: string;
+      topicKey?: string;
+      flashcardIds?: string[];
+    }>;
+    [key: string]: unknown;
+  };
   checkpoint?: {
     question?: string;
     options?: string[];
@@ -187,6 +215,18 @@ interface Lesson {
   assessmentPaperIds?: string[];
   /** Past papers (from topic bank snapshot) */
   pastPapers?: Array<unknown>;
+  /** Optional Mixed payload — e.g. contentKeywords for student keyword highlights */
+  metadata?: {
+    contentKeywords?: Array<{
+      term: string;
+      type?: string;
+      definition?: string;
+      specKey?: string;
+      topicKey?: string;
+      flashcardIds?: string[];
+    }>;
+    [key: string]: unknown;
+  };
 }
 
 // ✅ Define a type for the flashcards with proper difficulty
@@ -230,6 +270,19 @@ interface PracticeQuestionLite {
   markScheme?: string[];
   topicKey?: string;
   topic?: string;
+}
+
+/** Published exam bank row from GET /api/exam-questions/for-topic (lesson Exam Practice). */
+interface ExamPracticeQuestionLite {
+  _id: string;
+  question: string;
+  type?: string;
+  marks?: number;
+  markScheme?: string[];
+  correctAnswer?: string | null;
+  /** Optional stem image from Exam Question Bank upload */
+  imageUrl?: string | null;
+  metadata?: { modelAnswer?: string; [key: string]: unknown };
 }
 
 function getBoardName(
@@ -1112,6 +1165,168 @@ function PracticeSection({
   );
 }
 
+const EXAM_PRACTICE_DISPLAY_LIMIT = 8;
+
+function ExamPracticeSection({
+  loading,
+  error,
+  questions,
+  practiceAllowed,
+  lessonId,
+}: {
+  loading: boolean;
+  error: string | null;
+  questions: ExamPracticeQuestionLite[];
+  practiceAllowed: boolean | undefined;
+  lessonId: string | undefined;
+}) {
+  const [showMarkSchemeById, setShowMarkSchemeById] = useState<Record<string, boolean>>({});
+  const [draftById, setDraftById] = useState<Record<string, string>>({});
+  const display = questions.slice(0, EXAM_PRACTICE_DISPLAY_LIMIT);
+
+  return (
+    <Section title="Exam Practice" id="exam-practice" variant="plain">
+      <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>
+        Longer exam-style questions for this topic (from the Exam Question Bank). Write your answer, then reveal the mark scheme when you&apos;re ready.
+      </p>
+      {loading && <p style={{ color: "#6b7280", margin: 0 }}>Loading exam practice…</p>}
+      {error && <p style={{ color: "#dc2626", margin: 0 }}>{error}</p>}
+      {!loading && !error && practiceAllowed !== true && (
+        <>
+          <p style={{ color: "#4b5563", margin: 0, marginBottom: 12 }}>
+            Exam practice is available with an active subscription.
+          </p>
+          <SubscribeCTA lessonId={lessonId} />
+        </>
+      )}
+      {!loading && !error && practiceAllowed === true && (
+        <>
+          {display.length === 0 ? (
+            <p style={{ color: "#6b7280", margin: 0, fontSize: 14 }}>
+              No published exam questions for this subtopic yet.
+            </p>
+          ) : (
+            display.map((q, idx) => {
+              const key = q._id;
+              const show = !!showMarkSchemeById[key];
+              const model =
+                (typeof q.metadata?.modelAnswer === "string" && q.metadata.modelAnswer.trim()) ||
+                (typeof q.correctAnswer === "string" ? q.correctAnswer.trim() : "") ||
+                "";
+              return (
+                <div
+                  key={key}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    border: "1px solid #e8e0f5",
+                    background: "#fafbff",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 700, color: "#374151" }}>Exam Q{idx + 1}</span>
+                    {q.marks != null && (
+                      <span style={{ fontSize: 13, color: "#6b7280" }}>
+                        ({q.marks} {q.marks === 1 ? "mark" : "marks"})
+                      </span>
+                    )}
+                  </div>
+                  {q.imageUrl && String(q.imageUrl).trim() ? (
+                    <div style={{ marginBottom: 12 }}>
+                      <img
+                        src={makeAbsoluteAssetUrl(String(q.imageUrl).trim())}
+                        alt=""
+                        style={{
+                          maxWidth: "100%",
+                          height: "auto",
+                          borderRadius: 8,
+                          border: "1px solid #e5e7eb",
+                          display: "block",
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  <div style={{ color: "#1f2937", marginBottom: 12, whiteSpace: "pre-wrap" }}>{q.question}</div>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                    Your answer
+                  </label>
+                  <textarea
+                    value={draftById[key] ?? ""}
+                    onChange={(e) => setDraftById((prev) => ({ ...prev, [key]: e.target.value }))}
+                    rows={5}
+                    placeholder="Write your answer here…"
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      boxSizing: "border-box",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #d1d5db",
+                      fontSize: 14,
+                      fontFamily: "inherit",
+                      resize: "vertical",
+                    }}
+                  />
+                  <div style={{ marginTop: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMarkSchemeById((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #7c3aed",
+                        background: show ? "#f5f3ff" : "white",
+                        color: "#5b21b6",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {show ? "Hide mark scheme" : "Show mark scheme"}
+                    </button>
+                  </div>
+                  {show && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        padding: 12,
+                        borderRadius: 8,
+                        background: "#f3f4f6",
+                        border: "1px solid #e5e7eb",
+                        fontSize: 14,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {Array.isArray(q.markScheme) && q.markScheme.length > 0 && (
+                        <ul style={{ margin: "0 0 12px 0", paddingLeft: 20 }}>
+                          {q.markScheme.map((line, i) => (
+                            <li key={i} style={{ marginBottom: 6 }}>
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {model ? (
+                        <div>
+                          <strong style={{ display: "block", marginBottom: 6 }}>Model answer</strong>
+                          <div style={{ whiteSpace: "pre-wrap" }}>{model}</div>
+                        </div>
+                      ) : (
+                        !q.markScheme?.length && <span style={{ color: "#6b7280" }}>No mark scheme available.</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
 /** Single switch: when false, hero caption (page kicker) never renders in student view. Also gates kicker-like blocks. */
 const SHOW_PAGE_KICKER = false;
 
@@ -1280,6 +1495,10 @@ const LessonViewPage: React.FC = () => {
   const [practiceSource, setPracticeSource] = useState<"attached" | "bank" | null>(null);
   const [practiceSeedCounter, setPracticeSeedCounter] = useState(0);
 
+  const [examPracticeLoading, setExamPracticeLoading] = useState(false);
+  const [examPracticeError, setExamPracticeError] = useState<string | null>(null);
+  const [examPracticeQuestions, setExamPracticeQuestions] = useState<ExamPracticeQuestionLite[]>([]);
+
   // PR-DECLUTTER: Single practice source (examQuestions preferred; embedded assessment fallback). Targeted practice section removed.
 
   // PR15: Student next steps (entitled only, from reteach plan)
@@ -1415,6 +1634,17 @@ const LessonViewPage: React.FC = () => {
     // Fallback to empty array
     return [];
   }, [lesson]);
+
+  /** Normalised for keyword glossary popover (ids + strings). */
+  const glossaryFlashcardsForLesson = useMemo((): GlossaryFlashcardLite[] => {
+    if (!flashcards.length) return [];
+    return flashcards.map((c: any, i: number) => ({
+      id: String(c?.id ?? c?._id ?? `fc-${i}`),
+      front: String(c?.front ?? ""),
+      back: String(c?.back ?? ""),
+      tags: Array.isArray(c?.tags) ? c.tags : undefined,
+    }));
+  }, [flashcards]);
 
   // PR-STUDENT-LESSON-NAV-1: specKey for LessonPrevNextBar (taxonomy ordering). Prefer API specKey; else shared util (allows empty exam board like topic picker).
   const specKey = useMemo((): SpecKey | null => {
@@ -1675,6 +1905,38 @@ const LessonViewPage: React.FC = () => {
       })
       .finally(() => setPracticeLoading(false));
   }, [id, accessDecision?.allowed, accessDecision?.reason, practiceSeed, topicKeyForBank]);
+
+  // Exam Question Bank — published items for this lesson topic (students only; separate from quiz / practice endpoint)
+  useEffect(() => {
+    const isStudentUser = (user?.userType ?? "").toString().toLowerCase() === "student";
+    if (!isStudentUser || !id || accessDecision?.allowed !== true || !specKey || !topicKeyForBank) {
+      setExamPracticeQuestions([]);
+      setExamPracticeError(null);
+      setExamPracticeLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setExamPracticeLoading(true);
+    setExamPracticeError(null);
+    api
+      .get("/exam-questions/for-topic", {
+        params: { specKey, topicKey: topicKeyForBank, limit: EXAM_PRACTICE_DISPLAY_LIMIT },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const qs = res?.data?.questions;
+        setExamPracticeQuestions(Array.isArray(qs) ? qs : []);
+      })
+      .catch(() => {
+        if (!cancelled) setExamPracticeError("Failed to load exam practice questions.");
+      })
+      .finally(() => {
+        if (!cancelled) setExamPracticeLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, accessDecision?.allowed, specKey, topicKeyForBank, user?.userType]);
 
   // Fetch summaries of attached assessment papers when lesson.assessmentPaperIds changes
   useEffect(() => {
@@ -2233,6 +2495,19 @@ const LessonViewPage: React.FC = () => {
     []
   );
 
+  const lessonHighlightKeywords = useMemo(() => {
+    const lessonKw = normalizeContentKeywords((lesson as { metadata?: { contentKeywords?: unknown } })?.metadata?.contentKeywords);
+    const pageKw = normalizeContentKeywords(
+      (currentPage as { metadata?: { contentKeywords?: unknown } } | null)?.metadata?.contentKeywords
+    );
+    return mergeContentKeywordLists(lessonKw, pageKw);
+  }, [lesson, currentPage]);
+
+  const lessonViewMarkdownComponents = useMemo(
+    () => mergeLessonMarkdownComponentsWithKeywordHighlight(markdownComponents, lessonHighlightKeywords),
+    [markdownComponents, lessonHighlightKeywords]
+  );
+
   /** Strip [Video: caption](url) from content — used only for description/top box and keyword parsing */
   const stripVideoMarkdown = (content: string): string => {
     if (!content || typeof content !== "string") return content;
@@ -2287,6 +2562,26 @@ const LessonViewPage: React.FC = () => {
 
     const cleanedText = stripVideoMarkdown(text);
 
+    if (kind === "pageQuiz") {
+      return (
+        <div
+          key={idx}
+          className="lesson-content"
+          style={{
+            ...base,
+            padding: "12px 14px",
+            background: "#fbfbfc",
+            border: "2px solid rgba(0,0,0,0.10)",
+            boxShadow: "0 0 0 2px rgba(0,0,0,0.03)",
+          }}
+        >
+          <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+            {preprocessMarkdownAssetUrls(text)}
+          </LessonMarkdown>
+        </div>
+      );
+    }
+
     if (kind === "keyIdea") {
       return (
         <div
@@ -2302,7 +2597,7 @@ const LessonViewPage: React.FC = () => {
             🔑 Key Idea(s)
           </div>
           <div className="lesson-content">
-            <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </LessonMarkdown>
           </div>
@@ -2324,7 +2619,7 @@ const LessonViewPage: React.FC = () => {
             🧠 Exam insight
           </div>
           <div className="lesson-content">
-            <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </LessonMarkdown>
           </div>
@@ -2346,7 +2641,7 @@ const LessonViewPage: React.FC = () => {
             ⚠️ Common mistake(s)
           </div>
           <div className="lesson-content">
-            <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </LessonMarkdown>
           </div>
@@ -2370,7 +2665,7 @@ const LessonViewPage: React.FC = () => {
             🔍 Deeper knowledge (stretch)
           </div>
           <div className="lesson-content">
-            <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
               {preprocessMarkdownAssetUrls(text)}
             </LessonMarkdown>
           </div>
@@ -2418,7 +2713,7 @@ const LessonViewPage: React.FC = () => {
           boxShadow: "0 0 0 2px rgba(0,0,0,0.03)",
         }}
       >
-        <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+        <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
           {preprocessMarkdownAssetUrls(text)}
         </LessonMarkdown>
       </div>
@@ -3468,6 +3763,11 @@ const LessonViewPage: React.FC = () => {
                     v12StudentPresentation ? "lesson-student-page-body" : undefined
                   }
                 >
+                  <KeywordGlossaryProvider
+                    flashcards={glossaryFlashcardsForLesson}
+                    topicKey={topicKeyForBank}
+                    specKey={specKey ? String(specKey) : null}
+                  >
                   {v12StudentPresentation
                     ? chunkBlocksForTeachingLayout(blockRenderList).map((chunk, chunkIdx) => (
                         <LessonStudentChunk
@@ -3483,6 +3783,7 @@ const LessonViewPage: React.FC = () => {
                                 maybeParseKeywordsFromText={maybeParseKeywordsFromText}
                                 renderDiagramBlock={renderDiagramBlock}
                                 enableMarkdownMediaSplit={v12StudentPresentation}
+                                highlightKeywords={lessonHighlightKeywords}
                               />
                               {user && id && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -3539,6 +3840,7 @@ const LessonViewPage: React.FC = () => {
                           )}
                         </div>
                       ))}
+                  </KeywordGlossaryProvider>
                 </div>
 
                 {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}
@@ -3824,6 +4126,16 @@ const LessonViewPage: React.FC = () => {
                   onLoadBankOnly={loadBankOnly}
                   hidePracticeStructuralLabels={v12StudentPresentation}
                 />
+
+                {isStudent && (
+                  <ExamPracticeSection
+                    loading={examPracticeLoading}
+                    error={examPracticeError}
+                    questions={examPracticeQuestions}
+                    practiceAllowed={practiceAllowed}
+                    lessonId={id || undefined}
+                  />
+                )}
 
                 {/* PR-CONTENT-TARGETING-1: warn when lesson has no valid topic mapping */}
                 {lesson && !topicKeyForBank && (
@@ -4470,9 +4782,15 @@ const LessonViewPage: React.FC = () => {
               fontSize: BASE_FONT_SIZE,
             }}
           >
-            <LessonMarkdown className="lesson-md-body" components={markdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
-              {preprocessMarkdownAssetUrls(stripVideoMarkdown(lesson.content || ""))}
-            </LessonMarkdown>
+            <KeywordGlossaryProvider
+              flashcards={glossaryFlashcardsForLesson}
+              topicKey={topicKeyForBank}
+              specKey={specKey ? String(specKey) : null}
+            >
+              <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+                {preprocessMarkdownAssetUrls(stripVideoMarkdown(lesson.content || ""))}
+              </LessonMarkdown>
+            </KeywordGlossaryProvider>
           </div>
         </div>
 

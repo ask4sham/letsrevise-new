@@ -84,6 +84,41 @@ function validateExamQuestionDraft(item, specKey, namespacedTopicKey, validPageI
   return errs.length ? { ok: false, errors: errs } : { ok: true };
 }
 
+/** AI “Generate exam drafts” only: structured short answers, not quiz-style MCQs (use Topic Quiz Bank for MCQs). */
+const EXAM_STYLE_COMMAND_RE = /^(explain|describe|compare|evaluate|outline|suggest|justify|calculate|how|why)\b/i;
+
+function validateExamQuestionDraftForAiLessonBank(item, specKey, namespacedTopicKey, validPageIds) {
+  const errs = [];
+  const t = String(item.type || "").toLowerCase();
+  if (t !== "short") {
+    errs.push('AI exam drafts must be type "short" (exam-style). Use Generate AI assets → quiz for MCQs.');
+  }
+  const marks = Number(item.marks);
+  if (!Number.isFinite(marks) || marks < 2 || marks > 6) {
+    errs.push("exam-style AI drafts use 2–6 marks (GCSE-style short responses)");
+  }
+  if (!isNonEmptyString(item.question, 25)) errs.push("question stem too short for exam-style prompt");
+  const cmd = String(item.commandWord || "").trim();
+  const stemOk = EXAM_STYLE_COMMAND_RE.test(String(item.question || "").trim());
+  if (!cmd && !stemOk) {
+    errs.push("use a command word (Explain, Describe, Compare, …) in the stem or commandWord field");
+  }
+  const ms = Array.isArray(item.markScheme) ? item.markScheme.map((x) => String(x || "").trim()) : [];
+  const substantial = ms.filter((l) => l.length >= 10);
+  if (substantial.length < 2) errs.push("markScheme needs at least two substantive points (~10+ chars each)");
+  if (!isNonEmptyString(item.modelAnswer, 25)) errs.push("modelAnswer too short for an exam-style response");
+  try {
+    assertValidNamespacedTopicKey(specKey, namespacedTopicKey);
+  } catch (e) {
+    errs.push(e.message || "invalid topic");
+  }
+  if (item.pageId != null && item.pageId !== "") {
+    const pid = String(item.pageId);
+    if (validPageIds.size && !validPageIds.has(pid)) errs.push("pageId not on lesson");
+  }
+  return errs.length ? { ok: false, errors: errs } : { ok: true };
+}
+
 /**
  * Build namespaced topic key from lesson fields.
  */
@@ -101,5 +136,6 @@ module.exports = {
   validateFlashcardDraft,
   validateQuizMcqDraft,
   validateExamQuestionDraft,
+  validateExamQuestionDraftForAiLessonBank,
   namespacedTopicKeyFromLesson,
 };

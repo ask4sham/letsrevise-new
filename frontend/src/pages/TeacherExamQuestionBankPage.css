@@ -1,0 +1,101 @@
+/* Exam Question Bank table — readable wrapping, flexible layout, horizontal scroll fallback */
+.teacher-exam-question-bank .table-wrapper {
+  overflow-x: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.teacher-exam-question-bank .table-wrapper table {
+  table-layout: auto;
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 960px;
+}
+
+.teacher-exam-question-bank .table-wrapper thead tr {
+  border-bottom: 2px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.teacher-exam-question-bank .table-wrapper th {
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.teacher-exam-question-bank .table-wrapper th.col-question {
+  width: 30%;
+}
+
+.teacher-exam-question-bank .table-wrapper th.col-options {
+  width: 30%;
+}
+
+.teacher-exam-question-bank .table-wrapper th.small,
+.teacher-exam-question-bank .table-wrapper td.small {
+  white-space: nowrap;
+  width: 80px;
+}
+
+.teacher-exam-question-bank .table-wrapper th.topic-col,
+.teacher-exam-question-bank .table-wrapper td.topic-cell {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 140px;
+  width: 10%;
+  padding: 12px;
+  color: #374151;
+  font-size: 0.875rem;
+  vertical-align: top;
+}
+
+.teacher-exam-question-bank .table-wrapper th.status-col,
+.teacher-exam-question-bank .table-wrapper td.status-cell {
+  max-width: 130px;
+  padding: 12px;
+  color: #374151;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.teacher-exam-question-bank .question-cell {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 500px;
+  padding: 12px;
+  color: #374151;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.teacher-exam-question-bank .options-cell {
+  white-space: normal;
+  word-break: break-word;
+  max-width: 500px;
+  padding: 12px;
+  color: #374151;
+  font-size: 0.875rem;
+  vertical-align: top;
+}
+
+.teacher-exam-question-bank .table-wrapper tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.teacher-exam-question-bank .quality-cell {
+  padding: 12px;
+  color: #374151;
+  vertical-align: top;
+  font-size: 0.8rem;
+}
+
+
+.teacher-exam-question-bank .actions-cell {
+  padding: 12px;
+  color: #374151;
+  vertical-align: top;
+  min-width: 7rem;
+}

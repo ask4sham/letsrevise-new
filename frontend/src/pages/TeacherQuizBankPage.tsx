@@ -165,7 +165,7 @@ const TeacherQuizBankPage: React.FC = () => {
         status: statusFilter,
         mineOnly: true,
         kind,
-        ...(aiLessonAssetsOnly ? { metadataSource: "ai_lesson_assets", generationType: "quiz" as const } : {}),
+        ...(aiLessonAssetsOnly ? { metadataSource: "ai_lesson_assets" } : {}),
         ...(lessonIdFilter.trim() ? { lessonId: lessonIdFilter.trim() } : {}),
       });
       setQuestions(list);

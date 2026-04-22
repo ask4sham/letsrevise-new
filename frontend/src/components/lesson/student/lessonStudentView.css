@@ -1180,3 +1180,150 @@
 
 /* V12 rules are scoped under [data-lesson-presentation="v12"] — do not reset .lesson-content here:
    editor previews rely on index.css + lessonInlineFormats for .lesson-content typography. */
+
+/* Render-time glossary highlights (lesson/page metadata.contentKeywords) — not persisted in block HTML */
+.lesson-md-body .lesson-keyword-highlight,
+.lesson-keyword-highlight {
+  background: rgba(59, 130, 246, 0.14);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 0.12em;
+  font-weight: inherit;
+  box-decoration-break: clone;
+}
+
+.lesson-keyword-highlight--interactive {
+  padding: 0;
+  background: rgba(59, 130, 246, 0.16);
+}
+
+/* Softer weight for 3rd+ occurrence of the same term in a text run (reduces visual noise) */
+.lesson-keyword-highlight--repeat {
+  background: rgba(59, 130, 246, 0.07);
+}
+
+.lesson-keyword-highlight--repeat.lesson-keyword-highlight--interactive {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.lesson-keyword-highlight__btn {
+  display: inline;
+  margin: 0;
+  padding: 0 0.12em;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  box-decoration-break: clone;
+}
+
+.lesson-keyword-highlight__btn:hover,
+.lesson-keyword-highlight__btn:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.45);
+  outline-offset: 1px;
+}
+
+.lesson-keyword-glossary-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.lesson-keyword-glossary-popover {
+  position: fixed;
+  z-index: 1050;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: min(70vh, 420px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #1e293b;
+}
+
+.lesson-keyword-glossary-popover__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.lesson-keyword-glossary-popover__term {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.lesson-keyword-glossary-popover__close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lesson-keyword-glossary-popover__close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.lesson-keyword-glossary-popover__def {
+  margin: 0 0 10px 0;
+  color: #334155;
+}
+
+.lesson-keyword-glossary-popover__fc-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.lesson-keyword-glossary-popover__fc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson-keyword-glossary-popover__fc-item {
+  padding: 8px 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.lesson-keyword-glossary-popover__fc-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.lesson-keyword-glossary-popover__fc-front {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.lesson-keyword-glossary-popover__fc-back {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
