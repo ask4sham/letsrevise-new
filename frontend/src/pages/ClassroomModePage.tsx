@@ -7,6 +7,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import api, { getVisualById } from "../services/api";
 import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
+import { CheckpointCard } from "../components/lesson/CheckpointCard";
+import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
@@ -34,7 +36,7 @@ interface DiagramStep {
 }
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "diagram" | "keyWords";
+  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "selfCheck" | "diagram" | "keyWords";
   content?: string;
   prompt?: string;
   questionType?: "mcq" | "short";
@@ -248,15 +250,21 @@ function DiagramBlockContent({
 function CheckpointMCQBlock({ block, name }: { block: LessonPageBlock; name: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
   const options = Array.isArray(block.options) ? block.options : [];
   const correctAnswer = block.correctAnswer != null ? String(block.correctAnswer).trim() : "";
   const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
   const getOptionBg = (opt: string) => {
     const optTrim = String(opt ?? "").trim();
+    const isSelected = selected !== null && selected.trim() === optTrim;
     const isCorrectOpt = correctAnswer !== "" && optTrim === correctAnswer;
     if (!checked) return "white";
+    if (checked && !answerRevealed) {
+      if (isSelected) return isCorrect ? "#dcfce7" : "#fee2e2";
+      return "white";
+    }
     if (isCorrectOpt) return "#dcfce7";
-    if (selected !== null && selected.trim() === optTrim && !isCorrect) return "#fee2e2";
+    if (isSelected && !isCorrect) return "#fee2e2";
     return "white";
   };
   return (
@@ -297,14 +305,55 @@ function CheckpointMCQBlock({ block, name }: { block: LessonPageBlock; name: str
       </div>
       <div style={{ marginTop: 10 }}>
         {!checked ? (
-          <button type="button" disabled={selected === null} onClick={() => setChecked(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "2px solid rgba(59,130,246,0.4)", background: selected !== null ? "rgba(59,130,246,0.12)" : "#f1f5f9", cursor: selected !== null ? "pointer" : "not-allowed", fontWeight: 700 }}>
+          <button
+            type="button"
+            disabled={selected === null}
+            onClick={() => {
+              setChecked(true);
+              setAnswerRevealed(false);
+            }}
+            style={{ padding: "10px 16px", borderRadius: 10, border: "2px solid rgba(59,130,246,0.4)", background: selected !== null ? "rgba(59,130,246,0.12)" : "#f1f5f9", cursor: selected !== null ? "pointer" : "not-allowed", fontWeight: 700 }}
+          >
             Check answer
           </button>
         ) : (
           <>
             <div style={{ marginTop: 2 }}>{isCorrect ? <span style={{ color: "#16a34a", fontWeight: 700 }}>✅ Correct</span> : <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>}</div>
-            {block.explanation ? <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}><strong>Explanation:</strong><div style={{ marginTop: 4, color: "#4b5563" }}>{block.explanation}</div></div> : null}
-            <button type="button" onClick={() => { setSelected(null); setChecked(false); }} style={{ marginTop: 6, padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.14)", background: "white", cursor: "pointer", fontWeight: 700 }}>Try again</button>
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => setAnswerRevealed((r) => !r)}
+                aria-expanded={answerRevealed}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "2px solid rgba(124,58,237,0.45)",
+                  background: answerRevealed ? "rgba(124,58,237,0.12)" : "white",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  color: "#5b21b6",
+                }}
+              >
+                {answerRevealed ? "Hide Answer" : "Reveal Answer"}
+              </button>
+            </div>
+            {block.explanation && answerRevealed ? (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                <strong>Explanation:</strong>
+                <div style={{ marginTop: 4, color: "#4b5563" }}>{block.explanation}</div>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setSelected(null);
+                setChecked(false);
+                setAnswerRevealed(false);
+              }}
+              style={{ marginTop: 6, padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.14)", background: "white", cursor: "pointer", fontWeight: 700 }}
+            >
+              Try again
+            </button>
           </>
         )}
       </div>
@@ -315,6 +364,7 @@ function CheckpointMCQBlock({ block, name }: { block: LessonPageBlock; name: str
 function CheckpointShortBlock({ block }: { block: LessonPageBlock }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
   return (
     <>
       <div style={{ marginTop: 8 }}>
@@ -322,17 +372,60 @@ function CheckpointShortBlock({ block }: { block: LessonPageBlock }) {
       </div>
       <div style={{ marginTop: 10 }}>
         {!checked ? (
-          <button type="button" disabled={!answer.trim()} onClick={() => setChecked(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "2px solid rgba(59,130,246,0.4)", background: answer.trim() ? "rgba(59,130,246,0.12)" : "#f1f5f9", cursor: answer.trim() ? "pointer" : "not-allowed", fontWeight: 700 }}>
+          <button
+            type="button"
+            disabled={!answer.trim()}
+            onClick={() => {
+              setChecked(true);
+              setAnswerRevealed(false);
+            }}
+            style={{ padding: "10px 16px", borderRadius: 10, border: "2px solid rgba(59,130,246,0.4)", background: answer.trim() ? "rgba(59,130,246,0.12)" : "#f1f5f9", cursor: answer.trim() ? "pointer" : "not-allowed", fontWeight: 700 }}
+          >
             Check answer
           </button>
         ) : (
           <>
-            <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-              <strong>Model answer:</strong>
-              <div style={{ marginTop: 6, color: "#4b5563" }}>{block.correctAnswer != null ? String(block.correctAnswer).trim() : "—"}</div>
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => setAnswerRevealed((r) => !r)}
+                aria-expanded={answerRevealed}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "2px solid rgba(124,58,237,0.45)",
+                  background: answerRevealed ? "rgba(124,58,237,0.12)" : "white",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  color: "#5b21b6",
+                }}
+              >
+                {answerRevealed ? "Hide Answer" : "Reveal Answer"}
+              </button>
             </div>
-            {block.explanation ? <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}><strong>Explanation:</strong><div style={{ marginTop: 4, color: "#4b5563" }}>{block.explanation}</div></div> : null}
-            <button type="button" onClick={() => { setAnswer(""); setChecked(false); }} style={{ marginTop: 12, padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.14)", background: "white", cursor: "pointer", fontWeight: 700 }}>Try again</button>
+            {answerRevealed ? (
+              <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                <strong>Model answer:</strong>
+                <div style={{ marginTop: 6, color: "#4b5563" }}>{block.correctAnswer != null ? String(block.correctAnswer).trim() : "—"}</div>
+              </div>
+            ) : null}
+            {block.explanation && answerRevealed ? (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
+                <strong>Explanation:</strong>
+                <div style={{ marginTop: 4, color: "#4b5563" }}>{block.explanation}</div>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setAnswer("");
+                setChecked(false);
+                setAnswerRevealed(false);
+              }}
+              style={{ marginTop: 12, padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.14)", background: "white", cursor: "pointer", fontWeight: 700 }}
+            >
+              Try again
+            </button>
           </>
         )}
       </div>
@@ -582,16 +675,43 @@ const ClassroomModePage: React.FC = () => {
             <h2 style={{ margin: "0 0 16px", fontSize: "1.2rem", color: "#111827" }}>{currentPage.title || `Page ${pageIndex + 1}`}</h2>
             <div>
               {(currentPage.blocks || []).map((b, idx) =>
-                b.type === "checkpoint" ? renderCheckpointBlock(b, idx) : b.type === "diagram" ? renderDiagramBlock(b, idx) : renderCallout(b.type, safeStr(b.content, ""), idx)
+                b.type === "checkpoint"
+                  ? renderCheckpointBlock(b, idx)
+                  : b.type === "selfCheck"
+                    ? (
+                        <div key={`selfcheck-${idx}`} style={{ marginTop: 8 }}>
+                          <InlineSelfCheckBlock
+                            prompt={safeStr(b.prompt, "")}
+                            questionType={b.questionType === "short" ? "short" : "mcq"}
+                            options={Array.isArray(b.options) ? b.options : []}
+                            correctAnswer={safeStr(b.correctAnswer, "")}
+                            explanation={safeStr(b.explanation, "")}
+                          />
+                        </div>
+                      )
+                    : b.type === "diagram"
+                      ? renderDiagramBlock(b, idx)
+                      : renderCallout(b.type, safeStr(b.content, ""), idx)
               )}
             </div>
-            {currentPage.checkpoint?.question && Array.isArray(currentPage.checkpoint?.options) && currentPage.checkpoint.options.length > 0 && (
-              <div style={{ marginTop: 18, padding: 16, borderRadius: 14, background: "#f8f9fa", border: "2px solid rgba(59,130,246,0.25)" }}>
-                <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>✅ Check your understanding</div>
-                <div style={{ marginBottom: 10, color: "#111827", fontWeight: 700 }}>{currentPage.checkpoint.question}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{currentPage.checkpoint.options.map((opt, i) => <div key={i} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #e5e7eb", background: "white" }}>{opt}</div>)}</div>
-              </div>
-            )}
+            {currentPage.checkpoint?.question &&
+              Array.isArray(currentPage.checkpoint?.options) &&
+              (() => {
+                const opts = currentPage.checkpoint!.options!
+                  .map((o) => String(o ?? "").trim())
+                  .filter((o) => o.length > 0);
+                return opts.length >= 2;
+              })() && (
+                <div style={{ marginTop: 18 }}>
+                  <CheckpointCard
+                    question={safeStr(currentPage.checkpoint!.question, "")}
+                    options={currentPage
+                      .checkpoint!.options!.map((o) => String(o ?? "").trim())
+                      .filter((o) => o.length > 0)}
+                    answer={safeStr(currentPage.checkpoint?.answer, "")}
+                  />
+                </div>
+              )}
           </div>
         )}
 

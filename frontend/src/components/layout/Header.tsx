@@ -76,13 +76,14 @@ const Header: React.FC = () => {
 
   return (
     <header
+      className="site-header"
         style={{
         background: "white",
         boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
         padding: "0 20px",
         position: "sticky",
         top: 0,
-        zIndex: 1000,
+        zIndex: 1100,
       }}
     >
       {trialDaysRemaining !== null && (

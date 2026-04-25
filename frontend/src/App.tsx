@@ -251,7 +251,10 @@ function App() {
   return (
     <div className="App" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header />
-      <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <main
+        className="app-main"
+        style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: "visible" }}
+      >
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/explore" element={<HomePage />} />

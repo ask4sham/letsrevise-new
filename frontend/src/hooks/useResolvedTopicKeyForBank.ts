@@ -11,6 +11,7 @@ import {
 import { resolveTopicDisplayToKey } from "../api/taxonomy";
 
 export function useResolvedTopicKeyForBank(lesson: {
+  id?: string;
   topicKey?: string | null;
   specKey?: string | null;
   topic?: string | null;
@@ -25,21 +26,24 @@ export function useResolvedTopicKeyForBank(lesson: {
       ? (lesson as { specKey?: string }).specKey!.trim()
       : getSpecKeyFromLesson(lesson);
   const hasTopicKey = typeof lesson?.topicKey === "string" && lesson.topicKey.trim().length > 0;
+  const topicTrimmed =
+    typeof lesson?.topic === "string" && lesson.topic.trim() ? lesson.topic.trim() : "";
 
   useEffect(() => {
-    if (!lesson || hasTopicKey || !specKey || !(typeof lesson.topic === "string" && lesson.topic.trim())) {
+    if (!lesson || hasTopicKey || !specKey || !topicTrimmed) {
       setResolvedFromDisplay(null);
       return;
     }
     let mounted = true;
-    setResolvedFromDisplay(undefined);
-    resolveTopicDisplayToKey(specKey, lesson.topic.trim())
+    // Do not clear the previous key to `undefined` on every `lesson` reference change
+    // (e.g. typing in description) — that flickers topicKeyForBank and can cascade re-renders.
+    resolveTopicDisplayToKey(specKey, topicTrimmed)
       .then((key) => mounted && setResolvedFromDisplay(key))
       .catch(() => mounted && setResolvedFromDisplay(null));
     return () => {
       mounted = false;
     };
-  }, [lesson, lesson?.topic, specKey, hasTopicKey]);
+  }, [lesson?.id, lesson?.topicKey, hasTopicKey, specKey, topicTrimmed]);
 
   // Sync path: lesson has topicKey
   if (hasTopicKey) {

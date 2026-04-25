@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import { hasRenderableLessonImageSrc, LESSON_IMAGE_FRAME_SELECTOR } from "../../constants/lessonImageDisplay";
+import { resolveFullResolutionImageUrlForLightbox } from "../../utils/assetUrl";
 import { useLessonImageLightbox } from "./LessonImageLightbox";
 import "./lessonImageCard.css";
 
@@ -13,8 +14,8 @@ type LessonImageFrameProps = {
    */
   variant?: "default" | "primary" | "secondary";
   /**
-   * When set and {@link LessonImageLightboxProvider} wraps the tree, clicking the card opens a full-screen lightbox.
-   * Should match the displayed &lt;img&gt; src (absolute or same-origin path).
+   * Display URL (typically matches child &lt;img&gt; src). Used to decide if the card can open the lightbox.
+   * The modal loads {@link resolveFullResolutionImageUrlForLightbox}(lightboxSrc) so PNGs use full-res, not `*.display.png`.
    */
   lightboxSrc?: string | null;
 };
@@ -46,13 +47,18 @@ export function LessonImageFrame({
         ? "lesson-image-card--secondary"
         : "";
 
+  const displaySrc = (lightboxSrc ?? "").trim();
+  const openInLightboxSrc = displaySrc
+    ? resolveFullResolutionImageUrlForLightbox(displaySrc)
+    : "";
+
   const canLightbox = Boolean(
-    lightbox && lightboxSrc && hasRenderableLessonImageSrc(lightboxSrc)
+    lightbox && displaySrc && hasRenderableLessonImageSrc(displaySrc)
   );
 
   const onActivate = useCallback(() => {
-    if (canLightbox && lightboxSrc) lightbox!.open(lightboxSrc.trim());
-  }, [canLightbox, lightbox, lightboxSrc]);
+    if (canLightbox && openInLightboxSrc) lightbox!.open(openInLightboxSrc);
+  }, [canLightbox, lightbox, openInLightboxSrc]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -68,7 +74,7 @@ export function LessonImageFrame({
   return (
     <div
       data-lesson-image-frame=""
-      data-lesson-lightbox-src={canLightbox && lightboxSrc ? lightboxSrc.trim() : undefined}
+      data-lesson-lightbox-src={canLightbox && openInLightboxSrc ? openInLightboxSrc : undefined}
       className={["lesson-image-card", mod, canLightbox ? "clickable" : "", className].filter(Boolean).join(" ")}
       onClick={canLightbox ? onActivate : undefined}
       onKeyDown={canLightbox ? onKeyDown : undefined}

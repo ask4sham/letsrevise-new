@@ -86,6 +86,17 @@ export function makeAbsoluteAssetUrl(url?: string | null): string | null {
   return `${assetBase}${normalized}`;
 }
 
+/**
+ * Lesson PNG uploads may persist a normalised 600×600 `*.display.png` (see backend/services/lessonPngDisplay.js).
+ * Inline images use that path for performance; the lightbox should request the full-resolution sibling `*.png`.
+ */
+export function resolveFullResolutionImageUrlForLightbox(url: string): string {
+  if (!url || typeof url !== "string") return url;
+  const t = url.trim();
+  if (!t.toLowerCase().includes(".display.png")) return t;
+  return t.replace(/\.display\.png/gi, ".png");
+}
+
 /** Safe prefixes for asset paths we transform — never allow javascript:, data:, etc. */
 const ASSET_PREFIXES = ["/uploads/", "/visuals/", "/content/", "uploads/", "visuals/", "content/"];
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];

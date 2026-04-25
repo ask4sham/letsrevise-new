@@ -12,6 +12,7 @@ import {
   StudentWorkedExampleBlock,
 } from "./studentLessonBlocks";
 import type { ContentKeywordItem } from "./contentKeywordHighlight";
+import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -45,6 +46,19 @@ export function LessonStudentBlockRenderer({
 
   if (kind === "checkpoint") {
     return null;
+  }
+
+  if (kind === "selfCheck") {
+    return (
+      <InlineSelfCheckBlock
+        prompt={String(block.prompt ?? "")}
+        questionType={block.questionType === "short" ? "short" : "mcq"}
+        options={Array.isArray(block.options) ? block.options : []}
+        correctAnswer={String(block.correctAnswer ?? "")}
+        explanation={block.explanation != null ? String(block.explanation) : undefined}
+        presentation={enableMarkdownMediaSplit ? "v12" : "default"}
+      />
+    );
   }
 
   if (kind === "diagram") {

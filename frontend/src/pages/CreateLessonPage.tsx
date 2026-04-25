@@ -41,6 +41,11 @@ type LessonPageBlock = {
   content: string;
   title?: string;
   role?: string;
+  prompt?: string;
+  questionType?: "mcq" | "short";
+  options?: string[];
+  correctAnswer?: string;
+  explanation?: string;
 };
 
 // Kept for backward compatibility only (UI removed)
@@ -626,10 +631,23 @@ const CreateLessonPage: React.FC = () => {
       prev.map((p) => {
         if (p.pageId !== pageId) return p;
         const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
-        const block: LessonPageBlock = {
-          type,
-          content: opts?.initialContent ?? "",
-        };
+        let block: LessonPageBlock;
+        if (type === "selfCheck") {
+          block = {
+            type: "selfCheck",
+            content: "",
+            prompt: "[Enter question]",
+            questionType: "mcq",
+            options: ["[Option 1]", "[Option 2]", "[Option 3]", "[Option 4]"],
+            correctAnswer: "[Option 1]",
+            explanation: "",
+          };
+        } else {
+          block = {
+            type,
+            content: opts?.initialContent ?? "",
+          };
+        }
         if (opts?.role?.trim()) block.role = opts.role.trim();
         if (opts?.title !== undefined) block.title = opts.title ?? "";
         const insertAt = opts?.insertAt;

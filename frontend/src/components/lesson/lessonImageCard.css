@@ -85,7 +85,7 @@
   text-shadow: 0 0 4px #fff;
 }
 
-/* Full-screen lightbox (portal) — desktop hover zoom + touch pinch only inside viewport */
+/* Full-screen lightbox (portal) — static large image, no zoom */
 .lesson-lightbox {
   position: fixed;
   top: 0;
@@ -97,27 +97,50 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: 12px;
+  /* Tight: maximize modal + image; backdrop still visible at edges */
+  --lesson-lb-pad: 8px;
+  padding: var(--lesson-lb-pad);
   box-sizing: border-box;
 }
 
 .lesson-lightbox-dialog {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  max-width: min(96vw, 1200px);
-  width: 100%;
+  align-items: stretch;
+  justify-content: flex-start;
+  /* Nearly full screen — no 700/1200px caps */
+  width: min(98vw, calc(100vw - 2 * var(--lesson-lb-pad)));
+  max-width: none;
+  height: min(98vh, calc(100vh - 2 * var(--lesson-lb-pad)));
+  max-height: min(98vh, calc(100vh - 2 * var(--lesson-lb-pad)));
+  box-sizing: border-box;
 }
 
+/* Toolbar overlays content so the image area gets full dialog height (not a slim strip) */
 .lesson-lightbox-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  width: 100%;
-  max-width: 90vw;
-  margin-bottom: 8px;
-  padding: 0 4px;
+  padding: 6px 6px 20px 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.2) 70%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
   box-sizing: border-box;
+}
+
+.lesson-lightbox-toolbar .lesson-lightbox-icon-btn,
+.lesson-lightbox-toolbar .lesson-lightbox-counter {
+  pointer-events: auto;
 }
 
 .lesson-lightbox-counter {
@@ -157,10 +180,14 @@
 .lesson-lightbox-stage {
   position: relative;
   display: flex;
-  align-items: center;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  align-items: stretch;
   justify-content: center;
+  align-self: stretch;
   width: 100%;
-  gap: 4px;
+  gap: 0;
 }
 
 .lesson-lightbox-nav {
@@ -168,6 +195,7 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 2;
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -213,33 +241,58 @@
   }
 }
 
+/* Fills the stage; img uses 100% + object-fit so content scales to largest size that fits */
 .lesson-lightbox-viewport {
+  flex: 1 1 0;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  /* Cap box to user-requested max so image can grow up to (but not past) most of the screen */
+  max-width: min(100%, 96vw);
+  max-height: min(100%, 94vh);
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
   overflow: hidden;
-  max-width: 90vw;
-  max-height: 85vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  position: relative;
   border-radius: 12px;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 .lesson-lightbox-img {
-  max-width: 90vw;
-  max-height: 85vh;
-  width: auto;
-  height: auto;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 96vw;
+  max-height: 94vh;
   object-fit: contain;
+  object-position: center;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  will-change: transform;
 }
 
+/* Overlay bottom — does not steal height from the image (was shrinking flex stage) */
 .lesson-lightbox-caption {
-  margin-top: 12px;
-  max-width: min(90vw, 560px);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  max-width: 100%;
+  margin: 0;
+  padding: 16px 10px 10px;
   text-align: center;
-  font-size: 14px;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.2) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
+  box-sizing: border-box;
 }

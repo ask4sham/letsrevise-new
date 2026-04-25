@@ -558,6 +558,44 @@
   letter-spacing: -0.01em !important;
 }
 
+/* Two-line title: exam board + level, then topic/title (LessonViewPage display-only) */
+[data-lesson-presentation="v12"] h1.lesson-student-title.lesson-view-title-split {
+  line-height: 1.15 !important;
+}
+
+[data-lesson-presentation="v12"] h1.lesson-student-title .lesson-title-prefix {
+  display: block;
+  font-size: 0.75em;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.2em;
+  color: #334155;
+}
+
+[data-lesson-presentation="v12"] h1.lesson-student-title .lesson-title-main {
+  display: block;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+/* Same split title when structured lesson is not in v12 presentation (rare) */
+h1.lesson-view-title-split .lesson-title-prefix {
+  display: block;
+  font-size: 0.75em;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.2em;
+  color: #374151;
+}
+
+h1.lesson-view-title-split .lesson-title-main {
+  display: block;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
 /* Page section title (current page) — strong, not oversized; ~16–20px below title line */
 [data-lesson-presentation="v12"] .lesson-student-section h2.lesson-student-page-heading,
 [data-lesson-presentation="v12"] h2.lesson-student-page-heading {

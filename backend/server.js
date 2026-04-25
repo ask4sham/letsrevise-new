@@ -343,10 +343,12 @@ app.use("/api", apiLimiter);
 app.use("/api/uploads", require("./routes/uploads"));
 const { isSupabaseStorageEnabled } = require("./services/supabaseStorage");
 const { isR2Enabled } = require("./services/r2Storage");
+const { supabaseUrlHost } = require("./config/logDataPlane");
 const storageLabel = isSupabaseStorageEnabled() ? "Supabase" : isR2Enabled() ? "R2" : "local";
 console.log("[server] Uploads mounted at /api/uploads", `(${storageLabel})`);
 console.log("[server] Supabase enabled:", !!process.env.SUPABASE_URL, !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-console.log("[server] SUPABASE_URL:", process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL.slice(0, 40)}...` : "not set");
+const supHostEarly = supabaseUrlHost(process.env.SUPABASE_URL || "");
+console.log("[server] Supabase URL host (not secret):", supHostEarly || "not set");
 console.log("[server] SUPABASE_MEDIA_BUCKET:", process.env.SUPABASE_MEDIA_BUCKET || "lesson-media (default)");
 
 const authLimiter = rateLimit({

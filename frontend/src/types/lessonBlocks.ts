@@ -27,6 +27,8 @@ export type LessonBlockType =
   | "misconceptions"
   | "deeperKnowledge"
   | "checkpoint"
+  /** Inline self-check — independent of page.checkpoint; reveal-answer only for students */
+  | "selfCheck"
   | "pageQuiz"
   | "diagram";
 
@@ -113,6 +115,14 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(59,130,246,0.06)",
     },
   },
+  selfCheck: {
+    label: "Self-check",
+    icon: "🔎",
+    style: {
+      border: "1px solid rgba(16,185,129,0.35)",
+      background: "rgba(16,185,129,0.06)",
+    },
+  },
   pageQuiz: {
     label: "Page Quiz",
     icon: "📋",
@@ -153,12 +163,13 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "deeperKnowledge":
     case "text":
     case "checkpoint":
+    case "selfCheck":
     case "diagram":
       return t as LessonBlockType;
     default:
       return "text";
+    }
   }
-}
 
 /**
  * Convert canonical LessonBlockType to legacy API type string.
@@ -176,6 +187,8 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "stretch";
     case "checkpoint":
       return "checkpoint";
+    case "selfCheck":
+      return "selfCheck";
     case "pageQuiz":
       return "pageQuiz";
     case "diagram":
@@ -261,6 +274,7 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "workedExample", type: "checkpoint", label: "Worked example (checkpoint)" },
   { role: "synthesis", type: "keyIdeas", label: "Synthesis (key idea)" },
   { role: "quickCheck", type: "checkpoint", label: "Quick check (checkpoint)" },
+  { role: "selfCheck", type: "selfCheck", label: "Self-check question" },
   { role: "finalMemoryRule", type: "keyIdeas", label: "Final memory rule (key idea)" },
   { role: "keyWords", type: "keyWords", label: "Key words" },
   { role: "deeperKnowledge", type: "deeperKnowledge", label: "Deeper knowledge (stretch)" },
@@ -287,6 +301,8 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(139,92,246,0.35)", background: "rgba(139,92,246,0.06)" };
     case "checkpoint":
       return { ...base, border: "2px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.06)" };
+    case "selfCheck":
+      return { ...base, border: "2px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.06)" };
     case "pageQuiz":
       return { ...base, border: "2px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.06)" };
     case "diagram":

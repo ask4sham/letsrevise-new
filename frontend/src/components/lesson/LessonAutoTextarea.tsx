@@ -95,6 +95,7 @@ export function LessonAutoTextarea({
   const assignRefLatest = useRef(assignRef);
   assignRefLatest.current = assignRef;
   const [focusExpanded, setFocusExpanded] = useState(false);
+  const strValue = value == null ? "" : String(value);
 
   const setRefs = useCallback((el: HTMLTextAreaElement | null) => {
     innerRef.current = el;
@@ -117,7 +118,7 @@ export function LessonAutoTextarea({
       cancelled = true;
       cancelAnimationFrame(id);
     };
-  }, [value, focusExpanded, runSync]);
+  }, [strValue, focusExpanded, runSync]);
 
   const base: React.CSSProperties =
     editorVariant === "lesson"
@@ -130,7 +131,7 @@ export function LessonAutoTextarea({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = e.target.value;
-    if (next === value) return;
+    if (next === strValue) return;
     onChange(next);
   };
 
@@ -177,7 +178,7 @@ export function LessonAutoTextarea({
       <textarea
         ref={setRefs}
         name={name}
-        value={value}
+        value={strValue}
         onChange={handleChange}
         onPaste={handlePaste}
         placeholder={placeholder}

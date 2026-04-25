@@ -108,6 +108,7 @@ function LessonCheckpointMCQ({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
   const [recorded, setRecorded] = useState(false);
   const isCorrect = checked && selected !== null && correctAnswer !== "" && selected.trim() === correctAnswer;
@@ -117,6 +118,10 @@ function LessonCheckpointMCQ({
     const isSelected = selected !== null && selected.trim() === optTrim;
     const isCorrectOpt = correctAnswer !== "" && optTrim === correctAnswer;
     if (!checked) return "white";
+    if (checked && !answerRevealed) {
+      if (isSelected) return isCorrect ? "#dcfce7" : "#fee2e2";
+      return "white";
+    }
     if (entitled) {
       if (isCorrectOpt) return "#dcfce7";
       if (isSelected && !isCorrect) return "#fee2e2";
@@ -190,7 +195,10 @@ function LessonCheckpointMCQ({
           <button
             type="button"
             disabled={selected === null}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              setChecked(true);
+              setAnswerRevealed(false);
+            }}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -208,6 +216,26 @@ function LessonCheckpointMCQ({
             <div style={{ marginTop: 2 }}>
               {isCorrect ? <span style={{ color: "#16a34a", fontWeight: 700 }}>✅ Correct</span> : <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>}
             </div>
+            {entitled ? (
+              <div style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setAnswerRevealed((r) => !r)}
+                  aria-expanded={answerRevealed}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "2px solid rgba(124,58,237,0.45)",
+                    background: answerRevealed ? "rgba(124,58,237,0.12)" : "white",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    color: "#5b21b6",
+                  }}
+                >
+                  {answerRevealed ? "Hide Answer" : "Reveal Answer"}
+                </button>
+              </div>
+            ) : null}
             {!recorded && (
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
@@ -247,7 +275,7 @@ function LessonCheckpointMCQ({
               </div>
             )}
             {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
-            {entitled && explanation ? (
+            {entitled && explanation && answerRevealed ? (
               v12 ? (
                 <div className="lesson-checkpoint-v12-explain">{explanation}</div>
               ) : (
@@ -262,7 +290,13 @@ function LessonCheckpointMCQ({
             )}
             <button
               type="button"
-              onClick={() => { setSelected(null); setChecked(false); setConfidence(null); setRecorded(false); }}
+              onClick={() => {
+                setSelected(null);
+                setChecked(false);
+                setAnswerRevealed(false);
+                setConfidence(null);
+                setRecorded(false);
+              }}
               style={{ marginTop: 6, padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.14)", background: "white", cursor: "pointer", fontWeight: 700 }}
             >
               Try again
@@ -295,6 +329,7 @@ function LessonCheckpointShort({
 }) {
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState(false);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
   const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
   const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
   const [recorded, setRecorded] = useState(false);
@@ -354,7 +389,10 @@ function LessonCheckpointShort({
           <button
             type="button"
             disabled={!hasAnswer}
-            onClick={() => setChecked(true)}
+            onClick={() => {
+              setChecked(true);
+              setAnswerRevealed(false);
+            }}
             style={{
               padding: "10px 16px",
               borderRadius: 10,
@@ -370,18 +408,44 @@ function LessonCheckpointShort({
         ) : (
           <>
             <div style={{ marginTop: 2, color: "#374151", fontSize: "0.95rem" }}>
-              {v12 ? "Compare with the reference below." : "Compare your answer to the model answer below."}
+              {v12
+                ? answerRevealed
+                  ? "Compare with the reference below."
+                  : "Reveal the reference answer when you’re ready."
+                : answerRevealed
+                  ? "Compare your answer to the model answer below."
+                  : "Reveal the model answer when you’re ready."}
             </div>
             {entitled ? (
               <>
-                {v12 ? (
-                  <div className="lesson-checkpoint-v12-model">{correctAnswer || "—"}</div>
-                ) : (
-                  <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-                    <strong style={{ color: "#374151" }}>Model answer:</strong>
-                    <div style={{ marginTop: 6, color: "#4b5563", fontSize: CONTENT_FONT }}>{correctAnswer || "—"}</div>
-                  </div>
-                )}
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setAnswerRevealed((r) => !r)}
+                    aria-expanded={answerRevealed}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "2px solid rgba(124,58,237,0.45)",
+                      background: answerRevealed ? "rgba(124,58,237,0.12)" : "white",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      color: "#5b21b6",
+                    }}
+                  >
+                    {answerRevealed ? "Hide Answer" : "Reveal Answer"}
+                  </button>
+                </div>
+                {answerRevealed ? (
+                  v12 ? (
+                    <div className="lesson-checkpoint-v12-model">{correctAnswer || "—"}</div>
+                  ) : (
+                    <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                      <strong style={{ color: "#374151" }}>Model answer:</strong>
+                      <div style={{ marginTop: 6, color: "#4b5563", fontSize: CONTENT_FONT }}>{correctAnswer || "—"}</div>
+                    </div>
+                  )
+                ) : null}
                 {selfMarked === null ? (
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
@@ -400,7 +464,7 @@ function LessonCheckpointShort({
                 ) : (
                   <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
                 )}
-                {explanation ? (
+                {answerRevealed && explanation ? (
                   v12 ? (
                     <div className="lesson-checkpoint-v12-explain" style={{ marginTop: 12 }}>
                       {explanation}
@@ -421,7 +485,14 @@ function LessonCheckpointShort({
             )}
             <button
               type="button"
-              onClick={() => { setAnswer(""); setChecked(false); setSelfMarked(null); setConfidence(null); setRecorded(false); }}
+              onClick={() => {
+                setAnswer("");
+                setChecked(false);
+                setAnswerRevealed(false);
+                setSelfMarked(null);
+                setConfidence(null);
+                setRecorded(false);
+              }}
               style={{ marginTop: 12, padding: "8px 14px", borderRadius: 8, border: "2px solid rgba(0,0,0,0.14)", background: "white", cursor: "pointer", fontWeight: 700 }}
             >
               Try again

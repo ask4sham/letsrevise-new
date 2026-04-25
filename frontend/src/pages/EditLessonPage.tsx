@@ -3,6 +3,8 @@ import React, { useMemo, useEffect, useLayoutEffect, useState, useRef, useCallba
 import { useParams, Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { defaultUrlTransform } from "react-markdown";
 import { LessonRenderer } from "../components/lesson/LessonRenderer";
+import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
+import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { supabase } from "../lib/supabaseClient";
@@ -1106,6 +1108,20 @@ const EditLessonPage: React.FC = () => {
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
                   return out;
                 }
+                if (b?.type === "selfCheck") {
+                  const out = {
+                    type: "selfCheck" as const,
+                    prompt: safeStr(b.prompt, ""),
+                    questionType: b?.questionType === "short" ? "short" : "mcq",
+                    options: Array.isArray(b.options)
+                      ? b.options.map((o: any) => String(o ?? ""))
+                      : ["", "", "", ""],
+                    correctAnswer: safeStr(b.correctAnswer, ""),
+                    explanation: safeStr(b.explanation, ""),
+                  } as Record<string, unknown>;
+                  if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
+                  return out;
+                }
                 if (b?.type === "diagram") {
                   const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
                   const role = typeof b?.role === "string" && b.role.trim() ? b.role.trim() : undefined;
@@ -1281,8 +1297,12 @@ const EditLessonPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const updateLessonField = (key: keyof Lesson, value: any) => {
-    setLesson((prev) => (prev ? { ...prev, [key]: value } : prev));
+  const updateLessonField = (key: keyof Lesson, value: unknown) => {
+    setLesson((prev) => {
+      if (!prev) return prev;
+      if (Object.is(prev[key], value)) return prev;
+      return { ...prev, [key]: value };
+    });
   };
 
   const updatePage = (pageId: string, patch: Partial<LessonPage>) => {
@@ -1451,6 +1471,15 @@ const EditLessonPage: React.FC = () => {
           mode: "static",
           annotations: [],
           steps: [],
+        };
+      } else if (type === "selfCheck") {
+        block = {
+          type: "selfCheck",
+          prompt: "[Enter question]",
+          questionType: "mcq",
+          options: ["[Option 1]", "[Option 2]", "[Option 3]", "[Option 4]"],
+          correctAnswer: "[Option 1]",
+          explanation: "",
         };
       } else if (type === "pageQuiz") {
         block = {
@@ -2389,6 +2418,19 @@ const EditLessonPage: React.FC = () => {
             };
             if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
             return cpOut;
+          }
+          if (b.type === "selfCheck") {
+            const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
+            const scOut: Record<string, unknown> = {
+              type: "selfCheck",
+              prompt: String(b.prompt ?? "").trim(),
+              questionType: b.questionType === "short" ? "short" : "mcq",
+              options: opts,
+              correctAnswer: String(b.correctAnswer ?? "").trim(),
+              explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+            };
+            if (typeof b.role === "string" && b.role.trim()) scOut.role = b.role.trim();
+            return scOut;
           }
           if (b.type === "pageQuiz") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
@@ -4398,8 +4440,9 @@ const EditLessonPage: React.FC = () => {
                       const key = `${currentPage!.pageId}:${idx}`;
                       const isUploading = uploadingKey === key;
                       const isCheckpoint = blockType === "checkpoint";
+                      const isSelfCheck = blockType === "selfCheck";
                       const isDiagram = blockType === "diagram";
-                      const cp = isCheckpoint ? b : null;
+                      const cp = isCheckpoint || isSelfCheck ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
                       const cpWarnings: string[] = [];
@@ -4408,8 +4451,12 @@ const EditLessonPage: React.FC = () => {
                         Array.isArray(currentPage?.checkpoint?.options) &&
                         (currentPage!.checkpoint!.options!.filter((o: any) => String(o ?? "").trim()).length >= 2)
                       );
-                      if (isCheckpoint && cp) {
-                        if (hasPageCheckpointContent) cpWarnings.push("This checkpoint will not appear to students because this page already has a page-level checkpoint. Page-level checkpoints take precedence.");
+                      if ((isCheckpoint || isSelfCheck) && cp) {
+                        if (isCheckpoint && hasPageCheckpointContent) {
+                          cpWarnings.push(
+                            "This checkpoint will not appear to students because this page already has a page-level checkpoint. Page-level checkpoints take precedence."
+                          );
+                        }
                         if (!(String(cp.prompt ?? "").trim())) cpWarnings.push("Prompt is required.");
                         if (cp.questionType === "mcq") {
                           const filled = (cp.options ?? []).filter((o) => String(o ?? "").trim()).length;
@@ -4420,7 +4467,12 @@ const EditLessonPage: React.FC = () => {
                         }
                       }
 
-                      const blockReportKey = isCheckpoint ? `${currentPage!.pageId}-checkpoint` : `${currentPage!.pageId}-${idx}`;
+                      const blockReportKey =
+                        isCheckpoint
+                          ? `${currentPage!.pageId}-checkpoint`
+                          : isSelfCheck
+                            ? `${currentPage!.pageId}-selfcheck-${idx}`
+                            : `${currentPage!.pageId}-${idx}`;
                       const blockReports = reportsByBlock.get(blockReportKey) ?? [];
 
                       return (
@@ -4504,9 +4556,7 @@ const EditLessonPage: React.FC = () => {
                           )}
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                             {blockType !== "text" && (
-                              <div style={{ fontWeight: 900 }}>
-                                {isCheckpoint ? "Checkpoint" : BLOCK_META[blockType].label}
-                              </div>
+                              <div style={{ fontWeight: 900 }}>{BLOCK_META[blockType].label}</div>
                             )}
 
                             <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -4559,7 +4609,7 @@ const EditLessonPage: React.FC = () => {
                                 }}
                               />
 
-                              {!isCheckpoint && !isDiagram && (
+                              {!isCheckpoint && !isSelfCheck && !isDiagram && (
                                 <button
                                   onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
                                   disabled={isUploading}
@@ -4593,7 +4643,7 @@ const EditLessonPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {isCheckpoint && cp ? (
+                          {(isCheckpoint || isSelfCheck) && cp ? (
                             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                               {cpWarnings.length > 0 && (
                                 <div style={{ color: "#b45309", fontSize: 13, fontWeight: 600 }}>
@@ -5800,6 +5850,38 @@ const EditLessonPage: React.FC = () => {
                     const blockContent = safeStr(b.content, "");
                     const linked =
                       previewFocusBlockIdx != null && idx === previewFocusBlockIdx;
+                    if (blockType === "selfCheck") {
+                      const sb = b as {
+                        prompt?: string;
+                        questionType?: string;
+                        options?: string[];
+                        correctAnswer?: string;
+                        explanation?: string;
+                      };
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <InlineSelfCheckBlock
+                            prompt={safeStr(sb.prompt, "")}
+                            questionType={sb.questionType === "short" ? "short" : "mcq"}
+                            options={Array.isArray(sb.options) ? sb.options : []}
+                            correctAnswer={safeStr(sb.correctAnswer, "")}
+                            explanation={safeStr(sb.explanation, "")}
+                          />
+                        </div>
+                      );
+                    }
                     return (
                       <div
                         key={`${currentPage!.pageId}_prev_${idx}`}
@@ -5834,6 +5916,26 @@ const EditLessonPage: React.FC = () => {
                       </div>
                     );
                   })}
+                  {(() => {
+                    const cp = currentPage?.checkpoint;
+                    if (!cp?.question?.trim()) return null;
+                    const opts = Array.isArray(cp.options)
+                      ? cp.options.map((o) => String(o ?? "").trim()).filter((o) => o.length > 0)
+                      : [];
+                    if (opts.length < 2) return null;
+                    return (
+                      <div
+                        key={`${currentPage!.pageId}-page-cp-preview`}
+                        style={{ marginTop: 12, marginBottom: 4 }}
+                      >
+                        <CheckpointCard
+                          question={safeStr(cp.question, "")}
+                          options={opts}
+                          answer={safeStr(cp.answer, "")}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div style={previewBox}>

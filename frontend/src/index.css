@@ -1,4 +1,5 @@
-/* Prevent accidental horizontal scroll (mobile/tablet); fix overflow at layout sources where possible */
+/* Prevent accidental horizontal scroll. Use clip where supported: overflow-x: hidden
+   can coerce overflow-y to auto on the same box and break position: sticky (header + lesson rails). */
 html {
   max-width: 100%;
   overflow-x: hidden;
@@ -13,6 +14,18 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@supports (overflow: clip) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+}
+
+#root {
+  overflow: visible;
+  min-height: 100%;
 }
 
 code {

@@ -33,6 +33,7 @@ import FlashcardsView from "../components/revision/FlashcardsView";
 import { QuizView } from "../components/revision/QuizView";
 import { Section } from "../components/lesson/Section";
 import { LessonCheckpoint } from "../components/lesson/LessonCheckpoint";
+import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -96,6 +97,7 @@ interface LessonPageBlock {
     | "commonMistake"
     | "stretch"
     | "checkpoint"
+    | "selfCheck"
     | "diagram"
     | "keyWords"
     | "pageQuiz";
@@ -1339,6 +1341,42 @@ function isKickerLikeBlock(b: { type: string; content?: string }): boolean {
   return /^.+\s*\((GCSE|A-Level)\)\s*$/i.test(content) || /^.+\s*\((?:Foundation|Higher)\)\s*$/i.test(content);
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+type LessonTitleDisplayParts =
+  | { kind: "split"; prefix: string; mainTitle: string }
+  | { kind: "single" };
+
+/**
+ * Display-only: split first line = exam board + level, second = lesson title with any leading
+ * board+level text removed. Does not read or write stored data beyond input fields.
+ */
+function getLessonTitleDisplayParts(lesson: {
+  title: string;
+  examBoardName: string | null;
+  level: string;
+}): LessonTitleDisplayParts {
+  const title = (lesson.title || "").trim();
+  const board = (lesson.examBoardName && String(lesson.examBoardName).trim()) || "";
+  const level = (lesson.level && String(lesson.level).trim()) || "";
+  if (!board || !level || !title) {
+    return { kind: "single" };
+  }
+  const boardClean = board.replace(/[\s-]+$/g, "");
+  const prefix = `${boardClean}-${level}`;
+
+  const b = escapeRegExp(boardClean);
+  const l = escapeRegExp(level);
+  const reStrip = new RegExp(`^\\s*${b}(?:\\s*[-–—]\\s*|\\s+)${l}\\s*`, "i");
+  let mainTitle = title.replace(reStrip, "").trim();
+  if (!mainTitle) {
+    mainTitle = title;
+  }
+  return { kind: "split", prefix, mainTitle };
+}
+
 const LessonViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -1430,8 +1468,6 @@ const LessonViewPage: React.FC = () => {
       }
     : null;
 
-  /** Sticky top offset to clear header (approx 70px + trial banner + padding) */
-  const STICKY_TOP = 88;
   useEffect(() => {
     if (previewLockRef.current) {
       if (process.env.NODE_ENV !== "production") {
@@ -3149,6 +3185,8 @@ const LessonViewPage: React.FC = () => {
     const isSinglePage = totalPages <= 1;
     const isLastPage = isSinglePage || currentPageIndex === totalPages - 1;
 
+    const lessonTitleDisplay = getLessonTitleDisplayParts(lesson);
+
     // PR-UX-LESSON-3: Single checkpoint per page — prefer page.checkpoint, else first valid block
     const pageCp = currentPage.checkpoint;
     const hasPageCheckpoint =
@@ -3383,28 +3421,10 @@ const LessonViewPage: React.FC = () => {
             </div>
           )}
 
-          {/* MOBILE: single-column block layout, no grid, no sidebars. DESKTOP: 3-column grid with sticky sidebars */}
-          {entry === "preview" && !layoutStacked && (
-            <style>
-              {`
-/* Preview Lesson (?entry=preview): reinforce sticky rails; document scroll only; scoped to this grid */
-[data-preview-lesson-sticky="true"] {
-  overflow: visible !important;
-}
-[data-preview-lesson-sticky="true"] > aside {
-  position: sticky !important;
-  top: ${STICKY_TOP}px !important;
-  align-self: start !important;
-  max-height: calc(100vh - ${STICKY_TOP + 24}px) !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-              `.trim()}
-            </style>
-          )}
+          {/* MOBILE: single-column block layout, no grid, no sidebars. DESKTOP: 3-column grid; sticky sidebars: App.css (min-width: 900px) */}
           <div
             data-lesson-presentation={v12StudentPresentation ? "v12" : "legacy"}
-            data-preview-lesson-sticky={entry === "preview" && !layoutStacked ? "true" : undefined}
+            className="lesson-view-three-col"
             style={
               layoutStacked
                 ? { display: "block", width: "100%", maxWidth: "100%", minWidth: 0 }
@@ -3429,11 +3449,13 @@ const LessonViewPage: React.FC = () => {
             {/* LEFT SIDEBAR — desktop only */}
             {!layoutStacked && (
             <aside
-              className={v12StudentPresentation ? "lesson-student-sidebar--v12" : undefined}
+              className={[
+                "lesson-left-sidebar",
+                v12StudentPresentation ? "lesson-student-sidebar--v12" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               style={{
-                position: "sticky",
-                top: STICKY_TOP,
-                alignSelf: "start",
                 background: "white",
                 borderRadius: 14,
                 padding: 14,
@@ -3445,8 +3467,6 @@ const LessonViewPage: React.FC = () => {
                   : "2px solid rgba(59,130,246,0.35)",
                 textAlign: "left",
                 minWidth: 0,
-                maxHeight: `calc(100vh - ${STICKY_TOP + 24}px)`,
-                overflowY: "auto",
               }}
             >
               <div
@@ -3625,7 +3645,12 @@ const LessonViewPage: React.FC = () => {
                   style={{ marginBottom: v12StudentPresentation ? 10 : 14, textAlign: "left" }}
                 >
                   <h1
-                    className={v12StudentPresentation ? "lesson-student-title" : undefined}
+                    className={[
+                      v12StudentPresentation ? "lesson-student-title" : "",
+                      lessonTitleDisplay.kind === "split" ? "lesson-view-title-split" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     style={
                       v12StudentPresentation
                         ? { margin: 0, textAlign: "left" as const }
@@ -3640,7 +3665,14 @@ const LessonViewPage: React.FC = () => {
                           }
                     }
                   >
-                    {lesson.title}
+                    {lessonTitleDisplay.kind === "split" ? (
+                      <>
+                        <span className="lesson-title-prefix">{lessonTitleDisplay.prefix}</span>
+                        <span className="lesson-title-main">{lessonTitleDisplay.mainTitle}</span>
+                      </>
+                    ) : (
+                      lesson.title
+                    )}
                   </h1>
                   <div
                     className={v12StudentPresentation ? "lesson-student-meta" : undefined}
@@ -3814,6 +3846,15 @@ const LessonViewPage: React.FC = () => {
                         <div key={idx} id={`block-${idx}`}>
                           {b.type === "diagram" ? (
                             renderDiagramBlock(b, idx)
+                          ) : b.type === "selfCheck" ? (
+                            <InlineSelfCheckBlock
+                              prompt={safeStr(b.prompt, "")}
+                              questionType={b.questionType === "short" ? "short" : "mcq"}
+                              options={Array.isArray(b.options) ? b.options : []}
+                              correctAnswer={safeStr(b.correctAnswer, "")}
+                              explanation={safeStr(b.explanation, "")}
+                              presentation={v12StudentPresentation ? "v12" : "default"}
+                            />
                           ) : (
                             renderCallout(b.type, safeStr(b.content, ""), idx)
                           )}
@@ -4390,15 +4431,11 @@ const LessonViewPage: React.FC = () => {
             {/* RIGHT RAIL — hidden on mobile; compact bar shows progress */}
             {!layoutStacked && (
             <aside
+              className="lesson-right-sidebar"
               style={{
-                position: "sticky",
-                top: STICKY_TOP,
-                alignSelf: "start",
                 display: "flex",
                 flexDirection: "column",
                 gap: 12,
-                maxHeight: `calc(100vh - ${STICKY_TOP + 24}px)`,
-                overflowY: "auto",
               }}
             >
               <div
@@ -4656,6 +4693,7 @@ const LessonViewPage: React.FC = () => {
   // ============================
   // Legacy view (no pages)
   // ============================
+  const lessonTitleDisplayLegacy = getLessonTitleDisplayParts(lesson);
   return (
     <LessonImageLightboxProvider>
     <div
@@ -4730,7 +4768,12 @@ const LessonViewPage: React.FC = () => {
         >
           <div>
             <h1
-              className={v12StudentPresentation ? "lesson-student-page-heading" : undefined}
+              className={[
+                v12StudentPresentation ? "lesson-student-page-heading" : "",
+                lessonTitleDisplayLegacy.kind === "split" ? "lesson-view-title-split" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               style={{
                 marginBottom: "10px",
                 color: "#111827",
@@ -4739,7 +4782,14 @@ const LessonViewPage: React.FC = () => {
                 lineHeight: 1.15,
               }}
             >
-              {lesson.title}
+              {lessonTitleDisplayLegacy.kind === "split" ? (
+                <>
+                  <span className="lesson-title-prefix">{lessonTitleDisplayLegacy.prefix}</span>
+                  <span className="lesson-title-main">{lessonTitleDisplayLegacy.mainTitle}</span>
+                </>
+              ) : (
+                lesson.title
+              )}
             </h1>
             <p style={{ color: "#666" }}>By {lesson.teacherName}</p>
           </div>

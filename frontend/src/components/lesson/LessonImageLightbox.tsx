@@ -32,7 +32,7 @@ export function useLessonImageLightbox(): LightboxContextValue | null {
 
 /**
  * Provides click-to-enlarge for lesson images ({@link LessonImageFrame} with `lightboxSrc`).
- * Collects visible `[data-lesson-lightbox-src]` frames for gallery mode; full-screen panel with zoom + keyboard.
+ * Collects visible `[data-lesson-lightbox-src]` frames for gallery mode; full-screen static image panel.
  */
 export function LessonImageLightboxProvider({ children }: { children: React.ReactNode }) {
   const [openState, setOpenState] = useState<OpenState | null>(null);

@@ -48,6 +48,13 @@ const connectDB = async () => {
     const name = mongoose.connection.name;
     console.log(`[MongoDB] Connected OK — host=${host} db=${name}`);
 
+    try {
+      const { logDataPlaneAfterMongoConnect } = require("./logDataPlane");
+      logDataPlaneAfterMongoConnect();
+    } catch (e) {
+      console.warn("[data-plane] summary log skipped:", e && e.message);
+    }
+
     const collections = await mongoose.connection.db.listCollections().toArray();
     console.log(`[MongoDB] Collections visible: ${collections.length}`);
 

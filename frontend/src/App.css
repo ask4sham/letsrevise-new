@@ -3,6 +3,12 @@
 /* Base styles from your existing file */
 .App {
   text-align: center;
+  overflow: visible;
+}
+
+/* Do not create a scrollport here — sticky (header, lesson side rails) uses the window/body */
+.app-main {
+  overflow: visible;
 }
 
 .App-logo {
@@ -375,9 +381,11 @@ tr:hover td {
 .bg-red-50 { background-color: #fef2f2; }
 .bg-yellow-50 { background-color: #fffbeb; }
 
-/* ----- Lesson editor (Create/Edit): same sticky rail numbers as Preview Lesson (LessonViewPage STICKY_TOP = 88px) ----- */
+/* ----- Lesson editor (Create/Edit): same sticky rail numbers as Preview Lesson (LessonViewPage) ----- */
 :root {
   --lesson-editor-rail-sticky-top: 88px;
+  /* LessonViewPage: rails stick below main site header (~70px row + optional banners) */
+  --lesson-view-rail-sticky-top: 88px;
 }
 
 .create-lesson-editor-column {
@@ -395,6 +403,67 @@ tr:hover td {
   grid-template-columns: 1fr;
   align-items: start;
   box-sizing: border-box;
+}
+
+/* ----- LessonViewPage: sticky left/right when 3-col layout is used (min-width: 900px) ----- */
+[data-lesson-view="structured"] .lesson-view-three-col,
+.lesson-view-three-col {
+  overflow: visible;
+}
+
+@media (min-width: 900px) {
+  [data-lesson-view="structured"] .lesson-view-three-col .lesson-left-sidebar,
+  [data-lesson-view="structured"] .lesson-view-three-col .lesson-right-sidebar,
+  .lesson-view-three-col .lesson-left-sidebar,
+  .lesson-view-three-col .lesson-right-sidebar {
+    position: -webkit-sticky;
+    position: sticky;
+    top: var(--lesson-view-rail-sticky-top);
+    align-self: start;
+    height: fit-content;
+    max-height: calc(100vh - var(--lesson-view-rail-sticky-top) - 16px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  [data-lesson-view="structured"] .lesson-view-three-col .lesson-left-sidebar::after,
+  [data-lesson-view="structured"] .lesson-view-three-col .lesson-right-sidebar::after,
+  .lesson-view-three-col .lesson-left-sidebar::after,
+  .lesson-view-three-col .lesson-right-sidebar::after {
+    content: "";
+    display: block;
+    position: sticky;
+    bottom: 0;
+    height: 24px;
+    width: 100%;
+    margin-top: -24px;
+    flex-shrink: 0;
+    z-index: 1;
+    background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 899px) {
+  [data-lesson-view="structured"] .lesson-view-three-col .lesson-left-sidebar,
+  [data-lesson-view="structured"] .lesson-view-three-col .lesson-right-sidebar,
+  .lesson-view-three-col .lesson-left-sidebar,
+  .lesson-view-three-col .lesson-right-sidebar {
+    position: static;
+    top: auto;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* Main nav: keep visible on vertical scroll (inline styles on Header; reinforce here) */
+header.site-header {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 1100;
 }
 
 @media (min-width: 1101px) {
@@ -450,17 +519,31 @@ tr:hover td {
   grid-template-rows: none;
 }
 
-.edit-lesson-layout-grid--wide .edit-lesson-left-rail,
-.edit-lesson-layout-grid--wide .edit-lesson-preview-rail {
-  position: sticky;
-  top: var(--lesson-editor-rail-sticky-top);
-  align-self: start;
-  max-height: calc(100vh - var(--lesson-editor-rail-sticky-top) - 24px);
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-x: hidden;
-  overflow-y: auto;
+/* Sticky editor rails when 3-col wide layout is active and viewport ≥900px (matches lesson view) */
+@media (min-width: 900px) {
+  .edit-lesson-layout-grid--wide .edit-lesson-left-rail,
+  .edit-lesson-layout-grid--wide .edit-lesson-preview-rail {
+    position: -webkit-sticky;
+    position: sticky;
+    top: var(--lesson-editor-rail-sticky-top);
+    align-self: start;
+    max-height: calc(100vh - var(--lesson-editor-rail-sticky-top) - 24px);
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 899px) {
+  .edit-lesson-layout-grid--wide .edit-lesson-left-rail,
+  .edit-lesson-layout-grid--wide .edit-lesson-preview-rail {
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 .edit-lesson-layout-grid--medium .edit-lesson-left-rail,
