@@ -1229,6 +1229,10 @@ h1.lesson-view-title-split .lesson-title-main {
   cursor: pointer;
 }
 
+.keyword-highlight {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
 /* Render-time glossary highlights (lesson/page metadata.contentKeywords) — not persisted in block HTML */
 .lesson-md-body .lesson-keyword-highlight,
 .lesson-keyword-highlight {
@@ -1363,6 +1367,13 @@ h1.lesson-view-title-split .lesson-title-main {
 
 .lesson-keyword-highlight--data-key-term.lesson-keyword-highlight--interactive:hover {
   background: rgba(59, 130, 246, 0.26);
+}
+
+/* Interactive key term: green hover (after blue `lesson-keyword-highlight--interactive` hovers; keeps underline + red i) */
+.lesson-md-body .keyword-highlight.interactive:hover,
+.keyword-highlight.interactive:hover {
+  background: rgba(34, 197, 94, 0.15);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
 }
 
 .lesson-keyword-glossary-backdrop {
