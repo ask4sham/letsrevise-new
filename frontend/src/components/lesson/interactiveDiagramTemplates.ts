@@ -2,6 +2,15 @@
  * Editor-only presets for `interactiveDiagram` blocks. Same shape as saved lesson data — no new schema.
  */
 
+/**
+ * AQA GCSE Cell Division — mitosis as a **sequence of stages** (raster, same folder as the curriculum).
+ * File: `backend/public/visuals/biology/aqa-gcse/cell-biology/cell-division/Mitosis sequence.png`
+ * Public: `/visuals/...` below (served with other curated visuals; spaces are valid in path segments).
+ * Note: the manifest `mitosis-and-the-cell-cycle.svg` is a small placeholder, not a real diagram, so it is not used here.
+ */
+export const AQA_GCSE_MITOSIS_SEQUENCE_PNG_PUBLIC_PATH =
+  "/visuals/biology/aqa-gcse/cell-biology/cell-division/Mitosis sequence.png";
+
 export type InteractiveDiagramTemplate = {
   id: string;
   label: string;
@@ -30,8 +39,7 @@ export const INTERACTIVE_DIAGRAM_TEMPLATES: InteractiveDiagramTemplate[] = [
     topic: "Cell division",
     title: "Mitosis stages",
     intro: "Click each stage to learn what happens during mitosis.",
-    /** Canonical visual from `backend/public/visuals/.../manifest.json` (mitosis and the cell cycle). */
-    imageUrl: "/visuals/biology/aqa-gcse/cell-biology/cell-division/mitosis-and-the-cell-cycle.svg",
+    imageUrl: AQA_GCSE_MITOSIS_SEQUENCE_PNG_PUBLIC_PATH,
     hotspots: [
       {
         x: 12,

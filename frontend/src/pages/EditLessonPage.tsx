@@ -6310,8 +6310,9 @@ const EditLessonPage: React.FC = () => {
                                         updateBlock(currentPage!.pageId, idx, patch);
                                         setInteractiveDiagramTemplateHint((prev) => ({
                                           ...prev,
-                                          [key]:
-                                            "Template applied. Upload or choose the matching image, then adjust hotspot positions if needed.",
+                                          [key]: tmpl.imageUrl
+                                            ? "Template applied with matching image. Adjust hotspot positions if needed."
+                                            : "Template applied. Upload or choose the matching image, then adjust hotspot positions if needed.",
                                         }));
                                         setTimeout(() => {
                                           setInteractiveDiagramTemplateHint((prev) => {
