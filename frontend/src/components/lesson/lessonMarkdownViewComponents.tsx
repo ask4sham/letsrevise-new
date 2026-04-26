@@ -138,6 +138,31 @@ export function createLessonMarkdownViewComponents(
         }}
       />
     ),
+    /** rehype-raw often emits block HTML as <div> / <section>, not <p> — needed for keyword highlight merge */
+    div: ({ children, ...props }: any) => (
+      <div
+        {...props}
+        style={{
+          textAlign: "left",
+          lineHeight: 1.7,
+          ...(props.style || {}),
+        }}
+      >
+        {children}
+      </div>
+    ),
+    section: ({ children, ...props }: any) => (
+      <section
+        {...props}
+        style={{
+          textAlign: "left",
+          lineHeight: 1.7,
+          ...(props.style || {}),
+        }}
+      >
+        {children}
+      </section>
+    ),
     img: ({ node, ...props }: any) => {
       const rawSrc = safeStr(props.src, "");
       if (!hasRenderableLessonImageSrc(rawSrc)) return null;

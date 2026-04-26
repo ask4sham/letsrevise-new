@@ -427,10 +427,9 @@ tr:hover td {
     scrollbar-gutter: stable;
   }
 
+  /* Scroll-fade: left nav only. Right rail (e.g. Topic progress) is short — same ::after read as a grey “shadow” under the card. */
   [data-lesson-view="structured"] .lesson-view-three-col .lesson-left-sidebar::after,
-  [data-lesson-view="structured"] .lesson-view-three-col .lesson-right-sidebar::after,
-  .lesson-view-three-col .lesson-left-sidebar::after,
-  .lesson-view-three-col .lesson-right-sidebar::after {
+  .lesson-view-three-col .lesson-left-sidebar::after {
     content: "";
     display: block;
     position: sticky;

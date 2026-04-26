@@ -52,7 +52,8 @@
 
 [data-lesson-presentation="v12"] .lesson-student-rail-card--v12 {
   border: 1px solid #e4e9f0 !important;
-  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04) !important;
+  /* Flat: avoid a second “lifted” shadow beside the main column focus frame */
+  box-shadow: none !important;
 }
 
 /*
@@ -1230,6 +1231,29 @@ h1.lesson-view-title-split .lesson-title-main {
   box-decoration-break: clone;
 }
 
+/* Author <span data-key-term="…"> only — subtle link-like affordance; red "i" stays primary */
+.lesson-keyword-highlight--data-key-term {
+  cursor: pointer;
+}
+
+.lesson-keyword-highlight--data-key-term .keyword-text {
+  text-decoration: underline dotted rgba(37, 99, 235, 0.45);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition:
+    text-decoration-color 0.15s ease,
+    text-decoration-style 0.15s ease;
+}
+
+.lesson-keyword-highlight--data-key-term:hover .keyword-text {
+  text-decoration-color: rgba(29, 78, 216, 0.9);
+  text-decoration-style: solid;
+}
+
+.lesson-keyword-highlight--data-key-term:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
 .lesson-keyword-highlight--interactive {
   padding: 0;
   background: rgba(59, 130, 246, 0.16);
@@ -1263,6 +1287,56 @@ h1.lesson-view-title-split .lesson-title-main {
 .lesson-keyword-highlight__btn:focus-visible {
   outline: 2px solid rgba(59, 130, 246, 0.45);
   outline-offset: 1px;
+}
+
+/* Glossary term + info icon (presentation only; matching logic unchanged) */
+.lesson-keyword-highlight .keyword-term {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.lesson-keyword-highlight .keyword-text {
+  display: inline;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.lesson-keyword-highlight .keyword-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: white;
+  background-color: #dc2626;
+  border-radius: 50%;
+  flex-shrink: 0;
+  user-select: none;
+  vertical-align: middle;
+  transition: background-color 0.15s ease;
+}
+
+.lesson-keyword-highlight .keyword-term:hover .keyword-icon {
+  background-color: #b91c1c;
+}
+
+.lesson-keyword-highlight--interactive .lesson-keyword-highlight__btn:focus-visible .keyword-icon {
+  background-color: #b91c1c;
+}
+
+.lesson-keyword-highlight--interactive:hover {
+  background: rgba(59, 130, 246, 0.22);
+}
+
+.lesson-keyword-highlight--data-key-term.lesson-keyword-highlight--interactive:hover {
+  background: rgba(59, 130, 246, 0.26);
 }
 
 .lesson-keyword-glossary-backdrop {
@@ -1364,4 +1438,49 @@ h1.lesson-view-title-split .lesson-title-main {
   margin-top: 4px;
   font-size: 0.8125rem;
   color: #64748b;
+}
+
+/* ----- LessonViewPage: middle column “focused reading” frame (green, matches progress bar #48bb78) -----
+ * Must be at end of this stylesheet with a direct grid > main > .lesson-focus-container chain + !important
+ * so it wins: (1) global CSS load order, (2) v12 .lesson-student-main-card outline:none !important
+ * (which targets the *inner* card, not this wrapper), and (3) any duplicate rules in a separate file.
+ */
+.lesson-view-three-col > main .lesson-focus-container {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border: 2px solid #48bb78 !important;
+  outline: 6px solid rgba(72, 187, 120, 0.16) !important;
+  border-radius: 12px !important;
+  padding: 24px 28px !important;
+  background: #ffffff !important;
+  /* Frame is the affordance; no extra drop-shadow (avoids muddy stack with SS2) */
+  box-shadow: none !important;
+  overflow: visible !important;
+  transition: outline-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-lesson-presentation="v12"] .lesson-view-three-col > main .lesson-focus-container:hover,
+.lesson-view-three-col > main .lesson-focus-container:hover {
+  outline-color: rgba(72, 187, 120, 0.24) !important;
+  box-shadow: none !important;
+}
+
+/* SS2 (main card) sits *inside* the green focus frame — one surface only; no second float shadow */
+.lesson-view-three-col > main .lesson-focus-container .lesson-student-main-card.lesson-student-section {
+  box-shadow: none !important;
+}
+
+@media (min-width: 1024px) {
+  .lesson-view-three-col > main .lesson-focus-container {
+    padding: 32px 40px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .lesson-view-three-col > main .lesson-focus-container {
+    padding: 16px !important;
+    outline-width: 4px !important;
+  }
 }

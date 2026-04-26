@@ -20,6 +20,10 @@ export type LessonBlockContentTextareaProps = {
   sizeVariant?: "default" | "long";
   /** Override min height (px) when you need a custom floor. */
   minHeightPx?: number;
+  /** Glossary: toolbar “Key term” — uses current textarea selection. */
+  onKeyTermClick?: () => void;
+  /** Optional: toolbar “Suggest key terms” (AI) for this block. */
+  onSuggestKeyTermsClick?: () => void;
 };
 
 export function LessonBlockContentTextarea({
@@ -33,6 +37,8 @@ export function LessonBlockContentTextarea({
   style,
   sizeVariant = "default",
   minHeightPx: minHeightProp,
+  onKeyTermClick,
+  onSuggestKeyTermsClick,
 }: LessonBlockContentTextareaProps) {
   const minHeightPx = minHeightProp ?? (sizeVariant === "long" ? 300 : 240);
 
@@ -69,6 +75,8 @@ export function LessonBlockContentTextarea({
           onChange(next);
           restoreCursor(cursor);
         }}
+        onKeyTermClick={onKeyTermClick}
+        onSuggestKeyTermsClick={onSuggestKeyTermsClick}
       />
       <LessonAutoTextarea
         editorVariant="lesson"

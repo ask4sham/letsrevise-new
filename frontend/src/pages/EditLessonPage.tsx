@@ -4,6 +4,8 @@ import { useParams, Link, useSearchParams, useNavigate, useLocation } from "reac
 import { defaultUrlTransform } from "react-markdown";
 import { LessonRenderer } from "../components/lesson/LessonRenderer";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
+import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
+import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
@@ -26,6 +28,10 @@ import FlashcardsEditor from "../components/revision/FlashcardsEditor";
 import { AttachedAssessmentPapersPanel } from "../components/lesson/AttachedAssessmentPapers";
 import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
 import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
+import { AddKeyTermDialog } from "../components/lesson/AddKeyTermDialog";
+import { SuggestKeyTermsDialog } from "../components/lesson/SuggestKeyTermsDialog";
+import type { SuggestedKeyTermRow } from "../api/ai";
+import { applyKeyTermsToBlockContent, buildKeyTermSpanHtml } from "../utils/keyTermInlineMarkers";
 import { AddBlockByRoleSelect } from "../components/lesson/AddBlockByRoleSelect";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
@@ -122,6 +128,11 @@ interface LessonPageBlock {
   imageUrl?: string;
   imageSource?: string;
   alt?: string;
+  /** type === "interactiveSequence" (not diagram `steps`) */
+  intro?: string;
+  sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
+  /** type === "interactiveDiagram" — x/y 0–100 (percentage) */
+  hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
 }
 
 interface LessonPageHero {
@@ -137,6 +148,8 @@ interface LessonPage {
   pageType?: string;
   hero?: LessonPageHero;
   blocks?: LessonPageBlock[];
+  /** Student glossary / keyword highlights (merged with lesson-level in view). */
+  metadata?: { contentKeywords?: Array<{ term: string; definition?: string }> };
   checkpoint?: {
     question?: string;
     options?: string[];
@@ -528,6 +541,22 @@ const EditLessonPage: React.FC = () => {
   const [publishGateOpen, setPublishGateOpen] = useState(false);
   const [publishGateIssues, setPublishGateIssues] = useState<string[]>([]);
   const [postPublishClassroomModalOpen, setPostPublishClassroomModalOpen] = useState(false);
+  const [addKeyTermDialog, setAddKeyTermDialog] = useState<{
+    pageId: string;
+    pageTitle: string;
+    initialTerm: string;
+    blockContext: string;
+    blockIndex: number;
+    /** Captured at dialog open; used to insert inline marker in that block only. */
+    selectionStart: number;
+    selectionEnd: number;
+  } | null>(null);
+  const [suggestKeyTermsDialog, setSuggestKeyTermsDialog] = useState<{
+    pageId: string;
+    blockIndex: number;
+    pageTitle: string;
+    textareaKey: string;
+  } | null>(null);
   const [makeClassroomReadyLoading, setMakeClassroomReadyLoading] = useState(false);
   const [makeClassroomReadyError, setMakeClassroomReadyError] = useState<string | null>(null);
   /** PR20.1: Copy student link feedback */
@@ -1160,6 +1189,52 @@ const EditLessonPage: React.FC = () => {
                     ...(role && { role }),
                   };
                 }
+                if (b?.type === "interactiveSequence") {
+                  const rawSeq = Array.isArray(b.sequenceSteps)
+                    ? b.sequenceSteps
+                    : Array.isArray(b.steps)
+                      ? b.steps
+                      : [];
+                  const sequenceSteps = rawSeq.map((s: any) => ({
+                    title: safeStr(s?.title, ""),
+                    description: safeStr(s?.description, ""),
+                    imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
+                    caption: safeStr(s?.caption, ""),
+                  }));
+                  const defaultTwo = [
+                    { title: "Step 1", description: "", imageUrl: "", caption: "" },
+                    { title: "Step 2", description: "", imageUrl: "", caption: "" },
+                  ];
+                  const outIs: Record<string, unknown> = {
+                    type: "interactiveSequence" as const,
+                    content: "",
+                    title: safeStr(b.title, ""),
+                    intro: safeStr(b.intro, ""),
+                    sequenceSteps: sequenceSteps.length >= 2 ? sequenceSteps : defaultTwo,
+                  };
+                  if (typeof b?.role === "string" && b.role.trim()) outIs.role = b.role.trim();
+                  return outIs;
+                }
+                if (b?.type === "interactiveDiagram") {
+                  const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
+                  const hotspots = rawH.map((h: any, i: number) => ({
+                    id: String(h?.id || `h${i + 1}`).trim() || `h${i + 1}`,
+                    x: Math.max(0, Math.min(100, Number(h?.x) || 0)),
+                    y: Math.max(0, Math.min(100, Number(h?.y) || 0)),
+                    label: safeStr(h?.label, ""),
+                    description: safeStr(h?.description, ""),
+                  }));
+                  const outId: Record<string, unknown> = {
+                    type: "interactiveDiagram" as const,
+                    content: "",
+                    title: safeStr(b.title, "Interactive diagram"),
+                    intro: safeStr(b.intro, "Click each hotspot to learn more."),
+                    imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
+                    hotspots,
+                  };
+                  if (typeof b?.role === "string" && b.role.trim()) outId.role = b.role.trim();
+                  return outId;
+                }
                 const out: Record<string, unknown> = {
                   type: normalizeBlockType(b?.type),
                   content: safeStr(b?.content, ""),
@@ -1178,6 +1253,8 @@ const EditLessonPage: React.FC = () => {
                 answer: safeStr((p as any).checkpoint.answer, ""),
               }
             : { question: "", options: ["", "", "", ""], answer: "" },
+          metadata:
+            (p as any).metadata && typeof (p as any).metadata === "object" ? (p as any).metadata : undefined,
         }));
       }
 
@@ -1313,6 +1390,124 @@ const EditLessonPage: React.FC = () => {
       if (idx < 0) return prev;
       pages[idx] = { ...pages[idx], ...patch };
       return { ...prev, pages };
+    });
+  };
+
+  /**
+   * Add key term → glossary: updates **only** `lesson.pages[pageId].metadata.contentKeywords`.
+   * Never writes `lesson.metadata.contentKeywords`. Persisted on the next Save (PUT) via
+   * `getLessonPersistPayload` → `sanitizedPages` = `{ ...p, blocks, ... }` which keeps `metadata`.
+   */
+  /**
+   * Glossary (metadata) + optional inline wrap at the selection captured when the dialog was opened.
+   * No auto-insert if there was no selection, or the slice is already a key-term span.
+   */
+  const addPageKeyTermWithOptionalInline = (
+    pageId: string,
+    term: string,
+    definition: string,
+    inline: { blockIndex: number; selectionStart: number; selectionEnd: number } | null
+  ) => {
+    const t = term.trim();
+    if (!t) return;
+    const defTrim = definition.trim();
+    setLesson((prev) => {
+      if (!prev?.pages) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((p) => {
+          if (String(p.pageId) !== String(pageId)) return p;
+          const rawMeta = (p as LessonPage).metadata;
+          const meta =
+            rawMeta && typeof rawMeta === "object" ? { ...rawMeta } : ({} as LessonPage["metadata"]);
+          const list = Array.isArray(meta?.contentKeywords) ? [...meta.contentKeywords!] : [];
+          const low = t.toLowerCase();
+          const fi = list.findIndex((x) => String(x?.term ?? "").toLowerCase() === low);
+          const item: { term: string; definition?: string } = { term: t };
+          if (defTrim) item.definition = defTrim;
+          if (fi >= 0) list[fi] = { ...list[fi], ...item };
+          else list.push(item);
+          let next: LessonPage = {
+            ...p,
+            metadata: { ...meta, contentKeywords: list },
+          } as LessonPage;
+          if (inline) {
+            const { blockIndex, selectionStart, selectionEnd } = inline;
+            const lo = Math.min(selectionStart, selectionEnd);
+            const hi = Math.max(selectionStart, selectionEnd);
+            if (lo < hi) {
+              const blocks = Array.isArray(next.blocks) ? [...(next.blocks as any[])] : [];
+              if (blockIndex >= 0 && blockIndex < blocks.length) {
+                const block = blocks[blockIndex] as { content?: string; [k: string]: unknown };
+                const content = String(block?.content ?? "");
+                if (lo <= content.length && hi <= content.length) {
+                  const slice = content.slice(lo, hi);
+                  if (!/data-key-term\s*=/i.test(slice) && !/<\s*span[^>]+data-key-term/i.test(slice)) {
+                    const inner = buildKeyTermSpanHtml(t, slice);
+                    if (inner) {
+                      const nextContent = content.slice(0, lo) + inner + content.slice(hi);
+                      blocks[blockIndex] = { ...block, content: nextContent };
+                      next = { ...next, blocks } as LessonPage;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return next;
+        }),
+      };
+    });
+    setSaveMsg("Key term added. Click Save Changes to publish it.");
+    setTimeout(() => setSaveMsg(""), 9000);
+  };
+
+  /** AI “Suggest key terms”: merge metadata + wrap first unmarked occurrence per row in the current block. */
+  const applyBulkSuggestedKeyTerms = (pageId: string, blockIndex: number, items: SuggestedKeyTermRow[]) => {
+    if (!items.length) return;
+    setLesson((prev) => {
+      if (!prev?.pages) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((p) => {
+          if (String(p.pageId) !== String(pageId)) return p;
+          const rawMeta = (p as LessonPage).metadata;
+          const meta =
+            rawMeta && typeof rawMeta === "object" ? { ...rawMeta } : ({} as LessonPage["metadata"]);
+          let list = Array.isArray(meta?.contentKeywords) ? [...meta.contentKeywords!] : [];
+          for (const it of items) {
+            const t = it.term.trim();
+            if (!t) continue;
+            const defTrim = it.definition.trim();
+            const low = t.toLowerCase();
+            const fi = list.findIndex((x) => String(x?.term ?? "").toLowerCase() === low);
+            const kwItem: { term: string; definition?: string } = { term: t };
+            if (defTrim) kwItem.definition = defTrim;
+            if (fi >= 0) list[fi] = { ...list[fi], ...kwItem };
+            else list.push(kwItem);
+          }
+          const blocks = Array.isArray(p.blocks) ? [...(p.blocks as any[])] : [];
+          if (blockIndex < 0 || blockIndex >= blocks.length) {
+            return { ...p, metadata: { ...meta, contentKeywords: list } } as LessonPage;
+          }
+          const block = blocks[blockIndex] as { content?: string; [k: string]: unknown };
+          const before = String(block?.content ?? "");
+          const { nextContent, notFoundTerms } = applyKeyTermsToBlockContent(before, items);
+          blocks[blockIndex] = { ...block, content: nextContent };
+          const nextPage = { ...p, metadata: { ...meta, contentKeywords: list }, blocks } as LessonPage;
+          queueMicrotask(() => {
+            if (notFoundTerms.length > 0) {
+              setSaveMsg(
+                `Added definition, but could not mark term in text: ${notFoundTerms.join(", ")}. Click Save Changes to publish.`
+              );
+            } else {
+              setSaveMsg("Key terms added. Click Save Changes to publish.");
+            }
+            setTimeout(() => setSaveMsg(""), 12000);
+          });
+          return nextPage;
+        }),
+      };
     });
   };
 
@@ -1489,6 +1684,26 @@ const EditLessonPage: React.FC = () => {
           options: ["", "", "", ""],
           correctAnswer: "",
           explanation: "",
+        };
+      } else if (type === "interactiveSequence") {
+        block = {
+          type: "interactiveSequence",
+          title: "",
+          intro: "",
+          content: "",
+          sequenceSteps: [
+            { title: "Step 1", description: "", imageUrl: "", caption: "" },
+            { title: "Step 2", description: "", imageUrl: "", caption: "" },
+          ],
+        };
+      } else if (type === "interactiveDiagram") {
+        block = {
+          type: "interactiveDiagram",
+          title: "Interactive diagram",
+          intro: "Click each hotspot to learn more.",
+          imageUrl: "",
+          hotspots: [],
+          content: "",
         };
       } else {
         block = { type, content: "" };
@@ -2391,6 +2606,101 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
+  const uploadImageForSequenceStep = async (
+    file: File,
+    pageId: string,
+    blockIndex: number,
+    stepIndex: number,
+    onUrl: (url: string) => void
+  ) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image (png/jpg/gif/webp).");
+      return;
+    }
+    if (!token) {
+      alert("You must be signed in to upload media.");
+      return;
+    }
+    const key = `${pageId}:${blockIndex}:seq:${stepIndex}`;
+    try {
+      setUploadingKey(key);
+      setUploadMsg("");
+      const form = new FormData();
+      form.append("file", file);
+      const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}_step_${stepIndex}`;
+      const endpoint = `uploads/image?folder=${encodeURIComponent(folder)}`;
+      form.append("folder", folder);
+      const res = await api.post(endpoint, form);
+      const url = res.data?.url as string | undefined;
+      if (!url) {
+        alert("Upload succeeded but no URL returned.");
+        return;
+      }
+      onUrl(toAbsoluteAssetUrl(url));
+      setUploadMsg("✅ Image uploaded.");
+      setTimeout(() => setUploadMsg(""), 2000);
+    } catch (e: any) {
+      console.error(e);
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
+      const msg = typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
+    } finally {
+      setUploadingKey("");
+    }
+  };
+
+  const uploadImageForInteractiveDiagram = async (
+    file: File,
+    pageId: string,
+    blockIndex: number,
+    onUrl: (url: string) => void
+  ) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image (png/jpg/gif/webp).");
+      return;
+    }
+    if (!token) {
+      alert("You must be signed in to upload media.");
+      return;
+    }
+    const key = `${pageId}:${blockIndex}:idiagram`;
+    try {
+      setUploadingKey(key);
+      setUploadMsg("");
+      const form = new FormData();
+      form.append("file", file);
+      const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}_interactivediagram`;
+      const endpoint = `uploads/image?folder=${encodeURIComponent(folder)}`;
+      form.append("folder", folder);
+      const res = await api.post(endpoint, form);
+      const url = res.data?.url as string | undefined;
+      if (!url) {
+        alert("Upload succeeded but no URL returned.");
+        return;
+      }
+      onUrl(toAbsoluteAssetUrl(url));
+      setUploadMsg("✅ Image uploaded.");
+      setTimeout(() => setUploadMsg(""), 2000);
+    } catch (e: any) {
+      console.error(e);
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
+      const msg = typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
+    } finally {
+      setUploadingKey("");
+    }
+  };
+
   const triggerBlockUpload = (pageId: string, blockIndex: number) => {
     const key = `${pageId}:${blockIndex}`;
     const input = fileInputRef.current[key];
@@ -2466,6 +2776,51 @@ const EditLessonPage: React.FC = () => {
             if (typeof b.role === "string" && b.role.trim()) dOut.role = b.role.trim();
             return dOut;
           }
+          if (b.type === "interactiveSequence") {
+            const rawSeq = Array.isArray(b.sequenceSteps) ? b.sequenceSteps : Array.isArray(b.steps) ? b.steps : [];
+            const sequenceSteps = rawSeq
+              .map((s: any) => ({
+                title: s?.title != null ? String(s.title).trim() : "",
+                description: s?.description != null ? String(s.description).trim() : "",
+                imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
+                caption: s?.caption != null ? String(s.caption).trim() : "",
+              }))
+              .filter(
+                (s) =>
+                  s.title.length > 0 || s.description.length > 0 || s.imageUrl.length > 0 || s.caption.length > 0
+              );
+            const defaultTwo = [
+              { title: "Step 1", description: "", imageUrl: "", caption: "" },
+              { title: "Step 2", description: "", imageUrl: "", caption: "" },
+            ];
+            const isOut: Record<string, unknown> = {
+              type: "interactiveSequence",
+              title: typeof b.title === "string" ? b.title.trim() : "",
+              intro: b.intro != null ? String(b.intro).trim() : "",
+              sequenceSteps: sequenceSteps.length > 0 ? sequenceSteps : defaultTwo,
+            };
+            if (typeof b.role === "string" && b.role.trim()) isOut.role = b.role.trim();
+            return isOut;
+          }
+          if (b.type === "interactiveDiagram") {
+            const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
+            const hotspots = rawH.map((h: any, i: number) => ({
+              id: String(h?.id || `h${i + 1}`).trim() || `h${i + 1}`,
+              x: Math.max(0, Math.min(100, Number(h?.x) || 0)),
+              y: Math.max(0, Math.min(100, Number(h?.y) || 0)),
+              label: h?.label != null ? String(h.label).trim() : "",
+              description: h?.description != null ? String(h.description).trim() : "",
+            }));
+            const idOut: Record<string, unknown> = {
+              type: "interactiveDiagram",
+              title: typeof b.title === "string" ? b.title.trim() : "",
+              intro: b.intro != null ? String(b.intro).trim() : "",
+              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
+              hotspots,
+            };
+            if (typeof b.role === "string" && b.role.trim()) idOut.role = b.role.trim();
+            return idOut;
+          }
           const contentOut: Record<string, unknown> = {
             type: toLegacyBlockType(b.type),
             content: sanitizeTeacherMarkdown(String(b.content || "")),
@@ -2527,6 +2882,7 @@ const EditLessonPage: React.FC = () => {
       board: lesson.examBoardName || "",
       estimatedDuration: lesson.estimatedDuration,
       isFreePreview: !!lesson.isFreePreview,
+      metadata: (lesson as { metadata?: Record<string, unknown> }).metadata,
       pages: sanitizedPages,
       quiz: {
         ...(lesson.quiz || {}),
@@ -4442,6 +4798,8 @@ const EditLessonPage: React.FC = () => {
                       const isCheckpoint = blockType === "checkpoint";
                       const isSelfCheck = blockType === "selfCheck";
                       const isDiagram = blockType === "diagram";
+                      const isInteractiveSequence = blockType === "interactiveSequence";
+                      const isInteractiveDiagram = blockType === "interactiveDiagram";
                       const cp = isCheckpoint || isSelfCheck ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
@@ -4609,7 +4967,7 @@ const EditLessonPage: React.FC = () => {
                                 }}
                               />
 
-                              {!isCheckpoint && !isSelfCheck && !isDiagram && (
+                              {!isCheckpoint && !isSelfCheck && !isDiagram && !isInteractiveSequence && !isInteractiveDiagram && (
                                 <button
                                   onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
                                   disabled={isUploading}
@@ -5551,6 +5909,486 @@ const EditLessonPage: React.FC = () => {
                                 <div style={{ marginTop: 8, fontSize: 13, color: "#b91c1c" }}>{generateDiagramError}</div>
                               )}
                             </div>
+                          ) : isInteractiveSequence ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Activity title</div>
+                                <input
+                                  value={safeStr((b as LessonPageBlock).title, "")}
+                                  onChange={(e) => updateBlock(currentPage!.pageId, idx, { title: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                  }}
+                                  placeholder="e.g. Mitosis – interactive activity"
+                                />
+                              </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Intro</div>
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
+                                  value={safeStr((b as LessonPageBlock).intro, "")}
+                                  onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
+                                  placeholder="Short introduction for students…"
+                                  minHeightPx={120}
+                                  style={{ fontSize: "0.9375rem" }}
+                                />
+                              </label>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const cur = Array.isArray((b as LessonPageBlock).sequenceSteps)
+                                      ? [...((b as LessonPageBlock).sequenceSteps as NonNullable<LessonPageBlock["sequenceSteps"]>)]
+                                      : [];
+                                    cur.push({
+                                      title: `Step ${cur.length + 1}`,
+                                      description: "",
+                                      imageUrl: "",
+                                      caption: "",
+                                    });
+                                    updateBlock(currentPage!.pageId, idx, { sequenceSteps: cur });
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: 8,
+                                    border: "2px solid rgba(99,102,241,0.35)",
+                                    background: "rgba(99,102,241,0.08)",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  + Add step
+                                </button>
+                              </div>
+                              {(Array.isArray((b as LessonPageBlock).sequenceSteps)
+                                ? (b as LessonPageBlock).sequenceSteps!
+                                : []
+                              ).map((step, si) => {
+                                const stepKey = `${key}:seq:${si}`;
+                                const stepUploading = uploadingKey === stepKey;
+                                return (
+                                  <div
+                                    key={si}
+                                    style={{
+                                      padding: 12,
+                                      borderRadius: 10,
+                                      border: "1px solid #e2e8f0",
+                                      background: "#fafafa",
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#3730a3" }}>Step {si + 1}</div>
+                                    <input
+                                      ref={(el) => {
+                                        fileInputRef.current[stepKey] = el;
+                                      }}
+                                      type="file"
+                                      accept="image/*"
+                                      style={{ display: "none" }}
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (!f) return;
+                                        uploadImageForSequenceStep(
+                                          f,
+                                          currentPage!.pageId,
+                                          idx,
+                                          si,
+                                          (url) => {
+                                            const steps = [
+                                              ...((b as LessonPageBlock).sequenceSteps ?? [
+                                                { title: "", description: "", imageUrl: "", caption: "" },
+                                              ]),
+                                            ];
+                                            if (steps[si])
+                                              steps[si] = { ...steps[si], imageUrl: url };
+                                            updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                          }
+                                        );
+                                        e.target.value = "";
+                                      }}
+                                    />
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Step title</div>
+                                      <input
+                                        value={step.title ?? ""}
+                                        onChange={(e) => {
+                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                          if (steps[si]) steps[si] = { ...steps[si], title: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          border: "1px solid #cbd5e1",
+                                        }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Explanation</div>
+                                      <LessonAutoTextarea
+                                        editorVariant="plain"
+                                        value={step.description ?? ""}
+                                        onChange={(v) => {
+                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                          if (steps[si]) steps[si] = { ...steps[si], description: v };
+                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                        }}
+                                        placeholder="What happens in this step…"
+                                        minHeightPx={100}
+                                        style={{ fontSize: "0.875rem" }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Caption (label)</div>
+                                      <input
+                                        value={step.caption ?? ""}
+                                        onChange={(e) => {
+                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                          if (steps[si]) steps[si] = { ...steps[si], caption: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          border: "1px solid #cbd5e1",
+                                        }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Image URL (optional — or upload)</div>
+                                      <input
+                                        value={step.imageUrl ?? ""}
+                                        onChange={(e) => {
+                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                          if (steps[si]) steps[si] = { ...steps[si], imageUrl: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          border: "1px solid #cbd5e1",
+                                        }}
+                                        placeholder="https://… or path from upload"
+                                      />
+                                    </label>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const input = fileInputRef.current[stepKey];
+                                          if (input) {
+                                            input.value = "";
+                                            input.click();
+                                          }
+                                        }}
+                                        disabled={stepUploading}
+                                        style={{
+                                          padding: "6px 12px",
+                                          borderRadius: 8,
+                                          border: "2px solid rgba(99,102,241,0.35)",
+                                          background: "white",
+                                          cursor: stepUploading ? "not-allowed" : "pointer",
+                                          fontWeight: 700,
+                                          fontSize: 13,
+                                        }}
+                                      >
+                                        {stepUploading ? "Uploading…" : "Upload image"}
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                        if (steps.length <= 1) return;
+                                        steps.splice(si, 1);
+                                        updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                      }}
+                                      disabled={((b as LessonPageBlock).sequenceSteps?.length ?? 0) <= 1}
+                                      style={{
+                                        marginTop: 8,
+                                        padding: "4px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #f87171",
+                                        background: "#fef2f2",
+                                        color: "#b91c1c",
+                                        cursor:
+                                          ((b as LessonPageBlock).sequenceSteps?.length ?? 0) <= 1
+                                            ? "not-allowed"
+                                            : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        opacity: ((b as LessonPageBlock).sequenceSteps?.length ?? 0) <= 1 ? 0.5 : 1,
+                                      }}
+                                    >
+                                      Remove step
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : isInteractiveDiagram ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
+                                <input
+                                  value={safeStr((b as LessonPageBlock).title, "")}
+                                  onChange={(e) => updateBlock(currentPage!.pageId, idx, { title: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                  }}
+                                  placeholder="e.g. Parts of a microscope"
+                                />
+                              </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Intro</div>
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
+                                  value={safeStr((b as LessonPageBlock).intro, "")}
+                                  onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
+                                  placeholder="Click each label to learn what it does."
+                                  minHeightPx={100}
+                                  style={{ fontSize: "0.9375rem" }}
+                                />
+                              </label>
+                              <input
+                                ref={(el) => {
+                                  fileInputRef.current[`${key}:idiagram`] = el;
+                                }}
+                                type="file"
+                                accept="image/*"
+                                style={{ display: "none" }}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  uploadImageForInteractiveDiagram(
+                                    f,
+                                    currentPage!.pageId,
+                                    idx,
+                                    (url) => updateBlock(currentPage!.pageId, idx, { imageUrl: url })
+                                  );
+                                  e.target.value = "";
+                                }}
+                              />
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const input = fileInputRef.current[`${key}:idiagram`];
+                                    if (input) {
+                                      input.value = "";
+                                      input.click();
+                                    }
+                                  }}
+                                  disabled={uploadingKey === `${key}:idiagram`}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 8,
+                                    border: "2px solid rgba(220,38,38,0.35)",
+                                    background: "rgba(254,242,242,0.6)",
+                                    cursor: uploadingKey === `${key}:idiagram` ? "not-allowed" : "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {uploadingKey === `${key}:idiagram` ? "Uploading…" : "Upload image"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const h = (b as LessonPageBlock).hotspots ?? [];
+                                    updateBlock(currentPage!.pageId, idx, {
+                                      hotspots: [
+                                        ...h,
+                                        {
+                                          id: newId(),
+                                          x: 50,
+                                          y: 50,
+                                          label: "New hotspot",
+                                          description: "",
+                                        },
+                                      ],
+                                    });
+                                  }}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 8,
+                                    border: "2px solid #94a3b8",
+                                    background: "#f1f5f9",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  + Add hotspot
+                                </button>
+                              </div>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 12 }}>Image URL (optional)</div>
+                                <input
+                                  value={safeStr((b as LessonPageBlock).imageUrl, "")}
+                                  onChange={(e) => updateBlock(currentPage!.pageId, idx, { imageUrl: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px 10px",
+                                    borderRadius: 8,
+                                    border: "1px solid #cbd5e1",
+                                  }}
+                                  placeholder="https://… or from upload"
+                                />
+                              </label>
+                              {(() => {
+                                const src = (b as LessonPageBlock).imageUrl
+                                  ? makeAbsoluteAssetUrl(String((b as LessonPageBlock).imageUrl)) ?? ""
+                                  : "";
+                                if (!src) {
+                                  return (
+                                    <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+                                      Add an image, then click the preview to place a hotspot (or use Add hotspot and enter X/Y %).
+                                    </p>
+                                  );
+                                }
+                                return (
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                                      Click image to add hotspot
+                                    </div>
+                                    <div
+                                      style={{
+                                        position: "relative",
+                                        maxWidth: 560,
+                                        borderRadius: 10,
+                                        overflow: "hidden",
+                                        border: "1px solid #e2e8f0",
+                                        cursor: "crosshair",
+                                        lineHeight: 0,
+                                      }}
+                                      onClick={(e) => {
+                                        if (!(e.currentTarget instanceof HTMLElement)) return;
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        if (rect.width <= 0 || rect.height <= 0) return;
+                                        const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
+                                        const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
+                                        const h = (b as LessonPageBlock).hotspots ?? [];
+                                        updateBlock(currentPage!.pageId, idx, {
+                                          hotspots: [
+                                            ...h,
+                                            { id: newId(), x, y, label: "New hotspot", description: "" },
+                                          ],
+                                        });
+                                      }}
+                                      role="presentation"
+                                    >
+                                      <img
+                                        src={src}
+                                        alt="Diagram preview"
+                                        style={{ display: "block", width: "100%", height: "auto" }}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                              {((b as LessonPageBlock).hotspots ?? []).map((hot, hi) => (
+                                <div
+                                  key={hot.id || hi}
+                                  style={{
+                                    padding: 12,
+                                    borderRadius: 10,
+                                    border: "1px solid #fecaca",
+                                    background: "#fffbeb",
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 800, marginBottom: 8, color: "#991b1b" }}>
+                                    Hotspot {hi + 1}
+                                  </div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                                    <label style={{ display: "block", fontSize: 12 }}>
+                                      X (%)
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={Number.isFinite(hot.x) ? hot.x : 0}
+                                        onChange={(e) => {
+                                          const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                          const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                          if (list[hi]) list[hi] = { ...list[hi], x: v };
+                                          updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                        }}
+                                        style={{ width: "100%", marginTop: 4, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", fontSize: 12 }}>
+                                      Y (%)
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={Number.isFinite(hot.y) ? hot.y : 0}
+                                        onChange={(e) => {
+                                          const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                          const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                          if (list[hi]) list[hi] = { ...list[hi], y: v };
+                                          updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                        }}
+                                        style={{ width: "100%", marginTop: 4, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                      />
+                                    </label>
+                                  </div>
+                                  <label style={{ display: "block", marginBottom: 8 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12 }}>Label</div>
+                                    <input
+                                      value={hot.label ?? ""}
+                                      onChange={(e) => {
+                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                        if (list[hi]) list[hi] = { ...list[hi], label: e.target.value };
+                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                      }}
+                                      style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                    />
+                                  </label>
+                                  <label style={{ display: "block" }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Description</div>
+                                    <LessonAutoTextarea
+                                      editorVariant="plain"
+                                      value={hot.description ?? ""}
+                                      onChange={(v) => {
+                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                        if (list[hi]) list[hi] = { ...list[hi], description: v };
+                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                      }}
+                                      minHeightPx={72}
+                                      style={{ fontSize: "0.875rem" }}
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const list = ((b as LessonPageBlock).hotspots ?? []).filter((_, i) => i !== hi);
+                                      updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                    }}
+                                    style={{
+                                      marginTop: 8,
+                                      padding: "4px 10px",
+                                      borderRadius: 6,
+                                      border: "1px solid #f87171",
+                                      background: "#fef2f2",
+                                      color: "#b91c1c",
+                                      cursor: "pointer",
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Delete hotspot
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
                           ) : (
                             <>
                           <input
@@ -5585,6 +6423,47 @@ const EditLessonPage: React.FC = () => {
                             onChange={(next) =>
                               updateBlock(currentPage!.pageId, idx, { content: next })
                             }
+                            onKeyTermClick={() => {
+                              const el = blockTextareasRef.current[key];
+                              const full = safeStr(b.content, "");
+                              let initialTerm = "";
+                              let blockContext = full;
+                              let selectionStart = 0;
+                              let selectionEnd = 0;
+                              if (el) {
+                                const start = el.selectionStart ?? 0;
+                                const end = el.selectionEnd ?? 0;
+                                selectionStart = start;
+                                selectionEnd = end;
+                                if (end > start) {
+                                  initialTerm = el.value.slice(start, end).trim();
+                                }
+                                const lo = Math.min(start, end);
+                                const hi = Math.max(start, end);
+                                const rad = 220;
+                                const s = Math.max(0, lo - rad);
+                                const e2 = Math.min(full.length, hi + rad);
+                                blockContext =
+                                  (s > 0 ? "…" : "") + full.slice(s, e2).trim() + (e2 < full.length ? "…" : "");
+                              }
+                              setAddKeyTermDialog({
+                                pageId: currentPage!.pageId,
+                                pageTitle: safeStr(currentPage!.title, ""),
+                                initialTerm,
+                                blockContext: blockContext || full.slice(0, 2000),
+                                blockIndex: idx,
+                                selectionStart,
+                                selectionEnd,
+                              });
+                            }}
+                            onSuggestKeyTermsClick={() => {
+                              setSuggestKeyTermsDialog({
+                                pageId: currentPage!.pageId,
+                                blockIndex: idx,
+                                pageTitle: safeStr(currentPage!.title, ""),
+                                textareaKey: key,
+                              });
+                            }}
                             onPaste={(e) => {
                               const insert = getLessonPasteInsertText(e.clipboardData);
                               if (!insert) return;
@@ -5878,6 +6757,101 @@ const EditLessonPage: React.FC = () => {
                             options={Array.isArray(sb.options) ? sb.options : []}
                             correctAnswer={safeStr(sb.correctAnswer, "")}
                             explanation={safeStr(sb.explanation, "")}
+                          />
+                        </div>
+                      );
+                    }
+                    if (blockType === "interactiveSequence") {
+                      const isq = b as {
+                        title?: string;
+                        intro?: string;
+                        sequenceSteps?: Array<{
+                          title?: string;
+                          description?: string;
+                          imageUrl?: string;
+                          caption?: string;
+                        }>;
+                        steps?: Array<{
+                          title?: string;
+                          description?: string;
+                          imageUrl?: string;
+                          caption?: string;
+                        }>;
+                      };
+                      const rawSteps = Array.isArray(isq.sequenceSteps)
+                        ? isq.sequenceSteps
+                        : Array.isArray(isq.steps)
+                          ? isq.steps
+                          : [];
+                      const steps = rawSteps.map((s) => ({
+                        title: String(s?.title ?? ""),
+                        description: String(s?.description ?? ""),
+                        imageUrl: String(s?.imageUrl ?? ""),
+                        caption: String(s?.caption ?? ""),
+                      }));
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <InteractiveSequenceBlock
+                            blockTitle={safeStr(isq.title, "")}
+                            intro={safeStr(isq.intro, "")}
+                            steps={steps}
+                            resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                          />
+                        </div>
+                      );
+                    }
+                    if (blockType === "interactiveDiagram") {
+                      const idg = b as {
+                        title?: string;
+                        intro?: string;
+                        imageUrl?: string;
+                        hotspots?: Array<{
+                          id?: string;
+                          x?: number;
+                          y?: number;
+                          label?: string;
+                          description?: string;
+                        }>;
+                      };
+                      const hs = (Array.isArray(idg.hotspots) ? idg.hotspots : []).map((h, i) => ({
+                        id: String(h?.id || `h${i + 1}`),
+                        x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
+                        y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
+                        label: String(h?.label ?? ""),
+                        description: String(h?.description ?? ""),
+                      }));
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <InteractiveDiagramBlock
+                            blockTitle={safeStr(idg.title, "")}
+                            intro={safeStr(idg.intro, "")}
+                            imageUrl={String(idg.imageUrl ?? "")}
+                            hotspots={hs}
+                            resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                           />
                         </div>
                       );
@@ -6556,6 +7530,62 @@ const EditLessonPage: React.FC = () => {
           }
         }}
       />
+
+      {addKeyTermDialog && lesson ? (
+        <AddKeyTermDialog
+          open
+          onClose={() => setAddKeyTermDialog(null)}
+          initialTerm={addKeyTermDialog.initialTerm}
+          blockContext={addKeyTermDialog.blockContext}
+          pageTitle={addKeyTermDialog.pageTitle}
+          lessonTitle={lesson.title}
+          subject={lesson.subject}
+          level={lesson.level}
+          examBoardName={lesson.examBoardName}
+          topic={lesson.topic}
+          onAdd={(te, de) => {
+            const d = addKeyTermDialog;
+            if (!d) return;
+            const hasRange =
+              d.selectionStart !== d.selectionEnd &&
+              Math.min(d.selectionStart, d.selectionEnd) < Math.max(d.selectionStart, d.selectionEnd);
+            addPageKeyTermWithOptionalInline(
+              d.pageId,
+              te,
+              de,
+              hasRange
+                ? { blockIndex: d.blockIndex, selectionStart: d.selectionStart, selectionEnd: d.selectionEnd }
+                : null
+            );
+          }}
+        />
+      ) : null}
+
+      {suggestKeyTermsDialog && lesson ? (
+        <SuggestKeyTermsDialog
+          open
+          onClose={() => setSuggestKeyTermsDialog(null)}
+          lessonTitle={lesson.title}
+          subject={lesson.subject}
+          level={lesson.level}
+          examBoardName={lesson.examBoardName}
+          topic={lesson.topic}
+          pageTitle={suggestKeyTermsDialog.pageTitle}
+          getBlockText={() => {
+            const el = blockTextareasRef.current[suggestKeyTermsDialog.textareaKey];
+            if (el) return el.value;
+            const p = lesson.pages?.find(
+              (pg) => String(pg.pageId) === String(suggestKeyTermsDialog.pageId)
+            );
+            return String(p?.blocks?.[suggestKeyTermsDialog.blockIndex]?.content ?? "");
+          }}
+          onAddSelected={(items) => {
+            const d = suggestKeyTermsDialog;
+            if (!d) return;
+            applyBulkSuggestedKeyTerms(d.pageId, d.blockIndex, items);
+          }}
+        />
+      ) : null}
 
       {diagramPickerTarget && (
         <div

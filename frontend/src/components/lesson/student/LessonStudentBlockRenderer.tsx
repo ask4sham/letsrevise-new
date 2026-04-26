@@ -1,6 +1,10 @@
 import React from "react";
 import type { Components } from "react-markdown";
-import type { StudentLessonPageBlock } from "./types";
+import type {
+  InteractiveDiagramHotspotPersisted,
+  InteractiveSequenceStepPersisted,
+  StudentLessonPageBlock,
+} from "./types";
 import {
   StudentExamTipBlock,
   StudentExplanationBlock,
@@ -13,6 +17,9 @@ import {
 } from "./studentLessonBlocks";
 import type { ContentKeywordItem } from "./contentKeywordHighlight";
 import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
+import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../InteractiveSequenceBlock";
+import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
+import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -61,6 +68,46 @@ export function LessonStudentBlockRenderer({
     );
   }
 
+  if (kind === "interactiveSequence") {
+    const raw = (block as StudentLessonPageBlock).sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
+    const arr = Array.isArray(raw) ? raw : [];
+    const steps: InteractiveSequenceStep[] = arr.map((s) => ({
+      title: String(s?.title ?? ""),
+      description: String(s?.description ?? ""),
+      imageUrl: String(s?.imageUrl ?? ""),
+      caption: String(s?.caption ?? ""),
+    }));
+    return (
+      <InteractiveSequenceBlock
+        blockTitle={String(block.title ?? "")}
+        intro={String(block.intro ?? "")}
+        steps={steps}
+        resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+      />
+    );
+  }
+
+  if (kind === "interactiveDiagram") {
+    const raw = (block as StudentLessonPageBlock).hotspots;
+    const arr = Array.isArray(raw) ? raw : [];
+    const hotspots: InteractiveDiagramHotspot[] = arr.map((h: InteractiveDiagramHotspotPersisted) => ({
+      id: String(h?.id ?? ""),
+      x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
+      y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
+      label: String(h?.label ?? ""),
+      description: String(h?.description ?? ""),
+    }));
+    return (
+      <InteractiveDiagramBlock
+        blockTitle={String(block.title ?? "")}
+        intro={String(block.intro ?? "")}
+        imageUrl={String((block as StudentLessonPageBlock).imageUrl ?? "")}
+        hotspots={hotspots}
+        resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+      />
+    );
+  }
+
   if (kind === "diagram") {
     return (
       <div className="lesson-student-diagram-slot">{renderDiagramBlock(block, blockIndex)}</div>
@@ -90,9 +137,17 @@ export function LessonStudentBlockRenderer({
     return <StudentWorkedExampleBlock {...mdProps} />;
   }
 
+  // Comma-separated "key words" list callout: only when we are NOT also showing page/lesson
+  // glossary key terms. StudentKeyWordsBlock does not run LessonStudentMarkdown, so it would
+  // show bold/list only with zero KeywordMark (no red "i") — a common cause of "Add key term
+  // does nothing" on short text blocks.
   if (kind === "keyWords") {
     const keywords = maybeParseKeywordsFromText(cleanedText);
-    if (keywords && keywords.length > 0) {
+    if (
+      keywords &&
+      keywords.length > 0 &&
+      (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
+    ) {
       return <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />;
     }
     return <StudentExplanationBlock {...mdProps} />;
@@ -100,7 +155,11 @@ export function LessonStudentBlockRenderer({
 
   if (kind === "text") {
     const keywords = maybeParseKeywordsFromText(cleanedText);
-    if (keywords && keywords.length > 0) {
+    if (
+      keywords &&
+      keywords.length > 0 &&
+      (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
+    ) {
       return <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />;
     }
     return <StudentExplanationBlock {...mdProps} />;

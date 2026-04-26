@@ -34,6 +34,8 @@ import { QuizView } from "../components/revision/QuizView";
 import { Section } from "../components/lesson/Section";
 import { LessonCheckpoint } from "../components/lesson/LessonCheckpoint";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
+import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
+import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -67,6 +69,7 @@ import {
   mergeContentKeywordLists,
   mergeLessonMarkdownComponentsWithKeywordHighlight,
   normalizeContentKeywords,
+  KeywordHighlightOnceProvider,
 } from "../components/lesson/student/contentKeywordHighlight";
 import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
 import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
@@ -100,8 +103,17 @@ interface LessonPageBlock {
     | "selfCheck"
     | "diagram"
     | "keyWords"
-    | "pageQuiz";
+    | "pageQuiz"
+    | "interactiveSequence"
+    | "interactiveDiagram";
   content?: string;
+  /** Block heading (e.g. interactive sequence activity title) */
+  title?: string;
+  /** type === "interactiveSequence" | "interactiveDiagram" */
+  intro?: string;
+  sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
+  /** type === "interactiveDiagram" — x/y as % 0–100 */
+  hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
   prompt?: string;
   questionType?: "mcq" | "short";
   options?: string[];
@@ -2296,6 +2308,14 @@ const LessonViewPage: React.FC = () => {
           : "—");
 
       const quizData = data.quiz || {};
+
+      // GET /api/lessons/:id includes lesson-level Mixed `metadata` (e.g. contentKeywords) — must
+      // keep it here or mergeContentKeywordLists in lessonHighlightKeywords never sees lesson terms.
+      const apiLessonMetadata = (data as { metadata?: unknown }).metadata;
+      const lessonMetadataFromApi =
+        apiLessonMetadata != null && typeof apiLessonMetadata === "object" && !Array.isArray(apiLessonMetadata)
+          ? (apiLessonMetadata as Lesson["metadata"])
+          : undefined;
       
       const mapped: Lesson = {
         id: safeStr(data._id || data.id || lessonId, lessonId),
@@ -2335,6 +2355,7 @@ const LessonViewPage: React.FC = () => {
           ? data.assessmentPaperIds.map((id: any) => String(id))
           : [],
         pastPapers: Array.isArray(data.pastPapers) ? data.pastPapers : undefined,
+        ...(lessonMetadataFromApi ? { metadata: lessonMetadataFromApi } : {}),
       };
 
       // Phase C3: Detect preview mode from backend flag (or accessDecision)
@@ -2536,7 +2557,27 @@ const LessonViewPage: React.FC = () => {
     const pageKw = normalizeContentKeywords(
       (currentPage as { metadata?: { contentKeywords?: unknown } } | null)?.metadata?.contentKeywords
     );
-    return mergeContentKeywordLists(lessonKw, pageKw);
+    const merged = mergeContentKeywordLists(lessonKw, pageKw);
+    if (
+      process.env.NODE_ENV === "development" &&
+      typeof window !== "undefined" &&
+      (window as { __LR_DEBUG_STUDENT_KEYWORDS__?: boolean }).__LR_DEBUG_STUDENT_KEYWORDS__ === true
+    ) {
+      // eslint-disable-next-line no-console
+      console.log("[LessonViewPage] student keyword trace", {
+        currentPageId: (currentPage as { pageId?: string } | null)?.pageId ?? null,
+        currentPageTitle: (currentPage as { title?: string } | null)?.title ?? null,
+        lessonMetadataKeys: lesson ? Object.keys((lesson as { metadata?: object }).metadata ?? {}) : [],
+        pageMetadataKeys: (currentPage as { metadata?: object } | null)?.metadata
+          ? Object.keys((currentPage as { metadata: object }).metadata)
+          : [],
+        lessonContentKeywordsCount: lessonKw.length,
+        pageContentKeywordsCount: pageKw.length,
+        mergedCount: merged.length,
+        terms: merged.map((k) => k.term),
+      });
+    }
+    return merged;
   }, [lesson, currentPage]);
 
   const lessonViewMarkdownComponents = useMemo(
@@ -3594,6 +3635,7 @@ const LessonViewPage: React.FC = () => {
 
             {/* MAIN CONTENT CARD — mobile: clean article flow; desktop: card */}
             <main style={{ order: layoutStacked ? 1 : undefined, minWidth: 0, width: "100%", maxWidth: "100%" }}>
+              <div className="lesson-focus-container">
               <div
                 className={
                   v12StudentPresentation
@@ -3617,10 +3659,11 @@ const LessonViewPage: React.FC = () => {
                   minWidth: 0,
                   margin: layoutStacked ? 0 : "0 auto",
                   boxSizing: "border-box",
+                  /* V12+desktop: flat inside .lesson-focus-container — shadow removed in lessonStudentView.css */
                   boxShadow: layoutStacked
                     ? "none"
                     : v12StudentPresentation
-                      ? "0 4px 36px rgba(15, 23, 42, 0.07)"
+                      ? "none"
                       : "0 10px 28px rgba(0,0,0,0.08)",
                   border: layoutStacked
                     ? "none"
@@ -3800,6 +3843,7 @@ const LessonViewPage: React.FC = () => {
                     topicKey={topicKeyForBank}
                     specKey={specKey ? String(specKey) : null}
                   >
+                  <KeywordHighlightOnceProvider resetKey={String(currentPage.pageId)}>
                   {v12StudentPresentation
                     ? chunkBlocksForTeachingLayout(blockRenderList).map((chunk, chunkIdx) => (
                         <LessonStudentChunk
@@ -3855,6 +3899,32 @@ const LessonViewPage: React.FC = () => {
                               explanation={safeStr(b.explanation, "")}
                               presentation={v12StudentPresentation ? "v12" : "default"}
                             />
+                          ) : b.type === "interactiveSequence" ? (
+                            <InteractiveSequenceBlock
+                              blockTitle={safeStr(b.title, "")}
+                              intro={safeStr(b.intro, "")}
+                              steps={(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []).map((s) => ({
+                                title: String(s?.title ?? ""),
+                                description: String(s?.description ?? ""),
+                                imageUrl: String(s?.imageUrl ?? ""),
+                                caption: String(s?.caption ?? ""),
+                              }))}
+                              resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                            />
+                          ) : b.type === "interactiveDiagram" ? (
+                            <InteractiveDiagramBlock
+                              blockTitle={safeStr(b.title, "")}
+                              intro={safeStr(b.intro, "")}
+                              imageUrl={safeStr(b.imageUrl, "")}
+                              hotspots={(Array.isArray(b.hotspots) ? b.hotspots : []).map((h, i) => ({
+                                id: String(h?.id || `h${i + 1}`),
+                                x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
+                                y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
+                                label: String(h?.label ?? ""),
+                                description: String(h?.description ?? ""),
+                              }))}
+                              resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                            />
                           ) : (
                             renderCallout(b.type, safeStr(b.content, ""), idx)
                           )}
@@ -3881,6 +3951,7 @@ const LessonViewPage: React.FC = () => {
                           )}
                         </div>
                       ))}
+                  </KeywordHighlightOnceProvider>
                   </KeywordGlossaryProvider>
                 </div>
 
@@ -4426,6 +4497,7 @@ const LessonViewPage: React.FC = () => {
                 </>
                 )}
               </div>
+              </div>
             </main>
 
             {/* RIGHT RAIL — hidden on mobile; compact bar shows progress */}
@@ -4445,7 +4517,7 @@ const LessonViewPage: React.FC = () => {
                   borderRadius: 14,
                   padding: 14,
                   boxShadow: v12StudentPresentation
-                    ? "0 1px 10px rgba(15,23,42,0.05)"
+                    ? "none"
                     : "0 6px 18px rgba(0,0,0,0.06)",
                   border: v12StudentPresentation
                     ? "1px solid #e8ecf1"
@@ -4837,9 +4909,11 @@ const LessonViewPage: React.FC = () => {
               topicKey={topicKeyForBank}
               specKey={specKey ? String(specKey) : null}
             >
+              <KeywordHighlightOnceProvider resetKey={id ?? "legacy"}>
               <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
                 {preprocessMarkdownAssetUrls(stripVideoMarkdown(lesson.content || ""))}
               </LessonMarkdown>
+              </KeywordHighlightOnceProvider>
             </KeywordGlossaryProvider>
           </div>
         </div>

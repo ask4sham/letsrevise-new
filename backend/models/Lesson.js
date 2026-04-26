@@ -52,12 +52,46 @@ const DiagramConnectorSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/** Step content for type === "interactiveSequence" (mitosis walkthrough, etc.) — not diagram step mode. */
+const InteractiveSequenceStepSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "" },
+    description: { type: String, default: "" },
+    imageUrl: { type: String, default: "" },
+    caption: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+/** type === "interactiveDiagram" — x/y 0–100 (percentage left/top) */
+const InteractiveDiagramHotspotSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    x: { type: Number, min: 0, max: 100, default: 50 },
+    y: { type: Number, min: 0, max: 100, default: 50 },
+    label: { type: String, default: "" },
+    description: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const LessonPageBlockSchema = new mongoose.Schema(
   {
-    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "pageQuiz" | "diagram"
+    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "pageQuiz" | "diagram" | "interactiveSequence" | "interactiveDiagram"
     type: {
       type: String,
-      enum: ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "pageQuiz", "diagram"],
+      enum: [
+        "text",
+        "keyIdea",
+        "examTip",
+        "commonMistake",
+        "stretch",
+        "checkpoint",
+        "pageQuiz",
+        "diagram",
+        "interactiveSequence",
+        "interactiveDiagram",
+      ],
       default: "text",
     },
     content: { type: String, default: "" }, // markdown-friendly (for text/keyIdea/examTip/commonMistake/stretch)
@@ -96,6 +130,12 @@ const LessonPageBlockSchema = new mongoose.Schema(
     imageUrl: { type: String },
     imageSource: { type: String },
     alt: { type: String },
+
+    /** type === "interactiveSequence" | "interactiveDiagram" */
+    intro: { type: String, default: undefined },
+    sequenceSteps: { type: [InteractiveSequenceStepSchema], default: undefined },
+    /** type === "interactiveDiagram" */
+    hotspots: { type: [InteractiveDiagramHotspotSchema], default: undefined },
   },
   { _id: false }
 );
@@ -191,6 +231,12 @@ const LessonPageSchema = new mongoose.Schema(
       ref: "VisualModel",
       default: undefined,
     },
+
+    /**
+     * Optional: student glossary (contentKeywords) and other per-page flags.
+     * Mixed so we can add fields without migrations; keep sanitisation in route layer.
+     */
+    metadata: { type: mongoose.Schema.Types.Mixed, default: undefined },
   },
   { _id: false }
 );

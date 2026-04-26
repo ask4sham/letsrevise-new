@@ -52,7 +52,7 @@ export function chunkBlocksForTeachingLayout<T extends { type?: string }>(
       continue;
     }
 
-    if (t === "diagram") {
+    if (t === "diagram" || t === "interactivesequence" || t === "interactivediagram") {
       current.push(item);
       groups.push(current);
       current = [];

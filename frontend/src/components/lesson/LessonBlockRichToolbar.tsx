@@ -66,6 +66,10 @@ function prefixCurrentLine(textarea: HTMLTextAreaElement, prefix: string): { nex
 export type LessonBlockRichToolbarProps = {
   getTextarea: () => HTMLTextAreaElement | null;
   onApply: (value: string, cursorPos: number) => void;
+  /** Glossary: uses current selection; parent opens AddKeyTermDialog. */
+  onKeyTermClick?: () => void;
+  /** Optional: AI-suggested key terms for the current block. */
+  onSuggestKeyTermsClick?: () => void;
 };
 
 const toolbarBtn: React.CSSProperties = {
@@ -79,7 +83,12 @@ const toolbarBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRichToolbarProps) {
+export function LessonBlockRichToolbar({
+  getTextarea,
+  onApply,
+  onKeyTermClick,
+  onSuggestKeyTermsClick,
+}: LessonBlockRichToolbarProps) {
   const [pasteFmtOpen, setPasteFmtOpen] = useState(false);
   const [pasteFmtBuffer, setPasteFmtBuffer] = useState("");
 
@@ -235,6 +244,46 @@ export function LessonBlockRichToolbar({ getTextarea, onApply }: LessonBlockRich
             {icon}
           </button>
         ))}
+        {onKeyTermClick ? (
+          <button
+            type="button"
+            title="Add glossary definition"
+            aria-label="Add glossary definition (key term)"
+            onClick={onKeyTermClick}
+            style={{
+              ...toolbarBtn,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              fontSize: 12,
+              lineHeight: 1.2,
+            }}
+          >
+            <span style={{ fontSize: 15 }} aria-hidden>🔑</span>
+            <span>Key term</span>
+          </button>
+        ) : null}
+        {onSuggestKeyTermsClick ? (
+          <button
+            type="button"
+            title="Get AI-suggested key terms for this block"
+            aria-label="Suggest key terms"
+            onClick={onSuggestKeyTermsClick}
+            style={{
+              ...toolbarBtn,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              fontSize: 12,
+              lineHeight: 1.2,
+            }}
+          >
+            <span style={{ fontSize: 15 }} aria-hidden>✨</span>
+            <span>Suggest key terms</span>
+          </button>
+        ) : null}
       </div>
     </div>
     {pasteFmtOpen && (

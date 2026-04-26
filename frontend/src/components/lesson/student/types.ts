@@ -10,11 +10,33 @@ export type StudentLessonBlockType =
   | "checkpoint"
   | "selfCheck"
   | "diagram"
-  | "keyWords";
+  | "keyWords"
+  | "interactiveSequence"
+  | "interactiveDiagram";
+
+export type InteractiveSequenceStepPersisted = {
+  title: string;
+  description: string;
+  imageUrl: string;
+  caption: string;
+};
+
+export type InteractiveDiagramHotspotPersisted = {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  description: string;
+};
 
 export type StudentLessonPageBlock = {
   type: string;
   content?: string;
+  title?: string;
+  intro?: string;
+  /** Persisted name; API may also send `steps` as an alias when saving. */
+  sequenceSteps?: InteractiveSequenceStepPersisted[];
+  hotspots?: InteractiveDiagramHotspotPersisted[];
   prompt?: string;
   questionType?: string;
   options?: string[];

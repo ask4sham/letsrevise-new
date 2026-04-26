@@ -140,3 +140,161 @@ export async function structureNotes(params: StructureNotesParams): Promise<Stru
   });
   return res.data;
 }
+
+/**
+ * Suggested glossary definition for a key term (teacher review before save).
+ * Reuses {@link explainChunk} — instructions are packed into the `text` field.
+ */
+export type SuggestKeyTermDefinitionParams = {
+  term: string;
+  lessonTitle: string;
+  subject: string;
+  level: string;
+  examBoardName?: string | null;
+  topic: string;
+  pageTitle: string;
+  blockContext: string;
+};
+
+const KEY_TERM_DEF_MAX = 300;
+
+function clipKeyTermDefinition(s: string, max: number): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).trimEnd()}…`;
+}
+
+export async function suggestKeyTermDefinition(
+  params: SuggestKeyTermDefinitionParams
+): Promise<{ definition: string; _disabled?: boolean }> {
+  const term = String(params.term || "").trim();
+  if (!term) {
+    throw new Error("term is required");
+  }
+  const blockContext = String(params.blockContext || "")
+    .trim()
+    .slice(0, 3500);
+  const board = params.examBoardName?.trim() || "—";
+  const text = [
+    "TASK: Write a very short glossary definition for the term below, for students reading this lesson. Reply with plain text only.",
+    "",
+    `Term: ${term}`,
+    `Lesson title: ${String(params.lessonTitle || "").trim() || "—"}`,
+    `Page title: ${String(params.pageTitle || "").trim() || "—"}`,
+    `Subject: ${String(params.subject || "").trim() || "—"}`,
+    `Level: ${String(params.level || "").trim() || "—"}`,
+    `Exam board: ${board}`,
+    `Topic: ${String(params.topic || "").trim() || "—"}`,
+    "",
+    "Lesson extract (context around the term; may be truncated):",
+    "---",
+    blockContext || "(none)",
+    "---",
+    "",
+    "Rules:",
+    "- British English, simple language, suitable for the level and subject above.",
+    "- Exactly 1–2 short sentences, at most 300 characters total.",
+    "- No markdown, no bullet points, no heading, no surrounding quotation marks for the whole answer.",
+    "- Define the term in the context of this lesson, not a generic dictionary entry.",
+  ].join("\n");
+
+  const res = await explainChunk({
+    text,
+    level: params.level,
+    subject: params.subject,
+  });
+  let def = String(res.explanation || "").trim();
+  def = def
+    .replace(/^\*+|\*+$/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/^["']|["']$/g, "")
+    .trim();
+  def = clipKeyTermDefinition(def, KEY_TERM_DEF_MAX);
+  return { definition: def, _disabled: res._disabled };
+}
+
+/** Suggested key terms for a single lesson block (AI returns JSON; parsed on the client). */
+export type SuggestKeyTermsForBlockParams = {
+  lessonTitle: string;
+  subject: string;
+  level: string;
+  examBoardName?: string | null;
+  topic: string;
+  pageTitle: string;
+  blockText: string;
+};
+
+export type SuggestedKeyTermRow = { term: string; definition: string };
+
+/**
+ * Reuses {@link explainChunk} — instruction + JSON request are packed into `text`.
+ * Returns 5–8 terms or throws if the model output is not valid JSON.
+ */
+export function parseSuggestedKeyTermsJson(raw: string): SuggestedKeyTermRow[] | null {
+  try {
+    let t = String(raw || "").trim();
+    if (t.startsWith("```")) {
+      t = t
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/m, "")
+        .trim();
+    }
+    const data = JSON.parse(t) as unknown;
+    if (!Array.isArray(data)) return null;
+    const out: SuggestedKeyTermRow[] = [];
+    for (const row of data) {
+      if (!row || typeof row !== "object") continue;
+      const o = row as Record<string, unknown>;
+      const term = typeof o.term === "string" ? o.term.trim() : "";
+      const definition = typeof o.definition === "string" ? o.definition.trim() : "";
+      if (!term) continue;
+      out.push({ term, definition });
+    }
+    return out.length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function suggestKeyTermsForBlock(
+  params: SuggestKeyTermsForBlockParams
+): Promise<{ items: SuggestedKeyTermRow[]; _disabled?: boolean }> {
+  const blockText = String(params.blockText || "")
+    .trim()
+    .slice(0, 12000);
+  if (!blockText) {
+    throw new Error("empty_block");
+  }
+  const board = params.examBoardName?.trim() || "—";
+  const text = [
+    "TASK: Return 5–8 important GCSE-friendly key terms from the lesson block below.",
+    "For each term, use the wording as it appears in the text when possible.",
+    "Each definition must be exactly one short GCSE-friendly sentence.",
+    "Reply with JSON only — a single JSON array. No markdown fences, no commentary before or after.",
+    "Each object must have keys term (string) and definition (string).",
+    "",
+    `Lesson title: ${String(params.lessonTitle || "").trim() || "—"}`,
+    `Page title: ${String(params.pageTitle || "").trim() || "—"}`,
+    `Subject: ${String(params.subject || "").trim() || "—"}`,
+    `Level: ${String(params.level || "").trim() || "—"}`,
+    `Exam board: ${board}`,
+    `Topic: ${String(params.topic || "").trim() || "—"}`,
+    "",
+    "Block text:",
+    "---",
+    blockText,
+    "---",
+  ].join("\n");
+
+  const res = await explainChunk({
+    text,
+    level: params.level,
+    subject: params.subject,
+  });
+  const raw = String(res.explanation || "").trim();
+  const items = parseSuggestedKeyTermsJson(raw);
+  if (!items) {
+    throw new Error("parse");
+  }
+  return { items, _disabled: res._disabled };
+}

@@ -42,6 +42,7 @@ export function StudentKeyIdeaBlock({
   content,
   markdownComponents,
   enableMarkdownMediaSplit,
+  highlightKeywords,
 }: MdProps) {
   if (enableMarkdownMediaSplit) {
     return (
@@ -49,12 +50,15 @@ export function StudentKeyIdeaBlock({
         content={content}
         markdownComponents={markdownComponents}
         wrapperClassName="lesson-content student-block student-block--key"
+        highlightKeywords={highlightKeywords}
       />
     );
   }
   return (
     <div className="lesson-content student-block student-block--key">
-      <LessonStudentMarkdown components={markdownComponents}>{content}</LessonStudentMarkdown>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
     </div>
   );
 }

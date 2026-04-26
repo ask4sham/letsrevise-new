@@ -48,6 +48,9 @@ async function generateLessonQuizFromTopic({ lessonId, userId, opts = {} }) {
     .sort({ createdAt: 1 })
     .lean();
 
+  /** General lesson-level quiz (not page-scoped). Student view: END bucket on multi-page; matches Edit merge. */
+  const END_OF_LESSON_PAGE_ID = "END";
+
   const questions = bankQuestions.map((q, i) => {
     const choices = Array.isArray(q.choices) ? q.choices : [];
     const correctIndex = Math.min(Math.max(0, Number(q.correctIndex)), Math.max(0, choices.length - 1));
@@ -62,6 +65,7 @@ async function generateLessonQuizFromTopic({ lessonId, userId, opts = {} }) {
       tags: Array.isArray(q.tags) ? q.tags : [],
       difficulty: 1,
       marks: 1,
+      pageId: END_OF_LESSON_PAGE_ID,
     };
   });
 

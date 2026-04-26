@@ -30,7 +30,9 @@ export type LessonBlockType =
   /** Inline self-check — independent of page.checkpoint; reveal-answer only for students */
   | "selfCheck"
   | "pageQuiz"
-  | "diagram";
+  | "diagram"
+  | "interactiveSequence"
+  | "interactiveDiagram";
 
 /** Legacy block type strings that may come from the API. */
 export type LegacyBlockType =
@@ -139,6 +141,22 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(34,197,94,0.06)",
     },
   },
+  interactiveSequence: {
+    label: "Interactive sequence",
+    icon: "🔁",
+    style: {
+      border: "1px solid rgba(99,102,241,0.35)",
+      background: "rgba(99,102,241,0.06)",
+    },
+  },
+  interactiveDiagram: {
+    label: "Interactive diagram",
+    icon: "📍",
+    style: {
+      border: "1px solid rgba(220,38,38,0.3)",
+      background: "rgba(254,242,242,0.5)",
+    },
+  },
 };
 
 /**
@@ -165,6 +183,8 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "checkpoint":
     case "selfCheck":
     case "diagram":
+    case "interactiveSequence":
+    case "interactiveDiagram":
       return t as LessonBlockType;
     default:
       return "text";
@@ -193,6 +213,10 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "pageQuiz";
     case "diagram":
       return "diagram";
+    case "interactiveSequence":
+      return "interactiveSequence";
+    case "interactiveDiagram":
+      return "interactiveDiagram";
     case "text":
     case "keyWords":
       return t;
@@ -251,6 +275,7 @@ export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "deeperKnowledge",
   "checkpoint",
   "diagram",
+  "interactiveSequence",
 ];
 
 /** Option for add-block dropdown: maps role to block type + optional title. */
@@ -278,6 +303,8 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "finalMemoryRule", type: "keyIdeas", label: "Final memory rule (key idea)" },
   { role: "keyWords", type: "keyWords", label: "Key words" },
   { role: "deeperKnowledge", type: "deeperKnowledge", label: "Deeper knowledge (stretch)" },
+  { role: "sequence", type: "interactiveSequence", label: "Interactive sequence" },
+  { role: "hotspot", type: "interactiveDiagram", label: "Interactive diagram" },
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */
@@ -307,6 +334,10 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.06)" };
     case "diagram":
       return { ...base, border: "2px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.06)" };
+    case "interactiveSequence":
+      return { ...base, border: "2px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.08)" };
+    case "interactiveDiagram":
+      return { ...base, border: "2px solid rgba(220,38,38,0.4)", background: "rgba(254,242,242,0.7)" };
     case "text":
     default:
       return { ...base, border: "2px solid rgba(0,0,0,0.14)", background: "white" };

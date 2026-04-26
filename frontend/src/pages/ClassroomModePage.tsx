@@ -9,6 +9,8 @@ import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/asse
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
+import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
+import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
@@ -36,8 +38,24 @@ interface DiagramStep {
 }
 
 interface LessonPageBlock {
-  type: "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "selfCheck" | "diagram" | "keyWords";
+  type:
+    | "text"
+    | "keyIdea"
+    | "examTip"
+    | "commonMistake"
+    | "stretch"
+    | "checkpoint"
+    | "selfCheck"
+    | "diagram"
+    | "keyWords"
+    | "interactiveSequence"
+    | "interactiveDiagram";
   content?: string;
+  title?: string;
+  intro?: string;
+  sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
+  imageUrl?: string;
+  hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
   prompt?: string;
   questionType?: "mcq" | "short";
   options?: string[];
@@ -674,25 +692,62 @@ const ClassroomModePage: React.FC = () => {
           <div style={{ background: "white", borderRadius: 14, padding: 24, marginBottom: 24, border: "2px solid rgba(0,0,0,0.06)", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
             <h2 style={{ margin: "0 0 16px", fontSize: "1.2rem", color: "#111827" }}>{currentPage.title || `Page ${pageIndex + 1}`}</h2>
             <div>
-              {(currentPage.blocks || []).map((b, idx) =>
-                b.type === "checkpoint"
-                  ? renderCheckpointBlock(b, idx)
-                  : b.type === "selfCheck"
-                    ? (
-                        <div key={`selfcheck-${idx}`} style={{ marginTop: 8 }}>
-                          <InlineSelfCheckBlock
-                            prompt={safeStr(b.prompt, "")}
-                            questionType={b.questionType === "short" ? "short" : "mcq"}
-                            options={Array.isArray(b.options) ? b.options : []}
-                            correctAnswer={safeStr(b.correctAnswer, "")}
-                            explanation={safeStr(b.explanation, "")}
-                          />
-                        </div>
-                      )
-                    : b.type === "diagram"
-                      ? renderDiagramBlock(b, idx)
-                      : renderCallout(b.type, safeStr(b.content, ""), idx)
-              )}
+              {(currentPage.blocks || []).map((b, idx) => {
+                switch (b.type) {
+                  case "checkpoint":
+                    return renderCheckpointBlock(b, idx);
+                  case "selfCheck":
+                    return (
+                      <div key={`selfcheck-${idx}`} style={{ marginTop: 8 }}>
+                        <InlineSelfCheckBlock
+                          prompt={safeStr(b.prompt, "")}
+                          questionType={b.questionType === "short" ? "short" : "mcq"}
+                          options={Array.isArray(b.options) ? b.options : []}
+                          correctAnswer={safeStr(b.correctAnswer, "")}
+                          explanation={safeStr(b.explanation, "")}
+                        />
+                      </div>
+                    );
+                  case "diagram":
+                    return renderDiagramBlock(b, idx);
+                  case "interactiveSequence":
+                    return (
+                      <div key={`interact-seq-${idx}`} style={{ marginTop: 14 }}>
+                        <InteractiveSequenceBlock
+                          blockTitle={safeStr(b.title, "")}
+                          intro={safeStr(b.intro, "")}
+                          steps={(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []).map((s) => ({
+                            title: String(s?.title ?? ""),
+                            description: String(s?.description ?? ""),
+                            imageUrl: String(s?.imageUrl ?? ""),
+                            caption: String(s?.caption ?? ""),
+                          }))}
+                          resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                        />
+                      </div>
+                    );
+                  case "interactiveDiagram":
+                    return (
+                      <div key={`interact-diag-${idx}`} style={{ marginTop: 14 }}>
+                        <InteractiveDiagramBlock
+                          blockTitle={safeStr(b.title, "")}
+                          intro={safeStr(b.intro, "")}
+                          imageUrl={safeStr(b.imageUrl, "")}
+                          hotspots={(Array.isArray(b.hotspots) ? b.hotspots : []).map((h, i) => ({
+                            id: String(h?.id || `h${i + 1}`),
+                            x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
+                            y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
+                            label: String(h?.label ?? ""),
+                            description: String(h?.description ?? ""),
+                          }))}
+                          resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                        />
+                      </div>
+                    );
+                  default:
+                    return renderCallout(b.type, safeStr(b.content, ""), idx);
+                }
+              })}
             </div>
             {currentPage.checkpoint?.question &&
               Array.isArray(currentPage.checkpoint?.options) &&

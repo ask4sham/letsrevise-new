@@ -19,6 +19,8 @@ const FLASHCARD_LIMIT = 20;
 const QUIZ_MCQ_TARGET = 10;
 const QUIZ_SHORT_TARGET = 5;
 const EXAM_QUESTION_LIMIT = 15;
+/** General lesson-level quiz (topic bank auto-attach), not a specific page. */
+const END_OF_LESSON_PAGE_ID = "END";
 
 function hashString(s) {
   if (!s || typeof s !== "string") return 0;
@@ -248,6 +250,7 @@ async function autoAttachLessonContent({ lessonId, actorUserId, includeAssessmen
         tags: ["auto-attached", "topic-bank", topicKey].filter(Boolean),
         difficulty: 1,
         marks: 1,
+        pageId: END_OF_LESSON_PAGE_ID,
       };
     };
 

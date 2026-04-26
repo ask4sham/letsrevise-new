@@ -41,6 +41,10 @@ type LessonPageBlock = {
   content: string;
   title?: string;
   role?: string;
+  intro?: string;
+  sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
+  imageUrl?: string;
+  hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
   prompt?: string;
   questionType?: "mcq" | "short";
   options?: string[];
@@ -642,6 +646,26 @@ const CreateLessonPage: React.FC = () => {
             correctAnswer: "[Option 1]",
             explanation: "",
           };
+        } else if (type === "interactiveSequence") {
+          block = {
+            type: "interactiveSequence",
+            content: "",
+            title: "",
+            intro: "",
+            sequenceSteps: [
+              { title: "Step 1", description: "", imageUrl: "", caption: "" },
+              { title: "Step 2", description: "", imageUrl: "", caption: "" },
+            ],
+          };
+        } else if (type === "interactiveDiagram") {
+          block = {
+            type: "interactiveDiagram",
+            content: "",
+            title: "Interactive diagram",
+            intro: "Click each hotspot to learn more.",
+            imageUrl: "",
+            hotspots: [],
+          };
         } else {
           block = {
             type,
@@ -924,6 +948,56 @@ const CreateLessonPage: React.FC = () => {
       hero: { type: "none" as const, src: "", caption: "" },
       blocks: (p.blocks || []).map((b) => {
         const blockType = toLegacyBlockType(b.type);
+        if (blockType === "interactiveSequence") {
+          const rawSeq = Array.isArray(b.sequenceSteps) ? b.sequenceSteps : [];
+          const sequenceSteps = rawSeq
+            .map((s) => ({
+              title: s?.title != null ? String(s.title).trim() : "",
+              description: s?.description != null ? String(s.description).trim() : "",
+              imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
+              caption: s?.caption != null ? String(s.caption).trim() : "",
+            }))
+            .filter(
+              (s) =>
+                s.title.length > 0 || s.description.length > 0 || s.imageUrl.length > 0 || s.caption.length > 0
+            );
+          const defaultTwo = [
+            { title: "Step 1", description: "", imageUrl: "", caption: "" },
+            { title: "Step 2", description: "", imageUrl: "", caption: "" },
+          ];
+          const isOut: Record<string, unknown> = {
+            type: "interactiveSequence",
+            title: typeof b.title === "string" ? b.title.trim() : "",
+            intro: b.intro != null ? String(b.intro).trim() : "",
+            content: "",
+            sequenceSteps: sequenceSteps.length > 0 ? sequenceSteps : defaultTwo,
+          };
+          if (typeof b.role === "string" && b.role.trim()) isOut.role = b.role.trim();
+          return isOut;
+        }
+        if (blockType === "interactiveDiagram") {
+          const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
+          const hotspots = rawH.map((h, i) => ({
+            id: String((h as { id?: string }).id || `h${i + 1}`).trim() || `h${i + 1}`,
+            x: Math.max(0, Math.min(100, Number((h as { x?: number }).x) || 0)),
+            y: Math.max(0, Math.min(100, Number((h as { y?: number }).y) || 0)),
+            label: (h as { label?: string }).label != null ? String((h as { label?: string }).label).trim() : "",
+            description:
+              (h as { description?: string }).description != null
+                ? String((h as { description?: string }).description).trim()
+                : "",
+          }));
+          const idOut: Record<string, unknown> = {
+            type: "interactiveDiagram",
+            title: typeof b.title === "string" ? b.title.trim() : "",
+            intro: b.intro != null ? String(b.intro).trim() : "",
+            content: "",
+            imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
+            hotspots,
+          };
+          if (typeof b.role === "string" && b.role.trim()) idOut.role = b.role.trim();
+          return idOut;
+        }
         const out: Record<string, unknown> = {
           type: blockType,
           content: sanitizeTeacherMarkdown(String(b.content || "")),
@@ -1846,6 +1920,7 @@ const CreateLessonPage: React.FC = () => {
                                     })
                                   }
                                 />
+                                {b.type !== "interactiveSequence" && b.type !== "interactiveDiagram" && (
                                 <button
                                   onClick={() => triggerBlockUpload(pg.pageId, idx)}
                                   disabled={isUploading}
@@ -1853,6 +1928,7 @@ const CreateLessonPage: React.FC = () => {
                                 >
                                   {isUploading ? "Uploading..." : "Upload image / video"}
                                 </button>
+                                )}
                                 <button
                                   onClick={() => removeBlock(pg.pageId, idx)}
                                   style={{ ...ui.btnDanger, padding: "6px 10px" }}
@@ -1862,6 +1938,49 @@ const CreateLessonPage: React.FC = () => {
                               </div>
                             </div>
 
+                            {b.type === "interactiveSequence" || b.type === "interactiveDiagram" ? (
+                              <div
+                                style={{
+                                  marginTop: 10,
+                                  padding: 12,
+                                  background: "#f5f3ff",
+                                  borderRadius: 8,
+                                  border: "1px solid #c4b5fd",
+                                }}
+                              >
+                                <p style={{ margin: "0 0 10px", fontSize: 13, color: "#5b21b6", lineHeight: 1.5 }}>
+                                  {b.type === "interactiveDiagram"
+                                    ? "Configure the diagram image and hotspots in "
+                                    : "Configure steps and images in "}
+                                  <strong>Edit lesson</strong> after you save. You can set title and intro here first.
+                                </p>
+                                <label style={{ display: "block", marginBottom: 8 }}>
+                                  <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Activity title</div>
+                                  <input
+                                    value={safeStr(b.title, "")}
+                                    onChange={(e) => updateBlock(pg.pageId, idx, { title: e.target.value })}
+                                    style={{
+                                      width: "100%",
+                                      padding: "8px 10px",
+                                      borderRadius: 8,
+                                      border: "1px solid #c4b5fd",
+                                    }}
+                                  />
+                                </label>
+                                <label style={{ display: "block" }}>
+                                  <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Intro</div>
+                                  <LessonAutoTextarea
+                                    editorVariant="plain"
+                                    value={safeStr(b.intro, "")}
+                                    onChange={(v) => updateBlock(pg.pageId, idx, { intro: v })}
+                                    placeholder="Optional"
+                                    minHeightPx={80}
+                                    style={{ fontSize: "0.875rem" }}
+                                  />
+                                </label>
+                              </div>
+                            ) : (
+                              <>
                             {/* hidden file input per block */}
                             <input
                               ref={(el) => {
@@ -1932,6 +2051,8 @@ const CreateLessonPage: React.FC = () => {
                                 <li>Line breaks and empty lines are preserved in preview and when saved</li>
                               </ul>
                             </div>
+                              </>
+                            )}
                           </div>
                         );
                       })}

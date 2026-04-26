@@ -158,6 +158,34 @@ function makePageIdFallback(idx) {
   return `p_${Date.now()}_${idx}_${Math.random().toString(16).slice(2)}`;
 }
 
+/**
+ * Glossary / keyword highlight metadata (student view). Whitelist: contentKeywords only.
+ * @param {unknown} m
+ * @returns {{ contentKeywords: Array<{ term: string, definition?: string }> }|undefined}
+ */
+function sanitisePageMetadataForGlossary(m) {
+  if (!m || typeof m !== "object") return undefined;
+  const arr = m.contentKeywords;
+  if (!Array.isArray(arr) || arr.length === 0) return undefined;
+  const seen = new Set();
+  const out = [];
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const term = typeof item.term === "string" ? item.term.trim().slice(0, 200) : "";
+    if (!term) continue;
+    const k = term.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const row = { term };
+    if (typeof item.definition === "string" && item.definition.trim()) {
+      row.definition = item.definition.trim().slice(0, 8000);
+    }
+    out.push(row);
+    if (out.length >= 100) break;
+  }
+  return out.length ? { contentKeywords: out } : undefined;
+}
+
 /** Sanitize checkpoint.autoMark (keyword-bank auto-marking); omit if empty. */
 function sanitiseCheckpointAutoMark(raw) {
   if (!raw || typeof raw !== "object") return undefined;
@@ -226,7 +254,18 @@ function sanitisePageInput(p, isUpdate = false) {
     hero = { type: "none", src: "", caption: "" };
   }
 
-  const allowedBlockTypes = ["text", "keyIdea", "examTip", "commonMistake", "stretch", "checkpoint", "pageQuiz", "diagram"];
+  const allowedBlockTypes = [
+    "text",
+    "keyIdea",
+    "examTip",
+    "commonMistake",
+    "stretch",
+    "checkpoint",
+    "pageQuiz",
+    "diagram",
+    "interactiveSequence",
+    "interactiveDiagram",
+  ];
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
         const type = allowedBlockTypes.includes(String(b?.type)) ? String(b.type) : "text";
@@ -339,6 +378,76 @@ function sanitisePageInput(p, isUpdate = false) {
           if (typeof b?.role === "string" && b.role.trim()) diagramBlock.role = b.role.trim();
           return diagramBlock;
         }
+        if (type === "interactiveSequence") {
+          const title = typeof b?.title === "string" ? b.title.trim().slice(0, 240) : "";
+          const intro = typeof b?.intro === "string" ? b.intro.trim().slice(0, 4000) : "";
+          const rawSeq = Array.isArray(b?.sequenceSteps)
+            ? b.sequenceSteps
+            : Array.isArray(b?.steps)
+              ? b.steps
+              : [];
+          const sequenceSteps = rawSeq
+            .slice(0, 40)
+            .map((s) => {
+              if (!s || typeof s !== "object") {
+                return { title: "", description: "", imageUrl: "", caption: "" };
+              }
+              return {
+                title: typeof s.title === "string" ? s.title.trim().slice(0, 200) : "",
+                description: typeof s.description === "string" ? s.description.trim().slice(0, 8000) : "",
+                imageUrl: typeof s.imageUrl === "string" ? s.imageUrl.trim().slice(0, 2000) : "",
+                caption: typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "",
+              };
+            })
+            .filter((s) => s.title || s.description || s.imageUrl || s.caption);
+          const defaultTwo = [
+            { title: "Step 1", description: "", imageUrl: "", caption: "" },
+            { title: "Step 2", description: "", imageUrl: "", caption: "" },
+          ];
+          const seqOut = {
+            type: "interactiveSequence",
+            title,
+            intro,
+            sequenceSteps: sequenceSteps.length ? sequenceSteps : defaultTwo,
+          };
+          if (typeof b?.role === "string" && b.role.trim()) seqOut.role = b.role.trim();
+          return seqOut;
+        }
+        if (type === "interactiveDiagram") {
+          const title = typeof b?.title === "string" ? b.title.trim().slice(0, 240) : "";
+          const intro = typeof b?.intro === "string" ? b.intro.trim().slice(0, 4000) : "";
+          const imageUrl = typeof b?.imageUrl === "string" ? b.imageUrl.trim().slice(0, 2000) : "";
+          const rawH = Array.isArray(b?.hotspots) ? b.hotspots : [];
+          const hotspots = rawH
+            .slice(0, 40)
+            .map((h, i) => {
+              if (!h || typeof h !== "object")
+                return { id: `h${i + 1}`, x: 50, y: 50, label: "", description: "" };
+              const x = Math.max(0, Math.min(100, Number(h.x) || 0));
+              const y = Math.max(0, Math.min(100, Number(h.y) || 0));
+              const id =
+                typeof h.id === "string" && h.id.trim()
+                  ? h.id.trim().slice(0, 64)
+                  : `h${i + 1}`;
+              return {
+                id,
+                x,
+                y,
+                label: typeof h.label === "string" ? h.label.trim().slice(0, 200) : "",
+                description: typeof h.description === "string" ? h.description.trim().slice(0, 8000) : "",
+              };
+            })
+            .filter((h) => h.id);
+          const outId = {
+            type: "interactiveDiagram",
+            title,
+            intro,
+            ...(imageUrl ? { imageUrl } : {}),
+            hotspots,
+          };
+          if (typeof b?.role === "string" && b.role.trim()) outId.role = b.role.trim();
+          return outId;
+        }
         const out = {
           type,
           content: typeof b?.content === "string" ? b.content : "",
@@ -410,6 +519,8 @@ function sanitisePageInput(p, isUpdate = false) {
       ? String(p.visualModelId)
       : undefined;
 
+  const pageMetadata = sanitisePageMetadataForGlossary(p?.metadata);
+
   return {
     pageId,
     title: typeof p?.title === "string" ? p.title : "",
@@ -419,12 +530,28 @@ function sanitisePageInput(p, isUpdate = false) {
     blocks,
     checkpoint,
     ...(visualModelId ? { visualModelId } : {}),
+    ...(pageMetadata ? { metadata: pageMetadata } : {}),
   };
 }
 
 function sanitisePagesInput(pages, isUpdate = false) {
   if (!Array.isArray(pages)) return [];
   return pages.map((p) => sanitisePageInput(p, isUpdate));
+}
+
+/**
+ * If incoming page object did not include a `metadata` key at all, preserve glossary
+ * metadata from the existing DB page (partial client payloads used to wipe contentKeywords).
+ */
+function preservePageGlossaryMetadataIfMissingOnIncoming(incomingPage, existingPage, sanitizedPage) {
+  if (!sanitizedPage || sanitizedPage.metadata) return sanitizedPage;
+  if (!existingPage || !existingPage.metadata) return sanitizedPage;
+  if (incomingPage && Object.prototype.hasOwnProperty.call(incomingPage, "metadata")) {
+    return sanitizedPage;
+  }
+  const fromExisting = sanitisePageMetadataForGlossary(existingPage.metadata);
+  if (!fromExisting) return sanitizedPage;
+  return { ...sanitizedPage, metadata: fromExisting };
 }
 
 // ✅ NEW: Merge pages while preserving existing hero if not explicitly set in update
@@ -461,19 +588,42 @@ function mergePagesOnUpdate(lessonId, existingPages = [], incomingPages = []) {
         });
         
         // Incoming doesn't specify hero or sets it to "none", preserve existing hero
-        const sanitizedPage = sanitisePageInput(incomingPage, true);
+        let sanitizedPage = sanitisePageInput(incomingPage, true);
         sanitizedPage.hero = existingPage.hero;
+        sanitizedPage = preservePageGlossaryMetadataIfMissingOnIncoming(
+          incomingPage,
+          existingPage,
+          sanitizedPage
+        );
         result.push(sanitizedPage);
       } else if (incomingHero && incomingHero.type !== "none") {
         // Incoming has a valid hero, use it
-        result.push(sanitisePageInput(incomingPage, true));
+        result.push(
+          preservePageGlossaryMetadataIfMissingOnIncoming(
+            incomingPage,
+            existingPage,
+            sanitisePageInput(incomingPage, true)
+          )
+        );
       } else {
         // Edge case: use incoming as-is
-        result.push(sanitisePageInput(incomingPage, true));
+        result.push(
+          preservePageGlossaryMetadataIfMissingOnIncoming(
+            incomingPage,
+            existingPage,
+            sanitisePageInput(incomingPage, true)
+          )
+        );
       }
     } else {
       // No existing page or no existing hero, use incoming as-is
-      result.push(sanitisePageInput(incomingPage, true));
+      result.push(
+        preservePageGlossaryMetadataIfMissingOnIncoming(
+          incomingPage,
+          existingPage,
+          sanitisePageInput(incomingPage, true)
+        )
+      );
     }
   });
 
