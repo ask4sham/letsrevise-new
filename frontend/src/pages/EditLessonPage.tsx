@@ -37,6 +37,7 @@ import {
   selectionIntersectsDataKeyTermSpan,
 } from "../utils/keyTermInlineMarkers";
 import { AddBlockByRoleSelect } from "../components/lesson/AddBlockByRoleSelect";
+import { INTERACTIVE_DIAGRAM_TEMPLATES } from "../components/lesson/interactiveDiagramTemplates";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
 import { useTaxonomy } from "../hooks/useTaxonomy";
@@ -303,6 +304,8 @@ function newId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+const DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION = "Add explanation here.";
+
 function generateRevisionId() {
   return `rev_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
@@ -484,6 +487,8 @@ const EditLessonPage: React.FC = () => {
   const lastSaveFailureReasonRef = useRef<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string>("");
   const [uploadMsg, setUploadMsg] = useState<string>("");
+  const [interactiveDiagramTemplateSelect, setInteractiveDiagramTemplateSelect] = useState<Record<string, string>>({});
+  const [interactiveDiagramTemplateHint, setInteractiveDiagramTemplateHint] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [newFlashcard, setNewFlashcard] = useState({ front: "", back: "", tags: "" });
   const [newQuizQuestion, setNewQuizQuestion] = useState({
@@ -6219,7 +6224,7 @@ const EditLessonPage: React.FC = () => {
                                           x: 50,
                                           y: 50,
                                           label: "New hotspot",
-                                          description: "",
+                                          description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
                                         },
                                       ],
                                     });
@@ -6235,7 +6240,116 @@ const EditLessonPage: React.FC = () => {
                                 >
                                   + Add hotspot
                                 </button>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 6,
+                                    minWidth: 200,
+                                    flex: "1 1 220px",
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 800, fontSize: 12, color: "#0f172a" }}>Template</div>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                    <select
+                                      aria-label="Interactive diagram template"
+                                      value={interactiveDiagramTemplateSelect[key] ?? ""}
+                                      onChange={(e) =>
+                                        setInteractiveDiagramTemplateSelect((prev) => ({
+                                          ...prev,
+                                          [key]: e.target.value,
+                                        }))
+                                      }
+                                      style={{
+                                        padding: "8px 10px",
+                                        borderRadius: 8,
+                                        border: "1px solid #cbd5e1",
+                                        minWidth: 0,
+                                        flex: "1 1 160px",
+                                        fontSize: 14,
+                                        background: "#fff",
+                                      }}
+                                    >
+                                      <option value="">Choose template…</option>
+                                      {INTERACTIVE_DIAGRAM_TEMPLATES.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                          {t.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const selId = interactiveDiagramTemplateSelect[key] ?? "";
+                                        const tmpl = INTERACTIVE_DIAGRAM_TEMPLATES.find((t) => t.id === selId);
+                                        if (!tmpl) {
+                                          setSaveMsg("Choose a template first.");
+                                          setTimeout(() => setSaveMsg(""), 5000);
+                                          return;
+                                        }
+                                        const currentHotspots = (b as LessonPageBlock).hotspots ?? [];
+                                        if (currentHotspots.length > 0) {
+                                          if (!window.confirm("This will replace existing hotspots. Continue?")) {
+                                            return;
+                                          }
+                                        }
+                                        const patch: Partial<LessonPageBlock> = {
+                                          title: tmpl.title,
+                                          intro: tmpl.intro,
+                                          hotspots: tmpl.hotspots.map((row) => ({
+                                            id: newId(),
+                                            x: row.x,
+                                            y: row.y,
+                                            label: row.label,
+                                            description: row.description,
+                                          })),
+                                        };
+                                        if (tmpl.imageUrl) {
+                                          patch.imageUrl = tmpl.imageUrl;
+                                        }
+                                        updateBlock(currentPage!.pageId, idx, patch);
+                                        setInteractiveDiagramTemplateHint((prev) => ({
+                                          ...prev,
+                                          [key]:
+                                            "Template applied. Upload or choose the matching image, then adjust hotspot positions if needed.",
+                                        }));
+                                        setTimeout(() => {
+                                          setInteractiveDiagramTemplateHint((prev) => {
+                                            const next = { ...prev };
+                                            delete next[key];
+                                            return next;
+                                          });
+                                        }, 12000);
+                                      }}
+                                      style={{
+                                        padding: "8px 14px",
+                                        borderRadius: 8,
+                                        border: "2px solid #86efac",
+                                        background: "rgba(22, 163, 74, 0.08)",
+                                        color: "#14532d",
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      Apply template
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
+                              {interactiveDiagramTemplateHint[key] ? (
+                                <p
+                                  style={{
+                                    margin: "4px 0 0 0",
+                                    fontSize: 13,
+                                    lineHeight: 1.45,
+                                    color: "#0f766e",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {interactiveDiagramTemplateHint[key]}
+                                </p>
+                              ) : null}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 12 }}>Image URL (optional)</div>
                                 <input
@@ -6256,25 +6370,53 @@ const EditLessonPage: React.FC = () => {
                                   : "";
                                 if (!src) {
                                   return (
-                                    <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-                                      Add an image, then click the preview to place a hotspot (or use Add hotspot and enter X/Y %).
+                                    <p
+                                      style={{
+                                        margin: 0,
+                                        fontSize: 14,
+                                        lineHeight: 1.55,
+                                        color: "#475569",
+                                        padding: "10px 12px",
+                                        borderRadius: 10,
+                                        background: "rgba(241, 245, 249, 0.9)",
+                                        border: "1px solid #e2e8f0",
+                                      }}
+                                    >
+                                      <strong>Tip:</strong> Upload an image or paste a URL, then use the large preview.{" "}
+                                      <strong>Click the image to place a hotspot.</strong> Then edit its label and
+                                      description in the list below. You can also use <strong>+ Add hotspot</strong> to
+                                      place one at the centre and adjust X/Y %.
                                     </p>
                                   );
                                 }
                                 return (
                                   <div>
-                                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
-                                      Click image to add hotspot
-                                    </div>
+                                    <p
+                                      style={{
+                                        margin: "0 0 10px 0",
+                                        fontSize: 14,
+                                        lineHeight: 1.55,
+                                        color: "#0f172a",
+                                        fontWeight: 600,
+                                        padding: "10px 12px",
+                                        borderRadius: 10,
+                                        background: "rgba(219, 234, 254, 0.5)",
+                                        border: "1px solid #bfdbfe",
+                                      }}
+                                    >
+                                      Click the image to place a hotspot. Then edit its label and description below.
+                                    </p>
                                     <div
                                       style={{
                                         position: "relative",
-                                        maxWidth: 560,
-                                        borderRadius: 10,
+                                        width: "100%",
+                                        maxWidth: 960,
+                                        borderRadius: 12,
                                         overflow: "hidden",
                                         border: "1px solid #e2e8f0",
                                         cursor: "crosshair",
                                         lineHeight: 0,
+                                        boxShadow: "0 2px 12px rgba(15, 23, 42, 0.06)",
                                       }}
                                       onClick={(e) => {
                                         if (!(e.currentTarget instanceof HTMLElement)) return;
@@ -6286,7 +6428,13 @@ const EditLessonPage: React.FC = () => {
                                         updateBlock(currentPage!.pageId, idx, {
                                           hotspots: [
                                             ...h,
-                                            { id: newId(), x, y, label: "New hotspot", description: "" },
+                                            {
+                                              id: newId(),
+                                              x,
+                                              y,
+                                              label: "New hotspot",
+                                              description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
+                                            },
                                           ],
                                         });
                                       }}
@@ -6294,7 +6442,7 @@ const EditLessonPage: React.FC = () => {
                                     >
                                       <img
                                         src={src}
-                                        alt="Diagram preview"
+                                        alt="Diagram preview (click to add hotspot)"
                                         style={{ display: "block", width: "100%", height: "auto" }}
                                       />
                                     </div>
@@ -6311,9 +6459,35 @@ const EditLessonPage: React.FC = () => {
                                     background: "#fffbeb",
                                   }}
                                 >
-                                  <div style={{ fontWeight: 800, marginBottom: 8, color: "#991b1b" }}>
-                                    Hotspot {hi + 1}
+                                  <div style={{ fontWeight: 800, marginBottom: 10, color: "#991b1b" }}>
+                                    Marker {hi + 1}
                                   </div>
+                                  <label style={{ display: "block", marginBottom: 8 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12 }}>Label</div>
+                                    <input
+                                      value={hot.label ?? ""}
+                                      onChange={(e) => {
+                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                        if (list[hi]) list[hi] = { ...list[hi], label: e.target.value };
+                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                      }}
+                                      style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                    />
+                                  </label>
+                                  <label style={{ display: "block", marginBottom: 8 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Description</div>
+                                    <LessonAutoTextarea
+                                      editorVariant="plain"
+                                      value={hot.description ?? ""}
+                                      onChange={(v) => {
+                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                        if (list[hi]) list[hi] = { ...list[hi], description: v };
+                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                      }}
+                                      minHeightPx={72}
+                                      style={{ fontSize: "0.875rem" }}
+                                    />
+                                  </label>
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
                                     <label style={{ display: "block", fontSize: 12 }}>
                                       X (%)
@@ -6348,32 +6522,6 @@ const EditLessonPage: React.FC = () => {
                                       />
                                     </label>
                                   </div>
-                                  <label style={{ display: "block", marginBottom: 8 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 12 }}>Label</div>
-                                    <input
-                                      value={hot.label ?? ""}
-                                      onChange={(e) => {
-                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
-                                        if (list[hi]) list[hi] = { ...list[hi], label: e.target.value };
-                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                      }}
-                                      style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                                    />
-                                  </label>
-                                  <label style={{ display: "block" }}>
-                                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Description</div>
-                                    <LessonAutoTextarea
-                                      editorVariant="plain"
-                                      value={hot.description ?? ""}
-                                      onChange={(v) => {
-                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
-                                        if (list[hi]) list[hi] = { ...list[hi], description: v };
-                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                      }}
-                                      minHeightPx={72}
-                                      style={{ fontSize: "0.875rem" }}
-                                    />
-                                  </label>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -6381,7 +6529,7 @@ const EditLessonPage: React.FC = () => {
                                       updateBlock(currentPage!.pageId, idx, { hotspots: list });
                                     }}
                                     style={{
-                                      marginTop: 8,
+                                      marginTop: 0,
                                       padding: "4px 10px",
                                       borderRadius: 6,
                                       border: "1px solid #f87171",
