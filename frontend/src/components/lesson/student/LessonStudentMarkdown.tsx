@@ -36,7 +36,10 @@ export function LessonStudentMarkdown({
   }, [children, stripStructuralLabels]);
 
   const mergedComponents = useMemo(
-    () => mergeLessonMarkdownComponentsWithKeywordHighlight(components, highlightKeywords),
+    () =>
+      mergeLessonMarkdownComponentsWithKeywordHighlight(components, highlightKeywords, {
+        autoTextKeywordHighlights: false,
+      }),
     [components, highlightKeywords]
   );
 

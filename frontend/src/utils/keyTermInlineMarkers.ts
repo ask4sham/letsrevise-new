@@ -12,9 +12,22 @@ export function escapeKeyTermVisible(s: string): string {
 
 /** Same contract as EditLessonPage: attribute = glossary key, body = visible slice in the block. */
 export function buildKeyTermSpanHtml(termForLookup: string, visibleSlice: string): string | null {
-  const t = termForLookup.trim();
+  let t = termForLookup.trim();
+  t = t.replace(/\s+$/g, "");
+  t = t.replace(/\s+i$/i, "");
+  t = t.trim();
   if (!t) return null;
-  return `<span data-key-term="${escapeKeyTermAttr(t)}">${escapeKeyTermVisible(visibleSlice)}</span>`;
+  if (/[\n\r]/.test(t) || t.includes("<") || t.includes(">")) {
+    return null;
+  }
+  let vis = visibleSlice
+    .replace(/\s+$/g, "")
+    .replace(/\s+i$/i, "")
+    .replace(/^\s+/g, "");
+  if (/[\n\r]/.test(vis)) {
+    return null;
+  }
+  return `<span data-key-term="${escapeKeyTermAttr(t)}">${escapeKeyTermVisible(vis)}</span>`;
 }
 
 /** Ranges covering full `<span data-key-term=…>…</span>` including tags. */
@@ -43,6 +56,17 @@ export function findDataKeyTermSpanRanges(content: string): Array<{ start: numbe
 
 function matchOverlapsRanges(start: number, end: number, ranges: Array<{ start: number; end: number }>): boolean {
   return ranges.some((r) => !(end <= r.start || start >= r.end));
+}
+
+/** True if [lo, hi) overlaps an existing &lt;span data-key-term&gt;…&lt;/span&gt; (prevents double-wrap). */
+export function selectionIntersectsDataKeyTermSpan(
+  content: string,
+  lo: number,
+  hi: number
+): boolean {
+  if (lo >= hi) return false;
+  const ranges = findDataKeyTermSpanRanges(content);
+  return matchOverlapsRanges(lo, hi, ranges);
 }
 
 /**

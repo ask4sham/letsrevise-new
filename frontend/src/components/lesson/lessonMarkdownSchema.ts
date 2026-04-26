@@ -11,7 +11,9 @@ const defaultSpanAttrs = defaultSchema.attributes?.span;
 const spanAttributes: Array<[string, RegExp] | string> = [
   ...(Array.isArray(defaultSpanAttrs) ? (defaultSpanAttrs as Array<[string, RegExp] | string>) : []),
   ["className", LESSON_INLINE_CLASS],
+  // Editor HTML uses data-key-term; hast/rehype may expose it as dataKeyTerm or the literal name.
   ["dataKeyTerm", KEY_TERM_DATA_ATTR],
+  ["data-key-term", KEY_TERM_DATA_ATTR],
 ];
 
 /**

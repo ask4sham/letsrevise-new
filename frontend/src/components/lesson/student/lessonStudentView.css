@@ -1220,6 +1220,15 @@ h1.lesson-view-title-split .lesson-title-main {
 /* V12 rules are scoped under [data-lesson-presentation="v12"] — do not reset .lesson-content here:
    editor previews rely on index.css + lessonInlineFormats for .lesson-content typography. */
 
+/* Semantic hooks (used with .lesson-keyword-highlight in KeywordMark) */
+.keyword-highlight.no-definition {
+  cursor: default;
+}
+
+.keyword-highlight.interactive {
+  cursor: pointer;
+}
+
 /* Render-time glossary highlights (lesson/page metadata.contentKeywords) — not persisted in block HTML */
 .lesson-md-body .lesson-keyword-highlight,
 .lesson-keyword-highlight {
@@ -1229,11 +1238,27 @@ h1.lesson-view-title-split .lesson-title-main {
   padding: 0 0.12em;
   font-weight: inherit;
   box-decoration-break: clone;
+  /* Ensure clicks reach the mark/button (some layout shells use pointer-events: none on overlays). */
+  pointer-events: auto;
 }
 
-/* Author <span data-key-term="…"> only — subtle link-like affordance; red "i" stays primary */
+/* Author <span data-key-term="…"> — link-like affordance + pointer only when a definition exists (interactive branch) */
 .lesson-keyword-highlight--data-key-term {
+  cursor: default;
+}
+
+.lesson-keyword-highlight--data-key-term.lesson-keyword-highlight--interactive,
+.lesson-keyword-highlight--data-key-term .lesson-keyword-highlight__btn {
   cursor: pointer;
+}
+
+/* No definition: keep highlight, no link underline or link hover (KeywordMark non-interactive path) */
+.lesson-keyword-highlight--data-key-term.lesson-keyword-highlight--data-key-term--no-def .keyword-text {
+  text-decoration: none;
+}
+
+.lesson-keyword-highlight--data-key-term.lesson-keyword-highlight--data-key-term--no-def:hover {
+  background: rgba(59, 130, 246, 0.14);
 }
 
 .lesson-keyword-highlight--data-key-term .keyword-text {
@@ -1281,6 +1306,7 @@ h1.lesson-view-title-split .lesson-title-main {
   cursor: pointer;
   text-align: inherit;
   box-decoration-break: clone;
+  pointer-events: auto;
 }
 
 .lesson-keyword-highlight__btn:hover,

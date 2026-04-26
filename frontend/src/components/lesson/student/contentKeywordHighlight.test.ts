@@ -1,5 +1,10 @@
 import { isValidElement, type ReactNode } from "react";
-import { highlightPlainTextToNodes, type ContentKeywordItem } from "./contentKeywordHighlight";
+import {
+  highlightPlainTextToNodes,
+  mergeContentKeywordLists,
+  normalizeContentKeywords,
+  type ContentKeywordItem,
+} from "./contentKeywordHighlight";
 
 /** KeywordMark elements carry `kw` (metadata); plain strings do not. */
 function countKeywordMarkElements(nodes: ReactNode[]): number {
@@ -9,6 +14,40 @@ function countKeywordMarkElements(nodes: ReactNode[]): number {
   }
   return c;
 }
+
+describe("mergeContentKeywordLists", () => {
+  it("keeps lesson definition when the page has the same term but no definition", () => {
+    const lesson: ContentKeywordItem[] = [
+      { term: "photosynthesise", definition: "The process by which plants make glucose." },
+    ];
+    const page: ContentKeywordItem[] = [{ term: "photosynthesise" }];
+    const merged = mergeContentKeywordLists(lesson, page);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].term).toBe("photosynthesise");
+    expect(merged[0].definition).toBe("The process by which plants make glucose.");
+  });
+
+  it("prefers page definition when the page has one", () => {
+    const lesson: ContentKeywordItem[] = [
+      { term: "diffusion", definition: "From lesson" },
+    ];
+    const page: ContentKeywordItem[] = [{ term: "diffusion", definition: "From page — newer" }];
+    const merged = mergeContentKeywordLists(lesson, page);
+    expect(merged[0].definition).toBe("From page — newer");
+  });
+});
+
+describe("normalizeContentKeywords (duplicate terms in one list)", () => {
+  it("keeps a definition from a later duplicate row (first row term-only is common)", () => {
+    const raw = [
+      { term: "osmosis" },
+      { term: "osmosis", definition: "Net movement of water through a semi-permeable membrane." },
+    ];
+    const n = normalizeContentKeywords(raw);
+    expect(n).toHaveLength(1);
+    expect(n[0].definition).toBe("Net movement of water through a semi-permeable membrane.");
+  });
+});
 
 describe("highlightPlainTextToNodes (once per term via claim)", () => {
   const sorted: ContentKeywordItem[] = [

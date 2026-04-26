@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import type { GlossaryFlashcardLite } from "./keywordGlossaryFlashcards";
+import { keywordTermLookupKey } from "./keywordTermLookupKey";
 
 /** Popup payload — mirrors optional keyword metadata fields without importing highlight module (avoid cycles). */
 export type GlossaryKeywordPayload = {
@@ -70,24 +71,72 @@ function placePopup(rect: DOMRect, popW: number, popH: number) {
   return { left, top };
 }
 
+/**
+ * Merged `lesson + page` `contentKeywords` (or equivalent). Used to fill missing
+ * `definition` when a mark only passed `{ term }` to `open` — same source as student highlights.
+ */
+export type GlossaryIndexItem = {
+  term: string;
+  definition?: string;
+  type?: string;
+  topicKey?: string;
+  specKey?: string;
+  flashcardIds?: string[];
+};
+
 export type KeywordGlossaryProviderProps = {
   children: React.ReactNode;
   flashcards: GlossaryFlashcardLite[];
   topicKey?: string | null;
   specKey?: string | null;
+  /** Full merged glossary list from lesson view — not shown to user; powers definition lookup. */
+  glossaryIndexItems?: GlossaryIndexItem[];
 };
 
 /**
  * Wraps lesson markdown that uses keyword highlights — enables click-to-glossary popover for students.
  */
+function buildGlossaryIndexByTerm(
+  items: GlossaryIndexItem[] | undefined
+): Map<string, GlossaryIndexItem> {
+  const m = new Map<string, GlossaryIndexItem>();
+  for (const it of items ?? []) {
+    if (!it?.term) continue;
+    const k = keywordTermLookupKey(it.term);
+    if (!k) continue;
+    const prev = m.get(k);
+    if (!prev) {
+      m.set(k, it);
+      continue;
+    }
+    m.set(k, {
+      term: it.term || prev.term,
+      type: it.type ?? prev.type,
+      definition:
+        (it.definition && it.definition.trim() ? it.definition : undefined) ||
+        (prev.definition && prev.definition.trim() ? prev.definition : undefined),
+      topicKey: it.topicKey ?? prev.topicKey,
+      specKey: it.specKey ?? prev.specKey,
+      flashcardIds: it.flashcardIds?.length ? it.flashcardIds : prev.flashcardIds,
+    });
+  }
+  return m;
+}
+
 export function KeywordGlossaryProvider({
   children,
   flashcards,
   topicKey = null,
   specKey = null,
+  glossaryIndexItems,
 }: KeywordGlossaryProviderProps): React.ReactElement {
   const [popup, setPopup] = useState<PopupState | null>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
+
+  const glossaryByTerm = useMemo(
+    () => buildGlossaryIndexByTerm(glossaryIndexItems),
+    [glossaryIndexItems]
+  );
 
   const close = useCallback(() => {
     const el = lastTriggerRef.current;
@@ -107,18 +156,30 @@ export function KeywordGlossaryProvider({
   const open = useCallback(
     (payload: { kw: GlossaryKeywordPayload; related: GlossaryFlashcardLite[]; anchor: HTMLElement }) => {
       lastTriggerRef.current = payload.anchor;
+      const k = keywordTermLookupKey(payload.kw.term);
+      const from = k ? glossaryByTerm.get(k) : undefined;
+      const payloadDef = payload.kw.definition && payload.kw.definition.trim() ? payload.kw.definition : undefined;
+      const indexDef = from?.definition && from.definition.trim() ? from.definition : undefined;
+      const merged: GlossaryKeywordPayload = {
+        term: (from?.term && from.term.trim() ? from.term : payload.kw.term) || payload.kw.term,
+        definition: payloadDef || indexDef,
+        type: payload.kw.type ?? from?.type,
+        topicKey: payload.kw.topicKey ?? from?.topicKey,
+        specKey: payload.kw.specKey ?? from?.specKey,
+        flashcardIds: payload.kw.flashcardIds?.length ? payload.kw.flashcardIds : from?.flashcardIds,
+      };
       const rect = payload.anchor.getBoundingClientRect();
       const estW = Math.min(320, typeof window !== "undefined" ? window.innerWidth - 24 : 320);
       const estH = 280;
       const { left, top } = placePopup(rect, estW, estH);
       setPopup({
-        kw: payload.kw,
+        kw: merged,
         related: payload.related,
         left,
         top,
       });
     },
-    []
+    [glossaryByTerm]
   );
 
   useEffect(() => {

@@ -31,7 +31,11 @@ import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
 import { AddKeyTermDialog } from "../components/lesson/AddKeyTermDialog";
 import { SuggestKeyTermsDialog } from "../components/lesson/SuggestKeyTermsDialog";
 import type { SuggestedKeyTermRow } from "../api/ai";
-import { applyKeyTermsToBlockContent, buildKeyTermSpanHtml } from "../utils/keyTermInlineMarkers";
+import {
+  applyKeyTermsToBlockContent,
+  buildKeyTermSpanHtml,
+  selectionIntersectsDataKeyTermSpan,
+} from "../utils/keyTermInlineMarkers";
 import { AddBlockByRoleSelect } from "../components/lesson/AddBlockByRoleSelect";
 import { SpecSelector } from "../components/SpecSelector";
 import { getStoredSpecKey, setStoredSpecKey } from "../utils/specKey";
@@ -1442,7 +1446,11 @@ const EditLessonPage: React.FC = () => {
                 const content = String(block?.content ?? "");
                 if (lo <= content.length && hi <= content.length) {
                   const slice = content.slice(lo, hi);
-                  if (!/data-key-term\s*=/i.test(slice) && !/<\s*span[^>]+data-key-term/i.test(slice)) {
+                  if (
+                    !/data-key-term\s*=/i.test(slice) &&
+                    !/<\s*span[^>]+data-key-term/i.test(slice) &&
+                    !selectionIntersectsDataKeyTermSpan(content, lo, hi)
+                  ) {
                     const inner = buildKeyTermSpanHtml(t, slice);
                     if (inner) {
                       const nextContent = content.slice(0, lo) + inner + content.slice(hi);

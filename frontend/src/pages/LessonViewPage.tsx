@@ -66,10 +66,10 @@ import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
 import { hasFullLessonAccess as computeFullLessonAccess } from "../utils/lessonAccess";
 import Toast from "../components/Toast";
 import {
+  KeywordHighlightOnceProvider,
   mergeContentKeywordLists,
   mergeLessonMarkdownComponentsWithKeywordHighlight,
   normalizeContentKeywords,
-  KeywordHighlightOnceProvider,
 } from "../components/lesson/student/contentKeywordHighlight";
 import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
 import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
@@ -3842,8 +3842,8 @@ const LessonViewPage: React.FC = () => {
                     flashcards={glossaryFlashcardsForLesson}
                     topicKey={topicKeyForBank}
                     specKey={specKey ? String(specKey) : null}
+                    glossaryIndexItems={lessonHighlightKeywords}
                   >
-                  <KeywordHighlightOnceProvider resetKey={String(currentPage.pageId)}>
                   {v12StudentPresentation
                     ? chunkBlocksForTeachingLayout(blockRenderList).map((chunk, chunkIdx) => (
                         <LessonStudentChunk
@@ -3951,7 +3951,6 @@ const LessonViewPage: React.FC = () => {
                           )}
                         </div>
                       ))}
-                  </KeywordHighlightOnceProvider>
                   </KeywordGlossaryProvider>
                 </div>
 
@@ -4908,11 +4907,12 @@ const LessonViewPage: React.FC = () => {
               flashcards={glossaryFlashcardsForLesson}
               topicKey={topicKeyForBank}
               specKey={specKey ? String(specKey) : null}
+              glossaryIndexItems={lessonHighlightKeywords}
             >
               <KeywordHighlightOnceProvider resetKey={id ?? "legacy"}>
-              <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
-                {preprocessMarkdownAssetUrls(stripVideoMarkdown(lesson.content || ""))}
-              </LessonMarkdown>
+                <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+                  {preprocessMarkdownAssetUrls(stripVideoMarkdown(lesson.content || ""))}
+                </LessonMarkdown>
               </KeywordHighlightOnceProvider>
             </KeywordGlossaryProvider>
           </div>
