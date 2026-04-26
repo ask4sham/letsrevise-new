@@ -2581,7 +2581,10 @@ const LessonViewPage: React.FC = () => {
   }, [lesson, currentPage]);
 
   const lessonViewMarkdownComponents = useMemo(
-    () => mergeLessonMarkdownComponentsWithKeywordHighlight(markdownComponents, lessonHighlightKeywords),
+    () =>
+      mergeLessonMarkdownComponentsWithKeywordHighlight(markdownComponents, lessonHighlightKeywords, {
+        autoTextKeywordHighlights: false,
+      }),
     [markdownComponents, lessonHighlightKeywords]
   );
 
@@ -3860,6 +3863,9 @@ const LessonViewPage: React.FC = () => {
                                 renderDiagramBlock={renderDiagramBlock}
                                 enableMarkdownMediaSplit={v12StudentPresentation}
                                 highlightKeywords={lessonHighlightKeywords}
+                                lessonTitleForAi={lesson ? safeStr(lesson.title, "") : undefined}
+                                levelForAi={lesson ? safeStr(lesson.level, "") : undefined}
+                                subjectForAi={lesson ? safeStr(lesson.subject, "") : undefined}
                               />
                               {user && id && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -3924,6 +3930,9 @@ const LessonViewPage: React.FC = () => {
                                 description: String(h?.description ?? ""),
                               }))}
                               resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                              lessonTitle={lesson ? safeStr(lesson.title, "") : undefined}
+                              level={lesson ? safeStr(lesson.level, "") : undefined}
+                              subject={lesson ? safeStr(lesson.subject, "") : undefined}
                             />
                           ) : (
                             renderCallout(b.type, safeStr(b.content, ""), idx)

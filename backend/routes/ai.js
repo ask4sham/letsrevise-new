@@ -6141,6 +6141,18 @@ router.post("/explain-chunk", auth, async (req, res) => {
       });
     }
 
+    const verbatim =
+      req.body?.verbatim === true ||
+      String(req.body?.instructionMode || "").toLowerCase() === "verbatim";
+    /* Verbatim: client sends the full system+task text (e.g. JSON-only MCQ). Do not wrap in "explain in simpler terms". */
+    if (verbatim) {
+      const systemPrompt =
+        "You are a UK curriculum assistant. Follow the user's instructions exactly. If they require JSON only, output valid JSON only with no markdown code fences and no text before or after the JSON object.";
+      const userPrompt = text;
+      const explanation = await callOpenAIChat(systemPrompt, userPrompt, 1200);
+      return res.json({ explanation: explanation || "No response generated." });
+    }
+
     const systemPrompt = "You are an expert UK curriculum educator. Explain concepts in simple, clear terms. Use British English. Do not mention you are an AI. Keep the explanation concise (2–4 sentences).";
     const userPrompt = `Explain the following in simpler terms for a ${level} ${subject} student. Provide a brief analogy if helpful.\n\n---\n${text}`;
     const explanation = await callOpenAIChat(systemPrompt, userPrompt, 500);

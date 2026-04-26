@@ -32,6 +32,10 @@ export type LessonStudentBlockRendererProps = {
   enableMarkdownMediaSplit?: boolean;
   /** Lesson/page metadata — render-time highlights only (not applied to pageQuiz) */
   highlightKeywords?: ContentKeywordItem[];
+  /** Lesson context for inline AI (e.g. interactive diagram “Test me”) */
+  lessonTitleForAi?: string;
+  levelForAi?: string;
+  subjectForAi?: string;
 };
 
 /**
@@ -46,6 +50,9 @@ export function LessonStudentBlockRenderer({
   renderDiagramBlock,
   enableMarkdownMediaSplit,
   highlightKeywords,
+  lessonTitleForAi,
+  levelForAi,
+  subjectForAi,
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
   const kind = String(block.type || "").trim() || "text";
   const raw = typeof block.content === "string" ? block.content : "";
@@ -104,6 +111,9 @@ export function LessonStudentBlockRenderer({
         imageUrl={String((block as StudentLessonPageBlock).imageUrl ?? "")}
         hotspots={hotspots}
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+        lessonTitle={lessonTitleForAi}
+        level={levelForAi}
+        subject={subjectForAi}
       />
     );
   }

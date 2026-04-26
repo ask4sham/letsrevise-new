@@ -9,7 +9,10 @@ export type InteractiveDiagramTemplate = {
   topic?: string;
   title: string;
   intro: string;
-  /** Omitted in stock templates; teachers upload or paste URL to match the diagram. */
+  /**
+   * When set, editor “Apply template” also sets `block.imageUrl` (same relative `/visuals/...` as elsewhere).
+   * Omitted = keep existing block image; teachers can still upload or paste a URL.
+   */
   imageUrl?: string;
   hotspots: Array<{
     x: number;
@@ -27,6 +30,8 @@ export const INTERACTIVE_DIAGRAM_TEMPLATES: InteractiveDiagramTemplate[] = [
     topic: "Cell division",
     title: "Mitosis stages",
     intro: "Click each stage to learn what happens during mitosis.",
+    /** Canonical visual from `backend/public/visuals/.../manifest.json` (mitosis and the cell cycle). */
+    imageUrl: "/visuals/biology/aqa-gcse/cell-biology/cell-division/mitosis-and-the-cell-cycle.svg",
     hotspots: [
       {
         x: 12,

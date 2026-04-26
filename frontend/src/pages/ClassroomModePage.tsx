@@ -741,6 +741,9 @@ const ClassroomModePage: React.FC = () => {
                             description: String(h?.description ?? ""),
                           }))}
                           resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                          lessonTitle={safeStr(lesson.title, "")}
+                          level={lesson.level != null ? String(lesson.level) : undefined}
+                          subject={lesson.subject != null ? String(lesson.subject) : undefined}
                         />
                       </div>
                     );
