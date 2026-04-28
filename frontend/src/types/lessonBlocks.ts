@@ -32,7 +32,8 @@ export type LessonBlockType =
   | "pageQuiz"
   | "diagram"
   | "interactiveSequence"
-  | "interactiveDiagram";
+  | "interactiveDiagram"
+  | "dragDropMatch";
 
 /** Legacy block type strings that may come from the API. */
 export type LegacyBlockType =
@@ -157,6 +158,14 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(254,242,242,0.5)",
     },
   },
+  dragDropMatch: {
+    label: "Drag and drop match",
+    icon: "🧩",
+    style: {
+      border: "1px solid rgba(14,165,233,0.35)",
+      background: "rgba(224,242,254,0.45)",
+    },
+  },
 };
 
 /**
@@ -164,7 +173,9 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
  * Use when loading blocks from the API or when rendering.
  */
 export function normalizeBlockType(raw: string | undefined): LessonBlockType {
-  const t = (raw || "text").trim();
+  const t0 = (raw || "text").trim();
+  /** API/JSON may use any casing; backend allowlist is case-sensitive. */
+  const t = t0.toLowerCase() === "dragdropmatch" ? "dragDropMatch" : t0;
   switch (t) {
     case "keyIdea":
       return "keyIdeas";
@@ -185,6 +196,7 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "diagram":
     case "interactiveSequence":
     case "interactiveDiagram":
+    case "dragDropMatch":
       return t as LessonBlockType;
     default:
       return "text";
@@ -217,6 +229,8 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "interactiveSequence";
     case "interactiveDiagram":
       return "interactiveDiagram";
+    case "dragDropMatch":
+      return "dragDropMatch";
     case "text":
     case "keyWords":
       return t;
@@ -276,6 +290,7 @@ export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "checkpoint",
   "diagram",
   "interactiveSequence",
+  "dragDropMatch",
 ];
 
 /** Option for add-block dropdown: maps role to block type + optional title. */
@@ -305,6 +320,7 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "deeperKnowledge", type: "deeperKnowledge", label: "Deeper knowledge (stretch)" },
   { role: "sequence", type: "interactiveSequence", label: "Interactive sequence" },
   { role: "hotspot", type: "interactiveDiagram", label: "Interactive diagram" },
+  { role: "match", type: "dragDropMatch", label: "Drag and drop match" },
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */
@@ -338,6 +354,8 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.08)" };
     case "interactiveDiagram":
       return { ...base, border: "2px solid rgba(220,38,38,0.4)", background: "rgba(254,242,242,0.7)" };
+    case "dragDropMatch":
+      return { ...base, border: "2px solid rgba(14,165,233,0.4)", background: "rgba(224,242,254,0.55)" };
     case "text":
     default:
       return { ...base, border: "2px solid rgba(0,0,0,0.14)", background: "white" };

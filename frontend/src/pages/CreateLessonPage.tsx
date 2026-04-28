@@ -21,6 +21,7 @@ import {
   BLOCK_META,
   getBlockStyle,
   toLegacyBlockType,
+  normalizeBlockType,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
@@ -32,7 +33,13 @@ import {
   getLessonPasteInsertText,
 } from "../utils/lessonEditorPaste";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
+import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
+import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
+
+function newLessonBlockId() {
+  return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
 
 type HeroType = "none" | "image" | "video" | "animation";
 
@@ -42,9 +49,11 @@ type LessonPageBlock = {
   title?: string;
   role?: string;
   intro?: string;
+  instructions?: string;
+  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
   sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
   imageUrl?: string;
-  hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
+  hotspots?: Array<{ id: string; x?: number; y?: number; label: string; description: string }>;
   prompt?: string;
   questionType?: "mcq" | "short";
   options?: string[];
@@ -666,6 +675,28 @@ const CreateLessonPage: React.FC = () => {
             imageUrl: "",
             hotspots: [],
           };
+        } else if (type === "dragDropMatch") {
+          block = {
+            type: "dragDropMatch",
+            content: "",
+            title: "Drag and drop match",
+            intro: "Match each item to the correct answer.",
+            instructions: "Drag each answer into the correct box, then check your answers.",
+            pairs: [
+              {
+                id: newLessonBlockId(),
+                prompt: "Nucleus",
+                answer: "Controls the cell and contains genetic material",
+                explanation: "The nucleus contains DNA and controls cell activities.",
+              },
+              {
+                id: newLessonBlockId(),
+                prompt: "Mitochondria",
+                answer: "Site of aerobic respiration",
+                explanation: "Mitochondria release energy through aerobic respiration.",
+              },
+            ],
+          };
         } else {
           block = {
             type,
@@ -947,7 +978,7 @@ const CreateLessonPage: React.FC = () => {
       pageType: safeStr(p.pageType, ""),
       hero: { type: "none" as const, src: "", caption: "" },
       blocks: (p.blocks || []).map((b) => {
-        const blockType = toLegacyBlockType(b.type);
+        const blockType = toLegacyBlockType(normalizeBlockType(String(b?.type ?? "")));
         if (blockType === "interactiveSequence") {
           const rawSeq = Array.isArray(b.sequenceSteps) ? b.sequenceSteps : [];
           const sequenceSteps = rawSeq
@@ -977,16 +1008,7 @@ const CreateLessonPage: React.FC = () => {
         }
         if (blockType === "interactiveDiagram") {
           const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
-          const hotspots = rawH.map((h, i) => ({
-            id: String((h as { id?: string }).id || `h${i + 1}`).trim() || `h${i + 1}`,
-            x: Math.max(0, Math.min(100, Number((h as { x?: number }).x) || 0)),
-            y: Math.max(0, Math.min(100, Number((h as { y?: number }).y) || 0)),
-            label: (h as { label?: string }).label != null ? String((h as { label?: string }).label).trim() : "",
-            description:
-              (h as { description?: string }).description != null
-                ? String((h as { description?: string }).description).trim()
-                : "",
-          }));
+          const hotspots = rawH.map((h, i) => normalizeInteractiveDiagramHotspot(h, i));
           const idOut: Record<string, unknown> = {
             type: "interactiveDiagram",
             title: typeof b.title === "string" ? b.title.trim() : "",
@@ -997,6 +1019,31 @@ const CreateLessonPage: React.FC = () => {
           };
           if (typeof b.role === "string" && b.role.trim()) idOut.role = b.role.trim();
           return idOut;
+        }
+        if (blockType === "dragDropMatch") {
+          const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
+          const pairs = rawPairs
+            .slice(0, 20)
+            .map((row) => ({
+              id: String(row?.id ?? "").trim() || newLessonBlockId(),
+              prompt: row?.prompt != null ? String(row.prompt).trim() : "",
+              answer: row?.answer != null ? String(row.answer).trim() : "",
+              explanation:
+                row?.explanation != null && String(row.explanation).trim()
+                  ? String(row.explanation).trim()
+                  : undefined,
+            }))
+            .filter((row) => row.id);
+          const ddm: Record<string, unknown> = {
+            type: "dragDropMatch",
+            title: typeof b.title === "string" ? b.title.trim() : "",
+            intro: b.intro != null ? String(b.intro).trim() : "",
+            instructions: b.instructions != null ? String(b.instructions).trim() : "",
+            content: "",
+            pairs,
+          };
+          if (typeof b.role === "string" && b.role.trim()) ddm.role = b.role.trim();
+          return ddm;
         }
         const out: Record<string, unknown> = {
           type: blockType,
@@ -1920,7 +1967,9 @@ const CreateLessonPage: React.FC = () => {
                                     })
                                   }
                                 />
-                                {b.type !== "interactiveSequence" && b.type !== "interactiveDiagram" && (
+                                {b.type !== "interactiveSequence" &&
+                                  b.type !== "interactiveDiagram" &&
+                                  b.type !== "dragDropMatch" && (
                                 <button
                                   onClick={() => triggerBlockUpload(pg.pageId, idx)}
                                   disabled={isUploading}
@@ -1938,7 +1987,9 @@ const CreateLessonPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {b.type === "interactiveSequence" || b.type === "interactiveDiagram" ? (
+                            {b.type === "interactiveSequence" ||
+                            b.type === "interactiveDiagram" ||
+                            b.type === "dragDropMatch" ? (
                               <div
                                 style={{
                                   marginTop: 10,
@@ -1951,7 +2002,9 @@ const CreateLessonPage: React.FC = () => {
                                 <p style={{ margin: "0 0 10px", fontSize: 13, color: "#5b21b6", lineHeight: 1.5 }}>
                                   {b.type === "interactiveDiagram"
                                     ? "Configure the diagram image and hotspots in "
-                                    : "Configure steps and images in "}
+                                    : b.type === "dragDropMatch"
+                                      ? "Configure match pairs in "
+                                      : "Configure steps and images in "}
                                   <strong>Edit lesson</strong> after you save. You can set title and intro here first.
                                 </p>
                                 <label style={{ display: "block", marginBottom: 8 }}>
@@ -1978,6 +2031,29 @@ const CreateLessonPage: React.FC = () => {
                                     style={{ fontSize: "0.875rem" }}
                                   />
                                 </label>
+                                {b.type === "dragDropMatch" ? (
+                                  <div style={{ marginTop: 10 }}>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Instructions</div>
+                                      <LessonAutoTextarea
+                                        editorVariant="plain"
+                                        value={safeStr(b.instructions, "")}
+                                        onChange={(v) => updateBlock(pg.pageId, idx, { instructions: v })}
+                                        placeholder="Optional"
+                                        minHeightPx={64}
+                                        style={{ fontSize: "0.875rem" }}
+                                      />
+                                    </label>
+                                    <DragDropMatchBlock
+                                      block={{
+                                        title: safeStr(b.title, ""),
+                                        intro: safeStr(b.intro, ""),
+                                        instructions: safeStr(b.instructions, ""),
+                                        pairs: Array.isArray(b.pairs) ? b.pairs : [],
+                                      }}
+                                    />
+                                  </div>
+                                ) : null}
                               </div>
                             ) : (
                               <>

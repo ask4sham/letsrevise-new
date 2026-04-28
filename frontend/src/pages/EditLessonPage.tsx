@@ -6,6 +6,7 @@ import { LessonRenderer } from "../components/lesson/LessonRenderer";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
+import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
@@ -30,7 +31,7 @@ import { AttachPaperModal } from "../components/lesson/AttachPaperModal";
 import { AttachPageQuizModal } from "../components/lesson/AttachPageQuizModal";
 import { AddKeyTermDialog } from "../components/lesson/AddKeyTermDialog";
 import { SuggestKeyTermsDialog } from "../components/lesson/SuggestKeyTermsDialog";
-import type { SuggestedKeyTermRow } from "../api/ai";
+import { generateDragDropPairsFromText, type SuggestedKeyTermRow } from "../api/ai";
 import {
   applyKeyTermsToBlockContent,
   buildKeyTermSpanHtml,
@@ -66,6 +67,10 @@ import {
   getLessonPasteInsertText,
   guardLessonBlockPatchForDuplicatePaste,
 } from "../utils/lessonEditorPaste";
+import {
+  isInteractiveDiagramHotspotPlaced,
+  normalizeInteractiveDiagramHotspot,
+} from "../utils/interactiveDiagramHotspots";
 
 /** Topic bank URLs with filters for AI lesson drafts (draft-only review). */
 function buildAiLessonAssetBankReviewUrl(
@@ -136,8 +141,17 @@ interface LessonPageBlock {
   /** type === "interactiveSequence" (not diagram `steps`) */
   intro?: string;
   sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
-  /** type === "interactiveDiagram" — x/y 0–100 (percentage) */
-  hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
+  /** type === "interactiveDiagram" — x/y 0–100 (percentage); omit when unplaced */
+  hotspots?: Array<{
+    id: string;
+    x?: number;
+    y?: number;
+    label: string;
+    description: string;
+  }>;
+  /** type === "dragDropMatch" */
+  instructions?: string;
+  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
 }
 
 interface LessonPageHero {
@@ -303,6 +317,18 @@ function sortPages(pages: LessonPage[]) {
 function newId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
+
+/** Editor template: cell organelles → functions (GCSE AQA-friendly). */
+const CELL_ORGANELLES_DRAG_DROP_TEMPLATE: Array<{ prompt: string; answer: string; explanation: string }> = [
+  { prompt: "Nucleus", answer: "Controls the cell and contains genetic material", explanation: "" },
+  { prompt: "Cytoplasm", answer: "Jelly-like substance where many chemical reactions happen", explanation: "" },
+  { prompt: "Cell membrane", answer: "Controls what enters and leaves the cell", explanation: "" },
+  { prompt: "Mitochondria", answer: "Site of aerobic respiration", explanation: "" },
+  { prompt: "Ribosomes", answer: "Where proteins are made", explanation: "" },
+  { prompt: "Chloroplasts", answer: "Site of photosynthesis", explanation: "" },
+  { prompt: "Cell wall", answer: "Supports and strengthens plant cells", explanation: "" },
+  { prompt: "Vacuole", answer: "Contains cell sap and helps keep plant cells firm", explanation: "" },
+];
 
 const DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION = "Add explanation here.";
 
@@ -489,6 +515,12 @@ const EditLessonPage: React.FC = () => {
   const [uploadMsg, setUploadMsg] = useState<string>("");
   const [interactiveDiagramTemplateSelect, setInteractiveDiagramTemplateSelect] = useState<Record<string, string>>({});
   const [interactiveDiagramTemplateHint, setInteractiveDiagramTemplateHint] = useState<Record<string, string>>({});
+  /** When set, the next image click places that hotspot id (per block `key`). */
+  const [interactiveDiagramPlacingId, setInteractiveDiagramPlacingId] = useState<Record<string, string | null>>({});
+  /** Per block `pageId:idx`: AI drag-drop pair generation */
+  const [dragDropPairAiUi, setDragDropPairAiUi] = useState<
+    Record<string, { loading: boolean; message: "error" | "empty" | null }>
+  >({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [newFlashcard, setNewFlashcard] = useState({ front: "", back: "", tags: "" });
   const [newQuizQuestion, setNewQuizQuestion] = useState({
@@ -1226,13 +1258,9 @@ const EditLessonPage: React.FC = () => {
                 }
                 if (b?.type === "interactiveDiagram") {
                   const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
-                  const hotspots = rawH.map((h: any, i: number) => ({
-                    id: String(h?.id || `h${i + 1}`).trim() || `h${i + 1}`,
-                    x: Math.max(0, Math.min(100, Number(h?.x) || 0)),
-                    y: Math.max(0, Math.min(100, Number(h?.y) || 0)),
-                    label: safeStr(h?.label, ""),
-                    description: safeStr(h?.description, ""),
-                  }));
+                  const hotspots = rawH.map((h: any, i: number) =>
+                    normalizeInteractiveDiagramHotspot(h, i)
+                  );
                   const outId: Record<string, unknown> = {
                     type: "interactiveDiagram" as const,
                     content: "",
@@ -1243,6 +1271,42 @@ const EditLessonPage: React.FC = () => {
                   };
                   if (typeof b?.role === "string" && b.role.trim()) outId.role = b.role.trim();
                   return outId;
+                }
+                if (b?.type === "dragDropMatch") {
+                  const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
+                  const pairs = rawPairs.map((row: any) => ({
+                    id: String(row?.id ?? "").trim() || newId(),
+                    prompt: safeStr(row?.prompt, ""),
+                    answer: safeStr(row?.answer, ""),
+                    explanation: row?.explanation != null ? String(row.explanation) : "",
+                  }));
+                  const defaultTwo = [
+                    {
+                      id: newId(),
+                      prompt: "Nucleus",
+                      answer: "Controls the cell and contains genetic material",
+                      explanation: "The nucleus contains DNA and controls cell activities.",
+                    },
+                    {
+                      id: newId(),
+                      prompt: "Mitochondria",
+                      answer: "Site of aerobic respiration",
+                      explanation: "Mitochondria release energy through aerobic respiration.",
+                    },
+                  ];
+                  const outDdm: Record<string, unknown> = {
+                    type: "dragDropMatch" as const,
+                    content: "",
+                    title: safeStr(b.title, "Drag and drop match"),
+                    intro: safeStr(b.intro, "Match each item to the correct answer."),
+                    instructions: safeStr(
+                      b.instructions,
+                      "Drag each answer into the correct box, then check your answers."
+                    ),
+                    pairs: pairs.length >= 1 ? pairs : defaultTwo,
+                  };
+                  if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
+                  return outDdm;
                 }
                 const out: Record<string, unknown> = {
                   type: normalizeBlockType(b?.type),
@@ -1718,10 +1782,36 @@ const EditLessonPage: React.FC = () => {
           hotspots: [],
           content: "",
         };
+      } else if (type === "dragDropMatch") {
+        block = {
+          type: "dragDropMatch",
+          content: "",
+          title: "Drag and drop match",
+          intro: "Match each item to the correct answer.",
+          instructions: "Drag each answer into the correct box, then check your answers.",
+          pairs: [
+            {
+              id: newId(),
+              prompt: "Nucleus",
+              answer: "Controls the cell and contains genetic material",
+              explanation: "The nucleus contains DNA and controls cell activities.",
+            },
+            {
+              id: newId(),
+              prompt: "Mitochondria",
+              answer: "Site of aerobic respiration",
+              explanation: "Mitochondria release energy through aerobic respiration.",
+            },
+          ],
+        };
       } else {
         block = { type, content: "" };
       }
-      if (opts?.role?.trim()) block.role = opts.role.trim();
+      if (opts?.role?.trim()) {
+        block.role = opts.role.trim();
+      } else if (type === "dragDropMatch") {
+        block.role = "match";
+      }
       if (opts?.title !== undefined) block.title = opts.title ?? "";
       const insertAt = opts?.insertAt;
       if (typeof insertAt === "number" && insertAt >= 0 && insertAt <= blocks.length) {
@@ -2729,6 +2819,30 @@ const EditLessonPage: React.FC = () => {
     const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
         blocks: (p.blocks || []).map((b: any) => {
+          if (normalizeBlockType(String(b?.type ?? "")) === "dragDropMatch") {
+            const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
+            const pairs = rawPairs
+              .slice(0, 20)
+              .map((row: any) => ({
+                id: String(row?.id ?? "").trim() || newId(),
+                prompt: row?.prompt != null ? String(row.prompt).trim() : "",
+                answer: row?.answer != null ? String(row.answer).trim() : "",
+                explanation:
+                  row?.explanation != null && String(row.explanation).trim()
+                    ? String(row.explanation).trim()
+                    : undefined,
+              }))
+              .filter((row: { id: string }) => String(row.id).trim());
+            const ddmOut: Record<string, unknown> = {
+              type: "dragDropMatch",
+              title: typeof b.title === "string" ? b.title.trim() : "",
+              intro: b.intro != null ? String(b.intro).trim() : "",
+              instructions: b.instructions != null ? String(b.instructions).trim() : "",
+              pairs,
+            };
+            if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
+            return ddmOut;
+          }
           if (b.type === "checkpoint") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
             const cpOut: Record<string, unknown> = {
@@ -2817,13 +2931,7 @@ const EditLessonPage: React.FC = () => {
           }
           if (b.type === "interactiveDiagram") {
             const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
-            const hotspots = rawH.map((h: any, i: number) => ({
-              id: String(h?.id || `h${i + 1}`).trim() || `h${i + 1}`,
-              x: Math.max(0, Math.min(100, Number(h?.x) || 0)),
-              y: Math.max(0, Math.min(100, Number(h?.y) || 0)),
-              label: h?.label != null ? String(h.label).trim() : "",
-              description: h?.description != null ? String(h.description).trim() : "",
-            }));
+            const hotspots = rawH.map((h: any, i: number) => normalizeInteractiveDiagramHotspot(h, i));
             const idOut: Record<string, unknown> = {
               type: "interactiveDiagram",
               title: typeof b.title === "string" ? b.title.trim() : "",
@@ -4813,6 +4921,7 @@ const EditLessonPage: React.FC = () => {
                       const isDiagram = blockType === "diagram";
                       const isInteractiveSequence = blockType === "interactiveSequence";
                       const isInteractiveDiagram = blockType === "interactiveDiagram";
+                      const isDragDropMatch = blockType === "dragDropMatch";
                       const cp = isCheckpoint || isSelfCheck ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
@@ -4980,7 +5089,12 @@ const EditLessonPage: React.FC = () => {
                                 }}
                               />
 
-                              {!isCheckpoint && !isSelfCheck && !isDiagram && !isInteractiveSequence && !isInteractiveDiagram && (
+                              {!isCheckpoint &&
+                                !isSelfCheck &&
+                                !isDiagram &&
+                                !isInteractiveSequence &&
+                                !isInteractiveDiagram &&
+                                !isDragDropMatch && (
                                 <button
                                   onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
                                   disabled={isUploading}
@@ -6221,8 +6335,6 @@ const EditLessonPage: React.FC = () => {
                                         ...h,
                                         {
                                           id: newId(),
-                                          x: 50,
-                                          y: 50,
                                           label: "New hotspot",
                                           description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
                                         },
@@ -6240,6 +6352,34 @@ const EditLessonPage: React.FC = () => {
                                 >
                                   + Add hotspot
                                 </button>
+                                {((b as LessonPageBlock).hotspots ?? []).length > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!window.confirm("Clear all hotspot positions? Labels and descriptions will be kept.")) {
+                                        return;
+                                      }
+                                      const list = ((b as LessonPageBlock).hotspots ?? []).map((hot) => {
+                                        const h = hot as { id: string; label: string; description: string; x?: number; y?: number };
+                                        const { x: _x, y: _y, ...rest } = h;
+                                        return { ...rest };
+                                      });
+                                      setInteractiveDiagramPlacingId((p) => ({ ...p, [key]: null }));
+                                      updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                    }}
+                                    style={{
+                                      padding: "8px 14px",
+                                      borderRadius: 8,
+                                      border: "2px solid rgba(180, 83, 9, 0.45)",
+                                      background: "rgba(255, 251, 235, 0.95)",
+                                      color: "#92400e",
+                                      cursor: "pointer",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Clear hotspot positions
+                                  </button>
+                                ) : null}
                                 <div
                                   style={{
                                     display: "flex",
@@ -6293,26 +6433,46 @@ const EditLessonPage: React.FC = () => {
                                             return;
                                           }
                                         }
+                                        const existingImageUrl = safeStr(
+                                          (b as LessonPageBlock).imageUrl,
+                                          ""
+                                        ).trim();
+                                        setInteractiveDiagramPlacingId((p) => ({ ...p, [key]: null }));
                                         const patch: Partial<LessonPageBlock> = {
                                           title: tmpl.title,
                                           intro: tmpl.intro,
-                                          hotspots: tmpl.hotspots.map((row) => ({
+                                        };
+                                        if (existingImageUrl) {
+                                          patch.hotspots = tmpl.hotspots.map((row) => ({
+                                            id: newId(),
+                                            label: row.label,
+                                            description: row.description,
+                                          }));
+                                        } else if (tmpl.imageUrl) {
+                                          patch.imageUrl = tmpl.imageUrl;
+                                          patch.hotspots = tmpl.hotspots.map((row) => ({
                                             id: newId(),
                                             x: row.x,
                                             y: row.y,
                                             label: row.label,
                                             description: row.description,
-                                          })),
-                                        };
-                                        if (tmpl.imageUrl) {
-                                          patch.imageUrl = tmpl.imageUrl;
+                                          }));
+                                        } else {
+                                          patch.hotspots = tmpl.hotspots.map((row) => ({
+                                            id: newId(),
+                                            label: row.label,
+                                            description: row.description,
+                                          }));
                                         }
                                         updateBlock(currentPage!.pageId, idx, patch);
+                                        const appliedTemplateImage = !existingImageUrl && Boolean(tmpl.imageUrl);
                                         setInteractiveDiagramTemplateHint((prev) => ({
                                           ...prev,
-                                          [key]: tmpl.imageUrl
-                                            ? "Template applied with matching image. Adjust hotspot positions if needed."
-                                            : "Template applied. Upload or choose the matching image, then adjust hotspot positions if needed.",
+                                          [key]: existingImageUrl
+                                            ? "Template applied. Choose each hotspot below, then click the image to place it."
+                                            : appliedTemplateImage
+                                              ? "Template applied with matching image. Adjust hotspot positions if needed."
+                                              : "Template applied. Upload or choose the matching image, then adjust hotspot positions if needed.",
                                         }));
                                         setTimeout(() => {
                                           setInteractiveDiagramTemplateHint((prev) => {
@@ -6384,12 +6544,20 @@ const EditLessonPage: React.FC = () => {
                                       }}
                                     >
                                       <strong>Tip:</strong> Upload an image or paste a URL, then use the large preview.{" "}
-                                      <strong>Click the image to place a hotspot.</strong> Then edit its label and
-                                      description in the list below. You can also use <strong>+ Add hotspot</strong> to
-                                      place one at the centre and adjust X/Y %.
+                                      Use <strong>Place this hotspot</strong> next to a label, then click the image — or
+                                      click the image to add a new hotspot. Edit labels and descriptions in the list
+                                      below. <strong>+ Add hotspot</strong> adds an unplaced label you can position
+                                      later.
                                     </p>
                                   );
                                 }
+                                const idgHotspots = Array.isArray((b as LessonPageBlock).hotspots)
+                                  ? (b as LessonPageBlock).hotspots!
+                                  : [];
+                                const editorDiagramHotspots = idgHotspots.map((h, hi) =>
+                                  normalizeInteractiveDiagramHotspot(h, hi)
+                                );
+                                const placeTargetId = interactiveDiagramPlacingId[key] ?? null;
                                 return (
                                   <div>
                                     <p
@@ -6405,146 +6573,540 @@ const EditLessonPage: React.FC = () => {
                                         border: "1px solid #bfdbfe",
                                       }}
                                     >
-                                      Click the image to place a hotspot. Then edit its label and description below.
+                                      {placeTargetId ? (
+                                        <>
+                                          <strong>Click the image</strong> to place the selected hotspot, or pick
+                                          another row below.
+                                        </>
+                                      ) : (
+                                        <>
+                                          Click the image to add a hotspot, or use <strong>Place this hotspot</strong> on
+                                          a row below, then click the image to position that label.
+                                        </>
+                                      )}
                                     </p>
                                     <div
                                       style={{
-                                        position: "relative",
                                         width: "100%",
                                         maxWidth: 960,
                                         borderRadius: 12,
                                         overflow: "hidden",
                                         border: "1px solid #e2e8f0",
-                                        cursor: "crosshair",
                                         lineHeight: 0,
                                         boxShadow: "0 2px 12px rgba(15, 23, 42, 0.06)",
                                       }}
-                                      onClick={(e) => {
-                                        if (!(e.currentTarget instanceof HTMLElement)) return;
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        if (rect.width <= 0 || rect.height <= 0) return;
-                                        const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
-                                        const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
-                                        const h = (b as LessonPageBlock).hotspots ?? [];
-                                        updateBlock(currentPage!.pageId, idx, {
-                                          hotspots: [
-                                            ...h,
-                                            {
-                                              id: newId(),
-                                              x,
-                                              y,
-                                              label: "New hotspot",
-                                              description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
-                                            },
-                                          ],
-                                        });
-                                      }}
-                                      role="presentation"
                                     >
-                                      <img
-                                        src={src}
-                                        alt="Diagram preview (click to add hotspot)"
-                                        style={{ display: "block", width: "100%", height: "auto" }}
+                                      <InteractiveDiagramBlock
+                                        viewMode="editorImageOnly"
+                                        blockTitle=""
+                                        intro=""
+                                        imageUrl={String((b as LessonPageBlock).imageUrl ?? "")}
+                                        hotspots={editorDiagramHotspots}
+                                        resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                                        onImageClickToPlace={(x, y) => {
+                                          const hlist = (b as LessonPageBlock).hotspots ?? [];
+                                          const placing = interactiveDiagramPlacingId[key] ?? null;
+                                          if (placing) {
+                                            const list = hlist.map((hot) => {
+                                              if (String(hot.id ?? "") !== placing) return hot;
+                                              return { ...hot, x, y };
+                                            });
+                                            setInteractiveDiagramPlacingId((p) => ({ ...p, [key]: null }));
+                                            updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                            return;
+                                          }
+                                          updateBlock(currentPage!.pageId, idx, {
+                                            hotspots: [
+                                              ...hlist,
+                                              {
+                                                id: newId(),
+                                                x,
+                                                y,
+                                                label: "New hotspot",
+                                                description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
+                                              },
+                                            ],
+                                          });
+                                        }}
                                       />
                                     </div>
                                   </div>
                                 );
                               })()}
-                              {((b as LessonPageBlock).hotspots ?? []).map((hot, hi) => (
-                                <div
-                                  key={hot.id || hi}
-                                  style={{
-                                    padding: 12,
-                                    borderRadius: 10,
-                                    border: "1px solid #fecaca",
-                                    background: "#fffbeb",
-                                  }}
-                                >
-                                  <div style={{ fontWeight: 800, marginBottom: 10, color: "#991b1b" }}>
-                                    Marker {hi + 1}
-                                  </div>
-                                  <label style={{ display: "block", marginBottom: 8 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 12 }}>Label</div>
-                                    <input
-                                      value={hot.label ?? ""}
-                                      onChange={(e) => {
-                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
-                                        if (list[hi]) list[hi] = { ...list[hi], label: e.target.value };
-                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                      }}
-                                      style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                                    />
-                                  </label>
-                                  <label style={{ display: "block", marginBottom: 8 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Description</div>
-                                    <LessonAutoTextarea
-                                      editorVariant="plain"
-                                      value={hot.description ?? ""}
-                                      onChange={(v) => {
-                                        const list = [...((b as LessonPageBlock).hotspots ?? [])];
-                                        if (list[hi]) list[hi] = { ...list[hi], description: v };
-                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                      }}
-                                      minHeightPx={72}
-                                      style={{ fontSize: "0.875rem" }}
-                                    />
-                                  </label>
-                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                                    <label style={{ display: "block", fontSize: 12 }}>
-                                      X (%)
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        max={100}
-                                        value={Number.isFinite(hot.x) ? hot.x : 0}
-                                        onChange={(e) => {
-                                          const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                                          const list = [...((b as LessonPageBlock).hotspots ?? [])];
-                                          if (list[hi]) list[hi] = { ...list[hi], x: v };
-                                          updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                        }}
-                                        style={{ width: "100%", marginTop: 4, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                                      />
-                                    </label>
-                                    <label style={{ display: "block", fontSize: 12 }}>
-                                      Y (%)
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        max={100}
-                                        value={Number.isFinite(hot.y) ? hot.y : 0}
-                                        onChange={(e) => {
-                                          const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                                          const list = [...((b as LessonPageBlock).hotspots ?? [])];
-                                          if (list[hi]) list[hi] = { ...list[hi], y: v };
-                                          updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                        }}
-                                        style={{ width: "100%", marginTop: 4, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }}
-                                      />
-                                    </label>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const list = ((b as LessonPageBlock).hotspots ?? []).filter((_, i) => i !== hi);
-                                      updateBlock(currentPage!.pageId, idx, { hotspots: list });
-                                    }}
+                              {((b as LessonPageBlock).hotspots ?? []).map((hot, hi) => {
+                                const placed = isInteractiveDiagramHotspotPlaced(hot);
+                                const hid = String(hot.id ?? hi);
+                                const isPlacing = (interactiveDiagramPlacingId[key] ?? null) === hid;
+                                return (
+                                  <div
+                                    key={hot.id || hi}
                                     style={{
-                                      marginTop: 0,
-                                      padding: "4px 10px",
-                                      borderRadius: 6,
-                                      border: "1px solid #f87171",
-                                      background: "#fef2f2",
-                                      color: "#b91c1c",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                      fontWeight: 600,
+                                      padding: 12,
+                                      borderRadius: 10,
+                                      border: isPlacing ? "2px solid #3b82f6" : "1px solid #fecaca",
+                                      background: isPlacing ? "rgba(219, 234, 254, 0.35)" : "#fffbeb",
                                     }}
                                   >
-                                    Delete hotspot
-                                  </button>
-                                </div>
-                              ))}
+                                    <div style={{ fontWeight: 800, marginBottom: 6, color: "#991b1b" }}>
+                                      Marker {hi + 1}
+                                      {placed ? (
+                                        <span style={{ fontWeight: 600, color: "#166534", marginLeft: 8 }}>
+                                          Placed: {Math.round((hot as { x: number }).x)}%,{" "}
+                                          {Math.round((hot as { y: number }).y)}%
+                                        </span>
+                                      ) : (
+                                        <span style={{ fontWeight: 600, color: "#9a3412", marginLeft: 8 }}>Unplaced</span>
+                                      )}
+                                    </div>
+                                    <div style={{ marginBottom: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                      {isPlacing ? (
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: "#1d4ed8" }}>
+                                          Click image to place…
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setInteractiveDiagramPlacingId((p) => ({ ...p, [key]: hid }));
+                                          }}
+                                          style={{
+                                            padding: "6px 12px",
+                                            borderRadius: 8,
+                                            border: "1px solid #3b82f6",
+                                            background: "#eff6ff",
+                                            color: "#1d4ed8",
+                                            cursor: "pointer",
+                                            fontWeight: 700,
+                                            fontSize: 13,
+                                          }}
+                                        >
+                                          Place this hotspot
+                                        </button>
+                                      )}
+                                      {isPlacing ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setInteractiveDiagramPlacingId((p) => ({ ...p, [key]: null }));
+                                          }}
+                                          style={{
+                                            padding: "6px 10px",
+                                            borderRadius: 8,
+                                            border: "1px solid #94a3b8",
+                                            background: "#f1f5f9",
+                                            cursor: "pointer",
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          Cancel
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, fontSize: 12 }}>Label</div>
+                                      <input
+                                        value={hot.label ?? ""}
+                                        onChange={(e) => {
+                                          const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                          if (list[hi]) list[hi] = { ...list[hi], label: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                        }}
+                                        style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Description</div>
+                                      <LessonAutoTextarea
+                                        editorVariant="plain"
+                                        value={hot.description ?? ""}
+                                        onChange={(v) => {
+                                          const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                          if (list[hi]) list[hi] = { ...list[hi], description: v };
+                                          updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                        }}
+                                        minHeightPx={72}
+                                        style={{ fontSize: "0.875rem" }}
+                                      />
+                                    </label>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                                      <label style={{ display: "block", fontSize: 12 }}>
+                                        X (%)
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={
+                                            typeof (hot as { x?: number }).x === "number" && Number.isFinite((hot as { x: number }).x)
+                                              ? (hot as { x: number }).x
+                                              : ""
+                                          }
+                                          onChange={(e) => {
+                                            const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                            if (!list[hi]) return;
+                                            const v = e.target.value.trim();
+                                            if (v === "") {
+                                              const { x, y, ...rest } = list[hi] as {
+                                                x?: number;
+                                                y?: number;
+                                                id: string;
+                                                label: string;
+                                                description: string;
+                                              };
+                                              list[hi] = { ...rest };
+                                              updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                              return;
+                                            }
+                                            const x = Math.max(0, Math.min(100, Number(v) || 0));
+                                            const curY = (list[hi] as { y?: number }).y;
+                                            if (typeof curY === "number" && Number.isFinite(curY)) {
+                                              list[hi] = { ...list[hi], x, y: Math.max(0, Math.min(100, curY)) };
+                                            } else {
+                                              list[hi] = { ...list[hi], x };
+                                            }
+                                            updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                          }}
+                                          placeholder="—"
+                                          style={{ width: "100%", marginTop: 4, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                        />
+                                      </label>
+                                      <label style={{ display: "block", fontSize: 12 }}>
+                                        Y (%)
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={
+                                            typeof (hot as { y?: number }).y === "number" && Number.isFinite((hot as { y: number }).y)
+                                              ? (hot as { y: number }).y
+                                              : ""
+                                          }
+                                          onChange={(e) => {
+                                            const list = [...((b as LessonPageBlock).hotspots ?? [])];
+                                            if (!list[hi]) return;
+                                            const v = e.target.value.trim();
+                                            if (v === "") {
+                                              const { x, y, ...rest } = list[hi] as {
+                                                x?: number;
+                                                y?: number;
+                                                id: string;
+                                                label: string;
+                                                description: string;
+                                              };
+                                              list[hi] = { ...rest };
+                                              updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                              return;
+                                            }
+                                            const y = Math.max(0, Math.min(100, Number(v) || 0));
+                                            const curX = (list[hi] as { x?: number }).x;
+                                            if (typeof curX === "number" && Number.isFinite(curX)) {
+                                              list[hi] = { ...list[hi], y, x: Math.max(0, Math.min(100, curX)) };
+                                            } else {
+                                              list[hi] = { ...list[hi], y };
+                                            }
+                                            updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                          }}
+                                          placeholder="—"
+                                          style={{ width: "100%", marginTop: 4, padding: 6, borderRadius: 6, border: "1px solid #cbd5e1" }}
+                                        />
+                                      </label>
+                                    </div>
+                                    <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px 0" }}>
+                                      Set both X and Y to place via numbers, or clear one to mark unplaced.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setInteractiveDiagramPlacingId((p) => {
+                                          const next = { ...p };
+                                          if (next[key] === hid) next[key] = null;
+                                          return next;
+                                        });
+                                        const list = ((b as LessonPageBlock).hotspots ?? []).filter((_, i) => i !== hi);
+                                        updateBlock(currentPage!.pageId, idx, { hotspots: list });
+                                      }}
+                                      style={{
+                                        marginTop: 0,
+                                        padding: "4px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #f87171",
+                                        background: "#fef2f2",
+                                        color: "#b91c1c",
+                                        cursor: "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      Delete hotspot
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : isDragDropMatch ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
+                                <input
+                                  value={safeStr((b as LessonPageBlock).title, "")}
+                                  onChange={(e) => updateBlock(currentPage!.pageId, idx, { title: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                  }}
+                                  placeholder="e.g. Match organelles to their functions"
+                                />
+                              </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Intro</div>
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
+                                  value={safeStr((b as LessonPageBlock).intro, "")}
+                                  onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
+                                  placeholder="Short introduction for students…"
+                                  minHeightPx={100}
+                                  style={{ fontSize: "0.9375rem" }}
+                                />
+                              </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Instructions</div>
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
+                                  value={safeStr((b as LessonPageBlock).instructions, "")}
+                                  onChange={(v) => updateBlock(currentPage!.pageId, idx, { instructions: v })}
+                                  placeholder="What students should do…"
+                                  minHeightPx={80}
+                                  style={{ fontSize: "0.9375rem" }}
+                                />
+                              </label>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const cur = Array.isArray((b as LessonPageBlock).pairs)
+                                      ? [...((b as LessonPageBlock).pairs as NonNullable<LessonPageBlock["pairs"]>)]
+                                      : [];
+                                    cur.push({
+                                      id: newId(),
+                                      prompt: "New prompt",
+                                      answer: "New answer",
+                                      explanation: "",
+                                    });
+                                    updateBlock(currentPage!.pageId, idx, { pairs: cur });
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: 8,
+                                    border: "2px solid rgba(14,165,233,0.45)",
+                                    background: "rgba(224,242,254,0.5)",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  + Add pair
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!window.confirm("This will replace existing pairs. Continue?")) return;
+                                    updateBlock(currentPage!.pageId, idx, {
+                                      pairs: CELL_ORGANELLES_DRAG_DROP_TEMPLATE.map((row) => ({
+                                        id: newId(),
+                                        prompt: row.prompt,
+                                        answer: row.answer,
+                                        explanation: row.explanation,
+                                      })),
+                                    });
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: 8,
+                                    border: "2px solid rgba(59,130,246,0.35)",
+                                    background: "rgba(59,130,246,0.08)",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Use cell organelles template
+                                </button>
+                                {(() => {
+                                  const dndAi = dragDropPairAiUi[key] ?? { loading: false, message: null };
+                                  const dndContextText = [
+                                    lesson ? safeStr(lesson.title, "") : "",
+                                    currentPage ? safeStr(currentPage.title, "") : "",
+                                    safeStr((b as LessonPageBlock).intro, ""),
+                                    safeStr((b as LessonPageBlock).instructions, ""),
+                                  ]
+                                    .map((s) => String(s).trim())
+                                    .filter((s) => s.length > 0)
+                                    .join("\n\n");
+                                  const dndAiDisabled = dndContextText.length < 12 || dndAi.loading;
+                                  return (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={dndAiDisabled}
+                                        onClick={async () => {
+                                          if (!window.confirm("Replace existing pairs with AI-generated ones?")) return;
+                                          setDragDropPairAiUi((prev) => ({
+                                            ...prev,
+                                            [key]: { loading: true, message: null },
+                                          }));
+                                          try {
+                                            const aiPairs = await generateDragDropPairsFromText({
+                                              lessonTitle: lesson ? safeStr(lesson.title, "") : undefined,
+                                              pageTitle: currentPage ? safeStr(currentPage.title, "") : undefined,
+                                              subject: lesson ? safeStr(lesson.subject, "") : undefined,
+                                              level: lesson ? safeStr(lesson.level, "") : undefined,
+                                              text: dndContextText,
+                                            });
+                                            if (aiPairs.length === 0) {
+                                              setDragDropPairAiUi((prev) => ({
+                                                ...prev,
+                                                [key]: { loading: false, message: "empty" },
+                                              }));
+                                              return;
+                                            }
+                                            const newPairs = aiPairs.slice(0, 20).map((p) => ({
+                                              id: newId(),
+                                              prompt: p.prompt,
+                                              answer: p.answer,
+                                              explanation: p.explanation || "",
+                                            }));
+                                            updateBlock(currentPage!.pageId, idx, { pairs: newPairs });
+                                            setDragDropPairAiUi((prev) => ({
+                                              ...prev,
+                                              [key]: { loading: false, message: null },
+                                            }));
+                                          } catch {
+                                            setDragDropPairAiUi((prev) => ({
+                                              ...prev,
+                                              [key]: { loading: false, message: "error" },
+                                            }));
+                                          }
+                                        }}
+                                        style={{
+                                          padding: "6px 12px",
+                                          borderRadius: 8,
+                                          border: "2px solid rgba(124,58,237,0.4)",
+                                          background: "rgba(243,232,255,0.75)",
+                                          cursor: dndAiDisabled ? "not-allowed" : "pointer",
+                                          fontWeight: 700,
+                                          opacity: dndAiDisabled ? 0.55 : 1,
+                                        }}
+                                      >
+                                        {dndAi.loading ? "Generating…" : "Generate pairs with AI"}
+                                      </button>
+                                      {dndAi.message === "error" ? (
+                                        <span style={{ fontSize: 13, color: "#b91c1c", fontWeight: 600 }}>
+                                          Could not generate pairs. Try again.
+                                        </span>
+                                      ) : dndAi.message === "empty" ? (
+                                        <span style={{ fontSize: 13, color: "#b45309", fontWeight: 600 }}>
+                                          No suitable pairs generated.
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              {(Array.isArray((b as LessonPageBlock).pairs)
+                                ? (b as LessonPageBlock).pairs!
+                                : []
+                              ).map((pair, pi) => {
+                                const pairsList = (Array.isArray((b as LessonPageBlock).pairs)
+                                  ? (b as LessonPageBlock).pairs!
+                                  : []) as NonNullable<LessonPageBlock["pairs"]>;
+                                return (
+                                  <div
+                                    key={pair.id || `pair-${pi}`}
+                                    style={{
+                                      padding: 12,
+                                      borderRadius: 10,
+                                      border: "1px solid #e2e8f0",
+                                      background: "#fafafa",
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#0369a1" }}>
+                                      Pair {pi + 1}
+                                    </div>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Prompt (target)</div>
+                                      <input
+                                        value={pair.prompt ?? ""}
+                                        onChange={(e) => {
+                                          const next = [...pairsList];
+                                          if (next[pi]) next[pi] = { ...next[pi], prompt: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          border: "1px solid #cbd5e1",
+                                        }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Answer (draggable)</div>
+                                      <input
+                                        value={pair.answer ?? ""}
+                                        onChange={(e) => {
+                                          const next = [...pairsList];
+                                          if (next[pi]) next[pi] = { ...next[pi], answer: e.target.value };
+                                          updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 10px",
+                                          borderRadius: 8,
+                                          border: "1px solid #cbd5e1",
+                                        }}
+                                      />
+                                    </label>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Explanation (optional)</div>
+                                      <LessonAutoTextarea
+                                        editorVariant="plain"
+                                        value={pair.explanation ?? ""}
+                                        onChange={(v) => {
+                                          const next = [...pairsList];
+                                          if (next[pi]) next[pi] = { ...next[pi], explanation: v };
+                                          updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                        }}
+                                        placeholder="Shown after checking…"
+                                        minHeightPx={72}
+                                        style={{ fontSize: "0.875rem" }}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (pairsList.length <= 1) return;
+                                        const next = pairsList.filter((_, i) => i !== pi);
+                                        updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                      }}
+                                      disabled={pairsList.length <= 1}
+                                      style={{
+                                        marginTop: 4,
+                                        padding: "4px 10px",
+                                        borderRadius: 6,
+                                        border: "1px solid #f87171",
+                                        background: "#fef2f2",
+                                        color: "#b91c1c",
+                                        cursor: pairsList.length <= 1 ? "not-allowed" : "pointer",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        opacity: pairsList.length <= 1 ? 0.5 : 1,
+                                      }}
+                                    >
+                                      Delete pair
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           ) : (
                             <>
@@ -6982,13 +7544,9 @@ const EditLessonPage: React.FC = () => {
                           description?: string;
                         }>;
                       };
-                      const hs = (Array.isArray(idg.hotspots) ? idg.hotspots : []).map((h, i) => ({
-                        id: String(h?.id || `h${i + 1}`),
-                        x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
-                        y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
-                        label: String(h?.label ?? ""),
-                        description: String(h?.description ?? ""),
-                      }));
+                      const hs = (Array.isArray(idg.hotspots) ? idg.hotspots : []).map((h, i) =>
+                        normalizeInteractiveDiagramHotspot(h, i)
+                      );
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -7009,6 +7567,43 @@ const EditLessonPage: React.FC = () => {
                             imageUrl={String(idg.imageUrl ?? "")}
                             hotspots={hs}
                             resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                          />
+                        </div>
+                      );
+                    }
+                    if (blockType === "dragDropMatch") {
+                      const ddm = b as {
+                        title?: string;
+                        intro?: string;
+                        instructions?: string;
+                        pairs?: Array<{ id?: string; prompt?: string; answer?: string; explanation?: string }>;
+                      };
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <DragDropMatchBlock
+                            block={{
+                              title: safeStr(ddm.title, ""),
+                              intro: safeStr(ddm.intro, ""),
+                              instructions: safeStr(ddm.instructions, ""),
+                              pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => ({
+                                id: String(p?.id ?? "").trim() || `pair_${i}`,
+                                prompt: String(p?.prompt ?? ""),
+                                answer: String(p?.answer ?? ""),
+                                explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                              })),
+                            }}
                           />
                         </div>
                       );

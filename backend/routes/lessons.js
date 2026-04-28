@@ -265,10 +265,13 @@ function sanitisePageInput(p, isUpdate = false) {
     "diagram",
     "interactiveSequence",
     "interactiveDiagram",
+    "dragDropMatch",
   ];
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
-        const type = allowedBlockTypes.includes(String(b?.type)) ? String(b.type) : "text";
+        let rawType = String(b?.type ?? "").trim();
+        if (rawType.toLowerCase() === "dragdropmatch") rawType = "dragDropMatch";
+        const type = allowedBlockTypes.includes(rawType) ? rawType : "text";
         if (type === "checkpoint") {
           const prompt = typeof b?.prompt === "string" ? b.prompt : "";
           const options = Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [];
@@ -422,20 +425,27 @@ function sanitisePageInput(p, isUpdate = false) {
             .slice(0, 40)
             .map((h, i) => {
               if (!h || typeof h !== "object")
-                return { id: `h${i + 1}`, x: 50, y: 50, label: "", description: "" };
-              const x = Math.max(0, Math.min(100, Number(h.x) || 0));
-              const y = Math.max(0, Math.min(100, Number(h.y) || 0));
+                return { id: `h${i + 1}`, label: "", description: "" };
               const id =
                 typeof h.id === "string" && h.id.trim()
                   ? h.id.trim().slice(0, 64)
                   : `h${i + 1}`;
-              return {
-                id,
-                x,
-                y,
-                label: typeof h.label === "string" ? h.label.trim().slice(0, 200) : "",
-                description: typeof h.description === "string" ? h.description.trim().slice(0, 8000) : "",
-              };
+              const label = typeof h.label === "string" ? h.label.trim().slice(0, 200) : "";
+              const description = typeof h.description === "string" ? h.description.trim().slice(0, 8000) : "";
+              const nx = h.x;
+              const ny = h.y;
+              const hasX = nx != null && nx !== "" && Number.isFinite(Number(nx));
+              const hasY = ny != null && ny !== "" && Number.isFinite(Number(ny));
+              if (hasX && hasY) {
+                return {
+                  id,
+                  x: Math.max(0, Math.min(100, Number(nx))),
+                  y: Math.max(0, Math.min(100, Number(ny))),
+                  label,
+                  description,
+                };
+              }
+              return { id, label, description };
             })
             .filter((h) => h.id);
           const outId = {
@@ -447,6 +457,56 @@ function sanitisePageInput(p, isUpdate = false) {
           };
           if (typeof b?.role === "string" && b.role.trim()) outId.role = b.role.trim();
           return outId;
+        }
+        if (type === "dragDropMatch") {
+          const title = typeof b?.title === "string" ? b.title.trim().slice(0, 240) : "";
+          const intro = typeof b?.intro === "string" ? b.intro.trim().slice(0, 4000) : "";
+          const instructions = typeof b?.instructions === "string" ? b.instructions.trim().slice(0, 4000) : "";
+          const rawPairs = Array.isArray(b?.pairs) ? b.pairs : [];
+          const pairs = rawPairs
+            .slice(0, 20)
+            .map((row, i) => {
+              if (!row || typeof row !== "object") {
+                return { id: `pair_${i + 1}`, prompt: "", answer: "", explanation: "" };
+              }
+              const id =
+                typeof row.id === "string" && row.id.trim()
+                  ? row.id.trim().slice(0, 64)
+                  : `pair_${i + 1}`;
+              return {
+                id,
+                prompt: typeof row.prompt === "string" ? row.prompt.trim().slice(0, 2000) : "",
+                answer: typeof row.answer === "string" ? row.answer.trim().slice(0, 2000) : "",
+                explanation:
+                  typeof row.explanation === "string" && row.explanation.trim()
+                    ? row.explanation.trim().slice(0, 8000)
+                    : undefined,
+              };
+            })
+            .filter((row) => row.id);
+          const defaultPairs = [
+            {
+              id: "a",
+              prompt: "Nucleus",
+              answer: "Controls the cell and contains genetic material",
+              explanation: "The nucleus contains DNA and controls cell activities.",
+            },
+            {
+              id: "b",
+              prompt: "Mitochondria",
+              answer: "Site of aerobic respiration",
+              explanation: "Mitochondria release energy through aerobic respiration.",
+            },
+          ];
+          const ddmOut = {
+            type: "dragDropMatch",
+            title,
+            intro,
+            instructions,
+            pairs: pairs.length ? pairs : defaultPairs,
+          };
+          if (typeof b?.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
+          return ddmOut;
         }
         const out = {
           type,
