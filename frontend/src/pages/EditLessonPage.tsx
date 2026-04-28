@@ -154,6 +154,15 @@ interface LessonPageBlock {
   pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
 }
 
+/** Hotspot with coordinates — only these render on the editor preview image (unplaced omitted). */
+type PlacedInteractiveDiagramHotspot = {
+  id: string;
+  label: string;
+  description: string;
+  x: number;
+  y: number;
+};
+
 interface LessonPageHero {
   type: "none" | "image" | "video" | "animation";
   src: any;
@@ -1230,7 +1239,7 @@ const EditLessonPage: React.FC = () => {
                     ...(role && { role }),
                   };
                 }
-                if (b?.type === "interactiveSequence") {
+                if (normalizeBlockType(String(b?.type ?? "")) === "interactiveSequence") {
                   const rawSeq = Array.isArray(b.sequenceSteps)
                     ? b.sequenceSteps
                     : Array.isArray(b.steps)
@@ -1256,7 +1265,7 @@ const EditLessonPage: React.FC = () => {
                   if (typeof b?.role === "string" && b.role.trim()) outIs.role = b.role.trim();
                   return outIs;
                 }
-                if (b?.type === "interactiveDiagram") {
+                if (normalizeBlockType(String(b?.type ?? "")) === "interactiveDiagram") {
                   const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
                   const hotspots = rawH.map((h: any, i: number) =>
                     normalizeInteractiveDiagramHotspot(h, i)
@@ -1272,7 +1281,7 @@ const EditLessonPage: React.FC = () => {
                   if (typeof b?.role === "string" && b.role.trim()) outId.role = b.role.trim();
                   return outId;
                 }
-                if (b?.type === "dragDropMatch") {
+                if (normalizeBlockType(String(b?.type ?? "")) === "dragDropMatch") {
                   const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
                   const pairs = rawPairs.map((row: any) => ({
                     id: String(row?.id ?? "").trim() || newId(),
@@ -1307,6 +1316,53 @@ const EditLessonPage: React.FC = () => {
                   };
                   if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
                   return outDdm;
+                }
+                /** Recover blocks mis-saved as `text` while `pairs` survived (legacy client/API mismatch). */
+                const nbForRepair = normalizeBlockType(String(b?.type ?? ""));
+                const pairsForRepair = Array.isArray((b as any)?.pairs) ? (b as any).pairs : [];
+                if (
+                  nbForRepair === "text" &&
+                  pairsForRepair.length >= 1 &&
+                  pairsForRepair.some(
+                    (row: any) =>
+                      row &&
+                      typeof row === "object" &&
+                      (String(row?.prompt ?? "").trim() || String(row?.answer ?? "").trim())
+                  )
+                ) {
+                  const pairs = pairsForRepair.map((row: any) => ({
+                    id: String(row?.id ?? "").trim() || newId(),
+                    prompt: safeStr(row?.prompt, ""),
+                    answer: safeStr(row?.answer, ""),
+                    explanation: row?.explanation != null ? String(row.explanation) : "",
+                  }));
+                  const defaultTwo = [
+                    {
+                      id: newId(),
+                      prompt: "Nucleus",
+                      answer: "Controls the cell and contains genetic material",
+                      explanation: "The nucleus contains DNA and controls cell activities.",
+                    },
+                    {
+                      id: newId(),
+                      prompt: "Mitochondria",
+                      answer: "Site of aerobic respiration",
+                      explanation: "Mitochondria release energy through aerobic respiration.",
+                    },
+                  ];
+                  const repaired: Record<string, unknown> = {
+                    type: "dragDropMatch" as const,
+                    content: "",
+                    title: safeStr(b.title, "Drag and drop match"),
+                    intro: safeStr(b.intro, "Match each item to the correct answer."),
+                    instructions: safeStr(
+                      (b as any).instructions,
+                      "Drag each answer into the correct box, then check your answers."
+                    ),
+                    pairs: pairs.length >= 1 ? pairs : defaultTwo,
+                  };
+                  if (typeof b?.role === "string" && b.role.trim()) repaired.role = b.role.trim();
+                  return repaired;
                 }
                 const out: Record<string, unknown> = {
                   type: normalizeBlockType(b?.type),
@@ -6554,9 +6610,16 @@ const EditLessonPage: React.FC = () => {
                                 const idgHotspots = Array.isArray((b as LessonPageBlock).hotspots)
                                   ? (b as LessonPageBlock).hotspots!
                                   : [];
-                                const editorDiagramHotspots = idgHotspots.map((h, hi) =>
+                                const normalizedDiagramHs = idgHotspots.map((h, hi) =>
                                   normalizeInteractiveDiagramHotspot(h, hi)
                                 );
+                                const editorDiagramHotspots: PlacedInteractiveDiagramHotspot[] =
+                                  normalizedDiagramHs.filter((h): h is PlacedInteractiveDiagramHotspot =>
+                                    typeof h.x === "number" &&
+                                    Number.isFinite(h.x) &&
+                                    typeof h.y === "number" &&
+                                    Number.isFinite(h.y)
+                                  );
                                 const placeTargetId = interactiveDiagramPlacingId[key] ?? null;
                                 return (
                                   <div>
