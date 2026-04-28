@@ -168,15 +168,25 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
   },
 };
 
+/** Collapse spaces/underscores/hyphens so API variants (drag_drop_match, Drag-Drop-Match) match. */
+function compactTypeKey(raw: string): string {
+  return raw.trim().replace(/[\s_\-]/g, "").toLowerCase();
+}
+
 /**
  * Normalize any block type string (legacy or canonical) to LessonBlockType.
  * Use when loading blocks from the API or when rendering.
  */
 export function normalizeBlockType(raw: string | undefined): LessonBlockType {
   const t0 = (raw || "text").trim();
-  /** API/JSON may use any casing; backend allowlist is case-sensitive. */
-  const t = t0.toLowerCase() === "dragdropmatch" ? "dragDropMatch" : t0;
-  switch (t) {
+  const compact = compactTypeKey(t0);
+  /** Tolerant aliases — some stores/exports use snake_case or kebab-case. */
+  if (compact === "dragdropmatch") return "dragDropMatch";
+  if (compact === "interactivediagram") return "interactiveDiagram";
+  if (compact === "interactivesequence") return "interactiveSequence";
+  if (compact === "pagequiz") return "pageQuiz";
+
+  switch (t0) {
     case "keyIdea":
       return "keyIdeas";
     case "examTip":
@@ -193,15 +203,38 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "text":
     case "checkpoint":
     case "selfCheck":
+    case "pageQuiz":
     case "diagram":
     case "interactiveSequence":
     case "interactiveDiagram":
     case "dragDropMatch":
-      return t as LessonBlockType;
+      return t0 as LessonBlockType;
     default:
       return "text";
-    }
   }
+}
+
+/**
+ * Student / preview routing: normalizes type and recovers drag-drop rows mis-saved as `text`
+ * when `pairs` still contains structured data (legacy persistence mismatch).
+ */
+export function resolveLessonDisplayBlockType(block: unknown): LessonBlockType {
+  const b =
+    block != null && typeof block === "object"
+      ? (block as { type?: unknown; pairs?: unknown })
+      : {};
+  const base = normalizeBlockType(b.type !== undefined ? String(b.type) : undefined);
+  if (base !== "text") return base;
+  const rp = Array.isArray(b.pairs) ? b.pairs : [];
+  const looksLikeDragDrop =
+    rp.length >= 1 &&
+    rp.some((row: unknown) => {
+      if (!row || typeof row !== "object") return false;
+      const o = row as { prompt?: unknown; answer?: unknown };
+      return Boolean(String(o.prompt ?? "").trim() || String(o.answer ?? "").trim());
+    });
+  return looksLikeDragDrop ? "dragDropMatch" : "text";
+}
 
 /**
  * Convert canonical LessonBlockType to legacy API type string.
