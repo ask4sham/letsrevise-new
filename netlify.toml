@@ -1,5 +1,21 @@
 # Netlify build config for LetsRevise frontend
 # https://docs.netlify.com/configure-builds/file-based-configuration/
+#
+# Dashboard should match file-based settings (avoid duplicate/conflicting overrides):
+#   Base directory:   frontend   (same as `base` below — Netlify cds here before install/build)
+#   Build command:    npm run build
+#   Publish directory: build       (relative to base, i.e. frontend/build output)
+#
+# If a deploy fails, open Deploy log on Netlify and copy the FIRST "Failed" npm/tsc/babel line —
+# guesses here cannot replace that line.
+
+[build.environment]
+  # CRA + large bundles: avoid OOM on small Netlify builders
+  NODE_VERSION = "20"
+  NODE_OPTIONS = "--max_old_space_size=4096"
+  # Netlify sets CI=true; CRA treats warnings as failures. ESLint is disabled in build script,
+  # but TS/webpack warnings can still fail under CI in edge cases.
+  CI = "false"
 
 [build]
   base = "frontend"
