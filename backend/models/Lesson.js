@@ -63,21 +63,44 @@ const InteractiveSequenceStepSchema = new mongoose.Schema(
   { _id: false }
 );
 
-/** type === "interactiveDiagram" — x/y 0–100 (percentage left/top) */
+/** Optional embedded “Test me” MCQ on a hotspot (same shape as templates / frontend). */
+const InteractiveDiagramHotspotTestSchema = new mongoose.Schema(
+  {
+    question: { type: String, default: "" },
+    options: { type: [String], default: undefined },
+    correctIndex: { type: Number, min: 0, max: 3, default: 0 },
+    explanation: { type: String, default: undefined },
+  },
+  { _id: false }
+);
+
+/** type === "interactiveDiagram" — x/y 0–100 (percentage left/top); omitted when unplaced in editor */
 const InteractiveDiagramHotspotSchema = new mongoose.Schema(
   {
     id: { type: String, default: "" },
-    x: { type: Number, min: 0, max: 100, default: 50 },
-    y: { type: Number, min: 0, max: 100, default: 50 },
+    x: { type: Number, min: 0, max: 100, required: false },
+    y: { type: Number, min: 0, max: 100, required: false },
     label: { type: String, default: "" },
     description: { type: String, default: "" },
+    test: { type: InteractiveDiagramHotspotTestSchema, required: false },
+  },
+  { _id: false }
+);
+
+/** type === "dragDropMatch" — prompt = target, answer = draggable card */
+const DragDropMatchPairSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    prompt: { type: String, default: "" },
+    answer: { type: String, default: "" },
+    explanation: { type: String, default: undefined },
   },
   { _id: false }
 );
 
 const LessonPageBlockSchema = new mongoose.Schema(
   {
-    // "text" | "keyIdea" | "examTip" | "commonMistake" | "stretch" | "checkpoint" | "pageQuiz" | "diagram" | "interactiveSequence" | "interactiveDiagram"
+    // "text" | "keyIdea" | … | "interactiveDiagram" | "dragDropMatch"
     type: {
       type: String,
       enum: [
@@ -91,6 +114,7 @@ const LessonPageBlockSchema = new mongoose.Schema(
         "diagram",
         "interactiveSequence",
         "interactiveDiagram",
+        "dragDropMatch",
       ],
       default: "text",
     },
@@ -131,11 +155,14 @@ const LessonPageBlockSchema = new mongoose.Schema(
     imageSource: { type: String },
     alt: { type: String },
 
-    /** type === "interactiveSequence" | "interactiveDiagram" */
+    /** type === "interactiveSequence" | "interactiveDiagram" | "dragDropMatch" */
     intro: { type: String, default: undefined },
     sequenceSteps: { type: [InteractiveSequenceStepSchema], default: undefined },
     /** type === "interactiveDiagram" */
     hotspots: { type: [InteractiveDiagramHotspotSchema], default: undefined },
+    /** type === "dragDropMatch" */
+    instructions: { type: String, default: undefined },
+    pairs: { type: [DragDropMatchPairSchema], default: undefined },
   },
   { _id: false }
 );

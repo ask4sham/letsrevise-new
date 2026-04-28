@@ -270,7 +270,10 @@ function sanitisePageInput(p, isUpdate = false) {
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
         let rawType = String(b?.type ?? "").trim();
-        if (rawType.toLowerCase() === "dragdropmatch") rawType = "dragDropMatch";
+        const compactType = rawType.replace(/[\s_-]/g, "").toLowerCase();
+        if (compactType === "dragdropmatch") rawType = "dragDropMatch";
+        else if (compactType === "interactivediagram") rawType = "interactiveDiagram";
+        else if (compactType === "interactivesequence") rawType = "interactiveSequence";
         const type = allowedBlockTypes.includes(rawType) ? rawType : "text";
         if (type === "checkpoint") {
           const prompt = typeof b?.prompt === "string" ? b.prompt : "";
@@ -421,6 +424,24 @@ function sanitisePageInput(p, isUpdate = false) {
           const intro = typeof b?.intro === "string" ? b.intro.trim().slice(0, 4000) : "";
           const imageUrl = typeof b?.imageUrl === "string" ? b.imageUrl.trim().slice(0, 2000) : "";
           const rawH = Array.isArray(b?.hotspots) ? b.hotspots : [];
+          const sanitizeHotspotTest = (t) => {
+            if (!t || typeof t !== "object") return undefined;
+            const question = typeof t.question === "string" ? t.question.trim().slice(0, 2000) : "";
+            const optionsRaw = Array.isArray(t.options) ? t.options.map((x) => String(x ?? "").trim()) : [];
+            if (!question || optionsRaw.length !== 4 || optionsRaw.some((s) => !s)) return undefined;
+            let ci = typeof t.correctIndex === "number" && Number.isFinite(t.correctIndex) ? Math.round(t.correctIndex) : 0;
+            ci = Math.max(0, Math.min(3, ci));
+            const explanation =
+              typeof t.explanation === "string" && t.explanation.trim()
+                ? t.explanation.trim().slice(0, 8000)
+                : undefined;
+            return {
+              question,
+              options: optionsRaw,
+              correctIndex: ci,
+              ...(explanation ? { explanation } : {}),
+            };
+          };
           const hotspots = rawH
             .slice(0, 40)
             .map((h, i) => {
@@ -432,6 +453,7 @@ function sanitisePageInput(p, isUpdate = false) {
                   : `h${i + 1}`;
               const label = typeof h.label === "string" ? h.label.trim().slice(0, 200) : "";
               const description = typeof h.description === "string" ? h.description.trim().slice(0, 8000) : "";
+              const test = sanitizeHotspotTest(h.test);
               const nx = h.x;
               const ny = h.y;
               const hasX = nx != null && nx !== "" && Number.isFinite(Number(nx));
@@ -443,9 +465,10 @@ function sanitisePageInput(p, isUpdate = false) {
                   y: Math.max(0, Math.min(100, Number(ny))),
                   label,
                   description,
+                  ...(test ? { test } : {}),
                 };
               }
-              return { id, label, description };
+              return { id, label, description, ...(test ? { test } : {}) };
             })
             .filter((h) => h.id);
           const outId = {

@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { generateHotspotMcqFromConcept, type HotspotMcqPayload } from "../../api/ai";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
+import {
+  embeddedInteractiveDiagramTestToMcqPayload,
+  isInteractiveDiagramHotspotPlaced,
+  parseEmbeddedInteractiveDiagramTest,
+} from "../../utils/interactiveDiagramHotspots";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
-import { isInteractiveDiagramHotspotPlaced } from "../../utils/interactiveDiagramHotspots";
 import "./interactiveDiagramBlock.css";
 
 export type InteractiveDiagramHotspot = {
@@ -12,6 +16,8 @@ export type InteractiveDiagramHotspot = {
   y?: number | null;
   label: string;
   description: string;
+  /** Preset/stored MCQ — when set, “Test me” skips AI generation. */
+  test?: unknown;
 };
 
 /**
@@ -233,6 +239,12 @@ export function InteractiveDiagramBlock({
                       setTestMeError(null);
                       setSelectedOption(null);
                       setGeneratedQuestion(null);
+                      const preset = parseEmbeddedInteractiveDiagramTest(active.test);
+                      const fromPreset = preset ? embeddedInteractiveDiagramTestToMcqPayload(preset) : null;
+                      if (fromPreset) {
+                        setGeneratedQuestion(fromPreset);
+                        return;
+                      }
                       setLoadingQuestion(true);
                       try {
                         const { mcq, _disabled } = await generateHotspotMcqFromConcept({

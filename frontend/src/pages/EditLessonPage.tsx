@@ -70,6 +70,7 @@ import {
 import {
   isInteractiveDiagramHotspotPlaced,
   normalizeInteractiveDiagramHotspot,
+  type NormalizedInteractiveDiagramHotspot,
 } from "../utils/interactiveDiagramHotspots";
 
 /** Topic bank URLs with filters for AI lesson drafts (draft-only review). */
@@ -148,6 +149,12 @@ interface LessonPageBlock {
     y?: number;
     label: string;
     description: string;
+    test?: {
+      question: string;
+      options: [string, string, string, string];
+      correctIndex: number;
+      explanation?: string;
+    };
   }>;
   /** type === "dragDropMatch" */
   instructions?: string;
@@ -155,13 +162,7 @@ interface LessonPageBlock {
 }
 
 /** Hotspot with coordinates — only these render on the editor preview image (unplaced omitted). */
-type PlacedInteractiveDiagramHotspot = {
-  id: string;
-  label: string;
-  description: string;
-  x: number;
-  y: number;
-};
+type PlacedInteractiveDiagramHotspot = NormalizedInteractiveDiagramHotspot & { x: number; y: number };
 
 interface LessonPageHero {
   type: "none" | "image" | "video" | "animation";
@@ -6500,24 +6501,27 @@ const EditLessonPage: React.FC = () => {
                                         };
                                         if (existingImageUrl) {
                                           patch.hotspots = tmpl.hotspots.map((row) => ({
-                                            id: newId(),
+                                            id: row.id?.trim() || newId(),
                                             label: row.label,
                                             description: row.description,
+                                            ...(row.test ? { test: row.test } : {}),
                                           }));
                                         } else if (tmpl.imageUrl) {
                                           patch.imageUrl = tmpl.imageUrl;
                                           patch.hotspots = tmpl.hotspots.map((row) => ({
-                                            id: newId(),
+                                            id: row.id?.trim() || newId(),
                                             x: row.x,
                                             y: row.y,
                                             label: row.label,
                                             description: row.description,
+                                            ...(row.test ? { test: row.test } : {}),
                                           }));
                                         } else {
                                           patch.hotspots = tmpl.hotspots.map((row) => ({
-                                            id: newId(),
+                                            id: row.id?.trim() || newId(),
                                             label: row.label,
                                             description: row.description,
+                                            ...(row.test ? { test: row.test } : {}),
                                           }));
                                         }
                                         updateBlock(currentPage!.pageId, idx, patch);

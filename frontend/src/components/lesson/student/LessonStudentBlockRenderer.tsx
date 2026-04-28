@@ -19,7 +19,9 @@ import type { ContentKeywordItem } from "./contentKeywordHighlight";
 import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
 import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../InteractiveSequenceBlock";
 import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
+import { DragDropMatchBlock } from "../DragDropMatchBlock";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
+import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -54,15 +56,18 @@ export function LessonStudentBlockRenderer({
   levelForAi,
   subjectForAi,
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
-  const kind = String(block.type || "").trim() || "text";
+  /** Interactive + diagram routing (handles mis-tagged drag-drop). */
+  const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
+  /** Raw persisted `type` for legacy shells (keyIdea, examTip, hook, …). */
+  const kind = String(block.type ?? "").trim() || "text";
   const raw = typeof block.content === "string" ? block.content : "";
   const cleanedText = stripVideoMarkdown(raw);
 
-  if (kind === "checkpoint") {
+  if (routed === "checkpoint") {
     return null;
   }
 
-  if (kind === "selfCheck") {
+  if (routed === "selfCheck") {
     return (
       <InlineSelfCheckBlock
         prompt={String(block.prompt ?? "")}
@@ -75,7 +80,7 @@ export function LessonStudentBlockRenderer({
     );
   }
 
-  if (kind === "interactiveSequence") {
+  if (routed === "interactiveSequence") {
     const raw = (block as StudentLessonPageBlock).sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
     const arr = Array.isArray(raw) ? raw : [];
     const steps: InteractiveSequenceStep[] = arr.map((s) => ({
@@ -94,16 +99,41 @@ export function LessonStudentBlockRenderer({
     );
   }
 
-  if (kind === "interactiveDiagram") {
+  if (routed === "dragDropMatch") {
+    return (
+      <DragDropMatchBlock
+        block={{
+          title: String(block.title ?? ""),
+          intro: String(block.intro ?? ""),
+          instructions: String((block as StudentLessonPageBlock).instructions ?? ""),
+          pairs: Array.isArray((block as StudentLessonPageBlock).pairs)
+            ? (block as StudentLessonPageBlock).pairs!.map((p, i) => ({
+                id: String(p?.id ?? "").trim() || `p${i}`,
+                prompt: String(p?.prompt ?? ""),
+                answer: String(p?.answer ?? ""),
+                explanation: p?.explanation != null ? String(p.explanation) : undefined,
+              }))
+            : [],
+        }}
+      />
+    );
+  }
+
+  if (routed === "interactiveDiagram") {
     const raw = (block as StudentLessonPageBlock).hotspots;
     const arr = Array.isArray(raw) ? raw : [];
-    const hotspots: InteractiveDiagramHotspot[] = arr.map((h: InteractiveDiagramHotspotPersisted) => ({
-      id: String(h?.id ?? ""),
-      x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
-      y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
-      label: String(h?.label ?? ""),
-      description: String(h?.description ?? ""),
-    }));
+    const hotspots: InteractiveDiagramHotspot[] = arr.map((h: InteractiveDiagramHotspotPersisted, i: number) => {
+      const id = String(h?.id ?? "").trim() || `h${i + 1}`;
+      const label = String(h?.label ?? "");
+      const description = String(h?.description ?? "");
+      const x = h?.x;
+      const y = h?.y;
+      const test = h?.test;
+      if (typeof x === "number" && Number.isFinite(x) && typeof y === "number" && Number.isFinite(y)) {
+        return { id, x, y, label, description, ...(test !== undefined ? { test } : {}) };
+      }
+      return { id, label, description, ...(test !== undefined ? { test } : {}) };
+    });
     return (
       <InteractiveDiagramBlock
         blockTitle={String(block.title ?? "")}
@@ -118,13 +148,13 @@ export function LessonStudentBlockRenderer({
     );
   }
 
-  if (kind === "diagram") {
+  if (routed === "diagram") {
     return (
       <div className="lesson-student-diagram-slot">{renderDiagramBlock(block, blockIndex)}</div>
     );
   }
 
-  const safeHighlightKeywords = kind === "pageQuiz" ? undefined : highlightKeywords;
+  const safeHighlightKeywords = normalizeBlockType(kind) === "pageQuiz" ? undefined : highlightKeywords;
   const mdProps = { content: raw, markdownComponents, enableMarkdownMediaSplit, highlightKeywords: safeHighlightKeywords };
 
   if (kind === "keyIdea") {

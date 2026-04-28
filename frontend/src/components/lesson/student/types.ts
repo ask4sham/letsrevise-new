@@ -12,7 +12,8 @@ export type StudentLessonBlockType =
   | "diagram"
   | "keyWords"
   | "interactiveSequence"
-  | "interactiveDiagram";
+  | "interactiveDiagram"
+  | "dragDropMatch";
 
 export type InteractiveSequenceStepPersisted = {
   title: string;
@@ -23,10 +24,19 @@ export type InteractiveSequenceStepPersisted = {
 
 export type InteractiveDiagramHotspotPersisted = {
   id: string;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   label: string;
   description: string;
+  /** Preset “Test me” MCQ (optional). */
+  test?: unknown;
+};
+
+export type DragDropMatchPairPersisted = {
+  id: string;
+  prompt: string;
+  answer: string;
+  explanation?: string;
 };
 
 export type StudentLessonPageBlock = {
@@ -37,6 +47,8 @@ export type StudentLessonPageBlock = {
   /** Persisted name; API may also send `steps` as an alias when saving. */
   sequenceSteps?: InteractiveSequenceStepPersisted[];
   hotspots?: InteractiveDiagramHotspotPersisted[];
+  instructions?: string;
+  pairs?: DragDropMatchPairPersisted[];
   prompt?: string;
   questionType?: string;
   options?: string[];
