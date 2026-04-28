@@ -507,3 +507,119 @@ export async function generateHotspotMcqFromConcept(
   }
   return { mcq, _disabled: res._disabled };
 }
+
+/** One row for a drag-and-drop match block (client assigns stable ids). */
+export type DragDropPair = {
+  prompt: string;
+  answer: string;
+  explanation?: string;
+};
+
+function normalizeDragDropPairRows(raw: unknown[]): DragDropPair[] {
+  const out: DragDropPair[] = [];
+  const seenAnswers = new Set<string>();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const prompt = typeof o.prompt === "string" ? o.prompt.trim() : "";
+    const answer = typeof o.answer === "string" ? o.answer.trim() : "";
+    if (!prompt || !answer) continue;
+    const k = answer.toLowerCase();
+    if (seenAnswers.has(k)) continue;
+    seenAnswers.add(k);
+    const explanation = typeof o.explanation === "string" ? o.explanation.trim() : "";
+    out.push(
+      explanation
+        ? { prompt, answer, explanation }
+        : { prompt, answer }
+    );
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+/**
+ * Parse JSON array of drag/drop rows from /ai/explain-chunk. Returns null if the
+ * response is not valid JSON or not a JSON array.
+ */
+function tryParseDragDropPairsJson(text: string): DragDropPair[] | null {
+  try {
+    let cleaned = String(text || "").trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/m, "")
+        .trim();
+    }
+    cleaned = cleaned.replace(/```json|```/gi, "").trim();
+    const parsed: unknown = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) return null;
+    return normalizeDragDropPairRows(parsed);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort parse for tests/callers: invalid JSON or shape → [].
+ * Prefer {@link tryParseDragDropPairsJson} when you must distinguish parse failure.
+ */
+export function parseDragDropPairsJson(text: string): DragDropPair[] {
+  return tryParseDragDropPairsJson(text) ?? [];
+}
+
+/**
+ * Generate drag/drop match rows via existing {@link explainChunk} (no new backend route).
+ * Throws if the model output is not a valid JSON array.
+ * Returns an empty array if the model returns a valid empty array.
+ */
+export async function generateDragDropPairsFromText(input: {
+  lessonTitle?: string;
+  pageTitle?: string;
+  subject?: string;
+  level?: string;
+  text: string;
+}): Promise<DragDropPair[]> {
+  const content = String(input.text || "").trim();
+  const header = [
+    input.lessonTitle && `Lesson title: ${String(input.lessonTitle).trim()}`,
+    input.pageTitle && `Page title: ${String(input.pageTitle).trim()}`,
+    input.subject && `Subject: ${String(input.subject).trim()}`,
+    input.level && `Level: ${String(input.level).trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = [
+    "Generate GCSE-level drag and drop matching pairs.",
+    "Return ONLY a valid JSON array. No markdown code fences, no commentary before or after.",
+    'Each object must have: "prompt" (string), "answer" (string), "explanation" (string, optional but preferred).',
+    "",
+    "Rules:",
+    "- Focus on key concepts from the content below.",
+    "- Use clear GCSE AQA-style language where appropriate.",
+    "- Avoid duplicate answers (each answer string must be unique).",
+    "- Keep answers concise.",
+    "- At most 8 pairs.",
+    "",
+    header,
+    "Content:",
+    content,
+  ].join("\n");
+
+  const res = await explainChunk({
+    text: prompt,
+    level: input.level,
+    subject: input.subject,
+    verbatim: true,
+  });
+  const raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
+  if (!raw) {
+    return [];
+  }
+  const parsed = tryParseDragDropPairsJson(raw);
+  if (parsed === null) {
+    throw new Error("parse_drag_drop_json");
+  }
+  return parsed;
+}
