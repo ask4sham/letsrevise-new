@@ -623,3 +623,280 @@ export async function generateDragDropPairsFromText(input: {
   }
   return parsed;
 }
+
+/** First top-level `[` … `]` substring (handles leading prose outside the array). */
+function extractFirstJsonArraySubstring(s: string): string | null {
+  const t = String(s || "").trim();
+  const first = t.indexOf("[");
+  if (first < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let esc = false;
+  for (let i = first; i < t.length; i++) {
+    const c = t[i]!;
+    if (esc) {
+      esc = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") esc = true;
+      else if (c === "\"") inString = false;
+      continue;
+    }
+    if (c === "\"") {
+      inString = true;
+      continue;
+    }
+    if (c === "[") depth += 1;
+    else if (c === "]") {
+      depth -= 1;
+      if (depth === 0) return t.slice(first, i + 1);
+    }
+  }
+  return null;
+}
+
+/** Try full-string JSON array parse; on failure retry with {@link extractFirstJsonArraySubstring}. */
+function tryParseFlexibleJsonArray(text: string): unknown[] | null {
+  try {
+    let cleaned = String(text || "").trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/m, "")
+        .trim();
+    }
+    cleaned = cleaned.replace(/```json|```/gi, "").trim();
+    const parsed: unknown = JSON.parse(cleaned);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    /* try substring */
+  }
+  const sub = extractFirstJsonArraySubstring(text);
+  if (!sub?.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(sub.trim());
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function clampInt(n: number, lo: number, hi: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(lo, Math.min(hi, Math.round(n)));
+}
+
+/** Draft row for AI-generated interactive sequence blocks (prior to assigning ids locally). */
+export type AISequenceStepDraft = {
+  title: string;
+  description: string;
+  caption: string;
+  imageUrl: string;
+};
+
+function normalizeSequenceStepAiRows(raw: unknown[], maxRows: number): AISequenceStepDraft[] {
+  const out: AISequenceStepDraft[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const title = typeof o.title === "string" ? o.title.trim() : "";
+    const description =
+      typeof o.description === "string"
+        ? o.description.trim()
+        : typeof o.body === "string"
+          ? o.body.trim()
+          : "";
+    const captionRaw = typeof o.caption === "string" ? o.caption.trim() : "";
+    const imageUrl = typeof o.imageUrl === "string" ? o.imageUrl.trim() : "";
+    if (!title || !description) continue;
+    const caption =
+      captionRaw ||
+      (description.length > 300 ? `${description.slice(0, 297)}…` : description);
+    out.push({
+      title,
+      description,
+      caption,
+      imageUrl,
+    });
+    if (out.length >= maxRows) break;
+  }
+  return out;
+}
+
+function tryParseInteractiveSequenceStepsJson(raw: string, expected: number): AISequenceStepDraft[] | null {
+  const arr = tryParseFlexibleJsonArray(raw);
+  if (!arr) return null;
+  const normalized = normalizeSequenceStepAiRows(arr, expected);
+  if (normalized.length < Math.min(3, expected)) return null;
+  return normalized.slice(0, expected);
+}
+
+/**
+ * GCSE-style ordered steps for an interactive sequence activity.
+ * Uses {@link explainChunk} (no new backend route).
+ */
+export async function generateInteractiveSequenceStepsFromTopic(input: {
+  topic: string;
+  numSteps?: number;
+  lessonTitle?: string;
+  pageTitle?: string;
+  subject?: string;
+  level?: string;
+}): Promise<AISequenceStepDraft[]> {
+  const topic = String(input.topic || "").trim();
+  if (!topic) {
+    throw new Error("topic_required");
+  }
+  const rawN =
+    typeof input.numSteps === "number" && Number.isFinite(input.numSteps)
+      ? Number(input.numSteps)
+      : 6;
+  const n = clampInt(rawN, 4, 12, 6);
+
+  const header = [
+    input.lessonTitle && `Lesson title: ${String(input.lessonTitle).trim()}`,
+    input.pageTitle && `Page title: ${String(input.pageTitle).trim()}`,
+    input.subject && `Subject: ${String(input.subject).trim()}`,
+    input.level && `Level: ${String(input.level).trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = [
+    "Generate GCSE-level steps for an interactive sequence activity.",
+    `Return ONLY a JSON array of exactly ${n} objects, in chronological order.`,
+    'No markdown code fences or commentary.',
+    "",
+    'Each object must include:',
+    '- "title" — short heading for this step (students see it in navigation).',
+    '- "description" — 2–5 sentences explaining what happens in this step.',
+    '- "caption" — ONE precise factual sentence matching the MCQ-style self-check.',
+    '- "imageUrl" — always empty string "". Teachers add images later.',
+    "",
+    "Rules:",
+    "- Cover the topic end-to-end; no repeats.",
+    `- Exactly ${n} steps.`,
+    header,
+    `Topic/process: ${topic}`,
+  ].join("\n");
+
+  const res = await explainChunk({
+    text: prompt,
+    level: input.level,
+    subject: input.subject,
+    verbatim: true,
+  });
+  const raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
+  if (!raw) {
+    throw new Error("parse_sequence_json");
+  }
+  const parsed = tryParseInteractiveSequenceStepsJson(raw, n);
+  if (parsed === null) {
+    throw new Error("parse_sequence_json");
+  }
+  return parsed;
+}
+
+/** Draft row for AI-generated interactive diagram hotspots (no x/y — placed in Edit lesson). */
+export type InteractiveDiagramHotspotAiDraft = {
+  label: string;
+  description: string;
+};
+
+function normalizeDiagramHotspotAiRows(raw: unknown[], maxRows: number): InteractiveDiagramHotspotAiDraft[] {
+  const out: InteractiveDiagramHotspotAiDraft[] = [];
+  const seenLabels = new Set<string>();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const label =
+      typeof o.label === "string"
+        ? o.label.trim()
+        : typeof o.name === "string"
+          ? o.name.trim()
+          : "";
+    let description =
+      typeof o.description === "string"
+        ? o.description.trim()
+        : typeof o.details === "string"
+          ? o.details.trim()
+          : "";
+    if (!label) continue;
+    if (seenLabels.has(label.toLowerCase())) continue;
+    seenLabels.add(label.toLowerCase());
+    if (!description.length) description = `${label}: key idea for GCSE students.`;
+    out.push({ label, description });
+    if (out.length >= maxRows) break;
+  }
+  return out;
+}
+
+function tryParseInteractiveDiagramHotspotsJson(raw: string, expected: number): InteractiveDiagramHotspotAiDraft[] | null {
+  const arr = tryParseFlexibleJsonArray(raw);
+  if (!arr) return null;
+  const normalized = normalizeDiagramHotspotAiRows(arr, expected);
+  if (normalized.length < Math.min(2, expected)) return null;
+  return normalized.slice(0, expected);
+}
+
+/**
+ * Labels + teaching text for diagram hotspots before teachers place pins on an image.
+ * Uses {@link explainChunk}.
+ */
+export async function generateInteractiveDiagramHotspotsFromConcept(input: {
+  concept: string;
+  /** Default 6; clamped 3–12. */
+  numHotspots?: number;
+  lessonTitle?: string;
+  pageTitle?: string;
+  subject?: string;
+  level?: string;
+}): Promise<InteractiveDiagramHotspotAiDraft[]> {
+  const concept = String(input.concept || "").trim();
+  if (!concept) {
+    throw new Error("concept_required");
+  }
+  const rawK =
+    typeof input.numHotspots === "number" && Number.isFinite(input.numHotspots)
+      ? Number(input.numHotspots)
+      : 6;
+  const k = clampInt(rawK, 3, 12, 6);
+
+  const header = [
+    input.lessonTitle && `Lesson title: ${String(input.lessonTitle).trim()}`,
+    input.pageTitle && `Page title: ${String(input.pageTitle).trim()}`,
+    input.subject && `Subject: ${String(input.subject).trim()}`,
+    input.level && `Level: ${String(input.level).trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = [
+    "Generate hotspots for an interactive GCSE diagram activity.",
+    `Return ONLY a JSON array of exactly ${k} objects.`,
+    "No markdown code fences or commentary.",
+    "",
+    'Each object: "label" (short noun or phrase for the clickable region list) and "description" (1–4 sentences learners read when selecting it).',
+    "",
+    `- Hotspots must relate to ONE diagram concept below (not random trivia).`,
+    `- Exactly ${k} hotspots; labels distinct.`,
+    `- No coordinates or percentages — placeholders only.`,
+    header,
+    `Concept/topic for the diagram: ${concept}`,
+  ].join("\n");
+
+  const res = await explainChunk({
+    text: prompt,
+    level: input.level,
+    subject: input.subject,
+    verbatim: true,
+  });
+  const raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
+  if (!raw) throw new Error("parse_diagram_json");
+  const parsed = tryParseInteractiveDiagramHotspotsJson(raw, k);
+  if (!parsed?.length) {
+    throw new Error("parse_diagram_json");
+  }
+  return parsed;
+}
