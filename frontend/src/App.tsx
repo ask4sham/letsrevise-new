@@ -249,11 +249,29 @@ function App() {
   const showFooter = !isEditorRoute(pathname);
 
   return (
-    <div className="App" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div
+      className="App"
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+      }}
+    >
       <Header />
       <main
         className="app-main"
-        style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: "visible" }}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          width: "100%",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "visible",
+        }}
       >
         <Routes>
           <Route path="/" element={<HomePage />} />

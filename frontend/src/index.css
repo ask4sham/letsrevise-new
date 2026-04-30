@@ -2,12 +2,14 @@
    can coerce overflow-y to auto on the same box and break position: sticky (header + lesson rails). */
 html {
   max-width: 100%;
+  width: 100%;
   overflow-x: hidden;
 }
 
 body {
   margin: 0;
   max-width: 100%;
+  width: 100%;
   overflow-x: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -24,8 +26,13 @@ body {
 }
 
 #root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   overflow: visible;
-  min-height: 100%;
+  /* Allow nested flex/grid children to shrink instead of forcing overflow */
+  min-width: 0;
 }
 
 code {
