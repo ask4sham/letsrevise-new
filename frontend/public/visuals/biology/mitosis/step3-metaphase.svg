@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <rect width="800" height="800" fill="#ffffff"/>
+  <ellipse cx="400" cy="400" rx="290" ry="268" fill="#cfe8fc" stroke="#4a90c8" stroke-width="6"/>
+  <line x1="150" y1="400" x2="650" y2="400" stroke="#0f766e" stroke-width="6" stroke-dasharray="26 14"/>
+  <text x="400" y="385" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#0f766e" font-weight="800">equator</text>
+  <text x="400" y="430" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#0f766e" font-weight="600">chromosomes lined up here</text>
+  <circle cx="400" cy="118" r="17" fill="#ffb84d" stroke="#e8890c" stroke-width="4"/>
+  <circle cx="400" cy="682" r="17" fill="#ffb84d" stroke="#e8890c" stroke-width="4"/>
+  <g stroke="#7b4faa" stroke-width="12" stroke-linecap="round" fill="none">
+    <g transform="translate(275,400)">
+      <line x1="-18" y1="-24" x2="18" y2="24"/>
+      <line x1="18" y1="-24" x2="-18" y2="24"/>
+      <circle cx="0" cy="0" r="10" fill="#a855dd" stroke="#4c1d74" stroke-width="3"/>
+    </g>
+    <g transform="translate(348,400)">
+      <line x1="-18" y1="-24" x2="18" y2="24"/>
+      <line x1="18" y1="-24" x2="-18" y2="24"/>
+      <circle cx="0" cy="0" r="10" fill="#a855dd" stroke="#4c1d74" stroke-width="3"/>
+    </g>
+    <g transform="translate(400,400)">
+      <line x1="-18" y1="-24" x2="18" y2="24"/>
+      <line x1="18" y1="-24" x2="-18" y2="24"/>
+      <circle cx="0" cy="0" r="10" fill="#a855dd" stroke="#4c1d74" stroke-width="3"/>
+    </g>
+    <g transform="translate(452,400)">
+      <line x1="-18" y1="-24" x2="18" y2="24"/>
+      <line x1="18" y1="-24" x2="-18" y2="24"/>
+      <circle cx="0" cy="0" r="10" fill="#a855dd" stroke="#4c1d74" stroke-width="3"/>
+    </g>
+    <g transform="translate(525,400)">
+      <line x1="-18" y1="-24" x2="18" y2="24"/>
+      <line x1="18" y1="-24" x2="-18" y2="24"/>
+      <circle cx="0" cy="0" r="10" fill="#a855dd" stroke="#4c1d74" stroke-width="3"/>
+    </g>
+  </g>
+  <text x="400" y="478" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#5b2785" font-weight="700">centromeres on plate</text>
+  <g stroke="#e8890c" stroke-width="5" stroke-linecap="round">
+    <line x1="400" y1="135" x2="275" y2="400"/>
+    <line x1="400" y1="135" x2="348" y2="400"/>
+    <line x1="400" y1="135" x2="400" y2="400"/>
+    <line x1="400" y1="135" x2="452" y2="400"/>
+    <line x1="400" y1="135" x2="525" y2="400"/>
+    <line x1="400" y1="665" x2="275" y2="400"/>
+    <line x1="400" y1="665" x2="348" y2="400"/>
+    <line x1="400" y1="665" x2="400" y2="400"/>
+    <line x1="400" y1="665" x2="452" y2="400"/>
+    <line x1="400" y1="665" x2="525" y2="400"/>
+  </g>
+  <text x="400" y="700" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="22" fill="#374151" font-weight="600">Metaphase</text>
+</svg>

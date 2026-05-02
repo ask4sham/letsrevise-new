@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <rect width="800" height="800" fill="#ffffff"/>
+  <!-- Two daughter cells touching at midline (animal cytokinesis) -->
+  <ellipse cx="225" cy="400" rx="175" ry="255" fill="#cfe8fc" stroke="#4a90c8" stroke-width="6"/>
+  <ellipse cx="575" cy="400" rx="175" ry="255" fill="#cfe8fc" stroke="#4a90c8" stroke-width="6"/>
+  <path d="M400 158 Q388 400 400 642" fill="none" stroke="#3780b8" stroke-width="9" stroke-linecap="round"/>
+  <ellipse cx="225" cy="400" rx="72" ry="64" fill="#dbeafe" stroke="#2563ab" stroke-width="5"/>
+  <ellipse cx="575" cy="400" rx="72" ry="64" fill="#dbeafe" stroke="#2563ab" stroke-width="5"/>
+  <g stroke="#7b4faa" stroke-width="8" stroke-linecap="round" fill="none">
+    <path d="M200 394 L218 408 L202 418"/>
+    <path d="M248 396 L266 408 L254 418"/>
+    <path d="M548 394 L566 408 L550 418"/>
+    <path d="M602 396 L618 408 L606 418"/>
+  </g>
+  <text x="418" y="392" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#1e4976" font-weight="800">cleavage furrow</text>
+  <text x="225" y="610" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#374151" font-weight="700">Daughter cell 1</text>
+  <text x="575" y="610" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#374151" font-weight="700">Daughter cell 2</text>
+  <text x="400" y="700" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="22" fill="#374151" font-weight="600">Cytokinesis</text>
+</svg>

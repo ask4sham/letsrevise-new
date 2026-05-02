@@ -717,7 +717,12 @@ const ClassroomModePage: React.FC = () => {
                           questionType={b.questionType === "short" ? "short" : "mcq"}
                           options={Array.isArray(b.options) ? b.options : []}
                           correctAnswer={safeStr(b.correctAnswer, "")}
-                          explanation={safeStr(b.explanation, "")}
+                          explanation={mergeCheckpointExplanationParts({
+                            explanation: b.explanation != null ? String(b.explanation) : undefined,
+                            markScheme: Array.isArray((b as { markScheme?: string[] }).markScheme)
+                              ? (b as { markScheme?: string[] }).markScheme
+                              : undefined,
+                          })}
                         />
                       </div>
                     );
@@ -805,10 +810,14 @@ const ClassroomModePage: React.FC = () => {
                       .checkpoint!.options!.map((o) => String(o ?? "").trim())
                       .filter((o) => o.length > 0)}
                     answer={safeStr(currentPage.checkpoint?.answer, "")}
-                    explanation={mergeCheckpointExplanationParts({
-                      explanation: currentPage.checkpoint?.explanation,
-                      markScheme: currentPage.checkpoint?.markScheme,
-                    })}
+                    explanation={
+                      typeof currentPage.checkpoint?.explanation === "string"
+                        ? currentPage.checkpoint.explanation
+                        : undefined
+                    }
+                    markScheme={Array.isArray(currentPage.checkpoint?.markScheme)
+                      ? currentPage.checkpoint!.markScheme
+                      : undefined}
                   />
                 </div>
               )}

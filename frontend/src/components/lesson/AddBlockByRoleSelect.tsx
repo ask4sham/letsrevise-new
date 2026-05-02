@@ -1,5 +1,5 @@
 import React from "react";
-import { ADD_BLOCK_OPTIONS, type AddBlockOption } from "../../types/lessonBlocks";
+import { ADD_BLOCK_OPTIONS, BLOCK_META, type AddBlockOption } from "../../types/lessonBlocks";
 
 export type AddBlockByRoleSelectProps = {
   /** Fired when the user picks a role/type from {@link ADD_BLOCK_OPTIONS}. */
@@ -63,11 +63,13 @@ export function AddBlockByRoleSelect({
       <option value="">{placeholderLabel}</option>
       {ADD_BLOCK_OPTIONS.map((opt) => {
         const isCheckpointDisabled = disableCheckpointBlocks && opt.type === "checkpoint";
+        const dropdownHint = BLOCK_META[opt.type]?.subtitle;
         return (
           <option
             key={`${opt.role}:${opt.type}`}
             value={`${opt.role}:${opt.type}`}
             disabled={isCheckpointDisabled}
+            title={dropdownHint ?? undefined}
           >
             {opt.label}
             {isCheckpointDisabled ? " (page checkpoint in use)" : ""}

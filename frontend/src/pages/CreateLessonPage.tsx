@@ -59,6 +59,7 @@ type LessonPageBlock = {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  markScheme?: string[];
 };
 
 // Kept for backward compatibility only (UI removed)
@@ -79,6 +80,8 @@ type LessonPage = {
     question?: string;
     options?: string[];
     answer?: string;
+    explanation?: string;
+    markScheme?: string[];
   };
 };
 
@@ -355,6 +358,8 @@ const CreateLessonPage: React.FC = () => {
     question: "Which statement is correct?",
     options: ["Option 1", "Option 2", "Option 3", "Option 4"],
     answer: "Option 1",
+    explanation: "",
+    markScheme: [] as string[],
   };
 
   const [pages, setPages] = useState<LessonPage[]>([
@@ -585,7 +590,7 @@ const CreateLessonPage: React.FC = () => {
           pageType: "",
           hero: { type: "none", src: "", caption: "" }, // legacy compat
           blocks: [{ type: "text", content: "" }],
-          checkpoint: { question: "", options: ["", "", "", ""], answer: "" },
+          checkpoint: { question: "", options: ["", "", "", ""], answer: "", explanation: "", markScheme: [] },
         },
       ];
     });
@@ -654,6 +659,7 @@ const CreateLessonPage: React.FC = () => {
             options: ["[Option 1]", "[Option 2]", "[Option 3]", "[Option 4]"],
             correctAnswer: "[Option 1]",
             explanation: "",
+            markScheme: [],
           };
         } else if (type === "interactiveSequence") {
           block = {
@@ -779,6 +785,8 @@ const CreateLessonPage: React.FC = () => {
           question: "",
           options: ["", "", "", ""],
           answer: "",
+          explanation: "",
+          markScheme: [],
         };
         return { ...p, checkpoint: { ...cp, ...patch } };
       })
@@ -798,6 +806,8 @@ const CreateLessonPage: React.FC = () => {
           question: "",
           options: ["", "", "", ""],
           answer: "",
+          explanation: "",
+          markScheme: [],
         };
         const options = Array.isArray(cp.options) ? [...cp.options] : [];
         while (options.length < 4) options.push("");
@@ -1055,16 +1065,45 @@ const CreateLessonPage: React.FC = () => {
           out.prompt = safeStr(p.checkpoint.question, "");
           out.options = clampOptions((p.checkpoint.options || []) as string[]);
           out.correctAnswer = safeStr(p.checkpoint.answer, "");
+          const chkExpl = safeStr(p.checkpoint.explanation, "").trim();
+          if (chkExpl) out.explanation = chkExpl;
+          const chkMs = Array.isArray(p.checkpoint.markScheme)
+            ? p.checkpoint.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+            : [];
+          if (chkMs.length) out.markScheme = chkMs;
+        }
+        if (blockType === "selfCheck") {
+          const bsc = b as LessonPageBlock;
+          const chkExpl = bsc.explanation != null ? String(bsc.explanation).trim() : "";
+          const chkMs = Array.isArray(bsc.markScheme)
+            ? bsc.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+            : [];
+          if (chkExpl) out.explanation = chkExpl;
+          if (chkMs.length) out.markScheme = chkMs;
+          out.prompt = String(bsc.prompt ?? "").trim();
+          out.questionType = bsc.questionType === "short" ? "short" : "mcq";
+          const scOpts = Array.isArray(bsc.options) ? bsc.options.map((o: string) => String(o ?? "").trim()) : [];
+          out.options = scOpts;
+          out.correctAnswer = String(bsc.correctAnswer ?? "").trim();
         }
         return out;
       }),
-      checkpoint: p.checkpoint
-        ? {
-            question: safeStr(p.checkpoint.question, ""),
-            options: clampOptions((p.checkpoint.options || []) as string[]),
-            answer: safeStr(p.checkpoint.answer, ""),
-          }
-        : { question: "", options: ["", "", "", ""], answer: "" },
+      checkpoint: (() => {
+        if (!p.checkpoint) {
+          return { question: "", options: ["", "", "", ""], answer: "" };
+        }
+        const expl = safeStr(p.checkpoint.explanation, "").trim();
+        const ms = Array.isArray(p.checkpoint.markScheme)
+          ? p.checkpoint.markScheme.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+          : [];
+        return {
+          question: safeStr(p.checkpoint.question, ""),
+          options: clampOptions((p.checkpoint.options || []) as string[]),
+          answer: safeStr(p.checkpoint.answer, ""),
+          ...(expl ? { explanation: expl } : {}),
+          ...(ms.length ? { markScheme: ms } : {}),
+        };
+      })(),
     }));
 
     const payload: Record<string, unknown> = {
@@ -2158,11 +2197,45 @@ const CreateLessonPage: React.FC = () => {
                         ))}
                       </div>
                       <label style={{ display: "block", marginTop: 12 }}>
-                        <div style={ui.label}>Answer (text must match one option)</div>
+                        <div style={ui.label}>Correct answer (must match an option)</div>
                         <input
                           value={safeStr(pg.checkpoint?.answer, "")}
                           onChange={(e) => updateCheckpoint(pg.pageId, { answer: e.target.value })}
                           style={ui.input}
+                        />
+                      </label>
+                      <label style={{ display: "block", marginTop: 12 }}>
+                        <div style={ui.label}>Explanation (optional)</div>
+                        <div style={{ marginTop: 4, fontSize: "0.75rem", color: "#64748b", lineHeight: 1.4 }}>
+                          Shown after students check or reveal the answer
+                        </div>
+                        <LessonAutoTextarea
+                          editorVariant="plain"
+                          value={safeStr(pg.checkpoint?.explanation, "")}
+                          onChange={(v) => updateCheckpoint(pg.pageId, { explanation: v })}
+                          minHeightPx={80}
+                          style={{ fontSize: "0.875rem" }}
+                        />
+                      </label>
+                      <label style={{ display: "block", marginTop: 12 }}>
+                        <div style={ui.label}>Mark scheme (optional)</div>
+                        <div style={{ marginTop: 4, fontSize: "0.75rem", color: "#64748b", lineHeight: 1.4 }}>
+                          One point per line — appended to the explanation for students when present.
+                        </div>
+                        <LessonAutoTextarea
+                          editorVariant="plain"
+                          value={(pg.checkpoint?.markScheme ?? []).join("\n")}
+                          onChange={(v) =>
+                            updateCheckpoint(pg.pageId, {
+                              markScheme: v
+                                .split("\n")
+                                .map((line) => line.trim())
+                                .filter(Boolean)
+                                .slice(0, 20),
+                            })
+                          }
+                          minHeightPx={72}
+                          style={{ fontSize: "0.875rem" }}
                         />
                       </label>
                     </div>

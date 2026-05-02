@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import "./student/lessonStudentView.css";
 import { logAttempt } from "../../utils/attempts";
+import { mergeCheckpointExplanationParts } from "../../utils/checkpointFeedback";
 import { SubscribeCTA } from "../SubscribeCTA";
 import { AssessmentFeedback } from "./AssessmentFeedback";
 
@@ -30,6 +31,8 @@ export interface LessonCheckpointProps {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
+  /** Rubric lines merged with `explanation` for AssessmentFeedback (same as persisted block/page fields). */
+  markScheme?: string[];
   /** Unique ID for radio inputs (e.g. pageId) */
   name: string;
   lessonId?: string;
@@ -48,6 +51,7 @@ export function LessonCheckpoint({
   options = [],
   correctAnswer: correctAnswerProp = "",
   explanation,
+  markScheme,
   name,
   lessonId,
   pageId,
@@ -56,6 +60,7 @@ export function LessonCheckpoint({
   presentation = "default",
 }: LessonCheckpointProps) {
   const correctAnswer = String(correctAnswerProp ?? "").trim();
+  const mergedExplanation = mergeCheckpointExplanationParts({ explanation, markScheme });
 
   if (mode === "mcq") {
     return (
@@ -63,7 +68,7 @@ export function LessonCheckpoint({
         prompt={prompt}
         options={options}
         correctAnswer={correctAnswer}
-        explanation={explanation}
+        explanation={mergedExplanation}
         name={name}
         lessonId={lessonId}
         pageId={pageId}
@@ -78,7 +83,7 @@ export function LessonCheckpoint({
     <LessonCheckpointShort
       prompt={prompt}
       correctAnswer={correctAnswer}
-      explanation={explanation}
+      explanation={mergedExplanation}
       lessonId={lessonId}
       pageId={pageId}
       checkpointRevision={checkpointRevision}

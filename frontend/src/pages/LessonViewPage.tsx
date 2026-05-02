@@ -3287,22 +3287,20 @@ const LessonViewPage: React.FC = () => {
       return hasItems;
     });
     const pageCpAny = pageCp as Record<string, unknown> | null | undefined;
-    const pageCpMergedExplanation = mergeCheckpointExplanationParts({
-      explanation:
-        typeof pageCpAny?.explanation === "string" ? pageCpAny.explanation : undefined,
-      markScheme: Array.isArray(pageCpAny?.markScheme) ? (pageCpAny.markScheme as string[]) : undefined,
-    });
-    const blockCpMergedExplanation = firstCheckpointBlock
-      ? mergeCheckpointExplanationParts({
-          explanation:
-            firstCheckpointBlock.explanation != null
-              ? String(firstCheckpointBlock.explanation)
-              : undefined,
-          markScheme: Array.isArray((firstCheckpointBlock as { markScheme?: string[] }).markScheme)
-            ? (firstCheckpointBlock as { markScheme?: string[] }).markScheme
-            : undefined,
-        })
+    const pageCpExplanation =
+      typeof pageCpAny?.explanation === "string" ? pageCpAny.explanation : undefined;
+    const pageCpMarkScheme = Array.isArray(pageCpAny?.markScheme)
+      ? (pageCpAny.markScheme as string[])
       : undefined;
+    const blockCpExplanation =
+      firstCheckpointBlock && firstCheckpointBlock.explanation != null
+        ? String(firstCheckpointBlock.explanation)
+        : undefined;
+    const blockCpMarkScheme =
+      firstCheckpointBlock &&
+      Array.isArray((firstCheckpointBlock as { markScheme?: string[] }).markScheme)
+        ? (firstCheckpointBlock as { markScheme?: string[] }).markScheme
+        : undefined;
 
     const checkpointData = hasPageCheckpoint
       ? {
@@ -3310,7 +3308,8 @@ const LessonViewPage: React.FC = () => {
           prompt: safeStr(pageCp!.question, ""),
           options: (pageCp!.options || []).filter((o: any) => o != null && String(o).trim()),
           correctAnswer: safeStr(pageCp!.answer, ""),
-          explanation: pageCpMergedExplanation,
+          explanation: pageCpExplanation,
+          markScheme: pageCpMarkScheme,
           name: `checkpoint-${currentPage.pageId}`,
         }
       : firstCheckpointBlock
@@ -3319,7 +3318,8 @@ const LessonViewPage: React.FC = () => {
           prompt: firstCheckpointBlock.prompt ?? "Quick check",
           options: Array.isArray(firstCheckpointBlock.options) ? firstCheckpointBlock.options.filter((o: any) => o != null && String(o).trim()) : [],
           correctAnswer: safeStr(firstCheckpointBlock.correctAnswer, ""),
-          explanation: blockCpMergedExplanation,
+          explanation: blockCpExplanation,
+          markScheme: blockCpMarkScheme,
           name: `checkpoint-${currentPage.pageId}`,
         }
       : null;
@@ -3931,7 +3931,12 @@ const LessonViewPage: React.FC = () => {
                               questionType={b.questionType === "short" ? "short" : "mcq"}
                               options={Array.isArray(b.options) ? b.options : []}
                               correctAnswer={safeStr(b.correctAnswer, "")}
-                              explanation={safeStr(b.explanation, "")}
+                              explanation={mergeCheckpointExplanationParts({
+                                explanation: b.explanation != null ? String(b.explanation) : undefined,
+                                markScheme: Array.isArray((b as { markScheme?: string[] }).markScheme)
+                                  ? (b as { markScheme?: string[] }).markScheme
+                                  : undefined,
+                              })}
                               presentation={v12StudentPresentation ? "v12" : "default"}
                             />
                           ) : blockKind === "interactiveSequence" ? (
@@ -4029,6 +4034,7 @@ const LessonViewPage: React.FC = () => {
                       options={checkpointData.options}
                       correctAnswer={checkpointData.correctAnswer}
                       explanation={checkpointData.explanation}
+                      markScheme={checkpointData.markScheme}
                       name={checkpointData.name}
                       lessonId={id ?? undefined}
                       pageId={typeof currentPage.pageId === "string" ? currentPage.pageId : undefined}

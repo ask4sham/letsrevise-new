@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { mergeCheckpointExplanationParts } from "../../utils/checkpointFeedback";
 import { AssessmentFeedback } from "./AssessmentFeedback";
 import "./lessonRenderer.css";
 
@@ -6,16 +7,21 @@ export type CheckpointCardProps = {
   question: string;
   options: string[];
   answer: string;
-  /** Optional — shown after reveal (e.g. merged explanation + mark scheme). */
   explanation?: string;
+  /** Merged with `explanation` for AssessmentFeedback after reveal (same persistence shape as lessons). */
+  markScheme?: string[];
 };
 
 /**
  * Interactive checkpoint: options + question visible; answer hidden until revealed.
  */
-export function CheckpointCard({ question, options, answer, explanation }: CheckpointCardProps): React.ReactElement {
+export function CheckpointCard({ question, options, answer, explanation, markScheme }: CheckpointCardProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
   const hasAnswer = Boolean(answer && answer.trim());
+  const mergedExplanation = useMemo(
+    () => mergeCheckpointExplanationParts({ explanation, markScheme }),
+    [explanation, markScheme]
+  );
 
   return (
     <section className="lesson-renderer-checkpoint" aria-label="Checkpoint">
@@ -42,7 +48,7 @@ export function CheckpointCard({ question, options, answer, explanation }: Check
             <AssessmentFeedback
               answer={answer.trim()}
               answerLabel="Answer"
-              explanation={explanation}
+              explanation={mergedExplanation}
               explanationLabel="Explanation"
             />
           ) : null}

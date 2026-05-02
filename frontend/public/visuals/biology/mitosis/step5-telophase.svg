@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <rect width="800" height="800" fill="#ffffff"/>
+  <ellipse cx="400" cy="400" rx="290" ry="268" fill="#cfe8fc" stroke="#4a90c8" stroke-width="6"/>
+  <!-- Two new nuclei forming (solid circles) -->
+  <ellipse cx="285" cy="400" rx="115" ry="118" fill="#dbeafe" stroke="#2563ab" stroke-width="6"/>
+  <ellipse cx="515" cy="400" rx="115" ry="118" fill="#dbeafe" stroke="#2563ab" stroke-width="6"/>
+  <text x="285" y="275" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#1e4976" font-weight="700">New nucleus</text>
+  <text x="515" y="275" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#1e4976" font-weight="700">New nucleus</text>
+  <!-- Uncoiling chromosomes (thin wavy / short lines, not tight X) -->
+  <g stroke="#9b7bc4" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.9">
+    <path d="M240 380 Q255 390 230 410"/>
+    <path d="M260 420 Q275 430 250 450"/>
+    <path d="M310 375 Q320 400 300 420"/>
+    <path d="M530 380 Q515 390 540 410"/>
+    <path d="M550 420 Q535 430 560 450"/>
+    <path d="M490 375 Q480 400 505 420"/>
+    <path d="M350 440 Q365 455 338 478"/>
+    <path d="M450 442 Q438 458 463 478"/>
+  </g>
+  <text x="400" y="548" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#5b2785" font-weight="700">Chromosomes lengthen (uncoil)</text>
+  <!-- Spindle disappearing (fade: thin light orange, dashed, low opacity) -->
+  <g stroke="#fcd9a9" stroke-width="4" stroke-dasharray="8 14" opacity="0.45">
+    <line x1="400" y1="138" x2="285" y2="400"/>
+    <line x1="400" y1="138" x2="515" y2="400"/>
+    <line x1="400" y1="662" x2="285" y2="400"/>
+    <line x1="400" y1="662" x2="515" y2="400"/>
+  </g>
+  <text x="400" y="168" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#b8843a">spindle fades</text>
+  <text x="400" y="700" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="22" fill="#374151" font-weight="600">Telophase</text>
+</svg>

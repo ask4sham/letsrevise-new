@@ -21,6 +21,7 @@ import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../Inter
 import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../DragDropMatchBlock";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
+import { mergeCheckpointExplanationParts } from "../../../utils/checkpointFeedback";
 import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
 
 export type LessonStudentBlockRendererProps = {
@@ -74,7 +75,14 @@ export function LessonStudentBlockRenderer({
         questionType={block.questionType === "short" ? "short" : "mcq"}
         options={Array.isArray(block.options) ? block.options : []}
         correctAnswer={String(block.correctAnswer ?? "")}
-        explanation={block.explanation != null ? String(block.explanation) : undefined}
+        explanation={
+          mergeCheckpointExplanationParts({
+            explanation: block.explanation != null ? String(block.explanation) : undefined,
+            markScheme: Array.isArray((block as { markScheme?: string[] }).markScheme)
+              ? (block as { markScheme?: string[] }).markScheme
+              : undefined,
+          })
+        }
         presentation={enableMarkdownMediaSplit ? "v12" : "default"}
       />
     );

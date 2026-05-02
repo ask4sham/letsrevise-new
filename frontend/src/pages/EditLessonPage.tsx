@@ -15,6 +15,7 @@ import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank, listTopicFlashcards } from "../api/topicFlashcards";
 import { listTopicQuizQuestions } from "../api/topicQuizQuestions";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
+import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 import {
   extractSequenceStepImagePromptFromDescription,
   mergeSequenceStepDescriptionAndImagePrompt,
@@ -131,7 +132,7 @@ interface LessonPageBlock {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
-  /** Optional rubric lines merged into student explanation text for checkpoint blocks. */
+  /** Optional rubric lines merged into student-facing feedback (checkpoint + self-check blocks). */
   markScheme?: string[];
   /** Page Quiz block fields (when type === "pageQuiz") — written to lesson.quiz.questions with pageId */
   question?: string;
@@ -1261,6 +1262,10 @@ const EditLessonPage: React.FC = () => {
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
                   } as Record<string, unknown>;
+                  if (Array.isArray(b.markScheme)) {
+                    const ms = b.markScheme.map((x: any) => String(x ?? "").trim()).filter(Boolean);
+                    if (ms.length) out.markScheme = ms;
+                  }
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
                   return out;
                 }
@@ -2973,6 +2978,9 @@ const EditLessonPage: React.FC = () => {
           }
           if (b.type === "selfCheck") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
+            const markSchemeSc = Array.isArray((b as LessonPageBlock).markScheme)
+              ? (b as LessonPageBlock).markScheme!.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+              : undefined;
             const scOut: Record<string, unknown> = {
               type: "selfCheck",
               prompt: String(b.prompt ?? "").trim(),
@@ -2980,6 +2988,7 @@ const EditLessonPage: React.FC = () => {
               options: opts,
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
+              ...(markSchemeSc && markSchemeSc.length ? { markScheme: markSchemeSc } : {}),
             };
             if (typeof b.role === "string" && b.role.trim()) scOut.role = b.role.trim();
             return scOut;
@@ -5402,6 +5411,9 @@ const EditLessonPage: React.FC = () => {
                               )}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Explanation (optional)</div>
+                                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                  Shown after students check or reveal the answer
+                                </div>
                                 <LessonAutoTextarea
                                   editorVariant="plain"
                                   value={cp.explanation ?? ""}
@@ -5413,29 +5425,27 @@ const EditLessonPage: React.FC = () => {
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
-                              {isCheckpoint ? (
-                                <label style={{ display: "block" }}>
-                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Mark scheme (optional)</div>
-                                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>
-                                    One point per line — merged into student-facing explanation when present.
-                                  </div>
-                                  <LessonAutoTextarea
-                                    editorVariant="plain"
-                                    value={(cp.markScheme ?? []).join("\n")}
-                                    onChange={(v) =>
-                                      updateBlock(currentPage!.pageId, idx, {
-                                        markScheme: v
-                                          .split("\n")
-                                          .map((line) => line.trim())
-                                          .filter(Boolean)
-                                          .slice(0, 20),
-                                      })
-                                    }
-                                    minHeightPx={96}
-                                    style={{ fontSize: "0.875rem" }}
-                                  />
-                                </label>
-                              ) : null}
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Mark scheme (optional)</div>
+                                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                  One point per line — appended to the explanation for students when present.
+                                </div>
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
+                                  value={(cp.markScheme ?? []).join("\n")}
+                                  onChange={(v) =>
+                                    updateBlock(currentPage!.pageId, idx, {
+                                      markScheme: v
+                                        .split("\n")
+                                        .map((line) => line.trim())
+                                        .filter(Boolean)
+                                        .slice(0, 20),
+                                    })
+                                  }
+                                  minHeightPx={96}
+                                  style={{ fontSize: "0.875rem" }}
+                                />
+                              </label>
                             </div>
                           ) : isDiagram && d ? (
                             <div
@@ -7928,7 +7938,7 @@ const EditLessonPage: React.FC = () => {
                     <label style={{ display: "block", marginTop: 10 }}>
                       <div style={{ fontWeight: 800, marginBottom: 6 }}>Explanation (optional)</div>
                       <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
-                        Shown after students check or reveal the answer.
+                        Shown after students check or reveal the answer
                       </div>
                       <LessonAutoTextarea
                         editorVariant="plain"
@@ -8045,6 +8055,7 @@ const EditLessonPage: React.FC = () => {
                         options?: string[];
                         correctAnswer?: string;
                         explanation?: string;
+                        markScheme?: string[];
                       };
                       return (
                         <div
@@ -8065,7 +8076,10 @@ const EditLessonPage: React.FC = () => {
                             questionType={sb.questionType === "short" ? "short" : "mcq"}
                             options={Array.isArray(sb.options) ? sb.options : []}
                             correctAnswer={safeStr(sb.correctAnswer, "")}
-                            explanation={safeStr(sb.explanation, "")}
+                            explanation={mergeCheckpointExplanationParts({
+                              explanation: sb.explanation != null ? String(sb.explanation) : undefined,
+                              markScheme: Array.isArray(sb.markScheme) ? sb.markScheme : undefined,
+                            })}
                           />
                         </div>
                       );
@@ -8253,6 +8267,8 @@ const EditLessonPage: React.FC = () => {
                           question={safeStr(cp.question, "")}
                           options={opts}
                           answer={safeStr(cp.answer, "")}
+                          explanation={safeStr(cp.explanation, "") || undefined}
+                          markScheme={Array.isArray(cp.markScheme) ? cp.markScheme : undefined}
                         />
                       </div>
                     );
