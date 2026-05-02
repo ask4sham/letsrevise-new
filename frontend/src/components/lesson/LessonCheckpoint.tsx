@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import "./student/lessonStudentView.css";
 import { logAttempt } from "../../utils/attempts";
 import { SubscribeCTA } from "../SubscribeCTA";
+import { AssessmentFeedback } from "./AssessmentFeedback";
 
 const CONTENT_FONT = 16;
 const TITLE_STYLE: React.CSSProperties = {
@@ -65,6 +66,8 @@ export function LessonCheckpoint({
         explanation={explanation}
         name={name}
         lessonId={lessonId}
+        pageId={pageId}
+        checkpointRevision={checkpointRevision}
         entitled={entitled}
         presentation={presentation}
       />
@@ -77,6 +80,8 @@ export function LessonCheckpoint({
       correctAnswer={correctAnswer}
       explanation={explanation}
       lessonId={lessonId}
+      pageId={pageId}
+      checkpointRevision={checkpointRevision}
       entitled={entitled}
       presentation={presentation}
     />
@@ -214,7 +219,11 @@ function LessonCheckpointMCQ({
         ) : (
           <>
             <div style={{ marginTop: 2 }}>
-              {isCorrect ? <span style={{ color: "#16a34a", fontWeight: 700 }}>✅ Correct</span> : <span style={{ color: "#dc2626", fontWeight: 700 }}>❌ Not quite</span>}
+              {isCorrect ? (
+                <span style={{ color: "#15803d", fontWeight: 800 }}>Correct</span>
+              ) : (
+                <span style={{ color: "#b91c1c", fontWeight: 800 }}>Try again</span>
+              )}
             </div>
             {entitled ? (
               <div style={{ marginTop: 10 }}>
@@ -275,15 +284,14 @@ function LessonCheckpointMCQ({
               </div>
             )}
             {recorded && <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>}
-            {entitled && explanation && answerRevealed ? (
-              v12 ? (
-                <div className="lesson-checkpoint-v12-explain">{explanation}</div>
-              ) : (
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
-                  <strong style={{ color: "#374151" }}>Explanation:</strong>
-                  <div style={{ marginTop: 4, color: "#4b5563", fontSize: CONTENT_FONT }}>{explanation}</div>
-                </div>
-              )
+            {entitled && answerRevealed ? (
+              <AssessmentFeedback
+                variant={v12 ? "v12" : "default"}
+                answer={correctAnswer}
+                answerLabel="Answer"
+                explanation={explanation}
+                explanationLabel="Explanation"
+              />
             ) : null}
             {checked && !entitled && (
               <div style={{ marginTop: 8, opacity: 0.85, fontSize: "0.9rem", color: "#6b7280" }}>Subscribe to see the full explanation.</div>
@@ -437,14 +445,13 @@ function LessonCheckpointShort({
                   </button>
                 </div>
                 {answerRevealed ? (
-                  v12 ? (
-                    <div className="lesson-checkpoint-v12-model">{correctAnswer || "—"}</div>
-                  ) : (
-                    <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-                      <strong style={{ color: "#374151" }}>Model answer:</strong>
-                      <div style={{ marginTop: 6, color: "#4b5563", fontSize: CONTENT_FONT }}>{correctAnswer || "—"}</div>
-                    </div>
-                  )
+                  <AssessmentFeedback
+                    variant={v12 ? "v12" : "default"}
+                    answer={correctAnswer || "—"}
+                    answerLabel="Answer"
+                    explanation={explanation}
+                    explanationLabel="Explanation"
+                  />
                 ) : null}
                 {selfMarked === null ? (
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -464,18 +471,6 @@ function LessonCheckpointShort({
                 ) : (
                   <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
                 )}
-                {answerRevealed && explanation ? (
-                  v12 ? (
-                    <div className="lesson-checkpoint-v12-explain" style={{ marginTop: 12 }}>
-                      {explanation}
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
-                      <strong style={{ color: "#374151" }}>Explanation:</strong>
-                      <div style={{ marginTop: 4, color: "#4b5563", fontSize: CONTENT_FONT }}>{explanation}</div>
-                    </div>
-                  )
-                ) : null}
               </>
             ) : (
               <>

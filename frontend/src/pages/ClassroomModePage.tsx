@@ -6,11 +6,13 @@ import React, { useMemo, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api, { getVisualById } from "../services/api";
 import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
+import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
@@ -20,6 +22,8 @@ import {
 } from "../components/lesson/lessonMarkdownViewComponents";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
+import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
+import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 
 interface DiagramAnnotation {
   id: string;
@@ -49,10 +53,13 @@ interface LessonPageBlock {
     | "diagram"
     | "keyWords"
     | "interactiveSequence"
-    | "interactiveDiagram";
+    | "interactiveDiagram"
+    | "dragDropMatch";
   content?: string;
   title?: string;
   intro?: string;
+  instructions?: string;
+  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
   sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
   imageUrl?: string;
   hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
@@ -74,7 +81,13 @@ interface LessonPage {
   title: string;
   order: number;
   blocks?: LessonPageBlock[];
-  checkpoint?: { question?: string; options?: string[]; answer?: string };
+  checkpoint?: {
+    question?: string;
+    options?: string[];
+    answer?: string;
+    explanation?: string;
+    markScheme?: string[];
+  };
 }
 
 interface Lesson {
@@ -693,7 +706,7 @@ const ClassroomModePage: React.FC = () => {
             <h2 style={{ margin: "0 0 16px", fontSize: "1.2rem", color: "#111827" }}>{currentPage.title || `Page ${pageIndex + 1}`}</h2>
             <div>
               {(currentPage.blocks || []).map((b, idx) => {
-                switch (b.type) {
+                switch (resolveLessonDisplayBlockType(b)) {
                   case "checkpoint":
                     return renderCheckpointBlock(b, idx);
                   case "selfCheck":
@@ -716,12 +729,23 @@ const ClassroomModePage: React.FC = () => {
                         <InteractiveSequenceBlock
                           blockTitle={safeStr(b.title, "")}
                           intro={safeStr(b.intro, "")}
-                          steps={(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []).map((s) => ({
-                            title: String(s?.title ?? ""),
-                            description: String(s?.description ?? ""),
-                            imageUrl: String(s?.imageUrl ?? ""),
-                            caption: String(s?.caption ?? ""),
-                          }))}
+                          steps={(() => {
+                            const rawSeq = Array.isArray(b.sequenceSteps)
+                              ? b.sequenceSteps
+                              : Array.isArray((b as { steps?: unknown[] }).steps)
+                                ? (b as { steps: unknown[] }).steps
+                                : [];
+                            return rawSeq.map((s: any) => {
+                              const sid = typeof s?.id === "string" ? String(s.id).trim() : "";
+                              return {
+                                ...(sid ? { id: sid.slice(0, 64) } : {}),
+                                title: String(s?.title ?? ""),
+                                description: String(s?.description ?? ""),
+                                imageUrl: String(s?.imageUrl ?? ""),
+                                caption: String(s?.caption ?? ""),
+                              };
+                            });
+                          })()}
                           resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                         />
                       </div>
@@ -733,17 +757,31 @@ const ClassroomModePage: React.FC = () => {
                           blockTitle={safeStr(b.title, "")}
                           intro={safeStr(b.intro, "")}
                           imageUrl={safeStr(b.imageUrl, "")}
-                          hotspots={(Array.isArray(b.hotspots) ? b.hotspots : []).map((h, i) => ({
-                            id: String(h?.id || `h${i + 1}`),
-                            x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
-                            y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
-                            label: String(h?.label ?? ""),
-                            description: String(h?.description ?? ""),
-                          }))}
+                          hotspots={(Array.isArray(b.hotspots) ? b.hotspots : []).map((h, i) =>
+                            normalizeInteractiveDiagramHotspot(h, i)
+                          )}
                           resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                           lessonTitle={safeStr(lesson.title, "")}
                           level={lesson.level != null ? String(lesson.level) : undefined}
                           subject={lesson.subject != null ? String(lesson.subject) : undefined}
+                        />
+                      </div>
+                    );
+                  case "dragDropMatch":
+                    return (
+                      <div key={`ddm-${idx}`} style={{ marginTop: 14 }}>
+                        <DragDropMatchBlock
+                          block={{
+                            title: safeStr(b.title, ""),
+                            intro: safeStr(b.intro, ""),
+                            instructions: safeStr(b.instructions, ""),
+                            pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => ({
+                              id: String(p?.id ?? "").trim() || `p${i}`,
+                              prompt: String(p?.prompt ?? ""),
+                              answer: String(p?.answer ?? ""),
+                              explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                            })),
+                          }}
                         />
                       </div>
                     );
@@ -767,6 +805,10 @@ const ClassroomModePage: React.FC = () => {
                       .checkpoint!.options!.map((o) => String(o ?? "").trim())
                       .filter((o) => o.length > 0)}
                     answer={safeStr(currentPage.checkpoint?.answer, "")}
+                    explanation={mergeCheckpointExplanationParts({
+                      explanation: currentPage.checkpoint?.explanation,
+                      markScheme: currentPage.checkpoint?.markScheme,
+                    })}
                   />
                 </div>
               )}

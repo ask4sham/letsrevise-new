@@ -36,6 +36,7 @@ import { LessonCheckpoint } from "../components/lesson/LessonCheckpoint";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
+import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -43,6 +44,9 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
+import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
+import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
@@ -105,12 +109,16 @@ interface LessonPageBlock {
     | "keyWords"
     | "pageQuiz"
     | "interactiveSequence"
-    | "interactiveDiagram";
+    | "interactiveDiagram"
+    | "dragDropMatch";
   content?: string;
   /** Block heading (e.g. interactive sequence activity title) */
   title?: string;
   /** type === "interactiveSequence" | "interactiveDiagram" */
   intro?: string;
+  /** type === "dragDropMatch" */
+  instructions?: string;
+  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
   sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
   /** type === "interactiveDiagram" — x/y as % 0–100 */
   hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
@@ -3278,12 +3286,31 @@ const LessonViewPage: React.FC = () => {
         (qType === "mcq" && opts.filter((o: any) => o != null && String(o).trim()).length >= 2);
       return hasItems;
     });
+    const pageCpAny = pageCp as Record<string, unknown> | null | undefined;
+    const pageCpMergedExplanation = mergeCheckpointExplanationParts({
+      explanation:
+        typeof pageCpAny?.explanation === "string" ? pageCpAny.explanation : undefined,
+      markScheme: Array.isArray(pageCpAny?.markScheme) ? (pageCpAny.markScheme as string[]) : undefined,
+    });
+    const blockCpMergedExplanation = firstCheckpointBlock
+      ? mergeCheckpointExplanationParts({
+          explanation:
+            firstCheckpointBlock.explanation != null
+              ? String(firstCheckpointBlock.explanation)
+              : undefined,
+          markScheme: Array.isArray((firstCheckpointBlock as { markScheme?: string[] }).markScheme)
+            ? (firstCheckpointBlock as { markScheme?: string[] }).markScheme
+            : undefined,
+        })
+      : undefined;
+
     const checkpointData = hasPageCheckpoint
       ? {
           mode: "mcq" as const,
           prompt: safeStr(pageCp!.question, ""),
           options: (pageCp!.options || []).filter((o: any) => o != null && String(o).trim()),
           correctAnswer: safeStr(pageCp!.answer, ""),
+          explanation: pageCpMergedExplanation,
           name: `checkpoint-${currentPage.pageId}`,
         }
       : firstCheckpointBlock
@@ -3292,7 +3319,7 @@ const LessonViewPage: React.FC = () => {
           prompt: firstCheckpointBlock.prompt ?? "Quick check",
           options: Array.isArray(firstCheckpointBlock.options) ? firstCheckpointBlock.options.filter((o: any) => o != null && String(o).trim()) : [],
           correctAnswer: safeStr(firstCheckpointBlock.correctAnswer, ""),
-          explanation: firstCheckpointBlock.explanation,
+          explanation: blockCpMergedExplanation,
           name: `checkpoint-${currentPage.pageId}`,
         }
       : null;
@@ -3892,11 +3919,13 @@ const LessonViewPage: React.FC = () => {
                           )}
                         />
                       ))
-                    : blockRenderList.map(({ block: b, idx }) => (
+                    : blockRenderList.map(({ block: b, idx }) => {
+                        const blockKind = resolveLessonDisplayBlockType(b);
+                        return (
                         <div key={idx} id={`block-${idx}`}>
-                          {b.type === "diagram" ? (
+                          {blockKind === "diagram" ? (
                             renderDiagramBlock(b, idx)
-                          ) : b.type === "selfCheck" ? (
+                          ) : blockKind === "selfCheck" ? (
                             <InlineSelfCheckBlock
                               prompt={safeStr(b.prompt, "")}
                               questionType={b.questionType === "short" ? "short" : "mcq"}
@@ -3905,34 +3934,55 @@ const LessonViewPage: React.FC = () => {
                               explanation={safeStr(b.explanation, "")}
                               presentation={v12StudentPresentation ? "v12" : "default"}
                             />
-                          ) : b.type === "interactiveSequence" ? (
+                          ) : blockKind === "interactiveSequence" ? (
                             <InteractiveSequenceBlock
                               blockTitle={safeStr(b.title, "")}
                               intro={safeStr(b.intro, "")}
-                              steps={(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []).map((s) => ({
-                                title: String(s?.title ?? ""),
-                                description: String(s?.description ?? ""),
-                                imageUrl: String(s?.imageUrl ?? ""),
-                                caption: String(s?.caption ?? ""),
-                              }))}
+                              steps={(() => {
+                                const rawSeq = Array.isArray(b.sequenceSteps)
+                                  ? b.sequenceSteps
+                                  : Array.isArray((b as { steps?: unknown }).steps)
+                                    ? (b as { steps: unknown[] }).steps
+                                    : [];
+                                return rawSeq.map((s: any) => {
+                                  const sid = typeof s?.id === "string" ? String(s.id).trim() : "";
+                                  return {
+                                    ...(sid ? { id: sid.slice(0, 64) } : {}),
+                                    title: String(s?.title ?? ""),
+                                    description: String(s?.description ?? ""),
+                                    imageUrl: String(s?.imageUrl ?? ""),
+                                    caption: String(s?.caption ?? ""),
+                                  };
+                                });
+                              })()}
                               resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                             />
-                          ) : b.type === "interactiveDiagram" ? (
+                          ) : blockKind === "interactiveDiagram" ? (
                             <InteractiveDiagramBlock
                               blockTitle={safeStr(b.title, "")}
                               intro={safeStr(b.intro, "")}
                               imageUrl={safeStr(b.imageUrl, "")}
-                              hotspots={(Array.isArray(b.hotspots) ? b.hotspots : []).map((h, i) => ({
-                                id: String(h?.id || `h${i + 1}`),
-                                x: typeof h?.x === "number" ? h.x : Number(h?.x) || 0,
-                                y: typeof h?.y === "number" ? h.y : Number(h?.y) || 0,
-                                label: String(h?.label ?? ""),
-                                description: String(h?.description ?? ""),
-                              }))}
+                              hotspots={(Array.isArray(b.hotspots) ? b.hotspots : []).map((h, i) =>
+                                normalizeInteractiveDiagramHotspot(h, i)
+                              )}
                               resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                               lessonTitle={lesson ? safeStr(lesson.title, "") : undefined}
                               level={lesson ? safeStr(lesson.level, "") : undefined}
                               subject={lesson ? safeStr(lesson.subject, "") : undefined}
+                            />
+                          ) : blockKind === "dragDropMatch" ? (
+                            <DragDropMatchBlock
+                              block={{
+                                title: safeStr(b.title, ""),
+                                intro: safeStr(b.intro, ""),
+                                instructions: safeStr(b.instructions, ""),
+                                pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => ({
+                                  id: String(p?.id ?? "").trim() || `p${i}`,
+                                  prompt: String(p?.prompt ?? ""),
+                                  answer: String(p?.answer ?? ""),
+                                  explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                                })),
+                              }}
                             />
                           ) : (
                             renderCallout(b.type, safeStr(b.content, ""), idx)
@@ -3959,7 +4009,8 @@ const LessonViewPage: React.FC = () => {
                             </div>
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                   </KeywordGlossaryProvider>
                 </div>
 

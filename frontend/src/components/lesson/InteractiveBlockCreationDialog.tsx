@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, type CSSProperties } from "react";
 import {
   generateDragDropPairsFromText,
   generateInteractiveDiagramHotspotsFromConcept,
@@ -14,6 +14,7 @@ import {
   DRAG_DROP_TEMPLATE_CELL_ORGANELLES_ID,
 } from "./dragDropMatchTemplates";
 import type { LessonBlockType } from "../../types/lessonBlocks";
+import { mergeSequenceStepDescriptionAndImagePrompt } from "../../utils/interactiveSequenceStepImagePrompt";
 
 export const INTERACTIVE_TYPES_WITH_CREATION_DIALOG: LessonBlockType[] = [
   "interactiveSequence",
@@ -336,8 +337,8 @@ export function InteractiveBlockCreationDialog({
 
   const runDragDropAi = async () => {
     const content = aiPrompt.trim();
-    if (content.length < 12) {
-      setAiErr("Add a short description or paste lesson content — at least 12 characters.");
+    if (content.length < 8) {
+      setAiErr("Enter a topic (e.g. virus structure) — at least 8 characters.");
       return;
     }
     setAiErr(null);
@@ -349,6 +350,7 @@ export function InteractiveBlockCreationDialog({
         subject,
         level,
         text: content,
+        source: "topic",
       });
       if (pairs.length === 0) {
         setAiErr("AI returned no pairs. Try a fuller description.");
@@ -366,8 +368,8 @@ export function InteractiveBlockCreationDialog({
 
   const runSequenceAi = async () => {
     const topic = aiPrompt.trim();
-    if (topic.length < 12) {
-      setAiErr("Enter a topic or process (at least 12 characters).");
+    if (topic.length < 8) {
+      setAiErr("Enter a concept or process (at least 8 characters).");
       return;
     }
     setAiErr(null);
@@ -434,6 +436,80 @@ export function InteractiveBlockCreationDialog({
 
   const overlayBg = "rgba(15,23,42,0.45)";
 
+  const optionCard = (selected: boolean): CSSProperties => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+    padding: "14px 16px",
+    borderRadius: 10,
+    border: selected ? "2px solid #6366f1" : "1px solid #e2e8f0",
+    cursor: "pointer",
+    background: selected ? "rgba(99,102,241,0.08)" : "#fafafa",
+    boxSizing: "border-box",
+    width: "100%",
+    textAlign: "left",
+  });
+
+  const radioRail: CSSProperties = {
+    flexShrink: 0,
+    width: 22,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    paddingTop: 2,
+  };
+
+  const radioInputStyle: CSSProperties = {
+    margin: 0,
+    width: 18,
+    height: 18,
+    cursor: "pointer",
+    accentColor: "#4f46e5",
+  };
+
+  const optionTextCol: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
+    textAlign: "left",
+  };
+
+  /** Title + description only — tight stack so body sits directly under the heading. */
+  const optionHeadingStack: CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 4,
+    textAlign: "left",
+  };
+
+  const optionTitleStyle: CSSProperties = {
+    fontWeight: 800,
+    fontSize: 15,
+    color: "#0f172a",
+    lineHeight: 1.35,
+    margin: 0,
+  };
+
+  const optionDescStyle: CSSProperties = {
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 1.5,
+    margin: 0,
+  };
+
+  const nestedExpandStyle: CSSProperties = {
+    width: "100%",
+  };
+
+  const stopLabelBubble = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       role="dialog"
@@ -452,14 +528,16 @@ export function InteractiveBlockCreationDialog({
     >
       <div
         style={{
-          width: "min(520px, 100%)",
-          maxHeight: "min(92vh, 620px)",
+          width: "100%",
+          maxWidth: 560,
+          maxHeight: "min(92vh, 640px)",
           overflow: "auto",
           background: "#fff",
           borderRadius: 14,
           boxShadow: "0 20px 50px rgba(0,0,0,0.18)",
           border: "1px solid rgba(0,0,0,0.08)",
-          padding: "18px 20px",
+          padding: "20px 22px",
+          boxSizing: "border-box",
         }}
       >
         <h2 id="interactive-block-create-title" style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800 }}>
@@ -469,44 +547,42 @@ export function InteractiveBlockCreationDialog({
           Choose how you want to start. Nothing is added until you confirm — no hidden example content on <strong>Empty</strong>.
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <label
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: mode === "empty" ? "2px solid #6366f1" : "1px solid #e2e8f0",
-              cursor: "pointer",
-              background: mode === "empty" ? "rgba(99,102,241,0.06)" : "#fafafa",
-            }}
-          >
-            <input type="radio" name="ibl-mode" checked={mode === "empty"} onChange={() => setMode("empty")} />
-            <span>
-              <strong>Empty</strong>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Blank activity — fastest. You fill everything.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <label style={optionCard(mode === "empty")}>
+            <span style={radioRail}>
+              <input
+                type="radio"
+                name="ibl-mode"
+                checked={mode === "empty"}
+                onChange={() => setMode("empty")}
+                style={radioInputStyle}
+              />
+            </span>
+            <span style={optionTextCol}>
+              <span style={optionHeadingStack}>
+                <span style={optionTitleStyle}>Empty</span>
+                <span style={optionDescStyle}>Blank activity — fastest. You fill everything.</span>
+              </span>
             </span>
           </label>
 
-          <label
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: mode === "template" ? "2px solid #6366f1" : "1px solid #e2e8f0",
-              cursor: "pointer",
-              background: mode === "template" ? "rgba(99,102,241,0.06)" : "#fafafa",
-            }}
-          >
-            <input type="radio" name="ibl-mode" checked={mode === "template"} onChange={() => setMode("template")} />
-            <span style={{ flex: 1 }}>
-              <strong>Use template</strong>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Load a LetsRevise starter only when you choose it.</div>
+          <label style={optionCard(mode === "template")}>
+            <span style={radioRail}>
+              <input
+                type="radio"
+                name="ibl-mode"
+                checked={mode === "template"}
+                onChange={() => setMode("template")}
+                style={radioInputStyle}
+              />
+            </span>
+            <span style={optionTextCol}>
+              <span style={optionHeadingStack}>
+                <span style={optionTitleStyle}>Use template</span>
+                <span style={optionDescStyle}>Load a LetsRevise starter only when you choose it.</span>
+              </span>
               {mode === "template" ? (
-                <div style={{ marginTop: 10 }} onClick={(e) => e.preventDefault()}>
+                <div style={nestedExpandStyle} onMouseDown={stopLabelBubble} onClick={stopLabelBubble}>
                   {blockType === "interactiveSequence" ? (
                     <select
                       value={sequenceTemplateChoice}
@@ -549,36 +625,37 @@ export function InteractiveBlockCreationDialog({
             </span>
           </label>
 
-          <label
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: mode === "ai" ? "2px solid #6366f1" : "1px solid #e2e8f0",
-              cursor: "pointer",
-              background: mode === "ai" ? "rgba(99,102,241,0.06)" : "#fafafa",
-            }}
-          >
-            <input type="radio" name="ibl-mode" checked={mode === "ai"} onChange={() => setMode("ai")} />
-            <span style={{ flex: 1 }}>
-              <strong>Generate with AI</strong>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                {blockType === "dragDropMatch" && (
-                  <>Paste or describe lesson content — generate pairs below, preview, then insert.</>
-                )}
-                {blockType === "interactiveSequence" && (
-                  <>Enter topic or process — steps are generated below. Preview before insert.</>
-                )}
-                {blockType === "interactiveDiagram" && <>Enter diagram concept — hotspots generate as text; you place pins on your image later.</>}
-              </div>
+          <label style={optionCard(mode === "ai")}>
+            <span style={radioRail}>
+              <input
+                type="radio"
+                name="ibl-mode"
+                checked={mode === "ai"}
+                onChange={() => setMode("ai")}
+                style={radioInputStyle}
+              />
+            </span>
+            <span style={optionTextCol}>
+              <span style={optionHeadingStack}>
+                <span style={optionTitleStyle}>Generate with AI</span>
+                <span style={optionDescStyle}>
+                  {blockType === "dragDropMatch" && (
+                    <>Enter a topic — AI suggests 4–6 match pairs (text only). Preview, then insert and edit.</>
+                  )}
+                  {blockType === "interactiveSequence" && (
+                    <>Enter a concept or process — AI suggests 4–6 steps with optional image ideas. Preview before insert.</>
+                  )}
+                  {blockType === "interactiveDiagram" && (
+                    <>Enter diagram concept — hotspots generate as text; you place pins later.</>
+                  )}
+                </span>
+              </span>
               {mode === "ai" && blockType === "dragDropMatch" ? (
-                <div style={{ marginTop: 10 }} onClick={(e) => e.preventDefault()}>
+                <div style={nestedExpandStyle} onMouseDown={stopLabelBubble} onClick={stopLabelBubble}>
                   <textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="e.g. Key terms from this lesson — students match organelles to functions…"
+                    placeholder="e.g. Virus structure — capsid, genetic material, host cell…"
                     rows={4}
                     style={{
                       width: "100%",
@@ -626,6 +703,9 @@ export function InteractiveBlockCreationDialog({
                       {aiPairs.map((p, i) => (
                         <li key={i}>
                           <strong>{p.prompt}</strong> → {p.answer}
+                          {p.explanation ? (
+                            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{p.explanation}</div>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -637,12 +717,12 @@ export function InteractiveBlockCreationDialog({
               ) : null}
 
               {mode === "ai" && blockType === "interactiveSequence" ? (
-                <div style={{ marginTop: 10 }} onClick={(e) => e.preventDefault()}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 6 }}>Topic / process</label>
+                <div style={nestedExpandStyle} onMouseDown={stopLabelBubble} onClick={stopLabelBubble}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 6 }}>Concept / process</label>
                   <textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="e.g. Mitosis stages — prophase through cytokinesis…"
+                    placeholder="e.g. Virus infection process — attachment, entry, replication, release…"
                     rows={3}
                     style={{
                       width: "100%",
@@ -654,13 +734,13 @@ export function InteractiveBlockCreationDialog({
                       fontFamily: "inherit",
                     }}
                   />
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155", marginTop: 8 }}>Steps (optional, 4–12)</label>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155", marginTop: 8 }}>Steps (optional, 4–6)</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={aiSeqStepsCountRaw}
                     onChange={(e) => setAiSeqStepsCountRaw(e.target.value)}
-                    placeholder="e.g. 6"
+                    placeholder="e.g. 5"
                     style={{
                       width: "100%",
                       maxWidth: 120,
@@ -710,7 +790,17 @@ export function InteractiveBlockCreationDialog({
                         <li key={i} style={{ marginBottom: 8 }}>
                           <strong>{s.title}</strong>
                           <div style={{ opacity: 0.92 }}>{s.description.slice(0, 180)}{s.description.length > 180 ? "…" : ""}</div>
-                          <div style={{ fontStyle: "italic", fontSize: 11, marginTop: 2, color: "#64748b" }}>Quiz line: {s.caption}</div>
+                          {s.imagePrompt?.trim() ? (
+                            <div style={{ fontSize: 11, marginTop: 4, color: "#0369a1" }}>
+                              <strong>Image idea:</strong> {s.imagePrompt.trim().slice(0, 200)}
+                              {s.imagePrompt.trim().length > 200 ? "…" : ""}
+                            </div>
+                          ) : null}
+                          {s.caption?.trim() ? (
+                            <div style={{ fontStyle: "italic", fontSize: 11, marginTop: 2, color: "#64748b" }}>
+                              Test me (caption): {s.caption.trim()}
+                            </div>
+                          ) : null}
                         </li>
                       ))}
                     </ol>
@@ -722,7 +812,7 @@ export function InteractiveBlockCreationDialog({
               ) : null}
 
               {mode === "ai" && blockType === "interactiveDiagram" ? (
-                <div style={{ marginTop: 10 }} onClick={(e) => e.preventDefault()}>
+                <div style={nestedExpandStyle} onMouseDown={stopLabelBubble} onClick={stopLabelBubble}>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 6 }}>Concept</label>
                   <textarea
                     value={aiPrompt}

@@ -1,0 +1,91 @@
+.assessment-feedback {
+  margin-top: 10px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.assessment-feedback--correct {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.assessment-feedback--incorrect {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.assessment-feedback__title {
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 1rem;
+  margin: 0 0 10px;
+}
+
+.assessment-feedback__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.assessment-feedback__label {
+  font-weight: 800;
+  color: #475569;
+  font-size: 0.8125rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.assessment-feedback__value {
+  font-weight: 650;
+  color: #0f172a;
+  flex: 1;
+  min-width: 0;
+}
+
+.assessment-feedback__explain-wrap {
+  margin-top: 4px;
+}
+
+.assessment-feedback__explain-wrap > .assessment-feedback__label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Match drag-drop / interactive diagram explanation panels */
+.assessment-feedback__explain-box {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #475569;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  white-space: pre-wrap;
+}
+
+.assessment-feedback--v12 .assessment-feedback__title {
+  font-size: 1.05rem;
+}
+
+.assessment-feedback--v12 .assessment-feedback__explain-box {
+  font-size: 17px;
+  line-height: 1.68;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #475569;
+}
+
+.assessment-feedback--v12.assessment-feedback--correct,
+.assessment-feedback--v12.assessment-feedback--incorrect {
+  background: transparent;
+  border: none;
+  padding: 0;
+}

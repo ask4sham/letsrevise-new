@@ -29,7 +29,7 @@ export function validateAndNormalizeKeyTermForSpan(
   if (!t) {
     return { ok: false, reason: "empty term after trim" };
   }
-  if (/[\n\r<>\/]/.test(t)) {
+  if (/[\n\r<>/]/.test(t)) {
     return { ok: false, reason: 'term must not contain <, >, /, or newlines' };
   }
   if (t.length > MAX_KEY_TERM_DATA_ATTR_LEN) {
@@ -59,7 +59,7 @@ function validateVisibleSliceForKeyTermSpan(visibleSlice: string): { ok: true; t
   if (!v) {
     return { ok: false, reason: "empty selection text after trim" };
   }
-  if (/[\n\r<>\/]/.test(v)) {
+  if (/[\n\r<>/]/.test(v)) {
     return { ok: false, reason: "selection must not contain <, >, /, or newlines" };
   }
   return { ok: true, text: v };

@@ -83,12 +83,16 @@ export function LessonStudentBlockRenderer({
   if (routed === "interactiveSequence") {
     const raw = (block as StudentLessonPageBlock).sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
     const arr = Array.isArray(raw) ? raw : [];
-    const steps: InteractiveSequenceStep[] = arr.map((s) => ({
-      title: String(s?.title ?? ""),
-      description: String(s?.description ?? ""),
-      imageUrl: String(s?.imageUrl ?? ""),
-      caption: String(s?.caption ?? ""),
-    }));
+    const steps: InteractiveSequenceStep[] = arr.map((s: InteractiveSequenceStepPersisted) => {
+      const sid = typeof s.id === "string" ? String(s.id).trim() : "";
+      return {
+        ...(sid ? { id: sid.slice(0, 64) } : {}),
+        title: String(s?.title ?? ""),
+        description: String(s?.description ?? ""),
+        imageUrl: String(s?.imageUrl ?? ""),
+        caption: String(s?.caption ?? ""),
+      };
+    });
     return (
       <InteractiveSequenceBlock
         blockTitle={String(block.title ?? "")}
@@ -126,13 +130,28 @@ export function LessonStudentBlockRenderer({
       const id = String(h?.id ?? "").trim() || `h${i + 1}`;
       const label = String(h?.label ?? "");
       const description = String(h?.description ?? "");
+      const explanation = h?.explanation != null ? String(h.explanation) : undefined;
       const x = h?.x;
       const y = h?.y;
       const test = h?.test;
       if (typeof x === "number" && Number.isFinite(x) && typeof y === "number" && Number.isFinite(y)) {
-        return { id, x, y, label, description, ...(test !== undefined ? { test } : {}) };
+        return {
+          id,
+          x,
+          y,
+          label,
+          description,
+          ...(explanation !== undefined ? { explanation } : {}),
+          ...(test !== undefined ? { test } : {}),
+        };
       }
-      return { id, label, description, ...(test !== undefined ? { test } : {}) };
+      return {
+        id,
+        label,
+        description,
+        ...(explanation !== undefined ? { explanation } : {}),
+        ...(test !== undefined ? { test } : {}),
+      };
     });
     return (
       <InteractiveDiagramBlock

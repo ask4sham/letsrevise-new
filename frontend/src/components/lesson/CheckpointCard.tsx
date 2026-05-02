@@ -1,16 +1,19 @@
 import React, { useState } from "react";
+import { AssessmentFeedback } from "./AssessmentFeedback";
 import "./lessonRenderer.css";
 
 export type CheckpointCardProps = {
   question: string;
   options: string[];
   answer: string;
+  /** Optional — shown after reveal (e.g. merged explanation + mark scheme). */
+  explanation?: string;
 };
 
 /**
  * Interactive checkpoint: options + question visible; answer hidden until revealed.
  */
-export function CheckpointCard({ question, options, answer }: CheckpointCardProps): React.ReactElement {
+export function CheckpointCard({ question, options, answer, explanation }: CheckpointCardProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
   const hasAnswer = Boolean(answer && answer.trim());
 
@@ -36,12 +39,12 @@ export function CheckpointCard({ question, options, answer }: CheckpointCardProp
       {hasAnswer ? (
         <div className="lesson-renderer-checkpoint__answer-block">
           {revealed ? (
-            <>
-              <div className="lesson-renderer-checkpoint__answer-label">
-                <strong>Answer</strong>
-              </div>
-              <div className="lesson-renderer-checkpoint__answer-text">{answer.trim()}</div>
-            </>
+            <AssessmentFeedback
+              answer={answer.trim()}
+              answerLabel="Answer"
+              explanation={explanation}
+              explanationLabel="Explanation"
+            />
           ) : null}
           <button
             type="button"

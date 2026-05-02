@@ -16,6 +16,7 @@ export type StudentLessonBlockType =
   | "dragDropMatch";
 
 export type InteractiveSequenceStepPersisted = {
+  id?: string;
   title: string;
   description: string;
   imageUrl: string;
@@ -28,6 +29,8 @@ export type InteractiveDiagramHotspotPersisted = {
   y?: number;
   label: string;
   description: string;
+  /** Preferred explanation text; falls back to `description` when absent (legacy lessons). */
+  explanation?: string;
   /** Preset “Test me” MCQ (optional). */
   test?: unknown;
 };

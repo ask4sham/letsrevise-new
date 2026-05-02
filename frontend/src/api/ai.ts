@@ -515,7 +515,8 @@ export type DragDropPair = {
   explanation?: string;
 };
 
-function normalizeDragDropPairRows(raw: unknown[]): DragDropPair[] {
+function normalizeDragDropPairRows(raw: unknown[], maxRows: number): DragDropPair[] {
+  const cap = Number.isFinite(maxRows) && maxRows > 0 ? Math.min(40, Math.floor(maxRows)) : 20;
   const out: DragDropPair[] = [];
   const seenAnswers = new Set<string>();
   for (const row of raw) {
@@ -533,7 +534,7 @@ function normalizeDragDropPairRows(raw: unknown[]): DragDropPair[] {
         ? { prompt, answer, explanation }
         : { prompt, answer }
     );
-    if (out.length >= 20) break;
+    if (out.length >= cap) break;
   }
   return out;
 }
@@ -554,7 +555,7 @@ function tryParseDragDropPairsJson(text: string): DragDropPair[] | null {
     cleaned = cleaned.replace(/```json|```/gi, "").trim();
     const parsed: unknown = JSON.parse(cleaned);
     if (!Array.isArray(parsed)) return null;
-    return normalizeDragDropPairRows(parsed);
+    return normalizeDragDropPairRows(parsed, 20);
   } catch {
     return null;
   }
@@ -579,8 +580,14 @@ export async function generateDragDropPairsFromText(input: {
   subject?: string;
   level?: string;
   text: string;
+  /**
+   * "topic" — short label (e.g. virus structure); 4–6 pairs from the topic alone.
+   * "lessonExcerpt" — longer pasted content (up to 8 pairs).
+   */
+  source?: "lessonExcerpt" | "topic";
 }): Promise<DragDropPair[]> {
   const content = String(input.text || "").trim();
+  const source = input.source ?? "lessonExcerpt";
   const header = [
     input.lessonTitle && `Lesson title: ${String(input.lessonTitle).trim()}`,
     input.pageTitle && `Page title: ${String(input.pageTitle).trim()}`,
@@ -590,22 +597,40 @@ export async function generateDragDropPairsFromText(input: {
     .filter(Boolean)
     .join("\n");
 
-  const prompt = [
-    "Generate GCSE-level drag and drop matching pairs.",
-    "Return ONLY a valid JSON array. No markdown code fences, no commentary before or after.",
-    'Each object must have: "prompt" (string), "answer" (string), "explanation" (string, optional but preferred).',
-    "",
-    "Rules:",
-    "- Focus on key concepts from the content below.",
-    "- Use clear GCSE AQA-style language where appropriate.",
-    "- Avoid duplicate answers (each answer string must be unique).",
-    "- Keep answers concise.",
-    "- At most 8 pairs.",
-    "",
-    header,
-    "Content:",
-    content,
-  ].join("\n");
+  const prompt =
+    source === "topic"
+      ? [
+          "Generate GCSE-level drag-and-drop matching pairs for teaching.",
+          "Return ONLY a valid JSON array. No markdown code fences, no commentary before or after.",
+          'Each object must have: "prompt" (string), "answer" (string), "explanation" (string, optional but preferred).',
+          "",
+          "Rules:",
+          "- Create between 4 and 6 pairs (inclusive) for the topic below.",
+          '- "prompt" = target / label on the board; "answer" = text on the draggable card that matches it.',
+          "- Use clear, accurate GCSE-style language.",
+          "- Avoid duplicate answers (each answer string must be unique).",
+          "- Keep prompt and answer phrases concise.",
+          "- Do not invent URLs or image paths — text only.",
+          "",
+          header,
+          `Topic: ${content}`,
+        ].join("\n")
+      : [
+          "Generate GCSE-level drag and drop matching pairs.",
+          "Return ONLY a valid JSON array. No markdown code fences, no commentary before or after.",
+          'Each object must have: "prompt" (string), "answer" (string), "explanation" (string, optional but preferred).',
+          "",
+          "Rules:",
+          "- Focus on key concepts from the content below.",
+          "- Use clear GCSE AQA-style language where appropriate.",
+          "- Avoid duplicate answers (each answer string must be unique).",
+          "- Keep answers concise.",
+          "- At most 8 pairs.",
+          "",
+          header,
+          "Content:",
+          content,
+        ].join("\n");
 
   const res = await explainChunk({
     text: prompt,
@@ -617,8 +642,13 @@ export async function generateDragDropPairsFromText(input: {
   if (!raw) {
     return [];
   }
-  const parsed = tryParseDragDropPairsJson(raw);
-  if (parsed === null) {
+  const arr = tryParseFlexibleJsonArray(raw);
+  if (!arr) {
+    throw new Error("parse_drag_drop_json");
+  }
+  const maxRows = source === "topic" ? 6 : 8;
+  const parsed = normalizeDragDropPairRows(arr, maxRows);
+  if (source === "topic" && parsed.length < 4) {
     throw new Error("parse_drag_drop_json");
   }
   return parsed;
@@ -691,8 +721,10 @@ function clampInt(n: number, lo: number, hi: number, fallback: number): number {
 export type AISequenceStepDraft = {
   title: string;
   description: string;
+  /** Optional “Test me on this” model answer; omit in AI output if not wanted. */
   caption: string;
-  imageUrl: string;
+  /** Optional text-only idea for an illustration (teachers add images later). */
+  imagePrompt: string;
 };
 
 function normalizeSequenceStepAiRows(raw: unknown[], maxRows: number): AISequenceStepDraft[] {
@@ -704,20 +736,31 @@ function normalizeSequenceStepAiRows(raw: unknown[], maxRows: number): AISequenc
     const description =
       typeof o.description === "string"
         ? o.description.trim()
-        : typeof o.body === "string"
-          ? o.body.trim()
+        : typeof o.explanation === "string"
+          ? o.explanation.trim()
+          : typeof o.body === "string"
+            ? o.body.trim()
+            : "";
+    const captionRaw =
+      typeof o.caption === "string"
+        ? o.caption.trim()
+        : typeof o.quizCaption === "string"
+          ? o.quizCaption.trim()
           : "";
-    const captionRaw = typeof o.caption === "string" ? o.caption.trim() : "";
-    const imageUrl = typeof o.imageUrl === "string" ? o.imageUrl.trim() : "";
+    const imagePromptRaw =
+      typeof o.imagePrompt === "string"
+        ? o.imagePrompt.trim()
+        : typeof o.image_prompt === "string"
+          ? o.image_prompt.trim()
+          : typeof o.imageIdea === "string"
+            ? o.imageIdea.trim()
+            : "";
     if (!title || !description) continue;
-    const caption =
-      captionRaw ||
-      (description.length > 300 ? `${description.slice(0, 297)}…` : description);
     out.push({
       title,
       description,
-      caption,
-      imageUrl,
+      caption: captionRaw,
+      imagePrompt: imagePromptRaw,
     });
     if (out.length >= maxRows) break;
   }
@@ -751,8 +794,8 @@ export async function generateInteractiveSequenceStepsFromTopic(input: {
   const rawN =
     typeof input.numSteps === "number" && Number.isFinite(input.numSteps)
       ? Number(input.numSteps)
-      : 6;
-  const n = clampInt(rawN, 4, 12, 6);
+      : 5;
+  const n = clampInt(rawN, 4, 6, 5);
 
   const header = [
     input.lessonTitle && `Lesson title: ${String(input.lessonTitle).trim()}`,
@@ -764,21 +807,22 @@ export async function generateInteractiveSequenceStepsFromTopic(input: {
     .join("\n");
 
   const prompt = [
-    "Generate GCSE-level steps for an interactive sequence activity.",
+    "Generate GCSE-level steps for an interactive sequence activity (ordered process).",
     `Return ONLY a JSON array of exactly ${n} objects, in chronological order.`,
-    'No markdown code fences or commentary.',
+    "No markdown code fences or commentary.",
     "",
-    'Each object must include:',
-    '- "title" — short heading for this step (students see it in navigation).',
-    '- "description" — 2–5 sentences explaining what happens in this step.',
-    '- "caption" — ONE precise factual sentence matching the MCQ-style self-check.',
-    '- "imageUrl" — always empty string "". Teachers add images later.',
+    "Each object must include:",
+    '- "title" — short heading for this step (students see it in the step list).',
+    '- "description" — short student-facing explanation (about 2–4 sentences) of what happens in this step.',
+    '- "imagePrompt" (optional) — text-only idea for a simple illustration later (no URLs, not a file path). Omit if not helpful.',
+    '- "caption" (optional) — one precise factual sentence for an optional “Test me on this” self-check; omit if you skip the quiz line.',
     "",
     "Rules:",
-    "- Cover the topic end-to-end; no repeats.",
-    `- Exactly ${n} steps.`,
+    "- Cover the concept end-to-end; no repeated steps.",
+    "- Do not output image URLs or base64 — teachers add images in the editor.",
+    `- Exactly ${n} steps (no more, no fewer).`,
     header,
-    `Topic/process: ${topic}`,
+    `Concept / process: ${topic}`,
   ].join("\n");
 
   const res = await explainChunk({

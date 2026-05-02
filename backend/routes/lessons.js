@@ -257,10 +257,12 @@ function sanitisePageInput(p, isUpdate = false) {
   const allowedBlockTypes = [
     "text",
     "keyIdea",
+    "keyWords",
     "examTip",
     "commonMistake",
     "stretch",
     "checkpoint",
+    "selfCheck",
     "pageQuiz",
     "diagram",
     "interactiveSequence",
@@ -274,6 +276,8 @@ function sanitisePageInput(p, isUpdate = false) {
         if (compactType === "dragdropmatch") rawType = "dragDropMatch";
         else if (compactType === "interactivediagram") rawType = "interactiveDiagram";
         else if (compactType === "interactivesequence") rawType = "interactiveSequence";
+        else if (compactType === "keywords") rawType = "keyWords";
+        else if (compactType === "selfcheck") rawType = "selfCheck";
         const type = allowedBlockTypes.includes(rawType) ? rawType : "text";
         if (type === "checkpoint") {
           const prompt = typeof b?.prompt === "string" ? b.prompt : "";
@@ -293,16 +297,57 @@ function sanitisePageInput(p, isUpdate = false) {
               explanation: "",
             };
           }
+          const markSchemeBlk = Array.isArray(b?.markScheme)
+            ? b.markScheme.map((x) => String(x).trim()).filter(Boolean).slice(0, 20)
+            : undefined;
+          const explanationTrim =
+            typeof b?.explanation === "string" && b.explanation.trim()
+              ? b.explanation.trim().slice(0, 8000)
+              : undefined;
           const cpOut = {
             type: "checkpoint",
             prompt: prompt.trim(),
             questionType,
             options: questionType === "mcq" ? nonEmptyOpts.slice(0, 6) : [],
             correctAnswer: correctAnswer.trim(),
-            explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
+            ...(explanationTrim ? { explanation: explanationTrim } : {}),
+            ...(markSchemeBlk && markSchemeBlk.length ? { markScheme: markSchemeBlk } : {}),
           };
           if (typeof b?.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
           return cpOut;
+        }
+        if (type === "selfCheck") {
+          const prompt = typeof b?.prompt === "string" ? b.prompt : "";
+          const options = Array.isArray(b?.options) ? b.options.map((x) => String(x)).slice(0, 6) : [];
+          const correctAnswer = typeof b?.correctAnswer === "string" ? b.correctAnswer : "";
+          const questionType = b?.questionType === "short" ? "short" : "mcq";
+          const nonEmptyOpts = options.filter((o) => String(o || "").trim());
+          const hasPrompt = String(prompt || "").trim().length > 0;
+          const isValidMcq =
+            questionType === "mcq"
+              ? nonEmptyOpts.length >= 2 &&
+                nonEmptyOpts.some((o) => String(o).trim() === String(correctAnswer || "").trim())
+              : hasPrompt && String(correctAnswer || "").trim().length > 0;
+          if (!hasPrompt || !isValidMcq) {
+            return {
+              type: "selfCheck",
+              prompt: "Which statement is correct?",
+              questionType: "mcq",
+              options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+              correctAnswer: "Option 1",
+              explanation: "",
+            };
+          }
+          const scOut = {
+            type: "selfCheck",
+            prompt: prompt.trim(),
+            questionType,
+            options: questionType === "mcq" ? nonEmptyOpts.slice(0, 6) : [],
+            correctAnswer: correctAnswer.trim(),
+            explanation: typeof b?.explanation === "string" ? b.explanation : undefined,
+          };
+          if (typeof b?.role === "string" && b.role.trim()) scOut.role = b.role.trim();
+          return scOut;
         }
         if (type === "pageQuiz") {
           const qText = typeof b?.question === "string" ? b.question : (typeof b?.prompt === "string" ? b.prompt : "");
@@ -398,23 +443,21 @@ function sanitisePageInput(p, isUpdate = false) {
               if (!s || typeof s !== "object") {
                 return { title: "", description: "", imageUrl: "", caption: "" };
               }
-              return {
+              const sid = typeof s.id === "string" && s.id.trim() ? s.id.trim().slice(0, 64) : "";
+              const row = {
                 title: typeof s.title === "string" ? s.title.trim().slice(0, 200) : "",
                 description: typeof s.description === "string" ? s.description.trim().slice(0, 8000) : "",
                 imageUrl: typeof s.imageUrl === "string" ? s.imageUrl.trim().slice(0, 2000) : "",
                 caption: typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "",
               };
+              return sid ? { id: sid, ...row } : row;
             })
             .filter((s) => s.title || s.description || s.imageUrl || s.caption);
-          const defaultTwo = [
-            { title: "Step 1", description: "", imageUrl: "", caption: "" },
-            { title: "Step 2", description: "", imageUrl: "", caption: "" },
-          ];
           const seqOut = {
             type: "interactiveSequence",
             title,
             intro,
-            sequenceSteps: sequenceSteps.length ? sequenceSteps : defaultTwo,
+            sequenceSteps,
           };
           if (typeof b?.role === "string" && b.role.trim()) seqOut.role = b.role.trim();
           return seqOut;
@@ -452,7 +495,11 @@ function sanitisePageInput(p, isUpdate = false) {
                   ? h.id.trim().slice(0, 64)
                   : `h${i + 1}`;
               const label = typeof h.label === "string" ? h.label.trim().slice(0, 200) : "";
-              const description = typeof h.description === "string" ? h.description.trim().slice(0, 8000) : "";
+              const explanationIn =
+                typeof h.explanation === "string" ? h.explanation.trim().slice(0, 8000) : "";
+              const descriptionIn =
+                typeof h.description === "string" ? h.description.trim().slice(0, 8000) : "";
+              const resolved = explanationIn || descriptionIn;
               const test = sanitizeHotspotTest(h.test);
               const nx = h.x;
               const ny = h.y;
@@ -464,11 +511,18 @@ function sanitisePageInput(p, isUpdate = false) {
                   x: Math.max(0, Math.min(100, Number(nx))),
                   y: Math.max(0, Math.min(100, Number(ny))),
                   label,
-                  description,
+                  description: resolved,
+                  ...(resolved ? { explanation: resolved } : {}),
                   ...(test ? { test } : {}),
                 };
               }
-              return { id, label, description, ...(test ? { test } : {}) };
+              return {
+                id,
+                label,
+                description: resolved,
+                ...(resolved ? { explanation: resolved } : {}),
+                ...(test ? { test } : {}),
+              };
             })
             .filter((h) => h.id);
           const outId = {
@@ -507,26 +561,12 @@ function sanitisePageInput(p, isUpdate = false) {
               };
             })
             .filter((row) => row.id);
-          const defaultPairs = [
-            {
-              id: "a",
-              prompt: "Nucleus",
-              answer: "Controls the cell and contains genetic material",
-              explanation: "The nucleus contains DNA and controls cell activities.",
-            },
-            {
-              id: "b",
-              prompt: "Mitochondria",
-              answer: "Site of aerobic respiration",
-              explanation: "Mitochondria release energy through aerobic respiration.",
-            },
-          ];
           const ddmOut = {
             type: "dragDropMatch",
             title,
             intro,
             instructions,
-            pairs: pairs.length ? pairs : defaultPairs,
+            pairs,
           };
           if (typeof b?.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
           return ddmOut;
@@ -556,12 +596,17 @@ function sanitisePageInput(p, isUpdate = false) {
       ? cp.markScheme.map((x) => String(x).trim()).filter(Boolean).slice(0, 20)
       : undefined;
     const autoMark = sanitiseCheckpointAutoMark(cp.autoMark);
+    const explanation =
+      typeof cp.explanation === "string" && cp.explanation.trim()
+        ? cp.explanation.trim().slice(0, 8000)
+        : undefined;
 
     const base = {
       question: typeof cp.question === "string" ? cp.question : "",
       options: Array.isArray(cp.options) ? cp.options.map((x) => String(x)).slice(0, 4) : [],
       answer: typeof cp.answer === "string" ? cp.answer : "",
       type: cpType,
+      ...(explanation ? { explanation } : {}),
       ...(markScheme && markScheme.length ? { markScheme } : {}),
       ...(autoMark ? { autoMark } : {}),
     };

@@ -55,6 +55,7 @@ const DiagramConnectorSchema = new mongoose.Schema(
 /** Step content for type === "interactiveSequence" (mitosis walkthrough, etc.) — not diagram step mode. */
 const InteractiveSequenceStepSchema = new mongoose.Schema(
   {
+    id: { type: String, default: "" },
     title: { type: String, default: "" },
     description: { type: String, default: "" },
     imageUrl: { type: String, default: "" },
@@ -82,6 +83,7 @@ const InteractiveDiagramHotspotSchema = new mongoose.Schema(
     y: { type: Number, min: 0, max: 100, required: false },
     label: { type: String, default: "" },
     description: { type: String, default: "" },
+    explanation: { type: String, default: "" },
     test: { type: InteractiveDiagramHotspotTestSchema, required: false },
   },
   { _id: false }
@@ -100,16 +102,18 @@ const DragDropMatchPairSchema = new mongoose.Schema(
 
 const LessonPageBlockSchema = new mongoose.Schema(
   {
-    // "text" | "keyIdea" | … | "interactiveDiagram" | "dragDropMatch"
+    // "text" | "keyIdea" | "keyWords" | … | "selfCheck" | "interactiveDiagram" | "dragDropMatch"
     type: {
       type: String,
       enum: [
         "text",
         "keyIdea",
+        "keyWords",
         "examTip",
         "commonMistake",
         "stretch",
         "checkpoint",
+        "selfCheck",
         "pageQuiz",
         "diagram",
         "interactiveSequence",
@@ -207,6 +211,8 @@ const LessonPageCheckpointSchema = new mongoose.Schema(
     question: { type: String, default: "" },
     options: { type: [String], default: [] },
     answer: { type: String, default: "" },
+    /** Optional student-facing explanation after reveal (merged with markScheme in UI when present). */
+    explanation: { type: String, default: undefined },
 
     /**
      * ✅ Optional extensions for next-gen checkpoints (non-breaking)

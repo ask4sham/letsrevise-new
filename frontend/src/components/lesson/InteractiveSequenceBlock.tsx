@@ -5,6 +5,7 @@ import {
   captionsMatchChosen,
   formatInteractiveSequenceMcqOptionDisplay,
 } from "../../utils/interactiveSequenceStepQuiz";
+import { stripSequenceStepImagePromptFromDescription } from "../../utils/interactiveSequenceStepImagePrompt";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./interactiveSequenceBlock.css";
 
@@ -82,6 +83,7 @@ export function InteractiveSequenceBlock({
   const [active, setActive] = useState(0);
   const safeIndex = list.length > 0 ? Math.min(Math.max(0, active), list.length - 1) : 0;
   const step = list[safeIndex];
+  const descriptionStudent = stripSequenceStepImagePromptFromDescription(String(step?.description ?? ""));
   const captionTrimmed = (step?.caption ?? "").trim();
 
   const [mcqSelection, setMcqSelection] = useState<string | null>(null);
@@ -219,7 +221,7 @@ export function InteractiveSequenceBlock({
                 Step {stepNum} of {total}
               </p>
               {step?.title ? <h4 className="interactive-sequence__step-title">{step.title}</h4> : null}
-              <p className="interactive-sequence__explanation-text">{step?.description?.trim() || "—"}</p>
+              <p className="interactive-sequence__explanation-text">{descriptionStudent.trim() || "—"}</p>
             </div>
           </div>
           {isOnFinalStep ? (

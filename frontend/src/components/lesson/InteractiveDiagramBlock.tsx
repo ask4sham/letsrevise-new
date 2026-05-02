@@ -3,10 +3,13 @@ import { generateHotspotMcqFromConcept, type HotspotMcqPayload } from "../../api
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import {
   embeddedInteractiveDiagramTestToMcqPayload,
+  getHotspotLetter,
   isInteractiveDiagramHotspotPlaced,
   parseEmbeddedInteractiveDiagramTest,
+  resolveInteractiveDiagramHotspotExplanation,
 } from "../../utils/interactiveDiagramHotspots";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
+import { AssessmentFeedback } from "./AssessmentFeedback";
 import "./interactiveDiagramBlock.css";
 
 export type InteractiveDiagramHotspot = {
@@ -15,7 +18,10 @@ export type InteractiveDiagramHotspot = {
   x?: number | null;
   y?: number | null;
   label: string;
+  /** Legacy alias for the hotspot explanation (same role as `explanation`). */
   description: string;
+  /** Shown after the label when the hotspot is revealed; preferred when both are set. */
+  explanation?: string;
   /** Preset/stored MCQ — when set, “Test me” skips AI generation. */
   test?: unknown;
 };
@@ -57,6 +63,23 @@ function answersMatch(chosen: string, correct: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
 }
 
+/** Teacher-authored label shown under “Structure {letter}” when it adds information. */
+function teacherLabelAside(semanticLabel: string | undefined, letter: string): string | null {
+  const t = semanticLabel?.trim() ?? "";
+  if (!t) return null;
+  const u = t.toUpperCase();
+  if (u === letter.toUpperCase()) return null;
+  if (u === `STRUCTURE ${letter}`.toUpperCase()) return null;
+  return t;
+}
+
+function hotspotAccessibilityName(h: InteractiveDiagramHotspot, index: number): string {
+  const letter = getHotspotLetter(index);
+  const semantic = (h.label ?? "").trim();
+  const aside = teacherLabelAside(semantic, letter);
+  return aside ? `Structure ${letter}, ${aside}` : `Structure ${letter}`;
+}
+
 /**
  * Clickable hotspot diagram for lessons (plant cell, microscope, etc.).
  * Hotspot x/y are percentages 0–100 (left/top).
@@ -89,7 +112,12 @@ export function InteractiveDiagramBlock({
 
   const active =
     activeHotspotId != null ? list.find((h, i) => hotspotId(h, i) === activeHotspotId) ?? null : null;
+  const activeIndex =
+    activeHotspotId != null ? list.findIndex((h, i) => hotspotId(h, i) === activeHotspotId) : -1;
+  const activeLetter = activeIndex >= 0 ? getHotspotLetter(activeIndex) : "";
   const activePlaced = active != null && isInteractiveDiagramHotspotPlaced(active);
+  const activeAnswerText = active ? (active.label?.trim() || "—") : "";
+  const activeExplanation = active ? resolveInteractiveDiagramHotspotExplanation(active) : "";
 
   useEffect(() => {
     setGeneratedQuestion(null);
@@ -140,14 +168,20 @@ export function InteractiveDiagramBlock({
       const isActive = activeHotspotId === hid;
       const x = clampPct(typeof h.x === "number" ? h.x : Number(h.x));
       const y = clampPct(typeof h.y === "number" ? h.y : Number(h.y));
-      const label = (h.label ?? "").trim() || `Hotspot ${i + 1}`;
+      const letter = getHotspotLetter(i);
+      const a11y = hotspotAccessibilityName(h, i);
+      const markerWide = letter.length > 1;
       return (
         <button
           key={hid}
           type="button"
           className={isActive ? "interactive-diagram-hotspot is-active" : "interactive-diagram-hotspot"}
-          style={{ left: `${x}%`, top: `${y}%` }}
-          aria-label={placement ? `Hotspot: ${label}` : `Show information about ${label}`}
+          style={{
+            left: `${x}%`,
+            top: `${y}%`,
+            ...(markerWide ? { minWidth: 34, width: "auto", paddingLeft: 5, paddingRight: 5 } : {}),
+          }}
+          aria-label={placement ? `Place marker ${letter} on diagram` : `Show information about ${a11y}`}
           aria-pressed={isActive}
           onClick={(e) => {
             e.stopPropagation();
@@ -162,7 +196,7 @@ export function InteractiveDiagramBlock({
             }
           }}
         >
-          <span className="interactive-diagram-hotspot__num">{i + 1}</span>
+          <span className="interactive-diagram-hotspot__letter">{letter}</span>
         </button>
       );
     });
@@ -222,12 +256,14 @@ export function InteractiveDiagramBlock({
         >
           {active ? (
             <>
-              <div className="interactive-diagram__panel-title interactive-diagram__panel-title--active">
-                {active.label?.trim() || "—"}
-              </div>
-              <p className="interactive-diagram__panel-desc">
-                {active.description?.trim() || "—"}
-              </p>
+              <AssessmentFeedback
+                title={`Structure ${activeLetter}`}
+                answer={activeAnswerText}
+                answerLabel="Answer"
+                explanation={activeExplanation || undefined}
+                explanationLabel="Explanation"
+                className="interactive-diagram__panel-feedback"
+              />
               {activePlaced ? (
                 <>
                   <button
@@ -249,8 +285,8 @@ export function InteractiveDiagramBlock({
                       try {
                         const { mcq, _disabled } = await generateHotspotMcqFromConcept({
                           topic: topicForAi,
-                          label: active.label?.trim() || "Concept",
-                          description: active.description?.trim() || "",
+                          label: active.label?.trim() || `Structure ${activeLetter}`,
+                          description: resolveInteractiveDiagramHotspotExplanation(active),
                           level,
                           subject,
                         });
@@ -279,6 +315,7 @@ export function InteractiveDiagramBlock({
                       <div className="hotspot-question__options" role="list">
                         {generatedQuestion.options.map((opt, oi) => {
                           const picked = selectedOption != null;
+                          const optLetter = getHotspotLetter(oi);
                           return (
                             <button
                               key={`opt-${oi}`}
@@ -286,9 +323,11 @@ export function InteractiveDiagramBlock({
                               role="listitem"
                               className="hotspot-question__option"
                               disabled={picked}
+                              aria-label={`Option ${optLetter}: ${opt}`}
                               onClick={() => setSelectedOption(opt)}
                             >
-                              {opt}
+                              <span className="hotspot-question__option-letter">{optLetter}</span>
+                              <span className="hotspot-question__option-text">{opt}</span>
                             </button>
                           );
                         })}

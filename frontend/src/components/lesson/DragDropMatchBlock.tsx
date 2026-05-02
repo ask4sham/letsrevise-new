@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AssessmentFeedback } from "./AssessmentFeedback";
 import "./dragDropMatchBlock.css";
 
 const DND_MIME = "application/x-letsrevise-dnd-pair";
@@ -211,6 +212,7 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
             const card = sourcePlaced ? byId.get(sourcePlaced) : null;
             const isCorrect = checked && sourcePlaced != null && sourcePlaced === row.id;
             const isWrong = checked && sourcePlaced != null && sourcePlaced !== row.id;
+            const isEmpty = checked && sourcePlaced == null;
             const targetClass =
               "drag-drop-match__target" +
               (isCorrect ? " drag-drop-match__target--correct" : "") +
@@ -238,7 +240,7 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
                       {checked && isCorrect ? (
                         <span className="drag-drop-match__status drag-drop-match__status--ok">Correct</span>
                       ) : null}
-                      {checked && isWrong ? (
+                      {checked && (isWrong || isEmpty) ? (
                         <span className="drag-drop-match__status drag-drop-match__status--bad">Try again</span>
                       ) : null}
                     </span>
@@ -246,13 +248,15 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
                     <span className="drag-drop-match__target-empty">Drop or tap a match</span>
                   )}
                 </button>
-                {checked && row.explanation && String(row.explanation).trim() ? (
-                  <div
-                    className="drag-drop-match__feedback"
-                    role="note"
-                  >
-                    {row.explanation}
-                  </div>
+                {checked ? (
+                  <AssessmentFeedback
+                    className="drag-drop-match__assessment-feedback"
+                    status={isCorrect ? "correct" : isWrong || isEmpty ? "incorrect" : undefined}
+                    answer={row.answer}
+                    answerLabel="Correct answer"
+                    explanation={row.explanation}
+                    explanationLabel="Explanation"
+                  />
                 ) : null}
               </div>
             );

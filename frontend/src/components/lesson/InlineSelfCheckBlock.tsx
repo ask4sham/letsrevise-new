@@ -7,6 +7,8 @@ export type InlineSelfCheckBlockProps = {
   correctAnswer: string;
   explanation?: string;
   presentation?: "default" | "v12";
+  /** e.g. "Quick check" for checkpoint blocks; default "Self-check" */
+  headingLabel?: string;
 };
 
 /**
@@ -19,6 +21,7 @@ export function InlineSelfCheckBlock({
   correctAnswer,
   explanation,
   presentation = "default",
+  headingLabel = "Self-check",
 }: InlineSelfCheckBlockProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
   const v12 = presentation === "v12";
@@ -57,7 +60,7 @@ export function InlineSelfCheckBlock({
           letterSpacing: "0.02em",
         }}
       >
-        Self-check
+        {headingLabel}
       </div>
       <div
         style={{

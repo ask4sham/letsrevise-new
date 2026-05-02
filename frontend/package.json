@@ -6,7 +6,7 @@
     "node": ">=18 <23",
     "npm": ">=9"
   },
-  "description": "Frontend for LetsRivise - UK Curriculum Learning Platform",
+  "description": "Frontend for LetsRivise — local dev defaults to port 3000. Port 3001 is reserved for LetsRevise Lesson Generator (separate repo).",
   "author": "LetsRivise Team",
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -40,13 +40,15 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "node scripts/dev-server-start.js",
+    "start:cra": "react-scripts start",
     "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "format": "prettier --write .",
-    "fix:edit-lesson-jsx": "node scripts/fix-edit-lesson-jsx.js"
+    "fix:edit-lesson-jsx": "node scripts/fix-edit-lesson-jsx.js",
+    "render:mitosis-pngs": "node scripts/render-mitosis-pngs.cjs"
   },
   "eslintConfig": {
     "extends": [
@@ -76,12 +78,14 @@
     "@types/chart.js": "^2.9.41",
     "@types/react-router-dom": "^5.3.3",
     "autoprefixer": "^10.4.22",
+    "baseline-browser-mapping": "^2.10.25",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.5.6",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.17"
   },
   "repository": {

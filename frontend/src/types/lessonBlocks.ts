@@ -19,6 +19,20 @@ export interface LessonBlock {
   role?: string;
 }
 
+/** Merge page/block checkpoint `explanation` with `markScheme` lines for student display. */
+export { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
+
+/** Hotspot on an `interactiveDiagram` block — `description` is legacy storage; prefer `explanation` when authoring. */
+export type InteractiveDiagramHotspotDraft = {
+  id: string;
+  x?: number;
+  y?: number;
+  label: string;
+  description?: string;
+  explanation?: string;
+  test?: unknown;
+};
+
 export type LessonBlockType =
   | "text"
   | "keyIdeas"
@@ -49,6 +63,8 @@ export type LegacyBlockType =
 export interface BlockMeta {
   label: string;
   icon: string;
+  /** Optional teacher hint — editors and add-block dropdown tooltip */
+  subtitle?: string;
   style: {
     border: string;
     background: string;
@@ -143,7 +159,8 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
     },
   },
   interactiveSequence: {
-    label: "Interactive sequence",
+    label: "Step-by-step diagram (process)",
+    subtitle: "Use for processes like mitosis, digestion, life cycles",
     icon: "🔁",
     style: {
       border: "1px solid rgba(99,102,241,0.35)",
@@ -351,7 +368,7 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "finalMemoryRule", type: "keyIdeas", label: "Final memory rule (key idea)" },
   { role: "keyWords", type: "keyWords", label: "Key words" },
   { role: "deeperKnowledge", type: "deeperKnowledge", label: "Deeper knowledge (stretch)" },
-  { role: "sequence", type: "interactiveSequence", label: "Interactive sequence" },
+  { role: "sequence", type: "interactiveSequence", label: "Step-by-step diagram (process)" },
   { role: "hotspot", type: "interactiveDiagram", label: "Interactive diagram" },
   { role: "match", type: "dragDropMatch", label: "Drag and drop match" },
 ];
