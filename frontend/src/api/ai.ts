@@ -610,6 +610,7 @@ export async function generateDragDropPairsFromText(input: {
           "- Use clear, accurate GCSE-style language.",
           "- Avoid duplicate answers (each answer string must be unique).",
           "- Keep prompt and answer phrases concise.",
+          "- Explanation: one short GCSE-style justification or exam-facing note per pair (how an examiner expects the link to be stated); prefer precise terminology over filler.",
           "- Do not invent URLs or image paths — text only.",
           "",
           header,
@@ -625,6 +626,7 @@ export async function generateDragDropPairsFromText(input: {
           "- Use clear GCSE AQA-style language where appropriate.",
           "- Avoid duplicate answers (each answer string must be unique).",
           "- Keep answers concise.",
+          "- Explanation: one short GCSE-style, exam-focused sentence per pair where possible.",
           "- At most 8 pairs.",
           "",
           header,
@@ -721,10 +723,15 @@ function clampInt(n: number, lo: number, hi: number, fallback: number): number {
 export type AISequenceStepDraft = {
   title: string;
   description: string;
-  /** Optional “Test me on this” model answer; omit in AI output if not wanted. */
+  /** Optional key idea revealed to students behind “Reveal answer / key idea” (not MCQ). */
   caption: string;
   /** Optional text-only idea for an illustration (teachers add images later). */
   imagePrompt: string;
+  /**
+   * One short sentence: why the key idea is correct, GCSE-friendly and exam-focused.
+   * Shown with caption after reveal; omit entirely if absent.
+   */
+  testExplanation?: string;
 };
 
 function normalizeSequenceStepAiRows(raw: unknown[], maxRows: number): AISequenceStepDraft[] {
@@ -755,13 +762,21 @@ function normalizeSequenceStepAiRows(raw: unknown[], maxRows: number): AISequenc
           : typeof o.imageIdea === "string"
             ? o.imageIdea.trim()
             : "";
+    const testExplanationRaw =
+      typeof o.testExplanation === "string"
+        ? o.testExplanation.trim()
+        : typeof o.test_explanation === "string"
+          ? o.test_explanation.trim()
+          : "";
     if (!title || !description) continue;
-    out.push({
+    const draft: AISequenceStepDraft = {
       title,
       description,
       caption: captionRaw,
       imagePrompt: imagePromptRaw,
-    });
+    };
+    if (testExplanationRaw) draft.testExplanation = testExplanationRaw;
+    out.push(draft);
     if (out.length >= maxRows) break;
   }
   return out;
@@ -815,10 +830,12 @@ export async function generateInteractiveSequenceStepsFromTopic(input: {
     '- "title" — short heading for this step (students see it in the step list).',
     '- "description" — short student-facing explanation (about 2–4 sentences) of what happens in this step.',
     '- "imagePrompt" (optional) — text-only idea for a simple illustration later (no URLs, not a file path). Omit if not helpful.',
-    '- "caption" (optional) — one precise factual sentence for an optional “Test me on this” self-check; omit if you skip the quiz line.',
+    '- "caption" (optional but recommended when using the self-check) — one precise GCSE-style sentence that is the “answer / key idea” revealed only after the student taps Reveal.',
+    '- "testExplanation" (optional but recommended whenever "caption" is present) — exactly one short sentence explaining why that key idea is correct, exam-focused, no fluff; not a paragraph.',
     "",
     "Rules:",
     "- Cover the concept end-to-end; no repeated steps.",
+    '- If "caption" is omitted, omit "testExplanation" too.',
     "- Do not output image URLs or base64 — teachers add images in the editor.",
     `- Exactly ${n} steps (no more, no fewer).`,
     header,

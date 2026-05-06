@@ -25,6 +25,13 @@ const qualityModes = [
 
 const tierOptions = ["Higher Tier", "Foundation Tier", "Mixed"];
 
+function qualificationTypeFromSubject(subject) {
+  const s = String(subject || "");
+  if (s === "Combined Science") return "combined-science";
+  if (["Biology", "Chemistry", "Physics"].includes(s)) return "single-science";
+  return "";
+}
+
 function buildExtras({
   qualityMode,
   tier,
@@ -122,6 +129,7 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
       tier,
       topic: genTopic || topic.trim(),
       showExamBoard,
+      qualificationType: qualificationTypeFromSubject(subject),
     });
   }, [subject, keyStage, examBoard, tier, topic, showExamBoard, showTier, onLessonContext]);
 
@@ -140,6 +148,8 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
           keyStage,
           examBoard: showExamBoard ? examBoard : "",
           topic: showTier && tier !== "Mixed" ? `${topic} (${tier})` : topic,
+          tier: showTier ? tier : "",
+          qualificationType: qualificationTypeFromSubject(subject),
           extras,
         }),
       });
@@ -228,6 +238,9 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
               </option>
             ))}
           </select>
+          <p className="mt-1.5 text-xs text-slate-500">
+            Specification locking uses local starter entries. Verify against official specification before publishing.
+          </p>
         </div>
       )}
 

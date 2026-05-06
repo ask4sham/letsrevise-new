@@ -2,6 +2,7 @@ import {
   LESSON_GENERATOR_EXPORT_FORMAT_V1,
 } from "../constants/lessonGeneratorExchange.v1";
 import { normalizeBlockType, type LessonBlockType } from "../types/lessonBlocks";
+import { coerceLessonMcqOptionsFour } from "./parseFlexibleCheckpointPaste";
 
 const VALID_STARTER_PAGE_CHECKPOINT = {
   question: "Which statement is correct?",
@@ -57,11 +58,78 @@ export function isGeneratorExportV1(doc: unknown): doc is GeneratorExportV1Docum
 }
 
 function padOptions(raw: unknown): string[] {
-  const a = Array.isArray(raw)
-    ? raw.map((x) => String(x ?? "").trim())
-    : [];
-  while (a.length < 4) a.push("");
-  return a.slice(0, 4);
+  return [...coerceLessonMcqOptionsFour(raw)];
+}
+
+/** Page.checkpoint must mirror the first inline checkpoint block for CreateLesson save + student view. */
+function pageCheckpointFromFirstBlock(
+  blocks: Record<string, unknown>[]
+): CreateLessonPageShape["checkpoint"] {
+  const fallback: CreateLessonPageShape["checkpoint"] = {
+    ...VALID_STARTER_PAGE_CHECKPOINT,
+  };
+  const cp = blocks.find((b) => b && String(b.type) === "checkpoint");
+  if (!cp) return fallback;
+  const opts = padOptions(cp.options);
+  const q = String(cp.prompt ?? (cp as { question?: unknown }).question ?? "").trim();
+  const ans = String(cp.correctAnswer ?? (cp as { answer?: unknown }).answer ?? "").trim();
+  const expl = String(cp.explanation ?? "").trim();
+  const msRaw = cp.markScheme;
+  const markScheme = Array.isArray(msRaw)
+    ? msRaw.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+    : ([] as string[]);
+  const hasMcqBody = opts.filter(Boolean).length >= 2 && q.length > 0;
+  if (!hasMcqBody) return fallback;
+  return {
+    question: q || fallback.question,
+    options: opts,
+    answer: ans || opts.find(Boolean) || fallback.answer,
+    explanation: expl,
+    markScheme,
+  };
+}
+
+/**
+ * Persist at most one `checkpoint` block per page — Create Lesson mirrors page.checkpoint from that slot.
+ * Additional generator checkpoints stay full MCQs as `selfCheck` (answers hidden until reveal/check).
+ */
+function elevateExtraImportedCheckpointsToSelfCheck(
+  blocks: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  let seenCheckpoint = false;
+  return blocks.map((raw) => {
+    if (!raw || String(raw.type) !== "checkpoint") return raw;
+    if (!seenCheckpoint) {
+      seenCheckpoint = true;
+      return raw;
+    }
+    const opts = padOptions(raw.options as unknown[]);
+    const prompt = String(raw.prompt ?? (raw as { question?: unknown }).question ?? "").trim();
+    const ca = String(
+      raw.correctAnswer ?? (raw as { answer?: unknown }).answer ?? ""
+    ).trim();
+    const expl = String(raw.explanation ?? "").trim();
+    const msRaw = raw.markScheme;
+    const markScheme = Array.isArray(msRaw)
+      ? msRaw.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
+      : ([] as string[]);
+    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    const role = typeof raw.role === "string" ? raw.role.trim() : "";
+
+    const out: Record<string, unknown> = {
+      type: "selfCheck",
+      content: "",
+      ...(title ? { title } : {}),
+      ...(role ? { role } : {}),
+      prompt: prompt || "Question",
+      questionType: "mcq",
+      options: opts,
+      correctAnswer: ca || opts.find(Boolean) || "",
+      explanation: expl,
+    };
+    if (markScheme.length) out.markScheme = markScheme;
+    return out;
+  });
 }
 
 function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unknown> {
@@ -76,10 +144,12 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
       const answer = String(payload.correctAnswer ?? payload.answer ?? opts[0] ?? "").trim();
       return {
         type: "checkpoint" as LessonBlockType,
-        content: String(payload.content ?? ""),
+        content: "",
         title,
         ...(role ? { role } : {}),
-        prompt: String(payload.prompt ?? "Question"),
+        prompt: String(
+          payload.prompt ?? (payload as { question?: unknown }).question ?? "Question"
+        ),
         questionType: "mcq" as const,
         options: opts,
         correctAnswer: answer || opts[0] || "",
@@ -172,13 +242,17 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
           description?: unknown;
           imageUrl?: unknown;
           caption?: unknown;
+          testExplanation?: unknown;
         };
+        const te =
+          typeof o.testExplanation === "string" ? String(o.testExplanation).trim() : "";
         return {
           id: String(o.id ?? "").trim() || `imp_seq_${i + 1}`,
           title: String(o.title ?? `Step ${i + 1}`).trim(),
           description: String(o.description ?? "").trim(),
           imageUrl: String(o.imageUrl ?? "").trim(),
           caption: String(o.caption ?? "").trim(),
+          ...(te ? { testExplanation: te } : {}),
         };
       });
       return {
@@ -223,7 +297,11 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
     (a, b) => (a.order ?? 0) - (b.order ?? 0)
   );
   return sorted.map((pg, idx) => {
-    const blocks = (pg.blocks || []).map(recordToLessonBlock).filter(Boolean);
+    const blocksRaw = (pg.blocks || []).map(recordToLessonBlock).filter(Boolean) as Record<
+      string,
+      unknown
+    >[];
+    const blocks = elevateExtraImportedCheckpointsToSelfCheck(blocksRaw);
     return {
       pageId: newPid(),
       title: String(pg.title || `Page ${idx + 1}`).trim() || `Page ${idx + 1}`,
@@ -232,7 +310,7 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
       hero: { type: "none", src: "", caption: "" },
       blocks:
         blocks.length > 0 ? blocks : [{ type: "text", content: "", role: "concept" }],
-      checkpoint: { ...VALID_STARTER_PAGE_CHECKPOINT },
+      checkpoint: pageCheckpointFromFirstBlock(blocks),
     };
   });
 }

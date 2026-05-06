@@ -81,6 +81,11 @@ import {
   guardLessonBlockPatchForDuplicatePaste,
 } from "../utils/lessonEditorPaste";
 import {
+  coerceLessonMcqOptionsFour,
+  lessonCheckpointWholeCellPaste,
+  tryParseFlexibleCheckpointMcq,
+} from "../utils/parseFlexibleCheckpointPaste";
+import {
   getHotspotLetter,
   isInteractiveDiagramHotspotPlaced,
   normalizeInteractiveDiagramHotspot,
@@ -164,6 +169,7 @@ interface LessonPageBlock {
     description: string;
     imageUrl: string;
     caption: string;
+    testExplanation?: string;
   }>;
   /** type === "interactiveDiagram" — x/y 0–100 (percentage); omit when unplaced */
   hotspots?: Array<{
@@ -585,6 +591,8 @@ const EditLessonPage: React.FC = () => {
   const [dragDropPairAiUi, setDragDropPairAiUi] = useState<
     Record<string, { loading: boolean; message: "error" | "empty" | null }>
   >({});
+  /** Optional topic/prompt — when long enough, AI uses topic mode (4–6 pairs); else excerpt from lesson fields. */
+  const [dragDropAiTopicPrompt, setDragDropAiTopicPrompt] = useState<Record<string, string>>({});
   const [interactiveBlockCreation, setInteractiveBlockCreation] = useState<
     null | { pageId: string; insertAt?: number; option: AddBlockOption }
   >(null);
@@ -1238,9 +1246,7 @@ const EditLessonPage: React.FC = () => {
                     type: "checkpoint" as const,
                     prompt: safeStr(b.prompt, ""),
                     questionType: b?.questionType === "short" ? "short" : "mcq",
-                    options: Array.isArray(b.options)
-                      ? b.options.map((o: any) => String(o ?? ""))
-                      : ["", "", "", ""],
+                    options: [...coerceLessonMcqOptionsFour(b.options)],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
                   } as Record<string, unknown>;
@@ -1256,9 +1262,12 @@ const EditLessonPage: React.FC = () => {
                     type: "selfCheck" as const,
                     prompt: safeStr(b.prompt, ""),
                     questionType: b?.questionType === "short" ? "short" : "mcq",
-                    options: Array.isArray(b.options)
-                      ? b.options.map((o: any) => String(o ?? ""))
-                      : ["", "", "", ""],
+                    options:
+                      b?.questionType === "short"
+                        ? Array.isArray(b.options)
+                          ? b.options.map((o: any) => String(o ?? ""))
+                          : ["", "", "", ""]
+                        : [...coerceLessonMcqOptionsFour(b.options)],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
                   } as Record<string, unknown>;
@@ -1321,6 +1330,9 @@ const EditLessonPage: React.FC = () => {
                     description: safeStr(s?.description, ""),
                     imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
                     caption: safeStr(s?.caption, ""),
+                    ...(typeof s?.testExplanation === "string" && String(s.testExplanation).trim()
+                      ? { testExplanation: String(s.testExplanation).trim() }
+                      : {}),
                   }));
                   const outIs: Record<string, unknown> = {
                     type: "interactiveSequence" as const,
@@ -3030,18 +3042,26 @@ const EditLessonPage: React.FC = () => {
           if (b.type === "interactiveSequence") {
             const rawSeq = Array.isArray(b.sequenceSteps) ? b.sequenceSteps : Array.isArray(b.steps) ? b.steps : [];
             const sequenceSteps = rawSeq
-              .map((s: any) => ({
-                ...(typeof s?.id === "string" && String(s.id).trim()
-                  ? { id: String(s.id).trim().slice(0, 64) }
-                  : {}),
-                title: s?.title != null ? String(s.title).trim() : "",
-                description: s?.description != null ? String(s.description).trim() : "",
-                imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
-                caption: s?.caption != null ? String(s.caption).trim() : "",
-              }))
+              .map((s: any) => {
+                const te = s?.testExplanation != null ? String(s.testExplanation).trim() : "";
+                return {
+                  ...(typeof s?.id === "string" && String(s.id).trim()
+                    ? { id: String(s.id).trim().slice(0, 64) }
+                    : {}),
+                  title: s?.title != null ? String(s.title).trim() : "",
+                  description: s?.description != null ? String(s.description).trim() : "",
+                  imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
+                  caption: s?.caption != null ? String(s.caption).trim() : "",
+                  ...(te ? { testExplanation: te } : {}),
+                };
+              })
               .filter(
                 (s) =>
-                  s.title.length > 0 || s.description.length > 0 || s.imageUrl.length > 0 || s.caption.length > 0
+                  s.title.length > 0 ||
+                  s.description.length > 0 ||
+                  s.imageUrl.length > 0 ||
+                  s.caption.length > 0 ||
+                  Boolean((s as { testExplanation?: string }).testExplanation)
               );
             const isOut: Record<string, unknown> = {
               type: "interactiveSequence",
@@ -6244,7 +6264,7 @@ const EditLessonPage: React.FC = () => {
                                     if (hasContent) {
                                       if (
                                         !window.confirm(
-                                          "Replace current steps with the mitosis sequence template? This overwrites titles, intro text, step descriptions, and loads the default LetsRevise mitosis diagrams and quiz captions."
+                                          "Replace current steps with the mitosis sequence template? This overwrites titles, intro text, step explanations, and loads the default LetsRevise mitosis diagrams and optional Test me key ideas."
                                         )
                                       ) {
                                         return;
@@ -6259,6 +6279,9 @@ const EditLessonPage: React.FC = () => {
                                         description: row.description,
                                         imageUrl: row.imageUrl ?? "",
                                         caption: row.caption ?? "",
+                                        ...(typeof row.testExplanation === "string" && row.testExplanation.trim()
+                                          ? { testExplanation: row.testExplanation.trim() }
+                                          : {}),
                                       })),
                                     });
                                   }}
@@ -6286,6 +6309,7 @@ const EditLessonPage: React.FC = () => {
                                       description: "",
                                       imageUrl: "",
                                       caption: "",
+                                      testExplanation: "",
                                     });
                                     updateBlock(currentPage!.pageId, idx, { sequenceSteps: cur });
                                   }}
@@ -6339,7 +6363,13 @@ const EditLessonPage: React.FC = () => {
                                           (url) => {
                                             const steps = [
                                               ...((b as LessonPageBlock).sequenceSteps ?? [
-                                                { title: "", description: "", imageUrl: "", caption: "" },
+                                                {
+                                                  title: "",
+                                                  description: "",
+                                                  imageUrl: "",
+                                                  caption: "",
+                                                  testExplanation: "",
+                                                },
                                               ]),
                                             ];
                                             if (steps[si])
@@ -6369,6 +6399,9 @@ const EditLessonPage: React.FC = () => {
                                     </label>
                                     <label style={{ display: "block", marginBottom: 8 }}>
                                       <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Explanation</div>
+                                      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                        Shown to students as the main step explanation.
+                                      </div>
                                       <LessonAutoTextarea
                                         editorVariant="plain"
                                         value={stepExplanationMain}
@@ -6392,50 +6425,8 @@ const EditLessonPage: React.FC = () => {
                                     </label>
                                     <label style={{ display: "block", marginBottom: 8 }}>
                                       <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
-                                        Image prompt (optional — text only)
+                                        Image URL (optional — or upload)
                                       </div>
-                                      <LessonAutoTextarea
-                                        editorVariant="plain"
-                                        value={stepImagePrompt}
-                                        onChange={(v) => {
-                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
-                                          if (steps[si]) {
-                                            const main = stripSequenceStepImagePromptFromDescription(
-                                              String(steps[si]?.description ?? "")
-                                            );
-                                            steps[si] = {
-                                              ...steps[si],
-                                              description: mergeSequenceStepDescriptionAndImagePrompt(main, v),
-                                            };
-                                          }
-                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
-                                        }}
-                                        placeholder="e.g. Simple diagram: virus particle binding to a host cell receptor"
-                                        minHeightPx={56}
-                                        style={{ fontSize: "0.875rem" }}
-                                      />
-                                    </label>
-                                    <label style={{ display: "block", marginBottom: 8 }}>
-                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
-                                        Caption (optional — “Test me” model answer)
-                                      </div>
-                                      <input
-                                        value={step.caption ?? ""}
-                                        onChange={(e) => {
-                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
-                                          if (steps[si]) steps[si] = { ...steps[si], caption: e.target.value };
-                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
-                                        }}
-                                        style={{
-                                          width: "100%",
-                                          padding: "8px 10px",
-                                          borderRadius: 8,
-                                          border: "1px solid #cbd5e1",
-                                        }}
-                                      />
-                                    </label>
-                                    <label style={{ display: "block", marginBottom: 8 }}>
-                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Image URL (optional — or upload)</div>
                                       <input
                                         value={step.imageUrl ?? ""}
                                         onChange={(e) => {
@@ -6452,7 +6443,7 @@ const EditLessonPage: React.FC = () => {
                                         placeholder="https://… or path from upload"
                                       />
                                     </label>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -6475,6 +6466,129 @@ const EditLessonPage: React.FC = () => {
                                       >
                                         {stepUploading ? "Uploading…" : "Upload image"}
                                       </button>
+                                    </div>
+                                    <label style={{ display: "block", marginBottom: 8 }}>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
+                                        Image prompt (optional)
+                                      </div>
+                                      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                        Teacher-only image generation idea. Not shown to students.
+                                      </div>
+                                      <LessonAutoTextarea
+                                        editorVariant="plain"
+                                        value={stepImagePrompt}
+                                        onChange={(v) => {
+                                          const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                          if (steps[si]) {
+                                            const main = stripSequenceStepImagePromptFromDescription(
+                                              String(steps[si]?.description ?? "")
+                                            );
+                                            steps[si] = {
+                                              ...steps[si],
+                                              description: mergeSequenceStepDescriptionAndImagePrompt(main, v),
+                                            };
+                                          }
+                                          updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                        }}
+                                        placeholder="e.g. Simple diagram: virus particle binding to a host cell receptor"
+                                        minHeightPx={56}
+                                        style={{ fontSize: "0.875rem" }}
+                                      />
+                                    </label>
+                                    <div
+                                      style={{
+                                        marginTop: 12,
+                                        padding: "14px 14px 16px",
+                                        borderRadius: 12,
+                                        border: "2px solid #a78bfa",
+                                        background: "linear-gradient(180deg,#faf5ff 0%,#ffffff 52%)",
+                                        boxShadow: "0 1px 0 rgba(255,255,255,0.95) inset, 0 4px 18px rgba(91,33,182,0.09)",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          fontWeight: 900,
+                                          fontSize: 13,
+                                          color: "#5b21b6",
+                                          marginBottom: 10,
+                                          letterSpacing: "0.02em",
+                                        }}
+                                      >
+                                        Test me · reveal feedback (students)
+                                      </div>
+                                      <label style={{ display: "block", marginBottom: 10 }}>
+                                        <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
+                                          Test me answer / key idea
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                          Optional. Shown when students choose “Reveal answer / key idea”.
+                                        </div>
+                                        <textarea
+                                          value={step.caption ?? ""}
+                                          rows={4}
+                                          onChange={(e) => {
+                                            const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                            const v = e.target.value;
+                                            if (steps[si]) steps[si] = { ...steps[si], caption: v };
+                                            updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                          }}
+                                          placeholder="Answer or key idea (leave blank for no reveal on this step)"
+                                          spellCheck={true}
+                                          style={{
+                                            width: "100%",
+                                            padding: "10px 12px",
+                                            borderRadius: 10,
+                                            border: "2px solid rgba(124,58,237,0.45)",
+                                            fontSize: "0.9375rem",
+                                            fontFamily: "inherit",
+                                            lineHeight: 1.55,
+                                            resize: "vertical",
+                                            minHeight: 96,
+                                            boxSizing: "border-box",
+                                          }}
+                                        />
+                                      </label>
+                                      <div
+                                        style={{
+                                          paddingTop: 12,
+                                          marginTop: 4,
+                                          borderTop: "2px dashed rgba(91,33,182,0.28)",
+                                        }}
+                                      >
+                                        <label style={{ display: "block", marginBottom: 0 }}>
+                                          <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
+                                            Test me explanation (optional)
+                                          </div>
+                                          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                            Shown together with the key idea after reveal.
+                                          </div>
+                                          <textarea
+                                            value={step.testExplanation ?? ""}
+                                            rows={5}
+                                            onChange={(e) => {
+                                              const steps = [...((b as LessonPageBlock).sequenceSteps ?? [])];
+                                              const v = e.target.value;
+                                              if (steps[si]) steps[si] = { ...steps[si], testExplanation: v };
+                                              updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
+                                            }}
+                                            placeholder="Extra explanation after reveal (optional)"
+                                            spellCheck={true}
+                                            style={{
+                                              width: "100%",
+                                              padding: "10px 12px",
+                                              borderRadius: 10,
+                                              border: "2px solid rgba(91,33,182,0.55)",
+                                              fontSize: "0.9375rem",
+                                              fontFamily: "inherit",
+                                              lineHeight: 1.55,
+                                              resize: "vertical",
+                                              minHeight: 120,
+                                              boxSizing: "border-box",
+                                              background: "#fff",
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
                                     </div>
                                     <button
                                       type="button"
@@ -7449,6 +7563,34 @@ const EditLessonPage: React.FC = () => {
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
+                                  AI topic or prompt (optional)
+                                </div>
+                                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.45 }}>
+                                  If this has <strong>8+ characters</strong>, &quot;Generate pairs with AI&quot; builds{" "}
+                                  <strong>4–6</strong> GCSE-style pairs from this text alone. Otherwise AI uses the
+                                  lesson title, page title, intro, and instructions above (up to 8 pairs).
+                                </div>
+                                <textarea
+                                  value={dragDropAiTopicPrompt[key] ?? ""}
+                                  onChange={(e) =>
+                                    setDragDropAiTopicPrompt((prev) => ({ ...prev, [key]: e.target.value }))
+                                  }
+                                  rows={3}
+                                  placeholder="e.g. Enzymes — lock and key, active site, denaturation, optimum temperature…"
+                                  style={{
+                                    width: "100%",
+                                    boxSizing: "border-box",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(148,163,184,0.45)",
+                                    fontSize: "0.875rem",
+                                    fontFamily: "inherit",
+                                    lineHeight: 1.45,
+                                  }}
+                                />
+                              </label>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                                 <button
                                   type="button"
@@ -7501,6 +7643,8 @@ const EditLessonPage: React.FC = () => {
                                 </button>
                                 {(() => {
                                   const dndAi = dragDropPairAiUi[key] ?? { loading: false, message: null };
+                                  const dndTopic = String(dragDropAiTopicPrompt[key] ?? "").trim();
+                                  const useTopicMode = dndTopic.length >= 8;
                                   const dndContextText = [
                                     lesson ? safeStr(lesson.title, "") : "",
                                     currentPage ? safeStr(currentPage.title, "") : "",
@@ -7510,7 +7654,8 @@ const EditLessonPage: React.FC = () => {
                                     .map((s) => String(s).trim())
                                     .filter((s) => s.length > 0)
                                     .join("\n\n");
-                                  const dndAiDisabled = dndContextText.length < 12 || dndAi.loading;
+                                  const dndAiDisabled =
+                                    dndAi.loading || (!useTopicMode && dndContextText.length < 12);
                                   return (
                                     <>
                                       <button
@@ -7528,7 +7673,8 @@ const EditLessonPage: React.FC = () => {
                                               pageTitle: currentPage ? safeStr(currentPage.title, "") : undefined,
                                               subject: lesson ? safeStr(lesson.subject, "") : undefined,
                                               level: lesson ? safeStr(lesson.level, "") : undefined,
-                                              text: dndContextText,
+                                              text: useTopicMode ? dndTopic : dndContextText,
+                                              source: useTopicMode ? "topic" : "lessonExcerpt",
                                             });
                                             if (aiPairs.length === 0) {
                                               setDragDropPairAiUi((prev) => ({
@@ -7753,9 +7899,7 @@ const EditLessonPage: React.FC = () => {
                             }}
                             onPaste={(e) => {
                               const insert = getLessonPasteInsertText(e.clipboardData);
-                              if (!insert) return;
-
-                              e.preventDefault();
+                              if (!insert?.text?.trim()) return;
 
                               const text = insert.text;
                               const el = e.currentTarget;
@@ -7763,11 +7907,93 @@ const EditLessonPage: React.FC = () => {
                               const end = el.selectionEnd ?? el.value.length;
                               const before = el.value.slice(0, start);
                               const after = el.value.slice(end);
+                              const combinedTrim = (before + text + after).trim();
+
+                              let structured = tryParseFlexibleCheckpointMcq(text.trim());
+                              if (
+                                !structured &&
+                                lessonCheckpointWholeCellPaste(el, start, end, before, after)
+                              ) {
+                                structured = tryParseFlexibleCheckpointMcq(combinedTrim);
+                              }
+                              const blockLegacy = normalizeBlockType(String((b as { type?: unknown }).type ?? "text"));
+                              const pid = currentPage!.pageId;
+                              const pgBlocksAny = Array.isArray(currentPage?.blocks) ? currentPage!.blocks! : [];
+
+                              if (
+                                structured &&
+                                blockLegacy === "text" &&
+                                lessonCheckpointWholeCellPaste(el, start, end, before, after)
+                              ) {
+                                e.preventDefault();
+                                const prevCpBlock = pgBlocksAny.slice(0, idx).some((xb: { type?: unknown }) => {
+                                  const t = normalizeBlockType(String(xb?.type ?? "text"));
+                                  return t === "checkpoint";
+                                });
+                                const optsFour = coerceLessonMcqOptionsFour(structured.options);
+                                const opts = [...optsFour];
+                                const clearInteractive: Partial<LessonPageBlock> = {
+                                  pairs: [],
+                                  sequenceSteps: [],
+                                  intro: "",
+                                  instructions: "",
+                                  imageUrl: "",
+                                  hotspots: [],
+                                  title: "",
+                                };
+                                const cpPg = currentPage?.checkpoint;
+
+                                if (!prevCpBlock) {
+                                  updateBlock(pid, idx, {
+                                    ...clearInteractive,
+                                    type: "checkpoint",
+                                    content: "",
+                                    prompt: structured.prompt,
+                                    questionType: "mcq",
+                                    options: opts,
+                                    correctAnswer: structured.correctAnswer,
+                                    explanation: structured.explanation || "",
+                                    role: "quickCheck",
+                                    markScheme: [],
+                                  });
+                                  updateCheckpoint(pid, {
+                                    question: structured.prompt,
+                                    options: opts,
+                                    answer: structured.correctAnswer,
+                                    explanation: structured.explanation || "",
+                                    ...(Array.isArray(cpPg?.markScheme) && cpPg!.markScheme!.length
+                                      ? { markScheme: [...cpPg!.markScheme!] }
+                                      : {}),
+                                  });
+                                } else {
+                                  updateBlock(pid, idx, {
+                                    ...clearInteractive,
+                                    type: "selfCheck",
+                                    content: "",
+                                    prompt: structured.prompt,
+                                    questionType: "mcq",
+                                    options: opts,
+                                    correctAnswer: structured.correctAnswer,
+                                    explanation: structured.explanation || "",
+                                    role: "selfCheck",
+                                  });
+                                }
+                                setTimeout(() => {
+                                  try {
+                                    el.focus();
+                                    el.setSelectionRange(0, 0);
+                                  } catch {}
+                                }, 0);
+                                return;
+                              }
+
+                              e.preventDefault();
+
                               const nextValue = collapseExactDuplicatePaste(
                                 before + text + after
                               );
 
-                              updateBlock(currentPage!.pageId, idx, { content: nextValue });
+                              updateBlock(pid, idx, { content: nextValue });
 
                               setTimeout(() => {
                                 try {
@@ -8048,6 +8274,51 @@ const EditLessonPage: React.FC = () => {
                     const blockContent = safeStr(b.content, "");
                     const linked =
                       previewFocusBlockIdx != null && idx === previewFocusBlockIdx;
+                    if (blockType === "checkpoint") {
+                      const cb = b as {
+                        prompt?: string;
+                        options?: unknown;
+                        correctAnswer?: string;
+                        explanation?: string;
+                        markScheme?: string[];
+                      };
+                      const cpPg = currentPage?.checkpoint;
+                      const q = safeStr(cb.prompt ?? cpPg?.question, "");
+                      const optsB = [...coerceLessonMcqOptionsFour(cb.options)];
+                      const optsCp = [...coerceLessonMcqOptionsFour(cpPg?.options)];
+                      const useOpts = optsB.filter(Boolean).length >= 2 ? optsB : optsCp;
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <CheckpointCard
+                            question={q}
+                            options={useOpts}
+                            answer={safeStr(cb.correctAnswer ?? cpPg?.answer, "")}
+                            explanation={
+                              safeStr(cb.explanation ?? cpPg?.explanation, "") || undefined
+                            }
+                            markScheme={
+                              Array.isArray(cb.markScheme)
+                                ? cb.markScheme
+                                : Array.isArray(cpPg?.markScheme)
+                                  ? cpPg.markScheme
+                                  : undefined
+                            }
+                          />
+                        </div>
+                      );
+                    }
                     if (blockType === "selfCheck") {
                       const sb = b as {
                         prompt?: string;
@@ -8093,12 +8364,14 @@ const EditLessonPage: React.FC = () => {
                           description?: string;
                           imageUrl?: string;
                           caption?: string;
+                          testExplanation?: string;
                         }>;
                         steps?: Array<{
                           title?: string;
                           description?: string;
                           imageUrl?: string;
                           caption?: string;
+                          testExplanation?: string;
                         }>;
                       };
                       const rawSteps = Array.isArray(isq.sequenceSteps)
@@ -8108,12 +8381,15 @@ const EditLessonPage: React.FC = () => {
                           : [];
                       const steps = rawSteps.map((s: any) => {
                         const sid = typeof s?.id === "string" ? String(s.id).trim() : "";
+                        const te =
+                          typeof s?.testExplanation === "string" ? String(s.testExplanation).trim() : "";
                         return {
                           ...(sid ? { id: sid.slice(0, 64) } : {}),
                           title: String(s?.title ?? ""),
                           description: String(s?.description ?? ""),
                           imageUrl: String(s?.imageUrl ?? ""),
                           caption: String(s?.caption ?? ""),
+                          ...(te ? { testExplanation: te } : {}),
                         };
                       });
                       return (

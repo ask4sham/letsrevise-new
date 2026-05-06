@@ -450,9 +450,12 @@ function sanitisePageInput(p, isUpdate = false) {
                 imageUrl: typeof s.imageUrl === "string" ? s.imageUrl.trim().slice(0, 2000) : "",
                 caption: typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "",
               };
+              if (typeof s.testExplanation === "string" && s.testExplanation.trim()) {
+                row.testExplanation = s.testExplanation.trim().slice(0, 4000);
+              }
               return sid ? { id: sid, ...row } : row;
             })
-            .filter((s) => s.title || s.description || s.imageUrl || s.caption);
+            .filter((s) => s.title || s.description || s.imageUrl || s.caption || s.testExplanation);
           const seqOut = {
             type: "interactiveSequence",
             title,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { deterministicAutoFixLesson } from "@/lib/deterministicAutoFixLesson";
 import { parseLessonText } from "@/lib/parseLessonText";
 import { validateLessonOutput } from "@/lib/validateLessonOutput";
+import { findSpecEntry } from "@/lib/specDatabase";
 
 export async function POST(req) {
   try {
@@ -11,6 +12,14 @@ export async function POST(req) {
     const keyStage = body.keyStage || "KS4 - GCSE";
     const examBoard = body.examBoard || "AQA";
     const topic = body.topic ?? "";
+    let tier = body.tier || "";
+    const qualification = body.qualification || "";
+    const qualificationType = body.qualificationType || "";
+    const topicStr = String(topic || "");
+    if (!tier && /\(\s*higher\s+tier\s*\)/i.test(topicStr)) tier = "Higher Tier";
+    if (!tier && /\(\s*foundation\s+tier\s*\)/i.test(topicStr)) {
+      tier = "Foundation Tier";
+    }
 
     if (!draft.trim()) {
       return NextResponse.json(
@@ -28,7 +37,20 @@ export async function POST(req) {
     });
 
     const blocks = parseLessonText(text);
-    const validation = validateLessonOutput(blocks, text);
+    const specLookup = findSpecEntry({
+      subject,
+      keyStage,
+      examBoard,
+      topic: topicStr,
+      tier,
+      qualification,
+      qualificationType,
+    });
+    const specEntry = specLookup.entry;
+    const validation = validateLessonOutput(blocks, text, {
+      specEntry,
+      specMatchInfo: specLookup.matchInfo,
+    });
 
     return NextResponse.json({
       text,

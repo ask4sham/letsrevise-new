@@ -19,9 +19,20 @@ const spanAttributes: Array<[string, RegExp] | string> = [
 /**
  * hast-util-sanitize schema: allow limited <span class="lesson-*">, optional data-key-term, and <u> inside teacher markdown (rehype-raw).
  */
+const extraTeacherTags = ["span", "u", "h2", "h3", "br"];
+
+/** Dedupe without `Set` spread (avoids needing `downlevelIteration` / ES2015+ iteration). */
+function mergeLessonTagNames(
+  base: readonly string[] | undefined,
+  extra: readonly string[]
+): string[] {
+  const merged = [...(base || []), ...extra];
+  return merged.filter((tag, i) => merged.indexOf(tag) === i);
+}
+
 export const lessonMarkdownSanitizeSchema: Schema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames || []), "span", "u"],
+  tagNames: mergeLessonTagNames(defaultSchema.tagNames || [], extraTeacherTags),
   attributes: {
     ...defaultSchema.attributes,
     span: spanAttributes,

@@ -60,6 +60,8 @@ const InteractiveSequenceStepSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     imageUrl: { type: String, default: "" },
     caption: { type: String, default: "" },
+    /** Optional — second line in AssessmentFeedback after students reveal Test me key idea. */
+    testExplanation: { type: String, required: false },
   },
   { _id: false }
 );

@@ -21,6 +21,8 @@ export type InteractiveSequenceStepPersisted = {
   description: string;
   imageUrl: string;
   caption: string;
+  /** Optional — AssessmentFeedback explanation after reveal (with caption as key idea). */
+  testExplanation?: string;
 };
 
 export type InteractiveDiagramHotspotPersisted = {

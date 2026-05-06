@@ -9,6 +9,7 @@ export type InteractiveSequenceStepTemplateRow = {
   description: string;
   imageUrl?: string;
   caption?: string;
+  testExplanation?: string;
 };
 
 export type InteractiveSequenceBlockTemplate = {

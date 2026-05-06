@@ -7,6 +7,11 @@
  * (e.g. <u> from toolbar), not raw pasted HTML.
  */
 
+import {
+  coerceLessonMcqOptionsFour,
+  convertLegacyHtmlCheckpointExportToCanonicalPlain,
+} from "./parseFlexibleCheckpointPaste";
+
 /** If the whole string is two identical halves, return one half (backup for duplicate-paste glitches). */
 export function collapseExactDuplicatePaste(value: string | undefined | null): string {
   if (value == null) return "";
@@ -428,17 +433,28 @@ export function getLessonPasteInsertText(clipboardData: DataTransfer | null): { 
   const plain = clipboardData.getData("text/plain") ?? "";
 
   if (html && /<[a-z]/i.test(html)) {
+    const looksLikeCheckpointHtml =
+      /<strong>\s*Question\s*<\/strong>/i.test(html) &&
+      /<\s*(?:ul|ol)\b/i.test(html) &&
+      /<\s*li\b/i.test(html);
+    if (looksLikeCheckpointHtml) {
+      const merged = [plain.trim(), html.trim()].filter(Boolean).join("\n\n");
+      const cp = convertLegacyHtmlCheckpointExportToCanonicalPlain(merged);
+      if (cp?.trim()) {
+        return { text: collapseExactDuplicatePaste(cp) };
+      }
+    }
     const md = clipboardHtmlToLessonMarkdown(html);
     if (md.trim().length > 0) {
       return { text: collapseExactDuplicatePaste(md) };
     }
   }
 
-  if (plain) {
-    const { text, needsCustomInsert } = transformLessonPastedPlainText(plain);
-    if (needsCustomInsert) {
-      return { text: collapseExactDuplicatePaste(text) };
-    }
+  if (plain.trim()) {
+    const collapsedPlain = collapseExactDuplicatePaste(plain);
+    const { text, needsCustomInsert } = transformLessonPastedPlainText(collapsedPlain);
+    /** Always route plain-text through programmatic insert so Create/Edit Lesson can classify structured blocks (checkpoint MCQ paste). */
+    return { text: collapseExactDuplicatePaste(needsCustomInsert ? text : collapsedPlain) };
   }
 
   return null;
@@ -450,6 +466,14 @@ export function pasteRawBufferToLessonMarkdown(raw: string): string {
   const s = String(raw);
   if (!s.trim()) return s;
   if (/<[a-z]/i.test(s)) {
+    const looksLikeCheckpointHtml =
+      /<strong>\s*Question\s*<\/strong>/i.test(s) &&
+      /<\s*(?:ul|ol)\b/i.test(s) &&
+      /<\s*li\b/i.test(s);
+    if (looksLikeCheckpointHtml) {
+      const cp = convertLegacyHtmlCheckpointExportToCanonicalPlain(s);
+      if (cp?.trim()) return collapseExactDuplicatePaste(cp);
+    }
     return collapseExactDuplicatePaste(clipboardHtmlToLessonMarkdown(s));
   }
   const { text, needsCustomInsert } = transformLessonPastedPlainText(s);
@@ -475,10 +499,13 @@ export function guardLessonBlockPatchForDuplicatePaste<T extends Record<string, 
       out[k] = collapseExactDuplicatePaste(out[k] as string);
     }
   }
-  if (Array.isArray(out.options)) {
-    out.options = (out.options as unknown[]).map((o) =>
-      typeof o === "string" ? collapseExactDuplicatePaste(o) : o
-    );
+  if ("options" in out && out.options !== undefined) {
+    const raw = Array.isArray(out.options)
+      ? (out.options as unknown[]).map((o) =>
+          typeof o === "string" ? collapseExactDuplicatePaste(o) : String(o ?? ""),
+        )
+      : [];
+    out.options = [...coerceLessonMcqOptionsFour(raw)] as unknown as T[keyof T];
   }
   return out as T;
 }

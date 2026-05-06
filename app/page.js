@@ -5,6 +5,7 @@ import GeneratorForm from "@/components/GeneratorForm";
 import LessonRenderer from "@/components/LessonRenderer";
 import { parseLessonText } from "@/lib/parseLessonText";
 import { validateLessonOutput } from "@/lib/validateLessonOutput";
+import { findSpecEntry, inferQualificationTypeFromSubject } from "@/lib/specDatabase";
 
 const defaultLessonCtx = {
   subject: "Biology",
@@ -12,6 +13,7 @@ const defaultLessonCtx = {
   examBoard: "AQA",
   tier: "Higher Tier",
   topic: "",
+  qualificationType: "",
   showExamBoard: true,
 };
 
@@ -28,10 +30,35 @@ export default function Home() {
     return parseLessonText(result);
   }, [result]);
 
+  const specLookup = useMemo(() => {
+    const qType =
+      lessonCtx.qualificationType ||
+      inferQualificationTypeFromSubject(lessonCtx.subject);
+    return findSpecEntry({
+      subject: lessonCtx.subject,
+      keyStage: lessonCtx.keyStage,
+      examBoard: lessonCtx.showExamBoard ? lessonCtx.examBoard : "",
+      topic: lessonCtx.topic,
+      tier: lessonCtx.tier || "",
+      qualificationType: qType,
+    });
+  }, [
+    lessonCtx.subject,
+    lessonCtx.keyStage,
+    lessonCtx.examBoard,
+    lessonCtx.topic,
+    lessonCtx.showExamBoard,
+    lessonCtx.tier,
+    lessonCtx.qualificationType,
+  ]);
+
+  const specEntry = specLookup.entry;
+  const specMatchInfo = specLookup.matchInfo;
+
   const validation = useMemo(() => {
     if (!result) return null;
-    return validateLessonOutput(blocks, result);
-  }, [blocks, result]);
+    return validateLessonOutput(blocks, result, { specEntry, specMatchInfo });
+  }, [blocks, result, specEntry, specMatchInfo]);
 
   async function runAutoFixLesson() {
     if (!result || !validation || autoFixing) return;
@@ -50,6 +77,10 @@ export default function Home() {
           keyStage: lessonCtx.keyStage,
           examBoard: lessonCtx.showExamBoard ? lessonCtx.examBoard : "",
           topic: lessonCtx.topic,
+          tier: lessonCtx.tier || "",
+          qualificationType:
+            lessonCtx.qualificationType ||
+            inferQualificationTypeFromSubject(lessonCtx.subject),
         }),
       });
 
@@ -145,6 +176,54 @@ export default function Home() {
                   {validation.rating}
                 </span>
               </div>
+
+              <p className="mb-3 text-xs text-slate-600">
+                {(() => {
+                  const ent = validation.specEntry ?? specEntry;
+                  const minfo = validation.specMatchInfo ?? specMatchInfo;
+                  if (ent) {
+                    const label = minfo?.partial
+                      ? "Specification entry found (partial match): "
+                      : "Specification entry found: ";
+                    return `${label}${ent.board} — ${ent.topic}`;
+                  }
+                  if (minfo?.combinedScienceRejected) {
+                    return "Warning: Combined Science-specific local entry not found for this topic.";
+                  }
+                  if (minfo?.partial && minfo?.reason && !ent) {
+                    return "No specification row for this lesson context.";
+                  }
+                  return "No local specification entry found.";
+                })()}
+              </p>
+              {(() => {
+                const minfo = validation.specMatchInfo ?? specMatchInfo;
+                if (!minfo?.reason || minfo.exact) return null;
+                return (
+                  <p className="mb-3 text-xs text-amber-800">{minfo.reason}</p>
+                );
+              })()}
+              <p className="mb-3 text-xs text-slate-500">
+                Context:{" "}
+                {(() => {
+                  const ent = validation.specEntry ?? specEntry;
+                  if (
+                    lessonCtx.keyStage === "KS4 - GCSE" &&
+                    ["Biology", "Chemistry", "Physics", "Combined Science"].includes(
+                      lessonCtx.subject
+                    ) &&
+                    ent?.qualification
+                  ) {
+                    return ent.qualification;
+                  }
+                  return lessonCtx.subject;
+                })()}
+                , {lessonCtx.keyStage}
+                {lessonCtx.showExamBoard ? `, ${lessonCtx.examBoard}` : ""}
+                {lessonCtx.tier && lessonCtx.keyStage === "KS4 - GCSE"
+                  ? `, ${lessonCtx.tier}`
+                  : ""}
+              </p>
 
               <div className="mb-4">
                 <div className="mb-1 flex justify-between text-sm">

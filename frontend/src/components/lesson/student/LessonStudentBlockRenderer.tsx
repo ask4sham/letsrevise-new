@@ -93,12 +93,14 @@ export function LessonStudentBlockRenderer({
     const arr = Array.isArray(raw) ? raw : [];
     const steps: InteractiveSequenceStep[] = arr.map((s: InteractiveSequenceStepPersisted) => {
       const sid = typeof s.id === "string" ? String(s.id).trim() : "";
+      const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
       return {
         ...(sid ? { id: sid.slice(0, 64) } : {}),
         title: String(s?.title ?? ""),
         description: String(s?.description ?? ""),
         imageUrl: String(s?.imageUrl ?? ""),
         caption: String(s?.caption ?? ""),
+        ...(te ? { testExplanation: te } : {}),
       };
     });
     return (

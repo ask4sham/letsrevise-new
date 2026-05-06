@@ -45,8 +45,8 @@
 }
 
 /*
-  Single column (<900px): image → explanation → steps + Test me → Prev/Next
-  Desktop: left column = image + body + nav | right = steps + Test me (full height)
+  Single column (<900px): image → explanation (+ optional Test me reveal) → steps → Prev/Next
+  Desktop: left column = image + body + nav | right = steps only (full height)
 */
 .interactive-sequence__layout {
   display: grid;
@@ -166,6 +166,52 @@
   line-height: 1.55;
   font-weight: 500;
   color: #334155;
+}
+
+.interactive-sequence__reveal-card {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.interactive-sequence__reveal-label {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.interactive-sequence__reveal-btn {
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 2px solid rgba(124, 58, 237, 0.45);
+  background: rgba(124, 58, 237, 0.08);
+  color: #5b21b6;
+  cursor: pointer;
+}
+
+.interactive-sequence__reveal-btn:hover {
+  background: rgba(124, 58, 237, 0.14);
+}
+
+.interactive-sequence__reveal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.interactive-sequence__reveal-hide-btn {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
 }
 
 .interactive-sequence__caption {

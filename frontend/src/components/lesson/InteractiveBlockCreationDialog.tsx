@@ -112,6 +112,9 @@ function blockFromSequenceTemplate(templateId: string, newId: typeof createLocal
       description: row.description,
       imageUrl: row.imageUrl ?? "",
       caption: row.caption ?? "",
+      ...(typeof row.testExplanation === "string" && row.testExplanation.trim()
+        ? { testExplanation: row.testExplanation.trim() }
+        : {}),
     })),
   };
 }
@@ -310,9 +313,12 @@ export function InteractiveBlockCreationDialog({
         sequenceSteps: aiSequenceDrafts.map((row) => ({
           id: newId(),
           title: row.title,
-          description: row.description,
+          description: mergeSequenceStepDescriptionAndImagePrompt(row.description, row.imagePrompt ?? ""),
           caption: row.caption,
           imageUrl: "",
+          ...(typeof row.testExplanation === "string" && row.testExplanation.trim()
+            ? { testExplanation: row.testExplanation.trim() }
+            : {}),
         })),
       });
       return;
@@ -798,7 +804,12 @@ export function InteractiveBlockCreationDialog({
                           ) : null}
                           {s.caption?.trim() ? (
                             <div style={{ fontStyle: "italic", fontSize: 11, marginTop: 2, color: "#64748b" }}>
-                              Test me (caption): {s.caption.trim()}
+                              Answer / key idea (after reveal): {s.caption.trim()}
+                            </div>
+                          ) : null}
+                          {s.testExplanation?.trim() ? (
+                            <div style={{ fontSize: 11, marginTop: 4, color: "#475569" }}>
+                              Test me explanation (optional): {s.testExplanation.trim()}
                             </div>
                           ) : null}
                         </li>

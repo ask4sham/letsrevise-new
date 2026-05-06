@@ -20,6 +20,17 @@ const BOLD_HEADING_LINE = /^\s*\*\*(.+?)\*\*\s*$/;
 const CHECKPOINT_START = /^⚡\s*CHECKPOINT\s*$/i;
 const OPTION_LINE = /^Option\s*(\d+):\s*(.*)$/i;
 
+/** Normalise letsrevise-generator style headings before line-based parsing. */
+export function preprocessCheckpointHeadings(raw: string): string {
+  return String(raw ?? "")
+    .replace(/\r/g, "")
+    .replace(/^\*{2}\s*⚡\s*CHECKPOINT\s*\*{2}\s*$/gm, "⚡ CHECKPOINT")
+    .replace(/^\*{2}\s*QUICK\s+CHECK\b(.*?)\*{2}\s*$/gim, "⚡ CHECKPOINT")
+    .replace(/^Quick\s+check\b(.*)$/gm, "⚡ CHECKPOINT$1")
+    .replace(/^\d+\.\s+QUICK\s+CHECK\b(.*)$/gim, "⚡ CHECKPOINT$1")
+    .replace(/^\d+\s*[\u2014\u2013\-]\s*.*QUICK\s+CHECK\b.*$/gim, "⚡ CHECKPOINT");
+}
+
 function isSegmentBreakLine(trimmed: string): boolean {
   return BOLD_HEADING_LINE.test(trimmed) || CHECKPOINT_START.test(trimmed);
 }
@@ -132,7 +143,7 @@ function tryParseCheckpoint(
  * On any unexpected shape, segments fall back to markdown chunks (graceful).
  */
 export function parseLessonText(raw: string): LessonSegment[] {
-  const text = raw == null ? "" : String(raw);
+  const text = preprocessCheckpointHeadings(raw == null ? "" : String(raw));
   let lines: string[];
   try {
     lines = text.split(/\r?\n/);

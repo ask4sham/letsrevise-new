@@ -1,11 +1,7 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo, useId } from "react";
+import React, { useState, useCallback, useRef, useEffect, useId } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
-import {
-  buildCaptionQuizOptions,
-  captionsMatchChosen,
-  formatInteractiveSequenceMcqOptionDisplay,
-} from "../../utils/interactiveSequenceStepQuiz";
 import { stripSequenceStepImagePromptFromDescription } from "../../utils/interactiveSequenceStepImagePrompt";
+import { AssessmentFeedback } from "./AssessmentFeedback";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./interactiveSequenceBlock.css";
 
@@ -15,7 +11,10 @@ export type InteractiveSequenceStep = {
   title: string;
   description: string;
   imageUrl: string;
+  /** Model answer / key idea — revealed on demand (formerly “Test me” MCQ caption). */
   caption: string;
+  /** Optional — second line in AssessmentFeedback after reveal with the key idea. */
+  testExplanation?: string;
 };
 
 export type InteractiveSequenceBlockProps = {
@@ -26,52 +25,10 @@ export type InteractiveSequenceBlockProps = {
   resolveImageUrl: (url: string) => string;
 };
 
-function getMcqCorrectFeedbackDetail(stepTitle: string): string {
-  const st = stepTitle.trim() || "this stage";
-  return `Good — this matches what happens during ${st}.`;
-}
-
-/** Deterministic mismatch copy for wrong selections (biology-style heuristics; no backend). */
-function getWrongAnswerExplanation(selectedText: string, correctText: string, stepTitle: string): string {
-  const lower = (selectedText ?? "").trim().toLowerCase();
-  const correctLower = (correctText ?? "").trim().toLowerCase();
-  const st = (stepTitle ?? "").trim() || "this stage";
-
-  if (!correctLower) {
-    return `Not quite — rethink what happens during ${st}.`;
-  }
-
-  if (lower.includes("splits") || lower.includes("daughter cells")) {
-    return `Not quite — that describes cytokinesis. During ${st}, ${correctLower}.`;
-  }
-
-  if (lower.includes("condense") || lower.includes("nuclear membrane")) {
-    return `Not quite — that describes prophase. During ${st}, ${correctLower}.`;
-  }
-
-  if (lower.includes("line up") || lower.includes("centre") || lower.includes("center") || lower.includes("equator")) {
-    return `Not quite — that describes metaphase. During ${st}, ${correctLower}.`;
-  }
-
-  if (
-    lower.includes("dna replicates") ||
-    lower.includes("dna replicate") ||
-    lower.includes("prepares for division") ||
-    lower.includes("prepares for cell division")
-  ) {
-    return `Not quite — that describes interphase (or synthesis). During ${st}, ${correctLower}.`;
-  }
-
-  if (lower.includes("nuclei") || lower.includes("nuclear membranes")) {
-    return `Not quite — that describes telophase. During ${st}, ${correctLower}.`;
-  }
-
-  return `Not quite — during ${st}, ${correctLower}.`;
-}
-
 /**
  * Step-by-step interactive sequence for lesson content (mitosis, procedures, etc.).
- * Data from the lesson block; optional “Test me on this” MCQ uses local state only (no save).
+ * Optional “Test me” content (caption + optional testExplanation) is hidden until students choose Reveal,
+ * then shown via AssessmentFeedback — same pattern as other assessment blocks.
  */
 export function InteractiveSequenceBlock({
   blockTitle,
@@ -85,16 +42,11 @@ export function InteractiveSequenceBlock({
   const step = list[safeIndex];
   const descriptionStudent = stripSequenceStepImagePromptFromDescription(String(step?.description ?? ""));
   const captionTrimmed = (step?.caption ?? "").trim();
+  const testExplanationTrimmed =
+    step?.testExplanation != null ? String(step.testExplanation).trim() : "";
 
-  const [mcqSelection, setMcqSelection] = useState<string | null>(null);
-  const [mcqRevealed, setMcqRevealed] = useState(false);
-  const [testPanelExpanded, setTestPanelExpanded] = useState(true);
-  const testPanelBodyId = useId();
-
-  const mcqOptions = useMemo(
-    () => (captionTrimmed ? buildCaptionQuizOptions(captionTrimmed, safeIndex) : []),
-    [captionTrimmed, safeIndex]
-  );
+  const [answerRevealed, setAnswerRevealed] = useState(false);
+  const revealBodyId = useId();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<HTMLDivElement>(null);
@@ -124,10 +76,8 @@ export function InteractiveSequenceBlock({
   );
 
   useEffect(() => {
-    setMcqSelection(null);
-    setMcqRevealed(false);
-    setTestPanelExpanded(true);
-  }, [safeIndex, captionTrimmed]);
+    setAnswerRevealed(false);
+  }, [safeIndex, captionTrimmed, testExplanationTrimmed]);
 
   /** After step changes: scroll layout into view; keep active step visible in the sidebar list. */
   useEffect(() => {
@@ -170,10 +120,7 @@ export function InteractiveSequenceBlock({
   const total = list.length;
   const stepNum = safeIndex + 1;
   const isOnFinalStep = safeIndex === list.length - 1;
-  const mcqIsCorrect =
-    mcqRevealed &&
-    mcqSelection != null &&
-    captionsMatchChosen(mcqSelection, captionTrimmed);
+  const hasTestMe = Boolean(captionTrimmed);
 
   return (
     <div
@@ -222,6 +169,46 @@ export function InteractiveSequenceBlock({
               </p>
               {step?.title ? <h4 className="interactive-sequence__step-title">{step.title}</h4> : null}
               <p className="interactive-sequence__explanation-text">{descriptionStudent.trim() || "—"}</p>
+
+              {hasTestMe ? (
+                <div
+                  className="interactive-sequence__reveal-card"
+                  role="region"
+                  aria-labelledby={`${revealBodyId}-label`}
+                >
+                  <p className="interactive-sequence__reveal-label" id={`${revealBodyId}-label`}>
+                    <span aria-hidden>🧠</span> Test me
+                  </p>
+                  {!answerRevealed ? (
+                    <button
+                      type="button"
+                      className="interactive-sequence__reveal-btn"
+                      aria-expanded={false}
+                      aria-controls={revealBodyId}
+                      onClick={() => setAnswerRevealed(true)}
+                    >
+                      Reveal answer / key idea
+                    </button>
+                  ) : (
+                    <div id={revealBodyId} className="interactive-sequence__reveal-body">
+                      <AssessmentFeedback
+                        answer={captionTrimmed}
+                        answerLabel="Answer / Key idea"
+                        explanation={testExplanationTrimmed || undefined}
+                        explanationLabel="Explanation"
+                      />
+                      <button
+                        type="button"
+                        className="interactive-sequence__reveal-hide-btn"
+                        onClick={() => setAnswerRevealed(false)}
+                        aria-expanded={true}
+                      >
+                        Hide
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
           {isOnFinalStep ? (
@@ -267,105 +254,6 @@ export function InteractiveSequenceBlock({
               })}
             </ol>
           </nav>
-
-          {captionTrimmed && mcqOptions.length > 0 ? (
-            <div
-              className={`interactive-sequence__test-card${
-                testPanelExpanded ? " interactive-sequence__test-card--expanded" : " interactive-sequence__test-card--collapsed"
-              }`}
-              aria-live="polite"
-              key={safeIndex}
-            >
-              <div className="interactive-sequence__test-head">
-                <button
-                  type="button"
-                  className="interactive-sequence__test-toggle"
-                  aria-expanded={testPanelExpanded}
-                  aria-controls={testPanelBodyId}
-                  onClick={() => setTestPanelExpanded((prev) => !prev)}
-                  title={testPanelExpanded ? "Collapse" : "Expand"}
-                >
-                  <span aria-hidden>{testPanelExpanded ? "▾" : "▸"}</span>
-                </button>
-                <p className="interactive-sequence__test-title">
-                  <span aria-hidden>🧠</span>
-                  <span>Test me on this</span>
-                </p>
-              </div>
-
-              <div
-                id={testPanelBodyId}
-                className="interactive-sequence__test-panel"
-                hidden={!testPanelExpanded}
-              >
-                <p className="interactive-sequence__test-question">What happens during this stage?</p>
-                <div className="interactive-sequence__test-options" role="group" aria-label="Answer choices">
-                  {mcqOptions.map((opt, oi) => {
-                    const isChosen = mcqSelection === opt;
-                    const showResult = mcqRevealed && isChosen;
-                    const optionMods = [
-                      "interactive-sequence__test-option",
-                      !mcqRevealed && isChosen ? "interactive-sequence__test-option--selected" : "",
-                      showResult && mcqIsCorrect ? "interactive-sequence__test-option--correct" : "",
-                      showResult && !mcqIsCorrect ? "interactive-sequence__test-option--incorrect" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
-
-                    /** Only after a wrong submission: reveal which option was correct (hint icon). Never before Check answer. */
-                    const showCorrectHintIcon =
-                      mcqRevealed &&
-                      !mcqIsCorrect &&
-                      captionsMatchChosen(opt, captionTrimmed);
-
-                    return (
-                      <button
-                        key={`seq-mcq-${safeIndex}-${oi}`}
-                        type="button"
-                        className={optionMods}
-                        disabled={mcqRevealed}
-                        onClick={() => setMcqSelection(opt)}
-                        aria-pressed={isChosen ? true : undefined}
-                      >
-                        {showCorrectHintIcon ? (
-                          <>
-                            <span aria-hidden>💡</span>{" "}
-                          </>
-                        ) : null}
-                        {formatInteractiveSequenceMcqOptionDisplay(opt)}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  className="interactive-sequence__test-check-btn"
-                  disabled={mcqSelection == null || mcqRevealed}
-                  onClick={() => setMcqRevealed(true)}
-                >
-                  Check answer
-                </button>
-                {mcqRevealed && mcqSelection != null ? (
-                  <div
-                    className={
-                      mcqIsCorrect
-                        ? "interactive-sequence__test-feedback interactive-sequence__test-feedback--correct"
-                        : "interactive-sequence__test-feedback interactive-sequence__test-feedback--incorrect"
-                    }
-                  >
-                    <p className="interactive-sequence__test-feedback__verdict">
-                      {mcqIsCorrect ? "✅ Correct" : "❌ Not quite"}
-                    </p>
-                    <p className="interactive-sequence__test-feedback-detail">
-                      {mcqIsCorrect
-                        ? getMcqCorrectFeedbackDetail(step?.title?.trim() ?? "")
-                        : getWrongAnswerExplanation(mcqSelection, captionTrimmed, step?.title?.trim() ?? "")}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
         </aside>
 
         <nav className="interactive-sequence__nav" aria-label="Step navigation">

@@ -3951,12 +3951,15 @@ const LessonViewPage: React.FC = () => {
                                     : [];
                                 return rawSeq.map((s: any) => {
                                   const sid = typeof s?.id === "string" ? String(s.id).trim() : "";
+                                  const te =
+                                    typeof s?.testExplanation === "string" ? String(s.testExplanation).trim() : "";
                                   return {
                                     ...(sid ? { id: sid.slice(0, 64) } : {}),
                                     title: String(s?.title ?? ""),
                                     description: String(s?.description ?? ""),
                                     imageUrl: String(s?.imageUrl ?? ""),
                                     caption: String(s?.caption ?? ""),
+                                    ...(te ? { testExplanation: te } : {}),
                                   };
                                 });
                               })()}
