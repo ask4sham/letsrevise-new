@@ -2310,6 +2310,7 @@ const CreateLessonPage: React.FC = () => {
                                       </button>
                                     </div>
                                     {(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []).map((step, si) => {
+                                      const seqLen = Array.isArray(b.sequenceSteps) ? b.sequenceSteps.length : 0;
                                       const stepDescRaw = String(step.description ?? "");
                                       const stepExplanationMain =
                                         stripSequenceStepImagePromptFromDescription(stepDescRaw);
@@ -2324,8 +2325,81 @@ const CreateLessonPage: React.FC = () => {
                                             background: "#fafafa",
                                           }}
                                         >
-                                          <div style={{ fontWeight: 800, marginBottom: 8, color: "#3730a3" }}>
-                                            Step {si + 1}
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              flexWrap: "wrap",
+                                              alignItems: "center",
+                                              justifyContent: "space-between",
+                                              gap: 8,
+                                              marginBottom: 8,
+                                            }}
+                                          >
+                                            <div style={{ fontWeight: 800, color: "#3730a3" }}>Step {si + 1}</div>
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                                              <button
+                                                type="button"
+                                                title="Move step up"
+                                                disabled={si === 0}
+                                                onClick={() => {
+                                                  if (si <= 0) return;
+                                                  const steps = [
+                                                    ...(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []),
+                                                  ];
+                                                  const t = steps[si - 1];
+                                                  steps[si - 1] = steps[si]!;
+                                                  steps[si] = t!;
+                                                  updateBlock(pg.pageId, idx, { sequenceSteps: steps });
+                                                }}
+                                                style={{
+                                                  display: "inline-flex",
+                                                  alignItems: "center",
+                                                  gap: 4,
+                                                  padding: "5px 10px",
+                                                  borderRadius: 6,
+                                                  border: "1px solid #c4b5fd",
+                                                  background: si === 0 ? "#f1f5f9" : "white",
+                                                  color: si === 0 ? "#94a3b8" : "#5b21b6",
+                                                  cursor: si === 0 ? "not-allowed" : "pointer",
+                                                  fontWeight: 700,
+                                                  fontSize: 12,
+                                                }}
+                                              >
+                                                <span aria-hidden>↑</span>
+                                                <span>Move up</span>
+                                              </button>
+                                              <button
+                                                type="button"
+                                                title="Move step down"
+                                                disabled={si >= seqLen - 1}
+                                                onClick={() => {
+                                                  if (si >= seqLen - 1) return;
+                                                  const steps = [
+                                                    ...(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []),
+                                                  ];
+                                                  const t = steps[si + 1];
+                                                  steps[si + 1] = steps[si]!;
+                                                  steps[si] = t!;
+                                                  updateBlock(pg.pageId, idx, { sequenceSteps: steps });
+                                                }}
+                                                style={{
+                                                  display: "inline-flex",
+                                                  alignItems: "center",
+                                                  gap: 4,
+                                                  padding: "5px 10px",
+                                                  borderRadius: 6,
+                                                  border: "1px solid #c4b5fd",
+                                                  background: si >= seqLen - 1 ? "#f1f5f9" : "white",
+                                                  color: si >= seqLen - 1 ? "#94a3b8" : "#5b21b6",
+                                                  cursor: si >= seqLen - 1 ? "not-allowed" : "pointer",
+                                                  fontWeight: 700,
+                                                  fontSize: 12,
+                                                }}
+                                              >
+                                                <span aria-hidden>↓</span>
+                                                <span>Move down</span>
+                                              </button>
+                                            </div>
                                           </div>
                                           <label style={{ display: "block", marginBottom: 8 }}>
                                             <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
@@ -2534,31 +2608,70 @@ const CreateLessonPage: React.FC = () => {
                                               </label>
                                             </div>
                                           </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const steps = [...(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : [])];
-                                              if (steps.length <= 1) return;
-                                              steps.splice(si, 1);
-                                              updateBlock(pg.pageId, idx, { sequenceSteps: steps });
-                                            }}
-                                            disabled={(b.sequenceSteps?.length ?? 0) <= 1}
+                                          <div
                                             style={{
-                                              marginTop: 4,
-                                              padding: "4px 10px",
-                                              borderRadius: 6,
-                                              border: "1px solid #f87171",
-                                              background: "#fef2f2",
-                                              color: "#b91c1c",
-                                              cursor:
-                                                (b.sequenceSteps?.length ?? 0) <= 1 ? "not-allowed" : "pointer",
-                                              fontSize: 12,
-                                              fontWeight: 600,
-                                              opacity: (b.sequenceSteps?.length ?? 0) <= 1 ? 0.5 : 1,
+                                              marginTop: 10,
+                                              display: "flex",
+                                              flexWrap: "wrap",
+                                              gap: 8,
+                                              alignItems: "center",
                                             }}
                                           >
-                                            Remove step
-                                          </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const steps = [
+                                                  ...(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []),
+                                                ];
+                                                steps.splice(si + 1, 0, {
+                                                  title: "",
+                                                  description: "",
+                                                  imageUrl: "",
+                                                  caption: "",
+                                                  testExplanation: "",
+                                                });
+                                                updateBlock(pg.pageId, idx, { sequenceSteps: steps });
+                                              }}
+                                              style={{
+                                                padding: "5px 12px",
+                                                borderRadius: 8,
+                                                border: "2px solid rgba(34,197,94,0.4)",
+                                                background: "rgba(220,252,231,0.5)",
+                                                color: "#166534",
+                                                cursor: "pointer",
+                                                fontWeight: 700,
+                                                fontSize: 12,
+                                              }}
+                                            >
+                                              + Insert step below
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const steps = [
+                                                  ...(Array.isArray(b.sequenceSteps) ? b.sequenceSteps : []),
+                                                ];
+                                                if (steps.length <= 1) return;
+                                                steps.splice(si, 1);
+                                                updateBlock(pg.pageId, idx, { sequenceSteps: steps });
+                                              }}
+                                              disabled={(b.sequenceSteps?.length ?? 0) <= 1}
+                                              style={{
+                                                padding: "4px 10px",
+                                                borderRadius: 6,
+                                                border: "1px solid #f87171",
+                                                background: "#fef2f2",
+                                                color: "#b91c1c",
+                                                cursor:
+                                                  (b.sequenceSteps?.length ?? 0) <= 1 ? "not-allowed" : "pointer",
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                opacity: (b.sequenceSteps?.length ?? 0) <= 1 ? 0.5 : 1,
+                                              }}
+                                            >
+                                              Remove step
+                                            </button>
+                                          </div>
                                         </div>
                                       );
                                     })}
