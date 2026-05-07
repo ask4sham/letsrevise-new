@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useId } from "react";
+import React, { useState, useCallback, useEffect, useId } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import { stripSequenceStepImagePromptFromDescription } from "../../utils/interactiveSequenceStepImagePrompt";
 import { AssessmentFeedback } from "./AssessmentFeedback";
@@ -48,10 +48,10 @@ export function InteractiveSequenceBlock({
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const revealBodyId = useId();
 
-  const rootRef = useRef<HTMLDivElement>(null);
-  const layoutRef = useRef<HTMLDivElement>(null);
-  const stepBtnRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const skipInitialScrollRef = useRef(true);
+  /** Mouse down default prevented so the button does not take focus → browser does not scroll it into view. */
+  const preventClickFocusScroll = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.button === 0) e.preventDefault();
+  }, []);
 
   const go = useCallback(
     (next: number) => {
@@ -79,32 +79,6 @@ export function InteractiveSequenceBlock({
     setAnswerRevealed(false);
   }, [safeIndex, captionTrimmed, testExplanationTrimmed]);
 
-  /** After step changes: scroll layout into view; keep active step visible in the sidebar list. */
-  useEffect(() => {
-    if (list.length === 0) return;
-    if (skipInitialScrollRef.current) {
-      skipInitialScrollRef.current = false;
-      return;
-    }
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const behave = prefersReduced ? ("auto" as const) : ("smooth" as const);
-    layoutRef.current?.scrollIntoView({
-      behavior: behave,
-      block: "nearest",
-      inline: "nearest",
-    });
-    requestAnimationFrame(() => {
-      stepBtnRefs.current[safeIndex]?.scrollIntoView({
-        behavior: behave,
-        block: "nearest",
-        inline: "center",
-      });
-    });
-  }, [safeIndex, list.length]);
-
   if (list.length === 0) {
     return (
       <div className="interactive-sequence">
@@ -121,11 +95,11 @@ export function InteractiveSequenceBlock({
   const stepNum = safeIndex + 1;
   const isOnFinalStep = safeIndex === list.length - 1;
   const hasTestMe = Boolean(captionTrimmed);
+  const anyStepHasTestMe = list.some((s) => String(s.caption ?? "").trim());
 
   return (
     <div
       className="interactive-sequence"
-      ref={rootRef}
       role="region"
       tabIndex={0}
       aria-label={blockTitle.trim() || "Step-by-step activity"}
@@ -136,10 +110,9 @@ export function InteractiveSequenceBlock({
 
       <div
         className={`interactive-sequence__layout${isOnFinalStep ? " interactive-sequence__layout--complete" : ""}`}
-        ref={layoutRef}
       >
         <div className="interactive-sequence__media-card">
-          <div className="interactive-sequence__media-zone">
+          <div className="interactive-sequence__media-zone interactive-sequence__media-zone--sized">
             <div key={safeIndex} className="interactive-sequence__fade-slot interactive-sequence__fade-slot--media">
               {showImg ? (
                 <LessonImageFrame variant="primary" lightboxSrc={imgResolved}>
@@ -162,7 +135,7 @@ export function InteractiveSequenceBlock({
         </div>
 
         <div className="interactive-sequence__body-card">
-          <div className="interactive-sequence__detail">
+          <div className="interactive-sequence__detail interactive-sequence__detail--sized">
             <div key={safeIndex} className="interactive-sequence__fade-slot interactive-sequence__fade-slot--text">
               <p className="interactive-sequence__step-of">
                 Step {stepNum} of {total}
@@ -172,7 +145,7 @@ export function InteractiveSequenceBlock({
 
               {hasTestMe ? (
                 <div
-                  className="interactive-sequence__reveal-card"
+                  className="interactive-sequence__reveal-card interactive-sequence__reveal-card--sized"
                   role="region"
                   aria-labelledby={`${revealBodyId}-label`}
                 >
@@ -185,6 +158,7 @@ export function InteractiveSequenceBlock({
                       className="interactive-sequence__reveal-btn"
                       aria-expanded={false}
                       aria-controls={revealBodyId}
+                      onMouseDown={preventClickFocusScroll}
                       onClick={() => setAnswerRevealed(true)}
                     >
                       Reveal answer / key idea
@@ -200,6 +174,7 @@ export function InteractiveSequenceBlock({
                       <button
                         type="button"
                         className="interactive-sequence__reveal-hide-btn"
+                        onMouseDown={preventClickFocusScroll}
                         onClick={() => setAnswerRevealed(false)}
                         aria-expanded={true}
                       >
@@ -208,14 +183,20 @@ export function InteractiveSequenceBlock({
                     </div>
                   )}
                 </div>
+              ) : anyStepHasTestMe ? (
+                <div className="interactive-sequence__reveal-spacer" aria-hidden="true" />
               ) : null}
             </div>
           </div>
-          {isOnFinalStep ? (
-            <div className="interactive-sequence__complete" role="status" aria-live="polite">
-              <span className="interactive-sequence__complete-badge">✓ Process complete</span>
-            </div>
-          ) : null}
+          <div className="interactive-sequence__complete-track">
+            {isOnFinalStep ? (
+              <div className="interactive-sequence__complete" role="status" aria-live="polite">
+                <span className="interactive-sequence__complete-badge">✓ Process complete</span>
+              </div>
+            ) : (
+              <div className="interactive-sequence__complete-placeholder" aria-hidden="true" />
+            )}
+          </div>
         </div>
 
         <aside className="interactive-sequence__sidebar" aria-labelledby="interactive-sequence-steps-heading">
@@ -230,15 +211,13 @@ export function InteractiveSequenceBlock({
                 return (
                   <li key={sk} className="interactive-sequence__step-list-item">
                     <button
-                      ref={(el) => {
-                        stepBtnRefs.current[i] = el;
-                      }}
                       type="button"
                       className={
                         isActive
                           ? "interactive-sequence__step-button interactive-sequence__step-button--active"
                           : "interactive-sequence__step-button"
                       }
+                      onMouseDown={preventClickFocusScroll}
                       onClick={() => go(i)}
                       aria-current={isActive ? "step" : undefined}
                     >
@@ -260,6 +239,7 @@ export function InteractiveSequenceBlock({
           <button
             type="button"
             className="interactive-sequence__btn interactive-sequence__btn--prev"
+            onMouseDown={preventClickFocusScroll}
             onClick={() => go(safeIndex - 1)}
             disabled={safeIndex <= 0}
           >
@@ -268,6 +248,7 @@ export function InteractiveSequenceBlock({
           <button
             type="button"
             className="interactive-sequence__btn interactive-sequence__btn--next"
+            onMouseDown={preventClickFocusScroll}
             onClick={() => go(safeIndex + 1)}
             disabled={safeIndex >= list.length - 1}
           >

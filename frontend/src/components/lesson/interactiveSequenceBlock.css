@@ -96,13 +96,33 @@
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
+/* Reserve a fixed vertical lane so different step images / placeholders do not resize the block. */
+.interactive-sequence__media-zone--sized {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: min(58vh, 560px);
+}
+
+.interactive-sequence__fade-slot--media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  align-self: stretch;
+  min-height: min(58vh, 560px);
+}
+
 .interactive-sequence__fade-slot {
   animation: interactive-sequence-fade-in 0.2s ease-out;
 }
 
 .interactive-sequence__image {
   display: block;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   height: auto;
   object-fit: contain;
   max-height: min(58vh, 560px);
@@ -112,7 +132,7 @@
 .interactive-sequence__image-placeholder {
   box-sizing: border-box;
   width: 100%;
-  min-height: 200px;
+  min-height: min(58vh, 560px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -137,10 +157,19 @@
   background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .interactive-sequence__detail {
   padding: 14px 16px 15px;
+}
+
+/* Limit body text column height swing between steps (within this block only). */
+.interactive-sequence__detail--sized .interactive-sequence__fade-slot--text {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(200px, 28vh, 360px);
 }
 
 .interactive-sequence__step-of {
@@ -161,6 +190,7 @@
 }
 
 .interactive-sequence__explanation-text {
+  flex: 1 0 auto;
   margin: 0;
   font-size: 0.9375rem;
   line-height: 1.55;
@@ -172,6 +202,36 @@
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* Reserve space so “Reveal” vs expanded feedback does not move content below the sequence. */
+.interactive-sequence__reveal-card--sized {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: 162px;
+}
+
+/* When another step has Test me but this one does not, keep the same vertical band. */
+.interactive-sequence__reveal-spacer {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid transparent;
+  min-height: 162px;
+}
+
+.interactive-sequence__complete-track {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: 73px;
+}
+
+.interactive-sequence__complete-placeholder {
+  box-sizing: border-box;
+  min-height: 73px;
 }
 
 .interactive-sequence__reveal-label {
@@ -201,6 +261,7 @@
   flex-direction: column;
   gap: 10px;
   align-items: flex-start;
+  flex: 1 1 auto;
 }
 
 .interactive-sequence__reveal-hide-btn {
@@ -374,15 +435,13 @@
 
 .interactive-sequence__step-button--active {
   border-color: #6366f1;
+  border-width: 1px;
   background: #eef2ff;
-  box-shadow:
-    0 2px 6px rgba(15, 23, 42, 0.06),
-    0 0 0 3px rgba(99, 102, 241, 0.14);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  /* Outline does not change border-box size; avoids extra ring shadow that can affect subpixel layout. */
+  outline: 2px solid rgba(99, 102, 241, 0.35);
+  outline-offset: -3px;
   color: #1e1b4b;
-}
-
-.interactive-sequence__step-button--active .interactive-sequence__step-label {
-  font-weight: 800;
 }
 
 .interactive-sequence__step-number {
