@@ -92,6 +92,7 @@ import {
   resolveInteractiveDiagramHotspotExplanation,
   type NormalizedInteractiveDiagramHotspot,
 } from "../utils/interactiveDiagramHotspots";
+import { parseGeneratorMcqForSelfCheckImport } from "../utils/parseGeneratorMcqForSelfCheckImport";
 
 /** Topic bank URLs with filters for AI lesson drafts (draft-only review). */
 function buildAiLessonAssetBankReviewUrl(
@@ -189,6 +190,14 @@ interface LessonPageBlock {
   /** type === "dragDropMatch" */
   instructions?: string;
   pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
+  matchMode?: "text" | "diagram";
+  dropZones?: Array<{
+    id: string;
+    x?: number;
+    y?: number;
+    correctPairId: string;
+    explanation?: string;
+  }>;
 }
 
 /** Hotspot with coordinates — only these render on the editor preview image (unplaced omitted). */
@@ -659,6 +668,24 @@ const EditLessonPage: React.FC = () => {
   const [publishGateOpen, setPublishGateOpen] = useState(false);
   const [publishGateIssues, setPublishGateIssues] = useState<string[]>([]);
   const [postPublishClassroomModalOpen, setPostPublishClassroomModalOpen] = useState(false);
+  /** Explicit generator CHECKPOINT MCQ → Self-check (modal import only; no global paste). */
+  const [generatorMcqSelfCheckImportOpen, setGeneratorMcqSelfCheckImportOpen] = useState<{
+    pageId: string;
+    idx: number;
+  } | null>(null);
+  const [generatorMcqSelfCheckImportText, setGeneratorMcqSelfCheckImportText] = useState("");
+  const [generatorMcqSelfCheckImportError, setGeneratorMcqSelfCheckImportError] = useState<string | null>(
+    null
+  );
+  const [selfCheckImportToast, setSelfCheckImportToast] = useState<{
+    message: string;
+    type: "success" | "warning" | "error";
+  } | null>(null);
+  /**
+   * Self-check MCQ expanded UI was reverted — identifiers kept so partial local merges still typecheck.
+   * Not read in current JSX; safe to delete after confirming no references in your branch.
+   */
+  const [selfCheckMcqOptionsExpanded, setSelfCheckMcqOptionsExpanded] = useState<Record<string, boolean>>({});
   const [addKeyTermDialog, setAddKeyTermDialog] = useState<{
     pageId: string;
     pageTitle: string;
@@ -1257,10 +1284,12 @@ const EditLessonPage: React.FC = () => {
                   if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
                   return out;
                 }
-                if (b?.type === "selfCheck") {
+                if (normalizeBlockType(String(b?.type ?? "")) === "selfCheck") {
+                  /** Editor + student render `prompt`; DB may store stem in `question` only (pageQuiz-parity fields). */
+                  const mergedStem = safeStr(b.prompt, safeStr((b as { question?: string }).question, ""));
                   const out = {
                     type: "selfCheck" as const,
-                    prompt: safeStr(b.prompt, ""),
+                    prompt: mergedStem,
                     questionType: b?.questionType === "short" ? "short" : "mcq",
                     options:
                       b?.questionType === "short"
@@ -1702,7 +1731,15 @@ const EditLessonPage: React.FC = () => {
   const updateBlock = (
     pageId: string,
     blockIndex: number,
-    patch: Partial<LessonPageBlock>
+    patch: Partial<LessonPageBlock>,
+    applyOpts?: {
+      onApplied?: (info: {
+        pageIndex: number;
+        blockIndex: number;
+        blockBefore: unknown;
+        nextBlock: unknown;
+      }) => void;
+    }
   ) => {
     const guarded = guardLessonBlockPatchForDuplicatePaste(patch as Record<string, unknown>);
     setLesson((prev) => {
@@ -1714,8 +1751,16 @@ const EditLessonPage: React.FC = () => {
         ? [...(pages[pIdx].blocks as any[])]
         : [];
       if (blockIndex < 0 || blockIndex >= blocks.length) return prev;
-      blocks[blockIndex] = { ...blocks[blockIndex], ...guarded };
+      const blockBefore = blocks[blockIndex];
+      const nextBlock = { ...blocks[blockIndex], ...guarded };
+      blocks[blockIndex] = nextBlock;
       pages[pIdx] = { ...pages[pIdx], blocks };
+      applyOpts?.onApplied?.({
+        pageIndex: pIdx,
+        blockIndex,
+        blockBefore,
+        nextBlock,
+      });
       return { ...prev, pages };
     });
   };
@@ -3708,6 +3753,14 @@ const EditLessonPage: React.FC = () => {
           onClose={() => setGraphRebuildToast(null)}
         />
       )}
+      {selfCheckImportToast && (
+        <Toast
+          message={selfCheckImportToast.message}
+          type={selfCheckImportToast.type}
+          duration={6000}
+          onClose={() => setSelfCheckImportToast(null)}
+        />
+      )}
     <div
       style={{
         minHeight: "100vh",
@@ -5059,8 +5112,9 @@ const EditLessonPage: React.FC = () => {
                   </div>
 
                   <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {(currentPage?.blocks || []).filter((b): b is NonNullable<typeof b> => Boolean(b)).map((b, idx) => {
-                      const blockType = normalizeBlockType(b?.type);
+                    {(currentPage?.blocks || []).map((b, idx) => {
+                      if (!b) return null;
+                      const blockType = normalizeBlockType(b.type);
                       const key = `${currentPage!.pageId}:${idx}`;
                       const isUploading = uploadingKey === key;
                       const isCheckpoint = blockType === "checkpoint";
@@ -5297,6 +5351,44 @@ const EditLessonPage: React.FC = () => {
                                   {cpWarnings.join(" ")}
                                 </div>
                               )}
+                              {isSelfCheck ? (
+                                <div style={{ marginBottom: 10 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setGeneratorMcqSelfCheckImportError(null);
+                                      setGeneratorMcqSelfCheckImportOpen({
+                                        pageId: currentPage!.pageId,
+                                        idx,
+                                      });
+                                      setGeneratorMcqSelfCheckImportText("");
+                                    }}
+                                    style={{
+                                      padding: "8px 14px",
+                                      borderRadius: 8,
+                                      border: "2px solid rgba(59,130,246,0.35)",
+                                      background: "rgba(219,234,254,0.45)",
+                                      cursor: "pointer",
+                                      fontWeight: 700,
+                                      fontSize: "0.875rem",
+                                      color: "#1d4ed8",
+                                    }}
+                                  >
+                                    Import MCQ from generator
+                                  </button>
+                                  <div
+                                    style={{
+                                      fontSize: 12,
+                                      color: "#64748b",
+                                      marginTop: 6,
+                                      lineHeight: 1.4,
+                                    }}
+                                  >
+                                    Opens a dialog to paste CHECKPOINT text — nothing is auto-imported from the
+                                    clipboard.
+                                  </div>
+                                </div>
+                              ) : null}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Prompt</div>
                                 <LessonAutoTextarea
@@ -5357,9 +5449,14 @@ const EditLessonPage: React.FC = () => {
                                       <input
                                         type="radio"
                                         name={`${key}-correct`}
-                                        checked={(cp.correctAnswer ?? "").trim() === String(opt ?? "").trim() && String(opt ?? "").trim() !== ""}
+                                        checked={
+                                          (cp.correctAnswer ?? "").trim() === String(opt ?? "").trim() &&
+                                          String(opt ?? "").trim() !== ""
+                                        }
                                         onChange={() =>
-                                          updateBlock(currentPage!.pageId, idx, { correctAnswer: String(opt ?? "").trim() })
+                                          updateBlock(currentPage!.pageId, idx, {
+                                            correctAnswer: String(opt ?? "").trim(),
+                                          })
                                         }
                                         style={{ flexShrink: 0 }}
                                       />
@@ -5411,7 +5508,9 @@ const EditLessonPage: React.FC = () => {
                                           const removed = (cp.options ?? [])[(cp.options ?? []).length - 1] ?? "";
                                           updateBlock(currentPage!.pageId, idx, {
                                             options: next,
-                                            ...(String(removed).trim() === wasCorrect ? { correctAnswer: (next[0] ?? "").trim() } : {}),
+                                            ...(String(removed).trim() === wasCorrect
+                                              ? { correctAnswer: (next[0] ?? "").trim() }
+                                              : {}),
                                           });
                                         }}
                                         style={{
@@ -9093,6 +9192,184 @@ const EditLessonPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {generatorMcqSelfCheckImportOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10002,
+            padding: 20,
+          }}
+          role="presentation"
+          onClick={() => {
+            setGeneratorMcqSelfCheckImportOpen(null);
+            setGeneratorMcqSelfCheckImportText("");
+            setGeneratorMcqSelfCheckImportError(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="generator-mcq-import-title"
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 20,
+              maxWidth: 560,
+              width: "100%",
+              maxHeight: "85vh",
+              overflow: "auto",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div id="generator-mcq-import-title" style={{ fontWeight: 900, marginBottom: 8 }}>
+              Import MCQ from generator
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: "#64748b", marginBottom: 12, lineHeight: 1.5 }}>
+              Paste a CHECKPOINT block (Question, Options 1–4, Answer, optional Explanation). Leading lines like
+              CHECKPOINT, numbered CHECKPOINT, or **⚡ CHECKPOINT** are recognised.
+            </div>
+            <textarea
+              value={generatorMcqSelfCheckImportText}
+              onChange={(e) => setGeneratorMcqSelfCheckImportText(e.target.value)}
+              placeholder="Paste CHECKPOINT …"
+              rows={14}
+              spellCheck={false}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: "2px solid rgba(0,0,0,0.14)",
+                fontSize: "0.875rem",
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                lineHeight: 1.5,
+                resize: "vertical",
+                minHeight: 200,
+              }}
+            />
+            {generatorMcqSelfCheckImportError ? (
+              <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: "#b45309" }}>
+                {generatorMcqSelfCheckImportError}
+              </div>
+            ) : null}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setGeneratorMcqSelfCheckImportOpen(null);
+                  setGeneratorMcqSelfCheckImportText("");
+                  setGeneratorMcqSelfCheckImportError(null);
+                }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #e2e8f0",
+                  background: "white",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGeneratorMcqSelfCheckImportError(null);
+                  const tgt = generatorMcqSelfCheckImportOpen;
+                  if (!tgt) return;
+
+                  const importText = generatorMcqSelfCheckImportText;
+                  console.log("RAW IMPORT TEXT", importText);
+
+                  const parsed = parseGeneratorMcqForSelfCheckImport(importText);
+                  console.log("PARSED IMPORT", parsed);
+
+                  if (parsed.ok === false) {
+                    setGeneratorMcqSelfCheckImportError(parsed.error);
+                    setSelfCheckImportToast({ message: parsed.error, type: "error" });
+                    return;
+                  }
+
+                  if (!lesson?.pages?.length) {
+                    const msg = "Lesson is not loaded; cannot apply import.";
+                    setGeneratorMcqSelfCheckImportError(msg);
+                    setSelfCheckImportToast({ message: msg, type: "error" });
+                    return;
+                  }
+
+                  const pageIndex = lesson.pages.findIndex((p) => String(p.pageId) === String(tgt.pageId));
+                  const pb = pageIndex >= 0 ? lesson.pages[pageIndex]?.blocks : undefined;
+                  const blockBefore =
+                    Array.isArray(pb) && tgt.idx >= 0 && tgt.idx < pb.length ? pb[tgt.idx] : undefined;
+
+                  console.log("UPDATING BLOCK", { pageIndex, blockIndex: tgt.idx, blockBefore });
+
+                  if (pageIndex < 0 || !Array.isArray(pb) || tgt.idx < 0 || tgt.idx >= pb.length) {
+                    const msg =
+                      "Could not find that page/block in lesson state — refresh the page and try Import again.";
+                    setGeneratorMcqSelfCheckImportError(msg);
+                    setSelfCheckImportToast({ message: msg, type: "error" });
+                    return;
+                  }
+
+                  const blkTypeRaw = blockBefore != null && typeof blockBefore === "object" ? String((blockBefore as { type?: unknown }).type ?? "") : "";
+                  if (normalizeBlockType(blkTypeRaw) !== "selfCheck") {
+                    const msg = `Import only updates Self-check blocks (this block is "${blkTypeRaw || "unknown"}").`;
+                    setGeneratorMcqSelfCheckImportError(msg);
+                    setSelfCheckImportToast({ message: msg, type: "error" });
+                    return;
+                  }
+
+                  const patch: Partial<LessonPageBlock> = {
+                    prompt: parsed.prompt,
+                    /** Keep in sync with Mongoose LessonPageBlockSchema.question (some pipelines still write here). */
+                    question: parsed.prompt,
+                    questionType: "mcq",
+                    options: parsed.options,
+                    correctAnswer: parsed.correctAnswer,
+                    explanation: parsed.explanation,
+                  };
+
+                  updateBlock(tgt.pageId, tgt.idx, patch, {
+                    onApplied: ({ nextBlock }) => {
+                      console.log("BLOCK AFTER IMPORT", nextBlock);
+                    },
+                  });
+
+                  setGeneratorMcqSelfCheckImportOpen(null);
+                  setGeneratorMcqSelfCheckImportText("");
+                  setSelfCheckImportToast(
+                    parsed.answerMismatchWarning
+                      ? {
+                          message: `${parsed.answerMismatchWarning} Notes were appended to Explanation.`,
+                          type: "warning",
+                        }
+                      : { message: "Imported MCQ into this Self-check.", type: "success" }
+                  );
+                }}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  border: "2px solid #2563eb",
+                  background: "rgba(37,99,235,0.1)",
+                  color: "#1d4ed8",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {addFromBankModalOpen && (
         <div

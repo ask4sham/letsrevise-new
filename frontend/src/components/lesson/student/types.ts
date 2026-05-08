@@ -44,6 +44,15 @@ export type DragDropMatchPairPersisted = {
   explanation?: string;
 };
 
+/** type === "dragDropMatch" & matchMode === "diagram" */
+export type DragDropMatchDiagramZonePersisted = {
+  id: string;
+  x?: number;
+  y?: number;
+  correctPairId: string;
+  explanation?: string;
+};
+
 export type StudentLessonPageBlock = {
   type: string;
   content?: string;
@@ -54,6 +63,9 @@ export type StudentLessonPageBlock = {
   hotspots?: InteractiveDiagramHotspotPersisted[];
   instructions?: string;
   pairs?: DragDropMatchPairPersisted[];
+  /** Optional layout variant for dragDropMatch; omit ⇒ text columns (legacy). */
+  matchMode?: "text" | "diagram";
+  dropZones?: DragDropMatchDiagramZonePersisted[];
   prompt?: string;
   questionType?: string;
   options?: string[];

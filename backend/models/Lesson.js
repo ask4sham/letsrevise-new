@@ -102,6 +102,18 @@ const DragDropMatchPairSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/** dragDropMatch.matchMode === "diagram" — drop targets on image (%); x/y omitted until placed (like interactive hotspots) */
+const DragDropMatchDropZoneSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    x: { type: Number, min: 0, max: 100, required: false },
+    y: { type: Number, min: 0, max: 100, required: false },
+    correctPairId: { type: String, default: "" },
+    explanation: { type: String, default: undefined },
+  },
+  { _id: false }
+);
+
 const LessonPageBlockSchema = new mongoose.Schema(
   {
     // "text" | "keyIdea" | "keyWords" | … | "selfCheck" | "interactiveDiagram" | "dragDropMatch"
@@ -169,6 +181,8 @@ const LessonPageBlockSchema = new mongoose.Schema(
     /** type === "dragDropMatch" */
     instructions: { type: String, default: undefined },
     pairs: { type: [DragDropMatchPairSchema], default: undefined },
+    matchMode: { type: String, enum: ["text", "diagram"], required: false },
+    dropZones: { type: [DragDropMatchDropZoneSchema], default: undefined },
   },
   { _id: false }
 );
