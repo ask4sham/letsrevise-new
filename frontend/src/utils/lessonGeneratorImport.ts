@@ -2,6 +2,7 @@ import {
   LESSON_GENERATOR_EXPORT_FORMAT_V1,
 } from "../constants/lessonGeneratorExchange.v1";
 import { normalizeBlockType, type LessonBlockType } from "../types/lessonBlocks";
+import { parseDragDropMatchMode, sanitizeDiagramDropZonesForAuthoring } from "./dragDropMatchDiagram";
 import { coerceLessonMcqOptionsFour } from "./parseFlexibleCheckpointPaste";
 
 const VALID_STARTER_PAGE_CHECKPOINT = {
@@ -187,6 +188,12 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
             : {}),
         };
       });
+      const p = payload as Record<string, unknown>;
+      const parsedMode = parseDragDropMatchMode(p.matchMode);
+      const pairIdsImp = pairs.map((row) => row.id);
+      const rawDz = Array.isArray(p.dropZones) ? p.dropZones : [];
+      const dropZonesImp = sanitizeDiagramDropZonesForAuthoring(rawDz, pairIdsImp);
+      const imgI = typeof p.imageUrl === "string" ? p.imageUrl.trim() : "";
       return {
         type: "dragDropMatch" as const,
         content: "",
@@ -195,6 +202,14 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
         intro: String(payload.intro ?? ""),
         instructions: String(payload.instructions ?? ""),
         pairs,
+        ...(parsedMode === "diagram"
+          ? {
+              matchMode: "diagram" as const,
+              ...(imgI ? { imageUrl: imgI } : {}),
+              dropZones: dropZonesImp,
+            }
+          : {}),
+        ...(parsedMode === "text" ? { matchMode: "text" as const } : {}),
       };
     }
     case "interactiveDiagram": {
