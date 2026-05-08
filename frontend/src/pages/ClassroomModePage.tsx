@@ -60,6 +60,14 @@ interface LessonPageBlock {
   intro?: string;
   instructions?: string;
   pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
+  matchMode?: "text" | "diagram";
+  dropZones?: Array<{
+    id: string;
+    x?: number;
+    y?: number;
+    correctPairId: string;
+    explanation?: string;
+  }>;
   sequenceSteps?: Array<{ title: string; description: string; imageUrl: string; caption: string }>;
   imageUrl?: string;
   hotspots?: Array<{ id: string; x: number; y: number; label: string; description: string }>;
@@ -779,16 +787,34 @@ const ClassroomModePage: React.FC = () => {
                     return (
                       <div key={`ddm-${idx}`} style={{ marginTop: 14 }}>
                         <DragDropMatchBlock
+                          resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
                           block={{
                             title: safeStr(b.title, ""),
                             intro: safeStr(b.intro, ""),
                             instructions: safeStr(b.instructions, ""),
+                            ...(b.matchMode === "diagram" || b.matchMode === "text"
+                              ? { matchMode: b.matchMode }
+                              : {}),
+                            ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
                             pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => ({
                               id: String(p?.id ?? "").trim() || `p${i}`,
                               prompt: String(p?.prompt ?? ""),
                               answer: String(p?.answer ?? ""),
                               explanation: p?.explanation != null ? String(p.explanation) : undefined,
                             })),
+                            ...(Array.isArray(b.dropZones)
+                              ? {
+                                  dropZones: b.dropZones.map((z, i) => ({
+                                    id: String(z?.id ?? "").trim() || `dz${i}`,
+                                    ...(typeof z?.x === "number" ? { x: z.x } : {}),
+                                    ...(typeof z?.y === "number" ? { y: z.y } : {}),
+                                    correctPairId: String(z?.correctPairId ?? "").trim(),
+                                    ...(z?.explanation != null && String(z.explanation).trim()
+                                      ? { explanation: String(z.explanation).trim() }
+                                      : {}),
+                                  })),
+                                }
+                              : {}),
                           }}
                         />
                       </div>

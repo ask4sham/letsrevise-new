@@ -415,3 +415,143 @@
   outline: none;
   box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.45);
 }
+
+/* --- Diagram matchMode layout --- */
+
+.drag-drop-match__grid--diagram {
+  align-items: start;
+}
+
+.drag-drop-match__panel-title--diagram {
+  color: #0369a1;
+}
+
+.drag-drop-match__diagram-panel {
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.drag-drop-match__diagram-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drag-drop-match__diagram-image-container {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  line-height: 0;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.drag-drop-match__diagram-frame {
+  display: block;
+}
+
+.drag-drop-match__diagram-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  vertical-align: middle;
+}
+
+.drag-drop-match__diagram-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.drag-drop-match__diagram-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  min-width: 52px;
+  min-height: 52px;
+  max-width: min(44vw, 200px);
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 2px dashed #3b82f6;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.drag-drop-match__diagram-zone:hover,
+.drag-drop-match__diagram-zone:focus-visible {
+  outline: none;
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+}
+
+.drag-drop-match__diagram-zone--active {
+  border-color: #2563eb;
+  background: #bfdbfe;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.drag-drop-match__diagram-zone--correct {
+  border-style: solid;
+  border-color: #22c55e;
+  background: #dcfce7;
+}
+
+.drag-drop-match__diagram-zone--incorrect {
+  border-style: solid;
+  border-color: #ef4444;
+  background: #fee2e2;
+}
+
+.drag-drop-match__diagram-zone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.drag-drop-match__diagram-zone .drag-drop-match__placed-text {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.drag-drop-match__diagram-zone .drag-drop-match__status {
+  font-size: 0.65rem;
+}
+
+.drag-drop-match__diagram-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #64748b;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid #e2e8f0;
+}
+
+.drag-drop-match__diagram-feedback-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drag-drop-match__diagram-feedback-item {
+  min-width: 0;
+}

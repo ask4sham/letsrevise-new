@@ -114,20 +114,37 @@ export function LessonStudentBlockRenderer({
   }
 
   if (routed === "dragDropMatch") {
+    const b = block as StudentLessonPageBlock;
+    const mm = b.matchMode;
+    const matchModeRaw = mm === "diagram" || mm === "text" ? mm : undefined;
     return (
       <DragDropMatchBlock
+        resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
         block={{
           title: String(block.title ?? ""),
           intro: String(block.intro ?? ""),
-          instructions: String((block as StudentLessonPageBlock).instructions ?? ""),
-          pairs: Array.isArray((block as StudentLessonPageBlock).pairs)
-            ? (block as StudentLessonPageBlock).pairs!.map((p, i) => ({
+          instructions: String(b.instructions ?? ""),
+          ...(matchModeRaw ? { matchMode: matchModeRaw } : {}),
+          ...(b.imageUrl != null && String(b.imageUrl).trim() ? { imageUrl: String(b.imageUrl).trim() } : {}),
+          pairs: Array.isArray(b.pairs)
+            ? b.pairs!.map((p, i) => ({
                 id: String(p?.id ?? "").trim() || `p${i}`,
                 prompt: String(p?.prompt ?? ""),
                 answer: String(p?.answer ?? ""),
                 explanation: p?.explanation != null ? String(p.explanation) : undefined,
               }))
             : [],
+          dropZones: Array.isArray(b.dropZones)
+            ? b.dropZones!.map((z, i) => ({
+                id: String(z?.id ?? "").trim() || `dz${i}`,
+                ...(typeof z?.x === "number" ? { x: z.x } : {}),
+                ...(typeof z?.y === "number" ? { y: z.y } : {}),
+                correctPairId: String(z?.correctPairId ?? "").trim(),
+                ...(z?.explanation != null && String(z.explanation).trim()
+                  ? { explanation: String(z.explanation) }
+                  : {}),
+              }))
+            : undefined,
         }}
       />
     );

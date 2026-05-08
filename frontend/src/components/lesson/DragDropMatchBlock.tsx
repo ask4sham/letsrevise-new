@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
+import {
+  isDragDropDiagramMode,
+  mergeDiagramZoneExplanation,
+  sanitizePlacedDiagramDropZones,
+  type PlacedDragDropDiagramZone,
+} from "../../utils/dragDropMatchDiagram";
 import { AssessmentFeedback } from "./AssessmentFeedback";
+import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./dragDropMatchBlock.css";
 
 const DND_MIME = "application/x-letsrevise-dnd-pair";
@@ -16,10 +24,20 @@ export type DragDropMatchBlockData = {
   intro?: string;
   instructions?: string;
   pairs?: DragDropMatchPair[];
+  matchMode?: "text" | "diagram";
+  imageUrl?: string;
+  dropZones?: Array<{
+    id: string;
+    x?: number;
+    y?: number;
+    correctPairId: string;
+    explanation?: string;
+  }>;
 };
 
 export type DragDropMatchBlockProps = {
   block: DragDropMatchBlockData;
+  resolveImageUrl?: (url: string) => string;
 };
 
 function shuffleInPlace<T>(arr: T[]): T[] {
@@ -30,10 +48,13 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr;
 }
 
-/** Placed card is identified by the source pair id (one answer card per pair). */
+/** Placed card is identified by the source pair id (one answer card per pair). Target id = row id (text) or drop zone id (diagram). */
 type Placements = Record<string, string | null>;
 
-export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
+export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBlockProps) {
+  const diagramMode = isDragDropDiagramMode(block.matchMode);
+  const resolveImg = resolveImageUrl ?? ((u: string) => u);
+
   const pairs = useMemo(() => {
     const raw = Array.isArray(block.pairs) ? block.pairs : [];
     return raw
@@ -43,20 +64,34 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
         answer: String(p?.answer ?? "").trim(),
         explanation: p?.explanation != null ? String(p.explanation) : undefined,
       }))
-      .filter((p) => p.prompt || p.answer);
-  }, [block.pairs]);
+      .filter((p) => (diagramMode ? p.answer.length > 0 : p.prompt || p.answer));
+  }, [block.pairs, diagramMode]);
+
+  const pairIds = useMemo(() => pairs.map((p) => p.id), [pairs]);
+
+  const zones: PlacedDragDropDiagramZone[] = useMemo(
+    () => (diagramMode ? sanitizePlacedDiagramDropZones(block.dropZones, pairIds) : []),
+    [diagramMode, block.dropZones, pairIds]
+  );
 
   const [placements, setPlacements] = useState<Placements>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
 
-  const pairKey = pairs.map((p) => p.id).join("|");
+  const layoutResetKey = diagramMode
+    ? `${pairIds.join("|")}|${zones.map((z) => `${z.id}:${z.x}:${z.y}:${z.correctPairId}`).join("|")}`
+    : pairIds.join("|");
 
   useEffect(() => {
     setPlacements({});
     setSelectedSourceId(null);
     setChecked(false);
-  }, [pairKey]);
+  }, [layoutResetKey]);
+
+  const targetIds = useMemo(
+    () => (diagramMode ? zones.map((z) => z.id) : pairs.map((p) => p.id)),
+    [diagramMode, zones, pairs]
+  );
 
   const poolIds = useMemo(() => {
     const used = new Set(
@@ -70,7 +105,7 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
   useEffect(() => {
     const ids = pairs.map((p) => p.id);
     setBankOrder(shuffleInPlace([...ids]));
-  }, [pairKey]);
+  }, [layoutResetKey]);
 
   const bankDisplayIds = useMemo(() => {
     const poolSet = new Set(poolIds);
@@ -87,10 +122,6 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
     (targetId: string, sourceId: string) => {
       setPlacements((prev) => {
         const next = { ...prev } as Placements;
-        const prevOnTarget = next[targetId] ?? null;
-        if (prevOnTarget && prevOnTarget !== sourceId) {
-          // previous card returns to pool when replaced
-        }
         for (const k of Object.keys(next)) {
           if (next[k] === sourceId) next[k] = null;
         }
@@ -175,6 +206,11 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
   const intro = String(block.intro ?? "").trim();
   const instructions = String(block.instructions ?? "").trim();
 
+  const imgRaw = diagramMode ? String(block.imageUrl ?? "").trim() : "";
+  const imgResolved = imgRaw ? resolveImg(imgRaw) : "";
+  const showDiagramImg =
+    diagramMode && hasRenderableLessonImageSrc(imgRaw) && hasRenderableLessonImageSrc(imgResolved);
+
   if (pairs.length === 0) {
     return (
       <div className="drag-drop-match">
@@ -182,6 +218,37 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
       </div>
     );
   }
+
+  const diagramZonesEmptyOrMissing = diagramMode && showDiagramImg && zones.length === 0;
+
+  const gridClass =
+    "drag-drop-match__grid" + (diagramMode ? " drag-drop-match__grid--diagram" : "");
+
+  const renderTargetFeedbackRow = (
+    targetId: string,
+    headline: string,
+    correctPairId: string | undefined
+  ) => {
+    if (!correctPairId) return null;
+    const correctPair = byId.get(correctPairId);
+    const placedId = placements[targetId] ?? null;
+    const isCorrect = checked && placedId != null && placedId === correctPairId;
+    const isWrong = checked && placedId != null && placedId !== correctPairId;
+    const isEmpty = checked && placedId == null;
+    const zoneDiagram = zones.find((z) => z.id === targetId);
+    const mergedExpl = mergeDiagramZoneExplanation(zoneDiagram?.explanation, correctPair?.explanation);
+    return checked ? (
+      <AssessmentFeedback
+        className="drag-drop-match__assessment-feedback"
+        title={headline}
+        status={isCorrect ? "correct" : isWrong || isEmpty ? "incorrect" : undefined}
+        answer={correctPair?.answer}
+        answerLabel="Correct answer"
+        explanation={mergedExpl}
+        explanationLabel="Explanation"
+      />
+    ) : null;
+  };
 
   return (
     <section className="drag-drop-match" aria-label={title || "Drag and drop match activity"}>
@@ -194,74 +261,188 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
             <div className="drag-drop-match__header">
               {title ? <h3 className="drag-drop-match__title">{title}</h3> : null}
             </div>
-            <span className="drag-drop-match__tag">Drag &amp; Drop Activity</span>
+            <span className="drag-drop-match__tag">
+              {diagramMode ? "Diagram drag and drop" : "Drag &amp; Drop Activity"}
+            </span>
           </div>
         </div>
       </div>
       {intro ? <p className="drag-drop-match__intro">{intro}</p> : null}
       {instructions ? <p className="drag-drop-match__instruction">{instructions}</p> : null}
 
-      <div className="drag-drop-match__grid">
+      <div className={gridClass}>
         <div>
-          <div className="drag-drop-match__panel-title drag-drop-match__panel-title--targets">
-            🎯 Drop your answers here
+          <div
+            className={
+              "drag-drop-match__panel-title drag-drop-match__panel-title--targets" +
+              (diagramMode ? " drag-drop-match__panel-title--diagram" : "")
+            }
+          >
+            {diagramMode ? "📍 Diagram — drop zones" : "🎯 Drop your answers here"}
           </div>
-          <div className="drag-drop-match__targets" role="list">
-          {pairs.map((row) => {
-            const sourcePlaced = placements[row.id] ?? null;
-            const card = sourcePlaced ? byId.get(sourcePlaced) : null;
-            const isCorrect = checked && sourcePlaced != null && sourcePlaced === row.id;
-            const isWrong = checked && sourcePlaced != null && sourcePlaced !== row.id;
-            const isEmpty = checked && sourcePlaced == null;
-            const targetClass =
-              "drag-drop-match__target" +
-              (isCorrect ? " drag-drop-match__target--correct" : "") +
-              (isWrong ? " drag-drop-match__target--incorrect" : "") +
-              (selectedSourceId && !sourcePlaced ? " drag-drop-match__target--active" : "");
 
-            return (
-              <div className="drag-drop-match__row" key={row.id} role="listitem">
-                <div className="drag-drop-match__prompt">{row.prompt || "(Untitled item)"}</div>
-                <button
-                  type="button"
-                  className={targetClass}
-                  onClick={() => onTargetClick(row.id)}
-                  onDragOver={onDragOver}
-                  onDrop={(e) => onDropOnTarget(e, row.id)}
-                  aria-label={
-                    sourcePlaced
-                      ? `Remove ${card?.answer ?? "placed answer"} from ${row.prompt || "target"}`
-                      : `Place answer into ${row.prompt || "target"}`
-                  }
-                >
-                  {sourcePlaced && card ? (
-                    <span className="drag-drop-match__target-inner">
-                      <span className="drag-drop-match__placed-text">{card.answer}</span>
-                      {checked && isCorrect ? (
-                        <span className="drag-drop-match__status drag-drop-match__status--ok">Correct</span>
+          {diagramMode ? (
+            <>
+              <div className="drag-drop-match__diagram-panel">
+                {showDiagramImg ? (
+                  <div className="drag-drop-match__diagram-visual">
+                    <div className="drag-drop-match__diagram-image-container">
+                      <LessonImageFrame
+                        className="drag-drop-match__diagram-frame"
+                        variant="primary"
+                        lightboxSrc={imgResolved}
+                      >
+                        <img
+                          className="drag-drop-match__diagram-img"
+                          src={imgResolved}
+                          alt={title || "Diagram for drag and drop activity"}
+                          onError={hideBrokenLessonImage}
+                        />
+                      </LessonImageFrame>
+                      {zones.length > 0 ? (
+                        <div className="drag-drop-match__diagram-overlay">
+                          {zones.map((zone, zi) => {
+                            const sourcePlaced = placements[zone.id] ?? null;
+                            const card = sourcePlaced ? byId.get(sourcePlaced) : null;
+                            const corr = zone.correctPairId;
+                            const isCorrect =
+                              checked && sourcePlaced != null && sourcePlaced === corr;
+                            const isWrong = checked && sourcePlaced != null && sourcePlaced !== corr;
+                            const isEmpty = checked && sourcePlaced == null;
+                            const targetClass =
+                              "drag-drop-match__diagram-zone" +
+                              (isCorrect ? " drag-drop-match__diagram-zone--correct" : "") +
+                              (isWrong || isEmpty ? " drag-drop-match__diagram-zone--incorrect" : "") +
+                              (selectedSourceId && !sourcePlaced
+                                ? " drag-drop-match__diagram-zone--active"
+                                : "");
+                            return (
+                              <button
+                                key={zone.id}
+                                type="button"
+                                className={targetClass}
+                                style={{
+                                  left: `${zone.x}%`,
+                                  top: `${zone.y}%`,
+                                }}
+                                onClick={() => onTargetClick(zone.id)}
+                                onDragOver={onDragOver}
+                                onDrop={(e) => onDropOnTarget(e, zone.id)}
+                                aria-label={
+                                  sourcePlaced
+                                    ? `Remove ${card?.answer ?? "placed answer"} from zone ${zi + 1}`
+                                    : `Drop answer into zone ${zi + 1}`
+                                }
+                              >
+                                {sourcePlaced && card ? (
+                                  <span className="drag-drop-match__diagram-zone-inner">
+                                    <span className="drag-drop-match__placed-text">{card.answer}</span>
+                                    {checked && isCorrect ? (
+                                      <span className="drag-drop-match__status drag-drop-match__status--ok">
+                                        Correct
+                                      </span>
+                                    ) : null}
+                                    {checked && (isWrong || isEmpty) ? (
+                                      <span className="drag-drop-match__status drag-drop-match__status--bad">
+                                        Try again
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                ) : (
+                                  <span className="drag-drop-match__target-empty">+</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       ) : null}
-                      {checked && (isWrong || isEmpty) ? (
-                        <span className="drag-drop-match__status drag-drop-match__status--bad">Try again</span>
-                      ) : null}
-                    </span>
-                  ) : (
-                    <span className="drag-drop-match__target-empty">Drop or tap a match</span>
-                  )}
-                </button>
-                {checked ? (
-                  <AssessmentFeedback
-                    className="drag-drop-match__assessment-feedback"
-                    status={isCorrect ? "correct" : isWrong || isEmpty ? "incorrect" : undefined}
-                    answer={row.answer}
-                    answerLabel="Correct answer"
-                    explanation={row.explanation}
-                    explanationLabel="Explanation"
-                  />
+                    </div>
+                    {diagramZonesEmptyOrMissing ? (
+                      <p className="drag-drop-match__diagram-hint" role="status">
+                        This diagram has no drop zones yet. Your teacher can add targets in the lesson editor.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="drag-drop-match__diagram-hint" role="status">
+                    Add a diagram image in the lesson editor to use diagram mode.
+                  </p>
+                )}
+                {checked && zones.length > 0 ? (
+                  <div className="drag-drop-match__diagram-feedback-list">
+                    {zones.map((zone, zi) => (
+                      <div key={`fb-${zone.id}`} className="drag-drop-match__diagram-feedback-item">
+                        {renderTargetFeedbackRow(zone.id, `Zone ${zi + 1}`, zone.correctPairId)}
+                      </div>
+                    ))}
+                  </div>
                 ) : null}
               </div>
-            );
-          })}
-          </div>
+            </>
+          ) : (
+            <div className="drag-drop-match__targets" role="list">
+              {pairs.map((row) => {
+                const sourcePlaced = placements[row.id] ?? null;
+                const card = sourcePlaced ? byId.get(sourcePlaced) : null;
+                const isCorrect = checked && sourcePlaced != null && sourcePlaced === row.id;
+                const isWrong = checked && sourcePlaced != null && sourcePlaced !== row.id;
+                const isEmpty = checked && sourcePlaced == null;
+                const targetClass =
+                  "drag-drop-match__target" +
+                  (isCorrect ? " drag-drop-match__target--correct" : "") +
+                  (isWrong ? " drag-drop-match__target--incorrect" : "") +
+                  (selectedSourceId && !sourcePlaced ? " drag-drop-match__target--active" : "");
+
+                return (
+                  <div className="drag-drop-match__row" key={row.id} role="listitem">
+                    <div className="drag-drop-match__prompt">{row.prompt || "(Untitled item)"}</div>
+                    <button
+                      type="button"
+                      className={targetClass}
+                      onClick={() => onTargetClick(row.id)}
+                      onDragOver={onDragOver}
+                      onDrop={(e) => onDropOnTarget(e, row.id)}
+                      aria-label={
+                        sourcePlaced
+                          ? `Remove ${card?.answer ?? "placed answer"} from ${row.prompt || "target"}`
+                          : `Place answer into ${row.prompt || "target"}`
+                      }
+                    >
+                      {sourcePlaced && card ? (
+                        <span className="drag-drop-match__target-inner">
+                          <span className="drag-drop-match__placed-text">{card.answer}</span>
+                          {checked && isCorrect ? (
+                            <span className="drag-drop-match__status drag-drop-match__status--ok">
+                              Correct
+                            </span>
+                          ) : null}
+                          {checked && (isWrong || isEmpty) ? (
+                            <span className="drag-drop-match__status drag-drop-match__status--bad">
+                              Try again
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="drag-drop-match__target-empty">Drop or tap a match</span>
+                      )}
+                    </button>
+                    {checked ? (
+                      <AssessmentFeedback
+                        className="drag-drop-match__assessment-feedback"
+                        status={
+                          isCorrect ? "correct" : isWrong || isEmpty ? "incorrect" : undefined
+                        }
+                        answer={row.answer}
+                        answerLabel="Correct answer"
+                        explanation={row.explanation}
+                        explanationLabel="Explanation"
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div>
@@ -275,7 +456,7 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
               e.preventDefault();
               const sourceId = e.dataTransfer.getData(DND_MIME) || e.dataTransfer.getData("text/plain");
               if (!sourceId) return;
-              for (const tid of pairs.map((p) => p.id)) {
+              for (const tid of targetIds) {
                 if (placements[tid] === sourceId) {
                   clearTarget(tid);
                   return;
@@ -318,7 +499,9 @@ export function DragDropMatchBlock({ block }: DragDropMatchBlockProps) {
       </div>
 
       <div className="drag-drop-match__tip">
-        💡 Tip: Read each function carefully before matching.
+        {diagramMode
+          ? "💡 Tip: Drag each answer card onto a circle on the diagram, then check your answers."
+          : "💡 Tip: Read each function carefully before matching."}
       </div>
 
       <div className="drag-drop-match__actions">
