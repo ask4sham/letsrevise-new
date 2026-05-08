@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { defaultUrlTransform } from "react-markdown";
 import api from "../services/api";
 import { toAbsoluteAssetUrl } from "../services/mediaUrl";
-import { preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
@@ -34,7 +34,9 @@ import {
 } from "../utils/lessonEditorPaste";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
+import { parseDragDropMatchMode, sanitizeDiagramDropZonesForAuthoring } from "../utils/dragDropMatchDiagram";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
+import { DragDropMatchDiagramAuthoring } from "../components/lesson/DragDropMatchDiagramAuthoring";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
@@ -82,6 +84,14 @@ type LessonPageBlock = {
   }>;
   imageUrl?: string;
   hotspots?: Array<{ id: string; x?: number; y?: number; label: string; description: string }>;
+  matchMode?: "text" | "diagram";
+  dropZones?: Array<{
+    id: string;
+    x?: number;
+    y?: number;
+    correctPairId: string;
+    explanation?: string;
+  }>;
   prompt?: string;
   questionType?: "mcq" | "short";
   options?: string[];
@@ -416,6 +426,7 @@ const CreateLessonPage: React.FC = () => {
     Record<string, { loading: boolean; message: "error" | "empty" | null }>
   >({});
   const [dragDropAiTopicPrompt, setDragDropAiTopicPrompt] = useState<Record<string, string>>({});
+  const [dragDropDiagramPlacingId, setDragDropDiagramPlacingId] = useState<Record<string, string | null>>({});
 
   const createPreviewMarkdownComponents = useMemo(
     () => ({
@@ -1211,6 +1222,10 @@ const CreateLessonPage: React.FC = () => {
                   : undefined,
             }))
             .filter((row) => row.id);
+          const parsedModePersist = parseDragDropMatchMode(b.matchMode);
+          const zonePairIds = pairs.map((row) => row.id);
+          const rawZonesPersist = Array.isArray(b.dropZones) ? b.dropZones : [];
+          const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(0, 40);
           const ddm: Record<string, unknown> = {
             type: "dragDropMatch",
             title: typeof b.title === "string" ? b.title.trim() : "",
@@ -1219,6 +1234,14 @@ const CreateLessonPage: React.FC = () => {
             content: "",
             pairs,
           };
+          if (parsedModePersist === "diagram") {
+            ddm.matchMode = "diagram";
+            const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
+            if (imgP) ddm.imageUrl = imgP;
+            ddm.dropZones = dropZonesPersist;
+          } else if (parsedModePersist === "text") {
+            ddm.matchMode = "text";
+          }
           if (typeof b.role === "string" && b.role.trim()) ddm.role = b.role.trim();
           return ddm;
         }
@@ -2692,6 +2715,17 @@ const CreateLessonPage: React.FC = () => {
                                         style={{ fontSize: "0.875rem" }}
                                       />
                                     </label>
+                                    <DragDropMatchDiagramAuthoring
+                                      blk={b}
+                                      newId={newLessonBlockId}
+                                      onPatch={(patch) => updateBlock(pg.pageId, idx, patch)}
+                                      placingZoneId={dragDropDiagramPlacingId[key] ?? null}
+                                      onPlacingZoneId={(id) =>
+                                        setDragDropDiagramPlacingId((p) => ({ ...p, [key]: id }))
+                                      }
+                                      resolveImageUrlForPreview={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                                      safeStr={safeStr}
+                                    />
                                     <label style={{ display: "block" }}>
                                       <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
                                         AI topic or prompt (optional)
@@ -2982,10 +3016,15 @@ const CreateLessonPage: React.FC = () => {
                                         Student preview
                                       </div>
                                       <DragDropMatchBlock
+                                        resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                                         block={{
                                           title: safeStr(b.title, ""),
                                           intro: safeStr(b.intro, ""),
                                           instructions: safeStr(b.instructions, ""),
+                                          ...(b.matchMode === "diagram" || b.matchMode === "text"
+                                            ? { matchMode: b.matchMode }
+                                            : {}),
+                                          ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
                                           pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => ({
                                             id: String(p?.id ?? "").trim() || `pair_${i}`,
                                             prompt: String(p?.prompt ?? ""),
@@ -2993,6 +3032,19 @@ const CreateLessonPage: React.FC = () => {
                                             explanation:
                                               p?.explanation != null ? String(p.explanation) : undefined,
                                           })),
+                                          ...(Array.isArray(b.dropZones)
+                                            ? {
+                                                dropZones: b.dropZones.map((z, zi) => ({
+                                                  id: String(z?.id ?? "").trim() || `dz${zi}`,
+                                                  ...(typeof z?.x === "number" ? { x: z.x } : {}),
+                                                  ...(typeof z?.y === "number" ? { y: z.y } : {}),
+                                                  correctPairId: String(z?.correctPairId ?? "").trim(),
+                                                  ...(z?.explanation != null && String(z.explanation).trim()
+                                                    ? { explanation: String(z.explanation).trim() }
+                                                    : {}),
+                                                })),
+                                              }
+                                            : {}),
                                         }}
                                       />
                                     </div>
@@ -3072,6 +3124,7 @@ const CreateLessonPage: React.FC = () => {
                                     imageUrl: "",
                                     hotspots: [],
                                     title: "",
+                                    dropZones: [],
                                   };
                                   if (!prevCpBlock) {
                                     updateBlock(pg.pageId, idx, {
@@ -3413,10 +3466,15 @@ const CreateLessonPage: React.FC = () => {
                               <div key={`prev-${idx}`} style={getBlockStyle(blockType)}>
                                 {labelRow}
                                 <DragDropMatchBlock
+                                  resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                                   block={{
                                     title: safeStr(ddm.title, ""),
                                     intro: safeStr(ddm.intro, ""),
                                     instructions: safeStr(ddm.instructions, ""),
+                                    ...(ddm.matchMode === "diagram" || ddm.matchMode === "text"
+                                      ? { matchMode: ddm.matchMode }
+                                      : {}),
+                                    ...(safeStr(ddm.imageUrl, "") ? { imageUrl: safeStr(ddm.imageUrl, "") } : {}),
                                     pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => ({
                                       id: String(p?.id ?? "").trim() || `pair_${i}`,
                                       prompt: String(p?.prompt ?? ""),
@@ -3424,6 +3482,19 @@ const CreateLessonPage: React.FC = () => {
                                       explanation:
                                         p?.explanation != null ? String(p.explanation) : undefined,
                                     })),
+                                    ...(Array.isArray(ddm.dropZones)
+                                      ? {
+                                          dropZones: ddm.dropZones.map((z, zi) => ({
+                                            id: String(z?.id ?? "").trim() || `dz${zi}`,
+                                            ...(typeof z?.x === "number" ? { x: z.x } : {}),
+                                            ...(typeof z?.y === "number" ? { y: z.y } : {}),
+                                            correctPairId: String(z?.correctPairId ?? "").trim(),
+                                            ...(z?.explanation != null && String(z.explanation).trim()
+                                              ? { explanation: String(z.explanation).trim() }
+                                              : {}),
+                                          })),
+                                        }
+                                      : {}),
                                   }}
                                 />
                               </div>

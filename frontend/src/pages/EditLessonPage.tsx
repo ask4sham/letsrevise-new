@@ -7,6 +7,7 @@ import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock"
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
+import { DragDropMatchDiagramAuthoring } from "../components/lesson/DragDropMatchDiagramAuthoring";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
@@ -92,6 +93,7 @@ import {
   resolveInteractiveDiagramHotspotExplanation,
   type NormalizedInteractiveDiagramHotspot,
 } from "../utils/interactiveDiagramHotspots";
+import { parseDragDropMatchMode, sanitizeDiagramDropZonesForAuthoring } from "../utils/dragDropMatchDiagram";
 import { parseGeneratorMcqForSelfCheckImport } from "../utils/parseGeneratorMcqForSelfCheckImport";
 
 /** Topic bank URLs with filters for AI lesson drafts (draft-only review). */
@@ -596,6 +598,8 @@ const EditLessonPage: React.FC = () => {
   const [interactiveDiagramTemplateHint, setInteractiveDiagramTemplateHint] = useState<Record<string, string>>({});
   /** When set, the next image click places that hotspot id (per block `key`). */
   const [interactiveDiagramPlacingId, setInteractiveDiagramPlacingId] = useState<Record<string, string | null>>({});
+  /** dragDropMatch diagram: next click on placement image sets x/y for this zone id (key = pageId:idx). */
+  const [dragDropDiagramPlacingId, setDragDropDiagramPlacingId] = useState<Record<string, string | null>>({});
   /** Per block `pageId:idx`: AI drag-drop pair generation */
   const [dragDropPairAiUi, setDragDropPairAiUi] = useState<
     Record<string, { loading: boolean; message: "error" | "empty" | null }>
@@ -1397,6 +1401,12 @@ const EditLessonPage: React.FC = () => {
                     answer: safeStr(row?.answer, ""),
                     explanation: row?.explanation != null ? String(row.explanation) : "",
                   }));
+                  const parsedMode = parseDragDropMatchMode((b as { matchMode?: unknown }).matchMode);
+                  const pairIdsForZones = pairs.map((r: { id: string }) => r.id);
+                  const rawZones = Array.isArray((b as { dropZones?: unknown }).dropZones)
+                    ? (b as { dropZones: unknown[] }).dropZones
+                    : [];
+                  const dropZonesSan = sanitizeDiagramDropZonesForAuthoring(rawZones, pairIdsForZones);
                   const outDdm: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1405,6 +1415,14 @@ const EditLessonPage: React.FC = () => {
                     instructions: safeStr(b.instructions, ""),
                     pairs,
                   };
+                  if (parsedMode === "diagram") {
+                    outDdm.matchMode = "diagram";
+                    const img = (b as { imageUrl?: unknown }).imageUrl;
+                    outDdm.imageUrl = typeof img === "string" ? img.trim() : "";
+                    outDdm.dropZones = dropZonesSan;
+                  } else if (parsedMode === "text") {
+                    outDdm.matchMode = "text";
+                  }
                   if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
                   return outDdm;
                 }
@@ -1427,6 +1445,10 @@ const EditLessonPage: React.FC = () => {
                     answer: safeStr(row?.answer, ""),
                     explanation: row?.explanation != null ? String(row.explanation) : "",
                   }));
+                  const parsedModeRepair = parseDragDropMatchMode((b as any).matchMode);
+                  const pairIdsRepair = pairs.map((r: { id: string }) => r.id);
+                  const rawZonesRepair = Array.isArray((b as any).dropZones) ? (b as any).dropZones : [];
+                  const dropZonesRepair = sanitizeDiagramDropZonesForAuthoring(rawZonesRepair, pairIdsRepair);
                   const repaired: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1435,6 +1457,14 @@ const EditLessonPage: React.FC = () => {
                     instructions: safeStr((b as any).instructions, ""),
                     pairs,
                   };
+                  if (parsedModeRepair === "diagram") {
+                    repaired.matchMode = "diagram";
+                    const imgR = (b as any).imageUrl;
+                    repaired.imageUrl = typeof imgR === "string" ? imgR.trim() : "";
+                    repaired.dropZones = dropZonesRepair;
+                  } else if (parsedModeRepair === "text") {
+                    repaired.matchMode = "text";
+                  }
                   if (typeof b?.role === "string" && b.role.trim()) repaired.role = b.role.trim();
                   return repaired;
                 }
@@ -3006,6 +3036,15 @@ const EditLessonPage: React.FC = () => {
                     : undefined,
               }))
               .filter((row: { id: string }) => String(row.id).trim());
+            const parsedModePersist = parseDragDropMatchMode(b.matchMode);
+            const zonePairIds = pairs.map((row: { id: string }) => row.id);
+            const rawZonesPersist = Array.isArray((b as { dropZones?: unknown }).dropZones)
+              ? (b as { dropZones: unknown[] }).dropZones
+              : [];
+            const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(
+              0,
+              40
+            );
             const ddmOut: Record<string, unknown> = {
               type: "dragDropMatch",
               title: typeof b.title === "string" ? b.title.trim() : "",
@@ -3013,6 +3052,14 @@ const EditLessonPage: React.FC = () => {
               instructions: b.instructions != null ? String(b.instructions).trim() : "",
               pairs,
             };
+            if (parsedModePersist === "diagram") {
+              ddmOut.matchMode = "diagram";
+              const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
+              if (imgP) ddmOut.imageUrl = imgP;
+              ddmOut.dropZones = dropZonesPersist;
+            } else if (parsedModePersist === "text") {
+              ddmOut.matchMode = "text";
+            }
             if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
             return ddmOut;
           }
@@ -7771,6 +7818,18 @@ const EditLessonPage: React.FC = () => {
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
+                              <DragDropMatchDiagramAuthoring
+                                blk={b as LessonPageBlock}
+                                newId={newId}
+                                onPatch={(patch) => updateBlock(currentPage!.pageId, idx, patch)}
+                                placingZoneId={dragDropDiagramPlacingId[key] ?? null}
+                                onPlacingZoneId={(id) =>
+                                  setDragDropDiagramPlacingId((p) => ({ ...p, [key]: id }))
+                                }
+                                resolveImageUrlForPreview={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                                safeStr={safeStr}
+                              />
+                                : null}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
                                   AI topic or prompt (optional)
@@ -8686,16 +8745,38 @@ const EditLessonPage: React.FC = () => {
                           }}
                         >
                           <DragDropMatchBlock
+                            resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
                             block={{
                               title: safeStr(ddm.title, ""),
                               intro: safeStr(ddm.intro, ""),
                               instructions: safeStr(ddm.instructions, ""),
+                              ...((ddm as LessonPageBlock).matchMode === "diagram" ||
+                              (ddm as LessonPageBlock).matchMode === "text"
+                                ? { matchMode: (ddm as LessonPageBlock).matchMode }
+                                : {}),
+                              ...((ddm as LessonPageBlock).imageUrl != null &&
+                              String((ddm as LessonPageBlock).imageUrl).trim()
+                                ? { imageUrl: String((ddm as LessonPageBlock).imageUrl).trim() }
+                                : {}),
                               pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => ({
                                 id: String(p?.id ?? "").trim() || `pair_${i}`,
                                 prompt: String(p?.prompt ?? ""),
                                 answer: String(p?.answer ?? ""),
                                 explanation: p?.explanation != null ? String(p.explanation) : undefined,
                               })),
+                              ...(Array.isArray((ddm as LessonPageBlock).dropZones)
+                                ? {
+                                    dropZones: (ddm as LessonPageBlock).dropZones!.map((z, i) => ({
+                                      id: String(z?.id ?? "").trim() || `dz${i}`,
+                                      ...(typeof z?.x === "number" ? { x: z.x } : {}),
+                                      ...(typeof z?.y === "number" ? { y: z.y } : {}),
+                                      correctPairId: String(z?.correctPairId ?? "").trim(),
+                                      ...(z?.explanation != null && String(z.explanation).trim()
+                                        ? { explanation: String(z.explanation).trim() }
+                                        : {}),
+                                    })),
+                                  }
+                                : {}),
                             }}
                           />
                         </div>
