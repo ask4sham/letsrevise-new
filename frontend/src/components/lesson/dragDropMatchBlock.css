@@ -416,10 +416,159 @@
   box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.45);
 }
 
-/* --- Diagram matchMode layout --- */
+/* --- Diagram matchMode: vertical worksheet (diagram → cards → summary) --- */
 
-.drag-drop-match__grid--diagram {
-  align-items: start;
+.drag-drop-match__diagram-worksheet {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 10px;
+  box-sizing: border-box;
+}
+
+.drag-drop-match__diagram-bank {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.drag-drop-match__diagram-bank .drag-drop-match__panel-title--answers {
+  margin-bottom: 6px;
+}
+
+/* Compact GCSE-style answer bank directly under diagram (diagram mode only). */
+.drag-drop-match__answers--diagram {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* Room for two wrapped rows without clipping */
+  padding: 11px 11px 13px;
+  border-radius: 12px;
+}
+
+.drag-drop-match__card-list--diagram-wrap {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  justify-content: center;
+  gap: 6px 8px;
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card {
+  box-sizing: border-box;
+  flex: 1 1 104px;
+  min-width: 0;
+  max-width: min(152px, calc(50% - 5px));
+  width: auto;
+  align-self: flex-start;
+  min-height: 28px;
+  padding: 3px 6px;
+  font-size: 10px;
+  line-height: 1.2;
+  border-radius: 8px;
+  border-width: 1px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07);
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card:hover,
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(99, 102, 241, 0.14);
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card--selected {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card--selected:hover,
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card--selected:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22), 0 5px 12px rgba(99, 102, 241, 0.14);
+}
+
+.drag-drop-match__card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card-inner {
+  gap: 1px;
+}
+
+.drag-drop-match__card-text {
+  font-weight: inherit;
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card-text {
+  display: block;
+  line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.drag-drop-match__card-placed-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #4338ca;
+  background: #e0e7ff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card-placed-badge {
+  font-size: 0.56rem;
+  padding: 1px 5px;
+  letter-spacing: 0.02em;
+}
+
+.drag-drop-match__card-check {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card-check {
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+}
+
+.drag-drop-match__card-check--ok {
+  color: #15803d;
+}
+
+.drag-drop-match__card-check--bad {
+  color: #b91c1c;
+}
+
+.drag-drop-match__card--diagram-placed {
+  cursor: pointer;
+}
+
+.drag-drop-match__card--diagram-placed:active {
+  cursor: pointer;
+}
+
+.drag-drop-match__card--diagram-correct {
+  border-color: #22c55e !important;
+  background: #ecfdf5 !important;
+}
+
+.drag-drop-match__card--diagram-incorrect {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
 }
 
 .drag-drop-match__panel-title--diagram {
@@ -430,13 +579,95 @@
   border: 1px solid #bfdbfe;
   background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
   border-radius: 16px;
-  padding: 16px;
+  padding: 16px 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-panel {
+  padding: 6px 8px;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
 }
 
 .drag-drop-match__diagram-visual {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  width: 100%;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-visual {
+  gap: 4px;
+  height: auto;
+  min-height: 0;
+  align-items: flex-start;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-image-container {
+  position: relative;
+  isolation: isolate;
+  border-radius: 12px;
+  overflow: hidden;
+  line-height: 0;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Block shrink-wrap: avoid flex distributing extra vertical canvas */
+  display: block;
+  /* ~75% less vertical matte than 4px; tiny horizontal inset for marker clearance */
+  padding: 1px 2px;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: auto;
+  align-self: stretch;
+}
+
+/* Full-width worksheet diagram: override global .lesson-image-card max-width caps. */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-image-container .lesson-image-card {
+  max-width: 100%;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 8px;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  display: block;
+  line-height: 0;
+}
+
+.drag-drop-match__diagram-worksheet .lesson-image-card > img.drag-drop-match__diagram-img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
+
+/* Image card stacks below the zone overlay so A/B/C/D buttons receive drag/drop/tap. */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-image-container > [data-lesson-image-frame] {
+  position: relative;
+  z-index: 0;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  display: block;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-image-container {
+    min-height: 0;
+    padding: 1px 3px;
+  }
 }
 
 .drag-drop-match__diagram-image-container {
@@ -450,6 +681,23 @@
 
 .drag-drop-match__diagram-frame {
   display: block;
+  width: 100%;
+  max-height: min(82vh, 920px);
+}
+
+/* Diagram worksheet: frame is only a layout box — avoid an extra visual “stage” height cap. */
+.drag-drop-match__diagram-worksheet .lesson-image-card.drag-drop-match__diagram-frame {
+  max-height: none;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  display: block;
+  vertical-align: middle;
+  object-fit: contain;
+  object-position: center;
 }
 
 .drag-drop-match__diagram-img {
@@ -462,7 +710,388 @@
 .drag-drop-match__diagram-overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
+}
+
+/*
+ * Invisible full-area target while dragging (see diagramDragActive in TS).
+ * Receives drops near the diagram; zone buttons (higher z-index) win on direct hits.
+ */
+.drag-drop-match__diagram-overlay-catcher {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+/* On-image markers: letter + compact status only (answer text lives below diagram). */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: auto;
+  box-sizing: border-box;
+  min-width: 44px;
+  width: 48px;
+  max-width: 56px;
+  min-height: 44px;
+  padding: 6px 4px;
+  border-radius: 999px;
+  border: 2px dashed #3b82f6;
+  background: rgba(255, 255, 255, 0.96);
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.drag-drop-match__diagram-zone-marker-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.drag-drop-match__diagram-zone-letter {
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #1e40af;
+  letter-spacing: -0.02em;
+}
+
+.drag-drop-match__diagram-zone--has-placement .drag-drop-match__diagram-zone-letter {
+  color: #1d4ed8;
+}
+
+.drag-drop-match__diagram-zone-status {
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.drag-drop-match__diagram-zone-status--ok {
+  color: #15803d;
+}
+
+.drag-drop-match__diagram-zone-status--bad {
+  color: #b91c1c;
+}
+
+.drag-drop-match__diagram-zone-filled-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #2563eb;
+  flex-shrink: 0;
+}
+
+/* Placed answer: compact A + label chip on the diagram (diagram mode). */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border-style: solid;
+  border-width: 2px;
+  align-items: stretch;
+  justify-content: center;
+  /* Base lift; tone + state rules set fill/border/shadow */
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.14),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* Zone letter → same pastel palette as answer cards (A…F cycle), stronger contrast on-diagram. */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-0 {
+  background: #ece9ff;
+  border-color: #a78bfa;
+  box-shadow:
+    0 2px 8px rgba(91, 33, 182, 0.14),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-1 {
+  background: #fff4d6;
+  border-color: #fbbf24;
+  box-shadow:
+    0 2px 8px rgba(180, 83, 9, 0.12),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-2 {
+  background: #d7f7fb;
+  border-color: #22d3ee;
+  box-shadow:
+    0 2px 8px rgba(14, 116, 144, 0.14),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-3 {
+  background: #dbeafe;
+  border-color: #60a5fa;
+  box-shadow:
+    0 2px 8px rgba(37, 99, 235, 0.14),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-4 {
+  background: #ffe4ec;
+  border-color: #fb7185;
+  box-shadow:
+    0 2px 8px rgba(190, 24, 93, 0.12),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-5 {
+  background: #d9f9e6;
+  border-color: #4ade80;
+  box-shadow:
+    0 2px 8px rgba(21, 83, 45, 0.12),
+    0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* After “Check answers”: strong but readable outline on light diagram backgrounds */
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--correct {
+  background: #ecfdf5 !important;
+  border-color: #16a34a !important;
+  box-shadow:
+    0 0 0 3px rgba(34, 197, 94, 0.42),
+    0 2px 10px rgba(34, 197, 94, 0.18);
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--incorrect {
+  background: #fef2f2 !important;
+  border-color: #dc2626 !important;
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.38),
+    0 2px 10px rgba(239, 68, 68, 0.14);
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--correct
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #166534;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--incorrect
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #991b1b;
+}
+
+/*
+ * Anchor chips so they grow inward from the diagram edge (avoid overflow:hidden clip).
+ * Left-half zones: nudge ~10px toward centre so chips clear the frame; right-half symmetric.
+ */
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-grow-right {
+  transform: translate(10px, -50%);
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-grow-left {
+  transform: translate(calc(-100% - 10px), -50%);
+}
+
+.drag-drop-match__diagram-zone-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+}
+
+.drag-drop-match__diagram-zone-chip-mark {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #1d4ed8;
+  letter-spacing: -0.02em;
+}
+
+.drag-drop-match__diagram-zone--correct .drag-drop-match__diagram-zone-chip-mark {
+  color: #15803d;
+}
+
+.drag-drop-match__diagram-zone--incorrect .drag-drop-match__diagram-zone-chip-mark {
+  color: #b91c1c;
+}
+
+.drag-drop-match__diagram-zone-chip-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  color: #0f172a;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-mark {
+  font-size: 0.88rem;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-text {
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-status {
+  font-size: 0.72rem;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-clear-hint {
+  font-size: 0.82rem;
+}
+
+.drag-drop-match__diagram-zone-chip-status {
+  flex: 0 0 auto;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.drag-drop-match__diagram-zone-chip-status--ok {
+  color: #15803d;
+}
+
+.drag-drop-match__diagram-zone-chip-status--bad {
+  color: #b91c1c;
+}
+
+.drag-drop-match__diagram-zone-chip-clear-hint {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #64748b;
+  opacity: 0.65;
+  margin-inline-start: 1px;
+}
+
+/* GCSE-style: bold but compact chip typography on the diagram */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-mark,
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-text {
+  font-weight: 700;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-0:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-mark {
+  color: #5b21b6;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-0:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #4c1d95;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-1:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-mark {
+  color: #92400e;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-1:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #78350f;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-2:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-mark {
+  color: #0e7490;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-2:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #164e63;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-3:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-mark {
+  color: #1d4ed8;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-3:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #1e3a8a;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-4:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-mark {
+  color: #be123c;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-4:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #881337;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-5:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-mark {
+  color: #166534;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-tone-5:not(
+    .drag-drop-match__diagram-zone--correct
+  ):not(.drag-drop-match__diagram-zone--incorrect)
+  .drag-drop-match__diagram-zone-chip-text {
+  color: #14532d;
 }
 
 .drag-drop-match__diagram-zone {
@@ -489,12 +1118,19 @@
     box-shadow 0.18s ease;
 }
 
-.drag-drop-match__diagram-zone:hover,
-.drag-drop-match__diagram-zone:focus-visible {
+.drag-drop-match__diagram-zone:hover:not(.drag-drop-match__diagram-zone--filled),
+.drag-drop-match__diagram-zone:focus-visible:not(.drag-drop-match__diagram-zone--filled) {
   outline: none;
   border-color: #2563eb;
   background: #dbeafe;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+}
+
+/* Filled chips keep their pastel tone on hover (revision-card feel, not blue wash). */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled:hover,
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled:focus-visible {
+  outline: none;
+  filter: brightness(0.96);
 }
 
 .drag-drop-match__diagram-zone--active {
@@ -545,13 +1181,231 @@
   border: 1px solid #e2e8f0;
 }
 
-.drag-drop-match__diagram-feedback-list {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Answer text + feedback live below the diagram (worksheet-style). */
+.drag-drop-match__diagram-summary {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.drag-drop-match__diagram-feedback-item {
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary {
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__panel-title--diagram {
+  margin-bottom: 8px;
+}
+
+.drag-drop-match__diagram-summary-heading {
+  font-weight: 800;
+  font-size: 0.8125rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #0369a1;
+  margin: 0 0 12px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary-heading {
+  font-size: 0.75rem;
+  margin: 0 0 8px;
+  letter-spacing: 0.04em;
+}
+
+.drag-drop-match__diagram-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary-list {
+  gap: 6px;
+}
+
+.drag-drop-match__diagram-summary-item {
   min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary-item {
+  padding-bottom: 5px;
+}
+
+.drag-drop-match__diagram-summary-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.drag-drop-match__diagram-summary-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: #0f172a;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary-main {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  gap: 6px 8px;
+}
+
+.drag-drop-match__diagram-summary-mark {
+  flex: 0 0 auto;
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: #1d4ed8;
+  min-width: 1.5rem;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary-mark {
+  font-size: 0.95rem;
+}
+
+.drag-drop-match__diagram-summary-arrow {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.drag-drop-match__diagram-summary-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-weight: 600;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.drag-drop-match__diagram-summary-placeholder {
+  color: #94a3b8;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.drag-drop-match__diagram-summary-status {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary-status {
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+}
+
+.drag-drop-match__diagram-summary-status--ok {
+  color: #15803d;
+}
+
+.drag-drop-match__diagram-summary-status--bad {
+  color: #b91c1c;
+}
+
+.drag-drop-match__assessment-feedback--diagram-row {
+  margin-top: 8px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary .drag-drop-match__assessment-feedback {
+  margin-top: 5px;
+  font-size: 0.8125rem;
+  line-height: 1.38;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-summary
+  .drag-drop-match__assessment-feedback.assessment-feedback--correct,
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-summary
+  .drag-drop-match__assessment-feedback.assessment-feedback--incorrect {
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary .assessment-feedback__title {
+  font-size: 0.8125rem;
+  margin-bottom: 6px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary .assessment-feedback__row {
+  margin-bottom: 5px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary .assessment-feedback__explain-box {
+  padding: 5px 8px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  border-radius: 6px;
+}
+
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-summary .drag-drop-match__assessment-feedback--diagram-row {
+  margin-top: 5px;
+}
+
+@media (max-width: 480px) {
+  .drag-drop-match__diagram-summary-main {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 6px 8px;
+  }
+
+  .drag-drop-match__diagram-summary-status {
+    grid-column: 1 / -1;
+    margin-left: 0;
+  }
+}
+
+/* Authoring — same worksheet-scale canvas as student view (no max-width cap). */
+.drag-drop-match-diagram-authoring-preview-shell {
+  width: 100%;
+  max-width: none;
+}
+
+.drag-drop-match-diagram-authoring-placement-shell {
+  width: 100%;
+  max-width: none;
+  border-radius: 12px;
+  line-height: 0;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+.drag-drop-match-diagram-authoring-placement-inner {
+  /* position for absolutely placed zone markers */
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 280px;
+}
+
+@media (min-width: 768px) {
+  .drag-drop-match-diagram-authoring-placement-inner {
+    min-height: min(72vh, 720px);
+  }
+}
+
+.drag-drop-match-diagram-authoring-placement-inner img {
+  width: 100%;
+  height: auto;
+  max-height: min(82vh, 920px);
+  object-fit: contain;
+  object-position: center;
+  display: block;
 }

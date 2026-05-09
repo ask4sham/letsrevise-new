@@ -1,6 +1,8 @@
 import {
   isDragDropDiagramMode,
   mergeDiagramZoneExplanation,
+  parseDragDropMatchMode,
+  resolveDragDropMatchModeForPersist,
   sanitizeDiagramDropZonesForAuthoring,
   sanitizePlacedDiagramDropZones,
 } from "./dragDropMatchDiagram";
@@ -60,6 +62,60 @@ describe("dragDropMatchDiagram", () => {
     it("is true only for explicit diagram", () => {
       expect(isDragDropDiagramMode("diagram")).toBe(true);
       expect(isDragDropDiagramMode("text")).toBe(false);
+    });
+    it("accepts trimmed / alternate casing from APIs", () => {
+      expect(isDragDropDiagramMode(" Diagram ")).toBe(true);
+      expect(isDragDropDiagramMode("DIAGRAM")).toBe(true);
+    });
+    it("infers diagram when image + drop zones exist but matchMode missing", () => {
+      expect(
+        isDragDropDiagramMode(undefined, {
+          imageUrl: "/a.png",
+          dropZones: [{ id: "z1", correctPairId: "p1" }],
+        })
+      ).toBe(true);
+    });
+    it("respects explicit text over inference context", () => {
+      expect(
+        isDragDropDiagramMode("text", {
+          imageUrl: "/a.png",
+          dropZones: [{ id: "z1", correctPairId: "p1" }],
+        })
+      ).toBe(false);
+    });
+  });
+
+  describe("resolveDragDropMatchModeForPersist", () => {
+    it("returns diagram when matchMode missing but image and zones present", () => {
+      expect(
+        resolveDragDropMatchModeForPersist(undefined, {
+          imageUrl: "https://x/y.png",
+          dropZones: [{ id: "dz1", correctPairId: "pair_a" }],
+        })
+      ).toBe("diagram");
+    });
+    it("returns undefined when zones lack correctPairId", () => {
+      expect(
+        resolveDragDropMatchModeForPersist(undefined, {
+          imageUrl: "https://x/y.png",
+          dropZones: [{ id: "dz1" }],
+        })
+      ).toBeUndefined();
+    });
+    it("prefers explicit text", () => {
+      expect(
+        resolveDragDropMatchModeForPersist("text", {
+          imageUrl: "https://x/y.png",
+          dropZones: [{ id: "z1", correctPairId: "p1" }],
+        })
+      ).toBe("text");
+    });
+  });
+
+  describe("parseDragDropMatchMode", () => {
+    it("normalizes casing and whitespace", () => {
+      expect(parseDragDropMatchMode(" diagram\n")).toBe("diagram");
+      expect(parseDragDropMatchMode("TEXT")).toBe("text");
     });
   });
 

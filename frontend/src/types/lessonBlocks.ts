@@ -202,6 +202,8 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
   if (compact === "interactivediagram") return "interactiveDiagram";
   if (compact === "interactivesequence") return "interactiveSequence";
   if (compact === "pagequiz") return "pageQuiz";
+  /** Some exports/clients use SCREAMING_SNAKE or snake_case for the same block. */
+  if (compact === "selfcheck") return "selfCheck";
 
   switch (t0) {
     case "keyIdea":

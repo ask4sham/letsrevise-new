@@ -1,7 +1,12 @@
 import React, { useRef } from "react";
 import { LessonAutoTextarea } from "./LessonAutoTextarea";
 import { DragDropMatchBlock } from "./DragDropMatchBlock";
-import { parseDragDropMatchMode } from "../../utils/dragDropMatchDiagram";
+import "./dragDropMatchBlock.css";
+import {
+  parseDragDropDiagramImageFit,
+  parseDragDropDiagramImagePosition,
+  resolveDragDropMatchModeForUi,
+} from "../../utils/dragDropMatchDiagram";
 
 export type DragDropMatchAuthoringBlockSlice = {
   title?: string;
@@ -9,6 +14,8 @@ export type DragDropMatchAuthoringBlockSlice = {
   instructions?: string;
   imageUrl?: string;
   matchMode?: "text" | "diagram";
+  imageFit?: "contain" | "cover";
+  imagePosition?: "center center" | "center top" | "center bottom";
   pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
   dropZones?: Array<{
     id: string;
@@ -27,6 +34,9 @@ export type DragDropMatchDiagramAuthoringProps = {
   onPlacingZoneId: (id: string | null) => void;
   resolveImageUrlForPreview: (url: string) => string;
   safeStr: (v: unknown, fallback: string) => string;
+  /** Optional — wire Supabase/API image upload from the lesson editor (sets imageUrl via onPatch). */
+  onDiagramImageFile?: (file: File) => void | Promise<void>;
+  diagramImageUploading?: boolean;
 };
 
 /**
@@ -40,8 +50,11 @@ export function DragDropMatchDiagramAuthoring({
   onPlacingZoneId,
   resolveImageUrlForPreview,
   safeStr,
+  onDiagramImageFile,
+  diagramImageUploading,
 }: DragDropMatchDiagramAuthoringProps): React.ReactElement {
   const placementContainerRef = useRef<HTMLDivElement | null>(null);
+  const diagramFileInputRef = useRef<HTMLInputElement | null>(null);
   const zones = Array.isArray(blk.dropZones) ? [...blk.dropZones] : [];
   const pairsDd = Array.isArray(blk.pairs) ? blk.pairs : [];
   const placeIdxDd = placingZoneId ? zones.findIndex((z) => String(z.id) === placingZoneId) : -1;
@@ -49,13 +62,20 @@ export function DragDropMatchDiagramAuthoring({
     blk.imageUrl != null && String(blk.imageUrl).trim()
       ? resolveImageUrlForPreview(String(blk.imageUrl).trim())
       : "";
+  const imageFit = parseDragDropDiagramImageFit(blk.imageFit) ?? "contain";
+  const imagePosition = parseDragDropDiagramImagePosition(blk.imagePosition) ?? "center center";
+
+  const layoutMode = resolveDragDropMatchModeForUi(blk.matchMode, {
+    imageUrl: blk.imageUrl,
+    dropZones: blk.dropZones,
+  });
 
   return (
     <React.Fragment>
       <label style={{ display: "block" }}>
         <div style={{ fontWeight: 800, marginBottom: 6 }}>Activity layout</div>
         <select
-          value={parseDragDropMatchMode(blk.matchMode) === "diagram" ? "diagram" : "text"}
+          value={layoutMode}
           onChange={(e) => {
             const v = e.target.value;
             if (v === "diagram") {
@@ -83,24 +103,140 @@ export function DragDropMatchDiagramAuthoring({
           <option value="diagram">Diagram — image + drop zones</option>
         </select>
       </label>
-      {parseDragDropMatchMode(blk.matchMode) === "diagram" ? (
+      {layoutMode === "diagram" ? (
         <>
-          <label style={{ display: "block" }}>
-            <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
-              Diagram image URL (or upload elsewhere and paste URL)
-            </div>
-            <input
-              value={safeStr(blk.imageUrl, "")}
-              onChange={(e) => onPatch({ imageUrl: e.target.value })}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+            <label style={{ display: "block", flex: "1 1 220px", minWidth: 0 }}>
+              <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
+                Diagram image URL (or upload below)
+              </div>
+              <input
+                value={safeStr(blk.imageUrl, "")}
+                onChange={(e) => onPatch({ imageUrl: e.target.value })}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  boxSizing: "border-box",
+                }}
+                placeholder="https://…"
+              />
+            </label>
+            {onDiagramImageFile ? (
+              <>
+                <input
+                  ref={diagramFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void Promise.resolve(onDiagramImageFile(f));
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={Boolean(diagramImageUploading)}
+                  onClick={() => diagramFileInputRef.current?.click()}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #0ea5e9",
+                    background: diagramImageUploading ? "#e2e8f0" : "#e0f2fe",
+                    color: "#0369a1",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: diagramImageUploading ? "not-allowed" : "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  {diagramImageUploading ? "Uploading…" : "Upload image"}
+                </button>
+              </>
+            ) : null}
+          </div>
+          <p
+            style={{
+              margin: "10px 0 0",
+              padding: "10px 12px",
+              fontSize: 13,
+              lineHeight: 1.45,
+              color: "#475569",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+            }}
+          >
+            <strong style={{ color: "#334155" }}>Tip:</strong> If there is too much blank space around your
+            diagram, crop the image before upload. The activity does not auto-crop images because that can shift
+            hotspot coordinates.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
+            <label style={{ display: "block", flex: "1 1 180px", minWidth: 0 }}>
+              <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>Image fit</div>
+              <select
+                value={imageFit}
+                onChange={(e) =>
+                  onPatch({
+                    imageFit: e.target.value === "cover" ? "cover" : "contain",
+                  })
+                }
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  boxSizing: "border-box",
+                }}
+              >
+                <option value="contain">Contain (safe default)</option>
+                <option value="cover">Cover (crops edges)</option>
+              </select>
+            </label>
+            <label style={{ display: "block", flex: "1 1 180px", minWidth: 0 }}>
+              <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>Image vertical focus</div>
+              <select
+                value={imagePosition}
+                onChange={(e) => {
+                  const v = String(e.target.value);
+                  onPatch({
+                    imagePosition:
+                      v === "center top" || v === "center bottom" ? v : "center center",
+                  });
+                }}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  boxSizing: "border-box",
+                }}
+              >
+                <option value="center center">Center</option>
+                <option value="center top">Top</option>
+                <option value="center bottom">Bottom</option>
+              </select>
+            </label>
+          </div>
+          {imageFit === "cover" ? (
+            <p
               style={{
-                width: "100%",
-                padding: "8px 10px",
+                margin: "8px 0 0",
+                fontSize: 12,
+                color: "#9a3412",
+                fontWeight: 700,
+                background: "#fff7ed",
+                border: "1px solid #fdba74",
                 borderRadius: 8,
-                border: "1px solid #cbd5e1",
+                padding: "8px 10px",
               }}
-              placeholder="https://…"
-            />
-          </label>
+            >
+              Cover can crop edges and shift what appears under each marker. For best accuracy, upload a tightly cropped
+              image or re-check zone placement after switching fit.
+            </p>
+          ) : null}
           <div
             style={{
               marginTop: 8,
@@ -111,15 +247,7 @@ export function DragDropMatchDiagramAuthoring({
             }}
           >
             <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 6 }}>Student preview</div>
-            <div
-              style={{
-                borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                overflow: "hidden",
-                background: "#fff",
-                maxWidth: 960,
-              }}
-            >
+            <div className="drag-drop-match-diagram-authoring-preview-shell">
               <DragDropMatchBlock
                 resolveImageUrl={resolveImageUrlForPreview}
                 block={{
@@ -128,6 +256,8 @@ export function DragDropMatchDiagramAuthoring({
                   instructions: safeStr(blk.instructions, ""),
                   matchMode: "diagram",
                   imageUrl: String(blk.imageUrl ?? ""),
+                  imageFit,
+                  imagePosition,
                   pairs: pairsDd.map((p, pi) => ({
                     id: String(p?.id ?? "").trim() || `p${pi}`,
                     prompt: String(p?.prompt ?? ""),
@@ -175,19 +305,10 @@ export function DragDropMatchDiagramAuthoring({
                   </>
                 )}
               </p>
-              <div
-                style={{
-                  width: "100%",
-                  maxWidth: 960,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  border: "1px solid #e2e8f0",
-                  lineHeight: 0,
-                  boxShadow: "0 2px 12px rgba(15, 23, 42, 0.06)",
-                }}
-              >
+              <div className="drag-drop-match-diagram-authoring-placement-shell">
                 <div
                   ref={placementContainerRef}
+                  className="drag-drop-match-diagram-authoring-placement-inner"
                   role="presentation"
                   onClick={(e) => {
                     const el = placementContainerRef.current;
@@ -228,16 +349,15 @@ export function DragDropMatchDiagramAuthoring({
                       ],
                     });
                   }}
-                  style={{ position: "relative", cursor: "crosshair" }}
+                  style={{ cursor: "crosshair" }}
                 >
                   <img
                     src={diagSrc}
                     alt="Drag-drop diagram placement"
                     style={{
-                      width: "100%",
-                      height: "auto",
-                      display: "block",
                       pointerEvents: "none",
+                      objectFit: imageFit,
+                      objectPosition: imagePosition,
                     }}
                   />
                   {zones
@@ -450,3 +570,4 @@ export function DragDropMatchDiagramAuthoring({
     </React.Fragment>
   );
 }
+

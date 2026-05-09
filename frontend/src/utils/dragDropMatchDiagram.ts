@@ -4,6 +4,11 @@
  */
 
 export type DragDropMatchPersistedMode = "text" | "diagram";
+export type DragDropDiagramImageFit = "contain" | "cover";
+export type DragDropDiagramImagePosition =
+  | "center center"
+  | "center top"
+  | "center bottom";
 
 export type DragDropMatchDropZoneInput = {
   id: string;
@@ -26,14 +31,82 @@ export type PlacedDragDropDiagramZone = {
 };
 
 export function parseDragDropMatchMode(raw: unknown): DragDropMatchPersistedMode | undefined {
-  if (raw === "diagram") return "diagram";
-  if (raw === "text") return "text";
+  if (raw == null) return undefined;
+  const s = String(raw).trim().toLowerCase();
+  if (s === "diagram") return "diagram";
+  if (s === "text") return "text";
   return undefined;
 }
 
-/** Explicit diagram mode only — never inferred from stray fields (avoids accidental layout change). */
-export function isDragDropDiagramMode(matchMode: unknown): boolean {
-  return parseDragDropMatchMode(matchMode) === "diagram";
+export function parseDragDropDiagramImageFit(raw: unknown): DragDropDiagramImageFit | undefined {
+  if (raw == null) return undefined;
+  const s = String(raw).trim().toLowerCase();
+  if (s === "contain") return "contain";
+  if (s === "cover") return "cover";
+  return undefined;
+}
+
+export function parseDragDropDiagramImagePosition(
+  raw: unknown
+): DragDropDiagramImagePosition | undefined {
+  if (raw == null) return undefined;
+  const s = String(raw).trim().toLowerCase().replace(/\s+/g, " ");
+  if (s === "center center" || s === "center top" || s === "center bottom") {
+    return s;
+  }
+  if (s === "center") return "center center";
+  if (s === "top") return "center top";
+  if (s === "bottom") return "center bottom";
+  return undefined;
+}
+
+/** Context for inferring diagram mode when `matchMode` was omitted (e.g. legacy saves). */
+export type DragDropMatchModePersistContext = {
+  imageUrl?: unknown;
+  dropZones?: unknown;
+};
+
+function hasDiagramInferenceSignals(ctx: DragDropMatchModePersistContext): boolean {
+  const img = typeof ctx.imageUrl === "string" && ctx.imageUrl.trim().length > 0;
+  const dz = Array.isArray(ctx.dropZones) ? ctx.dropZones : [];
+  const hasZone =
+    dz.length > 0 &&
+    dz.some((z) => {
+      if (!z || typeof z !== "object") return false;
+      const o = z as Record<string, unknown>;
+      return String(o.correctPairId ?? "").trim().length > 0;
+    });
+  return img && hasZone;
+}
+
+/**
+ * Resolved mode for save/load: explicit `text` / `diagram` wins; otherwise infer `diagram` only when
+ * there is a non-empty image URL and at least one drop zone with a `correctPairId`.
+ */
+export function resolveDragDropMatchModeForPersist(
+  rawMode: unknown,
+  ctx?: DragDropMatchModePersistContext
+): DragDropMatchPersistedMode | undefined {
+  const direct = parseDragDropMatchMode(rawMode);
+  if (direct === "text") return "text";
+  if (direct === "diagram") return "diagram";
+  if (ctx && hasDiagramInferenceSignals(ctx)) return "diagram";
+  return undefined;
+}
+
+/** Authoring UI: coerce unknown persisted values to a stable radio value for selects and panels. */
+export function resolveDragDropMatchModeForUi(
+  raw: unknown,
+  ctx?: DragDropMatchModePersistContext
+): "text" | "diagram" {
+  return resolveDragDropMatchModeForPersist(raw, ctx) === "diagram" ? "diagram" : "text";
+}
+
+export function isDragDropDiagramMode(
+  matchMode: unknown,
+  ctx?: DragDropMatchModePersistContext
+): boolean {
+  return resolveDragDropMatchModeForPersist(matchMode, ctx) === "diagram";
 }
 
 function clampPct(n: number): number {

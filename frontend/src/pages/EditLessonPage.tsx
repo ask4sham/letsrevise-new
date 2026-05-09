@@ -93,7 +93,7 @@ import {
   resolveInteractiveDiagramHotspotExplanation,
   type NormalizedInteractiveDiagramHotspot,
 } from "../utils/interactiveDiagramHotspots";
-import { parseDragDropMatchMode, sanitizeDiagramDropZonesForAuthoring } from "../utils/dragDropMatchDiagram";
+import { resolveDragDropMatchModeForPersist, sanitizeDiagramDropZonesForAuthoring } from "../utils/dragDropMatchDiagram";
 import { parseGeneratorMcqForSelfCheckImport } from "../utils/parseGeneratorMcqForSelfCheckImport";
 
 /** Topic bank URLs with filters for AI lesson drafts (draft-only review). */
@@ -1401,12 +1401,18 @@ const EditLessonPage: React.FC = () => {
                     answer: safeStr(row?.answer, ""),
                     explanation: row?.explanation != null ? String(row.explanation) : "",
                   }));
-                  const parsedMode = parseDragDropMatchMode((b as { matchMode?: unknown }).matchMode);
                   const pairIdsForZones = pairs.map((r: { id: string }) => r.id);
                   const rawZones = Array.isArray((b as { dropZones?: unknown }).dropZones)
                     ? (b as { dropZones: unknown[] }).dropZones
                     : [];
                   const dropZonesSan = sanitizeDiagramDropZonesForAuthoring(rawZones, pairIdsForZones);
+                  const resolvedHydrate = resolveDragDropMatchModeForPersist(
+                    (b as { matchMode?: unknown }).matchMode,
+                    {
+                      imageUrl: (b as { imageUrl?: unknown }).imageUrl,
+                      dropZones: rawZones,
+                    }
+                  );
                   const outDdm: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1415,12 +1421,12 @@ const EditLessonPage: React.FC = () => {
                     instructions: safeStr(b.instructions, ""),
                     pairs,
                   };
-                  if (parsedMode === "diagram") {
+                  if (resolvedHydrate === "diagram") {
                     outDdm.matchMode = "diagram";
                     const img = (b as { imageUrl?: unknown }).imageUrl;
                     outDdm.imageUrl = typeof img === "string" ? img.trim() : "";
                     outDdm.dropZones = dropZonesSan;
-                  } else if (parsedMode === "text") {
+                  } else if (resolvedHydrate === "text") {
                     outDdm.matchMode = "text";
                   }
                   if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
@@ -1445,10 +1451,13 @@ const EditLessonPage: React.FC = () => {
                     answer: safeStr(row?.answer, ""),
                     explanation: row?.explanation != null ? String(row.explanation) : "",
                   }));
-                  const parsedModeRepair = parseDragDropMatchMode((b as any).matchMode);
                   const pairIdsRepair = pairs.map((r: { id: string }) => r.id);
                   const rawZonesRepair = Array.isArray((b as any).dropZones) ? (b as any).dropZones : [];
                   const dropZonesRepair = sanitizeDiagramDropZonesForAuthoring(rawZonesRepair, pairIdsRepair);
+                  const resolvedRepair = resolveDragDropMatchModeForPersist((b as any).matchMode, {
+                    imageUrl: (b as any).imageUrl,
+                    dropZones: rawZonesRepair,
+                  });
                   const repaired: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1457,12 +1466,12 @@ const EditLessonPage: React.FC = () => {
                     instructions: safeStr((b as any).instructions, ""),
                     pairs,
                   };
-                  if (parsedModeRepair === "diagram") {
+                  if (resolvedRepair === "diagram") {
                     repaired.matchMode = "diagram";
                     const imgR = (b as any).imageUrl;
                     repaired.imageUrl = typeof imgR === "string" ? imgR.trim() : "";
                     repaired.dropZones = dropZonesRepair;
-                  } else if (parsedModeRepair === "text") {
+                  } else if (resolvedRepair === "text") {
                     repaired.matchMode = "text";
                   }
                   if (typeof b?.role === "string" && b.role.trim()) repaired.role = b.role.trim();
@@ -3007,6 +3016,54 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
+  /** dragDropMatch diagram mode — same pipeline as interactive diagram; distinct folder for assets */
+  const uploadImageForDragDropMatch = async (
+    file: File,
+    pageId: string,
+    blockIndex: number,
+    onUrl: (url: string) => void
+  ) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image (png/jpg/gif/webp).");
+      return;
+    }
+    if (!token) {
+      alert("You must be signed in to upload media.");
+      return;
+    }
+    const key = `${pageId}:${blockIndex}:ddm`;
+    try {
+      setUploadingKey(key);
+      setUploadMsg("");
+      const form = new FormData();
+      form.append("file", file);
+      const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}_dragdropmatch`;
+      const endpoint = `uploads/image?folder=${encodeURIComponent(folder)}`;
+      form.append("folder", folder);
+      const res = await api.post(endpoint, form);
+      const url = res.data?.url as string | undefined;
+      if (!url) {
+        alert("Upload succeeded but no URL returned.");
+        return;
+      }
+      onUrl(toAbsoluteAssetUrl(url));
+      setUploadMsg("✅ Diagram image uploaded.");
+      setTimeout(() => setUploadMsg(""), 2000);
+    } catch (e: any) {
+      console.error(e);
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
+      const msg = typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
+    } finally {
+      setUploadingKey("");
+    }
+  };
+
   const triggerBlockUpload = (pageId: string, blockIndex: number) => {
     const key = `${pageId}:${blockIndex}`;
     const input = fileInputRef.current[key];
@@ -3036,7 +3093,6 @@ const EditLessonPage: React.FC = () => {
                     : undefined,
               }))
               .filter((row: { id: string }) => String(row.id).trim());
-            const parsedModePersist = parseDragDropMatchMode(b.matchMode);
             const zonePairIds = pairs.map((row: { id: string }) => row.id);
             const rawZonesPersist = Array.isArray((b as { dropZones?: unknown }).dropZones)
               ? (b as { dropZones: unknown[] }).dropZones
@@ -3045,6 +3101,10 @@ const EditLessonPage: React.FC = () => {
               0,
               40
             );
+            const resolvedPersist = resolveDragDropMatchModeForPersist(b.matchMode, {
+              imageUrl: b.imageUrl,
+              dropZones: rawZonesPersist,
+            });
             const ddmOut: Record<string, unknown> = {
               type: "dragDropMatch",
               title: typeof b.title === "string" ? b.title.trim() : "",
@@ -3052,12 +3112,12 @@ const EditLessonPage: React.FC = () => {
               instructions: b.instructions != null ? String(b.instructions).trim() : "",
               pairs,
             };
-            if (parsedModePersist === "diagram") {
+            if (resolvedPersist === "diagram") {
               ddmOut.matchMode = "diagram";
               const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
               if (imgP) ddmOut.imageUrl = imgP;
               ddmOut.dropZones = dropZonesPersist;
-            } else if (parsedModePersist === "text") {
+            } else if (resolvedPersist === "text") {
               ddmOut.matchMode = "text";
             }
             if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
@@ -7828,8 +7888,13 @@ const EditLessonPage: React.FC = () => {
                                 }
                                 resolveImageUrlForPreview={(u) => makeAbsoluteAssetUrl(u) ?? u}
                                 safeStr={safeStr}
+                                onDiagramImageFile={(file) =>
+                                  uploadImageForDragDropMatch(file, currentPage!.pageId, idx, (url) =>
+                                    updateBlock(currentPage!.pageId, idx, { imageUrl: url })
+                                  )
+                                }
+                                diagramImageUploading={uploadingKey === `${currentPage!.pageId}:${idx}:ddm`}
                               />
-                                : null}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
                                   AI topic or prompt (optional)

@@ -65,6 +65,9 @@ export type StudentLessonPageBlock = {
   pairs?: DragDropMatchPairPersisted[];
   /** Optional layout variant for dragDropMatch; omit ⇒ text columns (legacy). */
   matchMode?: "text" | "diagram";
+  /** Diagram mode image rendering controls. */
+  imageFit?: "contain" | "cover";
+  imagePosition?: "center center" | "center top" | "center bottom";
   dropZones?: DragDropMatchDiagramZonePersisted[];
   prompt?: string;
   questionType?: string;

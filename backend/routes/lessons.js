@@ -564,6 +564,74 @@ function sanitisePageInput(p, isUpdate = false) {
               };
             })
             .filter((row) => row.id);
+          const pairIdSet = new Set(pairs.map((r) => r.id));
+          const rawMm = b?.matchMode;
+          const mmNorm =
+            rawMm == null
+              ? undefined
+              : String(rawMm).trim().toLowerCase() === "diagram"
+                ? "diagram"
+                : String(rawMm).trim().toLowerCase() === "text"
+                  ? "text"
+                  : undefined;
+          const rawZones = Array.isArray(b?.dropZones) ? b.dropZones : [];
+          const dropZones = rawZones
+            .slice(0, 40)
+            .map((z, zi) => {
+              if (!z || typeof z !== "object") return null;
+              const id =
+                typeof z.id === "string" && z.id.trim()
+                  ? z.id.trim().slice(0, 64)
+                  : `dz_${zi + 1}`;
+              const correctPairId =
+                typeof z.correctPairId === "string" && z.correctPairId.trim()
+                  ? z.correctPairId.trim().slice(0, 80)
+                  : "";
+              if (!correctPairId || !pairIdSet.has(correctPairId)) return null;
+              const zoneOut = { id, correctPairId };
+              const nx = z.x;
+              const ny = z.y;
+              if (nx != null && nx !== "" && Number.isFinite(Number(nx))) {
+                zoneOut.x = Math.max(0, Math.min(100, Number(nx)));
+              }
+              if (ny != null && ny !== "" && Number.isFinite(Number(ny))) {
+                zoneOut.y = Math.max(0, Math.min(100, Number(ny)));
+              }
+              const expl =
+                typeof z.explanation === "string" && z.explanation.trim()
+                  ? z.explanation.trim().slice(0, 8000)
+                  : undefined;
+              if (expl) zoneOut.explanation = expl;
+              return zoneOut;
+            })
+            .filter(Boolean);
+          const fitNorm =
+            typeof b?.imageFit === "string" && b.imageFit.trim()
+              ? String(b.imageFit).trim().toLowerCase()
+              : "";
+          const imageFit = fitNorm === "cover" ? "cover" : fitNorm === "contain" ? "contain" : undefined;
+          const posNorm =
+            typeof b?.imagePosition === "string" && b.imagePosition.trim()
+              ? String(b.imagePosition).trim().toLowerCase().replace(/\s+/g, " ")
+              : "";
+          const imagePosition =
+            posNorm === "center center" || posNorm === "center top" || posNorm === "center bottom"
+              ? posNorm
+              : posNorm === "center"
+                ? "center center"
+                : posNorm === "top"
+                  ? "center top"
+                  : posNorm === "bottom"
+                    ? "center bottom"
+                    : undefined;
+          let effectiveMm = mmNorm;
+          if (effectiveMm !== "diagram" && effectiveMm !== "text") {
+            const inferredImg =
+              typeof b?.imageUrl === "string" && String(b.imageUrl).trim().length > 0;
+            if (inferredImg && dropZones.length > 0) {
+              effectiveMm = "diagram";
+            }
+          }
           const ddmOut = {
             type: "dragDropMatch",
             title,
@@ -572,6 +640,19 @@ function sanitisePageInput(p, isUpdate = false) {
             pairs,
           };
           if (typeof b?.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
+          if (effectiveMm === "diagram") {
+            ddmOut.matchMode = "diagram";
+            const imageUrl =
+              typeof b?.imageUrl === "string" && b.imageUrl.trim()
+                ? b.imageUrl.trim().slice(0, 8000)
+                : "";
+            if (imageUrl) ddmOut.imageUrl = imageUrl;
+            if (imageFit) ddmOut.imageFit = imageFit;
+            if (imagePosition) ddmOut.imagePosition = imagePosition;
+            ddmOut.dropZones = dropZones;
+          } else if (effectiveMm === "text") {
+            ddmOut.matchMode = "text";
+          }
           return ddmOut;
         }
         const out = {
