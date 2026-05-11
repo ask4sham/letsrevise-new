@@ -47,6 +47,7 @@ import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/asse
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
+import { coerceDiagramZonePct } from "../utils/dragDropMatchDiagram";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
@@ -4006,15 +4007,19 @@ const LessonViewPage: React.FC = () => {
                                 })),
                                 ...(Array.isArray(b.dropZones)
                                   ? {
-                                      dropZones: b.dropZones.map((z, i) => ({
-                                        id: String(z?.id ?? "").trim() || `dz${i}`,
-                                        ...(typeof z?.x === "number" ? { x: z.x } : {}),
-                                        ...(typeof z?.y === "number" ? { y: z.y } : {}),
-                                        correctPairId: String(z?.correctPairId ?? "").trim(),
-                                        ...(z?.explanation != null && String(z.explanation).trim()
-                                          ? { explanation: String(z.explanation).trim() }
-                                          : {}),
-                                      })),
+                                      dropZones: b.dropZones.map((z, i) => {
+                                        const x = coerceDiagramZonePct(z?.x);
+                                        const y = coerceDiagramZonePct(z?.y);
+                                        return {
+                                          id: String(z?.id ?? "").trim() || `dz${i}`,
+                                          ...(x !== undefined ? { x } : {}),
+                                          ...(y !== undefined ? { y } : {}),
+                                          correctPairId: String(z?.correctPairId ?? "").trim(),
+                                          ...(z?.explanation != null && String(z.explanation).trim()
+                                            ? { explanation: String(z.explanation).trim() }
+                                            : {}),
+                                        };
+                                      }),
                                     }
                                   : {}),
                               }}

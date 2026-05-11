@@ -70,6 +70,8 @@ function parseOptionsAndAnswer(
       if (/^Question:\s*$/i.test(tr) || /^Question:/i.test(tr)) break;
       if (OPTION_LINE.test(t)) break;
       if (/^⚡\s*CHECKPOINT/i.test(tr)) break;
+      /** Stop before Explanation: … so generator CHECKPOINT blobs keep answer ≠ explanation body. */
+      if (/^Explanation:\s*/i.test(tr)) break;
       aRest.push(t);
       i++;
     }

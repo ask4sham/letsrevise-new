@@ -34,7 +34,11 @@ import {
 } from "../utils/lessonEditorPaste";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
-import { parseDragDropMatchMode, sanitizeDiagramDropZonesForAuthoring } from "../utils/dragDropMatchDiagram";
+import {
+  coerceDiagramZonePct,
+  parseDragDropMatchMode,
+  sanitizeDiagramDropZonesForAuthoring,
+} from "../utils/dragDropMatchDiagram";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { DragDropMatchDiagramAuthoring } from "../components/lesson/DragDropMatchDiagramAuthoring";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
@@ -3034,15 +3038,19 @@ const CreateLessonPage: React.FC = () => {
                                           })),
                                           ...(Array.isArray(b.dropZones)
                                             ? {
-                                                dropZones: b.dropZones.map((z, zi) => ({
-                                                  id: String(z?.id ?? "").trim() || `dz${zi}`,
-                                                  ...(typeof z?.x === "number" ? { x: z.x } : {}),
-                                                  ...(typeof z?.y === "number" ? { y: z.y } : {}),
-                                                  correctPairId: String(z?.correctPairId ?? "").trim(),
-                                                  ...(z?.explanation != null && String(z.explanation).trim()
-                                                    ? { explanation: String(z.explanation).trim() }
-                                                    : {}),
-                                                })),
+                                                dropZones: b.dropZones.map((z, zi) => {
+                                                  const x = coerceDiagramZonePct(z?.x);
+                                                  const y = coerceDiagramZonePct(z?.y);
+                                                  return {
+                                                    id: String(z?.id ?? "").trim() || `dz${zi}`,
+                                                    ...(x !== undefined ? { x } : {}),
+                                                    ...(y !== undefined ? { y } : {}),
+                                                    correctPairId: String(z?.correctPairId ?? "").trim(),
+                                                    ...(z?.explanation != null && String(z.explanation).trim()
+                                                      ? { explanation: String(z.explanation).trim() }
+                                                      : {}),
+                                                  };
+                                                }),
                                               }
                                             : {}),
                                         }}
@@ -3484,15 +3492,19 @@ const CreateLessonPage: React.FC = () => {
                                     })),
                                     ...(Array.isArray(ddm.dropZones)
                                       ? {
-                                          dropZones: ddm.dropZones.map((z, zi) => ({
-                                            id: String(z?.id ?? "").trim() || `dz${zi}`,
-                                            ...(typeof z?.x === "number" ? { x: z.x } : {}),
-                                            ...(typeof z?.y === "number" ? { y: z.y } : {}),
-                                            correctPairId: String(z?.correctPairId ?? "").trim(),
-                                            ...(z?.explanation != null && String(z.explanation).trim()
-                                              ? { explanation: String(z.explanation).trim() }
-                                              : {}),
-                                          })),
+                                          dropZones: ddm.dropZones.map((z, zi) => {
+                                            const x = coerceDiagramZonePct(z?.x);
+                                            const y = coerceDiagramZonePct(z?.y);
+                                            return {
+                                              id: String(z?.id ?? "").trim() || `dz${zi}`,
+                                              ...(x !== undefined ? { x } : {}),
+                                              ...(y !== undefined ? { y } : {}),
+                                              correctPairId: String(z?.correctPairId ?? "").trim(),
+                                              ...(z?.explanation != null && String(z.explanation).trim()
+                                                ? { explanation: String(z.explanation).trim() }
+                                                : {}),
+                                            };
+                                          }),
                                         }
                                       : {}),
                                   }}

@@ -3,8 +3,10 @@ import { LessonAutoTextarea } from "./LessonAutoTextarea";
 import { DragDropMatchBlock } from "./DragDropMatchBlock";
 import "./dragDropMatchBlock.css";
 import {
+  logDragDropMatchZoneBindings,
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
+  repairDiagramDropZonesForLessonEditor,
   resolveDragDropMatchModeForUi,
 } from "../../utils/dragDropMatchDiagram";
 
@@ -39,6 +41,17 @@ export type DragDropMatchDiagramAuthoringProps = {
   diagramImageUploading?: boolean;
 };
 
+/** Stable row id for diagram zones in the editor (avoids duplicate React keys when `id` is ""). */
+function zoneAuthoringRowId(zone: { id?: string }, zi: number): string {
+  return zone.id != null && String(zone.id).trim() ? String(zone.id).trim() : `idx_${zi}`;
+}
+
+/** Marker letter on diagram / summary (same convention as DragDropMatchBlock). */
+function diagramZoneLetter(zi: number): string {
+  if (zi >= 0 && zi < 26) return String.fromCharCode(65 + zi);
+  return String(zi + 1);
+}
+
 /**
  * Teacher authoring for dragDropMatch diagram mode — layout toggle, image URL, placement canvas, zone rows.
  */
@@ -57,7 +70,9 @@ export function DragDropMatchDiagramAuthoring({
   const diagramFileInputRef = useRef<HTMLInputElement | null>(null);
   const zones = Array.isArray(blk.dropZones) ? [...blk.dropZones] : [];
   const pairsDd = Array.isArray(blk.pairs) ? blk.pairs : [];
-  const placeIdxDd = placingZoneId ? zones.findIndex((z) => String(z.id) === placingZoneId) : -1;
+  const placeIdxDd = placingZoneId
+    ? zones.findIndex((z, i) => zoneAuthoringRowId(z, i) === placingZoneId)
+    : -1;
   const diagSrc =
     blk.imageUrl != null && String(blk.imageUrl).trim()
       ? resolveImageUrlForPreview(String(blk.imageUrl).trim())
@@ -414,6 +429,108 @@ export function DragDropMatchDiagramAuthoring({
           >
             Drop zone list
           </div>
+          {layoutMode === "diagram" && pairsDd.length > 0 ? (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={zones.length === 0}
+                onClick={() => {
+                  if (!pairsDd.length || zones.length === 0) return;
+                  const align = window.confirm(
+                    "Also remap by row order?\n\n• OK — Zone A uses the 1st answer pair, B the 2nd, C the 3rd, D the 4th (when your pairs are ordered e.g. Phagocyte → Antitoxins).\n• Cancel — Regenerate zone IDs and fix coordinates only; keep each dropdown selection where that pair id still exists (broken refs use the 1st pair)."
+                  );
+                  const fixed = repairDiagramDropZonesForLessonEditor(
+                    blk.dropZones,
+                    pairsDd,
+                    newId,
+                    { alignZoneIndexToPairIndex: align }
+                  );
+                  onPatch({ dropZones: fixed });
+                  logDragDropMatchZoneBindings("after Repair diagram zones", fixed, pairsDd);
+                  if (align) onPlacingZoneId(null);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "2px solid #0ea5e9",
+                  background: "#e0f2fe",
+                  color: "#0c4a6e",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: zones.length === 0 ? "not-allowed" : "pointer",
+                  opacity: zones.length === 0 ? 0.55 : 1,
+                }}
+              >
+                Repair diagram zones
+              </button>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: "#475569",
+                }}
+              >
+                Fixes duplicate or corrupted zone ids and placement data while keeping hotspot positions. Choose OK in
+                the dialog to map A→1st pair, B→2nd, … when your four answer rows match zone letters in order. Then
+                save and reload.
+              </p>
+            </div>
+          ) : null}
+          {typeof window !== "undefined" &&
+          window.localStorage?.getItem("DEBUG_DDM") === "1" &&
+          layoutMode === "diagram" &&
+          zones.length > 0 &&
+          pairsDd.length > 0 ? (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                borderRadius: 8,
+                border: "2px dashed #ea580c",
+                background: "#fff7ed",
+                fontSize: 12,
+                color: "#0f172a",
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>DDM editor debug (DEBUG_DDM)</div>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 11,
+                }}
+              >
+                <thead>
+                  <tr style={{ textAlign: "left", borderBottom: "1px solid #fdba74" }}>
+                    <th style={{ padding: "4px 8px 4px 0" }}>Letter</th>
+                    <th style={{ padding: "4px 8px 4px 0" }}>zone.id</th>
+                    <th style={{ padding: "4px 8px 4px 0" }}>correctPairId</th>
+                    <th style={{ padding: "4px 0" }}>expected answer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {zones.map((z, zi) => {
+                    const cp = String(z?.correctPairId ?? "").trim();
+                    const ans =
+                      pairsDd.find((p) => String(p?.id ?? "").trim() === cp)?.answer ?? "(no match)";
+                    return (
+                      <tr key={`ddm-ed-${zoneAuthoringRowId(z, zi)}`} style={{ borderBottom: "1px solid #fed7aa" }}>
+                        <td style={{ padding: "4px 8px 4px 0", fontWeight: 700 }}>{diagramZoneLetter(zi)}</td>
+                        <td style={{ padding: "4px 8px 4px 0", wordBreak: "break-all" }}>
+                          {String(z?.id ?? "").trim() || "—"}
+                        </td>
+                        <td style={{ padding: "4px 8px 4px 0", wordBreak: "break-all" }}>{cp || "—"}</td>
+                        <td style={{ padding: "4px 0" }}>{safeStr(ans, "")}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
           {zones.length === 0 ? (
             <p style={{ margin: "10px 0 0", fontSize: 13, color: "#64748b" }}>
               No zones yet. With an image set, click the diagram to add a zone and choose the correct answer card for
@@ -421,7 +538,7 @@ export function DragDropMatchDiagramAuthoring({
             </p>
           ) : null}
           {zones.map((zone, zi) => {
-            const hid = String(zone.id ?? zi);
+            const hid = zoneAuthoringRowId(zone, zi);
             const placed =
               typeof zone.x === "number" &&
               Number.isFinite(zone.x) &&
@@ -458,9 +575,14 @@ export function DragDropMatchDiagramAuthoring({
                         : String(pairsDd[0]?.id ?? "")
                     }
                     onChange={(e) => {
-                      const next = [...zones];
-                      if (next[zi]) next[zi] = { ...next[zi], correctPairId: e.target.value };
+                      const val = e.target.value;
+                      const targetRow = zoneAuthoringRowId(zone, zi);
+                      const next = zones.map((z, i) => {
+                        const match = zoneAuthoringRowId(z, i) === targetRow;
+                        return match ? { ...z, correctPairId: val } : z;
+                      });
                       onPatch({ dropZones: next });
+                      logDragDropMatchZoneBindings("authoring after correct-pair dropdown", next, pairsDd);
                     }}
                     style={{
                       width: "100%",
@@ -484,8 +606,11 @@ export function DragDropMatchDiagramAuthoring({
                     editorVariant="plain"
                     value={safeStr(zone.explanation, "")}
                     onChange={(v) => {
-                      const next = [...zones];
-                      if (next[zi]) next[zi] = { ...next[zi], explanation: v };
+                      const targetRow = zoneAuthoringRowId(zone, zi);
+                      const next = zones.map((z, i) => {
+                        const match = zoneAuthoringRowId(z, i) === targetRow;
+                        return match ? { ...z, explanation: v } : z;
+                      });
                       onPatch({ dropZones: next });
                     }}
                     placeholder="Override or add to the pair explanation…"

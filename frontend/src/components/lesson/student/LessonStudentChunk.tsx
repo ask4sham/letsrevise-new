@@ -1,5 +1,5 @@
 import React from "react";
-import type { IndexedLessonBlock } from "./chunkLessonSegments";
+import { stableStudentBlockReactKey, type IndexedLessonBlock } from "./chunkLessonSegments";
 import { classifyChunkTeachingLayout } from "./chunkTeachingLayout";
 
 type Props<T extends { type?: string }> = {
@@ -26,7 +26,9 @@ export function LessonStudentChunk<T extends { type?: string }>({
         >
           <div className="lesson-student-section-chunk__text-column">
             {layout.blocks.map((item) => (
-              <React.Fragment key={item.idx}>{renderBlockRow(item)}</React.Fragment>
+              <React.Fragment key={stableStudentBlockReactKey(item.block, item.idx)}>
+                {renderBlockRow(item)}
+              </React.Fragment>
             ))}
           </div>
         </div>
@@ -42,7 +44,9 @@ export function LessonStudentChunk<T extends { type?: string }>({
           data-ss2-image-only="1"
         >
           {layout.blocks.map((item) => (
-            <React.Fragment key={item.idx}>{renderBlockRow(item)}</React.Fragment>
+            <React.Fragment key={stableStudentBlockReactKey(item.block, item.idx)}>
+              {renderBlockRow(item)}
+            </React.Fragment>
           ))}
         </section>
       );
@@ -55,7 +59,9 @@ export function LessonStudentChunk<T extends { type?: string }>({
           data-ss2-layout="stack"
         >
           {layout.blocks.map((item) => (
-            <React.Fragment key={item.idx}>{renderBlockRow(item)}</React.Fragment>
+            <React.Fragment key={stableStudentBlockReactKey(item.block, item.idx)}>
+              {renderBlockRow(item)}
+            </React.Fragment>
           ))}
         </div>
       );
@@ -71,7 +77,9 @@ export function LessonStudentChunk<T extends { type?: string }>({
         >
           <div className="lesson-student-section-chunk__content">
             {before.map((item) => (
-              <React.Fragment key={item.idx}>{renderBlockRow(item)}</React.Fragment>
+              <React.Fragment key={stableStudentBlockReactKey(item.block, item.idx)}>
+                {renderBlockRow(item)}
+              </React.Fragment>
             ))}
           </div>
           <aside className="lesson-student-section-chunk__media" aria-label="Diagram">
@@ -80,7 +88,9 @@ export function LessonStudentChunk<T extends { type?: string }>({
           {after.length > 0 ? (
             <div className="lesson-student-section-chunk__tail">
               {after.map((item) => (
-                <React.Fragment key={item.idx}>{renderBlockRow(item)}</React.Fragment>
+                <React.Fragment key={stableStudentBlockReactKey(item.block, item.idx)}>
+                  {renderBlockRow(item)}
+                </React.Fragment>
               ))}
             </div>
           ) : null}

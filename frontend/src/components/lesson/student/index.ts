@@ -5,6 +5,7 @@ export { LessonStudentChunk } from "./LessonStudentChunk";
 export {
   chunkBlocksForTeachingLayout,
   chunkBlocksBeforeEachKeyIdea,
+  stableStudentBlockReactKey,
 } from "./chunkLessonSegments";
 export type { IndexedLessonBlock } from "./chunkLessonSegments";
 export {

@@ -93,7 +93,12 @@ import {
   resolveInteractiveDiagramHotspotExplanation,
   type NormalizedInteractiveDiagramHotspot,
 } from "../utils/interactiveDiagramHotspots";
-import { resolveDragDropMatchModeForPersist, sanitizeDiagramDropZonesForAuthoring } from "../utils/dragDropMatchDiagram";
+import {
+  coerceDiagramZonePct,
+  logDragDropMatchZoneBindings,
+  resolveDragDropMatchModeForPersist,
+  sanitizeDiagramDropZonesForAuthoring,
+} from "../utils/dragDropMatchDiagram";
 import { parseGeneratorMcqForSelfCheckImport } from "../utils/parseGeneratorMcqForSelfCheckImport";
 
 /** Topic bank URLs with filters for AI lesson drafts (draft-only review). */
@@ -3117,6 +3122,7 @@ const EditLessonPage: React.FC = () => {
               const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
               if (imgP) ddmOut.imageUrl = imgP;
               ddmOut.dropZones = dropZonesPersist;
+              logDragDropMatchZoneBindings("persist payload (diagram)", dropZonesPersist, pairs as { id: string; answer?: string }[]);
             } else if (resolvedPersist === "text") {
               ddmOut.matchMode = "text";
             }
@@ -8831,15 +8837,19 @@ const EditLessonPage: React.FC = () => {
                               })),
                               ...(Array.isArray((ddm as LessonPageBlock).dropZones)
                                 ? {
-                                    dropZones: (ddm as LessonPageBlock).dropZones!.map((z, i) => ({
-                                      id: String(z?.id ?? "").trim() || `dz${i}`,
-                                      ...(typeof z?.x === "number" ? { x: z.x } : {}),
-                                      ...(typeof z?.y === "number" ? { y: z.y } : {}),
-                                      correctPairId: String(z?.correctPairId ?? "").trim(),
-                                      ...(z?.explanation != null && String(z.explanation).trim()
-                                        ? { explanation: String(z.explanation).trim() }
-                                        : {}),
-                                    })),
+                                    dropZones: (ddm as LessonPageBlock).dropZones!.map((z, i) => {
+                                      const x = coerceDiagramZonePct(z?.x);
+                                      const y = coerceDiagramZonePct(z?.y);
+                                      return {
+                                        id: String(z?.id ?? "").trim() || `dz${i}`,
+                                        ...(x !== undefined ? { x } : {}),
+                                        ...(y !== undefined ? { y } : {}),
+                                        correctPairId: String(z?.correctPairId ?? "").trim(),
+                                        ...(z?.explanation != null && String(z.explanation).trim()
+                                          ? { explanation: String(z.explanation).trim() }
+                                          : {}),
+                                      };
+                                    }),
                                   }
                                 : {}),
                             }}

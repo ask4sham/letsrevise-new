@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import {
   isDragDropDiagramMode,
@@ -16,6 +16,20 @@ const DND_MIME = "application/x-letsrevise-dnd-pair";
 
 function readDragPairId(e: React.DragEvent): string {
   return String(e.dataTransfer.getData(DND_MIME) || e.dataTransfer.getData("text/plain") || "").trim();
+}
+
+/** Canonical pair lookup by id (first match). Prefer over Map — duplicate pair ids would make Map overwrite entries. */
+function findPairById(
+  pairs: DragDropMatchPair[],
+  pairId: string | null | undefined
+): DragDropMatchPair | undefined {
+  const id = String(pairId ?? "").trim();
+  if (!id) return undefined;
+  return pairs.find((p) => p.id === id);
+}
+
+function pairIdExists(pairs: DragDropMatchPair[], pairId: string): boolean {
+  return pairs.some((p) => p.id === pairId);
 }
 
 /** Letter / number shown on diagram markers only (not the answer text). */
@@ -155,12 +169,6 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     return m;
   }, [diagramMode, zones, placements]);
 
-  const byId = useMemo(() => {
-    const m = new Map<string, DragDropMatchPair>();
-    for (const p of pairs) m.set(p.id, p);
-    return m;
-  }, [pairs]);
-
   const place = useCallback((targetId: string, sourceId: string) => {
     const sid = String(sourceId ?? "").trim();
     if (!sid) return;
@@ -241,6 +249,36 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     setChecked(true);
   };
 
+  /** Runs when Check is used — logs runtime grading inputs before paint (set localStorage.DEBUG_DDM = "1"). */
+  useLayoutEffect(() => {
+    if (!diagramMode || !checked) return;
+    if (typeof window === "undefined" || window.localStorage.getItem("DEBUG_DDM") !== "1") return;
+
+    const rows = zones.map((zone, zi) => {
+      const placedPairId = placements[zone.id] ?? null;
+      const corr = zone.correctPairId;
+      const expectedPair = findPairById(pairs, corr);
+      const placedPair = findPairById(pairs, placedPairId);
+      const isCorrect = Boolean(corr && placedPairId && placedPairId === corr);
+      return {
+        letter: diagramZoneMarkerLabel(zi),
+        zoneId: zone.id,
+        correctPairId: corr,
+        placedPairId,
+        expectedAnswer: expectedPair?.answer,
+        placedAnswer: placedPair?.answer,
+        isCorrect,
+      };
+    });
+
+    console.log("[DragDropMatchBlock] raw block.dropZones (from props)", block.dropZones);
+    console.log("[DragDropMatchBlock] sanitized zones (runtime)", zones);
+    console.log("[DragDropMatchBlock] pairs (runtime order)", pairs);
+    console.log("[DragDropMatchBlock] placements", placements);
+    console.log("[DragDropMatchBlock] per-zone grading — feedback uses pairs.find(p => p.id === zone.correctPairId)");
+    console.table(rows);
+  }, [diagramMode, checked, zones, pairs, placements, block.dropZones]);
+
   const onReset = () => {
     setPlacements({});
     setSelectedSourceId(null);
@@ -287,10 +325,10 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_DDM") === "1") {
         console.log("[DragDropMatch diagram] drop on zone button", { zoneId: targetId, sourceId });
       }
-      if (!sourceId || !byId.get(sourceId)) return;
+      if (!sourceId || !pairIdExists(pairs, sourceId)) return;
       place(targetId, sourceId);
     },
-    [byId, place]
+    [pairs, place]
   );
 
   const onDropDiagramOverlayNearest = useCallback(
@@ -301,7 +339,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_DDM") === "1") {
         console.log("[DragDropMatch diagram] drop on overlay (nearest zone)", { sourceId, clientX: e.clientX, clientY: e.clientY });
       }
-      if (!sourceId || !byId.get(sourceId)) return;
+      if (!sourceId || !pairIdExists(pairs, sourceId)) return;
       const overlayEl = diagramOverlayRef.current;
       if (!overlayEl || zones.length === 0) return;
       const rect = overlayEl.getBoundingClientRect();
@@ -323,7 +361,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       }
       if (bestId) place(bestId, sourceId);
     },
-    [byId, place, zones]
+    [pairs, place, zones]
   );
 
   const title = String(block.title ?? "").trim();
@@ -360,7 +398,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
               {title ? <h3 className="drag-drop-match__title">{title}</h3> : null}
             </div>
             <span className="drag-drop-match__tag">
-              {diagramMode ? "Diagram drag and drop" : "Drag &amp; Drop Activity"}
+              {diagramMode ? "Diagram drag and drop" : "Drag and Drop Activity"}
             </span>
           </div>
         </div>
@@ -406,7 +444,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                           ) : null}
                           {zones.map((zone, zi) => {
                             const sourcePlaced = placements[zone.id] ?? null;
-                            const card = sourcePlaced ? byId.get(sourcePlaced) : null;
+                            const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
                             const corr = zone.correctPairId;
                             const mark = diagramZoneMarkerLabel(zi);
                             const isCorrect =
@@ -562,9 +600,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
             >
               <div className="drag-drop-match__card-list drag-drop-match__card-list--diagram-wrap">
                 {bankOrder
-                  .filter((sid) => byId.has(sid))
+                  .filter((sid) => pairIdExists(pairs, sid))
                   .map((sid, index) => {
-                    const p = byId.get(sid);
+                    const p = findPairById(pairs, sid);
                     if (!p) return null;
                     const placedMark = diagramPairToMarker.get(sid);
                     const isPlaced = Boolean(placedMark);
@@ -632,6 +670,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
           ) : null}
 
           {showDiagramImg && zones.length > 0 ? (
+            <React.Fragment>
             <div className="drag-drop-match__diagram-summary">
               <div className="drag-drop-match__diagram-summary-heading">Your labels</div>
               <ul
@@ -642,9 +681,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                 {zones.map((zone, zi) => {
                   const mark = diagramZoneMarkerLabel(zi);
                   const sourcePlaced = placements[zone.id] ?? null;
-                  const card = sourcePlaced ? byId.get(sourcePlaced) : null;
+                  const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
                   const corr = zone.correctPairId;
-                  const correctPair = corr ? byId.get(corr) : undefined;
+                  const correctPair = corr ? findPairById(pairs, corr) : undefined;
                   const mergedExpl = mergeDiagramZoneExplanation(
                     zone.explanation,
                     correctPair?.explanation
@@ -702,6 +741,57 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                 })}
               </ul>
             </div>
+            {typeof window !== "undefined" &&
+            window.localStorage?.getItem("DEBUG_DDM") === "1" &&
+            zones.length > 0 ? (
+              <div
+                className="drag-drop-match__ddm-debug-panel"
+                style={{
+                  marginTop: 12,
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "2px dashed #f97316",
+                  background: "#fff7ed",
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 11,
+                  lineHeight: 1.45,
+                  color: "#0f172a",
+                }}
+              >
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                  DDM debug — Zone D row highlighted (localStorage.DEBUG_DDM = 1)
+                </div>
+                {zones.map((zone, zi) => {
+                  const mark = diagramZoneMarkerLabel(zi);
+                  const placedPairId = placements[zone.id] ?? null;
+                  const corr = zone.correctPairId;
+                  const expectedPair = findPairById(pairs, corr);
+                  const placedPair = findPairById(pairs, placedPairId);
+                  const isD = mark === "D";
+                  return (
+                    <div
+                      key={`ddm-dbg-${zone.id}-${zi}`}
+                      style={{
+                        marginTop: 4,
+                        padding: 6,
+                        borderRadius: 6,
+                        background: isD ? "rgba(251,146,60,0.28)" : "rgba(148,163,184,0.12)",
+                        border: isD ? "1px solid #ea580c" : "1px solid #cbd5e1",
+                      }}
+                    >
+                      <strong>{mark}</strong> zone.id=<code>{zone.id}</code>
+                      <br />
+                      correctPairId=<code>{corr}</code> → expected answer:{" "}
+                      <code>{expectedPair?.answer ?? "(none)"}</code>
+                      <br />
+                      placedPairId=<code>{placedPairId ?? "null"}</code> → placed answer:{" "}
+                      <code>{placedPair?.answer ?? "(none)"}</code>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            </React.Fragment>
           ) : null}
         </div>
       ) : (
@@ -713,7 +803,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
             <div className="drag-drop-match__targets" role="list">
               {pairs.map((row) => {
                 const sourcePlaced = placements[row.id] ?? null;
-                const card = sourcePlaced ? byId.get(sourcePlaced) : null;
+                const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
                 const isCorrect = checked && sourcePlaced != null && sourcePlaced === row.id;
                 const isWrong = checked && sourcePlaced != null && sourcePlaced !== row.id;
                 const isEmpty = checked && sourcePlaced == null;
@@ -798,7 +888,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                   <p className="drag-drop-match__pool-empty">All cards placed</p>
                 ) : (
                   bankDisplayIds.map((sid, index) => {
-                    const p = byId.get(sid);
+                    const p = findPairById(pairs, sid);
                     if (!p) return null;
                     const selected = selectedSourceId === sid;
                     const tone = index % 6;

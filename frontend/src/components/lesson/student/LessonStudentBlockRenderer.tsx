@@ -23,6 +23,7 @@ import { DragDropMatchBlock } from "../DragDropMatchBlock";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { mergeCheckpointExplanationParts } from "../../../utils/checkpointFeedback";
 import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
+import { coerceDiagramZonePct } from "../../../utils/dragDropMatchDiagram";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -135,15 +136,19 @@ export function LessonStudentBlockRenderer({
               }))
             : [],
           dropZones: Array.isArray(b.dropZones)
-            ? b.dropZones!.map((z, i) => ({
-                id: String(z?.id ?? "").trim() || `dz${i}`,
-                ...(typeof z?.x === "number" ? { x: z.x } : {}),
-                ...(typeof z?.y === "number" ? { y: z.y } : {}),
-                correctPairId: String(z?.correctPairId ?? "").trim(),
-                ...(z?.explanation != null && String(z.explanation).trim()
-                  ? { explanation: String(z.explanation) }
-                  : {}),
-              }))
+            ? b.dropZones!.map((z, i) => {
+                const x = coerceDiagramZonePct(z?.x);
+                const y = coerceDiagramZonePct(z?.y);
+                return {
+                  id: String(z?.id ?? "").trim() || `dz${i}`,
+                  ...(x !== undefined ? { x } : {}),
+                  ...(y !== undefined ? { y } : {}),
+                  correctPairId: String(z?.correctPairId ?? "").trim(),
+                  ...(z?.explanation != null && String(z.explanation).trim()
+                    ? { explanation: String(z.explanation) }
+                    : {}),
+                };
+              })
             : undefined,
         }}
       />

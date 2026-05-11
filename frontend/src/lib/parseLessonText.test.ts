@@ -7,6 +7,29 @@ describe("parseLessonText", () => {
     expect(s.find((x) => x.type === "markdown")?.type).toBe("markdown");
   });
 
+  it("stops Answer before Explanation so answer does not swallow explanation lines", () => {
+    const raw = `⚡ CHECKPOINT
+Question:
+What powers the cell?
+Option 1:
+Mitochondria
+Option 2:
+Nucleus
+Answer:
+Mitochondria
+
+Explanation:
+Because it produces ATP.
+`;
+    const s = parseLessonText(raw);
+    const cp = s.find((x) => x.type === "checkpoint");
+    expect(cp?.type).toBe("checkpoint");
+    if (cp?.type === "checkpoint") {
+      expect(cp.answer).toBe("Mitochondria");
+      expect(cp.options.map((o) => o.trim())).toContain("Mitochondria");
+    }
+  });
+
   it("parses a CHECKPOINT block with Question, Options, Answer", () => {
     const raw = `⚡ CHECKPOINT
 Question:

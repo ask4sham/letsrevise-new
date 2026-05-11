@@ -19,6 +19,32 @@
  */
 export type IndexedLessonBlock<T extends { type?: string }> = { block: T; idx: number };
 
+/**
+ * Prefer persisted ids for React reconciliation so sibling blocks stay mounted when unrelated
+ * interactions update elsewhere. Falls back to block index (`idx`) when no stable id exists.
+ */
+export function stableStudentBlockReactKey(block: unknown, fallbackIdx: number): string {
+  const b = block as { _id?: unknown; id?: unknown };
+  const rawId = b._id;
+  if (rawId != null) {
+    if (typeof rawId === "string" || typeof rawId === "number") {
+      const s = String(rawId).trim();
+      if (s) return `lid-${s}`;
+    }
+    if (
+      typeof rawId === "object" &&
+      rawId !== null &&
+      "$oid" in (rawId as Record<string, unknown>) &&
+      String((rawId as { $oid?: unknown }).$oid ?? "").trim()
+    ) {
+      return `lid-${String((rawId as { $oid?: unknown }).$oid).trim()}`;
+    }
+  }
+  const idStr = typeof b.id === "string" ? b.id.trim() : "";
+  if (idStr) return `bid-${idStr}`;
+  return `idx-${fallbackIdx}`;
+}
+
 function normType(type: unknown): string {
   return String(type ?? "").trim().toLowerCase();
 }
