@@ -132,12 +132,12 @@ Raster path in `renderDiagramBlock`: renders `.lesson-uploaded-diagram` with `<i
 - **Text blocks** use **`student-block` + `lesson-content`** shells with similar bordered, padded surfaces (see `lessonStudentView.css` references in repo).
 - Net effect: **diagrams and paragraphs share one visual family** — the eye reads “another card” rather than “stage / canvas / board”.
 
-### 4.2 V12 chunk layout only “splits” for `diagram`, not other visual types
+### 4.2 V12 chunk layout and strict `diagram` vs broader “visual teaching”
 
 - `chunkBlocksForTeachingLayout` **ends a chunk** after `diagram`, `interactiveSequence`, or `interactiveDiagram`.
-- **`classifyChunkTeachingLayout`** only counts **`type === "diagram"`** when deciding split vs text-only vs image-only (`isDiagramType`).
-- Therefore a chunk such as **`[text, interactiveDiagram]`** or **`[keyIdea, interactiveSequence]`** contains **zero** diagram blocks → layout mode **`text-only`** → those interactive visuals render inside the **narrow text column** wrapper (`LessonStudentChunk` → `lesson-student-section-chunk--text-only` → `__text-column`).
-- **Practical impact:** interactive sequence / hotspot blocks often **inherit reading-column width and “text section” chrome**, which strongly reinforces a **document / flashcard** feel even when the block is image-heavy.
+- **Split** (text left / diagram right) still applies **only** to a single **strict** `type === "diagram"` block that is not a raster `imageUrl` upload — `isDiagramType` in `chunkTeachingLayout.ts`.
+- **Phase 6 issue:** `classifyChunkTeachingLayout` originally treated only strict diagrams when deciding **`text-only`** vs **`stack` / `image-only`**, so chunks like **`[text, interactiveDiagram]`** fell through to **`text-only`** and inherited the **narrow text column**.
+- **Phase 7 foundation:** `isVisualTeachingBlock` (`visualTeachingBlocks.ts`) now participates in **`classifyChunkTeachingLayout`**: mixed prose + interactive sequence/diagram (or other visual-teaching blocks) selects **`stack`** (full-width flow); chunks that are **only** visual-teaching blocks select **`image-only`**. **No change** to inner components, drag/drop rules, hotspot logic, or uploaded diagram rendering paths.
 
 ### 4.3 `dragDropMatch` is not a chunk terminator
 
@@ -169,8 +169,8 @@ Raster path in `renderDiagramBlock`: renders `.lesson-uploaded-diagram` with `<i
 
 These are **conceptually** lower risk because they localise presentation or metadata without changing persisted lesson schema:
 
-- **Teach-layout parity:** Extend **`classifyChunkTeachingLayout`** (or chunk grouping) so **`interactiveSequence` / `interactiveDiagram`** participate in **`stack`** / **full-width** (or dedicated **`visual-interactive`**) wrappers instead of falling through **`text-only`** when paired with prose.
-- **Optional wrapper class** on `#block-{idx}` children from `LessonStudentBlockRenderer` per routed type (e.g. `data-block-visual="interactive"`) — **purely** for scoped layout overrides later, without changing content.
+- **Teach-layout parity (foundation done in Phase 7):** `classifyChunkTeachingLayout` uses **`isVisualTeachingBlock`** so **`interactiveSequence` / `interactiveDiagram`** (and image-rich / diagram-mode drag-drop) no longer force the **`text-only`** column when paired with prose. Further layout polish remains future work.
+- **Optional wrapper / data attributes (Phase 7):** `data-visual-block="…"` on student wrappers from `LessonStudentBlockRenderer` (+ diagram slot) for CSS / debugging — **no new styles** in that phase.
 - **Copy / density tweaks** in empty states (shorter panel prompts; “board instruction” tone) — still strings, but improves perceived visual-first flow.
 - **Generator / author guidance** (outside this repo’s code if desired): shorter intros, fewer long paragraphs in `interactiveSequence.description`, so the **image column wins** within existing markup.
 
@@ -190,19 +190,54 @@ These are **conceptually** lower risk because they localise presentation or meta
 
 | Phase | Goal | Notes |
 |-------|------|--------|
-| **P7 — Process-flow canvas** | Dedicated renderer for arrows / stages / swimlanes without raster-only dependency | High engineering + a11y cost; may coexist with `interactiveSequence` initially |
-| **P8 — Visual-first diagram cards** | Differentiate **“board figure”** shell from **“reading card”** (`student-block`) — layout tokens, aspect treatment, optional full-bleed within main column | Mostly presentation; must not break editor parity |
-| **P9 — Compact hotspot instructions** | Collapse intro + panel scaffolding on small viewports; optional “focus mode” image-first | Lower risk if progressive enhancement |
-| **P10 — Comparison panel layout** | First-class renderer for 2-column compare (or reuse a constrained grid) instead of raw `<table>` in markdown | Could start as optional convention in `text` HTML with a stable wrapper class |
-| **P11 — Image + explanation split blocks** | Generalise beyond markdown split: structured fields for “visual + short gloss” with predictable DOM for CSS | Touches authoring UI + persistence unless purely client-side heuristics |
+| **Future A — Process-flow canvas** | Dedicated renderer for arrows / stages / swimlanes without raster-only dependency | High engineering + a11y cost; may coexist with `interactiveSequence` initially |
+| **Future B — Visual-first diagram cards** | Differentiate **“board figure”** shell from **“reading card”** (`student-block`) — layout tokens, aspect treatment, optional full-bleed within main column | Mostly presentation; must not break editor parity |
+| **Future C — Compact hotspot instructions** | Collapse intro + panel scaffolding on small viewports; optional “focus mode” image-first | Lower risk if progressive enhancement |
+| **Future D — Comparison panel layout** | First-class renderer for 2-column compare (or reuse a constrained grid) instead of raw `<table>` in markdown | Could start as optional convention in `text` HTML with a stable wrapper class |
+| **Future E — Image + explanation split blocks** | Generalise beyond markdown split: structured fields for “visual + short gloss” with predictable DOM for CSS | Touches authoring UI + persistence unless purely client-side heuristics |
+
+---
+
+## Phase 7 — Visual teaching classification (foundation)
+
+**Implemented in code (branch `layout-audit-phase1`):**
+
+### What is classified as visual (`isVisualTeachingBlock`)
+
+| Block / routing | Treated as visual? | Notes |
+|-----------------|-------------------|--------|
+| `diagram` | Yes | Unchanged split/stack rules for strict diagram; still the only type eligible for **split** with prose. |
+| `interactiveDiagram` | Yes | Layout mode with prose → **stack**; visual-only chunk → **image-only**. |
+| `interactiveSequence` | Yes | Same as interactive diagram. |
+| `dragDropMatch` | **Conditional** | Yes when **diagram mode** (explicit or inferred via `isDragDropDiagramMode`) **or** when any pair row has a renderable **answer image** URL (`readDragDropPairAnswerImageUrl`). Plain text-only rows → **not** visual for classification. |
+
+**Not classified as visual:** markdown images, `text` / `keyIdea` shells, page hero, `renderVisualBox` static diagram — unchanged; they are not block-level `isVisualTeachingBlock` targets.
+
+### What is still unchanged (by design)
+
+- **Component internals:** `InteractiveSequenceBlock`, `InteractiveDiagramBlock`, `DragDropMatchBlock`, `DiagramBlockContent` / uploaded diagram branches — **no** edits for Phase 7.
+- **Interaction logic:** drag/drop, sequence navigation, hotspot selection / “Test me” — **unchanged**.
+- **Chunk boundaries:** `chunkBlocksForTeachingLayout` still ends segments on `diagram` / `interactiveSequence` / `interactiveDiagram` only (not `dragDropMatch`), to avoid aggressive regrouping in this foundation step.
+- **Split eligibility:** still **only** strict catalogue **`diagram`** (non-raster) for side-by-side with related text.
+
+### Student DOM hints
+
+- **`data-visual-block`:** `diagram` \| `interactive-diagram` \| `interactive-sequence` \| `drag-drop-match` (drag-drop only when `getVisualTeachingDataAttribute` resolves). Diagram uses the existing `.lesson-student-diagram-slot` node.
+
+### Future rendering opportunities
+
+- CSS scoped to `[data-visual-block="interactive-diagram"]` (etc.) for full-bleed, reduced card chrome, or breakpoint-specific **image-first** stacks **without** new persisted fields.
+- Optional second pass: end chunks on **visual** `dragDropMatch` only, so diagram DDM can align with other visual terminators.
+- Revisit **image-only** vs **stack** for single-block chunks if a dedicated “figure stage” wrapper is introduced.
 
 ---
 
 ## Appendix: Key code references (for implementers)
 
-- Student block switch: `frontend/src/components/lesson/student/LessonStudentBlockRenderer.tsx`
+- Student block switch: `frontend/src/components/lesson/student/LessonStudentBlockRenderer.tsx` (`data-visual-block`, `getVisualTeachingDataAttribute`)
+- Visual-teaching classifier: `frontend/src/components/lesson/student/visualTeachingBlocks.ts` (`isVisualTeachingBlock`, `getVisualTeachingDataAttribute`)
 - Chunk end rules: `frontend/src/components/lesson/student/chunkLessonSegments.ts` (`chunkBlocksForTeachingLayout`)
-- Split vs text-only logic: `frontend/src/components/lesson/student/chunkTeachingLayout.ts` (`classifyChunkTeachingLayout`, `isDiagramType`)
+- Split vs text-only / stack / image-only logic: `frontend/src/components/lesson/student/chunkTeachingLayout.ts` (`classifyChunkTeachingLayout`, `isDiagramType`)
 - Diagram rendering: `frontend/src/pages/LessonViewPage.tsx` (`DiagramBlockContent`, `renderDiagramBlock`)
 - Image card primitive: `frontend/src/components/lesson/LessonImageFrame.tsx`
 

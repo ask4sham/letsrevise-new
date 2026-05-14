@@ -1,5 +1,6 @@
 import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
 import type { IndexedLessonBlock } from "./chunkLessonSegments";
+import { isVisualTeachingBlock } from "./visualTeachingBlocks";
 
 function isDiagramType(type: unknown): boolean {
   return String(type ?? "").trim().toLowerCase() === "diagram";
@@ -18,10 +19,10 @@ function diagramBlockUsesRasterImageUrl(block: { type?: string; imageUrl?: unkno
  * Chunk **boundaries** come from `chunkBlocksForTeachingLayout` (diagram closes a unit;
  * key idea / key words / exam tip start a new band when content already exists).
  *
- * - **split** — explanatory blocks + exactly one diagram → text left / image right (visual catalogue diagrams).
- * - **text-only** — no diagrams → centered readable column.
- * - **image-only** — only diagram blocks → full-width figures in section.
- * - **stack** — multiple diagrams with text, raster (`imageUrl`) diagram + text, or other mixed cases → full-width vertical flow.
+ * - **split** — explanatory blocks + exactly one **strict** `diagram` block → text left / image right (catalogue diagrams only).
+ * - **text-only** — no visual-teaching blocks (`isVisualTeachingBlock`) → centered readable column.
+ * - **image-only** — chunk is **only** visual-teaching blocks (e.g. lone `interactiveDiagram`, diagram-only) → full-width figures.
+ * - **stack** — multiple strict diagrams, raster (`imageUrl`) diagram + text, **or** prose mixed with visual-teaching blocks that are not eligible for split → full-width vertical flow.
  */
 export type ChunkTeachingLayout<T extends { type?: string }> =
   | {
@@ -42,15 +43,27 @@ export function classifyChunkTeachingLayout<T extends { type?: string }>(
   }
 
   const diagramIndices: number[] = [];
+  const visualTeachingIndices: number[] = [];
   chunk.forEach((item, i) => {
     if (isDiagramType(item.block.type)) diagramIndices.push(i);
+    if (isVisualTeachingBlock(item.block.type, item.block)) visualTeachingIndices.push(i);
   });
 
   const diagramCount = diagramIndices.length;
+  const visualTeachingCount = visualTeachingIndices.length;
   const nonDiagramBlocks = chunk.filter((item) => !isDiagramType(item.block.type));
 
   if (diagramCount === 0) {
-    return { mode: "text-only", blocks: chunk };
+    if (visualTeachingCount === 0) {
+      return { mode: "text-only", blocks: chunk };
+    }
+    const allVisual = chunk.every((item) =>
+      isVisualTeachingBlock(item.block.type, item.block)
+    );
+    if (allVisual) {
+      return { mode: "image-only", blocks: chunk };
+    }
+    return { mode: "stack", blocks: chunk };
   }
 
   if (nonDiagramBlocks.length === 0) {

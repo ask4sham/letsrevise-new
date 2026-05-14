@@ -24,6 +24,7 @@ import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { mergeCheckpointExplanationParts } from "../../../utils/checkpointFeedback";
 import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
 import { coerceDiagramZonePct, readDragDropPairAnswerImageUrl } from "../../../utils/dragDropMatchDiagram";
+import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -104,7 +105,7 @@ export function LessonStudentBlockRenderer({
         ...(te ? { testExplanation: te } : {}),
       };
     });
-    return (
+    const seq = (
       <InteractiveSequenceBlock
         blockTitle={String(block.title ?? "")}
         intro={String(block.intro ?? "")}
@@ -112,13 +113,19 @@ export function LessonStudentBlockRenderer({
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
       />
     );
+    const seqAttr = getVisualTeachingDataAttribute(routed, block);
+    return seqAttr ? (
+      <div data-visual-block={seqAttr}>{seq}</div>
+    ) : (
+      seq
+    );
   }
 
   if (routed === "dragDropMatch") {
     const b = block as StudentLessonPageBlock;
     const mm = b.matchMode;
     const matchModeRaw = mm === "diagram" || mm === "text" ? mm : undefined;
-    return (
+    const ddm = (
       <DragDropMatchBlock
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
         block={{
@@ -157,6 +164,8 @@ export function LessonStudentBlockRenderer({
         }}
       />
     );
+    const ddmAttr = getVisualTeachingDataAttribute(routed, block);
+    return ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
   }
 
   if (routed === "interactiveDiagram") {
@@ -189,7 +198,7 @@ export function LessonStudentBlockRenderer({
         ...(test !== undefined ? { test } : {}),
       };
     });
-    return (
+    const idgr = (
       <InteractiveDiagramBlock
         blockTitle={String(block.title ?? "")}
         intro={String(block.intro ?? "")}
@@ -201,11 +210,15 @@ export function LessonStudentBlockRenderer({
         subject={subjectForAi}
       />
     );
+    const idgrAttr = getVisualTeachingDataAttribute(routed, block);
+    return idgrAttr ? <div data-visual-block={idgrAttr}>{idgr}</div> : idgr;
   }
 
   if (routed === "diagram") {
     return (
-      <div className="lesson-student-diagram-slot">{renderDiagramBlock(block, blockIndex)}</div>
+      <div className="lesson-student-diagram-slot" data-visual-block="diagram">
+        {renderDiagramBlock(block, blockIndex)}
+      </div>
     );
   }
 
