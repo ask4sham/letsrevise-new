@@ -36,6 +36,12 @@
   --layout-tablet-max: 900px;
   --layout-content-max: 920px;
   --layout-wide-max: 1200px;
+
+  /*
+   * Future media-query tooling (PostCSS / build step) could emit static breakpoints from these names.
+   * Example only — not valid as live @media until compiled:
+   *   @media (max-width: <inlined --layout-mobile-max>) { ... }
+   */
 }
 
 /* Prevent accidental horizontal scroll. Use clip where supported: overflow-x: hidden
@@ -163,6 +169,8 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Mobile / narrow viewport: lesson markdown column — wraps long text; pre+table may scroll horizontally.
+   Uses 768px (not 767px) intentionally vs LessonViewPage matchMedia; consolidate only in a dedicated breakpoint pass. */
 @media (max-width: 768px) {
   /* Mobile: full width, natural wrap; only pre/table scroll horizontally */
   .lesson-content {
@@ -185,7 +193,7 @@ code {
   }
 }
 
-/* PR-UX-DASH-TEACH-2: Teacher dashboard 3-column layout stacks on mobile */
+/* PR-UX-DASH-TEACH-2: Teacher dashboard — stack 3-column grid at tablet / narrow desktop (matches --layout-tablet-max token intent). */
 @media (max-width: 900px) {
   .teacher-dashboard-grid {
     grid-template-columns: 1fr !important;
