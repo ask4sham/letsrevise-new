@@ -17,6 +17,16 @@
   --lesson-mcq-option-gap: var(--space-sm);
   --lesson-mcq-option-padding-block: var(--space-sm);
   --lesson-mcq-option-padding-inline: 14px;
+
+  /* Phase 3 — image design tokens (global foundation; adopt outside cards only when low-risk). */
+  --lesson-image-radius: 14px;
+  --lesson-image-border: 1px solid #e5e7eb;
+  --lesson-image-bg: #ffffff;
+  --lesson-image-caption-gap: 8px;
+  /* Common control / thumb sizes (aligns with lightbox chrome; not yet wired to drag-drop). */
+  --lesson-image-thumb-size-sm: 40px;
+  --lesson-image-thumb-size-md: 44px;
+  --lesson-image-thumb-size-lg: 48px;
 }
 
 /* Prevent accidental horizontal scroll. Use clip where supported: overflow-x: hidden

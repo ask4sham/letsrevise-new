@@ -266,10 +266,11 @@ The lesson UI combines **three layout layers** that interact:
 | Phase | Focus |
 |-------|--------|
 | **Phase 2** | **Spacing token foundation** — `:root` scale + minimal adoption in `index.css` / `lessonRenderer.css` (see §13). |
-| **Phase 3** | **Breakpoint alignment** — document and optionally unify 767 vs 900; add regression checklist for sticky rails. |
-| **Phase 4** | **Image pipeline** — unify margins (`index` vs `lessonImageCard`), reduce uploaded-diagram special-case surface (replace `:has` chains only if substitute layout is equivalent). |
-| **Phase 5** | **Student chunk layout** — refactor `lessonStudentView.css` with lower specificity; pair with E2E on narrow viewports. |
-| **Phase 6** | **Editor / preview parity** — extract inline layout from `LessonViewPage` / `EditLessonPage` into tested layout components. |
+| **Phase 3** | **Image rendering foundation** — global image design tokens + minimal adoption on `lesson-image-card` only; audit map §14. |
+| **Phase 4** | **Breakpoint alignment** — document and optionally unify 767 vs 900; regression checklist for sticky rails. |
+| **Phase 5** | **Image pipeline** — unify margins (`index` vs `lessonImageCard`), reduce uploaded-diagram special-case surface. |
+| **Phase 6** | **Student chunk layout** — refactor `lessonStudentView.css` with lower specificity; E2E on narrow viewports. |
+| **Phase 7** | **Editor / preview parity** — extract inline layout from `LessonViewPage` / `EditLessonPage` into tested layout components. |
 
 ---
 
@@ -315,7 +316,8 @@ The lesson UI combines **three layout layers** that interact:
 ### 13.4 Intentionally NOT touched (Phase 2)
 
 - **`App.css`** — sticky rails, editor grids, scrollport behaviour.
-- **`lessonImageCard.css`**, **`.lesson-content img`** — image sizing and margins.
+- **`lessonImageCard.css`** — Phase 3: outer **card shell** uses global image tokens (§14); inner `img` sizing, `max-height`, `object-fit`, and lightbox layout unchanged.
+- **`.lesson-content img`** — image sizing and margins (unchanged in Phases 2–3).
 - **`lessonUploadedDiagram.css`**, **`lessonStudentView.css`**, **`lessonDiagramFrame.css`**, **`dragDropMatchBlock.css`**, **`interactiveSequenceBlock.css`**, **`interactiveDiagramBlock.css`** — diagram / drag-drop / sequence / student chunk layout.
 - **`LessonViewPage.tsx`** (and other TSX) — inline layout and mobile breakpoint logic.
 - **Mass replacement** of arbitrary `px` values across the codebase.
@@ -329,4 +331,65 @@ The lesson UI combines **three layout layers** that interact:
 
 ---
 
-*Phase 1 audit complete; Phase 2 spacing foundation documented above (`layout-audit-phase1`).*
+## 14. Phase 3 — Image rendering unification foundation (implemented)
+
+**Branch:** `layout-audit-phase1`  
+**Scope:** Low-risk infrastructure — no component refactors, no drag/drop / sequence / uploaded-diagram / student layout changes, no `object-fit` / `max-height` / `aspect-ratio` edits.
+
+### 14.1 Image rendering map (audit)
+
+| Component / file | Where used | Image / visual type | Sizing / chrome rule (summary) | Risk if changed blindly | Safe to unify later? |
+|-------------------|------------|---------------------|--------------------------------|-------------------------|----------------------|
+| **`LessonImageFrame.tsx`** + **`lessonImageCard.css`** | Markdown, diagram-in-card, student blocks when wrapped | Raster in elevated card | Card `max-width` 360–460px by variant; inner `img` `max-height: min(70vh, 520px)`, `object-fit: contain`; inner radius `10px` (still literal) | **Medium** — many entry points | **Yes** — primary target once tokens prove stable |
+| **`LessonLightboxPanel.tsx`** + lightbox rules in `lessonImageCard.css` | Zoom-from-card | Full-resolution | Viewport-capped stage; nav/icon **40–48px** (matches thumb token values) | **Medium** — modal/focus | **Partial** — wire to `--lesson-image-thumb-*` after visual QA |
+| **`index.css` `.lesson-content img`** | Legacy lesson markdown | Inline images | `margin: 20px auto`, `max-width: 100%`, `height: auto` | **Medium** — global rhythm vs cards | **Yes** — coordinate with card margins first |
+| **`LessonDiagramFrame.tsx`** + **`lessonDiagramFrame.css`** | Catalogue / structured diagrams | Content inside frame | Local `--lesson-diagram-*` vars; radius `12px`, body padding | **Medium** | **Partial** — already tokenised locally; optional bridge to global image tokens |
+| **`lessonUploadedDiagram.css`** + **`LessonViewPage.tsx`** (`.lesson-uploaded-diagram`) | `diagram.imageUrl` uploads | Raster, no card chrome | `width: auto`, `max-width: 100%`, caption `margin-top: 6px` | **High** — student V12 `:has()` overrides | **Not soon** — document only until student CSS simplified |
+| **`InteractiveSequenceBlock.tsx`** + `.css` | Sequence steps | Step imagery | Viewport `min-height` chains, flex | **High** | **No** (short term) |
+| **`DragDropMatchBlock.tsx`** + `.css` | Diagram + pair thumbnails | Diagram + thumbs | Inline `objectFit`, class-based layout | **High** | **No** (short term) |
+| **`InteractiveDiagramBlock.tsx`** + `.css` | Hotspot diagrams | Base + overlay | Hit areas, `min-height` floors | **High** | **No** (short term) |
+| **`lessonMarkdownViewComponents.tsx`** | Authoring / view markdown | `<img>` + error handler | Inherits `.lesson-content` where applicable | **Medium** | **Yes** — after global margin story decided |
+| **`StudentMarkdownMediaSplit.tsx`** | V12 student presentation | First-block image split | Side-by-side chunk layout | **High** | **No** until chunk layout refactored |
+
+### 14.2 Global tokens added (`frontend/src/index.css` `:root`)
+
+| Token | Value (initial) | Notes |
+|-------|-----------------|--------|
+| `--lesson-image-radius` | `14px` | Outer **`lesson-image-card`** shell only in this phase. |
+| `--lesson-image-border` | `1px solid #e5e7eb` | Default card border; `--primary` still overrides `border-color`. |
+| `--lesson-image-bg` | `#ffffff` | Card surface. |
+| `--lesson-image-caption-gap` | `8px` | Caption separation below image. |
+| `--lesson-image-thumb-size-sm` | `40px` | Reserved — matches lightbox nav small breakpoint; **not wired** in Phase 3. |
+| `--lesson-image-thumb-size-md` | `44px` | Reserved — matches lightbox icon button; **not wired** in Phase 3. |
+| `--lesson-image-thumb-size-lg` | `48px` | Reserved — matches lightbox nav buttons; **not wired** in Phase 3. |
+
+**Not added to `:root` in this phase:** inner image `border-radius: 10px` (card content) — keep literal until a dedicated content-radius token is agreed (avoids overloading `--lesson-image-radius`).
+
+### 14.3 Low-risk adoption (this phase)
+
+| File | Change |
+|------|--------|
+| **`lessonImageCard.css` `.lesson-image-card`** | `border-radius`, `background`, `border` now use `var(--lesson-image-radius)`, `var(--lesson-image-bg)`, `var(--lesson-image-border)`. |
+| **`lessonImageCard.css` `.lesson-image-caption`** | `margin-top: 8px` → `var(--lesson-image-caption-gap)`. |
+
+**Unchanged in this phase:** inner `img` radius (`10px`), all `max-height` / `object-fit`, lightbox layout, diagram frames, uploads, sequence/drag-drop/interactive diagram CSS, student layout, TSX.
+
+### 14.4 High-risk image paths — do not touch without a dedicated phase
+
+- **`dragDropMatchBlock.css` / `.tsx`** — thumbnails, diagram sizing, `aspect-ratio` overrides.
+- **`interactiveSequenceBlock.css`** — viewport-tied step imagery.
+- **`lessonStudentView.css`** + **`lessonUploadedDiagram.css`** interplay — `:has(.lesson-uploaded-diagram)` and V12 slots.
+- **`interactiveDiagramBlock.css`** — hotspot geometry and diagram floor heights.
+- **Global `.lesson-content img` margins** — conflicts with card margins; needs a coordinated “markdown vs card” decision first.
+
+### 14.5 Future safe migration steps
+
+1. Introduce **`--lesson-image-radius-inner`** (or reuse a shared radius scale) for the **10px** inner `img` / lightbox `12px` corners — migrate only with screenshot diff.
+2. Wire **lightbox** `44px` / `48px` / `40px` controls to `--lesson-image-thumb-size-*` after confirming no touch-target regressions on mobile.
+3. Align **`LessonDiagramFrame`** local vars with global image tokens where values intentionally match (optional bridge, not merge).
+4. **Markdown vs card** — single story for vertical margin (`index` `20px` vs card `20px auto 28px`) before changing either.
+5. **Student split media** — last; depends on chunk layout simplification (Phase 6+ in roadmap above).
+
+---
+
+*Phase 1 audit; Phase 2 spacing + Phase 3 image token foundation on `layout-audit-phase1`.*

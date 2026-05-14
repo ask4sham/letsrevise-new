@@ -10,9 +10,9 @@
   max-width: 420px;
   margin: 20px auto 28px;
   padding: 14px;
-  border-radius: 14px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--lesson-image-radius);
+  background: var(--lesson-image-bg);
+  border: var(--lesson-image-border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
 }
@@ -42,7 +42,7 @@
 }
 
 .lesson-image-caption {
-  margin-top: 8px;
+  margin-top: var(--lesson-image-caption-gap);
   font-size: 13px;
   line-height: 1.45;
   color: #6b7280;
