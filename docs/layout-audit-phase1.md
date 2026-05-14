@@ -265,7 +265,7 @@ The lesson UI combines **three layout layers** that interact:
 
 | Phase | Focus |
 |-------|--------|
-| **Phase 2** | **Tokenise** spacing/radius/breakpoints; add Storybook or visual snapshot targets for **one** block type (e.g. image card) — no layout logic change. |
+| **Phase 2** | **Spacing token foundation** — `:root` scale + minimal adoption in `index.css` / `lessonRenderer.css` (see §13). |
 | **Phase 3** | **Breakpoint alignment** — document and optionally unify 767 vs 900; add regression checklist for sticky rails. |
 | **Phase 4** | **Image pipeline** — unify margins (`index` vs `lessonImageCard`), reduce uploaded-diagram special-case surface (replace `:has` chains only if substitute layout is equivalent). |
 | **Phase 5** | **Student chunk layout** — refactor `lessonStudentView.css` with lower specificity; pair with E2E on narrow viewports. |
@@ -287,4 +287,46 @@ The lesson UI combines **three layout layers** that interact:
 
 ---
 
-*End of Phase 1 audit — read-only, branch `layout-audit-phase1`.*
+## 13. Phase 2 — Spacing token foundation (implemented)
+
+**Branch:** `layout-audit-phase1`  
+**Scope:** Infrastructure only — no layout redesign, no component structure changes, no behaviour changes.
+
+### 13.1 Where tokens live
+
+- **`frontend/src/index.css`** — `:root` defines the numeric scale (`--space-2xs` … `--space-2xl`) and semantic aliases used by the first adoption sites.
+
+### 13.2 What was tokenized (literal → variable, same computed values)
+
+| Location | Change |
+|----------|--------|
+| **`index.css` `.lr-mcq-option`** | `column-gap: 12px` → `var(--lesson-mcq-option-gap)`; `padding: 12px 14px` → `var(--lesson-mcq-option-padding-block)` / `var(--lesson-mcq-option-padding-inline)` (12px and 14px preserved). |
+| **`lessonRenderer.css` `.lesson-renderer-checkpoint`** | `padding: 14px 16px` → `var(--lesson-card-padding)` (`14px` + `var(--space-md)`). Vertical margin left `1rem 0` (unchanged). |
+| **`lessonRenderer.css` checkpoint internals** | `margin-bottom: 12px` on question/options → `var(--lesson-block-gap)`; option row `margin-bottom: 8px` → `var(--space-xs)`; reveal button `padding: 8px 14px` → `var(--space-xs) 14px`. |
+
+### 13.3 Semantic aliases added
+
+| Token | Role |
+|-------|------|
+| `--lesson-block-gap` | Repeated ~12px vertical rhythm between checkpoint subsections (`var(--space-sm)`). |
+| `--lesson-card-padding` | Checkpoint / lesson “card” inner padding (`14px` + `16px` via `--space-md`). |
+| `--lesson-mcq-option-gap` / `--lesson-mcq-option-padding-*` | MCQ option row gap and padding (matches previous 12px / 14px pattern). |
+
+### 13.4 Intentionally NOT touched (Phase 2)
+
+- **`App.css`** — sticky rails, editor grids, scrollport behaviour.
+- **`lessonImageCard.css`**, **`.lesson-content img`** — image sizing and margins.
+- **`lessonUploadedDiagram.css`**, **`lessonStudentView.css`**, **`lessonDiagramFrame.css`**, **`dragDropMatchBlock.css`**, **`interactiveSequenceBlock.css`**, **`interactiveDiagramBlock.css`** — diagram / drag-drop / sequence / student chunk layout.
+- **`LessonViewPage.tsx`** (and other TSX) — inline layout and mobile breakpoint logic.
+- **Mass replacement** of arbitrary `px` values across the codebase.
+
+### 13.5 Future migration recommendations
+
+1. **Extend adoption file-by-file** — next low-risk candidates: small shared utilities (e.g. more of `lessonRenderer.css` for values already on the 4/8/12/16 scale), then `assessmentFeedback.css` (after visual check; some values are 10px / 6px off-scale).
+2. **Optional intermediate tokens** — e.g. `--space-2-5: 10px` only if several call sites need it; avoids stretching the primary scale.
+3. **Radius tokens** — separate pass (`--radius-sm`, etc.) to avoid mixing spacing and shape in one migration.
+4. **Storybook or visual snapshots** for checkpoint + MCQ rows before touching student or editor chrome.
+
+---
+
+*Phase 1 audit complete; Phase 2 spacing foundation documented above (`layout-audit-phase1`).*

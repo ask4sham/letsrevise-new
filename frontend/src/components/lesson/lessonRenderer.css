@@ -8,7 +8,7 @@
 
 .lesson-renderer-checkpoint {
   margin: 1rem 0;
-  padding: 14px 16px;
+  padding: var(--lesson-card-padding);
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
@@ -24,7 +24,7 @@
 }
 
 .lesson-renderer-checkpoint__question {
-  margin-bottom: 12px;
+  margin-bottom: var(--lesson-block-gap);
 }
 
 .lesson-renderer-checkpoint__question-body {
@@ -35,12 +35,12 @@
 }
 
 .lesson-renderer-checkpoint__options {
-  margin: 0 0 12px;
+  margin: 0 0 var(--lesson-block-gap);
   padding-left: 1.25rem;
 }
 
 .lesson-renderer-checkpoint__option {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-xs);
   line-height: 1.5;
   color: #334155;
 }
@@ -67,7 +67,7 @@
 }
 
 .lesson-renderer-checkpoint__reveal-btn {
-  padding: 8px 14px;
+  padding: var(--space-xs) 14px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #fff;
