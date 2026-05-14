@@ -27,6 +27,7 @@ import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank"
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
+import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { validateLessonStructure } from "../utils/validateLessonStructure";
 import {
   formatPublishWithQualityWarningsMessage,
@@ -96,6 +97,7 @@ import {
 import {
   coerceDiagramZonePct,
   logDragDropMatchZoneBindings,
+  readDragDropPairAnswerImageUrl,
   resolveDragDropMatchModeForPersist,
   sanitizeDiagramDropZonesForAuthoring,
 } from "../utils/dragDropMatchDiagram";
@@ -196,7 +198,13 @@ interface LessonPageBlock {
   }>;
   /** type === "dragDropMatch" */
   instructions?: string;
-  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
+  pairs?: Array<{
+    id: string;
+    prompt: string;
+    answer: string;
+    explanation?: string;
+    answerImageUrl?: string;
+  }>;
   matchMode?: "text" | "diagram";
   dropZones?: Array<{
     id: string;
@@ -1400,12 +1408,16 @@ const EditLessonPage: React.FC = () => {
                 }
                 if (normalizeBlockType(String(b?.type ?? "")) === "dragDropMatch") {
                   const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
-                  const pairs = rawPairs.map((row: any) => ({
-                    id: String(row?.id ?? "").trim() || newId(),
-                    prompt: safeStr(row?.prompt, ""),
-                    answer: safeStr(row?.answer, ""),
-                    explanation: row?.explanation != null ? String(row.explanation) : "",
-                  }));
+                  const pairs = rawPairs.map((row: any) => {
+                    const img = readDragDropPairAnswerImageUrl(row);
+                    return {
+                      id: String(row?.id ?? "").trim() || newId(),
+                      prompt: safeStr(row?.prompt, ""),
+                      answer: safeStr(row?.answer, ""),
+                      explanation: row?.explanation != null ? String(row.explanation) : "",
+                      ...(img ? { answerImageUrl: img } : {}),
+                    };
+                  });
                   const pairIdsForZones = pairs.map((r: { id: string }) => r.id);
                   const rawZones = Array.isArray((b as { dropZones?: unknown }).dropZones)
                     ? (b as { dropZones: unknown[] }).dropZones
@@ -1450,12 +1462,16 @@ const EditLessonPage: React.FC = () => {
                       (String(row?.prompt ?? "").trim() || String(row?.answer ?? "").trim())
                   )
                 ) {
-                  const pairs = pairsForRepair.map((row: any) => ({
-                    id: String(row?.id ?? "").trim() || newId(),
-                    prompt: safeStr(row?.prompt, ""),
-                    answer: safeStr(row?.answer, ""),
-                    explanation: row?.explanation != null ? String(row.explanation) : "",
-                  }));
+                  const pairs = pairsForRepair.map((row: any) => {
+                    const img = readDragDropPairAnswerImageUrl(row);
+                    return {
+                      id: String(row?.id ?? "").trim() || newId(),
+                      prompt: safeStr(row?.prompt, ""),
+                      answer: safeStr(row?.answer, ""),
+                      explanation: row?.explanation != null ? String(row.explanation) : "",
+                      ...(img ? { answerImageUrl: img } : {}),
+                    };
+                  });
                   const pairIdsRepair = pairs.map((r: { id: string }) => r.id);
                   const rawZonesRepair = Array.isArray((b as any).dropZones) ? (b as any).dropZones : [];
                   const dropZonesRepair = sanitizeDiagramDropZonesForAuthoring(rawZonesRepair, pairIdsRepair);
@@ -3021,6 +3037,60 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
+  /** Lesson diagram block (type diagram) — JPG/PNG/WEBP only; same uploads pipeline as other block media */
+  const isLessonDiagramUploadFile = (file: File): boolean => {
+    const t = (file.type || "").toLowerCase();
+    if (t === "image/jpeg" || t === "image/png" || t === "image/webp") return true;
+    return /\.(jpe?g|png|webp)$/i.test(file.name || "");
+  };
+
+  const uploadImageForLessonDiagramBlock = async (
+    file: File,
+    pageId: string,
+    blockIndex: number,
+    onUrl: (url: string) => void
+  ) => {
+    if (!file) return;
+    if (!isLessonDiagramUploadFile(file)) {
+      alert("Please upload a JPG, PNG, or WEBP image.");
+      return;
+    }
+    if (!token) {
+      alert("You must be signed in to upload media.");
+      return;
+    }
+    const uploadKey = `${pageId}:${blockIndex}:diagram`;
+    try {
+      setUploadingKey(uploadKey);
+      setUploadMsg("");
+      const form = new FormData();
+      form.append("file", file);
+      const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}_diagram`;
+      const endpoint = `uploads/image?folder=${encodeURIComponent(folder)}`;
+      form.append("folder", folder);
+      const res = await api.post(endpoint, form);
+      const url = res.data?.url as string | undefined;
+      if (!url) {
+        alert("Upload succeeded but no URL returned.");
+        return;
+      }
+      onUrl(toAbsoluteAssetUrl(url));
+      setUploadMsg("✅ Image uploaded.");
+      setTimeout(() => setUploadMsg(""), 2000);
+    } catch (e: any) {
+      console.error(e);
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
+      const msg = typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
+    } finally {
+      setUploadingKey("");
+    }
+  };
+
   /** dragDropMatch diagram mode — same pipeline as interactive diagram; distinct folder for assets */
   const uploadImageForDragDropMatch = async (
     file: File,
@@ -3069,6 +3139,55 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
+  /** dragDropMatch pair answer thumbnail — same uploads/image pipeline as sequence steps; per-pair folder. */
+  const uploadImageForDragDropMatchPairAnswer = async (
+    file: File,
+    pageId: string,
+    blockIndex: number,
+    pairIndex: number,
+    onUrl: (url: string) => void
+  ) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image (png/jpg/gif/webp).");
+      return;
+    }
+    if (!token) {
+      alert("You must be signed in to upload media.");
+      return;
+    }
+    const uploadKey = `${pageId}:${blockIndex}:ddm-pair:${pairIndex}`;
+    try {
+      setUploadingKey(uploadKey);
+      setUploadMsg("");
+      const form = new FormData();
+      form.append("file", file);
+      const folder = `lesson-media/lesson_${safeStr(lesson?.id, "unknown_lesson")}/page_${pageId}/block_${blockIndex}_ddm_pair_${pairIndex}`;
+      const endpoint = `uploads/image?folder=${encodeURIComponent(folder)}`;
+      form.append("folder", folder);
+      const res = await api.post(endpoint, form);
+      const url = res.data?.url as string | undefined;
+      if (!url) {
+        alert("Upload succeeded but no URL returned.");
+        return;
+      }
+      onUrl(toAbsoluteAssetUrl(url));
+      setUploadMsg("✅ Answer image uploaded.");
+      setTimeout(() => setUploadMsg(""), 2000);
+    } catch (e: any) {
+      console.error(e);
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.msg ?? data.message ?? data.details)
+          : undefined;
+      const msg = typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
+    } finally {
+      setUploadingKey("");
+    }
+  };
+
   const triggerBlockUpload = (pageId: string, blockIndex: number) => {
     const key = `${pageId}:${blockIndex}`;
     const input = fileInputRef.current[key];
@@ -3088,15 +3207,19 @@ const EditLessonPage: React.FC = () => {
             const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
             const pairs = rawPairs
               .slice(0, 20)
-              .map((row: any) => ({
-                id: String(row?.id ?? "").trim() || newId(),
-                prompt: row?.prompt != null ? String(row.prompt).trim() : "",
-                answer: row?.answer != null ? String(row.answer).trim() : "",
-                explanation:
-                  row?.explanation != null && String(row.explanation).trim()
-                    ? String(row.explanation).trim()
-                    : undefined,
-              }))
+              .map((row: any) => {
+                const img = readDragDropPairAnswerImageUrl(row);
+                return {
+                  id: String(row?.id ?? "").trim() || newId(),
+                  prompt: row?.prompt != null ? String(row.prompt).trim() : "",
+                  answer: row?.answer != null ? String(row.answer).trim() : "",
+                  explanation:
+                    row?.explanation != null && String(row.explanation).trim()
+                      ? String(row.explanation).trim()
+                      : undefined,
+                  ...(img ? { answerImageUrl: img } : {}),
+                };
+              })
               .filter((row: { id: string }) => String(row.id).trim());
             const zonePairIds = pairs.map((row: { id: string }) => row.id);
             const rawZonesPersist = Array.isArray((b as { dropZones?: unknown }).dropZones)
@@ -6323,7 +6446,53 @@ const EditLessonPage: React.FC = () => {
                               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
                                 <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "#374151" }}>Add diagram</p>
                                 <p style={{ margin: "0 0 8px", fontSize: 11, color: "#6b7280" }}>Recommended: upload your own image (you must have rights to use it). AI is instructed to create original work only; do not use AI output if it resembles existing diagrams.</p>
+                                <input
+                                  ref={(el) => {
+                                    fileInputRef.current[`${key}:diagram`] = el;
+                                  }}
+                                  type="file"
+                                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                  style={{ display: "none" }}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (!f) return;
+                                    uploadImageForLessonDiagramBlock(f, currentPage!.pageId, idx, (url) =>
+                                      updateBlock(currentPage!.pageId, idx, {
+                                        visualId: undefined,
+                                        imageUrl: url,
+                                        imageSource: "upload",
+                                        source: undefined,
+                                        elements: undefined,
+                                      })
+                                    );
+                                    e.target.value = "";
+                                  }}
+                                />
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const input = fileInputRef.current[`${key}:diagram`];
+                                    if (input) {
+                                      input.value = "";
+                                      input.click();
+                                    }
+                                  }}
+                                  disabled={uploadingKey === `${key}:diagram`}
+                                  style={{
+                                    padding: "8px 14px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(220,38,38,0.35)",
+                                    background: "rgba(254,242,242,0.6)",
+                                    color: "#991b1b",
+                                    cursor: uploadingKey === `${key}:diagram` ? "not-allowed" : "pointer",
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                  }}
+                                  title="JPG, PNG, or WEBP from your computer"
+                                >
+                                  {uploadingKey === `${key}:diagram` ? "Uploading…" : "Upload image"}
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => setDiagramPickerTarget({ pageId: currentPage!.pageId, blockIndex: idx })}
@@ -8118,6 +8287,171 @@ const EditLessonPage: React.FC = () => {
                                         }}
                                       />
                                     </label>
+                                    {(() => {
+                                      const ddmPairKey = `${key}:ddm-pair:${pi}`;
+                                      const pairImgUploading = uploadingKey === ddmPairKey;
+                                      const rawPairImg = String(pair.answerImageUrl ?? "").trim();
+                                      const pairImgSrc =
+                                        rawPairImg && hasRenderableLessonImageSrc(rawPairImg)
+                                          ? makeAbsoluteAssetUrl(rawPairImg) ?? rawPairImg
+                                          : "";
+                                      return (
+                                        <div style={{ marginBottom: 8 }}>
+                                          <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
+                                            Answer image (optional)
+                                          </div>
+                                          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
+                                            Paste a URL or upload — same storage as diagram / sequence images (
+                                            <code style={{ fontSize: 11 }}>lesson-media/lesson_…</code>).
+                                          </div>
+                                          <input
+                                            ref={(el) => {
+                                              fileInputRef.current[ddmPairKey] = el;
+                                            }}
+                                            type="file"
+                                            accept="image/*"
+                                            style={{ display: "none" }}
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (!f) return;
+                                              uploadImageForDragDropMatchPairAnswer(
+                                                f,
+                                                currentPage!.pageId,
+                                                idx,
+                                                pi,
+                                                (url) => {
+                                                  const next = [...pairsList];
+                                                  if (next[pi]) next[pi] = { ...next[pi], answerImageUrl: url };
+                                                  updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                                }
+                                              );
+                                              e.target.value = "";
+                                            }}
+                                          />
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              flexWrap: "wrap",
+                                              gap: 8,
+                                              alignItems: "stretch",
+                                              marginBottom: rawPairImg ? 8 : 0,
+                                            }}
+                                          >
+                                            <label style={{ flex: "1 1 220px", minWidth: 0, margin: 0 }}>
+                                              <span style={{ display: "block", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+                                                Image URL
+                                              </span>
+                                              <input
+                                                value={pair.answerImageUrl ?? ""}
+                                                onChange={(e) => {
+                                                  const next = [...pairsList];
+                                                  if (next[pi])
+                                                    next[pi] = { ...next[pi], answerImageUrl: e.target.value };
+                                                  updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                                }}
+                                                placeholder="https://… or path after upload"
+                                                style={{
+                                                  width: "100%",
+                                                  padding: "8px 10px",
+                                                  borderRadius: 8,
+                                                  border: "1px solid #cbd5e1",
+                                                  boxSizing: "border-box",
+                                                }}
+                                              />
+                                            </label>
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                justifyContent: "flex-end",
+                                                flex: "0 0 auto",
+                                              }}
+                                            >
+                                              <span style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, opacity: 0 }}>
+                                                &nbsp;
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const input = fileInputRef.current[ddmPairKey];
+                                                  if (input) {
+                                                    input.value = "";
+                                                    input.click();
+                                                  }
+                                                }}
+                                                disabled={pairImgUploading}
+                                                style={{
+                                                  padding: "8px 14px",
+                                                  borderRadius: 8,
+                                                  border: "2px solid rgba(99,102,241,0.35)",
+                                                  background: "white",
+                                                  cursor: pairImgUploading ? "not-allowed" : "pointer",
+                                                  fontWeight: 700,
+                                                  fontSize: 13,
+                                                  whiteSpace: "nowrap",
+                                                }}
+                                              >
+                                                {pairImgUploading ? "Uploading…" : "Upload image"}
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {rawPairImg && pairImgSrc ? (
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                flexWrap: "wrap",
+                                                alignItems: "center",
+                                                gap: 12,
+                                                padding: 10,
+                                                borderRadius: 10,
+                                                border: "1px solid #e2e8f0",
+                                                background: "#fff",
+                                              }}
+                                            >
+                                              <img
+                                                src={pairImgSrc}
+                                                alt=""
+                                                style={{
+                                                  width: 72,
+                                                  height: 72,
+                                                  objectFit: "contain",
+                                                  borderRadius: 8,
+                                                  border: "1px solid #cbd5e1",
+                                                  background: "#f8fafc",
+                                                }}
+                                              />
+                                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                                <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                                                  Preview — upload again to replace
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const next = [...pairsList];
+                                                    if (next[pi])
+                                                      next[pi] = { ...next[pi], answerImageUrl: "" };
+                                                    updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                                  }}
+                                                  style={{
+                                                    alignSelf: "flex-start",
+                                                    padding: "6px 12px",
+                                                    borderRadius: 8,
+                                                    border: "1px solid #f87171",
+                                                    background: "#fef2f2",
+                                                    color: "#b91c1c",
+                                                    fontWeight: 700,
+                                                    fontSize: 12,
+                                                    cursor: "pointer",
+                                                  }}
+                                                >
+                                                  Clear image
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })()}
                                     <label style={{ display: "block", marginBottom: 8 }}>
                                       <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Explanation (optional)</div>
                                       <LessonAutoTextarea
@@ -8799,8 +9133,38 @@ const EditLessonPage: React.FC = () => {
                         title?: string;
                         intro?: string;
                         instructions?: string;
-                        pairs?: Array<{ id?: string; prompt?: string; answer?: string; explanation?: string }>;
+                        pairs?: Array<{
+                          id?: string;
+                          prompt?: string;
+                          answer?: string;
+                          explanation?: string;
+                          answerImageUrl?: string;
+                        }>;
                       };
+                      const previewPairsRaw = Array.isArray(ddm.pairs) ? ddm.pairs : [];
+                      if (
+                        typeof window !== "undefined" &&
+                        window.localStorage?.getItem("DDM_PAIR_IMG_DEBUG") === "1"
+                      ) {
+                        console.log(
+                          "[EditLessonPage][DDM preview] pairs before DragDropMatchBlock",
+                          previewPairsRaw.map((p) => {
+                            const normalized = readDragDropPairAnswerImageUrl(p) ?? "";
+                            const resolved = normalized
+                              ? String(makeAbsoluteAssetUrl(normalized) ?? normalized).trim()
+                              : "";
+                            return {
+                              answer: (p as { answer?: unknown })?.answer,
+                              answerImageUrl: (p as { answerImageUrl?: unknown })?.answerImageUrl,
+                              answer_image_url: (p as { answer_image_url?: unknown })?.answer_image_url,
+                              normalized: normalized || undefined,
+                              resolvedSrc: resolved || undefined,
+                              okRaw: hasRenderableLessonImageSrc(normalized),
+                              okResolved: hasRenderableLessonImageSrc(resolved),
+                            };
+                          })
+                        );
+                      }
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -8829,12 +9193,16 @@ const EditLessonPage: React.FC = () => {
                               String((ddm as LessonPageBlock).imageUrl).trim()
                                 ? { imageUrl: String((ddm as LessonPageBlock).imageUrl).trim() }
                                 : {}),
-                              pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => ({
-                                id: String(p?.id ?? "").trim() || `pair_${i}`,
-                                prompt: String(p?.prompt ?? ""),
-                                answer: String(p?.answer ?? ""),
-                                explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                              })),
+                              pairs: previewPairsRaw.map((p, i) => {
+                                const img = readDragDropPairAnswerImageUrl(p);
+                                return {
+                                  id: String(p?.id ?? "").trim() || `pair_${i}`,
+                                  prompt: String(p?.prompt ?? ""),
+                                  answer: String(p?.answer ?? ""),
+                                  explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                                  ...(img ? { answerImageUrl: img } : {}),
+                                };
+                              }),
                               ...(Array.isArray((ddm as LessonPageBlock).dropZones)
                                 ? {
                                     dropZones: (ddm as LessonPageBlock).dropZones!.map((z, i) => {

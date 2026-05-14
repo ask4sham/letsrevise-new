@@ -26,6 +26,10 @@ export function hideBrokenLessonImage(e: React.SyntheticEvent<HTMLImageElement>)
   img.style.display = "none";
   const frame = img.closest(LESSON_IMAGE_FRAME_SELECTOR);
   if (frame instanceof HTMLElement) frame.style.display = "none";
+  const diagramShell = img.closest("[data-lesson-diagram-frame]");
+  if (diagramShell instanceof HTMLElement) diagramShell.style.display = "none";
+  const uploadedDiagram = img.closest(".lesson-uploaded-diagram");
+  if (uploadedDiagram instanceof HTMLElement) uploadedDiagram.style.display = "none";
   const fig = img.closest("figure");
   if (fig instanceof HTMLElement) fig.style.display = "none";
 }

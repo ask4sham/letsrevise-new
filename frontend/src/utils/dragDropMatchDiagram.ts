@@ -290,6 +290,18 @@ export function mergeDiagramZoneExplanation(
   return undefined;
 }
 
+/**
+ * Optional answer-card image on drag/drop pairs — tolerate camelCase, snake_case, or stray `answerImageURL`.
+ */
+export function readDragDropPairAnswerImageUrl(row: unknown): string | undefined {
+  if (!row || typeof row !== "object") return undefined;
+  const o = row as Record<string, unknown>;
+  const v = o.answerImageUrl ?? o.answer_image_url ?? o.answerImageURL;
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  return s ? s : undefined;
+}
+
 /** Debug aid (browser): `localStorage.DEBUG_DDM = "1"` — logs zone ↔ pair bindings. Safe no-op on server / without flag. */
 export function logDragDropMatchZoneBindings(
   tag: string,

@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { DragDropMatchBlock } from "./DragDropMatchBlock";
 
 jest.mock("./LessonImageFrame", () => ({
-  LessonImageFrame: (props: React.PropsWithChildren<unknown>) => (
+  LessonImageFrame: (props) => (
     <div data-testid="lesson-image-frame">{props.children}</div>
   ),
 }));
@@ -133,5 +133,40 @@ describe("DragDropMatchBlock diagram mode", () => {
     expect(rows[3].textContent).toContain("TXT_ANTITOXINS");
     expect(rows[3].textContent).toContain("Correct answer");
     expect(rows[3].textContent).not.toContain("TXT_PHAGOCYTE");
+  });
+});
+
+describe("DragDropMatchBlock text mode answer images", () => {
+  const textBlockWithImage = {
+    title: "Match cells",
+    pairs: [
+      {
+        id: "p1",
+        prompt: "White blood cell that produces a specific antibody",
+        answer: "LYMPHOCYTE",
+        answerImageUrl: "https://example.com/lymphocyte.png",
+      },
+      { id: "p2", prompt: "Another definition", answer: "OTHER" },
+    ],
+  };
+
+  it("shows answer thumbnail in bank when answerImageUrl is set", () => {
+    render(<DragDropMatchBlock block={textBlockWithImage} resolveImageUrl={(u) => u} />);
+    const thumbs = document.querySelectorAll("img.drag-drop-match__answer-thumb");
+    expect(thumbs).toHaveLength(1);
+    expect(thumbs[0]).toHaveAttribute("src", "https://example.com/lymphocyte.png");
+  });
+
+  it("shows the same thumbnail in the target zone after placing", () => {
+    render(<DragDropMatchBlock block={textBlockWithImage} resolveImageUrl={(u) => u} />);
+    fireEvent.click(screen.getByRole("button", { name: /select answer:\s*LYMPHOCYTE/i }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /place answer into white blood cell that produces a specific antibody/i,
+      })
+    );
+    const thumbs = document.querySelectorAll("img.drag-drop-match__answer-thumb");
+    expect(thumbs).toHaveLength(1);
+    expect(thumbs[0]).toHaveAttribute("src", "https://example.com/lymphocyte.png");
   });
 });

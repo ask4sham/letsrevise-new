@@ -5,6 +5,7 @@ import {
   mergeDiagramZoneExplanation,
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
+  readDragDropPairAnswerImageUrl,
   sanitizePlacedDiagramDropZones,
   type PlacedDragDropDiagramZone,
 } from "../../utils/dragDropMatchDiagram";
@@ -13,6 +14,15 @@ import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./dragDropMatchBlock.css";
 
 const DND_MIME = "application/x-letsrevise-dnd-pair";
+
+export type DragDropMatchPair = {
+  id: string;
+  prompt: string;
+  answer: string;
+  explanation?: string;
+  /** Optional thumbnail on draggable answer cards (text + diagram modes). */
+  answerImageUrl?: string;
+};
 
 function readDragPairId(e: React.DragEvent): string {
   return String(e.dataTransfer.getData(DND_MIME) || e.dataTransfer.getData("text/plain") || "").trim();
@@ -53,12 +63,86 @@ function diagramZoneChipDisplay(pair: DragDropMatchPair): string {
   return truncateDiagramChipText(src);
 }
 
-export type DragDropMatchPair = {
-  id: string;
-  prompt: string;
-  answer: string;
-  explanation?: string;
-};
+/** Resolve display URL for pair thumbnails — tolerate resolvers that return null/undefined/non-string. */
+function resolvePairThumbDisplaySrc(raw: string, resolveImg: (url: string) => string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  let resolved: unknown;
+  try {
+    resolved = resolveImg(t);
+  } catch {
+    resolved = "";
+  }
+  const s = typeof resolved === "string" ? resolved.trim() : "";
+  return s || t;
+}
+
+const DDM_PAIR_IMG_DEBUG_KEY = "DDM_PAIR_IMG_DEBUG";
+
+function ddmPairImgDebugEnabled(): boolean {
+  return typeof window !== "undefined" && window.localStorage?.getItem(DDM_PAIR_IMG_DEBUG_KEY) === "1";
+}
+
+/**
+ * Pair answer thumbnails: do not use {@link hideBrokenLessonImage} — it sets `display:none` on the &lt;img&gt;,
+ * which makes cards look “text only” when the URL fails (blocked URL, transient CDN error, etc.).
+ */
+function onDdmPairAnswerThumbError(e: React.SyntheticEvent<HTMLImageElement>) {
+  const img = e.currentTarget;
+  if (ddmPairImgDebugEnabled()) {
+    console.warn("[DragDropMatchBlock] answer thumb img onError", {
+      src: img.currentSrc || img.src,
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+    });
+  }
+  img.classList.add("drag-drop-match__answer-thumb--broken");
+  img.alt = "Image failed to load";
+}
+
+/** Optional small thumbnail for answer cards — returns null when URL missing or not renderable. */
+function renderAnswerThumbImg(
+  pair: DragDropMatchPair,
+  resolveImg: (url: string) => string,
+  thumbExtraClass: string
+): React.ReactNode {
+  const raw = String(pair.answerImageUrl ?? "").trim();
+  if (!raw || !hasRenderableLessonImageSrc(raw)) return null;
+  const src = resolvePairThumbDisplaySrc(raw, resolveImg);
+  if (!hasRenderableLessonImageSrc(src)) return null;
+  return (
+    <img
+      className={`drag-drop-match__answer-thumb${thumbExtraClass ? ` ${thumbExtraClass}` : ""}`}
+      src={src}
+      alt=""
+      onError={onDdmPairAnswerThumbError}
+    />
+  );
+}
+
+function DragDropAnswerWithOptionalThumb({
+  pair,
+  resolveImg,
+  textClassName,
+  thumbExtraClass,
+}: {
+  pair: DragDropMatchPair;
+  resolveImg: (url: string) => string;
+  textClassName: string;
+  thumbExtraClass: string;
+}): React.ReactElement {
+  const thumb = renderAnswerThumbImg(pair, resolveImg, thumbExtraClass);
+  const text = pair.answer || "(No text)";
+  if (!thumb) {
+    return <span {...(textClassName ? { className: textClassName } : {})}>{text}</span>;
+  }
+  return (
+    <span className="drag-drop-match__answer-line">
+      {thumb}
+      <span {...(textClassName ? { className: textClassName } : {})}>{text}</span>
+    </span>
+  );
+}
 
 export type DragDropMatchBlockData = {
   title?: string;
@@ -95,23 +179,75 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 type Placements = Record<string, string | null>;
 
 export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBlockProps) {
+  const rootRef = useRef<HTMLElement | null>(null);
   const diagramMode = isDragDropDiagramMode(block.matchMode, {
     imageUrl: block.imageUrl,
     dropZones: block.dropZones,
   });
-  const resolveImg = resolveImageUrl ?? ((u: string) => u);
+  const resolveImg = useMemo(
+    () => resolveImageUrl ?? ((u: string) => u),
+    [resolveImageUrl]
+  );
 
   const pairs = useMemo(() => {
     const raw = Array.isArray(block.pairs) ? block.pairs : [];
     return raw
-      .map((p, i) => ({
-        id: String(p?.id ?? "").trim() || `row_${i + 1}`,
-        prompt: String(p?.prompt ?? "").trim(),
-        answer: String(p?.answer ?? "").trim(),
-        explanation: p?.explanation != null ? String(p.explanation) : undefined,
-      }))
+      .map((p, i) => {
+        const img = readDragDropPairAnswerImageUrl(p);
+        return {
+          id: String(p?.id ?? "").trim() || `row_${i + 1}`,
+          prompt: String(p?.prompt ?? "").trim(),
+          answer: String(p?.answer ?? "").trim(),
+          explanation: p?.explanation != null ? String(p.explanation) : undefined,
+          ...(img ? { answerImageUrl: img } : {}),
+        };
+      })
       .filter((p) => (diagramMode ? p.answer.length > 0 : p.prompt || p.answer));
   }, [block.pairs, diagramMode]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || window.localStorage?.getItem(DDM_PAIR_IMG_DEBUG_KEY) !== "1") return;
+    const thumbRows = pairs.map((p) => {
+      const raw = String(p.answerImageUrl ?? "").trim();
+      const src = raw ? resolvePairThumbDisplaySrc(raw, resolveImg) : "";
+      return {
+        id: p.id,
+        answer: p.answer,
+        answerImageUrl: p.answerImageUrl,
+        rawTrimmed: raw,
+        resolvedSrc: src,
+        okRaw: hasRenderableLessonImageSrc(raw),
+        okResolved: hasRenderableLessonImageSrc(src),
+        rendersThumb: Boolean(raw && hasRenderableLessonImageSrc(raw) && hasRenderableLessonImageSrc(src)),
+      };
+    });
+    console.log("[DragDropMatchBlock] normalized pairs + thumb pipeline", thumbRows);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const root = rootRef.current;
+        const imgs = root?.querySelectorAll<HTMLImageElement>("img.drag-drop-match__answer-thumb") ?? [];
+        const domInfo = Array.from(imgs).map((el) => {
+          const cs = window.getComputedStyle(el);
+          return {
+            src: el.currentSrc || el.src,
+            complete: el.complete,
+            naturalWidth: el.naturalWidth,
+            naturalHeight: el.naturalHeight,
+            clientWidth: el.clientWidth,
+            clientHeight: el.clientHeight,
+            display: cs.display,
+            visibility: cs.visibility,
+            opacity: cs.opacity,
+            brokenClass: el.classList.contains("drag-drop-match__answer-thumb--broken"),
+          };
+        });
+        console.log("[DragDropMatchBlock] DOM .drag-drop-match__answer-thumb", {
+          count: domInfo.length,
+          imgs: domInfo,
+        });
+      });
+    });
+  }, [pairs, resolveImg]);
 
   const pairIds = useMemo(() => pairs.map((p) => p.id), [pairs]);
 
@@ -387,7 +523,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const diagramZonesEmptyOrMissing = diagramMode && showDiagramImg && zones.length === 0;
 
   return (
-    <section className="drag-drop-match" aria-label={title || "Drag and drop match activity"}>
+    <section ref={rootRef} className="drag-drop-match" aria-label={title || "Drag and drop match activity"}>
       <div className="drag-drop-match__hero">
         <div className="drag-drop-match__hero-main">
           <div className="drag-drop-match__big-icon" aria-hidden="true">
@@ -485,8 +621,8 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                   ...(sourcePlaced && card
                                     ? {
                                         maxWidth: chipGrowRight
-                                          ? `min(132px, calc(100% - ${zxPct}% - 10px))`
-                                          : `min(132px, calc(${zxPct}% - 10px))`,
+                                          ? `min(260px, calc(100% - ${zxPct}% - 10px))`
+                                          : `min(260px, calc(${zxPct}% - 10px))`,
                                       }
                                     : {}),
                                 }}
@@ -510,6 +646,19 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                     >
                                       {mark}
                                     </span>
+                                    {(() => {
+                                      const thumb = renderAnswerThumbImg(
+                                        card,
+                                        resolveImg,
+                                        "drag-drop-match__answer-thumb--chip"
+                                      );
+                                      if (!thumb) return null;
+                                      return (
+                                        <span className="drag-drop-match__diagram-zone-chip-thumb-shell">
+                                          {thumb}
+                                        </span>
+                                      );
+                                    })()}
                                     <span className="drag-drop-match__diagram-zone-chip-text">
                                       {chipLabel}
                                     </span>
@@ -638,7 +787,12 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                         }
                       >
                         <span className="drag-drop-match__card-inner">
-                          <span className="drag-drop-match__card-text">{p.answer || "(No text)"}</span>
+                          <DragDropAnswerWithOptionalThumb
+                            pair={p}
+                            resolveImg={resolveImg}
+                            textClassName="drag-drop-match__card-text"
+                            thumbExtraClass="drag-drop-match__answer-thumb--diagram-card"
+                          />
                           {isPlaced ? (
                             <span className="drag-drop-match__card-placed-badge">Placed: {placedMark}</span>
                           ) : null}
@@ -703,13 +857,38 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                           →
                         </span>
                         <span className="drag-drop-match__diagram-summary-text">
-                          {card?.answer ? (
-                            card.answer
-                          ) : (
-                            <span className="drag-drop-match__diagram-summary-placeholder">
-                              Not placed yet
-                            </span>
-                          )}
+                          {(() => {
+                            if (!card) {
+                              return (
+                                <span className="drag-drop-match__diagram-summary-placeholder">
+                                  Not placed yet
+                                </span>
+                              );
+                            }
+                            const thumb = renderAnswerThumbImg(
+                              card,
+                              resolveImg,
+                              "drag-drop-match__answer-thumb--summary"
+                            );
+                            if (card.answer) {
+                              return (
+                                <span className="drag-drop-match__diagram-summary-answer">
+                                  {thumb}
+                                  <span>{card.answer}</span>
+                                </span>
+                              );
+                            }
+                            if (thumb) {
+                              return (
+                                <span className="drag-drop-match__diagram-summary-answer">{thumb}</span>
+                              );
+                            }
+                            return (
+                              <span className="drag-drop-match__diagram-summary-placeholder">
+                                Not placed yet
+                              </span>
+                            );
+                          })()}
                         </span>
                         {summaryStatus ? (
                           <span
@@ -830,7 +1009,12 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                     >
                       {sourcePlaced && card ? (
                         <span className="drag-drop-match__target-inner">
-                          <span className="drag-drop-match__placed-text">{card.answer}</span>
+                          <DragDropAnswerWithOptionalThumb
+                            pair={card}
+                            resolveImg={resolveImg}
+                            textClassName="drag-drop-match__placed-text"
+                            thumbExtraClass=""
+                          />
                           {checked && isCorrect ? (
                             <span className="drag-drop-match__status drag-drop-match__status--ok">
                               Correct
@@ -908,7 +1092,12 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                         aria-pressed={selected}
                         aria-label={`Select answer: ${p.answer}`}
                       >
-                        {p.answer || "(No text)"}
+                        <DragDropAnswerWithOptionalThumb
+                          pair={p}
+                          resolveImg={resolveImg}
+                          textClassName="drag-drop-match__card-text"
+                          thumbExtraClass=""
+                        />
                       </button>
                     );
                   })

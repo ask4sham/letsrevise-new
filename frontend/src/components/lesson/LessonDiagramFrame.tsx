@@ -14,7 +14,8 @@ export type LessonDiagramFrameProps = {
 
 /**
  * LetsRevise diagram shell: light branded frame with a small top strip.
- * Place {@link LessonImageFrame} inside the body — inner card chrome is flattened via CSS.
+ * Catalogue/vector diagrams: use LessonImageFrame in the body — inner card chrome is flattened via CSS.
+ * Uploaded raster (`diagram.imageUrl`) does not use this component — see `lessonUploadedDiagram.css`.
  */
 export function LessonDiagramFrame({
   variant = "standard",

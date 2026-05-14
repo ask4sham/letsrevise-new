@@ -6,6 +6,7 @@ import {
   logDragDropMatchZoneBindings,
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
+  readDragDropPairAnswerImageUrl,
   repairDiagramDropZonesForLessonEditor,
   resolveDragDropMatchModeForUi,
 } from "../../utils/dragDropMatchDiagram";
@@ -18,7 +19,13 @@ export type DragDropMatchAuthoringBlockSlice = {
   matchMode?: "text" | "diagram";
   imageFit?: "contain" | "cover";
   imagePosition?: "center center" | "center top" | "center bottom";
-  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
+  pairs?: Array<{
+    id: string;
+    prompt: string;
+    answer: string;
+    explanation?: string;
+    answerImageUrl?: string;
+  }>;
   dropZones?: Array<{
     id: string;
     x?: number;
@@ -273,12 +280,16 @@ export function DragDropMatchDiagramAuthoring({
                   imageUrl: String(blk.imageUrl ?? ""),
                   imageFit,
                   imagePosition,
-                  pairs: pairsDd.map((p, pi) => ({
-                    id: String(p?.id ?? "").trim() || `p${pi}`,
-                    prompt: String(p?.prompt ?? ""),
-                    answer: String(p?.answer ?? ""),
-                    explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                  })),
+                  pairs: pairsDd.map((p, pi) => {
+                    const img = readDragDropPairAnswerImageUrl(p);
+                    return {
+                      id: String(p?.id ?? "").trim() || `p${pi}`,
+                      prompt: String(p?.prompt ?? ""),
+                      answer: String(p?.answer ?? ""),
+                      explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                      ...(img ? { answerImageUrl: img } : {}),
+                    };
+                  }),
                   dropZones: zones.map((z, zi) => ({
                     id: String(z?.id ?? "").trim() || `z${zi}`,
                     ...(typeof z.x === "number" ? { x: z.x } : {}),

@@ -23,7 +23,7 @@ import { DragDropMatchBlock } from "../DragDropMatchBlock";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
 import { mergeCheckpointExplanationParts } from "../../../utils/checkpointFeedback";
 import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
-import { coerceDiagramZonePct } from "../../../utils/dragDropMatchDiagram";
+import { coerceDiagramZonePct, readDragDropPairAnswerImageUrl } from "../../../utils/dragDropMatchDiagram";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -128,12 +128,16 @@ export function LessonStudentBlockRenderer({
           ...(matchModeRaw ? { matchMode: matchModeRaw } : {}),
           ...(b.imageUrl != null && String(b.imageUrl).trim() ? { imageUrl: String(b.imageUrl).trim() } : {}),
           pairs: Array.isArray(b.pairs)
-            ? b.pairs!.map((p, i) => ({
-                id: String(p?.id ?? "").trim() || `p${i}`,
-                prompt: String(p?.prompt ?? ""),
-                answer: String(p?.answer ?? ""),
-                explanation: p?.explanation != null ? String(p.explanation) : undefined,
-              }))
+            ? b.pairs!.map((p, i) => {
+                const img = readDragDropPairAnswerImageUrl(p);
+                return {
+                  id: String(p?.id ?? "").trim() || `p${i}`,
+                  prompt: String(p?.prompt ?? ""),
+                  answer: String(p?.answer ?? ""),
+                  explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                  ...(img ? { answerImageUrl: img } : {}),
+                };
+              })
             : [],
           dropZones: Array.isArray(b.dropZones)
             ? b.dropZones!.map((z, i) => {

@@ -2,6 +2,7 @@
  * Item-level LLM rewrites for draft topic-bank assets only. JSON in/out; validate before save; never publish.
  */
 const Lesson = require("../models/Lesson");
+const { LESSON_DESCRIPTION_MAX_LENGTH } = require("../utils/lessonDescriptionLimits");
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
 const { fingerprint: flashFp } = require("../utils/flashcardDedupe");
 const { fingerprint: quizFp } = require("../utils/quizDedupe");
@@ -49,7 +50,8 @@ function lessonContextBlock(lesson) {
   const parts = [];
   if (lesson.title) parts.push(`Title: ${lesson.title}`);
   if (lesson.topic) parts.push(`Topic label: ${lesson.topic}`);
-  const desc = lesson.description && String(lesson.description).trim().slice(0, 500);
+  const desc =
+    lesson.description && String(lesson.description).trim().slice(0, LESSON_DESCRIPTION_MAX_LENGTH);
   if (desc) parts.push(`Description (excerpt): ${desc}`);
   return parts.join("\n");
 }

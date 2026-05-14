@@ -42,6 +42,7 @@ export type DragDropMatchPairPersisted = {
   prompt: string;
   answer: string;
   explanation?: string;
+  answerImageUrl?: string;
 };
 
 /** type === "dragDropMatch" & matchMode === "diagram" */

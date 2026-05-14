@@ -5,6 +5,7 @@ import { normalizeBlockType, type LessonBlockType } from "../types/lessonBlocks"
 import {
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
+  readDragDropPairAnswerImageUrl,
   resolveDragDropMatchModeForPersist,
   sanitizeDiagramDropZonesForAuthoring,
 } from "./dragDropMatchDiagram";
@@ -183,7 +184,14 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
         if (!row || typeof row !== "object") {
           return { id: `imp_dnd_${i + 1}`, prompt: "", answer: "" };
         }
-        const r = row as { id?: unknown; prompt?: unknown; answer?: unknown; explanation?: unknown };
+        const r = row as {
+          id?: unknown;
+          prompt?: unknown;
+          answer?: unknown;
+          explanation?: unknown;
+          answerImageUrl?: unknown;
+        };
+        const img = readDragDropPairAnswerImageUrl(row);
         return {
           id: String(r.id ?? "").trim() || `imp_dnd_${i + 1}`,
           prompt: String(r.prompt ?? "").trim(),
@@ -191,6 +199,7 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
           ...(r.explanation != null && String(r.explanation).trim()
             ? { explanation: String(r.explanation) }
             : {}),
+          ...(img ? { answerImageUrl: img } : {}),
         };
       });
       const p = payload as Record<string, unknown>;

@@ -42,6 +42,7 @@ const { computeLessonReadiness } = require("../utils/lessonReadiness");
 const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions");
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 const { sendInternalError } = require("../utils/safeErrorResponse");
+const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
 
 // ✅ ADDED: Import for revision validation
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -553,7 +554,12 @@ function sanitisePageInput(p, isUpdate = false) {
                 typeof row.id === "string" && row.id.trim()
                   ? row.id.trim().slice(0, 64)
                   : `pair_${i + 1}`;
-              return {
+              let answerImageUrlRaw =
+                typeof row.answerImageUrl === "string" ? row.answerImageUrl.trim().slice(0, 8000) : "";
+              if (!answerImageUrlRaw && typeof row.answer_image_url === "string") {
+                answerImageUrlRaw = row.answer_image_url.trim().slice(0, 8000);
+              }
+              const pairOut = {
                 id,
                 prompt: typeof row.prompt === "string" ? row.prompt.trim().slice(0, 2000) : "",
                 answer: typeof row.answer === "string" ? row.answer.trim().slice(0, 2000) : "",
@@ -562,6 +568,8 @@ function sanitisePageInput(p, isUpdate = false) {
                     ? row.explanation.trim().slice(0, 8000)
                     : undefined,
               };
+              if (answerImageUrlRaw) pairOut.answerImageUrl = answerImageUrlRaw;
+              return pairOut;
             })
             .filter((row) => row.id);
           const pairIdSet = new Set(pairs.map((r) => r.id));
@@ -1041,6 +1049,8 @@ async function createLessonHandler(req, res) {
       quiz,
       autoGenerateFromBanks,
     } = req.body || {};
+
+    description = normalizeLessonDescription(description);
 
     const missing = {};
     if (!title) missing.title = true;
@@ -2331,7 +2341,7 @@ router.post("/:id/duplicate", auth, async (req, res) => {
     const teacherName = `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || req.user.email;
     const copy = {
       title: (source.title || "Untitled").trim() + " (Copy)",
-      description: source.description || "",
+      description: normalizeLessonDescription(source.description || ""),
       content: source.content || "",
       teacherId: req.user._id,
       teacherName,
@@ -3381,6 +3391,10 @@ router.put("/:id", auth, async (req, res) => {
 
     const updates = req.body || {};
     delete updates.curriculumAiReview;
+
+    if (Object.prototype.hasOwnProperty.call(updates, "description")) {
+      updates.description = normalizeLessonDescription(updates.description);
+    }
 
     // ✅ FIXED: Handle pages update with hero preservation
     if (updates.pages && Array.isArray(updates.pages)) {

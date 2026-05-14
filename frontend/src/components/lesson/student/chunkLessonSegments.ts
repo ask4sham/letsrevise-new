@@ -9,7 +9,8 @@
  *   segment: `keyIdea`, `keyWords`, `examTip` (optional recap / phrase blocks).
  *
  * Together with `classifyChunkTeachingLayout`, this yields:
- * - text + one related diagram → side-by-side
+ * - text + one related diagram → side-by-side (visual catalogue diagrams only)
+ * - text + diagram with raster `imageUrl` → vertical stack (full-width figure)
  * - text only → centered text-only chunk
  * - diagram(s) alone → full-width image chunk(s)
  *

@@ -131,7 +131,7 @@
 
 .drag-drop-match__target {
   position: relative;
-  min-height: 52px;
+  min-height: 0;
   width: 100%;
   max-width: 100%;
   text-align: left;
@@ -200,10 +200,15 @@
 .drag-drop-match__target-inner {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  align-items: stretch;
+  gap: 6px;
   text-align: left;
   width: 100%;
+}
+
+.drag-drop-match__target-inner:has(.drag-drop-match__answer-line) {
+  align-items: center;
+  text-align: center;
 }
 
 .drag-drop-match__target-empty {
@@ -216,6 +221,91 @@
   font-size: 0.9rem;
   color: #0f172a;
   font-weight: 600;
+}
+
+/* Stacked: large image above answer text (bank, targets, text-mode cards). */
+.drag-drop-match__answer-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.drag-drop-match__answer-thumb {
+  flex: 0 0 auto;
+  display: block;
+  width: 112px;
+  height: 112px;
+  max-width: min(120px, 42vw);
+  max-height: min(120px, 42vw);
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.drag-drop-match__answer-thumb--broken {
+  opacity: 0.45;
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.drag-drop-match__answer-line .drag-drop-match__card-text,
+.drag-drop-match__answer-line .drag-drop-match__placed-text {
+  width: 100%;
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.drag-drop-match__answer-thumb--diagram-card {
+  width: 104px;
+  height: 104px;
+  max-width: min(120px, 38vw);
+  max-height: min(120px, 38vw);
+  border-radius: 10px;
+}
+
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__answer-thumb--diagram-card {
+  width: 96px;
+  height: 96px;
+  max-width: min(112px, 36vw);
+  max-height: min(112px, 36vw);
+  border-radius: 10px;
+}
+
+.drag-drop-match__answer-thumb--chip {
+  flex: 0 0 auto;
+  width: 80px;
+  height: 80px;
+  max-width: min(88px, 28vw);
+  max-height: min(88px, 28vw);
+  border-radius: 8px;
+}
+
+.drag-drop-match__answer-thumb--summary {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  max-width: min(104px, 32vw);
+  max-height: min(104px, 32vw);
+  border-radius: 10px;
+}
+
+.drag-drop-match__diagram-summary-answer {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
 }
 
 .drag-drop-match__status {
@@ -266,7 +356,7 @@
 .drag-drop-match__card {
   width: 100%;
   max-width: 100%;
-  min-height: 48px;
+  min-height: 0;
   text-align: left;
   border-radius: 14px;
   border: 1.5px solid #c4b5fd;
@@ -460,19 +550,27 @@
 
 .drag-drop-match__card-list--diagram-wrap .drag-drop-match__card {
   box-sizing: border-box;
-  flex: 1 1 104px;
+  flex: 1 1 120px;
   min-width: 0;
-  max-width: min(152px, calc(50% - 5px));
+  max-width: min(176px, calc(50% - 5px));
   width: auto;
   align-self: flex-start;
-  min-height: 28px;
-  padding: 3px 6px;
-  font-size: 10px;
-  line-height: 1.2;
-  border-radius: 8px;
+  min-height: 0;
+  padding: 8px 8px;
+  font-size: 11px;
+  line-height: 1.25;
+  border-radius: 10px;
   border-width: 1px;
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07);
+}
+
+/* Diagram bank cards with answer images need more width for GCSE-scale thumbs. */
+.drag-drop-match__card-list--diagram-wrap .drag-drop-match__card:has(.drag-drop-match__answer-thumb) {
+  flex: 1 1 min(180px, 48%);
+  max-width: min(260px, calc(100% - 6px));
+  min-width: min(160px, 100%);
+  padding: 10px 10px;
 }
 
 .drag-drop-match__card-list--diagram-wrap .drag-drop-match__card:hover,
@@ -493,14 +591,20 @@
 .drag-drop-match__card-inner {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: stretch;
+  gap: 8px;
   width: 100%;
   text-align: left;
 }
 
+/* Image + text: centred stack so the thumb reads as the hero. */
+.drag-drop-match__card-inner:has(.drag-drop-match__answer-line) {
+  align-items: center;
+  text-align: center;
+}
+
 .drag-drop-match__card-list--diagram-wrap .drag-drop-match__card-inner {
-  gap: 1px;
+  gap: 6px;
 }
 
 .drag-drop-match__card-text {
@@ -796,18 +900,22 @@
   flex-shrink: 0;
 }
 
-/* Placed answer: compact A + label chip on the diagram (diagram mode). */
+/* Placed answer: zone letter + image-led chip — cap outer height so stacked rows don’t overlap. */
 .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled {
   width: auto;
   min-width: 0;
   max-width: none;
   min-height: 0;
-  padding: 5px 12px;
-  border-radius: 999px;
+  max-height: 66px;
+  height: 66px;
+  padding: 1px 3px;
+  border-radius: 6px;
   border-style: solid;
-  border-width: 2px;
+  border-width: 1px;
   align-items: stretch;
   justify-content: center;
+  overflow: hidden;
+  box-sizing: border-box;
   /* Base lift; tone + state rules set fill/border/shadow */
   box-shadow:
     0 2px 8px rgba(15, 23, 42, 0.14),
@@ -873,8 +981,8 @@
   background: #ecfdf5 !important;
   border-color: #16a34a !important;
   box-shadow:
-    0 0 0 3px rgba(34, 197, 94, 0.42),
-    0 2px 10px rgba(34, 197, 94, 0.18);
+    0 0 0 2px rgba(34, 197, 94, 0.38),
+    0 1px 6px rgba(34, 197, 94, 0.14);
 }
 
 .drag-drop-match__diagram-worksheet
@@ -882,8 +990,8 @@
   background: #fef2f2 !important;
   border-color: #dc2626 !important;
   box-shadow:
-    0 0 0 3px rgba(239, 68, 68, 0.38),
-    0 2px 10px rgba(239, 68, 68, 0.14);
+    0 0 0 2px rgba(239, 68, 68, 0.32),
+    0 1px 6px rgba(239, 68, 68, 0.12);
 }
 
 .drag-drop-match__diagram-worksheet
@@ -898,26 +1006,155 @@
   color: #991b1b;
 }
 
-/*
- * Anchor chips so they grow inward from the diagram edge (avoid overflow:hidden clip).
- * Left-half zones: nudge ~10px toward centre so chips clear the frame; right-half symmetric.
- */
-.drag-drop-match__diagram-worksheet
-  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-grow-right {
-  transform: translate(10px, -50%);
-}
-
-.drag-drop-match__diagram-worksheet
-  .drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--chip-grow-left {
-  transform: translate(calc(-100% - 10px), -50%);
-}
-
 .drag-drop-match__diagram-zone-chip {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 2px;
   min-width: 0;
   width: 100%;
+}
+
+/*
+ * On-diagram chips only: fill the capped zone button; uniform height across A–D.
+ * Two columns when a thumb exists: left = full-height image well (SS3), right = mark + label + status.
+ * Global .answer-thumb--chip max-width would otherwise cap SS2 at ~88px inside a wide chip.
+ */
+.drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 4px;
+  row-gap: 0;
+  align-content: stretch;
+  justify-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: min(240px, 72vw);
+  max-width: min(240px, 72vw);
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  padding-top: 0;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:not(:has(.drag-drop-match__answer-thumb--chip)) {
+  grid-template-columns: 1fr;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:has(.drag-drop-match__answer-thumb--chip)
+  .drag-drop-match__diagram-zone-chip-thumb-shell {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  z-index: 0;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:has(.drag-drop-match__answer-thumb--chip)
+  .drag-drop-match__diagram-zone-chip-mark {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:has(.drag-drop-match__answer-thumb--chip)
+  .drag-drop-match__diagram-zone-chip-text {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  z-index: 1;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:has(.drag-drop-match__answer-thumb--chip)
+  .drag-drop-match__diagram-zone-chip-status,
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:has(.drag-drop-match__answer-thumb--chip)
+  .drag-drop-match__diagram-zone-chip-clear-hint {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:not(:has(.drag-drop-match__answer-thumb--chip))
+  .drag-drop-match__diagram-zone-chip-mark {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:not(:has(.drag-drop-match__answer-thumb--chip))
+  .drag-drop-match__diagram-zone-chip-text {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:not(:has(.drag-drop-match__answer-thumb--chip))
+  .drag-drop-match__diagram-zone-chip-status,
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-chip:not(:has(.drag-drop-match__answer-thumb--chip))
+  .drag-drop-match__diagram-zone-chip-clear-hint {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+/*
+ * On-diagram thumb (SS1) inside the left well (SS2): +100% scale (×2) clipped to the well so the label column is unchanged.
+ */
+.drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone-chip
+  .drag-drop-match__diagram-zone-chip-thumb-shell
+  .drag-drop-match__answer-thumb--chip {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 4px;
+  transform: scale(2);
+  transform-origin: center center;
+  align-self: stretch;
+  justify-self: stretch;
+}
+
+/* Image-led stack: thumb first, then zone letter, then label + status row. */
+.drag-drop-match__diagram-zone-chip .drag-drop-match__diagram-zone-chip-thumb-shell,
+.drag-drop-match__diagram-zone-chip .drag-drop-match__answer-thumb--chip {
+  order: 0;
 }
 
 .drag-drop-match__diagram-zone-chip-mark {
@@ -927,6 +1164,27 @@
   line-height: 1;
   color: #1d4ed8;
   letter-spacing: -0.02em;
+  order: 1;
+}
+
+.drag-drop-match__diagram-zone-chip-text {
+  order: 2;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  text-align: center;
+  color: #0f172a;
+}
+
+.drag-drop-match__diagram-zone-chip-status,
+.drag-drop-match__diagram-zone-chip-clear-hint {
+  order: 3;
 }
 
 .drag-drop-match__diagram-zone--correct .drag-drop-match__diagram-zone-chip-mark {
@@ -937,34 +1195,36 @@
   color: #b91c1c;
 }
 
-.drag-drop-match__diagram-zone-chip-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
-  color: #0f172a;
-}
-
 .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-mark {
-  font-size: 0.88rem;
+  font-size: 0.52rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-text {
-  font-size: 0.76rem;
-  line-height: 1.2;
+  font-size: 0.45rem;
+  line-height: 1.05;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  text-align: center;
 }
 
 .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-status {
-  font-size: 0.72rem;
+  font-size: 0.45rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-zone--filled .drag-drop-match__diagram-zone-chip-clear-hint {
-  font-size: 0.82rem;
+  font-size: 0.48rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .drag-drop-match__diagram-zone-chip-status {
@@ -989,7 +1249,7 @@
   line-height: 1;
   color: #64748b;
   opacity: 0.65;
-  margin-inline-start: 1px;
+  margin-inline-start: 0;
 }
 
 /* GCSE-style: bold but compact chip typography on the diagram */

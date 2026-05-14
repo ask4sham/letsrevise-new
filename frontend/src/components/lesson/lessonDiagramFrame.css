@@ -1,5 +1,7 @@
 /**
- * LetsRevise diagram shell — branded strip + calm frame. Inner {@link LessonImageFrame} stays visually flat.
+ * LetsRevise diagram shell — branded strip + calm frame for catalogue/vector diagrams.
+ * Inner LessonImageFrame is flattened via CSS. Uploaded raster (`diagram.imageUrl`) uses
+ * `.lesson-uploaded-diagram` in LessonViewPage (see lessonUploadedDiagram.css), not this frame.
  */
 
 .lesson-diagram-frame {

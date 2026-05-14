@@ -37,6 +37,7 @@ import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramH
 import {
   coerceDiagramZonePct,
   parseDragDropMatchMode,
+  readDragDropPairAnswerImageUrl,
   sanitizeDiagramDropZonesForAuthoring,
 } from "../utils/dragDropMatchDiagram";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
@@ -78,7 +79,7 @@ type LessonPageBlock = {
   role?: string;
   intro?: string;
   instructions?: string;
-  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
+  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string; answerImageUrl?: string }>;
   sequenceSteps?: Array<{
     title: string;
     description: string;
@@ -1078,6 +1079,56 @@ const CreateLessonPage: React.FC = () => {
     }
   };
 
+  /** dragDropMatch pair answer thumbnail — same uploads/image as Edit lesson; teacher draft folder. */
+  const uploadImageForDragDropMatchPairAnswer = async (
+    file: File,
+    pageId: string,
+    blockIndex: number,
+    pairIndex: number,
+    onUrl: (url: string) => void
+  ) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image (png/jpg/gif/webp).");
+      return;
+    }
+    if (!token) {
+      alert("You must be signed in to upload media.");
+      return;
+    }
+    const teacherId = user?._id ? String(user._id) : "teacher_unknown";
+    const uploadKey = `${pageId}:${blockIndex}:ddm-pair:${pairIndex}`;
+    try {
+      setUploadingKey(uploadKey);
+      setUploadMsg("");
+      const form = new FormData();
+      form.append("file", file);
+      const folder = `lesson-media/teacher_${teacherId}/lesson_new/page_${pageId}/block_${blockIndex}_ddm_pair_${pairIndex}`;
+      const endpoint = `uploads/image?folder=${encodeURIComponent(folder)}`;
+      form.append("folder", folder);
+      const res = await api.post(endpoint, form);
+      const url = res.data?.url as string | undefined;
+      if (!url) {
+        alert("Upload succeeded but no URL returned.");
+        return;
+      }
+      onUrl(toAbsoluteAssetUrl(url));
+      setUploadMsg("✅ Answer image uploaded.");
+      setTimeout(() => setUploadMsg(""), 2000);
+    } catch (e: any) {
+      console.error(e);
+      const data = e?.response?.data;
+      const raw =
+        typeof data === "object" && data !== null
+          ? (data.error ?? data.details ?? data.msg ?? data.message)
+          : undefined;
+      const msg = typeof raw === "string" && raw ? raw : e?.message || "Upload failed";
+      alert(`Upload failed. ${msg}`);
+    } finally {
+      setUploadingKey("");
+    }
+  };
+
   const triggerBlockUpload = (pageId: string, blockIndex: number) => {
     const key = `${pageId}:${blockIndex}`;
     const input = fileInputRef.current[key];
@@ -1216,15 +1267,19 @@ const CreateLessonPage: React.FC = () => {
           const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
           const pairs = rawPairs
             .slice(0, 20)
-            .map((row) => ({
-              id: String(row?.id ?? "").trim() || newLessonBlockId(),
-              prompt: row?.prompt != null ? String(row.prompt).trim() : "",
-              answer: row?.answer != null ? String(row.answer).trim() : "",
-              explanation:
-                row?.explanation != null && String(row.explanation).trim()
-                  ? String(row.explanation).trim()
-                  : undefined,
-            }))
+            .map((row) => {
+              const img = readDragDropPairAnswerImageUrl(row);
+              return {
+                id: String(row?.id ?? "").trim() || newLessonBlockId(),
+                prompt: row?.prompt != null ? String(row.prompt).trim() : "",
+                answer: row?.answer != null ? String(row.answer).trim() : "",
+                explanation:
+                  row?.explanation != null && String(row.explanation).trim()
+                    ? String(row.explanation).trim()
+                    : undefined,
+                ...(img ? { answerImageUrl: img } : {}),
+              };
+            })
             .filter((row) => row.id);
           const parsedModePersist = parseDragDropMatchMode(b.matchMode);
           const zonePairIds = pairs.map((row) => row.id);
@@ -2965,6 +3020,195 @@ const CreateLessonPage: React.FC = () => {
                                               }}
                                             />
                                           </label>
+                                          {(() => {
+                                            const ddmPairKey = `${key}:ddm-pair:${pi}`;
+                                            const pairImgUploading = uploadingKey === ddmPairKey;
+                                            const rawPairImg = String(pair.answerImageUrl ?? "").trim();
+                                            const pairImgSrc =
+                                              rawPairImg && hasRenderableLessonImageSrc(rawPairImg)
+                                                ? makeAbsoluteAssetUrl(rawPairImg) ?? rawPairImg
+                                                : "";
+                                            return (
+                                              <div style={{ marginBottom: 8 }}>
+                                                <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
+                                                  Answer image (optional)
+                                                </div>
+                                                <div
+                                                  style={{
+                                                    fontSize: 12,
+                                                    color: "#64748b",
+                                                    marginBottom: 6,
+                                                    lineHeight: 1.4,
+                                                  }}
+                                                >
+                                                  Paste a URL or upload — stored under{" "}
+                                                  <code style={{ fontSize: 11 }}>lesson-media/teacher_…/lesson_new/…</code>.
+                                                </div>
+                                                <input
+                                                  ref={(el) => {
+                                                    fileInputRef.current[ddmPairKey] = el;
+                                                  }}
+                                                  type="file"
+                                                  accept="image/*"
+                                                  style={{ display: "none" }}
+                                                  onChange={(e) => {
+                                                    const f = e.target.files?.[0];
+                                                    if (!f) return;
+                                                    uploadImageForDragDropMatchPairAnswer(
+                                                      f,
+                                                      pg.pageId,
+                                                      idx,
+                                                      pi,
+                                                      (url) => {
+                                                        const next = [...pairsList];
+                                                        if (next[pi]) next[pi] = { ...next[pi], answerImageUrl: url };
+                                                        updateBlock(pg.pageId, idx, { pairs: next });
+                                                      }
+                                                    );
+                                                    e.target.value = "";
+                                                  }}
+                                                />
+                                                <div
+                                                  style={{
+                                                    display: "flex",
+                                                    flexWrap: "wrap",
+                                                    gap: 8,
+                                                    alignItems: "stretch",
+                                                    marginBottom: rawPairImg ? 8 : 0,
+                                                  }}
+                                                >
+                                                  <label style={{ flex: "1 1 220px", minWidth: 0, margin: 0 }}>
+                                                    <span
+                                                      style={{
+                                                        display: "block",
+                                                        fontWeight: 600,
+                                                        fontSize: 12,
+                                                        marginBottom: 4,
+                                                      }}
+                                                    >
+                                                      Image URL
+                                                    </span>
+                                                    <input
+                                                      value={pair.answerImageUrl ?? ""}
+                                                      onChange={(e) => {
+                                                        const next = [...pairsList];
+                                                        if (next[pi])
+                                                          next[pi] = { ...next[pi], answerImageUrl: e.target.value };
+                                                        updateBlock(pg.pageId, idx, { pairs: next });
+                                                      }}
+                                                      placeholder="https://… or path after upload"
+                                                      style={{
+                                                        width: "100%",
+                                                        padding: "8px 10px",
+                                                        borderRadius: 8,
+                                                        border: "1px solid #cbd5e1",
+                                                        boxSizing: "border-box",
+                                                        fontSize: "0.875rem",
+                                                      }}
+                                                    />
+                                                  </label>
+                                                  <div
+                                                    style={{
+                                                      display: "flex",
+                                                      flexDirection: "column",
+                                                      justifyContent: "flex-end",
+                                                      flex: "0 0 auto",
+                                                    }}
+                                                  >
+                                                    <span
+                                                      style={{
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        marginBottom: 4,
+                                                        opacity: 0,
+                                                      }}
+                                                    >
+                                                      &nbsp;
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        const input = fileInputRef.current[ddmPairKey];
+                                                        if (input) {
+                                                          input.value = "";
+                                                          input.click();
+                                                        }
+                                                      }}
+                                                      disabled={pairImgUploading}
+                                                      style={{
+                                                        padding: "8px 14px",
+                                                        borderRadius: 8,
+                                                        border: "2px solid rgba(99,102,241,0.35)",
+                                                        background: "white",
+                                                        cursor: pairImgUploading ? "not-allowed" : "pointer",
+                                                        fontWeight: 700,
+                                                        fontSize: 13,
+                                                        whiteSpace: "nowrap",
+                                                      }}
+                                                    >
+                                                      {pairImgUploading ? "Uploading…" : "Upload image"}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                                {rawPairImg && pairImgSrc ? (
+                                                  <div
+                                                    style={{
+                                                      display: "flex",
+                                                      flexWrap: "wrap",
+                                                      alignItems: "center",
+                                                      gap: 12,
+                                                      padding: 10,
+                                                      borderRadius: 10,
+                                                      border: "1px solid #e2e8f0",
+                                                      background: "#fff",
+                                                    }}
+                                                  >
+                                                    <img
+                                                      src={pairImgSrc}
+                                                      alt=""
+                                                      style={{
+                                                        width: 72,
+                                                        height: 72,
+                                                        objectFit: "contain",
+                                                        borderRadius: 8,
+                                                        border: "1px solid #cbd5e1",
+                                                        background: "#f8fafc",
+                                                      }}
+                                                    />
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                                      <span
+                                                        style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}
+                                                      >
+                                                        Preview — upload again to replace
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const next = [...pairsList];
+                                                          if (next[pi])
+                                                            next[pi] = { ...next[pi], answerImageUrl: "" };
+                                                          updateBlock(pg.pageId, idx, { pairs: next });
+                                                        }}
+                                                        style={{
+                                                          alignSelf: "flex-start",
+                                                          padding: "6px 12px",
+                                                          borderRadius: 8,
+                                                          border: "1px solid #f87171",
+                                                          background: "#fef2f2",
+                                                          color: "#b91c1c",
+                                                          fontWeight: 700,
+                                                          fontSize: 12,
+                                                          cursor: "pointer",
+                                                        }}
+                                                      >
+                                                        Clear image
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : null}
+                                              </div>
+                                            );
+                                          })()}
                                           <label style={{ display: "block", marginBottom: 8 }}>
                                             <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
                                               Explanation (optional)
@@ -3029,13 +3273,17 @@ const CreateLessonPage: React.FC = () => {
                                             ? { matchMode: b.matchMode }
                                             : {}),
                                           ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
-                                          pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => ({
-                                            id: String(p?.id ?? "").trim() || `pair_${i}`,
-                                            prompt: String(p?.prompt ?? ""),
-                                            answer: String(p?.answer ?? ""),
-                                            explanation:
-                                              p?.explanation != null ? String(p.explanation) : undefined,
-                                          })),
+                                          pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => {
+                                            const img = readDragDropPairAnswerImageUrl(p);
+                                            return {
+                                              id: String(p?.id ?? "").trim() || `pair_${i}`,
+                                              prompt: String(p?.prompt ?? ""),
+                                              answer: String(p?.answer ?? ""),
+                                              explanation:
+                                                p?.explanation != null ? String(p.explanation) : undefined,
+                                              ...(img ? { answerImageUrl: img } : {}),
+                                            };
+                                          }),
                                           ...(Array.isArray(b.dropZones)
                                             ? {
                                                 dropZones: b.dropZones.map((z, zi) => {
@@ -3483,13 +3731,17 @@ const CreateLessonPage: React.FC = () => {
                                       ? { matchMode: ddm.matchMode }
                                       : {}),
                                     ...(safeStr(ddm.imageUrl, "") ? { imageUrl: safeStr(ddm.imageUrl, "") } : {}),
-                                    pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => ({
-                                      id: String(p?.id ?? "").trim() || `pair_${i}`,
-                                      prompt: String(p?.prompt ?? ""),
-                                      answer: String(p?.answer ?? ""),
-                                      explanation:
-                                        p?.explanation != null ? String(p.explanation) : undefined,
-                                    })),
+                                    pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => {
+                                      const img = readDragDropPairAnswerImageUrl(p);
+                                      return {
+                                        id: String(p?.id ?? "").trim() || `pair_${i}`,
+                                        prompt: String(p?.prompt ?? ""),
+                                        answer: String(p?.answer ?? ""),
+                                        explanation:
+                                          p?.explanation != null ? String(p.explanation) : undefined,
+                                        ...(img ? { answerImageUrl: img } : {}),
+                                      };
+                                    }),
                                     ...(Array.isArray(ddm.dropZones)
                                       ? {
                                           dropZones: ddm.dropZones.map((z, zi) => {

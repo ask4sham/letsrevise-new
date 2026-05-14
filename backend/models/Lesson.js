@@ -97,6 +97,8 @@ const DragDropMatchPairSchema = new mongoose.Schema(
     id: { type: String, default: "" },
     prompt: { type: String, default: "" },
     answer: { type: String, default: "" },
+    /** Optional icon/thumbnail shown on draggable answer cards (text mode + diagram bank). */
+    answerImageUrl: { type: String, required: false },
     explanation: { type: String, default: undefined },
   },
   { _id: false }

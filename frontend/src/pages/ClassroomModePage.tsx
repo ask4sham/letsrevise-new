@@ -23,7 +23,7 @@ import {
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
-import { coerceDiagramZonePct } from "../utils/dragDropMatchDiagram";
+import { coerceDiagramZonePct, readDragDropPairAnswerImageUrl } from "../utils/dragDropMatchDiagram";
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 
 interface DiagramAnnotation {
@@ -60,7 +60,7 @@ interface LessonPageBlock {
   title?: string;
   intro?: string;
   instructions?: string;
-  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string }>;
+  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string; answerImageUrl?: string }>;
   matchMode?: "text" | "diagram";
   dropZones?: Array<{
     id: string;
@@ -797,12 +797,16 @@ const ClassroomModePage: React.FC = () => {
                               ? { matchMode: b.matchMode }
                               : {}),
                             ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
-                            pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => ({
-                              id: String(p?.id ?? "").trim() || `p${i}`,
-                              prompt: String(p?.prompt ?? ""),
-                              answer: String(p?.answer ?? ""),
-                              explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                            })),
+                            pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => {
+                              const img = readDragDropPairAnswerImageUrl(p);
+                              return {
+                                id: String(p?.id ?? "").trim() || `p${i}`,
+                                prompt: String(p?.prompt ?? ""),
+                                answer: String(p?.answer ?? ""),
+                                explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                                ...(img ? { answerImageUrl: img } : {}),
+                              };
+                            }),
                             ...(Array.isArray(b.dropZones)
                               ? {
                                   dropZones: b.dropZones.map((z, i) => {
