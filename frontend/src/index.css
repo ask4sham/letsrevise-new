@@ -27,6 +27,15 @@
   --lesson-image-thumb-size-sm: 40px;
   --lesson-image-thumb-size-md: 44px;
   --lesson-image-thumb-size-lg: 48px;
+
+  /* Phase 4 — responsive layout tokens (reference / non-@media use).
+     Plain CSS does not allow var() inside @media (width: …) conditions; keep literals
+     in @media until a build-time or JS layer mirrors these. Use tokens in max-width,
+     width, calc(), container queries, or document alongside matchMedia strings in TS. */
+  --layout-mobile-max: 767px;
+  --layout-tablet-max: 900px;
+  --layout-content-max: 920px;
+  --layout-wide-max: 1200px;
 }
 
 /* Prevent accidental horizontal scroll. Use clip where supported: overflow-x: hidden
@@ -184,4 +193,22 @@ code {
   .teacher-dashboard-main { order: 1; }
   .teacher-dashboard-left { order: 2; }
   .teacher-dashboard-right { order: 3; }
+}
+
+/* --------------------------------------------------------------------------
+   Phase 4 — opt-in layout utilities (additive only; nothing uses these yet).
+   -------------------------------------------------------------------------- */
+.lr-min-w-0 {
+  min-width: 0;
+}
+
+.lr-full-width {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.lr-content-width {
+  max-width: var(--layout-content-max);
+  margin-inline: auto;
+  box-sizing: border-box;
 }

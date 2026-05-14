@@ -267,10 +267,11 @@ The lesson UI combines **three layout layers** that interact:
 |-------|--------|
 | **Phase 2** | **Spacing token foundation** — `:root` scale + minimal adoption in `index.css` / `lessonRenderer.css` (see §13). |
 | **Phase 3** | **Image rendering foundation** — global image design tokens + minimal adoption on `lesson-image-card` only; audit map §14. |
-| **Phase 4** | **Breakpoint alignment** — document and optionally unify 767 vs 900; regression checklist for sticky rails. |
-| **Phase 5** | **Image pipeline** — unify margins (`index` vs `lessonImageCard`), reduce uploaded-diagram special-case surface. |
-| **Phase 6** | **Student chunk layout** — refactor `lessonStudentView.css` with lower specificity; E2E on narrow viewports. |
-| **Phase 7** | **Editor / preview parity** — extract inline layout from `LessonViewPage` / `EditLessonPage` into tested layout components. |
+| **Phase 4** | **Responsive layout foundation** — `:root` layout tokens + opt-in `.lr-*` utilities (see §15); **no** `@media` edits in this phase. |
+| **Phase 5** | **Breakpoint alignment** — unify 767 vs 768 vs 900 contracts; regression checklist for sticky rails. |
+| **Phase 6** | **Image pipeline** — unify margins (`index` vs `lessonImageCard`), reduce uploaded-diagram special-case surface. |
+| **Phase 7** | **Student chunk layout** — refactor `lessonStudentView.css` with lower specificity; E2E on narrow viewports. |
+| **Phase 8** | **Editor / preview parity** — extract inline layout from `LessonViewPage` / `EditLessonPage` into tested layout components. |
 
 ---
 
@@ -388,8 +389,79 @@ The lesson UI combines **three layout layers** that interact:
 2. Wire **lightbox** `44px` / `48px` / `40px` controls to `--lesson-image-thumb-size-*` after confirming no touch-target regressions on mobile.
 3. Align **`LessonDiagramFrame`** local vars with global image tokens where values intentionally match (optional bridge, not merge).
 4. **Markdown vs card** — single story for vertical margin (`index` `20px` vs card `20px auto 28px`) before changing either.
-5. **Student split media** — last; depends on chunk layout simplification (Phase 6+ in roadmap above).
+5. **Student split media** — last; depends on chunk layout simplification (Phase 7+ in roadmap above).
 
 ---
 
-*Phase 1 audit; Phase 2 spacing + Phase 3 image token foundation on `layout-audit-phase1`.*
+## 15. Phase 4 — Responsive layout consistency foundation (implemented)
+
+**Branch:** `layout-audit-phase1`  
+**Scope:** Documentation + additive CSS only — **no** changes to existing `@media` blocks, grid templates, sticky behaviour, editor/student pages, drag-drop, checkpoints, sequences, or uploaded diagrams.
+
+### 15.1 Layout tokens (`frontend/src/index.css` `:root`)
+
+| Token | Value | Intended meaning |
+|-------|-------|------------------|
+| `--layout-mobile-max` | `767px` | “Phone-first” upper bound (aligns with `LessonViewPage` `matchMedia` string). |
+| `--layout-tablet-max` | `900px` | Sticky rails / teacher dashboard stack (`App.css`, `index.css` use 900 / 899). |
+| `--layout-content-max` | `920px` | Narrow readable column cap (e.g. future `.lr-content-width` consumers; drag-drop uses **920px** as a **max-height** cap — different axis; do not conflate without review). |
+| `--layout-wide-max` | `1200px` | Legacy “wide” shell (e.g. `App.css` patterns). |
+
+**`@media` limitation:** standard CSS cannot write `@media (max-width: var(--layout-mobile-max))`. Keep numeric literals in `@media` until a preprocessor, duplicate custom props, or JS-driven breakpoints mirror this table. Tokens are for **`max-width` on elements**, **`calc()`**, **container queries** (where supported), and **documentation** alongside TS `matchMedia` strings.
+
+### 15.2 Opt-in utilities (additive; **zero** current consumers)
+
+| Class | Behaviour |
+|-------|-----------|
+| `.lr-min-w-0` | `min-width: 0` — flex/grid shrink guardrail for new markup. |
+| `.lr-full-width` | `width: 100%` + `box-sizing: border-box`. |
+| `.lr-content-width` | `max-width: var(--layout-content-max)` + centred with `margin-inline: auto`. |
+
+### 15.3 Breakpoint audit (major values)
+
+| Value | Typical role | Notable locations |
+|-------|--------------|-------------------|
+| **480px** | Small-phone tweaks | `dragDropMatchBlock.css` |
+| **520px** | Lightbox nav shrink | `lessonImageCard.css` |
+| **767px** | “Mobile” layout for drag-drop | `dragDropMatchBlock.css` `@media (max-width: 767px)` |
+| **768px** | “At least tablet” / lesson markdown mobile | `dragDropMatchBlock.css` `(min-width: 768px)`; `App.css` `(min-width: 768px)`; **`index.css` `.lesson-content` uses `(max-width: 768px)`** — **off-by-one vs 767** |
+| **≤768px** | `innerWidth` fallback | `LessonViewPage.tsx` (`<= 768` vs `matchMedia` max-width **767px**) |
+| **899px** | Just below sticky threshold | `App.css` `(max-width: 899px)` pairing with 900 |
+| **900px** | Sticky sidebars, dashboard stack | `App.css` `(min-width: 900px)`; `index.css` teacher dashboard `(max-width: 900px)` |
+| **920px** | **Max-height** cap (not breakpoint) | `dragDropMatchBlock.css` `max-height: min(82vh, 920px)` |
+| **1100px** | Create-lesson editor | `App.css` |
+| **1200px** | Wide content shell | `App.css`; `EditLessonPage.tsx` default width fallback |
+| **1400px** | V12 student presentation grid cap | `LessonViewPage.tsx` inline `maxWidth` |
+| **1440px** | Shell caps | `App.css` |
+
+**Consolidation plan (future, not executed in Phase 4):**  
+1. Decide a **single mobile contract** (767 vs 768) for **JS + CSS** and document the one-pixel delta (`LessonViewPage` vs `index.css` lesson content).  
+2. Keep **900 / 899** as a pair until rails logic moves to a shared constant in JS or comments only.  
+3. Introduce optional **`--layout-breakpoint-mobile-em: 48em`** style only if `rem`-based breakpoints are adopted app-wide.
+
+### 15.4 Mobile / responsive risks (documentation)
+
+- **Fixed-width cards** — `lesson-image-card` variants (360–460px) centre on small screens but are not full-bleed by design.
+- **Sticky sidebars** — depend on **window scroll** + `App.css` **`min-width: 900px`**; changing breakpoints without updating both sides breaks stickiness.
+- **Preview panes** — Create/Edit lesson sticky preview rails share `--lesson-editor-rail-sticky-top` with lesson view.
+- **Nested grids** — `LessonViewPage` desktop grid + inner flex + block-level grids.
+- **`min-width: 0`** — repeated with `!important` in `lessonStudentView.css`; `#root` already has `min-width: 0` in `index.css`.
+- **`overflow-x`** — `html`/`body` `overflow-x: hidden` / `clip` documented to interact with `position: sticky`; lesson content mobile block adds `overflow-x: hidden` on `.lesson-content`.
+
+### 15.5 High-risk areas — not modified in Phase 4
+
+- All existing **`@media`** queries and **grid `grid-template-columns`**.
+- **`App.css`** lesson editor / view rail rules.
+- **`LessonViewPage.tsx`**, **`EditLessonPage.tsx`**, **`CreateLessonPage.tsx`** layout and breakpoint JS.
+- **`lessonStudentView.css`**, **`dragDropMatchBlock.css`**, **`interactiveSequenceBlock.css`**, checkpoints, uploaded diagrams.
+
+### 15.6 Recommended future migration sequence
+
+1. **Document-only** — keep Phase 4 tokens in sync when touching files; add comments referencing `--layout-*` next to literal `@media` breakpoints (optional).
+2. **Opt-in utilities** — apply `.lr-min-w-0` / `.lr-full-width` to **new** wrappers first; snapshot before retrofitting hot paths.
+3. **767 / 768 alignment** — choose one source of truth; update `LessonViewPage` **or** `index.css` in a dedicated PR with device QA.
+4. **TS constants** — export breakpoint numbers from a small `breakpoints.ts` consumed by `matchMedia` strings **and** commented beside CSS (still duplicate literals in CSS until build tooling).
+
+---
+
+*Phase 1 audit; Phases 2–4 foundations on `layout-audit-phase1`.*
