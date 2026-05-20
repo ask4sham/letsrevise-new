@@ -23,9 +23,29 @@
 
 .interactive-diagram__layout {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
   gap: 16px;
   align-items: start;
+}
+
+/* Student lesson view: full teaching width — diagram + hotspots stack on large screens */
+[data-lesson-presentation="v12"] [data-visual-block="interactive-diagram"] .interactive-diagram {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-diagram"] .interactive-diagram__layout {
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-diagram"] .interactive-diagram-image {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: min(78vh, 720px);
+  object-fit: contain;
 }
 
 @media (max-width: 767px) {
@@ -100,8 +120,13 @@
 .interactive-diagram-hotspot {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   width: 28px;
-  height: 28px;
+  height: auto;
+  min-height: 28px;
   min-width: 28px;
   min-height: 28px;
   padding: 0;
@@ -138,6 +163,47 @@
 .interactive-diagram-hotspot__letter,
 .interactive-diagram-hotspot__num {
   pointer-events: none;
+}
+
+.interactive-diagram-hotspot__chip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 11rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-diagram"] .interactive-diagram__layout {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 320px);
+  gap: 20px;
+  align-items: stretch;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-diagram"] .interactive-diagram-image-container {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-diagram"] .interactive-diagram__panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 200px;
+  align-self: stretch;
 }
 
 .interactive-diagram__panel-answer {
