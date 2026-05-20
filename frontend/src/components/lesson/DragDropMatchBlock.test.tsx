@@ -8,6 +8,10 @@ jest.mock("./LessonImageFrame", () => ({
   ),
 }));
 
+jest.mock("./LessonRichText", () => ({
+  LessonRichText: ({ text }: { text?: string }) => (text ? <p>{text}</p> : null),
+}));
+
 describe("DragDropMatchBlock diagram mode", () => {
   const diagramBlock = {
     matchMode: "diagram" as const,
@@ -136,6 +140,74 @@ describe("DragDropMatchBlock diagram mode", () => {
   });
 });
 
+describe("DragDropMatchBlock text-to-image mode", () => {
+  const ttiBlock = {
+    matchMode: "text-to-image" as const,
+    title: "Structure match",
+    pairs: [
+      {
+        id: "p1",
+        prompt: "ATP release",
+        answer: "Mitochondria",
+        imageUrl: "https://example.com/mito.png",
+        explanation: "Mitochondria release energy during respiration.",
+      },
+      {
+        id: "p2",
+        prompt: "Photosynthesis",
+        answer: "Chloroplast",
+        imageUrl: "https://example.com/chloro.png",
+      },
+    ],
+  };
+
+  it("renders text-to-image grid with concept cards and image targets", () => {
+    render(<DragDropMatchBlock block={ttiBlock} resolveImageUrl={(u) => u} />);
+    expect(screen.getByTestId("drag-drop-tti-grid")).toBeInTheDocument();
+    expect(screen.getByText(/ATP release/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /select concept:\s*ATP release/i })).toBeInTheDocument();
+    const imgs = document.querySelectorAll("img.drag-drop-match__tti-image");
+    expect(imgs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("click-to-place: select concept then tap image drop zone", () => {
+    render(<DragDropMatchBlock block={ttiBlock} resolveImageUrl={(u) => u} />);
+    fireEvent.click(screen.getByRole("button", { name: /select concept:\s*Photosynthesis/i }));
+    expect(screen.getByRole("button", { name: /select concept:\s*Photosynthesis/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /drop concept onto image target chloroplast/i })
+    );
+    expect(screen.getByText("Photosynthesis")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /select concept:\s*Photosynthesis/i })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /select concept:\s*ATP release/i })).toBeInTheDocument();
+  });
+
+  it("check answers shows correct label feedback", () => {
+    render(<DragDropMatchBlock block={ttiBlock} resolveImageUrl={(u) => u} />);
+    fireEvent.click(screen.getByRole("button", { name: /select concept:\s*ATP release/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /drop concept onto image target mitochondria/i })
+    );
+    fireEvent.click(screen.getByRole("button", { name: /check answers/i }));
+    expect(screen.getAllByText("Mitochondria").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Mitochondria release energy during respiration/i)).toBeInTheDocument();
+  });
+
+  it("applies text-to-image layout modifier on root section", () => {
+    const { container } = render(
+      <DragDropMatchBlock block={ttiBlock} resolveImageUrl={(u) => u} />
+    );
+    expect(container.querySelector(".drag-drop-match--text-to-image.text-to-image")).toBeTruthy();
+    expect(container.querySelector(".concept-card-column")).toBeTruthy();
+    expect(container.querySelector(".image-target-list")).toBeTruthy();
+  });
+});
+
 describe("DragDropMatchBlock text mode answer images", () => {
   const textBlockWithImage = {
     title: "Match cells",
@@ -149,6 +221,12 @@ describe("DragDropMatchBlock text mode answer images", () => {
       { id: "p2", prompt: "Another definition", answer: "OTHER" },
     ],
   };
+
+  it("standard text mode unchanged when matchMode omitted", () => {
+    render(<DragDropMatchBlock block={textBlockWithImage} resolveImageUrl={(u) => u} />);
+    expect(screen.queryByTestId("drag-drop-tti-grid")).not.toBeInTheDocument();
+    expect(screen.getByText(/drop your answers here/i)).toBeInTheDocument();
+  });
 
   it("shows answer thumbnail in bank when answerImageUrl is set", () => {
     render(<DragDropMatchBlock block={textBlockWithImage} resolveImageUrl={(u) => u} />);
