@@ -37,6 +37,7 @@ import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock"
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
+import { GraphBlock } from "../components/lesson/GraphBlock";
 import { SubscribeCTA } from "../components/SubscribeCTA";
 import { fetchLessonById } from "../api/lessons";
 import { copyBankToLesson } from "../api/flashcardBank";
@@ -47,7 +48,16 @@ import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/asse
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
-import { coerceDiagramZonePct, readDragDropPairAnswerImageUrl } from "../utils/dragDropMatchDiagram";
+import {
+  contentLooksLikeGraphJson,
+  normalizeGraphBlockForDisplay,
+} from "../components/lesson/graphBlockTypes";
+import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/formatBlockHeading";
+import {
+  coerceDiagramZonePct,
+  dragDropMatchModeForBlockProps,
+  mapDragDropPairForBlockRender,
+} from "../utils/dragDropMatchDiagram";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
 import { AskAiPanel } from "../components/ai/AskAiPanel";
 import { AskAiStudentPanel } from "../components/ai/AskAiStudentPanel";
@@ -76,6 +86,7 @@ import {
   mergeLessonMarkdownComponentsWithKeywordHighlight,
   normalizeContentKeywords,
 } from "../components/lesson/student/contentKeywordHighlight";
+import { StudentRetrievalSection } from "../components/lesson/student/StudentRetrievalSection";
 import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
 import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
 
@@ -514,11 +525,7 @@ function DiagramBlockContent({
     );
   }
   if (error || !src || !hasRenderableLessonImageSrc(src)) {
-    return (
-      <LessonDiagramFrame variant={variant}>
-        <div style={{ color: "#6b7280", fontSize: "0.9rem" }}>Diagram unavailable</div>
-      </LessonDiagramFrame>
-    );
+    return null;
   }
 
   return (
@@ -2646,7 +2653,8 @@ const LessonViewPage: React.FC = () => {
   const renderCallout = (
     kind: LessonPageBlock["type"] | "keyWords",
     text: string,
-    idx: number
+    idx: number,
+    role?: string
   ) => {
     const base: React.CSSProperties = {
       padding: "14px",
@@ -2659,6 +2667,66 @@ const LessonViewPage: React.FC = () => {
     };
 
     const cleanedText = stripVideoMarkdown(text);
+    const r = String(role ?? "").trim();
+
+    if (r === "examTechnique") {
+      return (
+        <div
+          key={idx}
+          style={{
+            ...base,
+            background: "#fffbeb",
+            border: "2px solid rgba(245, 158, 11, 0.45)",
+            boxShadow: "0 0 0 2px rgba(245, 158, 11, 0.08)",
+          }}
+        >
+          <div style={{ fontWeight: 900, marginBottom: 6, color: "#b45309" }}>📋 Exam technique</div>
+          <div className="lesson-content">
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+              {preprocessMarkdownAssetUrls(text)}
+            </LessonMarkdown>
+          </div>
+        </div>
+      );
+    }
+    if (r === "whyThisMatters") {
+      return (
+        <div
+          key={idx}
+          style={{
+            ...base,
+            background: "rgba(16, 185, 129, 0.08)",
+            border: "2px solid rgba(5, 150, 105, 0.4)",
+          }}
+        >
+          <div style={{ fontWeight: 900, marginBottom: 6, color: "#047857" }}>🌍 Why this matters</div>
+          <div className="lesson-content">
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+              {preprocessMarkdownAssetUrls(text)}
+            </LessonMarkdown>
+          </div>
+        </div>
+      );
+    }
+    if (r === "synopticLink") {
+      return (
+        <div
+          key={idx}
+          style={{
+            ...base,
+            background: "rgba(124, 58, 237, 0.06)",
+            border: "2px solid rgba(124, 58, 237, 0.35)",
+          }}
+        >
+          <span style={{ display: "inline-block", fontSize: 11, fontWeight: 800, color: "#5b21b6", marginBottom: 8, padding: "3px 8px", borderRadius: 999, background: "rgba(124,58,237,0.12)" }}>Synoptic link</span>
+          <div className="lesson-content">
+            <LessonMarkdown className="lesson-md-body" components={lessonViewMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+              {preprocessMarkdownAssetUrls(text)}
+            </LessonMarkdown>
+          </div>
+        </div>
+      );
+    }
 
     if (kind === "pageQuiz") {
       return (
@@ -3252,6 +3320,7 @@ const LessonViewPage: React.FC = () => {
       Boolean(pageCp?.question && Array.isArray(pageCp?.options)) &&
       (pageCp!.options!.filter((o: any) => o != null && String(o).trim()).length >= 2);
     const blocks = currentPage.blocks || [];
+    let ss1LessonOrdinal = 0;
     const blockRenderList = blocks
       .map((b, idx) => ({ block: b, idx }))
       .filter(({ block: b }) => {
@@ -3259,6 +3328,22 @@ const LessonViewPage: React.FC = () => {
         if (b.type === "checkpoint") return false; // PR-UX-LESSON-3: always render checkpoint via LessonCheckpoint
         if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
         return true;
+      })
+      .map(({ block: b, idx }) => {
+        ss1LessonOrdinal += 1;
+        const number = resolveSs1BlockNumber(b, ss1LessonOrdinal);
+        const withNumber =
+          number != null && typeof (b as { number?: unknown }).number !== "number"
+            ? { ...b, number }
+            : b;
+        let enriched = normalizePersistedBlockTitle(withNumber);
+        if (
+          resolveLessonDisplayBlockType(enriched) === "graph" ||
+          contentLooksLikeGraphJson((enriched as { content?: unknown }).content)
+        ) {
+          enriched = normalizeGraphBlockForDisplay(enriched) as typeof enriched;
+        }
+        return { block: enriched, idx };
       });
 
     // Regression guard: when SHOW_PAGE_KICKER is false, no kicker-like block must be rendered
@@ -3958,6 +4043,8 @@ const LessonViewPage: React.FC = () => {
                                     : [];
                                 return rawSeq.map((s: any) => {
                                   const sid = typeof s?.id === "string" ? String(s.id).trim() : "";
+                                  const tq =
+                                    typeof s?.testQuestion === "string" ? String(s.testQuestion).trim() : "";
                                   const te =
                                     typeof s?.testExplanation === "string" ? String(s.testExplanation).trim() : "";
                                   return {
@@ -3966,11 +4053,15 @@ const LessonViewPage: React.FC = () => {
                                     description: String(s?.description ?? ""),
                                     imageUrl: String(s?.imageUrl ?? ""),
                                     caption: String(s?.caption ?? ""),
+                                    ...(tq ? { testQuestion: tq } : {}),
                                     ...(te ? { testExplanation: te } : {}),
                                   };
                                 });
                               })()}
                               resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                              lessonTitle={lesson ? safeStr(lesson.title, "") : undefined}
+                              level={lesson ? safeStr(lesson.level, "") : undefined}
+                              subject={lesson ? safeStr(lesson.subject, "") : undefined}
                             />
                           ) : blockKind === "interactiveDiagram" ? (
                             <InteractiveDiagramBlock
@@ -3985,6 +4076,13 @@ const LessonViewPage: React.FC = () => {
                               level={lesson ? safeStr(lesson.level, "") : undefined}
                               subject={lesson ? safeStr(lesson.subject, "") : undefined}
                             />
+                          ) : blockKind === "graph" ? (
+                            <GraphBlock
+                              block={b}
+                              blockIndex={idx}
+                              audience="student"
+                              showAnswers={false}
+                            />
                           ) : blockKind === "dragDropMatch" ? (
                             <DragDropMatchBlock
                               resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
@@ -3992,20 +4090,17 @@ const LessonViewPage: React.FC = () => {
                                 title: safeStr(b.title, ""),
                                 intro: safeStr(b.intro, ""),
                                 instructions: safeStr(b.instructions, ""),
-                                ...(b.matchMode === "diagram" || b.matchMode === "text"
-                                  ? { matchMode: b.matchMode }
+                                ...(() => {
+                                  const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                                  return mm ? { matchMode: mm } : {};
+                                })(),
+                                ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                                safeStr(b.imageUrl, "")
+                                  ? { imageUrl: safeStr(b.imageUrl, "") }
                                   : {}),
-                                ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
-                                pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => {
-                                  const img = readDragDropPairAnswerImageUrl(p);
-                                  return {
-                                    id: String(p?.id ?? "").trim() || `p${i}`,
-                                    prompt: String(p?.prompt ?? ""),
-                                    answer: String(p?.answer ?? ""),
-                                    explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                                    ...(img ? { answerImageUrl: img } : {}),
-                                  };
-                                }),
+                                pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) =>
+                                  mapDragDropPairForBlockRender(p, i)
+                                ),
                                 ...(Array.isArray(b.dropZones)
                                   ? {
                                       dropZones: b.dropZones.map((z, i) => {
@@ -4026,7 +4121,7 @@ const LessonViewPage: React.FC = () => {
                               }}
                             />
                           ) : (
-                            renderCallout(b.type, safeStr(b.content, ""), idx)
+                            renderCallout(b.type, safeStr(b.content, ""), idx, safeStr((b as { role?: string }).role, ""))
                           )}
                           {user && id && (
                             <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -4215,6 +4310,17 @@ const LessonViewPage: React.FC = () => {
                 {/* Testing section: Quick Quiz, Practice papers, Practice questions, Flashcards — only after final page */}
                 {isLastPage && (
                 <>
+                <StudentRetrievalSection
+                  pages={orderedPages}
+                  storedFlashcards={flashcards as Array<Record<string, unknown>>}
+                  storedQuizQuestions={quizQuestions as Array<Record<string, unknown>>}
+                  hasFullAccess={Boolean(hasFullLessonAccess)}
+                  onQuestionAnswered={
+                    topicKeyForBank && isStudent
+                      ? (correct) => handleQuestionAnswered(correct)
+                      : undefined
+                  }
+                />
                 {/* Page Quiz — page-aware in structured view */}
                 <Section title="Quiz Page" variant="card">
                   <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#6b7280" }}>Short questions for this lesson page.</p>

@@ -13,9 +13,11 @@ export type StudentLessonBlockType =
   | "keyWords"
   | "interactiveSequence"
   | "interactiveDiagram"
-  | "dragDropMatch";
+  | "dragDropMatch"
+  | "graph";
 
 export type InteractiveSequenceStepPersisted = {
+  testQuestion?: string;
   id?: string;
   title: string;
   description: string;
@@ -43,6 +45,9 @@ export type DragDropMatchPairPersisted = {
   answer: string;
   explanation?: string;
   answerImageUrl?: string;
+  /** Text-to-image mode: large target visual per pair. */
+  imageUrl?: string;
+  imageAlt?: string;
 };
 
 /** type === "dragDropMatch" & matchMode === "diagram" */
@@ -58,6 +63,8 @@ export type StudentLessonPageBlock = {
   type: string;
   content?: string;
   title?: string;
+  /** SS1 lesson block ordinal (generator export); optional — title may already include `N —`. */
+  number?: number;
   intro?: string;
   /** Persisted name; API may also send `steps` as an alias when saving. */
   sequenceSteps?: InteractiveSequenceStepPersisted[];
@@ -65,7 +72,8 @@ export type StudentLessonPageBlock = {
   instructions?: string;
   pairs?: DragDropMatchPairPersisted[];
   /** Optional layout variant for dragDropMatch; omit ⇒ text columns (legacy). */
-  matchMode?: "text" | "diagram";
+  matchMode?: "text" | "diagram" | "text-to-image" | "textToImage";
+  dragDropLayout?: string;
   /** Diagram mode image rendering controls. */
   imageFit?: "contain" | "cover";
   imagePosition?: "center center" | "center top" | "center bottom";
@@ -85,4 +93,26 @@ export type StudentLessonPageBlock = {
   alt?: string;
   /** Mirrors LessonPageBlock.diagramVariant — featured = key visual emphasis */
   diagramVariant?: "standard" | "featured";
+  /** type === "graph" */
+  graphType?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  xUnits?: string;
+  yUnits?: string;
+  graphSeries?: Array<{
+    id?: string;
+    label: string;
+    color?: string;
+    points: Array<{ x: number | string; y: number }>;
+  }>;
+  graphAnnotations?: Array<{
+    id?: string;
+    text: string;
+    kind?: string;
+    seriesId?: string;
+    pointIndex?: number;
+  }>;
+  examQuestion?: string;
+  markScheme?: string | string[];
+  examinerTip?: string;
 };

@@ -1,3 +1,5 @@
+import { resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
+
 /**
  * Groups lesson blocks into teaching segments for V12 layout (presentation only).
  *
@@ -51,6 +53,11 @@ function normType(type: unknown): string {
   return String(type ?? "").trim().toLowerCase();
 }
 
+/** Routed display type (recovers mis-tagged graph / drag-drop rows). */
+function routedType(block: { type?: string }): string {
+  return resolveLessonDisplayBlockType(block).toLowerCase();
+}
+
 /** Blocks that start a new teaching band when the current band already has content. */
 function isTeachingSectionStart(type: unknown): boolean {
   const t = normType(type);
@@ -69,7 +76,7 @@ export function chunkBlocksForTeachingLayout<T extends { type?: string }>(
   let current: IndexedLessonBlock<T>[] = [];
 
   for (const item of items) {
-    const t = normType(item.block.type);
+    const t = routedType(item.block);
 
     if (isTeachingSectionStart(item.block.type)) {
       if (current.length > 0) {
@@ -80,7 +87,7 @@ export function chunkBlocksForTeachingLayout<T extends { type?: string }>(
       continue;
     }
 
-    if (t === "diagram" || t === "interactivesequence" || t === "interactivediagram") {
+    if (t === "diagram" || t === "interactivesequence" || t === "interactivediagram" || t === "graph") {
       current.push(item);
       groups.push(current);
       current = [];

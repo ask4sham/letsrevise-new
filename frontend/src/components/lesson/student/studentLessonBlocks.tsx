@@ -63,6 +63,45 @@ export function StudentKeyIdeaBlock({
   );
 }
 
+export function StudentExamTechniqueBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
+  return (
+    <div className="lesson-content student-block student-block--exam-technique">
+      <div className="student-block__role-badge" style={{ marginBottom: 10 }} aria-hidden>
+        📋 Exam technique
+      </div>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
+    </div>
+  );
+}
+
+export function StudentSynopticLinkBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
+  return (
+    <div className="lesson-content student-block student-block--synoptic-link">
+      <span className="student-block__role-badge student-block__role-badge--synoptic">
+        Synoptic link
+      </span>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
+    </div>
+  );
+}
+
+export function StudentWhyThisMattersBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
+  return (
+    <div className="lesson-content student-block student-block--why-this-matters">
+      <div className="student-block__role-badge" style={{ marginBottom: 10 }} aria-hidden>
+        🌍 Why this matters
+      </div>
+      <LessonStudentMarkdown components={markdownComponents} highlightKeywords={highlightKeywords}>
+        {content}
+      </LessonStudentMarkdown>
+    </div>
+  );
+}
+
 export function StudentExamTipBlock({ content, markdownComponents, highlightKeywords }: MdProps) {
   return (
     <div className="lesson-content student-block student-block--exam-tip">

@@ -1,9 +1,26 @@
 import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
+import { resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
 import type { IndexedLessonBlock } from "./chunkLessonSegments";
 import { isVisualTeachingBlock } from "./visualTeachingBlocks";
 
 function isDiagramType(type: unknown): boolean {
   return String(type ?? "").trim().toLowerCase() === "diagram";
+}
+
+function normBlockType(type: unknown): string {
+  return String(type ?? "").trim().toLowerCase();
+}
+
+/** Blocks that must not sit in the narrow split-layout text column (210px media grid). */
+function blockNeedsFullWidthTeachingColumn(type: unknown): boolean {
+  const t = normBlockType(type);
+  return (
+    t === "dragdropmatch" ||
+    t === "interactivesequence" ||
+    t === "interactivediagram" ||
+    t === "commonmistake" ||
+    t === "graph"
+  );
 }
 
 /** Diagram blocks using a direct raster URL (upload / AI) need full teaching width — not the 210px split-column slot. */
@@ -53,6 +70,11 @@ export function classifyChunkTeachingLayout<T extends { type?: string }>(
   const visualTeachingCount = visualTeachingIndices.length;
   const nonDiagramBlocks = chunk.filter((item) => !isDiagramType(item.block.type));
 
+  const hasInteractiveVisual = chunk.some((item) => {
+    const r = resolveLessonDisplayBlockType(item.block).toLowerCase();
+    return r === "interactivesequence" || r === "interactivediagram" || r === "graph";
+  });
+
   if (diagramCount === 0) {
     if (visualTeachingCount === 0) {
       return { mode: "text-only", blocks: chunk };
@@ -75,7 +97,16 @@ export function classifyChunkTeachingLayout<T extends { type?: string }>(
     const beforeSource = chunk.slice(0, d);
     const afterSource = chunk.slice(d + 1);
     const diagram = chunk[d];
-    if (diagramBlockUsesRasterImageUrl(diagram.block as { type?: string; imageUrl?: unknown })) {
+    const needsFullWidthStack =
+      hasInteractiveVisual ||
+      diagramBlockUsesRasterImageUrl(diagram.block as { type?: string; imageUrl?: unknown }) ||
+      beforeSource.length > 1 ||
+      beforeSource.some((item) => blockNeedsFullWidthTeachingColumn(item.block)) ||
+      afterSource.some((item) => blockNeedsFullWidthTeachingColumn(item.block)) ||
+      beforeSource.some((item) => isVisualTeachingBlock(item.block.type, item.block)) ||
+      afterSource.some((item) => isVisualTeachingBlock(item.block.type, item.block));
+
+    if (needsFullWidthStack) {
       return { mode: "stack", blocks: chunk };
     }
     if (beforeSource.length === 0 && afterSource.length > 0) {

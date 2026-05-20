@@ -95,13 +95,14 @@
   border-bottom: 1px solid #e8edf4;
 }
 
-/* Teaching column: centered in main card */
+/* Teaching column: full main-card width (chrome + early blocks share this lane) */
 [data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body {
   margin-top: 0;
-  margin-left: auto;
-  margin-right: auto;
+  margin-left: 0;
+  margin-right: 0;
   padding-top: var(--ds-space-1);
-  max-width: var(--ds-content-max);
+  width: 100% !important;
+  max-width: 100% !important;
   box-sizing: border-box;
 }
 
@@ -410,11 +411,11 @@
   margin-bottom: 0 !important;
 }
 
-/* MODE 2 — text-only: centered readable column (wider than legacy 720px, not full-bleed) */
+/* MODE 2 — text-only: full teaching column (same width as page chrome / hook blocks) */
 [data-lesson-presentation="v12"] .lesson-student-section-chunk--text-only .lesson-student-section-chunk__text-column {
-  max-width: min(var(--ds-content-max), 100%) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   width: 100% !important;
   box-sizing: border-box !important;
 }
@@ -686,6 +687,19 @@ h1.lesson-view-title-split .lesson-title-main {
   border-bottom: 1px solid #e5e7eb !important;
 }
 
+/* SS1 numbered block labels (`1 — Hook`, `3 — Core teaching`, …) */
+[data-lesson-presentation="v12"] h2.lesson-student-block-heading,
+.lesson-student-block-heading {
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.01em !important;
+  color: #0f172a !important;
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
 [data-lesson-presentation="v12"] .lesson-student-header {
   padding-bottom: 0;
 }
@@ -854,6 +868,21 @@ h1.lesson-view-title-split .lesson-title-main {
   text-align: center;
 }
 
+[data-lesson-presentation="v12"] .lesson-student-diagram-pending {
+  margin: 12px 0 18px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-pending p {
+  margin: 0;
+}
+
 [data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-diagram-frame {
   width: 100%;
   max-width: 100%;
@@ -961,15 +990,87 @@ h1.lesson-view-title-split .lesson-title-main {
 }
 
 /* Exam tip — micro-card, actionable */
+[data-lesson-presentation="v12"] .student-block--exam-tip,
+[data-lesson-presentation="v12"] .student-block--exam-technique,
+[data-lesson-presentation="v12"] .student-block--why-this-matters,
+[data-lesson-presentation="v12"] .student-block--misconception,
+[data-lesson-presentation="v12"] .student-block--synoptic-link {
+  margin-top: 0 !important;
+  margin-bottom: var(--ds-space-4, 16px) !important;
+}
+
 [data-lesson-presentation="v12"] .student-block--exam-tip {
   max-width: 100%;
-  padding: 14px 16px !important;
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px) !important;
   border-radius: 12px !important;
   background: #ecfdf5 !important;
   border: 1px solid rgba(34, 197, 94, 0.28) !important;
   border-left: 5px solid #22c55e !important;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
-  margin-bottom: 16px !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--exam-technique {
+  max-width: 100%;
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px) !important;
+  border-radius: 12px !important;
+  background: #fffbeb !important;
+  border: 1px solid rgba(245, 158, 11, 0.38) !important;
+  border-left: 5px solid #f59e0b !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--exam-technique .lesson-student-md {
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
+  color: #78350f !important;
+}
+
+[data-lesson-presentation="v12"] .student-block__role-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+[data-lesson-presentation="v12"] .student-block--synoptic-link {
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px) !important;
+  border-radius: 12px !important;
+  background: rgba(124, 58, 237, 0.06) !important;
+  border: 1px solid rgba(124, 58, 237, 0.28) !important;
+  border-left: 4px solid #7c3aed !important;
+}
+
+[data-lesson-presentation="v12"] .student-block__role-badge--synoptic {
+  color: #5b21b6;
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.35);
+  margin-bottom: 10px;
+}
+
+[data-lesson-presentation="v12"] .student-block--synoptic-link .lesson-student-md {
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
+  color: #4c1d95 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--why-this-matters {
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px) !important;
+  border-radius: 12px !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+  border: 1px solid rgba(5, 150, 105, 0.35) !important;
+  border-left: 4px solid #059669 !important;
+}
+
+[data-lesson-presentation="v12"] .student-block--why-this-matters .lesson-student-md {
+  font-size: var(--lesson-md-body-size) !important;
+  line-height: var(--lesson-md-body-lh) !important;
+  color: #065f46 !important;
 }
 
 [data-lesson-presentation="v12"] .student-block--exam-tip .lesson-student-md {
@@ -980,12 +1081,11 @@ h1.lesson-view-title-split .lesson-title-main {
 }
 
 [data-lesson-presentation="v12"] .student-block--misconception {
-  padding: 18px 22px 20px 18px !important;
-  border-radius: 13px !important;
+  padding: var(--ds-space-4, 16px) var(--ds-space-5, 20px) !important;
+  border-radius: 12px !important;
   background: #fff7ed !important;
   border: 1px solid rgba(251, 146, 60, 0.35) !important;
   border-left: 5px solid #ea580c !important;
-  margin-bottom: 16px !important;
 }
 
 [data-lesson-presentation="v12"] .student-block--misconception .lesson-student-md {
@@ -1646,4 +1746,137 @@ h1.lesson-view-title-split .lesson-title-main {
   max-height: none !important;
   margin: 0;
   object-fit: contain;
+}
+
+/*
+ * Generator / template visual blocks (interactiveSequence, interactiveDiagram, diagram with imageUrl):
+ * use full lesson content width — not the 210px SS2 split media column or lessonImageCard 460px cap.
+ */
+[data-lesson-presentation="v12"] [data-visual-block],
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--image-only [data-visual-block],
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--stack [data-visual-block],
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-visual-block] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block] .lesson-image-card,
+[data-lesson-presentation="v12"] [data-visual-block] .lesson-image-card--primary,
+[data-lesson-presentation="v12"] [data-visual-block] .lesson-diagram-frame {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block] .lesson-image-card > img,
+[data-lesson-presentation="v12"] [data-visual-block] .lesson-image-card picture > img,
+[data-lesson-presentation="v12"] [data-visual-block] .lesson-diagram-frame img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: min(82vh, 820px) !important;
+  object-fit: contain !important;
+}
+
+/* Step-by-step sequence: compact image lane (override 82vh rule above) */
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
+  width: auto !important;
+  max-width: 100% !important;
+  max-height: min(34vh, 320px) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Do not squeeze template/generator diagrams into the narrow split sidebar */
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media .lesson-student-section-chunk__media:has([data-visual-block]) {
+  width: 100% !important;
+  max-width: 100% !important;
+  grid-column: 1 / -1 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has([data-visual-block]) {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has([data-visual-block]) .lesson-student-section-chunk__content {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has([data-visual-block]) .lesson-student-section-chunk__media {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/*
+ * Blocks 4+ (activities, long prose bands, misconception): never squeeze into split text column.
+ * DOM: split chunk __content held prose while __media was 210px — activities looked “stunted”.
+ */
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .drag-drop-match,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > [data-visual-block],
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .interactive-sequence,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .graph-block,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] [data-visual-block] > .interactive-sequence,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] [data-visual-block] > .drag-drop-match,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] [data-visual-block] > .graph-block,
+[data-lesson-presentation="v12"] [data-visual-block="graph"] .graph-block__chart-wrap,
+[data-lesson-presentation="v12"] [data-visual-block="graph"] .graph-block__chart-inner {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-page-body .lesson-student-section-chunk--text-only:has(.drag-drop-match) .lesson-student-section-chunk__text-column,
+[data-lesson-presentation="v12"] .lesson-student-page-body .lesson-student-section-chunk--text-only:has([data-visual-block]) .lesson-student-section-chunk__text-column,
+[data-lesson-presentation="v12"] .lesson-student-page-body .lesson-student-section-chunk--text-only:has(.interactive-sequence) .lesson-student-section-chunk__text-column,
+[data-lesson-presentation="v12"] .lesson-student-page-body .lesson-student-section-chunk--text-only:has(.student-block--misconception) .lesson-student-section-chunk__text-column,
+[data-lesson-presentation="v12"] .lesson-student-page-body .lesson-student-section-chunk--stack,
+[data-lesson-presentation="v12"] .lesson-student-page-body .lesson-student-section-chunk--image-only {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.drag-drop-match),
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has([data-visual-block]),
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.interactive-sequence),
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.student-block--misconception),
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.lesson-student-section-chunk__content [id^="block-"]:nth-child(n + 2)) {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--ds-space-4) !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.drag-drop-match) .lesson-student-section-chunk__content,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has([data-visual-block]) .lesson-student-section-chunk__content,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.interactive-sequence) .lesson-student-section-chunk__content,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.student-block--misconception) .lesson-student-section-chunk__content,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.lesson-student-section-chunk__content [id^="block-"]:nth-child(n + 2)) .lesson-student-section-chunk__content,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.drag-drop-match) .lesson-student-section-chunk__media,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has([data-visual-block]) .lesson-student-section-chunk__media,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.interactive-sequence) .lesson-student-section-chunk__media,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.student-block--misconception) .lesson-student-section-chunk__media,
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--with-media:has(.lesson-student-section-chunk__content [id^="block-"]:nth-child(n + 2)) .lesson-student-section-chunk__media {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block.student-block--text,
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-content.student-block.student-block--misconception {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }

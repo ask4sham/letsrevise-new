@@ -1,6 +1,3 @@
-import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
-import { isDragDropDiagramMode, readDragDropPairAnswerImageUrl } from "../../../utils/dragDropMatchDiagram";
-
 function normType(type: unknown): string {
   return String(type ?? "").trim().toLowerCase();
 }
@@ -11,49 +8,50 @@ function normType(type: unknown): string {
  */
 export function getVisualTeachingDataAttribute(
   routedDisplayType: unknown,
-  block?: unknown
+  _block?: unknown
 ): string | null {
   const r = String(routedDisplayType ?? "").trim();
   if (r === "diagram") return "diagram";
   if (r === "interactiveDiagram") return "interactive-diagram";
   if (r === "interactiveSequence") return "interactive-sequence";
   if (r === "dragDropMatch") {
-    return isVisualTeachingBlock("dragDropMatch", block) ? "drag-drop-match" : null;
+    return "drag-drop-match";
   }
+  if (r === "graph") return "graph";
   return null;
-}
-
-function dragDropMatchIsImageRich(block: Record<string, unknown>): boolean {
-  const pairs = Array.isArray(block.pairs) ? block.pairs : [];
-  for (const row of pairs) {
-    const url = readDragDropPairAnswerImageUrl(row);
-    if (url && hasRenderableLessonImageSrc(url)) return true;
-  }
-  return false;
 }
 
 /**
  * Foundation classifier: blocks that carry substantial on-screen visuals for teaching
- * (diagrams, sequences, hotspots, diagram-mode or image-rich drag-drop).
+ * (diagrams, sequences, hotspots, drag-drop).
  *
- * Used for V12 chunk **layout mode** selection only — does not change block payloads or
+ * Used for V12 chunk layout mode selection only — does not change block payloads or
  * inner component behaviour.
  */
+function blockHasGraphPayload(block: unknown): boolean {
+  if (block == null || typeof block !== "object") return false;
+  const b = block as Record<string, unknown>;
+  const gt = String(b.graphType ?? "").trim().toLowerCase();
+  if (gt === "line" || gt === "bar" || gt === "scatter") return true;
+  const seriesRaw = b.graphSeries ?? b.series;
+  return (
+    Array.isArray(seriesRaw) &&
+    seriesRaw.some((row) => {
+      if (!row || typeof row !== "object") return false;
+      const pts = (row as { points?: unknown }).points;
+      return Array.isArray(pts) && pts.length > 0;
+    })
+  );
+}
+
 export function isVisualTeachingBlock(type: unknown, block?: unknown): boolean {
   const t = normType(type);
-  if (t === "diagram" || t === "interactivediagram" || t === "interactivesequence") {
+  if (t === "diagram" || t === "interactivediagram" || t === "interactivesequence" || t === "graph") {
     return true;
   }
+  if (t === "text" && blockHasGraphPayload(block)) return true;
   if (t !== "dragdropmatch") return false;
 
-  const b = block != null && typeof block === "object" ? (block as Record<string, unknown>) : {};
-  if (
-    isDragDropDiagramMode(b.matchMode, {
-      imageUrl: b.imageUrl,
-      dropZones: b.dropZones,
-    })
-  ) {
-    return true;
-  }
-  return dragDropMatchIsImageRich(b);
+  /* Text and diagram drag-drop both need full teaching width in V12 layout. */
+  return true;
 }
