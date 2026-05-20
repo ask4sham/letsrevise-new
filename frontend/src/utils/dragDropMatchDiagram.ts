@@ -3,7 +3,15 @@
  * omit matchMode ⇒ classic text-column layout (backwards compatible).
  */
 
-export type DragDropMatchPersistedMode = "text" | "diagram";
+import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
+
+export type DragDropMatchPersistedMode = "text" | "diagram" | "text-to-image";
+/** Values written to Mongo / API (`textToImage` avoids hyphen enum issues). */
+export type DragDropMatchStoredMatchMode = "text" | "diagram" | "textToImage";
+/** Authoring select values — `standard` persists as `text` for backward compatibility. */
+export type DragDropMatchUiMode = "standard" | "diagram" | "text-to-image";
+/** Block slice may hold stored or legacy matchMode tokens. */
+export type DragDropMatchAuthoringMatchMode = DragDropMatchPersistedMode | DragDropMatchStoredMatchMode;
 export type DragDropDiagramImageFit = "contain" | "cover";
 export type DragDropDiagramImagePosition =
   | "center center"
@@ -30,12 +38,69 @@ export type PlacedDragDropDiagramZone = {
   explanation?: string;
 };
 
+/** Normalizes generator/API aliases for text-to-image layout. */
+function isTextToImageModeToken(s: string): boolean {
+  const t = s.replace(/[\s_]+/g, "-");
+  return t === "text-to-image" || t === "texttoimage" || t === "text-image";
+}
+
+/** Durable layout field (no enum) — same role as diagram `imageUrl` + `dropZones`. */
+export function readDragDropLayoutFromBlock(block: unknown): unknown {
+  if (!block || typeof block !== "object") return undefined;
+  const o = block as Record<string, unknown>;
+  return o.dragDropLayout ?? o.drag_drop_layout;
+}
+
+/** Read persisted layout mode from block (tolerate snake_case API aliases). */
+export function readDragDropMatchModeFromBlock(block: unknown): unknown {
+  if (!block || typeof block !== "object") return undefined;
+  const o = block as Record<string, unknown>;
+  const layout = readDragDropLayoutFromBlock(block);
+  if (layout != null && String(layout).trim()) return layout;
+  return o.matchMode ?? o.match_mode ?? o.matchmode;
+}
+
+/** Values written to Mongo — `textToImage` avoids hyphen enum edge cases; keep parsing both. */
+export function dragDropLayoutPersistedValues(
+  mode: DragDropMatchPersistedMode
+): { matchMode: string; dragDropLayout: string } {
+  if (mode === "diagram") return { matchMode: "diagram", dragDropLayout: "diagram" };
+  if (mode === "text-to-image") return { matchMode: "textToImage", dragDropLayout: "textToImage" };
+  return { matchMode: "text", dragDropLayout: "standard" };
+}
+
+function applyPersistedDragDropLayoutFields(
+  ddmOut: Record<string, unknown>,
+  mode: DragDropMatchPersistedMode
+): void {
+  const stored = dragDropLayoutPersistedValues(mode);
+  ddmOut.matchMode = stored.matchMode;
+  ddmOut.dragDropLayout = stored.dragDropLayout;
+}
+
 export function parseDragDropMatchMode(raw: unknown): DragDropMatchPersistedMode | undefined {
   if (raw == null) return undefined;
-  const s = String(raw).trim().toLowerCase();
+  const s = String(raw).trim().toLowerCase().replace(/[\s_]+/g, "-");
   if (s === "diagram") return "diagram";
-  if (s === "text") return "text";
+  if (s === "text" || s === "standard") return "text";
+  if (isTextToImageModeToken(s)) return "text-to-image";
   return undefined;
+}
+
+/** Map authoring layout select value → persisted `matchMode`. */
+export function dragDropMatchModeFromUiSelect(value: string): DragDropMatchPersistedMode | undefined {
+  const v = String(value ?? "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (v === "diagram") return "diagram";
+  if (v === "text-to-image" || v === "texttoimage") return "text-to-image";
+  if (v === "standard" || v === "text") return "text";
+  return undefined;
+}
+
+/** Pass through persisted matchMode when rendering student/preview blocks. */
+export function dragDropMatchModeForBlockProps(
+  raw: unknown
+): DragDropMatchPersistedMode | undefined {
+  return parseDragDropMatchMode(raw);
 }
 
 export function parseDragDropDiagramImageFit(raw: unknown): DragDropDiagramImageFit | undefined {
@@ -89,17 +154,21 @@ export function resolveDragDropMatchModeForPersist(
 ): DragDropMatchPersistedMode | undefined {
   const direct = parseDragDropMatchMode(rawMode);
   if (direct === "text") return "text";
+  if (direct === "text-to-image") return "text-to-image";
   if (direct === "diagram") return "diagram";
   if (ctx && hasDiagramInferenceSignals(ctx)) return "diagram";
   return undefined;
 }
 
-/** Authoring UI: coerce unknown persisted values to a stable radio value for selects and panels. */
+/** Authoring UI: coerce unknown persisted values to a stable select value. */
 export function resolveDragDropMatchModeForUi(
   raw: unknown,
   ctx?: DragDropMatchModePersistContext
-): "text" | "diagram" {
-  return resolveDragDropMatchModeForPersist(raw, ctx) === "diagram" ? "diagram" : "text";
+): DragDropMatchUiMode {
+  const m = resolveDragDropMatchModeForPersist(raw, ctx);
+  if (m === "diagram") return "diagram";
+  if (m === "text-to-image") return "text-to-image";
+  return "standard";
 }
 
 export function isDragDropDiagramMode(
@@ -107,6 +176,42 @@ export function isDragDropDiagramMode(
   ctx?: DragDropMatchModePersistContext
 ): boolean {
   return resolveDragDropMatchModeForPersist(matchMode, ctx) === "diagram";
+}
+
+export function isDragDropTextToImageMode(matchMode: unknown): boolean {
+  return parseDragDropMatchMode(matchMode) === "text-to-image";
+}
+
+/** True when at least one pair has a renderable target image (text-to-image student layout). */
+export function dragDropPairsHaveTargetImages(
+  pairs: ReadonlyArray<unknown>,
+  hasRenderable?: (url: string) => boolean
+): boolean {
+  const ok = hasRenderable ?? ((url: string) => Boolean(String(url ?? "").trim()));
+  if (!Array.isArray(pairs)) return false;
+  return pairs.some((row) => {
+    const img = readDragDropPairTargetImageUrl(row);
+    return Boolean(img && ok(img));
+  });
+}
+
+export function dragDropPairEditorLabels(mode: DragDropMatchUiMode): {
+  prompt: string;
+  answer: string;
+  image: string;
+} {
+  if (mode === "text-to-image") {
+    return {
+      prompt: "Draggable text",
+      answer: "Target label (shown after Check)",
+      image: "Target image URL",
+    };
+  }
+  return {
+    prompt: "Prompt",
+    answer: "Answer",
+    image: "Answer image (optional)",
+  };
 }
 
 function clampPct(n: number): number {
@@ -300,6 +405,153 @@ export function readDragDropPairAnswerImageUrl(row: unknown): string | undefined
   if (v == null) return undefined;
   const s = String(v).trim();
   return s ? s : undefined;
+}
+
+/** Large image target for text-to-image mode — `imageUrl` preferred, `answerImageUrl` as fallback. */
+export function readDragDropPairTargetImageUrl(row: unknown): string | undefined {
+  if (!row || typeof row !== "object") return undefined;
+  const o = row as Record<string, unknown>;
+  const v = o.imageUrl ?? o.image_url ?? o.answerImageUrl ?? o.answer_image_url ?? o.answerImageURL;
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  return s ? s : undefined;
+}
+
+export type NormalizedDragDropPairRow = {
+  id: string;
+  prompt: string;
+  answer: string;
+  explanation?: string;
+  answerImageUrl?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+};
+
+/** Shared pair shape for save/load/import (text, diagram bank, text-to-image targets). */
+export function normalizeDragDropPairRow(
+  row: unknown,
+  index: number,
+  fallbackId: string
+): NormalizedDragDropPairRow | null {
+  if (!row || typeof row !== "object") return null;
+  const o = row as Record<string, unknown>;
+  const id = typeof o.id === "string" && o.id.trim() ? o.id.trim() : fallbackId || `pair_${index + 1}`;
+  const prompt = typeof o.prompt === "string" ? o.prompt.trim() : "";
+  const answer = typeof o.answer === "string" ? o.answer.trim() : "";
+  const explanation =
+    typeof o.explanation === "string" && o.explanation.trim() ? o.explanation.trim() : undefined;
+  const thumb = readDragDropPairAnswerImageUrl(row);
+  const explicitTarget =
+    typeof o.imageUrl === "string" && o.imageUrl.trim()
+      ? o.imageUrl.trim()
+      : typeof o.image_url === "string" && o.image_url.trim()
+        ? o.image_url.trim()
+        : undefined;
+  const targetImg = explicitTarget || readDragDropPairTargetImageUrl(row);
+  const imageAlt = readDragDropPairImageAlt(row);
+  const out: NormalizedDragDropPairRow = { id, prompt, answer };
+  if (explanation) out.explanation = explanation;
+  if (thumb) out.answerImageUrl = thumb;
+  if (targetImg) out.imageUrl = targetImg;
+  if (imageAlt) out.imageAlt = imageAlt;
+  return out;
+}
+
+export function readDragDropPairImageAlt(row: unknown): string | undefined {
+  if (!row || typeof row !== "object") return undefined;
+  const o = row as Record<string, unknown>;
+  const v = o.imageAlt ?? o.image_alt ?? o.alt;
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  return s ? s : undefined;
+}
+
+/** Map persisted pair row → DragDropMatchBlock `pairs` entry (thumbnails + text-to-image targets). */
+export type BuildDragDropMatchBlockForPersistOptions = {
+  newId: () => string;
+  logZoneBindings?: (
+    tag: string,
+    dropZones: unknown,
+    pairs: ReadonlyArray<{ id: string; answer?: string }>
+  ) => void;
+};
+
+/** Normalized dragDropMatch block for lesson PUT payloads (Edit + Create). */
+export function buildDragDropMatchBlockForPersist(
+  block: unknown,
+  opts: BuildDragDropMatchBlockForPersistOptions
+): Record<string, unknown> | null {
+  if (resolveLessonDisplayBlockType(block) !== "dragDropMatch") return null;
+  const b = block as Record<string, unknown>;
+  const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
+  const pairs = rawPairs
+    .slice(0, 20)
+    .map((row, ri) => normalizeDragDropPairRow(row, ri, opts.newId()))
+    .filter((row): row is NormalizedDragDropPairRow => Boolean(row && String(row.id).trim()));
+  const zonePairIds = pairs.map((row) => row.id);
+  const rawZonesPersist = Array.isArray(b.dropZones) ? b.dropZones : [];
+  const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(0, 40);
+  const rawMode = readDragDropMatchModeFromBlock(b);
+  const resolvedPersist =
+    parseDragDropMatchMode(rawMode) ??
+    resolveDragDropMatchModeForPersist(rawMode, {
+      imageUrl: b.imageUrl,
+      dropZones: rawZonesPersist,
+    });
+  const ddmOut: Record<string, unknown> = {
+    type: "dragDropMatch",
+    title: typeof b.title === "string" ? b.title.trim() : "",
+    intro: b.intro != null ? String(b.intro).trim() : "",
+    instructions: b.instructions != null ? String(b.instructions).trim() : "",
+    pairs,
+  };
+  if (resolvedPersist === "diagram") {
+    applyPersistedDragDropLayoutFields(ddmOut, "diagram");
+    const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
+    if (imgP) ddmOut.imageUrl = imgP;
+    ddmOut.dropZones = dropZonesPersist;
+    opts.logZoneBindings?.("persist payload (diagram)", dropZonesPersist, pairs);
+  } else if (resolvedPersist === "text") {
+    applyPersistedDragDropLayoutFields(ddmOut, "text");
+  } else if (resolvedPersist === "text-to-image") {
+    applyPersistedDragDropLayoutFields(ddmOut, "text-to-image");
+  }
+  if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
+  return ddmOut;
+}
+
+export function mapDragDropPairForBlockRender(
+  row: unknown,
+  index: number
+): {
+  id: string;
+  prompt: string;
+  answer: string;
+  explanation?: string;
+  answerImageUrl?: string;
+  imageUrl?: string;
+  imageAlt?: string;
+} {
+  const o = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+  const id = String(o.id ?? "").trim() || `p${index}`;
+  const thumb = readDragDropPairAnswerImageUrl(row);
+  const explicitTarget =
+    typeof o.imageUrl === "string" && o.imageUrl.trim()
+      ? o.imageUrl.trim()
+      : typeof o.image_url === "string" && o.image_url.trim()
+        ? o.image_url.trim()
+        : undefined;
+  const target = explicitTarget || readDragDropPairTargetImageUrl(row);
+  const alt = readDragDropPairImageAlt(row);
+  return {
+    id,
+    prompt: String(o.prompt ?? ""),
+    answer: String(o.answer ?? ""),
+    explanation: o.explanation != null ? String(o.explanation) : undefined,
+    ...(thumb ? { answerImageUrl: thumb } : {}),
+    ...(target ? { imageUrl: target } : {}),
+    ...(alt ? { imageAlt: alt } : {}),
+  };
 }
 
 /** Debug aid (browser): `localStorage.DEBUG_DDM = "1"` — logs zone ↔ pair bindings. Safe no-op on server / without flag. */

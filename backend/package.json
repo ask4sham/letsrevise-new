@@ -36,6 +36,7 @@
     "sync:indexes": "node scripts/sync-indexes.js",
     "validate:taxonomies": "node scripts/validateTaxonomies.js",
     "export:taxonomy-topics": "node scripts/exportTaxonomyTopicList.js",
+    "generate:visual-pack-registry": "node ../visual-templates/scripts/generate-pack-registry-from-taxonomy.js",
     "create:content-sprint-tracker": "node scripts/createContentSprintTracker.js",
     "diagnose:lesson-flashcards": "node scripts/diagnoseLessonFlashcards.js",
     "audit:question-banks-biology": "node scripts/questionBankAuditBiologyGcse.js",

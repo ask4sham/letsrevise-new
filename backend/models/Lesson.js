@@ -99,7 +99,40 @@ const DragDropMatchPairSchema = new mongoose.Schema(
     answer: { type: String, default: "" },
     /** Optional icon/thumbnail shown on draggable answer cards (text mode + diagram bank). */
     answerImageUrl: { type: String, required: false },
+    /** Text-to-image mode: large target visual per pair. */
+    imageUrl: { type: String, required: false },
+    imageAlt: { type: String, required: false },
     explanation: { type: String, default: undefined },
+  },
+  { _id: false }
+);
+
+/** type === "graph" — data point for a series */
+const GraphDataPointSchema = new mongoose.Schema(
+  {
+    x: { type: mongoose.Schema.Types.Mixed, required: true },
+    y: { type: Number, required: true },
+  },
+  { _id: false }
+);
+
+const GraphSeriesSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    label: { type: String, default: "" },
+    color: { type: String, required: false },
+    points: { type: [GraphDataPointSchema], default: [] },
+  },
+  { _id: false }
+);
+
+const GraphAnnotationSchema = new mongoose.Schema(
+  {
+    id: { type: String, default: "" },
+    text: { type: String, default: "" },
+    kind: { type: String, enum: ["callout", "trend"], required: false },
+    seriesId: { type: String, required: false },
+    pointIndex: { type: Number, required: false },
   },
   { _id: false }
 );
@@ -135,6 +168,7 @@ const LessonPageBlockSchema = new mongoose.Schema(
         "interactiveSequence",
         "interactiveDiagram",
         "dragDropMatch",
+        "graph",
       ],
       default: "text",
     },
@@ -158,6 +192,8 @@ const LessonPageBlockSchema = new mongoose.Schema(
     // optional: ai_fallback diagram (persisted so fallback survives save and readiness counts it)
     source: { type: String, default: undefined },
     title: { type: String, default: undefined },
+    /** SS1 lesson block ordinal from generator (display only). */
+    number: { type: Number, default: undefined },
     note: { type: String, default: undefined },
     /** Block role — semantic label (e.g. Hook, Core rule, What to Notice) for contract enforcement */
     role: { type: String, default: undefined },
@@ -174,6 +210,8 @@ const LessonPageBlockSchema = new mongoose.Schema(
     imageUrl: { type: String },
     imageSource: { type: String },
     alt: { type: String },
+    /** featured = key visual emphasis in student lesson layout */
+    diagramVariant: { type: String, enum: ["standard", "featured"], required: false },
 
     /** type === "interactiveSequence" | "interactiveDiagram" | "dragDropMatch" */
     intro: { type: String, default: undefined },
@@ -183,8 +221,21 @@ const LessonPageBlockSchema = new mongoose.Schema(
     /** type === "dragDropMatch" */
     instructions: { type: String, default: undefined },
     pairs: { type: [DragDropMatchPairSchema], default: undefined },
-    matchMode: { type: String, enum: ["text", "diagram"], required: false },
+    matchMode: { type: String, enum: ["text", "diagram", "text-to-image", "textToImage"], required: false },
+    /** Durable layout flag (no enum) — survives when matchMode alone fails to round-trip. */
+    dragDropLayout: { type: String, required: false },
     dropZones: { type: [DragDropMatchDropZoneSchema], default: undefined },
+    /** type === "graph" */
+    graphType: { type: String, enum: ["line", "bar", "scatter"], required: false },
+    xAxisLabel: { type: String, default: undefined },
+    yAxisLabel: { type: String, default: undefined },
+    xUnits: { type: String, default: undefined },
+    yUnits: { type: String, default: undefined },
+    graphSeries: { type: [GraphSeriesSchema], default: undefined },
+    graphAnnotations: { type: [GraphAnnotationSchema], default: undefined },
+    examQuestion: { type: String, default: undefined },
+    markScheme: { type: String, default: undefined },
+    examinerTip: { type: String, default: undefined },
   },
   { _id: false }
 );
