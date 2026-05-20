@@ -1125,6 +1125,10 @@ router.put("/lessons/:lessonId", auth, requireContentManager, async (req, res) =
       if (!Array.isArray(updates.pages)) {
         return res.status(400).json({ msg: "pages must be an array" });
       }
+      const { mergePagesOnUpdate } = require("./lessons");
+      const { promoteHeroOnLesson } = require("../utils/promotePageHeroToBlock");
+      const merged = mergePagesOnUpdate(lessonId, lesson.pages || [], updates.pages);
+      updates.pages = promoteHeroOnLesson({ pages: merged }).pages;
     }
 
     // If status provided, keep isPublished aligned (same logic as status endpoint)

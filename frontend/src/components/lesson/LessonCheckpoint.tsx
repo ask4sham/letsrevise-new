@@ -9,6 +9,8 @@ import { logAttempt } from "../../utils/attempts";
 import { mergeCheckpointExplanationParts } from "../../utils/checkpointFeedback";
 import { SubscribeCTA } from "../SubscribeCTA";
 import { AssessmentFeedback } from "./AssessmentFeedback";
+import { CheckpointDifficultyBadge } from "./CheckpointDifficultyBadge";
+import { parseDifficultyFromMarkScheme } from "../../utils/checkpointDifficulty";
 
 const CONTENT_FONT = 16;
 const TITLE_STYLE: React.CSSProperties = {
@@ -60,7 +62,12 @@ export function LessonCheckpoint({
   presentation = "default",
 }: LessonCheckpointProps) {
   const correctAnswer = String(correctAnswerProp ?? "").trim();
-  const mergedExplanation = mergeCheckpointExplanationParts({ explanation, markScheme });
+  const { tier: difficultyTier, markScheme: markSchemeSansMeta } =
+    parseDifficultyFromMarkScheme(markScheme);
+  const mergedExplanation = mergeCheckpointExplanationParts({
+    explanation,
+    markScheme: markSchemeSansMeta,
+  });
 
   if (mode === "mcq") {
     return (
@@ -69,6 +76,7 @@ export function LessonCheckpoint({
         options={options}
         correctAnswer={correctAnswer}
         explanation={mergedExplanation}
+        difficultyTier={difficultyTier}
         name={name}
         lessonId={lessonId}
         pageId={pageId}
@@ -98,6 +106,7 @@ function LessonCheckpointMCQ({
   options,
   correctAnswer,
   explanation,
+  difficultyTier,
   name,
   lessonId,
   pageId,
@@ -109,6 +118,7 @@ function LessonCheckpointMCQ({
   options: string[];
   correctAnswer: string;
   explanation?: string;
+  difficultyTier?: import("../../utils/checkpointDifficulty").CheckpointDifficultyTier;
   name: string;
   lessonId?: string;
   pageId?: string;
@@ -161,6 +171,7 @@ function LessonCheckpointMCQ({
       ) : (
         <div style={TITLE_STYLE}>Checkpoint</div>
       )}
+      <CheckpointDifficultyBadge tier={difficultyTier} />
       <div style={PROMPT_STYLE}>{prompt}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {options.map((opt, i) => (

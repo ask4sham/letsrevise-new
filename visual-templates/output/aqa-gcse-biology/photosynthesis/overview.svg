@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Photosynthesis">
+  <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
+  <rect x="60" y="60" width="1280" height="680" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+
+  <rect x="68" y="68" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="88" y="100" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="260" y="100" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+
+  <text x="84" y="170" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis</text>
+  <text x="84" y="215" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Light energy converted into chemical energy in glucose</text>
+  <text x="1316" y="108" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
+
+  
+  
+  <g>
+    <line x1="242" y1="300" x2="264" y2="300" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="229.698484809835" y1="329.698484809835" x2="245.25483399593904" y2="345.25483399593907" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="200" y1="342" x2="200" y2="364" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="170.301515190165" y1="329.698484809835" x2="154.74516600406096" y2="345.25483399593907" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="158" y1="300" x2="136" y2="300" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="170.301515190165" y1="270.301515190165" x2="154.74516600406093" y2="254.74516600406096" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="200" y1="258" x2="200" y2="236" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="229.69848480983498" y1="270.301515190165" x2="245.25483399593904" y2="254.74516600406093" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="200" cy="300" r="36" fill="#FDE047" stroke="#CA8A04" stroke-width="3"/>
+  </g>
+  <text x="200" y="375" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#A16207">SUNLIGHT</text>
+  
+  <g>
+    <line x1="280" y1="330" x2="486.34814001891954" y2="376.89730454975444" stroke="#EAB308" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="500,380 484.5751711902078,384.6983673960861 488.12110884763126,369.0962417034228" fill="#EAB308"/>
+  </g>
+
+  <text x="120" y="420" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="800" fill="#1D4ED8">CO₂</text>
+  <text x="120" y="452" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#374151">from air</text>
+  
+  <g>
+    <line x1="190" y1="440" x2="456" y2="440" stroke="#2563EB" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="470,440 456,448 456,432" fill="#2563EB"/>
+  </g>
+
+  <text x="120" y="560" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="800" fill="#0369A1">H₂O</text>
+  <text x="120" y="592" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#374151">via xylem</text>
+  
+  <g>
+    <line x1="200" y1="570" x2="506.16783152748457" y2="522.1612763238305" stroke="#0284C7" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="520,520 507.40284656967344,530.0653725938394 504.9328164852957,514.2571800538217" fill="#0284C7"/>
+  </g>
+
+  
+  <g id="leaf-cross-section">
+    <ellipse cx="700" cy="440" rx="220" ry="130" fill="#DCFCE7" stroke="#15803D" stroke-width="5"/>
+    <path d="M 520 440 Q 700 345 880 440" fill="none" stroke="#166534" stroke-width="3"/>
+    <rect x="540" y="385" width="320" height="70" rx="8" fill="#BBF7D0" stroke="#16A34A" stroke-width="2"/>
+    <ellipse cx="580" cy="422" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="640" cy="422" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="700" cy="422" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="760" cy="422" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="820" cy="422" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/>
+    <text x="700" y="518" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#374151">Leaf cross-section (palisade mesophyll)</text>
+  </g>
+
+  <text x="1270" y="400" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#7C3AED">GLUCOSE</text>
+  <text x="1270" y="430" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#374151">stored / used</text>
+  <rect x="1120" y="370" width="120" height="70" rx="12" fill="#EDE9FE" stroke="#7C3AED" stroke-width="3"/>
+  <text x="1180" y="412" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#5B21B6">C₆H₁₂O₆</text>
+  
+  <g>
+    <line x1="900" y1="440" x2="1096.19048506635" y2="407.301585822275" stroke="#7C3AED" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="1110,405 1097.5056769647929,415.1927372129322 1094.875293167907,399.41043443161783" fill="#7C3AED"/>
+  </g>
+
+  <text x="1270" y="540" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800" fill="#DC2626">O₂</text>
+  <text x="1270" y="572" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#374151">released</text>
+  
+  <g>
+    <line x1="860" y1="510" x2="1186.02415877555" y2="529.1778916926794" stroke="#EF4444" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="1200,530 1185.5543825999382,537.1640866780793 1186.4939349511617,521.1916967072794" fill="#EF4444"/>
+  </g>
+
+  <rect x="610" y="345" width="180" height="44" rx="10" fill="#FEF9C3" stroke="#CA8A04" stroke-width="2"/>
+  <text x="700" y="372" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800" fill="#854D0E">Chlorophyll absorbs light</text>
+
+  <rect x="104" y="684" width="1192" height="32" rx="8" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="700" y="706" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">6CO₂ + 6H₂O  →  C₆H₁₂O₆ + 6O₂   (endothermic — energy in from light)</text>
+  
+</svg>

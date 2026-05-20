@@ -1,0 +1,87 @@
+{
+  "templateId": "lr.process.linear.v1",
+  "processId": "photosynthesis",
+  "title": "Photosynthesis",
+  "examBoardLabel": "GCSE AQA Biology",
+  "overview": {
+    "url": "/visuals/biology/aqa-gcse/bioenergetics/photosynthesis/lr-process-linear-v1/overview.svg",
+    "caption": "Photosynthesis — overview"
+  },
+  "steps": [
+    {
+      "id": "light-absorption",
+      "number": 1,
+      "title": "Light absorption",
+      "slug": "01-light-absorption",
+      "url": "/visuals/biology/aqa-gcse/bioenergetics/photosynthesis/lr-process-linear-v1/steps/01-light-absorption.svg",
+      "caption": "Light absorption",
+      "examTerm": "chlorophyll"
+    },
+    {
+      "id": "carbon-dioxide-water",
+      "number": 2,
+      "title": "Carbon dioxide & water",
+      "slug": "02-carbon-dioxide-water",
+      "url": "/visuals/biology/aqa-gcse/bioenergetics/photosynthesis/lr-process-linear-v1/steps/02-carbon-dioxide-water.svg",
+      "caption": "Carbon dioxide & water",
+      "examTerm": "reactants"
+    },
+    {
+      "id": "glucose-production",
+      "number": 3,
+      "title": "Glucose production",
+      "slug": "03-glucose-production",
+      "url": "/visuals/biology/aqa-gcse/bioenergetics/photosynthesis/lr-process-linear-v1/steps/03-glucose-production.svg",
+      "caption": "Glucose production",
+      "examTerm": "glucose"
+    },
+    {
+      "id": "oxygen-release",
+      "number": 4,
+      "title": "Oxygen release",
+      "slug": "04-oxygen-release",
+      "url": "/visuals/biology/aqa-gcse/bioenergetics/photosynthesis/lr-process-linear-v1/steps/04-oxygen-release.svg",
+      "caption": "Oxygen release",
+      "examTerm": "oxygen"
+    }
+  ],
+  "hotspots": [
+    {
+      "id": "hotspot-light",
+      "stageId": "light-absorption",
+      "stageNumber": 1,
+      "label": "Light absorption",
+      "description": "Chlorophyll in chloroplasts absorbs light energy for the reaction.",
+      "x": 0.22,
+      "y": 0.42
+    },
+    {
+      "id": "hotspot-co2-water",
+      "stageId": "carbon-dioxide-water",
+      "stageNumber": 2,
+      "label": "CO₂ & water",
+      "description": "Carbon dioxide from the air and water from the soil enter the leaf.",
+      "x": 0.38,
+      "y": 0.55
+    },
+    {
+      "id": "hotspot-glucose",
+      "stageId": "glucose-production",
+      "stageNumber": 3,
+      "label": "Glucose production",
+      "description": "Light energy drives reactions that build glucose (a sugar).",
+      "x": 0.58,
+      "y": 0.55
+    },
+    {
+      "id": "hotspot-oxygen",
+      "stageId": "oxygen-release",
+      "stageNumber": 4,
+      "label": "Oxygen release",
+      "description": "Oxygen is released as a by-product — used in aerobic respiration.",
+      "x": 0.76,
+      "y": 0.48
+    }
+  ],
+  "builtAt": "2026-05-17T05:18:06.206Z"
+}

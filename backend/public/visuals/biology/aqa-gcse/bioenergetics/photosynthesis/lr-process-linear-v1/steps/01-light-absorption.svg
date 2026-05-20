@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Photosynthesis — Step 1">
+  <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
+  <rect x="60" y="60" width="1280" height="680" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+
+  <rect x="68" y="68" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="88" y="100" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="260" y="100" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+
+  <text x="84" y="170" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis — Step 1</text>
+  <text x="84" y="215" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Light absorption</text>
+  <text x="1316" y="108" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
+
+  
+  
+  <g>
+    <line x1="474" y1="380" x2="496" y2="380" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="458.1837661840736" y1="418.18376618407353" x2="473.7401153701776" y2="433.7401153701776" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="420" y1="434" x2="420" y2="456" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="381.81623381592647" y1="418.1837661840736" x2="366.2598846298224" y2="433.7401153701776" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="366" y1="380" x2="344" y2="380" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="381.8162338159264" y1="341.81623381592647" x2="366.25988462982235" y2="326.2598846298224" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="420" y1="326" x2="420" y2="304" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/><line x1="458.18376618407353" y1="341.8162338159264" x2="473.7401153701776" y2="326.25988462982235" stroke="#CA8A04" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="420" cy="380" r="48" fill="#FDE047" stroke="#CA8A04" stroke-width="3"/>
+  </g>
+  <text x="420" y="470" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#A16207">Light energy</text>
+  
+  <g>
+    <line x1="500" y1="420" x2="626.1407070887436" y2="438.0201010126777" stroke="#EAB308" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="640,440 625.0093362388451,445.939696961967 627.2720779386422,430.10050506338837" fill="#EAB308"/>
+  </g>
+  
+  <g transform="translate(740,460) scale(1.4)">
+    <ellipse cx="0" cy="0" rx="52" ry="32" fill="#86EFAC" stroke="#166534" stroke-width="3"/>
+    <path d="M -30 0 Q 0 -22 30 0 Q 0 22 -30 0" fill="#22C55E" opacity="0.85"/>
+    <text x="0" y="48" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" fill="#14532D">Chloroplast</text>
+  </g>
+  <text x="740" y="560" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#374151">Chlorophyll in chloroplasts absorbs light for photosynthesis.</text>
+  <rect x="120" y="670" width="1160" height="40" rx="8" fill="#F0FDF4" stroke="#16A34A" stroke-width="2"/>
+  <text x="700" y="696" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#166534">Step 1 — Light is the energy source (endothermic reaction)</text>
+  
+</svg>

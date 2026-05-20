@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Photosynthesis — Step 2">
+  <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
+  <rect x="60" y="60" width="1280" height="680" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+
+  <rect x="68" y="68" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="88" y="100" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="260" y="100" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+
+  <text x="84" y="170" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis — Step 2</text>
+  <text x="84" y="215" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Carbon dioxide &amp; water</text>
+  <text x="1316" y="108" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
+
+  
+  
+  <g id="leaf-cross-section">
+    <ellipse cx="580" cy="460" rx="220" ry="130" fill="#DCFCE7" stroke="#15803D" stroke-width="5"/>
+    <path d="M 400 460 Q 580 365 760 460" fill="none" stroke="#166534" stroke-width="3"/>
+    <rect x="420" y="405" width="320" height="70" rx="8" fill="#BBF7D0" stroke="#16A34A" stroke-width="2"/>
+    <ellipse cx="460" cy="442" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="520" cy="442" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="580" cy="442" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="640" cy="442" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="700" cy="442" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/>
+    <text x="580" y="538" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#374151">Leaf cross-section (palisade mesophyll)</text>
+  </g>
+  <text x="140" y="430" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800" fill="#1D4ED8">CO₂</text>
+  
+  <g>
+    <line x1="210" y1="450" x2="406.0158460718579" y2="459.33408790818373" stroke="#2563EB" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="420,460 405.6353248765343,467.3250330099792 406.39636726718146,451.34314280638824" fill="#2563EB"/>
+  </g>
+  <ellipse cx="400" cy="490" rx="28" ry="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
+  <text x="400" y="496" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="800" fill="#1E40AF">Stomata</text>
+
+  <text x="140" y="550" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800" fill="#0369A1">H₂O</text>
+  <rect x="210" y="520" width="14" height="100" fill="#7DD3FC" stroke="#0284C7" stroke-width="2"/>
+  <text x="235" y="580" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#0C4A6E">Xylem</text>
+  
+  <g>
+    <line x1="225" y1="560" x2="486.0825695274881" y2="531.5182651424559" stroke="#0284C7" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="500,530 486.9501496088914,539.4710825553199 485.21498944608476,523.5654477295919" fill="#0284C7"/>
+  </g>
+
+  <text x="820" y="560" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#374151">Reactants enter the leaf for the reaction.</text>
+  
+</svg>

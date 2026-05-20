@@ -1,7 +1,12 @@
 /**
  * PR-CONTENT-TARGETING-1: Resolve lesson topic key to canonical namespaced topicKeyForBank.
- * Format: "{specKey}:{topicSlug}". Do NOT slugify here — only namespace / validate.
+ * Format: "{specKey}:{topicSlug}". Do NOT slugify lesson titles into topic keys.
  */
+import {
+  extractTopicSlug,
+  isLikelyInvalidTopicSlug,
+  normalizeLessonTopicSlugFromLesson,
+} from "./normalizeLessonTopicKey";
 
 /** SpecKey type used for taxonomy (matches api/taxonomy). */
 export type ResolveSpecKey =
@@ -61,8 +66,10 @@ export function resolveLessonTopicKeyForBank(params: {
 export function resolveLessonTopicKeyForBankFromLesson(
   lesson: {
     topicKey?: string | null;
+    canonicalTopicKey?: string | null;
     specKey?: string | null;
     topic?: string | null;
+    title?: string | null;
     examBoardName?: string | null;
     level?: string | null;
     subject?: string | null;
@@ -75,13 +82,23 @@ export function resolveLessonTopicKeyForBankFromLesson(
       ? (lesson as { specKey?: string }).specKey!.trim()
       : getSpecKeyFromLesson(lesson);
   if (!specKey) return null;
-  const raw =
-    urlTopicKey?.trim() ||
-    (typeof lesson.topicKey === "string" && lesson.topicKey.trim() ? lesson.topicKey.trim() : null) ||
-    (typeof lesson.topic === "string" && lesson.topic.trim()
-      ? lesson.topic.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "")
-      : null);
-  return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: raw || undefined });
+
+  if (urlTopicKey?.trim()) {
+    return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: urlTopicKey.trim() });
+  }
+
+  const normalized = normalizeLessonTopicSlugFromLesson(lesson);
+  if (normalized.namespaced) return normalized.namespaced;
+
+  const stored = typeof lesson.topicKey === "string" && lesson.topicKey.trim() ? lesson.topicKey.trim() : "";
+  if (stored) {
+    const slug = extractTopicSlug(stored);
+    if (slug && !isLikelyInvalidTopicSlug(slug)) {
+      return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: stored });
+    }
+  }
+
+  return null;
 }
 
 // Pattern B: Topic quiz bank attach + mastery rollup resolve inheritance on the server from AdminTaxonomyItem mappings.

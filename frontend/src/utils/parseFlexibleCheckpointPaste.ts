@@ -3,6 +3,12 @@
  * (CreateLesson / EditLesson paste path). Mirrors tolerant logic from letsrevise-generator/lib/parseLessonText.js.
  */
 
+import {
+  applyDifficultyToMarkScheme,
+  normalizeCheckpointDifficultyTier,
+  type CheckpointDifficultyTier,
+} from "./checkpointDifficulty";
+
 const CHECKPOINT_HEADING_LINE =
   /^(?:\*\*)?\s*⚡\s*CHECKPOINT(?:\*\*)?\s*$/i;
 const QUICK_CHECK_HEADING_LINE = /^QUICK\s*CHECK(?:\s*[:—\-].*)?\s*$/i;
@@ -12,13 +18,19 @@ const NUMBERED_TOPIC_LINE = /^\d+\s*[\u2014\u2013\-]\s*.+/;
 const ANSWER_HEADING_LINE = /^(?:Answer|Correct\s+answer|Answer\s+key)\s*:/i;
 /** Body line that starts Explanation (captures continuation for multi-line explanations) */
 const EXPL_HEADING_LINE = /^Explanation\s*:/i;
+const DIFFICULTY_HEADING_LINE = /^Difficulty\s*:/i;
+const DIFFICULTY_BARE_LINE = /^Difficulty\s*$/i;
 
 function cleanLine(line: string): string {
   return String(line || "").replace(/\r/g, "").trim();
 }
 
-function htmlToPlainText(value: string): string {
+export function htmlToPlainText(value: string): string {
   return String(value ?? "")
+    /** Whole <details> blocks are handled in MCQ parsing (answer extraction); never leak summary UI text into stems. */
+    .replace(/<details[^>]*>[\s\S]*?<\/details>/gi, "")
+    /** Orphan summaries (invalid HTML) — remove entirely (do not inject "Reveal: " + summary text). */
+    .replace(/<summary[^>]*>[\s\S]*?<\/summary>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
     .replace(/<p[^>]*>/gi, "")
@@ -32,10 +44,6 @@ function htmlToPlainText(value: string): string {
     .replace(/<\/strong>/gi, "")
     .replace(/<em[^>]*>/gi, "")
     .replace(/<\/em>/gi, "")
-    .replace(/<summary[^>]*>/gi, "Reveal: ")
-    .replace(/<\/summary>/gi, "\n")
-    .replace(/<\/details>/gi, "\n")
-    .replace(/<details[^>]*>/gi, "")
     .replace(/<[^>]+>/g, "")
     .trim();
 }
@@ -45,6 +53,33 @@ function removeDetailsFragments(value: string): string {
     .replace(/<details[^>]*>/gi, "")
     .replace(/<\/details>/gi, "")
     .trim();
+}
+
+/**
+ * Pull hidden model answers out of <details>…</details> (generator / SS1 HTML), strip them from the
+ * question stem, and return plain text suitable for `correctAnswer` when no `Answer:` line exists.
+ */
+function extractDetailsAnswersAndStripHtml(sectionText: string): {
+  strippedSection: string;
+  combinedDetailsAnswer: string;
+} {
+  const answers: string[] = [];
+  const strippedSection = String(sectionText ?? "").replace(
+    /<details[^>]*>([\s\S]*?)<\/details>/gi,
+    (_full, inner: string) => {
+      const body = String(inner ?? "")
+        .replace(/<summary[^>]*>[\s\S]*?<\/summary>/gi, "")
+        .trim();
+      if (body) {
+        answers.push(htmlToPlainText(body));
+      }
+      return "";
+    },
+  );
+  return {
+    strippedSection: strippedSection.replace(/\n{3,}/g, "\n\n").trim(),
+    combinedDetailsAnswer: answers.join("\n\n").trim(),
+  };
 }
 
 /**
@@ -254,10 +289,59 @@ function isBlank(line: string): boolean {
   return cleanLine(line) === "";
 }
 
+function isDifficultyLine(line: string): boolean {
+  const s = cleanLine(htmlToPlainText(line));
+  return DIFFICULTY_HEADING_LINE.test(s) || DIFFICULTY_BARE_LINE.test(s);
+}
+
+/** Strip `Difficulty: tier` (generator SS1) from body lines before question/option parsing. */
+function extractDifficultyFromBodyLines(bodyLines: string[]): {
+  difficultyTier?: CheckpointDifficultyTier;
+  bodyLines: string[];
+} {
+  const lines = [...bodyLines];
+  const diffIdx = lines.findIndex((l) => isDifficultyLine(String(l ?? "")));
+  if (diffIdx < 0) return { bodyLines: lines };
+
+  const raw = String(lines[diffIdx] ?? "");
+  const inline = cleanLine(htmlToPlainText(raw)).replace(/^Difficulty\s*:/i, "").trim();
+  if (inline) {
+    const tier = normalizeCheckpointDifficultyTier(inline);
+    lines.splice(diffIdx, 1);
+    return { ...(tier ? { difficultyTier: tier } : {}), bodyLines: lines };
+  }
+
+  if (DIFFICULTY_BARE_LINE.test(cleanLine(htmlToPlainText(raw)))) {
+    lines.splice(diffIdx, 1);
+    while (diffIdx < lines.length && isBlank(String(lines[diffIdx] ?? ""))) {
+      lines.splice(diffIdx, 1);
+    }
+    if (diffIdx < lines.length) {
+      const next = cleanLine(htmlToPlainText(String(lines[diffIdx] ?? "")));
+      if (
+        next &&
+        !/^Question\s*:/i.test(next) &&
+        !ANSWER_HEADING_LINE.test(next) &&
+        !/^Option\s+/i.test(next) &&
+        !/^⚡\s*CHECKPOINT/i.test(next)
+      ) {
+        const tier = normalizeCheckpointDifficultyTier(next);
+        lines.splice(diffIdx, 1);
+        return { ...(tier ? { difficultyTier: tier } : {}), bodyLines: lines };
+      }
+    }
+    return { bodyLines: lines };
+  }
+
+  lines.splice(diffIdx, 1);
+  return { bodyLines: lines };
+}
+
 function isOptionLine(line: string, optionsPhase: boolean, prevBlank: boolean): boolean {
   const raw = cleanLine(line);
   if (!raw) return false;
   const s = cleanLine(htmlToPlainText(raw));
+  if (isDifficultyLine(line)) return false;
   if (/^Question\s*:/i.test(s)) return false;
   if (ANSWER_HEADING_LINE.test(s)) return false;
 
@@ -436,15 +520,23 @@ function parseCheckpointFlexibleBody(sectionText: string): {
   options: string[];
   answer: string;
   explanationTailLines: string[];
+  difficultyTier?: CheckpointDifficultyTier;
 } {
-  const rawLines = sectionText.split("\n").map((l) => l.replace(/\r/g, ""));
+  const { strippedSection, combinedDetailsAnswer } =
+    extractDetailsAnswersAndStripHtml(sectionText);
+  const rawLines = strippedSection.split("\n").map((l) => l.replace(/\r/g, ""));
   const linesPlain = rawLines.map((l) => htmlToPlainText(l));
 
   const answerIdx = rawLines.findIndex((l) => ANSWER_HEADING_LINE.test(cleanLine(htmlToPlainText(l))));
-  const bodyLines =
+  let bodyLines =
     answerIdx >= 0
       ? linesPlain.slice(0, answerIdx)
       : [...linesPlain];
+
+  const { difficultyTier, bodyLines: bodySansDifficulty } = extractDifficultyFromBodyLines(
+    bodyLines.map((ln) => String(ln ?? ""))
+  );
+  bodyLines = bodySansDifficulty;
 
   let explanationLines: string[] = [];
   let rawAnswer = "";
@@ -462,6 +554,7 @@ function parseCheckpointFlexibleBody(sectionText: string): {
       if (EXPL_HEADING_LINE.test(tr)) break;
       if (/^⚡\s*CHECKPOINT/i.test(tr) || QUICK_CHECK_HEADING_LINE.test(tr)) break;
       if (/^Question\s*:/i.test(tr)) break;
+      if (isDifficultyLine(pl)) break;
       if (/^Option\s+\d+\s*:/i.test(tr)) break;
       if (ANSWER_HEADING_LINE.test(pl)) break;
       ansParts.push(pl);
@@ -547,6 +640,8 @@ function parseCheckpointFlexibleBody(sectionText: string): {
   let answer = "";
   if (answerIdx >= 0) {
     answer = htmlToPlainText(removeDetailsFragments(rawAnswer)).trim();
+  } else if (combinedDetailsAnswer.trim()) {
+    answer = combinedDetailsAnswer.trim();
   }
 
   answer = normalizeAnswerAgainstOptions(answer, options);
@@ -556,7 +651,17 @@ function parseCheckpointFlexibleBody(sectionText: string): {
     options,
     answer: answer.trim(),
     explanationTailLines: explanationLines,
+    ...(difficultyTier ? { difficultyTier } : {}),
   };
+}
+
+/** Mark scheme lines to persist when saving a parsed MCQ paste (includes `@lr-difficulty:*`). */
+export function markSchemeFromFlexibleCheckpointParse(parsed: {
+  markScheme?: string[];
+  difficultyTier?: CheckpointDifficultyTier;
+}): string[] | undefined {
+  if (parsed.markScheme?.length) return [...parsed.markScheme];
+  return applyDifficultyToMarkScheme(undefined, parsed.difficultyTier);
 }
 
 function joinExplanation(parts: string[]): string {
@@ -571,6 +676,8 @@ export function tryParseFlexibleCheckpointMcq(rawInput: string): {
   options: [string, string, string, string];
   correctAnswer: string;
   explanation: string;
+  difficultyTier?: CheckpointDifficultyTier;
+  markScheme?: string[];
 } | null {
   let normalized = sanitizeCheckpointMcqPasteText(String(rawInput || ""));
   normalized = normalizeFlexibleCheckpointPasteText(normalized);
@@ -613,12 +720,15 @@ export function tryParseFlexibleCheckpointMcq(rawInput: string): {
   const padded = padCheckpointOptions(pick.options);
   const alignedAnswer = normalizeAnswerAgainstOptions(pick.answer, [...padded]);
   const explanation = joinExplanation(pick.explanationTailLines);
+  const markScheme = applyDifficultyToMarkScheme(undefined, pick.difficultyTier);
 
   return {
     prompt: pick.question.trim(),
     options: padded,
     correctAnswer: alignedAnswer,
     explanation: explanation || "",
+    ...(pick.difficultyTier ? { difficultyTier: pick.difficultyTier } : {}),
+    ...(markScheme?.length ? { markScheme } : {}),
   };
 }
 

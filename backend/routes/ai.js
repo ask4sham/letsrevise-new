@@ -26,6 +26,7 @@ const { fetchTopicFlashcardsForSeed } = require("../utils/seedLessonFlashcardsFr
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
+const { promoteHeroOnLesson } = require("../utils/promotePageHeroToBlock");
 const { findDefaultCellVisualId } = require("../utils/defaultCellVisual");
 const { generateContextAwareDiagram } = require("../services/diagramGeneration");
 const { findTopicByKey, findTopicBySpecAndKey, topicToKey, isValidTopicForSpec } = require("../utils/topicTaxonomy");
@@ -5497,15 +5498,17 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
+    const pagesPromoted = promoteHeroOnLesson({ pages: pagesMerged }).pages;
+
     // ✅ Step 16: Compute and persist quality metadata
-    const finalDraftForQuality = { ...sanitized, pages: pagesMerged };
+    const finalDraftForQuality = { ...sanitized, pages: pagesPromoted };
     const aiQualityResult = scoreLessonQuality(finalDraftForQuality, {
       structureIssues: [],
       curriculumIssues: [],
       source: "ai",
     });
 
-    const pagesForDb = makeLessonDbSafe({ pages: pagesMerged }).pages;
+    const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;
 
     // ✅ 7) Create the cloned lesson doc (required fields satisfied)
     const lessonDoc = new Lesson({
@@ -5778,7 +5781,8 @@ router.post("/improve-lesson", auth, async (req, res) => {
       },
     ];
 
-    const pagesForDb = makeLessonDbSafe({ pages: pagesMerged }).pages;
+    const pagesPromotedImprove = promoteHeroOnLesson({ pages: pagesMerged }).pages;
+    const pagesForDb = makeLessonDbSafe({ pages: pagesPromotedImprove }).pages;
 
     const first = safeStr(req.user?.firstName, "");
     const last = safeStr(req.user?.lastName, "");
@@ -5992,6 +5996,8 @@ router.post("/lesson-factory/aqa-gcse-biology", auth, async (req, res) => {
         pages[0] = { ...page0, blocks };
       }
     }
+
+    pages = promoteHeroOnLesson({ pages }).pages;
 
     const first = safeStr(req.user?.firstName, "");
     const last = safeStr(req.user?.lastName, "");
