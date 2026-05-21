@@ -23,7 +23,11 @@ import {
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
-import { coerceDiagramZonePct, readDragDropPairAnswerImageUrl } from "../utils/dragDropMatchDiagram";
+import {
+  coerceDiagramZonePct,
+  dragDropMatchModeForBlockProps,
+  mapDragDropPairForBlockRender,
+} from "../utils/dragDropMatchDiagram";
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 
 interface DiagramAnnotation {
@@ -194,11 +198,7 @@ function DiagramBlockContent({
     );
   }
   if (!src || !hasRenderableLessonImageSrc(src)) {
-    return (
-      <LessonDiagramFrame variant={variant}>
-        <div style={{ color: "#6b7280" }}>Diagram unavailable</div>
-      </LessonDiagramFrame>
-    );
+    return null;
   }
   return (
     <LessonDiagramFrame variant={variant} caption={caption}>
@@ -599,8 +599,50 @@ const ClassroomModePage: React.FC = () => {
     return deduped.length >= 2 ? deduped : null; // 1 item looks weird as a callout; render as normal text
   };
 
-  const renderCallout = (kind: LessonPageBlock["type"] | "keyWords", text: string, idx: number) => {
+  const renderCallout = (
+    kind: LessonPageBlock["type"] | "keyWords",
+    text: string,
+    idx: number,
+    role?: string
+  ) => {
     const base: React.CSSProperties = { padding: 14, borderRadius: 12, margin: "14px 0", lineHeight: 1.8, background: "white", textAlign: "left", fontSize: BASE_FONT };
+    const r = String(role ?? "").trim();
+    if (r === "examTechnique") {
+      return (
+        <div key={idx} style={{ ...base, background: "#fffbeb", border: "2px solid rgba(245, 158, 11, 0.45)" }}>
+          <div style={{ fontWeight: 900, marginBottom: 6, color: "#b45309" }}>📋 Exam technique</div>
+          <div className="lesson-content">
+            <LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+              {preprocessMarkdownAssetUrls(text)}
+            </LessonMarkdown>
+          </div>
+        </div>
+      );
+    }
+    if (r === "whyThisMatters") {
+      return (
+        <div key={idx} style={{ ...base, background: "rgba(16, 185, 129, 0.08)", border: "2px solid rgba(5, 150, 105, 0.4)" }}>
+          <div style={{ fontWeight: 900, marginBottom: 6, color: "#047857" }}>🌍 Why this matters</div>
+          <div className="lesson-content">
+            <LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+              {preprocessMarkdownAssetUrls(text)}
+            </LessonMarkdown>
+          </div>
+        </div>
+      );
+    }
+    if (r === "synopticLink") {
+      return (
+        <div key={idx} style={{ ...base, background: "rgba(124, 58, 237, 0.06)", border: "2px solid rgba(124, 58, 237, 0.35)" }}>
+          <span style={{ display: "inline-block", fontSize: 11, fontWeight: 800, color: "#5b21b6", marginBottom: 8, padding: "3px 8px", borderRadius: 999, background: "rgba(124,58,237,0.12)" }}>Synoptic link</span>
+          <div className="lesson-content">
+            <LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>
+              {preprocessMarkdownAssetUrls(text)}
+            </LessonMarkdown>
+          </div>
+        </div>
+      );
+    }
     if (kind === "keyIdea") return <div key={idx} style={{ ...base, background: "#f0fff4", border: "2px solid rgba(34,197,94,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#065f46" }}>🔑 Key Idea(s)</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
     if (kind === "examTip") return <div key={idx} style={{ ...base, background: "#eef2ff", border: "2px solid rgba(99,102,241,0.40)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#3730a3" }}>🧠 Exam insight</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
     if (kind === "commonMistake") return <div key={idx} style={{ ...base, background: "#fff7ed", border: "2px solid rgba(249,115,22,0.45)" }}><div style={{ fontWeight: 900, marginBottom: 6, color: "#9a3412" }}>⚠️ Common mistake(s)</div><div className="lesson-content"><LessonMarkdown className="lesson-md-body" components={lessonMarkdownComponents as any} urlTransform={lessonMarkdownUrlTransform}>{preprocessMarkdownAssetUrls(text)}</LessonMarkdown></div></div>;
@@ -764,6 +806,9 @@ const ClassroomModePage: React.FC = () => {
                             });
                           })()}
                           resolveImageUrl={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                          lessonTitle={lesson ? safeStr(lesson.title, "") : undefined}
+                          level={lesson ? safeStr(lesson.level, "") : undefined}
+                          subject={lesson ? safeStr(lesson.subject, "") : undefined}
                         />
                       </div>
                     );
@@ -793,20 +838,17 @@ const ClassroomModePage: React.FC = () => {
                             title: safeStr(b.title, ""),
                             intro: safeStr(b.intro, ""),
                             instructions: safeStr(b.instructions, ""),
-                            ...(b.matchMode === "diagram" || b.matchMode === "text"
-                              ? { matchMode: b.matchMode }
+                            ...(() => {
+                              const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                              return mm ? { matchMode: mm } : {};
+                            })(),
+                            ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                            safeStr(b.imageUrl, "")
+                              ? { imageUrl: safeStr(b.imageUrl, "") }
                               : {}),
-                            ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
-                            pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => {
-                              const img = readDragDropPairAnswerImageUrl(p);
-                              return {
-                                id: String(p?.id ?? "").trim() || `p${i}`,
-                                prompt: String(p?.prompt ?? ""),
-                                answer: String(p?.answer ?? ""),
-                                explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                                ...(img ? { answerImageUrl: img } : {}),
-                              };
-                            }),
+                            pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) =>
+                              mapDragDropPairForBlockRender(p, i)
+                            ),
                             ...(Array.isArray(b.dropZones)
                               ? {
                                   dropZones: b.dropZones.map((z, i) => {
@@ -829,7 +871,7 @@ const ClassroomModePage: React.FC = () => {
                       </div>
                     );
                   default:
-                    return renderCallout(b.type, safeStr(b.content, ""), idx);
+                    return renderCallout(b.type, safeStr(b.content, ""), idx, safeStr((b as { role?: string }).role, ""));
                 }
               })}
             </div>
@@ -901,3 +943,6 @@ const ClassroomModePage: React.FC = () => {
 };
 
 export default ClassroomModePage;
+
+
+

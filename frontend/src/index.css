@@ -1,3 +1,49 @@
+/* --------------------------------------------------------------------------
+   Spacing scale (Phase 2 — token foundation). Use for new/refactored rules;
+   legacy values outside this file are unchanged until migrated incrementally.
+   -------------------------------------------------------------------------- */
+:root {
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Semantic aliases — numeric values match pre-token layout (no visual change). */
+  --lesson-block-gap: var(--space-sm);
+  --lesson-card-padding: 14px var(--space-md);
+  --lesson-mcq-option-gap: var(--space-sm);
+  --lesson-mcq-option-padding-block: var(--space-sm);
+  --lesson-mcq-option-padding-inline: 14px;
+
+  /* Phase 3 — image design tokens (global foundation; adopt outside cards only when low-risk). */
+  --lesson-image-radius: 14px;
+  --lesson-image-border: 1px solid #e5e7eb;
+  --lesson-image-bg: #ffffff;
+  --lesson-image-caption-gap: 8px;
+  /* Common control / thumb sizes (aligns with lightbox chrome; not yet wired to drag-drop). */
+  --lesson-image-thumb-size-sm: 40px;
+  --lesson-image-thumb-size-md: 44px;
+  --lesson-image-thumb-size-lg: 48px;
+
+  /* Phase 4 — responsive layout tokens (reference / non-@media use).
+     Plain CSS does not allow var() inside @media (width: …) conditions; keep literals
+     in @media until a build-time or JS layer mirrors these. Use tokens in max-width,
+     width, calc(), container queries, or document alongside matchMedia strings in TS. */
+  --layout-mobile-max: 767px;
+  --layout-tablet-max: 900px;
+  --layout-content-max: 920px;
+  --layout-wide-max: 1200px;
+
+  /*
+   * Future media-query tooling (PostCSS / build step) could emit static breakpoints from these names.
+   * Example only — not valid as live @media until compiled:
+   *   @media (max-width: <inlined --layout-mobile-max>) { ... }
+   */
+}
+
 /* Prevent accidental horizontal scroll. Use clip where supported: overflow-x: hidden
    can coerce overflow-y to auto on the same box and break position: sticky (header + lesson rails). */
 html {
@@ -45,8 +91,8 @@ code {
   display: grid;
   grid-template-columns: 1fr 44px;
   align-items: center;
-  column-gap: 12px;
-  padding: 12px 14px;
+  column-gap: var(--lesson-mcq-option-gap);
+  padding: var(--lesson-mcq-option-padding-block) var(--lesson-mcq-option-padding-inline);
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   cursor: pointer;
@@ -123,6 +169,8 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Mobile / narrow viewport: lesson markdown column — wraps long text; pre+table may scroll horizontally.
+   Uses 768px (not 767px) intentionally vs LessonViewPage matchMedia; consolidate only in a dedicated breakpoint pass. */
 @media (max-width: 768px) {
   /* Mobile: full width, natural wrap; only pre/table scroll horizontally */
   .lesson-content {
@@ -145,7 +193,7 @@ code {
   }
 }
 
-/* PR-UX-DASH-TEACH-2: Teacher dashboard 3-column layout stacks on mobile */
+/* PR-UX-DASH-TEACH-2: Teacher dashboard — stack 3-column grid at tablet / narrow desktop (matches --layout-tablet-max token intent). */
 @media (max-width: 900px) {
   .teacher-dashboard-grid {
     grid-template-columns: 1fr !important;
@@ -153,4 +201,22 @@ code {
   .teacher-dashboard-main { order: 1; }
   .teacher-dashboard-left { order: 2; }
   .teacher-dashboard-right { order: 3; }
+}
+
+/* --------------------------------------------------------------------------
+   Phase 4 — opt-in layout utilities (additive only; nothing uses these yet).
+   -------------------------------------------------------------------------- */
+.lr-min-w-0 {
+  min-width: 0;
+}
+
+.lr-full-width {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.lr-content-width {
+  max-width: var(--layout-content-max);
+  margin-inline: auto;
+  box-sizing: border-box;
 }

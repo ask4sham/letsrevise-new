@@ -7,8 +7,12 @@ import {
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
   readDragDropPairAnswerImageUrl,
+  readDragDropPairTargetImageUrl,
   repairDiagramDropZonesForLessonEditor,
+  dragDropLayoutPersistedValues,
+  dragDropMatchModeFromUiSelect,
   resolveDragDropMatchModeForUi,
+  type DragDropMatchAuthoringMatchMode,
 } from "../../utils/dragDropMatchDiagram";
 
 export type DragDropMatchAuthoringBlockSlice = {
@@ -16,7 +20,8 @@ export type DragDropMatchAuthoringBlockSlice = {
   intro?: string;
   instructions?: string;
   imageUrl?: string;
-  matchMode?: "text" | "diagram";
+  matchMode?: DragDropMatchAuthoringMatchMode;
+  dragDropLayout?: string;
   imageFit?: "contain" | "cover";
   imagePosition?: "center center" | "center top" | "center bottom";
   pairs?: Array<{
@@ -25,6 +30,8 @@ export type DragDropMatchAuthoringBlockSlice = {
     answer: string;
     explanation?: string;
     answerImageUrl?: string;
+    imageUrl?: string;
+    imageAlt?: string;
   }>;
   dropZones?: Array<{
     id: string;
@@ -99,15 +106,28 @@ export function DragDropMatchDiagramAuthoring({
         <select
           value={layoutMode}
           onChange={(e) => {
-            const v = e.target.value;
-            if (v === "diagram") {
+            const persisted = dragDropMatchModeFromUiSelect(e.target.value);
+            if (persisted === "diagram") {
+              const stored = dragDropLayoutPersistedValues("diagram");
               onPatch({
-                matchMode: "diagram",
+                matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
+                dragDropLayout: stored.dragDropLayout,
                 dropZones: Array.isArray(blk.dropZones) ? blk.dropZones : [],
               });
-            } else {
+            } else if (persisted === "text-to-image") {
+              const stored = dragDropLayoutPersistedValues("text-to-image");
               onPatch({
-                matchMode: "text",
+                matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
+                dragDropLayout: stored.dragDropLayout,
+                dropZones: [],
+                imageUrl: "",
+              });
+              onPlacingZoneId(null);
+            } else {
+              const stored = dragDropLayoutPersistedValues("text");
+              onPatch({
+                matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
+                dragDropLayout: stored.dragDropLayout,
                 dropZones: [],
               });
               onPlacingZoneId(null);
@@ -121,10 +141,66 @@ export function DragDropMatchDiagramAuthoring({
             fontWeight: 600,
           }}
         >
-          <option value="text">Text prompts + drop targets (classic)</option>
+          <option value="standard">Standard text match</option>
+          <option value="text-to-image">Text to image</option>
           <option value="diagram">Diagram — image + drop zones</option>
         </select>
       </label>
+      {layoutMode === "text-to-image" ? (
+        <p
+          style={{
+            margin: "8px 0 0",
+            fontSize: 13,
+            lineHeight: 1.45,
+            color: "#475569",
+            padding: "10px 12px",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            borderRadius: 8,
+          }}
+        >
+          Students drag <strong>concept cards</strong> (prompt) onto <strong>large image targets</strong>. Set a target
+          image per pair below; labels (answer) appear after Check. Without images, the activity falls back to standard
+          text layout.
+        </p>
+      ) : null}
+      {layoutMode === "text-to-image" && pairsDd.length > 0 ? (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 12,
+            border: "1px solid #bbf7d0",
+            background: "linear-gradient(180deg, rgba(240,253,244,0.9) 0%, #ffffff 100%)",
+          }}
+        >
+          <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 6 }}>Student preview</div>
+          <div className="drag-drop-match-diagram-authoring-preview-shell">
+            <DragDropMatchBlock
+              resolveImageUrl={resolveImageUrlForPreview}
+              block={{
+                title: safeStr(blk.title, ""),
+                intro: safeStr(blk.intro, ""),
+                instructions: safeStr(blk.instructions, ""),
+                matchMode: "text-to-image",
+                pairs: pairsDd.map((p, pi) => {
+                  const img = readDragDropPairTargetImageUrl(p);
+                  return {
+                    id: String(p?.id ?? "").trim() || `p${pi}`,
+                    prompt: String(p?.prompt ?? ""),
+                    answer: String(p?.answer ?? ""),
+                    explanation: p?.explanation != null ? String(p.explanation) : undefined,
+                    ...(img ? { imageUrl: img } : {}),
+                    ...(p?.imageAlt != null && String(p.imageAlt).trim()
+                      ? { imageAlt: String(p.imageAlt).trim() }
+                      : {}),
+                  };
+                }),
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
       {layoutMode === "diagram" ? (
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>

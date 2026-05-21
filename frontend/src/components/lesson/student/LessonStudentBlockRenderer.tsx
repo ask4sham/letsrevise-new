@@ -6,8 +6,11 @@ import type {
   StudentLessonPageBlock,
 } from "./types";
 import {
+  StudentExamTechniqueBlock,
   StudentExamTipBlock,
   StudentExplanationBlock,
+  StudentSynopticLinkBlock,
+  StudentWhyThisMattersBlock,
   StudentHookBlock,
   StudentKeyIdeaBlock,
   StudentKeyWordsBlock,
@@ -20,10 +23,30 @@ import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
 import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../InteractiveSequenceBlock";
 import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../DragDropMatchBlock";
+import { GraphBlock } from "../GraphBlock";
 import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
+import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
+import {
+  isStudentVisibleDiagramBlock,
+  isStudentVisibleInteractiveDiagramBlock,
+  isStudentVisibleInteractiveSequenceBlock,
+} from "../../../utils/lessonBlockStudentVisibility";
 import { mergeCheckpointExplanationParts } from "../../../utils/checkpointFeedback";
 import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
-import { coerceDiagramZonePct, readDragDropPairAnswerImageUrl } from "../../../utils/dragDropMatchDiagram";
+import { normalizeGraphBlockForDisplay } from "../graphBlockTypes";
+import { applyPhotosynthesisHotspotDefaults } from "../../../utils/photosynthesisHotspotLayout";
+import { normalizePedagogicalRole } from "../../../utils/pedagogicalRoles";
+import {
+  coerceDiagramZonePct,
+  dragDropMatchModeForBlockProps,
+  mapDragDropPairForBlockRender,
+} from "../../../utils/dragDropMatchDiagram";
+import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
+import { StudentBlockHeading } from "./StudentBlockHeading";
+import {
+  formatStudentBlockHeading,
+  studentContentStartsWithHeading,
+} from "../../../utils/formatBlockHeading";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -41,6 +64,27 @@ export type LessonStudentBlockRendererProps = {
   levelForAi?: string;
   subjectForAi?: string;
 };
+
+function withStudentBlockHeading(
+  node: React.ReactElement,
+  block: StudentLessonPageBlock,
+  contentForDedup: string
+): React.ReactElement {
+  const heading = formatStudentBlockHeading(block);
+  if (!heading || studentContentStartsWithHeading(contentForDedup, heading)) {
+    return node;
+  }
+  return (
+    <>
+      <StudentBlockHeading>{heading}</StudentBlockHeading>
+      {node}
+    </>
+  );
+}
+
+function studentBlockTitle(block: StudentLessonPageBlock): string {
+  return formatStudentBlockHeading(block) || String(block.title ?? "").trim();
+}
 
 /**
  * Maps persisted lesson block types to premium student-facing shells. Unknown types fall back to explanation.
@@ -62,6 +106,7 @@ export function LessonStudentBlockRenderer({
   const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
   /** Raw persisted `type` for legacy shells (keyIdea, examTip, hook, …). */
   const kind = String(block.type ?? "").trim() || "text";
+  const semanticRole = normalizePedagogicalRole((block as { role?: unknown }).role);
   const raw = typeof block.content === "string" ? block.content : "";
   const cleanedText = stripVideoMarkdown(raw);
 
@@ -69,31 +114,57 @@ export function LessonStudentBlockRenderer({
     return null;
   }
 
+  const proseKinds = new Set([
+    "text",
+    "keyIdea",
+    "keyWords",
+    "examTip",
+    "commonMistake",
+    "stretch",
+    "hook",
+    "workedExample",
+  ]);
+  if (
+    proseKinds.has(kind) &&
+    routed === kind &&
+    !cleanedText.trim() &&
+    !formatStudentBlockHeading(block)
+  ) {
+    return null;
+  }
+
   if (routed === "selfCheck") {
-    return (
+    const rawMs = (block as { markScheme?: string | string[] }).markScheme;
+    const scMs = Array.isArray(rawMs) ? rawMs : undefined;
+    const sc = (
       <InlineSelfCheckBlock
         prompt={String(block.prompt ?? "")}
         questionType={block.questionType === "short" ? "short" : "mcq"}
         options={Array.isArray(block.options) ? block.options : []}
         correctAnswer={String(block.correctAnswer ?? "")}
+        markScheme={scMs}
         explanation={
           mergeCheckpointExplanationParts({
             explanation: block.explanation != null ? String(block.explanation) : undefined,
-            markScheme: Array.isArray((block as { markScheme?: string[] }).markScheme)
-              ? (block as { markScheme?: string[] }).markScheme
-              : undefined,
+            markScheme: scMs,
           })
         }
+        contentFallback={typeof block.content === "string" ? block.content : ""}
         presentation={enableMarkdownMediaSplit ? "v12" : "default"}
       />
     );
+    return withStudentBlockHeading(sc, block, cleanedText);
   }
 
   if (routed === "interactiveSequence") {
+    if (!isStudentVisibleInteractiveSequenceBlock(block as StudentLessonPageBlock)) {
+      return null;
+    }
     const raw = (block as StudentLessonPageBlock).sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
     const arr = Array.isArray(raw) ? raw : [];
     const steps: InteractiveSequenceStep[] = arr.map((s: InteractiveSequenceStepPersisted) => {
       const sid = typeof s.id === "string" ? String(s.id).trim() : "";
+      const tq = s.testQuestion != null ? String(s.testQuestion).trim() : "";
       const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
       return {
         ...(sid ? { id: sid.slice(0, 64) } : {}),
@@ -101,43 +172,62 @@ export function LessonStudentBlockRenderer({
         description: String(s?.description ?? ""),
         imageUrl: String(s?.imageUrl ?? ""),
         caption: String(s?.caption ?? ""),
+        ...(tq ? { testQuestion: tq } : {}),
         ...(te ? { testExplanation: te } : {}),
       };
     });
-    return (
+    const seq = (
       <InteractiveSequenceBlock
-        blockTitle={String(block.title ?? "")}
+        blockTitle={studentBlockTitle(block)}
         intro={String(block.intro ?? "")}
         steps={steps}
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+        lessonTitle={lessonTitleForAi}
+        level={levelForAi}
+        subject={subjectForAi}
+        viewMode="student"
       />
     );
+    const seqAttr = getVisualTeachingDataAttribute(routed, block);
+    const seqWrapped = seqAttr ? <div data-visual-block={seqAttr}>{seq}</div> : seq;
+    const proseBefore =
+      cleanedText.trim() && !studentContentStartsWithHeading(cleanedText, studentBlockTitle(block)) ? (
+        <StudentExplanationBlock
+          content={cleanedText}
+          markdownComponents={markdownComponents}
+          enableMarkdownMediaSplit={enableMarkdownMediaSplit}
+          highlightKeywords={highlightKeywords}
+        />
+      ) : null;
+    if (proseBefore) {
+      return withStudentBlockHeading(
+        <>
+          {proseBefore}
+          {seqWrapped}
+        </>,
+        block,
+        cleanedText
+      );
+    }
+    return seqWrapped;
   }
 
   if (routed === "dragDropMatch") {
     const b = block as StudentLessonPageBlock;
-    const mm = b.matchMode;
-    const matchModeRaw = mm === "diagram" || mm === "text" ? mm : undefined;
-    return (
+    const mm = dragDropMatchModeForBlockProps(b.matchMode);
+    const ddm = (
       <DragDropMatchBlock
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
         block={{
-          title: String(block.title ?? ""),
+          title: studentBlockTitle(block),
           intro: String(block.intro ?? ""),
           instructions: String(b.instructions ?? ""),
-          ...(matchModeRaw ? { matchMode: matchModeRaw } : {}),
-          ...(b.imageUrl != null && String(b.imageUrl).trim() ? { imageUrl: String(b.imageUrl).trim() } : {}),
+          ...(mm ? { matchMode: mm } : {}),
+          ...(mm === "diagram" && b.imageUrl != null && String(b.imageUrl).trim()
+            ? { imageUrl: String(b.imageUrl).trim() }
+            : {}),
           pairs: Array.isArray(b.pairs)
-            ? b.pairs!.map((p, i) => {
-                const img = readDragDropPairAnswerImageUrl(p);
-                return {
-                  id: String(p?.id ?? "").trim() || `p${i}`,
-                  prompt: String(p?.prompt ?? ""),
-                  answer: String(p?.answer ?? ""),
-                  explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                  ...(img ? { answerImageUrl: img } : {}),
-                };
-              })
+            ? b.pairs!.map((p, i) => mapDragDropPairForBlockRender(p, i))
             : [],
           dropZones: Array.isArray(b.dropZones)
             ? b.dropZones!.map((z, i) => {
@@ -157,9 +247,36 @@ export function LessonStudentBlockRenderer({
         }}
       />
     );
+    const ddmAttr = getVisualTeachingDataAttribute(routed, block);
+    return ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
+  }
+
+  if (routed === "graph") {
+    const graphBlock = normalizeGraphBlockForDisplay(block);
+    const gr = (
+      <GraphBlock
+        block={graphBlock}
+        blockIndex={blockIndex}
+        audience="student"
+        showAnswers={false}
+      />
+    );
+    const grAttr = getVisualTeachingDataAttribute(routed, block);
+    return grAttr ? <div data-visual-block={grAttr}>{gr}</div> : gr;
   }
 
   if (routed === "interactiveDiagram") {
+    if (!isStudentVisibleInteractiveDiagramBlock(block as StudentLessonPageBlock)) {
+      return null;
+    }
+    const imageUrlRaw = String((block as StudentLessonPageBlock).imageUrl ?? "").trim();
+    const imageUrlResolved = imageUrlRaw
+      ? (makeAbsoluteAssetUrl(imageUrlRaw) ?? imageUrlRaw)
+      : "";
+    const hasDiagramImage =
+      hasRenderableLessonImageSrc(imageUrlRaw) &&
+      hasRenderableLessonImageSrc(imageUrlResolved);
+
     const raw = (block as StudentLessonPageBlock).hotspots;
     const arr = Array.isArray(raw) ? raw : [];
     const hotspots: InteractiveDiagramHotspot[] = arr.map((h: InteractiveDiagramHotspotPersisted, i: number) => {
@@ -189,47 +306,74 @@ export function LessonStudentBlockRenderer({
         ...(test !== undefined ? { test } : {}),
       };
     });
-    return (
+    if (!hasDiagramImage) {
+      return null;
+    }
+    const placedHotspots = applyPhotosynthesisHotspotDefaults(
+      hotspots,
+      [lessonTitleForAi, studentBlockTitle(block), String(block.intro ?? "")].filter(Boolean).join(" ")
+    );
+    const idgr = (
       <InteractiveDiagramBlock
-        blockTitle={String(block.title ?? "")}
+        blockTitle={studentBlockTitle(block)}
         intro={String(block.intro ?? "")}
-        imageUrl={String((block as StudentLessonPageBlock).imageUrl ?? "")}
-        hotspots={hotspots}
+        imageUrl={imageUrlRaw}
+        hotspots={placedHotspots}
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
         lessonTitle={lessonTitleForAi}
         level={levelForAi}
         subject={subjectForAi}
+        viewMode="student"
       />
     );
+    const idgrAttr = getVisualTeachingDataAttribute(routed, block);
+    return idgrAttr ? <div data-visual-block={idgrAttr}>{idgr}</div> : idgr;
   }
 
   if (routed === "diagram") {
-    return (
-      <div className="lesson-student-diagram-slot">{renderDiagramBlock(block, blockIndex)}</div>
+    if (!isStudentVisibleDiagramBlock(block as StudentLessonPageBlock)) {
+      return null;
+    }
+    return withStudentBlockHeading(
+      <div className="lesson-student-diagram-slot" data-visual-block="diagram">
+        {renderDiagramBlock(block, blockIndex)}
+      </div>,
+      block,
+      cleanedText
     );
   }
 
   const safeHighlightKeywords = normalizeBlockType(kind) === "pageQuiz" ? undefined : highlightKeywords;
   const mdProps = { content: raw, markdownComponents, enableMarkdownMediaSplit, highlightKeywords: safeHighlightKeywords };
 
+  if (semanticRole === "examTechnique") {
+    return withStudentBlockHeading(<StudentExamTechniqueBlock {...mdProps} />, block, cleanedText);
+  }
+  if (semanticRole === "synopticLink") {
+    return withStudentBlockHeading(<StudentSynopticLinkBlock {...mdProps} />, block, cleanedText);
+  }
+  if (semanticRole === "whyThisMatters") {
+    return withStudentBlockHeading(<StudentWhyThisMattersBlock {...mdProps} />, block, cleanedText);
+  }
+
   if (kind === "keyIdea") {
-    return <StudentKeyIdeaBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentKeyIdeaBlock {...mdProps} />, block, cleanedText);
   }
   if (kind === "examTip") {
-    return <StudentExamTipBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentExamTipBlock {...mdProps} />, block, cleanedText);
   }
   if (kind === "commonMistake") {
-    return <StudentMisconceptionBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentMisconceptionBlock {...mdProps} />, block, cleanedText);
   }
   if (kind === "stretch") {
-    return <StudentSynthesisBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentSynthesisBlock {...mdProps} />, block, cleanedText);
   }
 
   if (kind === "hook") {
-    return <StudentHookBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentHookBlock {...mdProps} />, block, cleanedText);
   }
   if (kind === "workedExample") {
-    return <StudentWorkedExampleBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentWorkedExampleBlock {...mdProps} />, block, cleanedText);
   }
 
   // Comma-separated "key words" list callout: only when we are NOT also showing page/lesson
@@ -243,9 +387,13 @@ export function LessonStudentBlockRenderer({
       keywords.length > 0 &&
       (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
     ) {
-      return <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />;
+      return withStudentBlockHeading(
+        <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />,
+        block,
+        cleanedText
+      );
     }
-    return <StudentExplanationBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
   }
 
   if (kind === "text") {
@@ -255,10 +403,14 @@ export function LessonStudentBlockRenderer({
       keywords.length > 0 &&
       (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
     ) {
-      return <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />;
+      return withStudentBlockHeading(
+        <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />,
+        block,
+        cleanedText
+      );
     }
-    return <StudentExplanationBlock {...mdProps} />;
+    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
   }
 
-  return <StudentExplanationBlock {...mdProps} />;
+  return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
 }

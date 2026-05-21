@@ -1,0 +1,43 @@
+{
+  "id": "photosynthesis",
+  "title": "Photosynthesis",
+  "subtitle": "Light energy converted into chemical energy in glucose",
+  "examBoardLabel": "GCSE AQA Biology",
+  "topic": "Bioenergetics",
+  "section": "Photosynthesis",
+  "templateId": "lr.process.linear.v1",
+  "stages": [
+    {
+      "id": "light-absorption",
+      "slug": "01-light-absorption",
+      "number": 1,
+      "title": "Light absorption",
+      "summary": "Chlorophyll in chloroplasts absorbs light energy for the reaction.",
+      "examTerm": "chlorophyll"
+    },
+    {
+      "id": "carbon-dioxide-water",
+      "slug": "02-carbon-dioxide-water",
+      "number": 2,
+      "title": "Carbon dioxide & water",
+      "summary": "Carbon dioxide from the air and water from the soil enter the leaf.",
+      "examTerm": "reactants"
+    },
+    {
+      "id": "glucose-production",
+      "slug": "03-glucose-production",
+      "number": 3,
+      "title": "Glucose production",
+      "summary": "Light energy drives reactions that build glucose (a sugar).",
+      "examTerm": "glucose"
+    },
+    {
+      "id": "oxygen-release",
+      "slug": "04-oxygen-release",
+      "number": 4,
+      "title": "Oxygen release",
+      "summary": "Oxygen is released as a by-product — used in aerobic respiration.",
+      "examTerm": "oxygen"
+    }
+  ]
+}

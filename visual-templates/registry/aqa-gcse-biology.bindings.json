@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "subject": "Biology",
+  "examBoard": "AQA",
+  "level": "GCSE",
+  "_note": "Superseded by pack-registry.json — kept for build-visuals.js compatibility",
+  "bindings": [
+    {
+      "topicKeys": [
+        "photosynthesis",
+        "aqa-gcse-biology:bioenergetics:photosynthesis",
+        "aqa-gcse-biology:bioenergetics:photosynthesis:photosynthetic-reaction"
+      ],
+      "templateId": "lr.process.linear.v1",
+      "dataFile": "photosynthesis.process.json",
+      "publicSlug": "lr-process-linear-v1",
+      "publicPathSegment": "bioenergetics/photosynthesis/lr-process-linear-v1"
+    }
+  ]
+}

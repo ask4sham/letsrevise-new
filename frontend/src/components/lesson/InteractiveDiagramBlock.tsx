@@ -10,6 +10,7 @@ import {
 } from "../../utils/interactiveDiagramHotspots";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import { AssessmentFeedback } from "./AssessmentFeedback";
+import { LessonRichText } from "./LessonRichText";
 import "./interactiveDiagramBlock.css";
 
 export type InteractiveDiagramHotspot = {
@@ -169,6 +170,7 @@ export function InteractiveDiagramBlock({
       const x = clampPct(typeof h.x === "number" ? h.x : Number(h.x));
       const y = clampPct(typeof h.y === "number" ? h.y : Number(h.y));
       const letter = getHotspotLetter(i);
+      const aside = teacherLabelAside((h.label ?? "").trim(), letter);
       const a11y = hotspotAccessibilityName(h, i);
       const markerWide = letter.length > 1;
       return (
@@ -197,6 +199,11 @@ export function InteractiveDiagramBlock({
           }}
         >
           <span className="interactive-diagram-hotspot__letter">{letter}</span>
+          {isActive && (aside || (h.description ?? "").trim()) ? (
+            <span className="interactive-diagram-hotspot__chip" aria-hidden>
+              {aside || (h.description ?? "").trim()}
+            </span>
+          ) : null}
         </button>
       );
     });
@@ -244,7 +251,7 @@ export function InteractiveDiagramBlock({
   return (
     <div className="interactive-diagram">
       {blockTitle.trim() ? <h3 className="interactive-diagram__title">{blockTitle}</h3> : null}
-      {intro.trim() ? <p className="interactive-diagram__intro">{intro}</p> : null}
+      <LessonRichText text={intro} className="interactive-diagram__intro" />
 
       <div className="interactive-diagram__layout">
         {mediaBlock}

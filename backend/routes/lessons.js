@@ -19,6 +19,7 @@ const ReteachPlan = require("../models/ReteachPlan");
 const { findTopicByKey, findTopicBySpecAndKey, topicToKey } = require("../utils/topicTaxonomy");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("../utils/topicKey");
 const { assertValidSpecKey, assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
+const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 const { resolveQuestionBankNamespacedTopicKey } = require("../utils/resolveTopicRuntimeKeys");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { fetchTopicFlashcardsForSeed, fetchTopicFlashcardsForTopicOnly } = require("../utils/seedLessonFlashcardsFromTopic");
@@ -49,6 +50,7 @@ const { validateAndNormalizeRevision } = require("../services/validateRevision")
 
 // ✅ ADDED: Import for curated visuals
 const { findCuratedVisual } = require("../utils/curatedVisuals");
+const { promoteHeroOnLesson, promotePageHeroToBlock } = require("../utils/promotePageHeroToBlock");
 const { pickLessonFlags } = require("../utils/lessonValidation");
 const { deriveLessonCardDescription } = require("../utils/deriveLessonCardDescription");
 const {
@@ -228,6 +230,106 @@ function sanitiseCheckpointAutoMark(raw) {
 }
 
 // ✅ UPDATED: Separate sanitization from merging logic
+function contentLooksLikeGraphJson(content) {
+  const raw = typeof content === "string" ? content.trim() : "";
+  if (!raw.startsWith("{")) return false;
+  try {
+    const j = JSON.parse(raw);
+    if (!j || typeof j !== "object") return false;
+    const series = j.graphSeries || j.series;
+    if (!Array.isArray(series) || series.length === 0) return false;
+    return series.some(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        Array.isArray(row.points) &&
+        row.points.length > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Merge graph JSON backup in `content` into structured graph fields; never persist JSON as prose. */
+function hydrateGraphBlockFromInput(b) {
+  if (!b || typeof b !== "object") return null;
+
+  let rawType = String(b.type ?? "").trim();
+  const compactType = rawType.replace(/[\s_-]/g, "").toLowerCase();
+  if (compactType === "graph" || compactType === "graphblock") rawType = "graph";
+
+  const contentRaw = typeof b.content === "string" ? b.content.trim() : "";
+  const fromContentJson = contentLooksLikeGraphJson(contentRaw);
+  const isGraphType = rawType === "graph";
+  const hasSeries =
+    Array.isArray(b.graphSeries) &&
+    b.graphSeries.some(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        Array.isArray(row.points) &&
+        row.points.length > 0
+    );
+
+  if (!isGraphType && !fromContentJson) return null;
+
+  let merged = { ...b };
+  if (fromContentJson && !hasSeries) {
+    try {
+      const j = JSON.parse(contentRaw);
+      if (j && typeof j === "object") {
+        merged = {
+          ...merged,
+          ...j,
+          graphSeries: j.graphSeries || j.series || merged.graphSeries,
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const title =
+    typeof merged.title === "string" ? merged.title.trim().slice(0, 500) : "";
+  const intro = typeof merged.intro === "string" ? merged.intro.trim().slice(0, 8000) : "";
+  const graphTypeRaw = String(merged.graphType ?? "line").trim().toLowerCase();
+  const graphType =
+    graphTypeRaw === "bar" ? "bar" : graphTypeRaw === "scatter" ? "scatter" : "line";
+
+  const graphOut = {
+    type: "graph",
+    content: "",
+    title,
+    intro,
+    graphType,
+    xAxisLabel:
+      typeof merged.xAxisLabel === "string" ? merged.xAxisLabel.trim().slice(0, 200) : "",
+    yAxisLabel:
+      typeof merged.yAxisLabel === "string" ? merged.yAxisLabel.trim().slice(0, 200) : "",
+    xUnits: typeof merged.xUnits === "string" ? merged.xUnits.trim().slice(0, 80) : "",
+    yUnits: typeof merged.yUnits === "string" ? merged.yUnits.trim().slice(0, 80) : "",
+    graphSeries: Array.isArray(merged.graphSeries) ? merged.graphSeries : [],
+    graphAnnotations: Array.isArray(merged.graphAnnotations)
+      ? merged.graphAnnotations
+      : [],
+    examQuestion:
+      typeof merged.examQuestion === "string"
+        ? merged.examQuestion.trim().slice(0, 2000)
+        : "",
+    markScheme:
+      typeof merged.markScheme === "string" ? merged.markScheme.trim().slice(0, 4000) : "",
+    examinerTip:
+      typeof merged.examinerTip === "string" ? merged.examinerTip.trim().slice(0, 2000) : "",
+  };
+  if (typeof merged.role === "string" && merged.role.trim()) {
+    graphOut.role = merged.role.trim();
+  }
+  if (typeof merged.number === "number" && Number.isFinite(merged.number) && merged.number > 0) {
+    graphOut.number = Math.trunc(merged.number);
+  }
+  return graphOut;
+}
+
 function sanitisePageInput(p, isUpdate = false) {
   const pageId =
     p && typeof p.pageId === "string" && p.pageId.trim()
@@ -269,6 +371,7 @@ function sanitisePageInput(p, isUpdate = false) {
     "interactiveSequence",
     "interactiveDiagram",
     "dragDropMatch",
+    "graph",
   ];
   const blocks = Array.isArray(p?.blocks)
     ? p.blocks.map((b) => {
@@ -277,6 +380,7 @@ function sanitisePageInput(p, isUpdate = false) {
         if (compactType === "dragdropmatch") rawType = "dragDropMatch";
         else if (compactType === "interactivediagram") rawType = "interactiveDiagram";
         else if (compactType === "interactivesequence") rawType = "interactiveSequence";
+        else if (compactType === "graph" || compactType === "graphblock") rawType = "graph";
         else if (compactType === "keywords") rawType = "keyWords";
         else if (compactType === "selfcheck") rawType = "selfCheck";
         const type = allowedBlockTypes.includes(rawType) ? rawType : "text";
@@ -428,6 +532,13 @@ function sanitisePageInput(p, isUpdate = false) {
           if (typeof b?.imageSource === "string" && b.imageSource.trim()) diagramBlock.imageSource = b.imageSource.trim();
           if (typeof b?.alt === "string" && b.alt.trim()) diagramBlock.alt = b.alt.trim();
           if (typeof b?.role === "string" && b.role.trim()) diagramBlock.role = b.role.trim();
+          if (String(b?.diagramVariant ?? "").trim() === "featured") {
+            diagramBlock.diagramVariant = "featured";
+          }
+          if (typeof b?.title === "string" && b.title.trim()) diagramBlock.title = b.title.trim();
+          if (typeof b?.number === "number" && Number.isFinite(b.number) && b.number > 0) {
+            diagramBlock.number = Math.trunc(b.number);
+          }
           return diagramBlock;
         }
         if (type === "interactiveSequence") {
@@ -451,12 +562,23 @@ function sanitisePageInput(p, isUpdate = false) {
                 imageUrl: typeof s.imageUrl === "string" ? s.imageUrl.trim().slice(0, 2000) : "",
                 caption: typeof s.caption === "string" ? s.caption.trim().slice(0, 500) : "",
               };
+              if (typeof s.testQuestion === "string" && s.testQuestion.trim()) {
+                row.testQuestion = s.testQuestion.trim().slice(0, 500);
+              }
               if (typeof s.testExplanation === "string" && s.testExplanation.trim()) {
                 row.testExplanation = s.testExplanation.trim().slice(0, 4000);
               }
               return sid ? { id: sid, ...row } : row;
             })
-            .filter((s) => s.title || s.description || s.imageUrl || s.caption || s.testExplanation);
+            .filter(
+              (s) =>
+                s.title ||
+                s.description ||
+                s.imageUrl ||
+                s.caption ||
+                s.testQuestion ||
+                s.testExplanation
+            );
           const seqOut = {
             type: "interactiveSequence",
             title,
@@ -569,19 +691,28 @@ function sanitisePageInput(p, isUpdate = false) {
                     : undefined,
               };
               if (answerImageUrlRaw) pairOut.answerImageUrl = answerImageUrlRaw;
+              const imageUrlRaw =
+                typeof row.imageUrl === "string" ? row.imageUrl.trim().slice(0, 8000) : "";
+              if (imageUrlRaw) pairOut.imageUrl = imageUrlRaw;
+              const imageAltRaw =
+                typeof row.imageAlt === "string" ? row.imageAlt.trim().slice(0, 500) : "";
+              if (imageAltRaw) pairOut.imageAlt = imageAltRaw;
               return pairOut;
             })
             .filter((row) => row.id);
           const pairIdSet = new Set(pairs.map((r) => r.id));
-          const rawMm = b?.matchMode;
+          const rawMm = b?.dragDropLayout ?? b?.matchMode;
+          const mmRaw = rawMm == null ? "" : String(rawMm).trim().toLowerCase().replace(/[\s_]+/g, "-");
           const mmNorm =
             rawMm == null
               ? undefined
-              : String(rawMm).trim().toLowerCase() === "diagram"
+              : mmRaw === "diagram"
                 ? "diagram"
-                : String(rawMm).trim().toLowerCase() === "text"
+                : mmRaw === "text" || mmRaw === "standard"
                   ? "text"
-                  : undefined;
+                  : mmRaw === "text-to-image" || mmRaw === "texttoimage"
+                    ? "text-to-image"
+                    : undefined;
           const rawZones = Array.isArray(b?.dropZones) ? b.dropZones : [];
           const dropZones = rawZones
             .slice(0, 40)
@@ -633,7 +764,7 @@ function sanitisePageInput(p, isUpdate = false) {
                     ? "center bottom"
                     : undefined;
           let effectiveMm = mmNorm;
-          if (effectiveMm !== "diagram" && effectiveMm !== "text") {
+          if (effectiveMm !== "diagram" && effectiveMm !== "text" && effectiveMm !== "text-to-image") {
             const inferredImg =
               typeof b?.imageUrl === "string" && String(b.imageUrl).trim().length > 0;
             if (inferredImg && dropZones.length > 0) {
@@ -650,6 +781,7 @@ function sanitisePageInput(p, isUpdate = false) {
           if (typeof b?.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
           if (effectiveMm === "diagram") {
             ddmOut.matchMode = "diagram";
+            ddmOut.dragDropLayout = "diagram";
             const imageUrl =
               typeof b?.imageUrl === "string" && b.imageUrl.trim()
                 ? b.imageUrl.trim().slice(0, 8000)
@@ -660,14 +792,25 @@ function sanitisePageInput(p, isUpdate = false) {
             ddmOut.dropZones = dropZones;
           } else if (effectiveMm === "text") {
             ddmOut.matchMode = "text";
+            ddmOut.dragDropLayout = "standard";
+          } else if (effectiveMm === "text-to-image") {
+            ddmOut.matchMode = "textToImage";
+            ddmOut.dragDropLayout = "textToImage";
           }
           return ddmOut;
+        }
+        const hydratedGraph = hydrateGraphBlockFromInput(b);
+        if (hydratedGraph) {
+          return hydratedGraph;
         }
         const out = {
           type,
           content: typeof b?.content === "string" ? b.content : "",
         };
         if (typeof b?.title === "string" && b.title.trim()) out.title = b.title.trim();
+        if (typeof b?.number === "number" && Number.isFinite(b.number) && b.number > 0) {
+          out.number = Math.trunc(b.number);
+        }
         if (typeof b?.role === "string" && b.role.trim()) out.role = b.role.trim();
         return out;
       })
@@ -1200,7 +1343,8 @@ async function createLessonHandler(req, res) {
           };
 
         lessonData.pages[0].hero = hero;
-        console.log("✅ [CuratedVisual] hero attached:", hero);
+        lessonData.pages[0] = promotePageHeroToBlock(lessonData.pages[0]);
+        console.log("✅ [CuratedVisual] hero promoted to diagram block:", hero);
       } else {
         console.log("⚠️ [CuratedVisual] no hero match");
       }
@@ -1224,8 +1368,14 @@ async function createLessonHandler(req, res) {
           (lessonData.specKey && String(lessonData.specKey).trim()) ||
           parseTopicKey(lessonData.topicKey).specKey ||
           DEFAULT_SPEC_LEGACY;
-        const raw = lessonData.topicKey.trim();
-        const namespaced = raw.includes(":") ? raw : buildTopicKey(spec, raw);
+        const namespaced =
+          normalizeNamespacedLessonTopicKey(spec, {
+            topicKey: lessonData.topicKey,
+            canonicalTopicKey: lessonData.canonicalTopicKey,
+            title: lessonData.title,
+            topic: lessonData.topic || lessonData.subTopic,
+          }) ||
+          (lessonData.topicKey.trim().includes(":") ? lessonData.topicKey.trim() : buildTopicKey(spec, lessonData.topicKey.trim()));
         assertValidNamespacedTopicKey(spec, namespaced);
         lessonData.topicKey = namespaced;
         lessonData.specKey = lessonData.specKey || spec;
@@ -2405,9 +2555,11 @@ router.put("/:id/pages", auth, async (req, res) => {
 
     // ✅ FIXED: Use mergePagesOnUpdate instead of sanitisePagesInput
     const mergedPages = mergePagesOnUpdate(lessonId, lesson.pages || [], pages);
+    const promotedPages = promoteHeroOnLesson({ pages: mergedPages }).pages;
 
-    lesson.pages = makeLessonDbSafe({ pages: mergedPages }).pages;
-    
+    lesson.pages = makeLessonDbSafe({ pages: promotedPages }).pages;
+    lesson.markModified("pages");
+
     // ✅ ADDED: runValidators and return updated document
     const updatedLesson = await lesson.save({ new: true, runValidators: true });
 
@@ -3314,6 +3466,7 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
     Lesson.updateOne({ _id: lessonId }, { $inc: { views: 1 } }).catch(() => {});
 
     lesson = await attachVisualsToPagesIfPossible(lesson);
+    lesson = promoteHeroOnLesson(lesson);
 
     // Enrich Microscopy lessons with magnification video (for existing lessons that have old hero or none)
     const topicNorm = String(lesson.topic || "").trim().toLowerCase();
@@ -3399,7 +3552,9 @@ router.put("/:id", auth, async (req, res) => {
     // ✅ FIXED: Handle pages update with hero preservation
     if (updates.pages && Array.isArray(updates.pages)) {
       // Use the new mergePagesOnUpdate function
-      lesson.pages = mergePagesOnUpdate(lessonId, lesson.pages || [], updates.pages);
+      const merged = mergePagesOnUpdate(lessonId, lesson.pages || [], updates.pages);
+      lesson.pages = promoteHeroOnLesson({ pages: merged }).pages;
+      lesson.markModified("pages");
       delete updates.pages; // Remove from general updates to avoid overwriting
     }
 
@@ -3450,8 +3605,14 @@ router.put("/:id", auth, async (req, res) => {
           lesson.specKey ||
           parseTopicKey(updates.topicKey).specKey ||
           DEFAULT_SPEC_LEGACY;
-        const raw = updates.topicKey.trim();
-        const namespaced = raw.includes(":") ? raw : buildTopicKey(spec, raw);
+        const namespaced =
+          normalizeNamespacedLessonTopicKey(spec, {
+            topicKey: updates.topicKey,
+            canonicalTopicKey: updates.canonicalTopicKey,
+            title: updates.title ?? lesson.title,
+            topic: updates.topic ?? updates.subTopic ?? lesson.topic ?? lesson.subTopic,
+          }) ||
+          (updates.topicKey.trim().includes(":") ? updates.topicKey.trim() : buildTopicKey(spec, updates.topicKey.trim()));
         assertValidNamespacedTopicKey(spec, namespaced);
         lesson.topicKey = namespaced;
         if (!lesson.specKey) lesson.specKey = spec;
@@ -5061,3 +5222,5 @@ router.get("/", auth, async (req, res) => {
 
 module.exports = router;
 module.exports.createLessonHandler = createLessonHandler;
+module.exports.mergePagesOnUpdate = mergePagesOnUpdate;
+module.exports.sanitisePagesInput = sanitisePagesInput;

@@ -6,4 +6,6 @@ module.exports = {
   testEnvironment: "node",
   maxWorkers: 1,
   testMatch: ["**/tests/**/*.unit.test.js"],
+  // Assert-style script, not Jest tests (see file header).
+  testPathIgnorePatterns: ["/tests/visualPackRegistry\\.unit\\.test\\.js$"],
 };

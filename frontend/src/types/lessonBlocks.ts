@@ -47,7 +47,8 @@ export type LessonBlockType =
   | "diagram"
   | "interactiveSequence"
   | "interactiveDiagram"
-  | "dragDropMatch";
+  | "dragDropMatch"
+  | "graph";
 
 /** Legacy block type strings that may come from the API. */
 export type LegacyBlockType =
@@ -183,6 +184,15 @@ export const BLOCK_META: Record<LessonBlockType, BlockMeta> = {
       background: "rgba(224,242,254,0.45)",
     },
   },
+  graph: {
+    label: "Graph / data visualisation",
+    subtitle: "Line, bar, or scatter — exam-style data interpretation",
+    icon: "📈",
+    style: {
+      border: "1px solid rgba(30,58,138,0.35)",
+      background: "rgba(239,246,255,0.65)",
+    },
+  },
 };
 
 /** Collapse spaces/underscores/hyphens so API variants (drag_drop_match, Drag-Drop-Match) match. */
@@ -201,6 +211,7 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
   if (compact === "dragdropmatch") return "dragDropMatch";
   if (compact === "interactivediagram") return "interactiveDiagram";
   if (compact === "interactivesequence") return "interactiveSequence";
+  if (compact === "graph" || compact === "graphblock" || compact === "datavisualisation") return "graph";
   if (compact === "pagequiz") return "pageQuiz";
   /** Some exports/clients use SCREAMING_SNAKE or snake_case for the same block. */
   if (compact === "selfcheck") return "selfCheck";
@@ -227,6 +238,7 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
     case "interactiveSequence":
     case "interactiveDiagram":
     case "dragDropMatch":
+    case "graph":
       return t0 as LessonBlockType;
     default:
       return "text";
@@ -237,10 +249,39 @@ export function normalizeBlockType(raw: string | undefined): LessonBlockType {
  * Student / preview routing: normalizes type and recovers drag-drop rows mis-saved as `text`
  * when `pairs` still contains structured data (legacy persistence mismatch).
  */
+function blockLooksLikeGraph(b: Record<string, unknown>): boolean {
+  const gt = String(b.graphType ?? "").trim().toLowerCase();
+  const hasGraphType = gt === "line" || gt === "bar" || gt === "scatter";
+  const seriesRaw = b.graphSeries ?? b.series;
+  const hasSeries =
+    Array.isArray(seriesRaw) &&
+    seriesRaw.some((row) => {
+      if (!row || typeof row !== "object") return false;
+      const pts = (row as { points?: unknown }).points;
+      return Array.isArray(pts) && pts.length > 0;
+    });
+  if (hasGraphType || hasSeries) return true;
+  const content = String(b.content ?? "").trim();
+  if (!content.startsWith("{")) return false;
+  try {
+    const j = JSON.parse(content) as Record<string, unknown>;
+    if (!j || typeof j !== "object") return false;
+    const backupSeries = j.graphSeries ?? j.series;
+    if (!Array.isArray(backupSeries) || backupSeries.length === 0) return false;
+    return backupSeries.some((row) => {
+      if (!row || typeof row !== "object") return false;
+      const pts = (row as { points?: unknown }).points;
+      return Array.isArray(pts) && pts.length > 0;
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function resolveLessonDisplayBlockType(block: unknown): LessonBlockType {
   const b =
     block != null && typeof block === "object"
-      ? (block as { type?: unknown; pairs?: unknown })
+      ? (block as Record<string, unknown>)
       : {};
   const base = normalizeBlockType(b.type !== undefined ? String(b.type) : undefined);
   if (base !== "text") return base;
@@ -252,7 +293,11 @@ export function resolveLessonDisplayBlockType(block: unknown): LessonBlockType {
       const o = row as { prompt?: unknown; answer?: unknown };
       return Boolean(String(o.prompt ?? "").trim() || String(o.answer ?? "").trim());
     });
-  return looksLikeDragDrop ? "dragDropMatch" : "text";
+  if (looksLikeDragDrop) return "dragDropMatch";
+  if (blockLooksLikeGraph(b)) return "graph";
+  const role = String(b.role ?? "").trim().toLowerCase();
+  if (role === "sequence" || role === "process") return "interactiveSequence";
+  return "text";
 }
 
 /**
@@ -283,6 +328,8 @@ export function toLegacyBlockType(t: LessonBlockType): string {
       return "interactiveDiagram";
     case "dragDropMatch":
       return "dragDropMatch";
+    case "graph":
+      return "graph";
     case "text":
     case "keyWords":
       return t;
@@ -298,17 +345,31 @@ export function toLegacyBlockType(t: LessonBlockType): string {
  */
 export function getBlockStyle(
   type: LessonBlockType | LegacyBlockType | string | undefined,
-  overrides?: Partial<CSSProperties>
+  overrides?: Partial<CSSProperties>,
+  role?: string
 ): CSSProperties {
   const safeType: LessonBlockType =
     type && type in BLOCK_META ? (type as LessonBlockType) : normalizeBlockType(type as string | undefined);
   const meta = BLOCK_META[safeType] ?? BLOCK_META.text;
   const style = meta?.style;
+  const roleTrim = typeof role === "string" ? role.trim() : "";
+  let border = style?.border;
+  let background = style?.background;
+  if (roleTrim === "examTechnique") {
+    border = "1px solid rgba(245, 158, 11, 0.35)";
+    background = "rgba(255, 251, 235, 0.9)";
+  } else if (roleTrim === "synopticLink") {
+    border = "1px solid rgba(124, 58, 237, 0.35)";
+    background = "rgba(124, 58, 237, 0.06)";
+  } else if (roleTrim === "whyThisMatters") {
+    border = "1px solid rgba(5, 150, 105, 0.4)";
+    background = "rgba(16, 185, 129, 0.08)";
+  }
   if (!style) return { ...baseBox, ...overrides } as CSSProperties;
   return {
     ...baseBox,
-    border: style.border,
-    background: style.background,
+    border,
+    background,
     ...overrides,
   };
 }
@@ -343,6 +404,7 @@ export const BLOCK_TYPES_FOR_BUTTONS: LessonBlockType[] = [
   "diagram",
   "interactiveSequence",
   "dragDropMatch",
+  "graph",
 ];
 
 /** Option for add-block dropdown: maps role to block type + optional title. */
@@ -351,6 +413,7 @@ export interface AddBlockOption {
   type: LessonBlockType;
   title?: string;
   label: string;
+  subtitle?: string;
 }
 
 /** Contract-aligned add-block options for the dropdown menu. */
@@ -358,6 +421,12 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "hook", type: "text", label: "Hook (text)" },
   { role: "coreRule", type: "keyIdeas", title: "", label: "Core rule (key idea)" },
   { role: "commonMistake", type: "misconceptions", label: "Common mistake" },
+  {
+    role: "examTechnique",
+    type: "examTips",
+    label: "Exam technique (exam skill)",
+    subtitle: "Command words, mark-scheme phrasing, sentence stems",
+  },
   { role: "patternRecognition", type: "keyIdeas", title: "", label: "Pattern recognition (key idea)" },
   { role: "concept", type: "diagram", label: "Diagram (concept)" },
   { role: "whatToNotice", type: "keyIdeas", title: "What to Notice", label: "What to Notice (key idea)" },
@@ -368,11 +437,26 @@ export const ADD_BLOCK_OPTIONS: AddBlockOption[] = [
   { role: "quickCheck", type: "checkpoint", label: "Quick check (checkpoint)" },
   { role: "selfCheck", type: "selfCheck", label: "Self-check question" },
   { role: "finalMemoryRule", type: "keyIdeas", label: "Final memory rule (key idea)" },
+  {
+    role: "synopticLink",
+    type: "keyIdeas",
+    title: "Synoptic link",
+    label: "Synoptic link (key idea)",
+    subtitle: "1–3 sentences linking this topic to another biology idea",
+  },
+  {
+    role: "whyThisMatters",
+    type: "keyIdeas",
+    title: "🌍 Why this matters",
+    label: "Why this matters (key idea)",
+    subtitle: "One real-world relevance beat — exactly one per lesson",
+  },
   { role: "keyWords", type: "keyWords", label: "Key words" },
   { role: "deeperKnowledge", type: "deeperKnowledge", label: "Deeper knowledge (stretch)" },
   { role: "sequence", type: "interactiveSequence", label: "Step-by-step diagram (process)" },
   { role: "hotspot", type: "interactiveDiagram", label: "Interactive diagram" },
   { role: "match", type: "dragDropMatch", label: "Drag and drop match" },
+  { role: "graph", type: "graph", label: "Graph / data visualisation" },
 ];
 
 /** Button style for "+ Block" add buttons (same colours as block, slightly stronger border). */
@@ -408,6 +492,8 @@ export function getBlockButtonStyle(type: LessonBlockType): CSSProperties {
       return { ...base, border: "2px solid rgba(220,38,38,0.4)", background: "rgba(254,242,242,0.7)" };
     case "dragDropMatch":
       return { ...base, border: "2px solid rgba(14,165,233,0.4)", background: "rgba(224,242,254,0.55)" };
+    case "graph":
+      return { ...base, border: "2px solid rgba(30,58,138,0.4)", background: "rgba(239,246,255,0.75)" };
     case "text":
     default:
       return { ...base, border: "2px solid rgba(0,0,0,0.14)", background: "white" };

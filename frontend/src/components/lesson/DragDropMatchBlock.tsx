@@ -1,16 +1,22 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import {
+  dragDropPairsHaveTargetImages,
   isDragDropDiagramMode,
+  isDragDropTextToImageMode,
+  type DragDropMatchAuthoringMatchMode,
   mergeDiagramZoneExplanation,
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
   readDragDropPairAnswerImageUrl,
+  readDragDropPairImageAlt,
+  readDragDropPairTargetImageUrl,
   sanitizePlacedDiagramDropZones,
   type PlacedDragDropDiagramZone,
 } from "../../utils/dragDropMatchDiagram";
 import { AssessmentFeedback } from "./AssessmentFeedback";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
+import { LessonRichText } from "./LessonRichText";
 import "./dragDropMatchBlock.css";
 
 const DND_MIME = "application/x-letsrevise-dnd-pair";
@@ -22,6 +28,9 @@ export type DragDropMatchPair = {
   explanation?: string;
   /** Optional thumbnail on draggable answer cards (text + diagram modes). */
   answerImageUrl?: string;
+  /** Text-to-image mode: large target visual (falls back to answerImageUrl). */
+  imageUrl?: string;
+  imageAlt?: string;
 };
 
 function readDragPairId(e: React.DragEvent): string {
@@ -149,7 +158,7 @@ export type DragDropMatchBlockData = {
   intro?: string;
   instructions?: string;
   pairs?: DragDropMatchPair[];
-  matchMode?: "text" | "diagram";
+  matchMode?: DragDropMatchAuthoringMatchMode;
   imageUrl?: string;
   imageFit?: "contain" | "cover";
   imagePosition?: "center center" | "center top" | "center bottom";
@@ -180,10 +189,13 @@ type Placements = Record<string, string | null>;
 
 export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBlockProps) {
   const rootRef = useRef<HTMLElement | null>(null);
-  const diagramMode = isDragDropDiagramMode(block.matchMode, {
-    imageUrl: block.imageUrl,
-    dropZones: block.dropZones,
-  });
+  const textToImageRequested = isDragDropTextToImageMode(block.matchMode);
+  const diagramMode =
+    !textToImageRequested &&
+    isDragDropDiagramMode(block.matchMode, {
+      imageUrl: block.imageUrl,
+      dropZones: block.dropZones,
+    });
   const resolveImg = useMemo(
     () => resolveImageUrl ?? ((u: string) => u),
     [resolveImageUrl]
@@ -193,17 +205,30 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     const raw = Array.isArray(block.pairs) ? block.pairs : [];
     return raw
       .map((p, i) => {
-        const img = readDragDropPairAnswerImageUrl(p);
+        const thumb = readDragDropPairAnswerImageUrl(p);
+        const targetImg = readDragDropPairTargetImageUrl(p);
+        const alt = readDragDropPairImageAlt(p);
         return {
           id: String(p?.id ?? "").trim() || `row_${i + 1}`,
           prompt: String(p?.prompt ?? "").trim(),
           answer: String(p?.answer ?? "").trim(),
           explanation: p?.explanation != null ? String(p.explanation) : undefined,
-          ...(img ? { answerImageUrl: img } : {}),
+          ...(thumb ? { answerImageUrl: thumb } : {}),
+          ...(targetImg ? { imageUrl: targetImg } : {}),
+          ...(alt ? { imageAlt: alt } : {}),
         };
       })
-      .filter((p) => (diagramMode ? p.answer.length > 0 : p.prompt || p.answer));
-  }, [block.pairs, diagramMode]);
+      .filter((p) => {
+        if (diagramMode) return p.answer.length > 0;
+        if (textToImageRequested) return Boolean(p.prompt || p.imageUrl || p.answer);
+        return Boolean(p.prompt || p.answer);
+      });
+  }, [block.pairs, diagramMode, textToImageRequested]);
+
+  const textToImageMode =
+    textToImageRequested &&
+    !diagramMode &&
+    dragDropPairsHaveTargetImages(pairs, hasRenderableLessonImageSrc);
 
   useLayoutEffect(() => {
     if (typeof window === "undefined" || window.localStorage?.getItem(DDM_PAIR_IMG_DEBUG_KEY) !== "1") return;
@@ -262,7 +287,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
   const layoutResetKey = diagramMode
     ? `${pairIds.join("|")}|${zones.map((z) => `${z.id}:${z.x}:${z.y}:${z.correctPairId}`).join("|")}`
-    : pairIds.join("|");
+    : `${textToImageMode ? "tti" : "text"}|${pairIds.join("|")}`;
 
   useEffect(() => {
     setPlacements({});
@@ -523,7 +548,13 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const diagramZonesEmptyOrMissing = diagramMode && showDiagramImg && zones.length === 0;
 
   return (
-    <section ref={rootRef} className="drag-drop-match" aria-label={title || "Drag and drop match activity"}>
+    <section
+      ref={rootRef}
+      className={
+        "drag-drop-match" + (textToImageMode ? " drag-drop-match--text-to-image text-to-image" : "")
+      }
+      aria-label={title || "Drag and drop match activity"}
+    >
       <div className="drag-drop-match__hero">
         <div className="drag-drop-match__hero-main">
           <div className="drag-drop-match__big-icon" aria-hidden="true">
@@ -534,15 +565,180 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
               {title ? <h3 className="drag-drop-match__title">{title}</h3> : null}
             </div>
             <span className="drag-drop-match__tag">
-              {diagramMode ? "Diagram drag and drop" : "Drag and Drop Activity"}
+              {diagramMode
+                ? "Diagram drag and drop"
+                : textToImageMode
+                  ? "Text to image match"
+                  : "Drag and Drop Activity"}
             </span>
           </div>
         </div>
       </div>
-      {intro ? <p className="drag-drop-match__intro">{intro}</p> : null}
-      {instructions ? <p className="drag-drop-match__instruction">{instructions}</p> : null}
+      <LessonRichText text={intro} className="drag-drop-match__intro" />
+      <LessonRichText text={instructions} className="drag-drop-match__instruction" />
 
-      {diagramMode ? (
+      {textToImageMode ? (
+        <div className="drag-drop-match__tti-grid" data-testid="drag-drop-tti-grid">
+          <div className="drag-drop-match__tti-concept-column concept-card-column">
+            <div className="drag-drop-match__panel-title drag-drop-match__panel-title--tti-cards">
+              📝 Concept cards
+            </div>
+            <div
+              className="drag-drop-match__answers drag-drop-match__answers--tti"
+              onDragOver={onDragOver}
+              onDrop={(e) => {
+                e.preventDefault();
+                const sourceId = readDragPairId(e);
+                if (!sourceId) return;
+                for (const tid of targetIds) {
+                  if (placements[tid] === sourceId) {
+                    clearTarget(tid);
+                    return;
+                  }
+                }
+              }}
+            >
+              <div className="drag-drop-match__card-list drag-drop-match__card-list--tti">
+                {bankDisplayIds.length === 0 ? (
+                  <p className="drag-drop-match__pool-empty">All cards placed</p>
+                ) : (
+                  bankDisplayIds.map((sid, index) => {
+                    const p = findPairById(pairs, sid);
+                    if (!p) return null;
+                    const selected = selectedSourceId === sid;
+                    const tone = index % 6;
+                    return (
+                      <button
+                        key={sid}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => onDragStartPool(e, sid)}
+                        onDragEnd={onDragEndPool}
+                        onClick={() => onPickFromPool(sid)}
+                        className={
+                          "drag-drop-match__card drag-drop-match__card--tone-" +
+                          tone +
+                          (selected ? " drag-drop-match__card--selected" : "") +
+                          " drag-drop-match__card--tti-prompt"
+                        }
+                        aria-pressed={selected}
+                        aria-label={`Select concept: ${p.prompt || p.answer || "card"}`}
+                      >
+                        <span className="drag-drop-match__card-text drag-drop-match__card-text--tti">
+                          {p.prompt || "(No text)"}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="drag-drop-match__tti-targets-column">
+            <div className="drag-drop-match__panel-title drag-drop-match__panel-title--tti-targets">
+              🖼️ Match to the image
+            </div>
+            <div className="drag-drop-match__tti-targets image-target-list" role="list">
+              {pairs.map((row) => {
+                const sourcePlaced = placements[row.id] ?? null;
+                const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
+                const isCorrect = checked && sourcePlaced != null && sourcePlaced === row.id;
+                const isWrong = checked && sourcePlaced != null && sourcePlaced !== row.id;
+                const isEmpty = checked && sourcePlaced == null;
+                const targetClass =
+                  "drag-drop-match__tti-drop" +
+                  (isCorrect ? " drag-drop-match__tti-drop--correct" : "") +
+                  (isWrong ? " drag-drop-match__tti-drop--incorrect" : "") +
+                  (selectedSourceId && !sourcePlaced ? " drag-drop-match__tti-drop--active" : "");
+                const imgRaw = String(row.imageUrl ?? "").trim();
+                const imgResolvedTti = imgRaw ? resolveImg(imgRaw) : "";
+                const showTtiImg =
+                  hasRenderableLessonImageSrc(imgRaw) &&
+                  hasRenderableLessonImageSrc(imgResolvedTti);
+                const labelText = String(row.answer ?? "").trim();
+
+                return (
+                  <div
+                    className="drag-drop-match__tti-target image-target-card"
+                    key={row.id}
+                    role="listitem"
+                  >
+                    <div className="drag-drop-match__tti-image-wrap">
+                      {showTtiImg ? (
+                        <LessonImageFrame
+                          className="drag-drop-match__tti-frame"
+                          variant="primary"
+                          lightboxSrc={imgResolvedTti}
+                        >
+                          <img
+                            className="drag-drop-match__tti-image"
+                            src={imgResolvedTti}
+                            alt={row.imageAlt || labelText || "Biology diagram"}
+                          />
+                        </LessonImageFrame>
+                      ) : (
+                        <div className="drag-drop-match__tti-image-placeholder" role="status">
+                          No image for this target
+                        </div>
+                      )}
+                    </div>
+                    {checked && labelText ? (
+                      <div className="drag-drop-match__tti-revealed-label">{labelText}</div>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={targetClass}
+                      onClick={() => onTargetClick(row.id)}
+                      onDragOver={onDragOver}
+                      onDrop={(e) => onDropOnTarget(e, row.id)}
+                      aria-label={
+                        sourcePlaced
+                          ? `Remove ${card?.prompt ?? "placed card"} from image target`
+                          : `Drop concept onto image target ${row.imageAlt || labelText || row.id}`
+                      }
+                    >
+                      {sourcePlaced && card ? (
+                        <span className="drag-drop-match__tti-placed">
+                          <span className="drag-drop-match__tti-placed-text">
+                            {card.prompt || card.answer}
+                          </span>
+                          {checked && isCorrect ? (
+                            <span className="drag-drop-match__status drag-drop-match__status--ok">
+                              Correct
+                            </span>
+                          ) : null}
+                          {checked && (isWrong || isEmpty) ? (
+                            <span className="drag-drop-match__status drag-drop-match__status--bad">
+                              Try again
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="drag-drop-match__tti-drop-empty">
+                          {selectedSourceId ? "Tap to place selected concept" : "Drop or tap to place concept"}
+                        </span>
+                      )}
+                    </button>
+                    {checked ? (
+                      <AssessmentFeedback
+                        className="drag-drop-match__assessment-feedback"
+                        status={
+                          isCorrect ? "correct" : isWrong || isEmpty ? "incorrect" : undefined
+                        }
+                        answer={labelText || undefined}
+                        answerLabel="Correct label"
+                        explanation={row.explanation}
+                        explanationLabel="Explanation"
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : diagramMode ? (
         <div className="drag-drop-match__diagram-worksheet">
           <div className="drag-drop-match__panel-title drag-drop-match__panel-title--diagram">
             📍 Diagram — drop zones
@@ -1111,7 +1307,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       <div className="drag-drop-match__tip">
         {diagramMode
           ? "💡 Tip: Drag cards onto A/B/C/D on the diagram — each zone shows a compact label when filled. Tap the zone or the card row to clear or replace. Check answers for feedback."
-          : "💡 Tip: Read each function carefully before matching."}
+          : textToImageMode
+            ? "💡 Tip: Tap a concept card, then tap an image drop zone to place it — or drag concepts onto the zones. Check answers to reveal labels and explanations."
+            : "💡 Tip: Read each function carefully before matching."}
       </div>
 
       <div className="drag-drop-match__actions">

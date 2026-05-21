@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "canvas": {
+    "width": 1400,
+    "height": 800,
+    "viewBox": "0 0 1400 800",
+    "background": "#FFFFFF",
+    "outerBackground": "#F7F7FB",
+    "borderRadius": 24
+  },
+  "colors": {
+    "ink": "#111827",
+    "inkMuted": "#374151",
+    "inkSoft": "#4B5563",
+    "border": "#2563EB",
+    "accent": "#5B21B6",
+    "accentLight": "#EEF2FF",
+    "accentBorder": "#C4B5FD",
+    "stageFill": "#FFFFFF",
+    "stageStroke": "#7C3AED",
+    "arrow": "#5B21B6",
+    "headerBand": "#F5F3FF"
+  },
+  "typography": {
+    "fontFamily": "Arial, Helvetica, sans-serif",
+    "titleSize": 48,
+    "subtitleSize": 26,
+    "boardLabelSize": 22,
+    "stageTitleSize": 28,
+    "stageBodySize": 20,
+    "stageNumberSize": 36,
+    "brandMarkSize": 18
+  },
+  "spacing": {
+    "margin": 60,
+    "headerHeight": 200,
+    "stageGap": 24,
+    "stagePadding": 20
+  },
+  "brand": {
+    "markText": "LET'S REVISE",
+    "markSubtext": "GCSE Biology"
+  }
+}

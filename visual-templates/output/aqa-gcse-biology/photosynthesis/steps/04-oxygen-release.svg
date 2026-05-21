@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Photosynthesis — Step 4">
+  <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
+  <rect x="60" y="60" width="1280" height="680" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+
+  <rect x="68" y="68" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="88" y="100" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="260" y="100" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+
+  <text x="84" y="170" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis — Step 4</text>
+  <text x="84" y="215" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Oxygen release</text>
+  <text x="1316" y="108" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
+
+  
+  
+  <g id="leaf-cross-section">
+    <ellipse cx="700" cy="480" rx="220" ry="130" fill="#DCFCE7" stroke="#15803D" stroke-width="5"/>
+    <path d="M 520 480 Q 700 385 880 480" fill="none" stroke="#166534" stroke-width="3"/>
+    <rect x="540" y="425" width="320" height="70" rx="8" fill="#BBF7D0" stroke="#16A34A" stroke-width="2"/>
+    <ellipse cx="580" cy="462" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="640" cy="462" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="700" cy="462" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="760" cy="462" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/><ellipse cx="820" cy="462" rx="18" ry="28" fill="#4ADE80" stroke="#15803D" stroke-width="2" opacity="0.9"/>
+    <text x="700" y="558" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#374151">Leaf cross-section (palisade mesophyll)</text>
+  </g>
+  <text x="900" y="400" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="800" fill="#DC2626">O₂</text>
+  
+  <g>
+    <line x1="820" y1="440" x2="867.4780193260012" y2="416.2609903369994" stroke="#EF4444" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="880,410 871.0557280900009,423.4164078649987 863.9003105620016,409.1055728090001" fill="#EF4444"/>
+  </g>
+  <ellipse cx="940" cy="380" rx="32" ry="20" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/>
+  <text x="940" y="386" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="800" fill="#991B1B">Stomata</text>
+  <text x="700" y="590" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#374151">Oxygen diffuses out through stomata as a by-product.</text>
+  
+</svg>

@@ -1,10 +1,15 @@
 import {
+  buildDragDropMatchBlockForPersist,
   coerceDiagramZonePct,
   dedupeDiagramZoneIds,
+  dragDropMatchModeFromUiSelect,
+  dragDropPairsHaveTargetImages,
   isDragDropDiagramMode,
+  isDragDropTextToImageMode,
   logDragDropMatchZoneBindings,
   mergeDiagramZoneExplanation,
   parseDragDropMatchMode,
+  resolveDragDropMatchModeForUi,
   repairDiagramDropZonesForLessonEditor,
   resolveDragDropMatchModeForPersist,
   sanitizeDiagramDropZonesForAuthoring,
@@ -210,6 +215,55 @@ describe("dragDropMatchDiagram", () => {
     it("normalizes casing and whitespace", () => {
       expect(parseDragDropMatchMode(" diagram\n")).toBe("diagram");
       expect(parseDragDropMatchMode("TEXT")).toBe("text");
+      expect(parseDragDropMatchMode("text-to-image")).toBe("text-to-image");
+      expect(parseDragDropMatchMode("Text To Image")).toBe("text-to-image");
+    });
+  });
+
+  describe("isDragDropTextToImageMode", () => {
+    it("is true only for explicit text-to-image", () => {
+      expect(isDragDropTextToImageMode("text-to-image")).toBe(true);
+      expect(isDragDropTextToImageMode("diagram")).toBe(false);
+      expect(isDragDropTextToImageMode(undefined)).toBe(false);
+    });
+  });
+
+  describe("layout select persistence", () => {
+    it("buildDragDropMatchBlockForPersist emits text-to-image matchMode", () => {
+      const out = buildDragDropMatchBlockForPersist(
+        {
+          type: "dragDropMatch",
+          matchMode: "text-to-image",
+          pairs: [{ id: "p1", prompt: "A", answer: "B", imageUrl: "/t.png" }],
+        },
+        { newId: () => "new_id" }
+      );
+      expect(out?.matchMode).toBe("textToImage");
+      expect(out?.dragDropLayout).toBe("textToImage");
+      expect(out?.type).toBe("dragDropMatch");
+      expect((out?.pairs as { imageUrl?: string }[])?.[0]?.imageUrl).toBe("/t.png");
+    });
+
+    it("maps UI select values to persisted matchMode", () => {
+      expect(dragDropMatchModeFromUiSelect("standard")).toBe("text");
+      expect(dragDropMatchModeFromUiSelect("text-to-image")).toBe("text-to-image");
+      expect(dragDropMatchModeFromUiSelect("diagram")).toBe("diagram");
+    });
+
+    it("resolveDragDropMatchModeForUi returns standard for text/omitted", () => {
+      expect(resolveDragDropMatchModeForUi("text")).toBe("standard");
+      expect(resolveDragDropMatchModeForUi(undefined)).toBe("standard");
+      expect(resolveDragDropMatchModeForUi("text-to-image")).toBe("text-to-image");
+      expect(resolveDragDropMatchModeForUi("diagram")).toBe("diagram");
+    });
+  });
+
+  describe("dragDropPairsHaveTargetImages", () => {
+    it("detects pair imageUrl or answerImageUrl", () => {
+      expect(
+        dragDropPairsHaveTargetImages([{ imageUrl: "https://example.com/a.png" }], () => true)
+      ).toBe(true);
+      expect(dragDropPairsHaveTargetImages([{ prompt: "x" }], () => true)).toBe(false);
     });
   });
 

@@ -15,6 +15,64 @@
   background: transparent;
   text-align: left;
   max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-anchor: none;
+}
+
+/* Student lesson: use full content column — not a narrow preview column */
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__layout {
+  grid-template-columns: 1fr;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__sidebar {
+  max-width: 100%;
+}
+
+@media (min-width: 900px) {
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__layout {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 12px 16px;
+    align-items: start;
+    align-content: start;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__sidebar {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    width: 220px;
+    max-width: 220px;
+    position: sticky;
+    top: 12px;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__main-column {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__step-list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: min(42vh, 320px);
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__step-button {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
 }
 
 .interactive-sequence__main-title {
@@ -50,41 +108,50 @@
 */
 .interactive-sequence__layout {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   grid-template-columns: 1fr;
   align-items: start;
+  align-content: start;
+  overflow-anchor: none;
 }
 
 @media (min-width: 900px) {
   .interactive-sequence__layout {
-    grid-template-columns: minmax(0, 1fr) 284px;
-    gap: 20px;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 12px 16px;
+    align-items: start;
+    align-content: start;
   }
 
-  .interactive-sequence__media-card {
+  .interactive-sequence__main-column {
     grid-column: 1;
     grid-row: 1;
+    min-width: 0;
   }
 
   .interactive-sequence__sidebar {
     grid-column: 2;
-    grid-row: 1 / span 3;
-    align-self: stretch;
+    grid-row: 1;
+    align-self: start;
+    width: 220px;
+    max-width: 220px;
+    position: sticky;
+    top: 12px;
   }
+}
 
-  .interactive-sequence__body-card {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .interactive-sequence__nav {
-    grid-column: 1;
-    grid-row: 3;
-  }
+/* Left stack: image → explanation → prev/next (tight vertical rhythm) */
+.interactive-sequence__main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  align-items: stretch;
 }
 
 .interactive-sequence__media-card {
   min-width: 0;
+  margin: 0 0 0;
   border-radius: 18px;
   border: 1px solid #e2e8f0;
   background: #fff;
@@ -93,29 +160,27 @@
 }
 
 .interactive-sequence__media-zone {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #fff;
 }
 
-/* Reserve a fixed vertical lane so different step images / placeholders do not resize the block. */
+/* Shrink-wrap to image height — avoid a tall empty grey band under smaller step art. */
 .interactive-sequence__media-zone--sized {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   box-sizing: border-box;
-  min-height: min(58vh, 560px);
+  min-height: 0;
+  height: auto;
+  line-height: 0;
 }
 
 .interactive-sequence__fade-slot--media {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   width: 100%;
-  align-self: stretch;
-  min-height: min(58vh, 560px);
+  min-height: 0;
+  align-self: auto;
 }
 
 .interactive-sequence__fade-slot {
-  animation: interactive-sequence-fade-in 0.2s ease-out;
+  /* No enter animation — remount/opacity keyframes caused scroll flicker on step change */
 }
 
 .interactive-sequence__image {
@@ -124,15 +189,18 @@
   width: 100%;
   max-width: 100%;
   height: auto;
+  margin: 0;
   object-fit: contain;
-  max-height: min(58vh, 560px);
-  background: #f1f5f9;
+  object-position: center;
+  max-height: min(42vh, 420px);
+  background: transparent;
+  vertical-align: top;
 }
 
 .interactive-sequence__image-placeholder {
   box-sizing: border-box;
   width: 100%;
-  min-height: min(58vh, 560px);
+  min-height: min(36vh, 320px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,6 +220,7 @@
 
 .interactive-sequence__body-card {
   min-width: 0;
+  margin: 0;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
   background: #fff;
@@ -159,17 +228,24 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  align-self: start;
 }
 
 .interactive-sequence__detail {
-  padding: 14px 16px 15px;
+  padding: 12px 14px 13px;
 }
 
-/* Limit body text column height swing between steps (within this block only). */
+/* Body text: natural height on desktop; modest min on small screens only (see @media below). */
 .interactive-sequence__detail--sized .interactive-sequence__fade-slot--text {
   display: flex;
   flex-direction: column;
-  min-height: clamp(200px, 28vh, 360px);
+  min-height: 0;
+}
+
+@media (max-width: 899px) {
+  .interactive-sequence__detail--sized .interactive-sequence__fade-slot--text {
+    min-height: clamp(120px, 22vh, 240px);
+  }
 }
 
 .interactive-sequence__step-of {
@@ -204,41 +280,70 @@
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-/* Reserve space so “Reveal” vs expanded feedback does not move content below the sequence. */
 .interactive-sequence__reveal-card--sized {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   box-sizing: border-box;
-  min-height: 162px;
+  min-height: 0;
 }
 
-/* When another step has Test me but this one does not, keep the same vertical band. */
 .interactive-sequence__reveal-spacer {
   box-sizing: border-box;
   flex-shrink: 0;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid transparent;
-  min-height: 162px;
+  min-height: 0;
 }
 
 .interactive-sequence__complete-track {
   flex-shrink: 0;
   box-sizing: border-box;
-  min-height: 73px;
+  min-height: 0;
 }
 
 .interactive-sequence__complete-placeholder {
-  box-sizing: border-box;
-  min-height: 73px;
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .interactive-sequence__reveal-spacer {
+    min-height: 88px;
+  }
+
+  .interactive-sequence__complete-track:has(.interactive-sequence__complete) {
+    min-height: 0;
+  }
 }
 
 .interactive-sequence__reveal-label {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-size: 0.8125rem;
   font-weight: 800;
   color: #475569;
+}
+
+.interactive-sequence__test-question {
+  margin: 0 0 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+.interactive-sequence__test-me-status {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.interactive-sequence__test-me-error {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #b91c1c;
 }
 
 .interactive-sequence__reveal-btn {
@@ -803,4 +908,125 @@
   border-radius: 999px;
   border: 1px solid rgba(16, 185, 129, 0.45);
   box-shadow: 0 2px 10px rgba(16, 185, 129, 0.18);
+}
+
+.interactive-sequence__figure {
+  margin: 0;
+  width: 100%;
+  display: block;
+  line-height: 0;
+}
+
+.interactive-sequence__figure .lesson-image-card {
+  margin: 0;
+  padding: 4px 6px;
+  width: 100%;
+  max-width: 100%;
+  line-height: normal;
+}
+
+.interactive-sequence__figure .lesson-image-card > img {
+  width: 100%;
+  max-width: 100%;
+  max-height: min(42vh, 420px);
+  margin: 0;
+  object-fit: contain;
+  object-position: center;
+}
+
+@media (min-width: 900px) {
+  .interactive-sequence__image,
+  .interactive-sequence__figure .lesson-image-card > img {
+    max-height: min(58vh, 620px);
+  }
+}
+
+.interactive-sequence__figure-caption {
+  margin: 0;
+  padding: 10px 14px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #475569;
+  text-align: center;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* V12 student: full-width block; sequence images use compact height (not 82vh visual-block rule). */
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__media-zone--sized,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__fade-slot--media {
+  min-height: 0 !important;
+  height: auto !important;
+  line-height: 0;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card--primary {
+  margin: 0 !important;
+  padding: 4px 6px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: min(42vh, 420px) !important;
+  height: auto !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+@media (min-width: 900px) {
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
+    max-height: min(58vh, 620px) !important;
+  }
+}
+
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image-placeholder {
+  min-height: min(36vh, 320px);
+}
+
+@media (min-width: 900px) {
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__detail--sized .interactive-sequence__fade-slot--text {
+    min-height: 0;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__reveal-card--sized,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__reveal-spacer {
+    min-height: 140px;
+  }
+}
+
+@media (max-width: 899px) {
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__layout {
+    gap: 12px;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__sidebar {
+    max-width: 100%;
+    width: 100%;
+    position: static;
+    padding: 10px 12px;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__detail--sized .interactive-sequence__fade-slot--text {
+    min-height: 0;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__reveal-card--sized,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__reveal-spacer {
+    min-height: 120px;
+  }
+
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__complete-track,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__complete-placeholder {
+    min-height: 52px;
+  }
 }

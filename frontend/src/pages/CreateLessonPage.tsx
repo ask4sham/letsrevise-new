@@ -8,7 +8,11 @@ import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/asse
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
-import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
+import {
+  hideBrokenLessonImage,
+  LessonImageFrame,
+  lessonImageFrameImgStyle,
+} from "../components/lesson/LessonImageFrame";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { sanitizeTeacherMarkdown } from "../utils/lessonTeacherMarkdown";
@@ -18,12 +22,18 @@ import { CreateLessonTopicSelectors, type TopicSelectionValue } from "../compone
 import { ExistingLessonsPanel } from "../components/ExistingLessonsPanel";
 import {
   type LessonBlockType,
+  type AddBlockOption,
   BLOCK_META,
   getBlockStyle,
   toLegacyBlockType,
   normalizeBlockType,
+  resolveLessonDisplayBlockType,
   PAGE_TYPE_OPTIONS,
 } from "../types/lessonBlocks";
+import {
+  InteractiveBlockCreationDialog,
+  INTERACTIVE_TYPES_WITH_CREATION_DIALOG,
+} from "../components/lesson/InteractiveBlockCreationDialog";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { CreateLessonPracticePanel } from "../components/lesson/CreateLessonPracticePanel";
 import { AddBlockByRoleSelect } from "../components/lesson/AddBlockByRoleSelect";
@@ -35,24 +45,38 @@ import {
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import {
+  buildDragDropMatchBlockForPersist,
   coerceDiagramZonePct,
-  parseDragDropMatchMode,
+  type DragDropMatchAuthoringMatchMode,
+  dragDropMatchModeForBlockProps,
+  mapDragDropPairForBlockRender,
   readDragDropPairAnswerImageUrl,
-  sanitizeDiagramDropZonesForAuthoring,
 } from "../utils/dragDropMatchDiagram";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
+import { GraphBlock } from "../components/lesson/GraphBlock";
+import { GraphBlockAuthoring } from "../components/lesson/GraphBlockAuthoring";
 import { DragDropMatchDiagramAuthoring } from "../components/lesson/DragDropMatchDiagramAuthoring";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock";
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
-import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
+import {
+  checkpointMarkSchemeLines,
+  mergeCheckpointExplanationParts,
+} from "../utils/checkpointFeedback";
+import {
+  attachPersistedBlockNumber,
+  diagramBlockForPersist,
+  graphBlockForLessonSave,
+  logLessonSaveBlocksDebug,
+} from "../utils/lessonBlockPersist";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import {
   extractSequenceStepImagePromptFromDescription,
   mergeSequenceStepDescriptionAndImagePrompt,
   stripSequenceStepImagePromptFromDescription,
 } from "../utils/interactiveSequenceStepImagePrompt";
+import { normalizeInteractiveSequenceBlockForEditor } from "../utils/normalizeInteractiveSequenceBlock";
 import {
   isGeneratorExportV1,
   buildPagesFromGeneratorExport,
@@ -62,9 +86,21 @@ import {
   coerceLessonMcqOptionsFour,
   lessonCheckpointWholeCellPaste,
   tryParseFlexibleCheckpointMcq,
+  markSchemeFromFlexibleCheckpointParse,
 } from "../utils/parseFlexibleCheckpointPaste";
+import { lessonBlockDisplayLabel } from "../utils/lessonBlockDisplayLabel";
 import { generateDragDropPairsFromText } from "../api/ai";
 import { CELL_ORGANELLES_DRAG_DROP_TEMPLATE } from "../components/lesson/dragDropMatchTemplates";
+import {
+  diagramImageUrlForPreview,
+  diagramMarkdownContentForPreview,
+} from "../utils/diagramBlockPreview";
+import {
+  attachLearningMetaForPersist,
+  warnLearningMetaIfMissing,
+  type LearningMeta,
+} from "../utils/learningMeta";
+import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 
 function newLessonBlockId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -88,8 +124,10 @@ type LessonPageBlock = {
     testExplanation?: string;
   }>;
   imageUrl?: string;
+  caption?: string;
   hotspots?: Array<{ id: string; x?: number; y?: number; label: string; description: string }>;
-  matchMode?: "text" | "diagram";
+  matchMode?: DragDropMatchAuthoringMatchMode;
+  dragDropLayout?: string;
   dropZones?: Array<{
     id: string;
     x?: number;
@@ -102,7 +140,28 @@ type LessonPageBlock = {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
-  markScheme?: string[];
+  markScheme?: string[] | string;
+  graphType?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  xUnits?: string;
+  yUnits?: string;
+  graphSeries?: Array<{
+    id: string;
+    label: string;
+    color?: string;
+    points: Array<{ x: number | string; y: number }>;
+  }>;
+  graphAnnotations?: Array<{
+    id: string;
+    text: string;
+    kind?: string;
+    seriesId?: string;
+    pointIndex?: number;
+  }>;
+  examQuestion?: string;
+  examinerTip?: string;
+  learningMeta?: LearningMeta;
 };
 
 // Kept for backward compatibility only (UI removed)
@@ -319,6 +378,12 @@ function clampOptions(raw: string[]) {
 /** Coerce importer output into LessonPage blocks (canonical `type`). */
 function normalizeImportedLessonPageBlock(b: Record<string, unknown>): LessonPageBlock {
   const t = normalizeBlockType(String(b.type ?? ""));
+  if (t === "interactiveSequence") {
+    return normalizeInteractiveSequenceBlockForEditor({
+      ...b,
+      type: t,
+    }) as LessonPageBlock;
+  }
   return { ...b, type: t } as LessonPageBlock;
 }
 
@@ -432,6 +497,11 @@ const CreateLessonPage: React.FC = () => {
   >({});
   const [dragDropAiTopicPrompt, setDragDropAiTopicPrompt] = useState<Record<string, string>>({});
   const [dragDropDiagramPlacingId, setDragDropDiagramPlacingId] = useState<Record<string, string | null>>({});
+  const [interactiveBlockCreation, setInteractiveBlockCreation] = useState<
+    null | { pageId: string; insertAt?: number; option: AddBlockOption }
+  >(null);
+  const isInteractiveCreationType = (t: LessonBlockType) =>
+    (INTERACTIVE_TYPES_WITH_CREATION_DIALOG as readonly string[]).includes(t);
 
   const createPreviewMarkdownComponents = useMemo(
     () => ({
@@ -578,11 +648,24 @@ const CreateLessonPage: React.FC = () => {
           ...prev,
           ...(meta.subject ? { subject: meta.subject } : {}),
           ...(meta.topic ? { topic: meta.topic } : {}),
+          ...(meta.topicKey ? { topicKey: meta.topicKey } : {}),
+          ...(meta.specKey ? { specKey: meta.specKey } : {}),
         }));
         setFormData((prev) => ({
           ...prev,
           ...(nextSubject !== prev.subject ? { subject: nextSubject } : {}),
           ...(nextTopic !== prev.topic ? { topic: nextTopic } : {}),
+          ...(meta.topicKey ? { topicKey: meta.topicKey } : {}),
+        }));
+      } else if (meta.topicKey) {
+        setFormData((prev) => ({
+          ...prev,
+          topicKey: meta.topicKey!,
+        }));
+        setTopicSelection((prev) => ({
+          ...prev,
+          topicKey: meta.topicKey!,
+          ...(meta.specKey ? { specKey: meta.specKey } : {}),
         }));
       }
 
@@ -842,17 +925,14 @@ const CreateLessonPage: React.FC = () => {
             content: "",
             title: "",
             intro: "",
-            sequenceSteps: [
-              { title: "Step 1", description: "", imageUrl: "", caption: "", testExplanation: "" },
-              { title: "Step 2", description: "", imageUrl: "", caption: "", testExplanation: "" },
-            ],
+            sequenceSteps: [],
           };
         } else if (type === "interactiveDiagram") {
           block = {
             type: "interactiveDiagram",
             content: "",
-            title: "Interactive diagram",
-            intro: "Click each hotspot to learn more.",
+            title: "",
+            intro: "",
             imageUrl: "",
             hotspots: [],
           };
@@ -860,23 +940,37 @@ const CreateLessonPage: React.FC = () => {
           block = {
             type: "dragDropMatch",
             content: "",
-            title: "Drag and drop match",
-            intro: "Match each item to the correct answer.",
-            instructions: "Drag each answer into the correct box, then check your answers.",
-            pairs: [
+            title: "",
+            intro: "",
+            instructions: "",
+            pairs: [],
+          };
+        } else if (type === "graph") {
+          block = {
+            type: "graph",
+            content: "",
+            title: "",
+            intro: "",
+            graphType: "line",
+            xAxisLabel: "",
+            yAxisLabel: "",
+            xUnits: "",
+            yUnits: "",
+            graphSeries: [
               {
-                id: newLessonBlockId(),
-                prompt: "Nucleus",
-                answer: "Controls the cell and contains genetic material",
-                explanation: "The nucleus contains DNA and controls cell activities.",
-              },
-              {
-                id: newLessonBlockId(),
-                prompt: "Mitochondria",
-                answer: "Site of aerobic respiration",
-                explanation: "Mitochondria release energy through aerobic respiration.",
+                id: `gs_${Date.now()}`,
+                label: "Series 1",
+                points: [
+                  { x: 0, y: 0 },
+                  { x: 1, y: 1 },
+                  { x: 2, y: 2 },
+                ],
               },
             ],
+            graphAnnotations: [],
+            examQuestion: "",
+            markScheme: "",
+            examinerTip: "",
           };
         } else {
           block = {
@@ -885,6 +979,36 @@ const CreateLessonPage: React.FC = () => {
           };
         }
         if (opts?.role?.trim()) block.role = opts.role.trim();
+        if (opts?.title !== undefined) block.title = opts.title ?? "";
+        const insertAt = opts?.insertAt;
+        if (typeof insertAt === "number" && insertAt >= 0 && insertAt <= blocks.length) {
+          blocks.splice(insertAt, 0, block);
+        } else {
+          blocks.push(block);
+        }
+        return { ...p, blocks };
+      })
+    );
+  };
+
+  /** Insert from creation dialog (templates / AI) without hidden defaults. */
+  const insertPreparedLessonBlockCreate = (
+    pageId: string,
+    raw: Record<string, unknown>,
+    opts?: { insertAt?: number; role?: string; title?: string }
+  ) => {
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.pageId !== pageId) return p;
+        const blocks = Array.isArray(p.blocks) ? [...p.blocks] : [];
+        const block = { ...raw } as LessonPageBlock;
+        if (opts?.role?.trim()) {
+          block.role = opts.role.trim();
+        } else if (block.type === "dragDropMatch") {
+          block.role = "match";
+        } else if (block.type === "graph") {
+          block.role = "graph";
+        }
         if (opts?.title !== undefined) block.title = opts.title ?? "";
         const insertAt = opts?.insertAt;
         if (typeof insertAt === "number" && insertAt >= 0 && insertAt <= blocks.length) {
@@ -1215,15 +1339,20 @@ const CreateLessonPage: React.FC = () => {
       blocks: (p.blocks || []).map((b) => {
         const blockType = toLegacyBlockType(normalizeBlockType(String(b?.type ?? "")));
         if (blockType === "interactiveSequence") {
-          const rawSeq = Array.isArray(b.sequenceSteps) ? b.sequenceSteps : [];
-          const sequenceSteps = rawSeq
+          const normalizedSeq = normalizeInteractiveSequenceBlockForEditor(
+            b as unknown as Record<string, unknown>
+          );
+          const sequenceSteps = (
+            Array.isArray(normalizedSeq.sequenceSteps) ? normalizedSeq.sequenceSteps : []
+          )
             .map((s) => {
-              const te = s?.testExplanation != null ? String(s.testExplanation).trim() : "";
+              const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
               return {
-                title: s?.title != null ? String(s.title).trim() : "",
-                description: s?.description != null ? String(s.description).trim() : "",
-                imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
-                caption: s?.caption != null ? String(s.caption).trim() : "",
+                ...(s.id ? { id: s.id } : {}),
+                title: s.title,
+                description: s.description,
+                imageUrl: s.imageUrl,
+                caption: s.caption,
                 ...(te ? { testExplanation: te } : {}),
               };
             })
@@ -1235,16 +1364,12 @@ const CreateLessonPage: React.FC = () => {
                 s.caption.length > 0 ||
                 Boolean((s as { testExplanation?: string }).testExplanation)
             );
-          const defaultTwo = [
-            { title: "Step 1", description: "", imageUrl: "", caption: "", testExplanation: "" },
-            { title: "Step 2", description: "", imageUrl: "", caption: "", testExplanation: "" },
-          ];
           const isOut: Record<string, unknown> = {
             type: "interactiveSequence",
             title: typeof b.title === "string" ? b.title.trim() : "",
             intro: b.intro != null ? String(b.intro).trim() : "",
             content: "",
-            sequenceSteps: sequenceSteps.length > 0 ? sequenceSteps : defaultTwo,
+            sequenceSteps,
           };
           if (typeof b.role === "string" && b.role.trim()) isOut.role = b.role.trim();
           return isOut;
@@ -1263,46 +1388,20 @@ const CreateLessonPage: React.FC = () => {
           if (typeof b.role === "string" && b.role.trim()) idOut.role = b.role.trim();
           return idOut;
         }
-        if (blockType === "dragDropMatch") {
-          const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
-          const pairs = rawPairs
-            .slice(0, 20)
-            .map((row) => {
-              const img = readDragDropPairAnswerImageUrl(row);
-              return {
-                id: String(row?.id ?? "").trim() || newLessonBlockId(),
-                prompt: row?.prompt != null ? String(row.prompt).trim() : "",
-                answer: row?.answer != null ? String(row.answer).trim() : "",
-                explanation:
-                  row?.explanation != null && String(row.explanation).trim()
-                    ? String(row.explanation).trim()
-                    : undefined,
-                ...(img ? { answerImageUrl: img } : {}),
-              };
-            })
-            .filter((row) => row.id);
-          const parsedModePersist = parseDragDropMatchMode(b.matchMode);
-          const zonePairIds = pairs.map((row) => row.id);
-          const rawZonesPersist = Array.isArray(b.dropZones) ? b.dropZones : [];
-          const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(0, 40);
-          const ddm: Record<string, unknown> = {
-            type: "dragDropMatch",
-            title: typeof b.title === "string" ? b.title.trim() : "",
-            intro: b.intro != null ? String(b.intro).trim() : "",
-            instructions: b.instructions != null ? String(b.instructions).trim() : "",
-            content: "",
-            pairs,
-          };
-          if (parsedModePersist === "diagram") {
-            ddm.matchMode = "diagram";
-            const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
-            if (imgP) ddm.imageUrl = imgP;
-            ddm.dropZones = dropZonesPersist;
-          } else if (parsedModePersist === "text") {
-            ddm.matchMode = "text";
+        {
+          const ddmPersist = buildDragDropMatchBlockForPersist(b, { newId: newLessonBlockId });
+          if (ddmPersist) {
+            return { ...ddmPersist, content: "" };
           }
-          if (typeof b.role === "string" && b.role.trim()) ddm.role = b.role.trim();
-          return ddm;
+        }
+        if (blockType === "diagram") {
+          return attachPersistedBlockNumber(diagramBlockForPersist(b), b);
+        }
+        if (
+          blockType === "graph" ||
+          resolveLessonDisplayBlockType(b) === "graph"
+        ) {
+          return graphBlockForLessonSave(b);
         }
         const out: Record<string, unknown> = {
           type: blockType,
@@ -1312,6 +1411,10 @@ const CreateLessonPage: React.FC = () => {
               : sanitizeTeacherMarkdown(String(b.content || "")),
         };
         if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
+        const blockNum = (b as { number?: unknown }).number;
+        if (typeof blockNum === "number" && Number.isFinite(blockNum) && blockNum > 0) {
+          out.number = Math.trunc(blockNum);
+        }
         if (typeof b.role === "string" && b.role.trim()) out.role = b.role.trim();
         if (blockType === "checkpoint" && p.checkpoint) {
           out.prompt = safeStr(p.checkpoint.question, "");
@@ -1339,7 +1442,10 @@ const CreateLessonPage: React.FC = () => {
           out.correctAnswer = String(bsc.correctAnswer ?? "").trim();
         }
         return out;
-      }),
+      })
+        .map((out, idx) =>
+          attachLearningMetaForPersist(out, (p.blocks || [])[idx])
+        ),
       checkpoint: (() => {
         if (!p.checkpoint) {
           return { question: "", options: ["", "", "", ""], answer: "" };
@@ -1357,6 +1463,8 @@ const CreateLessonPage: React.FC = () => {
         };
       })(),
     }));
+
+    warnLearningMetaIfMissing(sanitizedPages, "create lesson");
 
     const payload: Record<string, unknown> = {
       title: formData.title,
@@ -1393,6 +1501,7 @@ const CreateLessonPage: React.FC = () => {
       setEnsuringDraft(true);
       setError("");
       const payload = buildLessonPayload();
+      logLessonSaveBlocksDebug(payload, "CreateLesson draft save");
       const res = await api.post(`/lessons`, payload);
       const id = res?.data?.lesson?._id || res?.data?.lesson?.id;
       if (!id) return { ok: false, message: "Lesson saved but no id returned." };
@@ -1426,6 +1535,7 @@ const CreateLessonPage: React.FC = () => {
       setSuccess("");
 
       const payload = buildLessonPayload();
+      logLessonSaveBlocksDebug(payload, "CreateLesson save");
 
       const res = draftLessonId
         ? await api.put(`/lessons/${draftLessonId}`, payload)
@@ -1775,6 +1885,8 @@ const CreateLessonPage: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              <LearningIntelligenceSummaryPanel pages={pages ?? []} />
 
               <div style={{ ...ui.sectionTitle, marginTop: 16, marginBottom: 4 }}>Topic banks</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
@@ -2204,13 +2316,17 @@ const CreateLessonPage: React.FC = () => {
                           padding: "8px 12px",
                           fontWeight: 600,
                         }}
-                        onChoose={(opt) =>
+                        onChoose={(opt) => {
+                          if (isInteractiveCreationType(opt.type)) {
+                            setInteractiveBlockCreation({ pageId: pg.pageId, option: opt });
+                            return;
+                          }
                           addBlock(pg.pageId, opt.type, {
                             role: opt.role,
                             title: opt.title,
                             initialContent: opt.type === "checkpoint" ? "" : "",
-                          })
-                        }
+                          });
+                        }}
                       />
                     </div>
 
@@ -2257,7 +2373,7 @@ const CreateLessonPage: React.FC = () => {
                           <div key={key} style={getBlockStyle(b.type)}>
                             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                               {b.type !== "text" && (
-                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{BLOCK_META[b.type].label}</div>
+                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#334155" }}>{lessonBlockDisplayLabel(b.type, idx, b.title)}</div>
                               )}
                               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <button
@@ -2277,18 +2393,27 @@ const CreateLessonPage: React.FC = () => {
                                 <AddBlockByRoleSelect
                                   compact
                                   placeholderLabel="+ Add below"
-                                  onChoose={(opt) =>
+                                  onChoose={(opt) => {
+                                    if (isInteractiveCreationType(opt.type)) {
+                                      setInteractiveBlockCreation({
+                                        pageId: pg.pageId,
+                                        insertAt: idx + 1,
+                                        option: opt,
+                                      });
+                                      return;
+                                    }
                                     addBlock(pg.pageId, opt.type, {
                                       role: opt.role,
                                       title: opt.title,
                                       initialContent: opt.type === "checkpoint" ? "" : "",
                                       insertAt: idx + 1,
-                                    })
-                                  }
+                                    });
+                                  }}
                                 />
                                 {b.type !== "interactiveSequence" &&
                                   b.type !== "interactiveDiagram" &&
-                                  b.type !== "dragDropMatch" && (
+                                  b.type !== "dragDropMatch" &&
+                                  b.type !== "graph" && (
                                 <button
                                   onClick={() => triggerBlockUpload(pg.pageId, idx)}
                                   disabled={isUploading}
@@ -2308,7 +2433,8 @@ const CreateLessonPage: React.FC = () => {
 
                             {b.type === "interactiveSequence" ||
                             b.type === "interactiveDiagram" ||
-                            b.type === "dragDropMatch" ? (
+                            b.type === "dragDropMatch" ||
+                            b.type === "graph" ? (
                               <div
                                 style={{
                                   marginTop: 10,
@@ -2321,14 +2447,19 @@ const CreateLessonPage: React.FC = () => {
                                 <p style={{ margin: "0 0 10px", fontSize: 13, color: "#5b21b6", lineHeight: 1.5 }}>
                                   {b.type === "interactiveSequence" ? (
                                     <>
-                                      Use the same step fields as <strong>Edit lesson</strong> (explanation, teacher-only
-                                      image prompt, optional Test me content, image URL). Per-step image upload is
-                                      available in Edit lesson.
+                                      Step images are optional, but recommended — upload one image per step in{" "}
+                                      <strong>Edit lesson</strong> for best results. Use explanation, optional Test me
+                                      content, and image URL fields there.
                                     </>
                                   ) : b.type === "interactiveDiagram" ? (
                                     <>
                                       Configure the diagram image and hotspots in <strong>Edit lesson</strong> after
                                       you save. You can set title and intro here first.
+                                    </>
+                                  ) : b.type === "graph" ? (
+                                    <>
+                                      Set axes and data below, or use <strong>Generate graph with AI</strong>. Students
+                                      see an interactive chart with optional interpretation questions.
                                     </>
                                   ) : (
                                     <>
@@ -3269,21 +3400,17 @@ const CreateLessonPage: React.FC = () => {
                                           title: safeStr(b.title, ""),
                                           intro: safeStr(b.intro, ""),
                                           instructions: safeStr(b.instructions, ""),
-                                          ...(b.matchMode === "diagram" || b.matchMode === "text"
-                                            ? { matchMode: b.matchMode }
+                                          ...(() => {
+                                            const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                                            return mm ? { matchMode: mm } : {};
+                                          })(),
+                                          ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                                          safeStr(b.imageUrl, "")
+                                            ? { imageUrl: safeStr(b.imageUrl, "") }
                                             : {}),
-                                          ...(safeStr(b.imageUrl, "") ? { imageUrl: safeStr(b.imageUrl, "") } : {}),
-                                          pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) => {
-                                            const img = readDragDropPairAnswerImageUrl(p);
-                                            return {
-                                              id: String(p?.id ?? "").trim() || `pair_${i}`,
-                                              prompt: String(p?.prompt ?? ""),
-                                              answer: String(p?.answer ?? ""),
-                                              explanation:
-                                                p?.explanation != null ? String(p.explanation) : undefined,
-                                              ...(img ? { answerImageUrl: img } : {}),
-                                            };
-                                          }),
+                                          pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) =>
+                                            mapDragDropPairForBlockRender(p, i)
+                                          ),
                                           ...(Array.isArray(b.dropZones)
                                             ? {
                                                 dropZones: b.dropZones.map((z, zi) => {
@@ -3305,6 +3432,23 @@ const CreateLessonPage: React.FC = () => {
                                       />
                                     </div>
                                   </div>
+                                ) : null}
+                                {b.type === "graph" ? (
+                                  <GraphBlockAuthoring
+                                    blk={b as import("../components/lesson/GraphBlockAuthoring").GraphBlockAuthoringBlock}
+                                    onPatch={(patch) =>
+                                      updateBlock(
+                                        pg.pageId,
+                                        idx,
+                                        patch as unknown as Partial<LessonPageBlock>
+                                      )
+                                    }
+                                    lessonTitle={safeStr(formData.title, "")}
+                                    pageTitle={pg.title}
+                                    subject={topicSelection.subject}
+                                    level={formData.level}
+                                    compact
+                                  />
                                 ) : null}
                               </div>
                             ) : (
@@ -3372,6 +3516,7 @@ const CreateLessonPage: React.FC = () => {
                                   });
                                   const optsFour = coerceLessonMcqOptionsFour(structured.options);
                                   const opts = [...optsFour];
+                                  const parsedMarkScheme = markSchemeFromFlexibleCheckpointParse(structured);
                                   const clearInteractive: Partial<LessonPageBlock> = {
                                     pairs: [],
                                     sequenceSteps: [],
@@ -3393,17 +3538,21 @@ const CreateLessonPage: React.FC = () => {
                                       correctAnswer: structured.correctAnswer,
                                       explanation: structured.explanation || "",
                                       role: "quickCheck",
-                                      markScheme: [],
+                                      ...(parsedMarkScheme?.length
+                                        ? { markScheme: parsedMarkScheme }
+                                        : { markScheme: [] }),
                                     });
                                     updateCheckpoint(pg.pageId, {
                                       question: structured.prompt,
                                       options: clampOptions(opts),
                                       answer: structured.correctAnswer,
                                       explanation: structured.explanation || "",
-                                      ...(Array.isArray(pg.checkpoint?.markScheme) &&
-                                      pg.checkpoint!.markScheme!.length
-                                        ? { markScheme: [...pg.checkpoint!.markScheme] }
-                                        : {}),
+                                      ...(parsedMarkScheme?.length
+                                        ? { markScheme: parsedMarkScheme }
+                                        : Array.isArray(pg.checkpoint?.markScheme) &&
+                                            pg.checkpoint!.markScheme!.length
+                                          ? { markScheme: [...pg.checkpoint!.markScheme] }
+                                          : {}),
                                     });
                                   } else {
                                     updateBlock(pg.pageId, idx, {
@@ -3416,6 +3565,9 @@ const CreateLessonPage: React.FC = () => {
                                       correctAnswer: structured.correctAnswer,
                                       explanation: structured.explanation || "",
                                       role: "selfCheck",
+                                      ...(parsedMarkScheme?.length
+                                        ? { markScheme: parsedMarkScheme }
+                                        : {}),
                                     });
                                   }
                                   setTimeout(() => {
@@ -3595,7 +3747,11 @@ const CreateLessonPage: React.FC = () => {
                                 style={{ fontWeight: 600, fontSize: "0.8125rem", color: "#334155", marginBottom: 4 }}
                               >
                                 {BLOCK_META[blockType]?.icon ?? "📝"}{" "}
-                                {BLOCK_META[blockType]?.label ?? "Block"}
+                                {lessonBlockDisplayLabel(
+                                  blockType,
+                                  idx,
+                                  (b as LessonPageBlock).title
+                                )}
                               </div>
                             ) : null;
 
@@ -3650,9 +3806,12 @@ const CreateLessonPage: React.FC = () => {
                                       (b as LessonPageBlock).explanation != null
                                         ? String((b as LessonPageBlock).explanation)
                                         : undefined,
-                                    markScheme: Array.isArray((b as LessonPageBlock).markScheme)
-                                      ? (b as LessonPageBlock).markScheme
-                                      : undefined,
+                                    markScheme: (() => {
+                                      const lines = checkpointMarkSchemeLines(
+                                        (b as LessonPageBlock).markScheme
+                                      );
+                                      return lines.length ? lines : undefined;
+                                    })(),
                                   })}
                                 />
                               </div>
@@ -3707,11 +3866,84 @@ const CreateLessonPage: React.FC = () => {
                                 {labelRow}
                                 <InteractiveDiagramBlock
                                   blockTitle={safeStr(idg.title, "")}
-                                  intro={safeStr(idg.intro, "")}
+                                  intro={[
+                                    safeStr(idg.intro, ""),
+                                    safeStr(idg.content, ""),
+                                  ]
+                                    .filter(Boolean)
+                                    .join("\n\n")}
                                   imageUrl={String(idg.imageUrl ?? "")}
                                   hotspots={hs}
                                   resolveImageUrl={(u) => toAbsoluteAssetUrl(u) ?? u}
                                 />
+                              </div>
+                            );
+                          }
+
+                          if (blockType === "graph") {
+                            return (
+                              <div key={`prev-${idx}`} style={getBlockStyle(blockType)}>
+                                {labelRow}
+                                <GraphBlock block={b} showAnswers />
+                              </div>
+                            );
+                          }
+
+                          if (blockType === "diagram") {
+                            const d = b as LessonPageBlock;
+                            const img = diagramImageUrlForPreview(d.imageUrl);
+                            const caption = safeStr(d.caption, "");
+                            const md = diagramMarkdownContentForPreview(d.content, img);
+                            const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
+                            return (
+                              <div key={`prev-${idx}`} style={getBlockStyle(blockType)}>
+                                {labelRow}
+                                {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
+                                  <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
+                                    <img
+                                      src={imgSrc}
+                                      alt={caption || "Diagram"}
+                                      style={lessonImageFrameImgStyle}
+                                      onError={hideBrokenLessonImage}
+                                    />
+                                  </LessonImageFrame>
+                                ) : null}
+                                {md ? (
+                                  <div
+                                    className="lesson-content"
+                                    style={{ fontSize: "0.8rem", color: "#334155", wordBreak: "break-word" }}
+                                  >
+                                    <LessonMarkdown
+                                      className="lesson-md-body"
+                                      components={createPreviewMarkdownComponents}
+                                      urlTransform={(url) => {
+                                        try {
+                                          const decoded = url?.includes("%")
+                                            ? decodeURIComponent(url)
+                                            : (url ?? "");
+                                          const abs = toAbsoluteAssetUrl(decoded);
+                                          if (abs) return abs;
+                                          return defaultUrlTransform(url ?? "");
+                                        } catch {
+                                          return defaultUrlTransform(url ?? "");
+                                        }
+                                      }}
+                                    >
+                                      {preprocessMarkdownAssetUrls(md)}
+                                    </LessonMarkdown>
+                                  </div>
+                                ) : !imgSrc ? (
+                                  <p
+                                    style={{
+                                      margin: "6px 0 0",
+                                      fontSize: "0.75rem",
+                                      color: "#94a3b8",
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    Diagram image not set
+                                  </p>
+                                ) : null}
                               </div>
                             );
                           }
@@ -3727,21 +3959,17 @@ const CreateLessonPage: React.FC = () => {
                                     title: safeStr(ddm.title, ""),
                                     intro: safeStr(ddm.intro, ""),
                                     instructions: safeStr(ddm.instructions, ""),
-                                    ...(ddm.matchMode === "diagram" || ddm.matchMode === "text"
-                                      ? { matchMode: ddm.matchMode }
+                                    ...(() => {
+                                      const mm = dragDropMatchModeForBlockProps(ddm.matchMode);
+                                      return mm ? { matchMode: mm } : {};
+                                    })(),
+                                    ...(dragDropMatchModeForBlockProps(ddm.matchMode) === "diagram" &&
+                                    safeStr(ddm.imageUrl, "")
+                                      ? { imageUrl: safeStr(ddm.imageUrl, "") }
                                       : {}),
-                                    ...(safeStr(ddm.imageUrl, "") ? { imageUrl: safeStr(ddm.imageUrl, "") } : {}),
-                                    pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) => {
-                                      const img = readDragDropPairAnswerImageUrl(p);
-                                      return {
-                                        id: String(p?.id ?? "").trim() || `pair_${i}`,
-                                        prompt: String(p?.prompt ?? ""),
-                                        answer: String(p?.answer ?? ""),
-                                        explanation:
-                                          p?.explanation != null ? String(p.explanation) : undefined,
-                                        ...(img ? { answerImageUrl: img } : {}),
-                                      };
-                                    }),
+                                    pairs: (Array.isArray(ddm.pairs) ? ddm.pairs : []).map((p, i) =>
+                                      mapDragDropPairForBlockRender(p, i)
+                                    ),
                                     ...(Array.isArray(ddm.dropZones)
                                       ? {
                                           dropZones: ddm.dropZones.map((z, zi) => {
@@ -3804,6 +4032,34 @@ const CreateLessonPage: React.FC = () => {
         </div>
       </div>
     </div>
+      {interactiveBlockCreation ? (
+        <InteractiveBlockCreationDialog
+          open
+          blockType={
+            interactiveBlockCreation.option.type as
+              | "interactiveSequence"
+              | "interactiveDiagram"
+              | "dragDropMatch"
+          }
+          lessonTitle={formData.title}
+          pageTitle={
+            orderedPages.find((p) => p.pageId === interactiveBlockCreation.pageId)?.title
+          }
+          subject={formData.subject}
+          level={formData.level}
+          onCancel={() => setInteractiveBlockCreation(null)}
+          onConfirm={(raw) => {
+            const ctx = interactiveBlockCreation;
+            if (!ctx) return;
+            insertPreparedLessonBlockCreate(ctx.pageId, raw, {
+              insertAt: ctx.insertAt,
+              role: ctx.option.role,
+              title: ctx.option.title,
+            });
+            setInteractiveBlockCreation(null);
+          }}
+        />
+      ) : null}
     </>
     </LessonImageLightboxProvider>
   );

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Photosynthesis — Step 3">
+  <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
+  <rect x="60" y="60" width="1280" height="680" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+
+  <rect x="68" y="68" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="88" y="100" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="260" y="100" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+
+  <text x="84" y="170" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis — Step 3</text>
+  <text x="84" y="215" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Glucose production</text>
+  <text x="1316" y="108" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
+
+  
+  
+  <g transform="translate(620,440) scale(1.6)">
+    <ellipse cx="0" cy="0" rx="52" ry="32" fill="#86EFAC" stroke="#166534" stroke-width="3"/>
+    <path d="M -30 0 Q 0 -22 30 0 Q 0 22 -30 0" fill="#22C55E" opacity="0.85"/>
+    <text x="0" y="48" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" fill="#14532D">Chloroplast</text>
+  </g>
+  
+  <g>
+    <line x1="690" y1="430" x2="806.0412372029779" y2="421.0737509843863" stroke="#7C3AED" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="820,420 806.6548091940558,429.05018686839895 805.4276652118999,413.0973151003737" fill="#7C3AED"/>
+  </g>
+  <rect x="760" y="390" width="140" height="90" rx="14" fill="#EDE9FE" stroke="#7C3AED" stroke-width="4"/>
+  <text x="830" y="442" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#5B21B6">GLUCOSE</text>
+  <text x="830" y="470" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#6D28D9">C₆H₁₂O₆</text>
+  <text x="830" y="515" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#374151">Chemical energy stored in glucose</text>
+  <text x="700" y="580" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#374151">Light energy drives reactions in chloroplasts to build glucose.</text>
+  
+</svg>

@@ -508,6 +508,90 @@ export async function generateHotspotMcqFromConcept(
   return { mcq, _disabled: res._disabled };
 }
 
+/** Short-answer recall for step-by-step sequence “Test me” (question + model answer). */
+export type SequenceRecallPayload = {
+  question: string;
+  answer: string;
+  explanation?: string;
+};
+
+export type GenerateSequenceRecallParams = {
+  topic: string;
+  stepTitle: string;
+  stepDescription: string;
+  keyIdeaHint?: string;
+  level?: string;
+  subject?: string;
+};
+
+export function parseSequenceRecallJson(rawInput: string | unknown): SequenceRecallPayload | null {
+  const raw =
+    typeof rawInput === "string"
+      ? rawInput
+      : rawInput && typeof rawInput === "object"
+        ? JSON.stringify(rawInput)
+        : String(rawInput ?? "");
+  const o = parseJsonObjectLoose(raw);
+  if (!o) return null;
+  const question = typeof o.question === "string" ? o.question.trim() : "";
+  const answer =
+    (typeof o.answer === "string" && o.answer.trim()) ||
+    (typeof o.correctAnswer === "string" && o.correctAnswer.trim()) ||
+    (typeof o.keyIdea === "string" && o.keyIdea.trim()) ||
+    "";
+  const explanation =
+    (typeof o.explanation === "string" && o.explanation.trim()) ||
+    (typeof o.rationale === "string" && o.rationale.trim()) ||
+    "";
+  if (!question || !answer) return null;
+  return { question, answer, ...(explanation ? { explanation } : {}) };
+}
+
+/**
+ * GCSE-style recall question for one process step. Uses /ai/explain-chunk; JSON in response body.
+ */
+export async function generateSequenceRecallFromStep(
+  params: GenerateSequenceRecallParams
+): Promise<{ recall: SequenceRecallPayload; _disabled?: boolean }> {
+  const hint = String(params.keyIdeaHint || "").trim();
+  const text = [
+    "Generate ONE short GCSE-style recall question for this step in a biology/science process.",
+    "The question must test understanding of the step below — not generic trivia.",
+    "Return JSON only (no markdown fences) with this exact structure:",
+    '{ "question": string, "answer": string, "explanation": string }',
+    "question: one clear exam-style question (one or two sentences max).",
+    "answer: a concise model answer / key idea (1–3 sentences) a student should recall.",
+    "explanation: optional extra detail (can be empty string).",
+    "Do NOT copy the question text as the answer. The answer must directly address the question.",
+    "",
+    `Topic / lesson: ${String(params.topic || "").trim() || "—"}`,
+    `Step title: ${String(params.stepTitle || "").trim() || "—"}`,
+    `Step content students learned: ${String(params.stepDescription || "").trim() || "—"}`,
+    ...(hint ? [`Author key idea (use for answer, do not repeat as question): ${hint}`] : []),
+  ].join("\n");
+
+  const explainOnce = () =>
+    explainChunk({
+      text,
+      level: params.level,
+      subject: params.subject,
+      verbatim: true,
+    });
+
+  let res = await explainOnce();
+  let raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
+  let recall = parseSequenceRecallJson(raw);
+  if (!recall) {
+    res = await explainOnce();
+    raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
+    recall = parseSequenceRecallJson(raw);
+  }
+  if (!recall) {
+    throw new Error("parse_sequence_recall");
+  }
+  return { recall, _disabled: res._disabled };
+}
+
 /** One row for a drag-and-drop match block (client assigns stable ids). */
 export type DragDropPair = {
   prompt: string;
@@ -960,4 +1044,156 @@ export async function generateInteractiveDiagramHotspotsFromConcept(input: {
     throw new Error("parse_diagram_json");
   }
   return parsed;
+}
+
+function tryParseFlexibleJsonObject(text: string): Record<string, unknown> | null {
+  try {
+    let cleaned = String(text || "").trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/m, "")
+        .trim();
+    }
+    cleaned = cleaned.replace(/```json|```/gi, "").trim();
+    const parsed: unknown = JSON.parse(cleaned);
+    return parsed != null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** AI-generated graph block payload (teachers may edit before save). */
+export type GraphBlockAiDraft = {
+  title: string;
+  intro: string;
+  graphType: "line" | "bar" | "scatter";
+  xAxisLabel: string;
+  yAxisLabel: string;
+  xUnits: string;
+  yUnits: string;
+  graphSeries: Array<{
+    label: string;
+    points: Array<{ x: number | string; y: number }>;
+  }>;
+  graphAnnotations: Array<{ text: string; kind?: string }>;
+  examQuestion: string;
+  markScheme: string;
+  examinerTip: string;
+};
+
+/**
+ * Generate a data-driven graph block (Chart.js) from a teacher prompt.
+ * Uses {@link explainChunk} — no new backend route required.
+ */
+export async function generateGraphBlockFromPrompt(input: {
+  prompt: string;
+  lessonTitle?: string;
+  pageTitle?: string;
+  subject?: string;
+  level?: string;
+  graphType?: "line" | "bar" | "scatter";
+}): Promise<GraphBlockAiDraft> {
+  const topic = String(input.prompt || "").trim();
+  if (topic.length < 4) throw new Error("prompt_required");
+
+  const graphType = input.graphType ?? "line";
+  const header = [
+    input.lessonTitle && `Lesson title: ${String(input.lessonTitle).trim()}`,
+    input.pageTitle && `Page title: ${String(input.pageTitle).trim()}`,
+    input.subject && `Subject: ${String(input.subject).trim()}`,
+    input.level && `Level: ${String(input.level).trim()}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const prompt = [
+    "Generate a GCSE exam-style data graph for a revision lesson block.",
+    "Return ONLY one JSON object. No markdown fences or commentary.",
+    "",
+    "Required keys:",
+    '- "title" (string)',
+    '- "intro" (string, 2-4 sentences explaining what the graph shows)',
+    `- "graphType": "${graphType}"`,
+    '- "xAxisLabel", "yAxisLabel", "xUnits", "yUnits" (strings; units may be empty)',
+    '- "graphSeries": array with 1-2 objects: { "label": string, "points": [ { "x": number or string, "y": number }, ... ] }',
+    "  - Use 5-8 sensible data points with a clear trend (e.g. levels off, peak, linear region).",
+    "  - x may be numbers (continuous) or short category strings for bar charts only.",
+    '- "graphAnnotations": array of 0-3 { "text": string, "kind": "callout" | "trend" }',
+    '- "examQuestion", "markScheme", "examinerTip" (strings; exam-style graph interpretation)',
+    "",
+    "Rules:",
+    "- Scientifically accurate for the topic and level.",
+    "- Data must be plausible — not random noise.",
+    "- Suitable for graph interpretation questions (describe trend, explain plateau, etc.).",
+    header,
+    `Topic / teacher request: ${topic}`,
+  ].join("\n");
+
+  const res = await explainChunk({
+    text: prompt,
+    level: input.level,
+    subject: input.subject,
+    verbatim: true,
+  });
+  const raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
+  if (!raw) throw new Error("parse_graph_json");
+  const obj = tryParseFlexibleJsonObject(raw);
+  if (!obj) throw new Error("parse_graph_json");
+
+  const seriesRaw = Array.isArray(obj.graphSeries) ? obj.graphSeries : [];
+  const graphSeries: GraphBlockAiDraft["graphSeries"] = [];
+  for (const row of seriesRaw.slice(0, 2)) {
+    if (!row || typeof row !== "object") continue;
+    const o = row as Record<string, unknown>;
+    const label = String(o.label ?? "Series").trim() || "Series";
+    const pts = Array.isArray(o.points) ? o.points : [];
+    const points: Array<{ x: number | string; y: number }> = [];
+    for (const p of pts.slice(0, 12)) {
+      if (!p || typeof p !== "object") continue;
+      const pt = p as Record<string, unknown>;
+      const y = Number(pt.y);
+      if (!Number.isFinite(y)) continue;
+      const xRaw = pt.x;
+      const x =
+        typeof xRaw === "number" && Number.isFinite(xRaw) ? xRaw : String(xRaw ?? "").trim();
+      if (x === "" && typeof x !== "number") continue;
+      points.push({ x, y });
+    }
+    if (points.length) graphSeries.push({ label, points });
+  }
+  if (!graphSeries.length) throw new Error("parse_graph_json");
+
+  const annRaw = Array.isArray(obj.graphAnnotations) ? obj.graphAnnotations : [];
+  const graphAnnotations: GraphBlockAiDraft["graphAnnotations"] = annRaw
+    .slice(0, 4)
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const a = row as Record<string, unknown>;
+      const text = String(a.text ?? "").trim();
+      if (!text) return null;
+      const kind = String(a.kind ?? "").trim();
+      return { text, ...(kind === "trend" || kind === "callout" ? { kind } : {}) };
+    })
+    .filter((a): a is GraphBlockAiDraft["graphAnnotations"][number] => a != null);
+
+  const gt = String(obj.graphType ?? graphType).trim().toLowerCase();
+  const normalizedType = gt === "bar" ? "bar" : gt === "scatter" ? "scatter" : "line";
+
+  return {
+    title: String(obj.title ?? topic).trim().slice(0, 200),
+    intro: String(obj.intro ?? "").trim(),
+    graphType: normalizedType,
+    xAxisLabel: String(obj.xAxisLabel ?? "").trim(),
+    yAxisLabel: String(obj.yAxisLabel ?? "").trim(),
+    xUnits: String(obj.xUnits ?? "").trim(),
+    yUnits: String(obj.yUnits ?? "").trim(),
+    graphSeries,
+    graphAnnotations,
+    examQuestion: String(obj.examQuestion ?? "").trim(),
+    markScheme: String(obj.markScheme ?? "").trim(),
+    examinerTip: String(obj.examinerTip ?? "").trim(),
+  };
 }

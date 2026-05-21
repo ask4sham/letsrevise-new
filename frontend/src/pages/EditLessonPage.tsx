@@ -7,6 +7,14 @@ import { InlineSelfCheckBlock } from "../components/lesson/InlineSelfCheckBlock"
 import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequenceBlock";
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
+import { GraphBlock } from "../components/lesson/GraphBlock";
+import { GraphBlockAuthoring } from "../components/lesson/GraphBlockAuthoring";
+import {
+  emptyGraphBlock,
+  graphBlockForPersist,
+  normalizeGraphBlockForDisplay,
+} from "../components/lesson/graphBlockTypes";
+import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
 import { DragDropMatchDiagramAuthoring } from "../components/lesson/DragDropMatchDiagramAuthoring";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
@@ -16,7 +24,11 @@ import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank, listTopicFlashcards } from "../api/topicFlashcards";
 import { listTopicQuizQuestions } from "../api/topicQuizQuestions";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
-import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
+import {
+  checkpointMarkSchemeEditorText,
+  checkpointMarkSchemeLines,
+  mergeCheckpointExplanationParts,
+} from "../utils/checkpointFeedback";
 import {
   extractSequenceStepImagePromptFromDescription,
   mergeSequenceStepDescriptionAndImagePrompt,
@@ -24,11 +36,37 @@ import {
 } from "../utils/interactiveSequenceStepImagePrompt";
 import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
+import { normalizeLessonTopicSlugFromLesson } from "../utils/normalizeLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
+import {
+  hideBrokenLessonImage,
+  LessonImageFrame,
+  lessonImageFrameImgStyle,
+} from "../components/lesson/LessonImageFrame";
+import {
+  diagramImageUrlForPreview,
+  diagramMarkdownContentForPreview,
+} from "../utils/diagramBlockPreview";
+import { promoteHeroOnPages } from "../utils/pageHeroMigration";
+import { lessonBlockDisplayLabel } from "../utils/lessonBlockDisplayLabel";
+import {
+  nextHotspotFromGeneratorScript,
+  nextSequenceStepFromGeneratorScript,
+} from "../utils/parseGeneratorVisualScript";
+import {
+  applyInteractiveSequenceHydrationToPages,
+  blockLooksLikeInteractiveSequence,
+  normalizeInteractiveSequenceBlockForEditor,
+} from "../utils/normalizeInteractiveSequenceBlock";
 import { validateLessonStructure } from "../utils/validateLessonStructure";
+import {
+  attachLearningMetaForPersist,
+  warnLearningMetaIfMissing,
+} from "../utils/learningMeta";
+import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 import {
   formatPublishWithQualityWarningsMessage,
   type PublishWarningSummary,
@@ -86,6 +124,7 @@ import {
   coerceLessonMcqOptionsFour,
   lessonCheckpointWholeCellPaste,
   tryParseFlexibleCheckpointMcq,
+  markSchemeFromFlexibleCheckpointParse,
 } from "../utils/parseFlexibleCheckpointPaste";
 import {
   getHotspotLetter,
@@ -97,8 +136,19 @@ import {
 import {
   coerceDiagramZonePct,
   logDragDropMatchZoneBindings,
+  dragDropPairEditorLabels,
+  normalizeDragDropPairRow,
+  buildDragDropMatchBlockForPersist,
+  dragDropLayoutPersistedValues,
+  type DragDropMatchAuthoringMatchMode,
   readDragDropPairAnswerImageUrl,
+  dragDropMatchModeForBlockProps,
+  mapDragDropPairForBlockRender,
+  readDragDropMatchModeFromBlock,
+  readDragDropPairTargetImageUrl,
+  parseDragDropMatchMode,
   resolveDragDropMatchModeForPersist,
+  resolveDragDropMatchModeForUi,
   sanitizeDiagramDropZonesForAuthoring,
 } from "../utils/dragDropMatchDiagram";
 import { parseGeneratorMcqForSelfCheckImport } from "../utils/parseGeneratorMcqForSelfCheckImport";
@@ -147,8 +197,8 @@ interface LessonPageBlock {
   options?: string[];
   correctAnswer?: string;
   explanation?: string;
-  /** Optional rubric lines merged into student-facing feedback (checkpoint + self-check blocks). */
-  markScheme?: string[];
+  /** Checkpoint/self-check: string[]; graph block: plain-text mark scheme. */
+  markScheme?: string[] | string;
   /** Page Quiz block fields (when type === "pageQuiz") — written to lesson.quiz.questions with pageId */
   question?: string;
   /** Diagram block fields (when type === "diagram") */
@@ -204,8 +254,11 @@ interface LessonPageBlock {
     answer: string;
     explanation?: string;
     answerImageUrl?: string;
+    imageUrl?: string;
+    imageAlt?: string;
   }>;
-  matchMode?: "text" | "diagram";
+  matchMode?: DragDropMatchAuthoringMatchMode;
+  dragDropLayout?: string;
   dropZones?: Array<{
     id: string;
     x?: number;
@@ -213,6 +266,27 @@ interface LessonPageBlock {
     correctPairId: string;
     explanation?: string;
   }>;
+  /** type === "graph" */
+  graphType?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  xUnits?: string;
+  yUnits?: string;
+  graphSeries?: Array<{
+    id: string;
+    label: string;
+    color?: string;
+    points: Array<{ x: number | string; y: number }>;
+  }>;
+  graphAnnotations?: Array<{
+    id: string;
+    text: string;
+    kind?: string;
+    seriesId?: string;
+    pointIndex?: number;
+  }>;
+  examQuestion?: string;
+  examinerTip?: string;
 }
 
 /** Hotspot with coordinates — only these render on the editor preview image (unplaced omitted). */
@@ -386,6 +460,46 @@ function newId() {
 }
 
 const DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION = "";
+
+function createInteractiveDiagramHotspotEntry(
+  block: { intro?: string; content?: string },
+  existing: Array<{ label?: string }>,
+  coords?: { x: number; y: number }
+) {
+  const next = nextHotspotFromGeneratorScript(
+    String(block.intro ?? ""),
+    String(block.content ?? ""),
+    existing
+  );
+  const label = next?.label ?? "New hotspot";
+  const description = next?.description ?? DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION;
+  return {
+    id: newId(),
+    label,
+    description,
+    explanation: description,
+    ...(coords ? { x: coords.x, y: coords.y } : {}),
+  };
+}
+
+function createInteractiveSequenceStepEntry(
+  block: { intro?: string; content?: string },
+  existing: Array<{ title?: string; description?: string }>
+) {
+  const next = nextSequenceStepFromGeneratorScript(
+    String(block.intro ?? ""),
+    String(block.content ?? ""),
+    existing
+  );
+  return {
+    id: newId(),
+    title: next?.title ?? "",
+    description: next?.description ?? "",
+    imageUrl: "",
+    caption: "",
+    testExplanation: "",
+  };
+}
 
 function mcqOptionsTuple(opts: string[]): [string, string, string, string] {
   const o = [...opts];
@@ -594,6 +708,7 @@ const EditLessonPage: React.FC = () => {
   const [generationWarning, setGenerationWarning] = useState<string | null>(() => (location.state as { generationWarning?: string } | null)?.generationWarning ?? null);
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
+  const interactiveSequenceHydratedLessonIdRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -849,6 +964,19 @@ const EditLessonPage: React.FC = () => {
     if (!hasStructuredPages) return null;
     return orderedPages[currentPageIndex] || null;
   }, [hasStructuredPages, orderedPages, currentPageIndex]);
+
+  /** Lesson-wide block ordinals (1…n) for editor chrome — matches generator SS1 numbering. */
+  const lessonBlockOrdinalByKey = useMemo(() => {
+    const m = new Map<string, number>();
+    let n = 0;
+    for (const pg of orderedPages) {
+      (pg.blocks || []).forEach((_, bi) => {
+        n += 1;
+        m.set(`${pg.pageId}:${bi}`, n);
+      });
+    }
+    return m;
+  }, [orderedPages]);
 
   /** Group open reports by pageId and blockId for surfacing in editor */
   const { reportsByPage, reportsByBlock, reportsByPageOnly } = useMemo(() => {
@@ -1124,6 +1252,19 @@ const EditLessonPage: React.FC = () => {
       .catch(() => setLessonIssueReports([]));
   }, [id]);
 
+  /** Persist sequenceSteps parsed from intro/content when legacy exports left steps only in HTML. */
+  useEffect(() => {
+    if (!lesson?.id || !Array.isArray(lesson.pages)) return;
+    const { pages, changed } = applyInteractiveSequenceHydrationToPages(lesson.pages);
+    if (!changed) {
+      interactiveSequenceHydratedLessonIdRef.current = lesson.id;
+      return;
+    }
+    if (interactiveSequenceHydratedLessonIdRef.current === lesson.id) return;
+    interactiveSequenceHydratedLessonIdRef.current = lesson.id;
+    setLesson((prev) => (prev ? { ...prev, pages } : prev));
+  }, [lesson?.id, lesson?.pages]);
+
   useEffect(() => {
     curriculumAiReviewFeatureRef.current = curriculumAiReviewFeature === true;
   }, [curriculumAiReviewFeature]);
@@ -1224,6 +1365,23 @@ const EditLessonPage: React.FC = () => {
             (rawNotes.trim().length > 220 ? "…" : "")
           : "—");
 
+      const lessonForTopicNorm = {
+        topicKey: typeof data.topicKey === "string" ? data.topicKey.trim() : undefined,
+        canonicalTopicKey:
+          typeof data.canonicalTopicKey === "string"
+            ? data.canonicalTopicKey.trim()
+            : typeof data.metadata?.canonicalTopicKey === "string"
+              ? String(data.metadata.canonicalTopicKey).trim()
+              : undefined,
+        specKey: typeof data.specKey === "string" ? data.specKey.trim() : undefined,
+        topic: safeStr(data.topic, ""),
+        title: safeStr(data.title, ""),
+        subject: safeStr(data.subject, ""),
+        examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
+        level: safeStr(data.level, ""),
+      };
+      const topicNorm = normalizeLessonTopicSlugFromLesson(lessonForTopicNorm);
+
       const mapped: Lesson = {
         id: safeStr(data._id || data.id || lessonId, lessonId),
         title: safeStr(data.title, "Untitled Lesson"),
@@ -1232,7 +1390,7 @@ const EditLessonPage: React.FC = () => {
         subject: safeStr(data.subject, "Not set"),
         level: safeStr(data.level, "Not set"),
         topic: safeStr(data.topic, "Not set"),
-        topicKey: typeof data.topicKey === "string" && data.topicKey.trim() ? data.topicKey.trim() : undefined,
+        topicKey: topicNorm.namespaced ?? lessonForTopicNorm.topicKey,
         examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
         teacherName: safeStr(data.teacherName, "Teacher"),
         teacherId: safeStr(data.teacherId?._id || data.teacherId, ""),
@@ -1362,33 +1520,10 @@ const EditLessonPage: React.FC = () => {
                     ...(role && { role }),
                   };
                 }
-                if (normalizeBlockType(String(b?.type ?? "")) === "interactiveSequence") {
-                  const rawSeq = Array.isArray(b.sequenceSteps)
-                    ? b.sequenceSteps
-                    : Array.isArray(b.steps)
-                      ? b.steps
-                      : [];
-                  const sequenceSteps = rawSeq.map((s: any) => ({
-                    ...(typeof s?.id === "string" && String(s.id).trim()
-                      ? { id: String(s.id).trim().slice(0, 64) }
-                      : {}),
-                    title: safeStr(s?.title, ""),
-                    description: safeStr(s?.description, ""),
-                    imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
-                    caption: safeStr(s?.caption, ""),
-                    ...(typeof s?.testExplanation === "string" && String(s.testExplanation).trim()
-                      ? { testExplanation: String(s.testExplanation).trim() }
-                      : {}),
-                  }));
-                  const outIs: Record<string, unknown> = {
-                    type: "interactiveSequence" as const,
-                    content: "",
-                    title: safeStr(b.title, ""),
-                    intro: safeStr(b.intro, ""),
-                    sequenceSteps,
-                  };
-                  if (typeof b?.role === "string" && b.role.trim()) outIs.role = b.role.trim();
-                  return outIs;
+                if (blockLooksLikeInteractiveSequence(b as Record<string, unknown>)) {
+                  return normalizeInteractiveSequenceBlockForEditor(
+                    b as Record<string, unknown>
+                  ) as typeof b;
                 }
                 if (normalizeBlockType(String(b?.type ?? "")) === "interactiveDiagram") {
                   const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
@@ -1408,28 +1543,36 @@ const EditLessonPage: React.FC = () => {
                 }
                 if (normalizeBlockType(String(b?.type ?? "")) === "dragDropMatch") {
                   const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
-                  const pairs = rawPairs.map((row: any) => {
-                    const img = readDragDropPairAnswerImageUrl(row);
-                    return {
-                      id: String(row?.id ?? "").trim() || newId(),
-                      prompt: safeStr(row?.prompt, ""),
-                      answer: safeStr(row?.answer, ""),
-                      explanation: row?.explanation != null ? String(row.explanation) : "",
-                      ...(img ? { answerImageUrl: img } : {}),
-                    };
-                  });
+                  const pairs = rawPairs
+                    .map((row: any, ri: number) => {
+                      const n = normalizeDragDropPairRow(row, ri, newId());
+                      if (!n) return null;
+                      return {
+                        ...n,
+                        explanation: n.explanation != null ? String(n.explanation) : "",
+                      };
+                    })
+                    .filter(Boolean) as Array<{
+                      id: string;
+                      prompt: string;
+                      answer: string;
+                      explanation: string;
+                      answerImageUrl?: string;
+                      imageUrl?: string;
+                      imageAlt?: string;
+                    }>;
                   const pairIdsForZones = pairs.map((r: { id: string }) => r.id);
                   const rawZones = Array.isArray((b as { dropZones?: unknown }).dropZones)
                     ? (b as { dropZones: unknown[] }).dropZones
                     : [];
                   const dropZonesSan = sanitizeDiagramDropZonesForAuthoring(rawZones, pairIdsForZones);
-                  const resolvedHydrate = resolveDragDropMatchModeForPersist(
-                    (b as { matchMode?: unknown }).matchMode,
-                    {
+                  const rawModeHydrate = readDragDropMatchModeFromBlock(b);
+                  const resolvedHydrate =
+                    parseDragDropMatchMode(rawModeHydrate) ??
+                    resolveDragDropMatchModeForPersist(rawModeHydrate, {
                       imageUrl: (b as { imageUrl?: unknown }).imageUrl,
                       dropZones: rawZones,
-                    }
-                  );
+                    });
                   const outDdm: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1439,15 +1582,26 @@ const EditLessonPage: React.FC = () => {
                     pairs,
                   };
                   if (resolvedHydrate === "diagram") {
-                    outDdm.matchMode = "diagram";
+                    const stored = dragDropLayoutPersistedValues("diagram");
+                    outDdm.matchMode = stored.matchMode;
+                    outDdm.dragDropLayout = stored.dragDropLayout;
                     const img = (b as { imageUrl?: unknown }).imageUrl;
                     outDdm.imageUrl = typeof img === "string" ? img.trim() : "";
                     outDdm.dropZones = dropZonesSan;
                   } else if (resolvedHydrate === "text") {
-                    outDdm.matchMode = "text";
+                    const stored = dragDropLayoutPersistedValues("text");
+                    outDdm.matchMode = stored.matchMode;
+                    outDdm.dragDropLayout = stored.dragDropLayout;
+                  } else if (resolvedHydrate === "text-to-image") {
+                    const stored = dragDropLayoutPersistedValues("text-to-image");
+                    outDdm.matchMode = stored.matchMode;
+                    outDdm.dragDropLayout = stored.dragDropLayout;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
                   return outDdm;
+                }
+                if (resolveLessonDisplayBlockType(b) === "graph") {
+                  return normalizeGraphBlockForDisplay(b);
                 }
                 /** Recover blocks mis-saved as `text` while `pairs` survived (legacy client/API mismatch). */
                 const nbForRepair = normalizeBlockType(String(b?.type ?? ""));
@@ -1462,23 +1616,26 @@ const EditLessonPage: React.FC = () => {
                       (String(row?.prompt ?? "").trim() || String(row?.answer ?? "").trim())
                   )
                 ) {
-                  const pairs = pairsForRepair.map((row: any) => {
-                    const img = readDragDropPairAnswerImageUrl(row);
-                    return {
-                      id: String(row?.id ?? "").trim() || newId(),
-                      prompt: safeStr(row?.prompt, ""),
-                      answer: safeStr(row?.answer, ""),
-                      explanation: row?.explanation != null ? String(row.explanation) : "",
-                      ...(img ? { answerImageUrl: img } : {}),
-                    };
-                  });
+                  const pairs = pairsForRepair
+                    .map((row: any, ri: number) => {
+                      const n = normalizeDragDropPairRow(row, ri, newId());
+                      if (!n) return null;
+                      return {
+                        ...n,
+                        explanation: n.explanation != null ? String(n.explanation) : "",
+                      };
+                    })
+                    .filter(Boolean);
                   const pairIdsRepair = pairs.map((r: { id: string }) => r.id);
                   const rawZonesRepair = Array.isArray((b as any).dropZones) ? (b as any).dropZones : [];
                   const dropZonesRepair = sanitizeDiagramDropZonesForAuthoring(rawZonesRepair, pairIdsRepair);
-                  const resolvedRepair = resolveDragDropMatchModeForPersist((b as any).matchMode, {
-                    imageUrl: (b as any).imageUrl,
-                    dropZones: rawZonesRepair,
-                  });
+                  const rawModeRepair = readDragDropMatchModeFromBlock(b);
+                  const resolvedRepair =
+                    parseDragDropMatchMode(rawModeRepair) ??
+                    resolveDragDropMatchModeForPersist(rawModeRepair, {
+                      imageUrl: (b as any).imageUrl,
+                      dropZones: rawZonesRepair,
+                    });
                   const repaired: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1488,12 +1645,20 @@ const EditLessonPage: React.FC = () => {
                     pairs,
                   };
                   if (resolvedRepair === "diagram") {
-                    repaired.matchMode = "diagram";
+                    const stored = dragDropLayoutPersistedValues("diagram");
+                    repaired.matchMode = stored.matchMode;
+                    repaired.dragDropLayout = stored.dragDropLayout;
                     const imgR = (b as any).imageUrl;
                     repaired.imageUrl = typeof imgR === "string" ? imgR.trim() : "";
                     repaired.dropZones = dropZonesRepair;
                   } else if (resolvedRepair === "text") {
-                    repaired.matchMode = "text";
+                    const stored = dragDropLayoutPersistedValues("text");
+                    repaired.matchMode = stored.matchMode;
+                    repaired.dragDropLayout = stored.dragDropLayout;
+                  } else if (resolvedRepair === "text-to-image") {
+                    const stored = dragDropLayoutPersistedValues("text-to-image");
+                    repaired.matchMode = stored.matchMode;
+                    repaired.dragDropLayout = stored.dragDropLayout;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) repaired.role = b.role.trim();
                   return repaired;
@@ -1529,6 +1694,16 @@ const EditLessonPage: React.FC = () => {
           metadata:
             (p as any).metadata && typeof (p as any).metadata === "object" ? (p as any).metadata : undefined,
         }));
+        mapped.pages = promoteHeroOnPages(
+          mapped.pages as unknown as Parameters<typeof promoteHeroOnPages>[0]
+        ) as unknown as typeof mapped.pages;
+        const { pages: hydratedPages, changed: seqHydrated } =
+          applyInteractiveSequenceHydrationToPages(
+            mapped.pages as Array<{ blocks?: unknown[] }>
+          );
+        if (seqHydrated) {
+          mapped.pages = hydratedPages as typeof mapped.pages;
+        }
       }
 
       setLesson(mapped);
@@ -1937,6 +2112,8 @@ const EditLessonPage: React.FC = () => {
         block.role = opts.role.trim();
       } else if (block.type === "dragDropMatch") {
         block.role = "match";
+      } else if (block.type === "graph") {
+        block.role = "graph";
       }
       if (opts?.title !== undefined) block.title = opts.title ?? "";
       const insertAt = opts?.insertAt;
@@ -2036,6 +2213,8 @@ const EditLessonPage: React.FC = () => {
           instructions: "",
           pairs: [],
         };
+      } else if (type === "graph") {
+        block = emptyGraphBlock() as Record<string, unknown>;
       } else {
         block = { type, content: "" };
       }
@@ -2043,6 +2222,8 @@ const EditLessonPage: React.FC = () => {
         block.role = opts.role.trim();
       } else if (type === "dragDropMatch") {
         block.role = "match";
+      } else if (type === "graph") {
+        block.role = "graph";
       }
       if (opts?.title !== undefined) block.title = opts.title ?? "";
       const insertAt = opts?.insertAt;
@@ -3203,60 +3384,19 @@ const EditLessonPage: React.FC = () => {
     const sanitizedPages = (lesson.pages || []).map((p: any) => ({
         ...p,
         blocks: (p.blocks || []).map((b: any) => {
-          if (normalizeBlockType(String(b?.type ?? "")) === "dragDropMatch") {
-            const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
-            const pairs = rawPairs
-              .slice(0, 20)
-              .map((row: any) => {
-                const img = readDragDropPairAnswerImageUrl(row);
-                return {
-                  id: String(row?.id ?? "").trim() || newId(),
-                  prompt: row?.prompt != null ? String(row.prompt).trim() : "",
-                  answer: row?.answer != null ? String(row.answer).trim() : "",
-                  explanation:
-                    row?.explanation != null && String(row.explanation).trim()
-                      ? String(row.explanation).trim()
-                      : undefined,
-                  ...(img ? { answerImageUrl: img } : {}),
-                };
-              })
-              .filter((row: { id: string }) => String(row.id).trim());
-            const zonePairIds = pairs.map((row: { id: string }) => row.id);
-            const rawZonesPersist = Array.isArray((b as { dropZones?: unknown }).dropZones)
-              ? (b as { dropZones: unknown[] }).dropZones
-              : [];
-            const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(
-              0,
-              40
-            );
-            const resolvedPersist = resolveDragDropMatchModeForPersist(b.matchMode, {
-              imageUrl: b.imageUrl,
-              dropZones: rawZonesPersist,
+          {
+            const ddmPersist = buildDragDropMatchBlockForPersist(b, {
+              newId,
+              logZoneBindings: logDragDropMatchZoneBindings,
             });
-            const ddmOut: Record<string, unknown> = {
-              type: "dragDropMatch",
-              title: typeof b.title === "string" ? b.title.trim() : "",
-              intro: b.intro != null ? String(b.intro).trim() : "",
-              instructions: b.instructions != null ? String(b.instructions).trim() : "",
-              pairs,
-            };
-            if (resolvedPersist === "diagram") {
-              ddmOut.matchMode = "diagram";
-              const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
-              if (imgP) ddmOut.imageUrl = imgP;
-              ddmOut.dropZones = dropZonesPersist;
-              logDragDropMatchZoneBindings("persist payload (diagram)", dropZonesPersist, pairs as { id: string; answer?: string }[]);
-            } else if (resolvedPersist === "text") {
-              ddmOut.matchMode = "text";
-            }
-            if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
-            return ddmOut;
+            if (ddmPersist) return ddmPersist;
+          }
+          if (normalizeBlockType(String(b?.type ?? "")) === "graph") {
+            return graphBlockForPersist(b);
           }
           if (b.type === "checkpoint") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            const markSchemeBlk = Array.isArray((b as LessonPageBlock).markScheme)
-              ? (b as LessonPageBlock).markScheme!.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
-              : undefined;
+            const markSchemeBlk = checkpointMarkSchemeLines((b as LessonPageBlock).markScheme);
             const cpOut: Record<string, unknown> = {
               type: "checkpoint",
               prompt: String(b.prompt ?? "").trim(),
@@ -3264,16 +3404,14 @@ const EditLessonPage: React.FC = () => {
               options: opts,
               correctAnswer: String(b.correctAnswer ?? "").trim(),
               explanation: b.explanation != null ? String(b.explanation).trim() : undefined,
-              ...(markSchemeBlk && markSchemeBlk.length ? { markScheme: markSchemeBlk } : {}),
+              ...(markSchemeBlk.length ? { markScheme: markSchemeBlk } : {}),
             };
             if (typeof b.role === "string" && b.role.trim()) cpOut.role = b.role.trim();
             return cpOut;
           }
           if (b.type === "selfCheck") {
             const opts = Array.isArray(b.options) ? b.options.map((o: string) => String(o ?? "").trim()) : [];
-            const markSchemeSc = Array.isArray((b as LessonPageBlock).markScheme)
-              ? (b as LessonPageBlock).markScheme!.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
-              : undefined;
+            const markSchemeSc = checkpointMarkSchemeLines((b as LessonPageBlock).markScheme);
             const scOut: Record<string, unknown> = {
               type: "selfCheck",
               prompt: String(b.prompt ?? "").trim(),
@@ -3321,18 +3459,20 @@ const EditLessonPage: React.FC = () => {
             return dOut;
           }
           if (b.type === "interactiveSequence") {
-            const rawSeq = Array.isArray(b.sequenceSteps) ? b.sequenceSteps : Array.isArray(b.steps) ? b.steps : [];
-            const sequenceSteps = rawSeq
-              .map((s: any) => {
-                const te = s?.testExplanation != null ? String(s.testExplanation).trim() : "";
+            const normalizedSeq = normalizeInteractiveSequenceBlockForEditor(
+              b as Record<string, unknown>
+            );
+            const sequenceSteps = (
+              Array.isArray(normalizedSeq.sequenceSteps) ? normalizedSeq.sequenceSteps : []
+            )
+              .map((s) => {
+                const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
                 return {
-                  ...(typeof s?.id === "string" && String(s.id).trim()
-                    ? { id: String(s.id).trim().slice(0, 64) }
-                    : {}),
-                  title: s?.title != null ? String(s.title).trim() : "",
-                  description: s?.description != null ? String(s.description).trim() : "",
-                  imageUrl: s?.imageUrl != null ? String(s.imageUrl).trim() : "",
-                  caption: s?.caption != null ? String(s.caption).trim() : "",
+                  ...(s.id ? { id: s.id } : {}),
+                  title: s.title,
+                  description: s.description,
+                  imageUrl: s.imageUrl,
+                  caption: s.caption,
                   ...(te ? { testExplanation: te } : {}),
                 };
               })
@@ -3373,7 +3513,10 @@ const EditLessonPage: React.FC = () => {
           if (typeof b.title === "string" && b.title.trim()) contentOut.title = b.title.trim();
           if (typeof b.role === "string" && b.role.trim()) contentOut.role = b.role.trim();
           return contentOut;
-        }),
+        })
+          .map((out: Record<string, unknown>, idx: number) =>
+            attachLearningMetaForPersist(out, (p.blocks || [])[idx])
+          ),
       }));
 
       // Build quiz.questions from pageQuiz blocks + existing end-of-lesson questions
@@ -3414,13 +3557,23 @@ const EditLessonPage: React.FC = () => {
       );
       const mergedQuizQuestions = [...pageQuizQuestions, ...bankAttachedPageQuiz, ...endOfLessonQuestions];
 
+    warnLearningMetaIfMissing(sanitizedPages, "edit lesson");
+
     return {
       title: lesson.title,
       description: lesson.description,
       subject: lesson.subject,
       level: lesson.level,
       topic: lesson.topic,
-      topicKey: topicKeyForBank ?? lesson.topicKey ?? undefined,
+      topicKey:
+        normalizeLessonTopicSlugFromLesson({
+          ...lesson,
+          specKey: (lesson as { specKey?: string }).specKey,
+          canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
+        }).namespaced ??
+        topicKeyForBank ??
+        lesson.topicKey ??
+        undefined,
       specKey: (lesson as { specKey?: string }).specKey ?? undefined,
       mainTopic: (lesson as { mainTopic?: string }).mainTopic ?? undefined,
       subTopic: (lesson as { subTopic?: string }).subTopic ?? undefined,
@@ -4770,6 +4923,8 @@ const EditLessonPage: React.FC = () => {
                 );
               })()}
 
+              <LearningIntelligenceSummaryPanel pages={lesson?.pages ?? []} />
+
               {/* Card 4: Practice questions (in this lesson) — Lane A */}
               <div id="edit-lesson-practice-lane" style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
                 <div style={{ fontWeight: 900, marginBottom: 8 }}>Practice questions (in this lesson)</div>
@@ -5350,7 +5505,11 @@ const EditLessonPage: React.FC = () => {
                   <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
                     {(currentPage?.blocks || []).map((b, idx) => {
                       if (!b) return null;
-                      const blockType = normalizeBlockType(b.type);
+                      const blockType = blockLooksLikeInteractiveSequence(
+                        b as unknown as Record<string, unknown>
+                      )
+                        ? "interactiveSequence"
+                        : normalizeBlockType(b.type);
                       const key = `${currentPage!.pageId}:${idx}`;
                       const isUploading = uploadingKey === key;
                       const isCheckpoint = blockType === "checkpoint";
@@ -5359,6 +5518,7 @@ const EditLessonPage: React.FC = () => {
                       const isInteractiveSequence = blockType === "interactiveSequence";
                       const isInteractiveDiagram = blockType === "interactiveDiagram";
                       const isDragDropMatch = blockType === "dragDropMatch";
+                      const isGraph = blockType === "graph";
                       const cp = isCheckpoint || isSelfCheck ? b : null;
                       const d = isDiagram ? b : null;
                       const opts = (cp?.options ?? ["", "", "", ""]).slice(0, 6);
@@ -5474,7 +5634,7 @@ const EditLessonPage: React.FC = () => {
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                             {blockType !== "text" && (
                               <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                                <div style={{ fontWeight: 900 }}>{BLOCK_META[blockType].label}</div>
+                                <div style={{ fontWeight: 900 }}>{lessonBlockDisplayLabel(blockType, idx, (b as { title?: string }).title)}</div>
                                 {BLOCK_META[blockType].subtitle ? (
                                   <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, lineHeight: 1.35 }}>
                                     {BLOCK_META[blockType].subtitle}
@@ -5546,7 +5706,8 @@ const EditLessonPage: React.FC = () => {
                                 !isDiagram &&
                                 !isInteractiveSequence &&
                                 !isInteractiveDiagram &&
-                                !isDragDropMatch && (
+                                !isDragDropMatch &&
+                                !isGraph && (
                                 <button
                                   onClick={() => triggerBlockUpload(currentPage!.pageId, idx)}
                                   disabled={isUploading}
@@ -5787,7 +5948,7 @@ const EditLessonPage: React.FC = () => {
                                 </div>
                                 <LessonAutoTextarea
                                   editorVariant="plain"
-                                  value={(cp.markScheme ?? []).join("\n")}
+                                  value={checkpointMarkSchemeEditorText(cp.markScheme)}
                                   onChange={(v) =>
                                     updateBlock(currentPage!.pageId, idx, {
                                       markScheme: v
@@ -6630,6 +6791,10 @@ const EditLessonPage: React.FC = () => {
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
+                              <p style={{ margin: 0, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+                                Step images are optional, but recommended. Upload one image per step for best
+                                results.
+                              </p>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                                 <button
                                   type="button"
@@ -6685,14 +6850,9 @@ const EditLessonPage: React.FC = () => {
                                     const cur = Array.isArray((b as LessonPageBlock).sequenceSteps)
                                       ? [...((b as LessonPageBlock).sequenceSteps as NonNullable<LessonPageBlock["sequenceSteps"]>)]
                                       : [];
-                                    cur.push({
-                                      id: newId(),
-                                      title: "",
-                                      description: "",
-                                      imageUrl: "",
-                                      caption: "",
-                                      testExplanation: "",
-                                    });
+                                    cur.push(
+                                      createInteractiveSequenceStepEntry(b as LessonPageBlock, cur)
+                                    );
                                     updateBlock(currentPage!.pageId, idx, { sequenceSteps: cur });
                                   }}
                                   style={{
@@ -6877,6 +7037,22 @@ const EditLessonPage: React.FC = () => {
                                         style={{ fontSize: "0.875rem" }}
                                       />
                                     </label>
+                                    {!String(step.imageUrl ?? "").trim() ? (
+                                      <p
+                                        style={{
+                                          margin: "0 0 10px",
+                                          padding: "10px 12px",
+                                          borderRadius: 8,
+                                          border: "1px dashed #a78bfa",
+                                          background: "#faf5ff",
+                                          color: "#6d28d9",
+                                          fontSize: 13,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        Add an image for this step
+                                      </p>
+                                    ) : null}
                                     <label style={{ display: "block", marginBottom: 8 }}>
                                       <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
                                         Image URL (optional — or upload)
@@ -7186,12 +7362,7 @@ const EditLessonPage: React.FC = () => {
                                     updateBlock(currentPage!.pageId, idx, {
                                       hotspots: [
                                         ...h,
-                                        {
-                                          id: newId(),
-                                          label: "New hotspot",
-                                          description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
-                                          explanation: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
-                                        },
+                                        createInteractiveDiagramHotspotEntry(b as LessonPageBlock, h),
                                       ],
                                     });
                                   }}
@@ -7545,14 +7716,11 @@ const EditLessonPage: React.FC = () => {
                                               updateBlock(currentPage!.pageId, idx, {
                                                 hotspots: [
                                                   ...hlist,
-                                                  {
-                                                    id: newId(),
-                                                    x,
-                                                    y,
-                                                    label: "New hotspot",
-                                                    description: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
-                                                    explanation: DEFAULT_INTERACTIVE_DIAGRAM_HOTSPOT_DESCRIPTION,
-                                                  },
+                                                  createInteractiveDiagramHotspotEntry(
+                                                    b as LessonPageBlock,
+                                                    hlist,
+                                                    { x, y }
+                                                  ),
                                                 ],
                                               });
                                             }}
@@ -8240,6 +8408,13 @@ const EditLessonPage: React.FC = () => {
                                 const pairsList = (Array.isArray((b as LessonPageBlock).pairs)
                                   ? (b as LessonPageBlock).pairs!
                                   : []) as NonNullable<LessonPageBlock["pairs"]>;
+                                const ddmPairLabels = dragDropPairEditorLabels(
+                                  resolveDragDropMatchModeForUi((b as LessonPageBlock).matchMode, {
+                                    imageUrl: (b as LessonPageBlock).imageUrl,
+                                    dropZones: (b as LessonPageBlock).dropZones,
+                                  })
+                                );
+                                const ddmTtiMode = ddmPairLabels.prompt === "Draggable text";
                                 return (
                                   <div
                                     key={pair.id || `pair-${pi}`}
@@ -8254,7 +8429,7 @@ const EditLessonPage: React.FC = () => {
                                       Pair {pi + 1}
                                     </div>
                                     <label style={{ display: "block", marginBottom: 8 }}>
-                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Prompt</div>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>{ddmPairLabels.prompt}</div>
                                       <input
                                         value={pair.prompt ?? ""}
                                         onChange={(e) => {
@@ -8271,7 +8446,7 @@ const EditLessonPage: React.FC = () => {
                                       />
                                     </label>
                                     <label style={{ display: "block", marginBottom: 8 }}>
-                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Answer</div>
+                                      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>{ddmPairLabels.answer}</div>
                                       <input
                                         value={pair.answer ?? ""}
                                         onChange={(e) => {
@@ -8290,7 +8465,13 @@ const EditLessonPage: React.FC = () => {
                                     {(() => {
                                       const ddmPairKey = `${key}:ddm-pair:${pi}`;
                                       const pairImgUploading = uploadingKey === ddmPairKey;
-                                      const rawPairImg = String(pair.answerImageUrl ?? "").trim();
+                                      const rawPairImg = ddmTtiMode
+                                        ? String(
+                                            readDragDropPairTargetImageUrl(pair) ??
+                                              pair.imageUrl ??
+                                              ""
+                                          ).trim()
+                                        : String(pair.answerImageUrl ?? "").trim();
                                       const pairImgSrc =
                                         rawPairImg && hasRenderableLessonImageSrc(rawPairImg)
                                           ? makeAbsoluteAssetUrl(rawPairImg) ?? rawPairImg
@@ -8298,7 +8479,7 @@ const EditLessonPage: React.FC = () => {
                                       return (
                                         <div style={{ marginBottom: 8 }}>
                                           <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
-                                            Answer image (optional)
+                                            {ddmPairLabels.image}
                                           </div>
                                           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6, lineHeight: 1.4 }}>
                                             Paste a URL or upload — same storage as diagram / sequence images (
@@ -8321,7 +8502,11 @@ const EditLessonPage: React.FC = () => {
                                                 pi,
                                                 (url) => {
                                                   const next = [...pairsList];
-                                                  if (next[pi]) next[pi] = { ...next[pi], answerImageUrl: url };
+                                                  if (next[pi]) {
+                                                    next[pi] = ddmTtiMode
+                                                      ? { ...next[pi], imageUrl: url, answerImageUrl: undefined }
+                                                      : { ...next[pi], answerImageUrl: url };
+                                                  }
                                                   updateBlock(currentPage!.pageId, idx, { pairs: next });
                                                 }
                                               );
@@ -8342,11 +8527,18 @@ const EditLessonPage: React.FC = () => {
                                                 Image URL
                                               </span>
                                               <input
-                                                value={pair.answerImageUrl ?? ""}
+                                                value={
+                                                  ddmTtiMode
+                                                    ? String(pair.imageUrl ?? readDragDropPairTargetImageUrl(pair) ?? "")
+                                                    : String(pair.answerImageUrl ?? "")
+                                                }
                                                 onChange={(e) => {
                                                   const next = [...pairsList];
-                                                  if (next[pi])
-                                                    next[pi] = { ...next[pi], answerImageUrl: e.target.value };
+                                                  if (next[pi]) {
+                                                    next[pi] = ddmTtiMode
+                                                      ? { ...next[pi], imageUrl: e.target.value }
+                                                      : { ...next[pi], answerImageUrl: e.target.value };
+                                                  }
                                                   updateBlock(currentPage!.pageId, idx, { pairs: next });
                                                 }}
                                                 placeholder="https://… or path after upload"
@@ -8428,8 +8620,11 @@ const EditLessonPage: React.FC = () => {
                                                   type="button"
                                                   onClick={() => {
                                                     const next = [...pairsList];
-                                                    if (next[pi])
-                                                      next[pi] = { ...next[pi], answerImageUrl: "" };
+                                                    if (next[pi]) {
+                                                      next[pi] = ddmTtiMode
+                                                        ? { ...next[pi], imageUrl: "", answerImageUrl: undefined }
+                                                        : { ...next[pi], answerImageUrl: "" };
+                                                    }
                                                     updateBlock(currentPage!.pageId, idx, { pairs: next });
                                                   }}
                                                   style={{
@@ -8493,6 +8688,48 @@ const EditLessonPage: React.FC = () => {
                                   </div>
                                 );
                               })}
+                            </div>
+                          ) : isGraph ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
+                                <input
+                                  value={safeStr((b as LessonPageBlock).title, "")}
+                                  onChange={(e) => updateBlock(currentPage!.pageId, idx, { title: e.target.value })}
+                                  style={{
+                                    width: "100%",
+                                    padding: "10px 12px",
+                                    borderRadius: 10,
+                                    border: "2px solid rgba(0,0,0,0.14)",
+                                  }}
+                                  placeholder="e.g. Limiting factors in photosynthesis"
+                                />
+                              </label>
+                              <label style={{ display: "block" }}>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Intro</div>
+                                <LessonAutoTextarea
+                                  editorVariant="plain"
+                                  value={safeStr((b as LessonPageBlock).intro, "")}
+                                  onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
+                                  placeholder="Brief context before the graph…"
+                                  minHeightPx={80}
+                                  style={{ fontSize: "0.9375rem" }}
+                                />
+                              </label>
+                              <GraphBlockAuthoring
+                                blk={b as import("../components/lesson/GraphBlockAuthoring").GraphBlockAuthoringBlock}
+                                onPatch={(patch) =>
+                                  updateBlock(
+                                    currentPage!.pageId,
+                                    idx,
+                                    patch as unknown as Partial<LessonPageBlock>
+                                  )
+                                }
+                                lessonTitle={safeStr(lesson?.title, "")}
+                                pageTitle={safeStr(currentPage?.title, "")}
+                                subject={safeStr(lesson?.subject, "")}
+                                level={safeStr(lesson?.level, "")}
+                              />
                             </div>
                           ) : (
                             <>
@@ -8604,6 +8841,7 @@ const EditLessonPage: React.FC = () => {
                                 });
                                 const optsFour = coerceLessonMcqOptionsFour(structured.options);
                                 const opts = [...optsFour];
+                                const parsedMarkScheme = markSchemeFromFlexibleCheckpointParse(structured);
                                 const clearInteractive: Partial<LessonPageBlock> = {
                                   pairs: [],
                                   sequenceSteps: [],
@@ -8626,16 +8864,20 @@ const EditLessonPage: React.FC = () => {
                                     correctAnswer: structured.correctAnswer,
                                     explanation: structured.explanation || "",
                                     role: "quickCheck",
-                                    markScheme: [],
+                                    ...(parsedMarkScheme?.length
+                                      ? { markScheme: parsedMarkScheme }
+                                      : { markScheme: [] }),
                                   });
                                   updateCheckpoint(pid, {
                                     question: structured.prompt,
                                     options: opts,
                                     answer: structured.correctAnswer,
                                     explanation: structured.explanation || "",
-                                    ...(Array.isArray(cpPg?.markScheme) && cpPg!.markScheme!.length
-                                      ? { markScheme: [...cpPg!.markScheme!] }
-                                      : {}),
+                                    ...(parsedMarkScheme?.length
+                                      ? { markScheme: parsedMarkScheme }
+                                      : Array.isArray(cpPg?.markScheme) && cpPg!.markScheme!.length
+                                        ? { markScheme: [...cpPg!.markScheme!] }
+                                        : {}),
                                   });
                                 } else {
                                   updateBlock(pid, idx, {
@@ -8648,6 +8890,9 @@ const EditLessonPage: React.FC = () => {
                                     correctAnswer: structured.correctAnswer,
                                     explanation: structured.explanation || "",
                                     role: "selfCheck",
+                                    ...(parsedMarkScheme?.length
+                                      ? { markScheme: parsedMarkScheme }
+                                      : {}),
                                   });
                                 }
                                 setTimeout(() => {
@@ -9128,6 +9373,93 @@ const EditLessonPage: React.FC = () => {
                         </div>
                       );
                     }
+                    if (blockType === "graph") {
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          <GraphBlock block={b} showAnswers />
+                        </div>
+                      );
+                    }
+                    if (blockType === "diagram") {
+                      const d = b as {
+                        imageUrl?: string;
+                        caption?: string;
+                        content?: string;
+                      };
+                      const img = diagramImageUrlForPreview(d.imageUrl);
+                      const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
+                      const md = diagramMarkdownContentForPreview(blockContent, img);
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
+                            <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
+                              <img
+                                src={imgSrc}
+                                alt={safeStr(d.caption, "") || "Diagram"}
+                                style={lessonImageFrameImgStyle}
+                                onError={hideBrokenLessonImage}
+                              />
+                            </LessonImageFrame>
+                          ) : null}
+                          {md ? (
+                            <div className="lesson-content" style={getBlockStyle(blockType)}>
+                              <LessonRenderer
+                                key={`preview-diag-md-${currentPage!.pageId}-${idx}`}
+                                text={md}
+                                markdownComponents={markdownComponents as any}
+                                urlTransform={(url: string) => {
+                                  try {
+                                    const decoded = url?.includes("%")
+                                      ? decodeURIComponent(url)
+                                      : (url ?? "");
+                                    const abs = makeAbsoluteAssetUrl(decoded);
+                                    if (abs) return abs;
+                                    return defaultUrlTransform(url ?? "");
+                                  } catch {
+                                    return defaultUrlTransform(url ?? "");
+                                  }
+                                }}
+                              />
+                            </div>
+                          ) : !imgSrc ? (
+                            <p
+                              style={{
+                                margin: "6px 0 0",
+                                fontSize: "0.75rem",
+                                color: "#94a3b8",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Diagram image not set
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    }
                     if (blockType === "dragDropMatch") {
                       const ddm = b as {
                         title?: string;
@@ -9185,24 +9517,19 @@ const EditLessonPage: React.FC = () => {
                               title: safeStr(ddm.title, ""),
                               intro: safeStr(ddm.intro, ""),
                               instructions: safeStr(ddm.instructions, ""),
-                              ...((ddm as LessonPageBlock).matchMode === "diagram" ||
-                              (ddm as LessonPageBlock).matchMode === "text"
-                                ? { matchMode: (ddm as LessonPageBlock).matchMode }
-                                : {}),
-                              ...((ddm as LessonPageBlock).imageUrl != null &&
+                              ...(() => {
+                                const mm = dragDropMatchModeForBlockProps(
+                                  (ddm as LessonPageBlock).matchMode
+                                );
+                                return mm ? { matchMode: mm } : {};
+                              })(),
+                              ...(dragDropMatchModeForBlockProps((ddm as LessonPageBlock).matchMode) ===
+                                "diagram" &&
+                              (ddm as LessonPageBlock).imageUrl != null &&
                               String((ddm as LessonPageBlock).imageUrl).trim()
                                 ? { imageUrl: String((ddm as LessonPageBlock).imageUrl).trim() }
                                 : {}),
-                              pairs: previewPairsRaw.map((p, i) => {
-                                const img = readDragDropPairAnswerImageUrl(p);
-                                return {
-                                  id: String(p?.id ?? "").trim() || `pair_${i}`,
-                                  prompt: String(p?.prompt ?? ""),
-                                  answer: String(p?.answer ?? ""),
-                                  explanation: p?.explanation != null ? String(p.explanation) : undefined,
-                                  ...(img ? { answerImageUrl: img } : {}),
-                                };
-                              }),
+                              pairs: previewPairsRaw.map((p, i) => mapDragDropPairForBlockRender(p, i)),
                               ...(Array.isArray((ddm as LessonPageBlock).dropZones)
                                 ? {
                                     dropZones: (ddm as LessonPageBlock).dropZones!.map((z, i) => {

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "templateId": "lr.process.linear.v1",
+      "engine": "process-diagram-linear",
+      "layout": "linear",
+      "capabilities": ["overview", "steps", "hotspots", "sequence"],
+      "brandPack": "letsrevise-brand.json",
+      "dataSchema": "process.v1"
+    }
+  ]
+}

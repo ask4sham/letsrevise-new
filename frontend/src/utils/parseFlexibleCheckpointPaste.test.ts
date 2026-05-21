@@ -88,6 +88,36 @@ Four`;
     expect(p.options[1]).toContain("Four");
   });
 
+  it("parses MCQ with <details><summary>Reveal Answer</summary> and no Answer: line (answer from details)", () => {
+    const raw = `**⚡ CHECKPOINT**
+
+Question:
+Which is smallest?
+
+Option 1:
+Cell
+
+Option 2:
+Tissue
+
+Option 3:
+Organ
+
+Option 4:
+Organ system
+
+<details><summary>Reveal Answer</summary>
+Cell
+</details>`;
+
+    const p = tryParseFlexibleCheckpointMcq(raw)!;
+    expect(p).not.toBeNull();
+    expect(p.prompt).toMatch(/smallest/i);
+    expect(p.prompt).not.toMatch(/Reveal:\s*Reveal/i);
+    expect(p.correctAnswer).toMatch(/^Cell$/i);
+    expect(p.options[0]).toMatch(/Cell/i);
+  });
+
   it("returns null for legacy HTML MCQ with no Answer line (preview-only export)", () => {
     const raw = `<p><strong>Question</strong></p>
 <p>Pick one</p>
@@ -168,6 +198,55 @@ Plants convert light energy into chemical energy.`;
     expect(p.options[2]).toMatch(/Using light to make glucose/);
     expect(p.correctAnswer).toBe(p.options[2]);
     expect(p.explanation).toMatch(/Plants convert/i);
+  });
+
+  it("parses Difficulty: medium before Question (generator tiering)", () => {
+    const raw = `**⚡ CHECKPOINT**
+
+Difficulty: medium
+
+Question:
+Which process uses enzymes?
+
+Option 1:
+Photosynthesis
+
+Option 2:
+Digestion
+
+Option 3:
+Respiration
+
+Option 4:
+Diffusion
+
+Answer:
+Digestion`;
+
+    const p = tryParseFlexibleCheckpointMcq(raw)!;
+    expect(p).not.toBeNull();
+    expect(p.difficultyTier).toBe("medium");
+    expect(p.markScheme).toEqual(["@lr-difficulty:medium"]);
+    expect(p.prompt).toMatch(/enzymes/i);
+    expect(p.correctAnswer).toBe("Digestion");
+  });
+
+  it("parses Difficulty with foundation alias", () => {
+    const raw = `QUICK CHECK
+Difficulty: foundation
+Question: State one function of the nucleus.
+
+Option 1: Stores DNA
+Option 2: Makes proteins
+Option 3: Digests food
+Option 4: Absorbs light
+
+Answer:
+Stores DNA`;
+
+    const p = tryParseFlexibleCheckpointMcq(raw)!;
+    expect(p.difficultyTier).toBe("easy");
+    expect(p.markScheme?.[0]).toBe("@lr-difficulty:easy");
   });
 
   it("coerceLessonMcqOptionsFour normalises arrays and numeric-key objects to four strings", () => {

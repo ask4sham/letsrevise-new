@@ -1,12 +1,16 @@
 import React, { useEffect, useState, type CSSProperties } from "react";
 import {
   generateDragDropPairsFromText,
+  generateGraphBlockFromPrompt,
   generateInteractiveDiagramHotspotsFromConcept,
   generateInteractiveSequenceStepsFromTopic,
   type AISequenceStepDraft,
   type DragDropPair,
+  type GraphBlockAiDraft,
   type InteractiveDiagramHotspotAiDraft,
 } from "../../api/ai";
+import { GRAPH_BLOCK_TEMPLATES } from "./graphBlockTemplates";
+import { createGraphAnnotationId, createGraphSeriesId, emptyGraphBlock } from "./graphBlockTypes";
 import { INTERACTIVE_DIAGRAM_TEMPLATES, type InteractiveDiagramTemplate } from "./interactiveDiagramTemplates";
 import { INTERACTIVE_SEQUENCE_TEMPLATES } from "./interactiveSequenceTemplates";
 import {
@@ -20,6 +24,7 @@ export const INTERACTIVE_TYPES_WITH_CREATION_DIALOG: LessonBlockType[] = [
   "interactiveSequence",
   "interactiveDiagram",
   "dragDropMatch",
+  "graph",
 ];
 
 function createLocalBlockId() {
@@ -30,7 +35,7 @@ type CreationMode = "empty" | "template" | "ai";
 
 export type InteractiveBlockCreationDialogProps = {
   open: boolean;
-  blockType: "interactiveSequence" | "interactiveDiagram" | "dragDropMatch";
+  blockType: "interactiveSequence" | "interactiveDiagram" | "dragDropMatch" | "graph";
   /** Lesson context for AI */
   lessonTitle?: string;
   pageTitle?: string;
@@ -48,6 +53,7 @@ const TITLE: Record<InteractiveBlockCreationDialogProps["blockType"], string> = 
   interactiveSequence: "Add interactive sequence",
   interactiveDiagram: "Add interactive diagram",
   dragDropMatch: "Add drag and drop match",
+  graph: "Add graph / data visualisation",
 };
 
 function emptyBlock(blockType: InteractiveBlockCreationDialogProps["blockType"], newId: typeof createLocalBlockId): Record<string, unknown> {
@@ -70,6 +76,9 @@ function emptyBlock(blockType: InteractiveBlockCreationDialogProps["blockType"],
       hotspots: [],
     };
   }
+  if (blockType === "graph") {
+    return emptyGraphBlock();
+  }
   return {
     type: "dragDropMatch",
     content: "",
@@ -77,6 +86,51 @@ function emptyBlock(blockType: InteractiveBlockCreationDialogProps["blockType"],
     intro: "",
     instructions: "",
     pairs: [],
+  };
+}
+
+function blockFromGraphTemplate(templateId: string): Record<string, unknown> {
+  const tmpl = GRAPH_BLOCK_TEMPLATES.find((t) => t.id === templateId);
+  if (!tmpl) return emptyGraphBlock();
+  return {
+    type: "graph",
+    content: "",
+    ...tmpl.payload,
+    graphSeries: (tmpl.payload.graphSeries ?? []).map((s) => ({
+      ...s,
+      id: createGraphSeriesId(),
+    })),
+    graphAnnotations: (tmpl.payload.graphAnnotations ?? []).map((a) => ({
+      ...a,
+      id: createGraphAnnotationId(),
+    })),
+  };
+}
+
+function graphBlockFromAiDraft(draft: GraphBlockAiDraft): Record<string, unknown> {
+  return {
+    type: "graph",
+    content: "",
+    title: draft.title,
+    intro: draft.intro,
+    graphType: draft.graphType,
+    xAxisLabel: draft.xAxisLabel,
+    yAxisLabel: draft.yAxisLabel,
+    xUnits: draft.xUnits,
+    yUnits: draft.yUnits,
+    graphSeries: draft.graphSeries.map((s) => ({
+      id: createGraphSeriesId(),
+      label: s.label,
+      points: s.points,
+    })),
+    graphAnnotations: draft.graphAnnotations.map((a) => ({
+      id: createGraphAnnotationId(),
+      text: a.text,
+      ...(a.kind === "trend" || a.kind === "callout" ? { kind: a.kind } : {}),
+    })),
+    examQuestion: draft.examQuestion,
+    markScheme: draft.markScheme,
+    examinerTip: draft.examinerTip,
   };
 }
 
@@ -203,6 +257,9 @@ export function InteractiveBlockCreationDialog({
   );
   const [diagramTemplateId, setDiagramTemplateId] = useState<string>("");
   const [dragDropTemplateChoice, setDragDropTemplateChoice] = useState<string>("");
+  const [graphTemplateChoice, setGraphTemplateChoice] = useState<string>(
+    GRAPH_BLOCK_TEMPLATES[0]?.id ?? ""
+  );
 
   const [aiPrompt, setAiPrompt] = useState("");
   /** Optional counts for sequence / diagram AI */
@@ -212,6 +269,7 @@ export function InteractiveBlockCreationDialog({
   const [aiPairs, setAiPairs] = useState<DragDropPair[]>([]);
   const [aiSequenceDrafts, setAiSequenceDrafts] = useState<AISequenceStepDraft[]>([]);
   const [aiDiagramDrafts, setAiDiagramDrafts] = useState<InteractiveDiagramHotspotAiDraft[]>([]);
+  const [aiGraphDraft, setAiGraphDraft] = useState<GraphBlockAiDraft | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiErr, setAiErr] = useState<string | null>(null);
 
@@ -221,12 +279,14 @@ export function InteractiveBlockCreationDialog({
     setSequenceTemplateChoice(INTERACTIVE_SEQUENCE_TEMPLATES[0]?.id ?? "");
     setDiagramTemplateId("");
     setDragDropTemplateChoice("");
+    setGraphTemplateChoice(GRAPH_BLOCK_TEMPLATES[0]?.id ?? "");
     setAiPrompt("");
     setAiSeqStepsCountRaw("");
     setAiDiagHotspotsCountRaw("");
     setAiPairs([]);
     setAiSequenceDrafts([]);
     setAiDiagramDrafts([]);
+    setAiGraphDraft(null);
     setAiLoading(false);
     setAiErr(null);
   }, [open, blockType]);
@@ -239,20 +299,23 @@ export function InteractiveBlockCreationDialog({
     mode === "ai" &&
     ((blockType === "dragDropMatch" && aiPairs.length > 0) ||
       (blockType === "interactiveSequence" && aiSequenceDrafts.length > 0) ||
-      (blockType === "interactiveDiagram" && aiDiagramDrafts.length > 0));
+      (blockType === "interactiveDiagram" && aiDiagramDrafts.length > 0) ||
+      (blockType === "graph" && aiGraphDraft != null));
 
   const canSubmitTemplate =
     mode !== "template" ||
     (blockType === "interactiveSequence" && sequenceTemplateChoice.trim().length > 0) ||
     (blockType === "interactiveDiagram" && diagramTemplateId.trim().length > 0) ||
-    (blockType === "dragDropMatch" && dragDropTemplateChoice.trim().length > 0);
+    (blockType === "dragDropMatch" && dragDropTemplateChoice.trim().length > 0) ||
+    (blockType === "graph" && graphTemplateChoice.trim().length > 0);
 
   const canSubmitAi =
     mode !== "ai" ||
     (!aiLoading &&
       ((blockType === "dragDropMatch" && aiPairs.length > 0) ||
         (blockType === "interactiveSequence" && aiSequenceDrafts.length > 0) ||
-        (blockType === "interactiveDiagram" && aiDiagramDrafts.length > 0)));
+        (blockType === "interactiveDiagram" && aiDiagramDrafts.length > 0) ||
+        (blockType === "graph" && aiGraphDraft != null)));
 
   const canSubmit =
     mode === "empty" ? true : mode === "template" ? canSubmitTemplate : canSubmitAi;
@@ -277,10 +340,19 @@ export function InteractiveBlockCreationDialog({
         onConfirm(blockFromDragDropCellOrganelles(newId));
         return;
       }
+      if (blockType === "graph" && graphTemplateChoice.trim()) {
+        onConfirm(blockFromGraphTemplate(graphTemplateChoice));
+        return;
+      }
       return;
     }
 
     /** mode === "ai" — block must be populated; never emit empty placeholders */
+    if (blockType === "graph") {
+      if (!aiGraphDraft || aiLoading) return;
+      onConfirm(graphBlockFromAiDraft(aiGraphDraft));
+      return;
+    }
     if (blockType === "dragDropMatch") {
       if (aiPairs.length === 0 || aiLoading) return;
       const pairsPayload = aiPairs.map((row) => ({
@@ -434,9 +506,35 @@ export function InteractiveBlockCreationDialog({
     }
   };
 
+  const runGraphAi = async () => {
+    const prompt = aiPrompt.trim();
+    if (prompt.length < 8) {
+      setAiErr("Describe the graph you need (at least 8 characters).");
+      return;
+    }
+    setAiErr(null);
+    setAiLoading(true);
+    try {
+      const draft = await generateGraphBlockFromPrompt({
+        prompt,
+        lessonTitle,
+        pageTitle,
+        subject,
+        level,
+      });
+      setAiGraphDraft(draft);
+    } catch {
+      setAiErr("Generation failed. Try a clearer prompt.");
+      setAiGraphDraft(null);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const regenerateAi = () => {
     if (blockType === "dragDropMatch") return void runDragDropAi();
     if (blockType === "interactiveSequence") return void runSequenceAi();
+    if (blockType === "graph") return void runGraphAi();
     return void runDiagramAi();
   };
 
@@ -626,6 +724,19 @@ export function InteractiveBlockCreationDialog({
                       <option value={DRAG_DROP_TEMPLATE_CELL_ORGANELLES_ID}>Cell organelles → functions</option>
                     </select>
                   ) : null}
+                  {blockType === "graph" ? (
+                    <select
+                      value={graphTemplateChoice}
+                      onChange={(e) => setGraphTemplateChoice(e.target.value)}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
+                    >
+                      {GRAPH_BLOCK_TEMPLATES.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                 </div>
               ) : null}
             </span>
@@ -653,6 +764,9 @@ export function InteractiveBlockCreationDialog({
                   )}
                   {blockType === "interactiveDiagram" && (
                     <>Enter diagram concept — hotspots generate as text; you place pins later.</>
+                  )}
+                  {blockType === "graph" && (
+                    <>Describe the graph (e.g. limiting factors, enzyme activity) — AI generates data, axes, and exam questions.</>
                   )}
                 </span>
               </span>
@@ -899,6 +1013,39 @@ export function InteractiveBlockCreationDialog({
                         </li>
                       ))}
                     </ul>
+                  ) : null}
+                  {aiErr ? (
+                    <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>{aiErr}</div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {mode === "ai" && blockType === "graph" ? (
+                <div style={nestedExpandStyle} onMouseDown={stopLabelBubble} onClick={stopLabelBubble}>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="e.g. Limiting factors graph for photosynthesis"
+                    rows={3}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      fontFamily: "inherit",
+                    }}
+                  />
+                  <div style={{ marginTop: 8 }}>
+                    <button type="button" onClick={() => void runGraphAi()} disabled={aiLoading}>
+                      {aiLoading ? "Generating…" : "Generate graph"}
+                    </button>
+                  </div>
+                  {aiGraphDraft ? (
+                    <p style={{ margin: "10px 0 0", fontSize: 12, color: "#334155" }}>
+                      <strong>{aiGraphDraft.title}</strong>
+                    </p>
                   ) : null}
                   {aiErr ? (
                     <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>{aiErr}</div>

@@ -1,4 +1,18 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { CheckpointDifficultyBadge } from "./CheckpointDifficultyBadge";
+import {
+  isPlaceholderMcqOptions,
+  recoverMcqFieldsFromBlockContent,
+} from "../../utils/mcqPlaceholderOptions";
+
+/** Legacy paste/html conversion sometimes left summary UI text in the stem — strip so the purple reveal button is the only reveal. */
+function sanitizeSelfCheckPrompt(text: string): string {
+  return String(text ?? "")
+    .replace(/\bReveal\s*:\s*Reveal\s+Answer\b/gi, "")
+    .replace(/\bReveal\s*:\s*Reveal\s+model\s+answer\b/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 export type InlineSelfCheckBlockProps = {
   prompt: string;
@@ -6,9 +20,12 @@ export type InlineSelfCheckBlockProps = {
   options?: string[];
   correctAnswer: string;
   explanation?: string;
+  markScheme?: string[];
   presentation?: "default" | "v12";
   /** e.g. "Quick check" for checkpoint blocks; default "Self-check" */
   headingLabel?: string;
+  /** Generator HTML / CHECKPOINT paste — used when options are still placeholders. */
+  contentFallback?: string;
 };
 
 /**
@@ -20,13 +37,41 @@ export function InlineSelfCheckBlock({
   options = [],
   correctAnswer,
   explanation,
+  markScheme,
   presentation = "default",
   headingLabel = "Self-check",
+  contentFallback = "",
 }: InlineSelfCheckBlockProps): React.ReactElement {
   const [revealed, setRevealed] = useState(false);
   const v12 = presentation === "v12";
   const isMcq = questionType === "mcq";
-  const filledOptions = options.map((o) => String(o ?? "").trim()).filter(Boolean);
+
+  const resolved = useMemo(() => {
+    let p = sanitizeSelfCheckPrompt(String(prompt ?? ""));
+    let opts = options.map((o) => String(o ?? "").trim());
+    let ca = String(correctAnswer ?? "").trim();
+    let expl = String(explanation ?? "").trim();
+    if (isMcq && isPlaceholderMcqOptions(opts)) {
+      const recovered = recoverMcqFieldsFromBlockContent(contentFallback);
+      if (recovered) {
+        p = recovered.prompt || p;
+        opts = recovered.options;
+        ca = recovered.correctAnswer || ca;
+        expl = recovered.explanation || expl;
+      }
+    }
+    return {
+      prompt: p,
+      options: opts.filter(Boolean),
+      correctAnswer: ca,
+      explanation: expl,
+    };
+  }, [contentFallback, correctAnswer, explanation, isMcq, options, prompt]);
+
+  const displayPrompt = resolved.prompt;
+  const filledOptions = resolved.options;
+  const displayAnswer = resolved.correctAnswer;
+  const displayExplanation = resolved.explanation;
 
   const box: React.CSSProperties = v12
     ? {
@@ -62,6 +107,7 @@ export function InlineSelfCheckBlock({
       >
         {headingLabel}
       </div>
+      <CheckpointDifficultyBadge markScheme={markScheme} />
       <div
         style={{
           fontWeight: 700,
@@ -71,9 +117,9 @@ export function InlineSelfCheckBlock({
           lineHeight: 1.55,
         }}
       >
-        {prompt || "Question"}
+        {displayPrompt || "Question"}
       </div>
-      {isMcq && filledOptions.length > 0 ? (
+      {isMcq && filledOptions.length > 0 && !isPlaceholderMcqOptions(filledOptions) ? (
         <ol
           style={{
             margin: "0 0 12px 0",
@@ -87,6 +133,12 @@ export function InlineSelfCheckBlock({
             <li key={i}>{opt}</li>
           ))}
         </ol>
+      ) : null}
+      {isMcq && isPlaceholderMcqOptions(filledOptions) ? (
+        <p style={{ margin: "0 0 12px", color: "#64748b", fontSize: 14, lineHeight: 1.5 }}>
+          Options for this question were not saved correctly. Ask your teacher to re-import or edit this
+          self-check in Edit lesson.
+        </p>
       ) : null}
 
       <div style={{ marginTop: 10 }}>
@@ -119,11 +171,11 @@ export function InlineSelfCheckBlock({
         >
           <div style={{ fontSize: 14, color: "#374151" }}>
             <strong style={{ color: "#111827" }}>Answer:</strong>{" "}
-            <span>{String(correctAnswer ?? "").trim() || "—"}</span>
+            <span>{displayAnswer || "—"}</span>
           </div>
-          {explanation && String(explanation).trim() ? (
+          {displayExplanation ? (
             <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
-              <strong style={{ color: "#374151" }}>Explanation:</strong> {explanation.trim()}
+              <strong style={{ color: "#374151" }}>Explanation:</strong> {displayExplanation}
             </div>
           ) : null}
         </div>

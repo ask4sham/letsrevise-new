@@ -1,15 +1,34 @@
 import {
+  GENERATOR_KIND_TO_EDITOR_SPEC,
   LESSON_GENERATOR_EXPORT_FORMAT_V1,
 } from "../constants/lessonGeneratorExchange.v1";
+import { logImportDebug, isImportDebugEnabled } from "./lessonGeneratorImportDebug";
 import { normalizeBlockType, type LessonBlockType } from "../types/lessonBlocks";
 import {
   parseDragDropDiagramImageFit,
   parseDragDropDiagramImagePosition,
-  readDragDropPairAnswerImageUrl,
+  normalizeDragDropPairRow,
   resolveDragDropMatchModeForPersist,
   sanitizeDiagramDropZonesForAuthoring,
 } from "./dragDropMatchDiagram";
+import {
+  graphBlockForPersist,
+  mergeGraphBlockFromExportContent,
+} from "../components/lesson/graphBlockTypes";
 import { coerceLessonMcqOptionsFour } from "./parseFlexibleCheckpointPaste";
+import { applyDifficultyToMarkScheme, normalizeCheckpointDifficultyTier } from "./checkpointDifficulty";
+import {
+  isPlaceholderMcqOptions,
+  recoverMcqFieldsFromBlockContent,
+} from "./mcqPlaceholderOptions";
+import { stripSs1PrefixFromTitle } from "./formatBlockHeading";
+import { mergeLessonBlockIntroFields } from "./lessonRichText";
+import { canonicalSlugFromText } from "./normalizeLessonTopicKey";
+import { cleanSequenceStepDescription } from "./cleanSequenceStepDescription";
+import {
+  buildHotspotsFromGeneratorScript,
+  hydrateInteractiveSequenceStepsForEditor,
+} from "./parseGeneratorVisualScript";
 
 const VALID_STARTER_PAGE_CHECKPOINT = {
   question: "Which statement is correct?",
@@ -47,6 +66,9 @@ export type GeneratorExportV1Document = {
     examBoard?: string;
     topic?: string;
     tier?: string;
+    topicKey?: string;
+    canonicalTopicKey?: string;
+    topicResolvedFrom?: string;
   };
   pages: GeneratorExportV1Page[];
 };
@@ -68,6 +90,67 @@ function padOptions(raw: unknown): string[] {
   return [...coerceLessonMcqOptionsFour(raw)];
 }
 
+/** Persisted title: clean label only; student view adds `blockNumber —` via formatStudentBlockHeading. */
+function generatorImportBlockTitle(record: GeneratorExportV1Block): string {
+  const label = stripSs1PrefixFromTitle(
+    String(record.headingTitle ?? record.title ?? "").trim()
+  );
+  return label;
+}
+
+function attachBlockNumber(
+  block: Record<string, unknown>,
+  record: GeneratorExportV1Block
+): Record<string, unknown> {
+  const n = record.blockNumber;
+  if (typeof n === "number" && Number.isFinite(n) && n > 0) {
+    return { ...block, number: Math.trunc(n) };
+  }
+  return block;
+}
+
+function enrichMcqFromContentIfNeeded(
+  fields: {
+    prompt: string;
+    options: string[];
+    correctAnswer: string;
+    explanation: string;
+    content?: string;
+  },
+  contentRaw: unknown
+): typeof fields {
+  if (!isPlaceholderMcqOptions(fields.options)) return fields;
+  const recovered = recoverMcqFieldsFromBlockContent(contentRaw);
+  if (!recovered) return fields;
+  return {
+    ...fields,
+    prompt: recovered.prompt || fields.prompt,
+    options: recovered.options,
+    correctAnswer: recovered.correctAnswer || fields.correctAnswer,
+    explanation: recovered.explanation || fields.explanation,
+  };
+}
+
+
+function normalizeMcqCorrectAnswer(correctAnswer: string, options: string[]): string {
+  const ca = String(correctAnswer ?? "").trim();
+  if (!ca) return options.find((o) => String(o).trim())?.trim() || "";
+  const match = options.find(
+    (o) => String(o).trim().toLowerCase() === ca.toLowerCase()
+  );
+  return match != null ? String(match).trim() : ca;
+}
+
+/** Prefer editorType; recover from generatorBlockKind when export downgraded to text. */
+function resolveImportEditorType(record: GeneratorExportV1Block): LessonBlockType {
+  const fromEditor = normalizeBlockType(record.editorType);
+  if (fromEditor !== "text") return fromEditor;
+  const kind = String(record.generatorBlockKind ?? "").trim();
+  const spec = kind ? GENERATOR_KIND_TO_EDITOR_SPEC[kind] : undefined;
+  if (spec?.editorType) return normalizeBlockType(spec.editorType);
+  return fromEditor;
+}
+
 /** Page.checkpoint must mirror the first inline checkpoint block for CreateLesson save + student view. */
 function pageCheckpointFromFirstBlock(
   blocks: Record<string, unknown>[]
@@ -77,15 +160,24 @@ function pageCheckpointFromFirstBlock(
   };
   const cp = blocks.find((b) => b && String(b.type) === "checkpoint");
   if (!cp) return fallback;
-  const opts = padOptions(cp.options);
-  const q = String(cp.prompt ?? (cp as { question?: unknown }).question ?? "").trim();
-  const ans = String(cp.correctAnswer ?? (cp as { answer?: unknown }).answer ?? "").trim();
-  const expl = String(cp.explanation ?? "").trim();
+  let opts = padOptions(cp.options);
+  let q = String(cp.prompt ?? (cp as { question?: unknown }).question ?? "").trim();
+  let ans = String(cp.correctAnswer ?? (cp as { answer?: unknown }).answer ?? "").trim();
+  let expl = String(cp.explanation ?? "").trim();
+  const enrichedCp = enrichMcqFromContentIfNeeded(
+    { prompt: q, options: opts, correctAnswer: ans, explanation: expl },
+    cp.content
+  );
+  opts = enrichedCp.options;
+  q = enrichedCp.prompt;
+  ans = enrichedCp.correctAnswer;
+  expl = enrichedCp.explanation;
   const msRaw = cp.markScheme;
   const markScheme = Array.isArray(msRaw)
     ? msRaw.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
     : ([] as string[]);
-  const hasMcqBody = opts.filter(Boolean).length >= 2 && q.length > 0;
+  const hasMcqBody =
+    opts.filter((o) => o.trim() && !isPlaceholderMcqOptions([o])).length >= 2 && q.length > 0;
   if (!hasMcqBody) return fallback;
   return {
     question: q || fallback.question,
@@ -110,12 +202,20 @@ function elevateExtraImportedCheckpointsToSelfCheck(
       seenCheckpoint = true;
       return raw;
     }
-    const opts = padOptions(raw.options as unknown[]);
-    const prompt = String(raw.prompt ?? (raw as { question?: unknown }).question ?? "").trim();
-    const ca = String(
+    let opts = padOptions(raw.options as unknown[]);
+    let prompt = String(raw.prompt ?? (raw as { question?: unknown }).question ?? "").trim();
+    let ca = String(
       raw.correctAnswer ?? (raw as { answer?: unknown }).answer ?? ""
     ).trim();
-    const expl = String(raw.explanation ?? "").trim();
+    let expl = String(raw.explanation ?? "").trim();
+    const enriched = enrichMcqFromContentIfNeeded(
+      { prompt, options: opts, correctAnswer: ca, explanation: expl },
+      raw.content
+    );
+    opts = enriched.options;
+    prompt = enriched.prompt;
+    ca = enriched.correctAnswer;
+    expl = enriched.explanation;
     const msRaw = raw.markScheme;
     const markScheme = Array.isArray(msRaw)
       ? msRaw.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 20)
@@ -140,68 +240,156 @@ function elevateExtraImportedCheckpointsToSelfCheck(
 }
 
 function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unknown> {
-  const t = normalizeBlockType(record.editorType);
+  const t = resolveImportEditorType(record);
   const payload = record.payload ?? {};
-  const title = typeof record.title === "string" ? record.title : "";
+  const title = generatorImportBlockTitle(record);
   const role = typeof record.role === "string" ? record.role : undefined;
+
+  if (isImportDebugEnabled()) {
+    const missing: string[] = [];
+    if (t === "selfCheck" || t === "checkpoint") {
+      if (!String(payload.prompt ?? "").trim()) missing.push("prompt");
+      if (payload.questionType !== "short") {
+        const opts = Array.isArray(payload.options) ? payload.options : [];
+        if (opts.filter((o) => String(o).trim() && !/^\[Option \d/i.test(String(o))).length < 2) {
+          missing.push("options");
+        }
+      }
+      if (!String(payload.correctAnswer ?? "").trim()) missing.push("correctAnswer");
+    }
+    if (t === "interactiveDiagram" && !String(payload.imageUrl ?? "").trim()) {
+      missing.push("imageUrl");
+    }
+    if (t === "interactiveSequence") {
+      const steps = Array.isArray(payload.sequenceSteps) ? payload.sequenceSteps : [];
+      if (!steps.some((s) => String((s as { imageUrl?: string })?.imageUrl ?? "").trim())) {
+        missing.push("sequenceSteps.imageUrl");
+      }
+    }
+    if (t === "diagram" && !String(payload.imageUrl ?? "").trim()) {
+      missing.push("imageUrl");
+    }
+    logImportDebug("block", {
+      generatorBlockKind: record.generatorBlockKind,
+      exportedEditorType: record.editorType,
+      importedType: t,
+      role: role ?? null,
+      missing,
+      downgraded:
+        String(record.generatorBlockKind ?? "").includes("step-by-step") &&
+        record.editorType === "text",
+    });
+  }
 
   switch (t) {
     case "checkpoint": {
-      const opts = padOptions(payload.options);
-      const answer = String(payload.correctAnswer ?? payload.answer ?? opts[0] ?? "").trim();
-      return {
-        type: "checkpoint" as LessonBlockType,
-        content: "",
-        title,
-        ...(role ? { role } : {}),
-        prompt: String(
-          payload.prompt ?? (payload as { question?: unknown }).question ?? "Question"
-        ),
-        questionType: "mcq" as const,
-        options: opts,
-        correctAnswer: answer || opts[0] || "",
-        explanation: String(payload.explanation ?? ""),
-      };
+      let opts = padOptions(payload.options);
+      let prompt = String(
+        payload.prompt ?? (payload as { question?: unknown }).question ?? "Question"
+      );
+      let correctAnswer = String(payload.correctAnswer ?? payload.answer ?? opts[0] ?? "").trim();
+      let explanation = String(payload.explanation ?? "");
+      const enriched = enrichMcqFromContentIfNeeded(
+        { prompt, options: opts, correctAnswer, explanation },
+        payload.content
+      );
+      opts = enriched.options;
+      prompt = enriched.prompt;
+      correctAnswer = enriched.correctAnswer || opts[0] || "";
+      explanation = enriched.explanation;
+      const tier = normalizeCheckpointDifficultyTier(
+        (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
+          (payload as { difficulty?: unknown }).difficulty
+      );
+      const markScheme = applyDifficultyToMarkScheme(
+        Array.isArray(payload.markScheme)
+          ? (payload.markScheme as string[]).map((x) => String(x ?? ""))
+          : undefined,
+        tier
+      );
+      return attachBlockNumber(
+        {
+          type: "checkpoint" as LessonBlockType,
+          content: String(payload.content ?? ""),
+          title,
+          ...(role ? { role } : {}),
+          prompt,
+          questionType: "mcq" as const,
+          options: opts,
+          correctAnswer,
+          explanation,
+          ...(markScheme?.length ? { markScheme } : {}),
+        },
+        record
+      );
     }
     case "selfCheck": {
       const qType = payload.questionType === "short" ? "short" : "mcq";
-      const opts = padOptions(payload.options);
-      return {
-        type: "selfCheck" as const,
-        content: String(payload.content ?? ""),
-        title,
-        ...(role ? { role } : {}),
-        prompt: String(payload.prompt ?? "Question"),
-        questionType: qType,
-        options: qType === "short" ? ["[Option 1]", "[Option 2]", "[Option 3]", "[Option 4]"] : opts,
-        correctAnswer: String(payload.correctAnswer ?? "").trim(),
-        explanation: String(payload.explanation ?? ""),
-      };
+      let opts = qType === "mcq" ? padOptions(payload.options) : [];
+      let prompt = String(payload.prompt ?? "Question");
+      let correctAnswer =
+        qType === "mcq"
+          ? normalizeMcqCorrectAnswer(String(payload.correctAnswer ?? "").trim(), opts)
+          : String(payload.correctAnswer ?? "").trim();
+      let explanation = String(payload.explanation ?? "");
+      if (qType === "mcq") {
+        const enriched = enrichMcqFromContentIfNeeded(
+          { prompt, options: opts, correctAnswer, explanation },
+          payload.content
+        );
+        opts = enriched.options;
+        prompt = enriched.prompt;
+        correctAnswer = normalizeMcqCorrectAnswer(enriched.correctAnswer, opts);
+        explanation = enriched.explanation;
+      }
+      const tier = normalizeCheckpointDifficultyTier(
+        (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
+          (payload as { difficulty?: unknown }).difficulty
+      );
+      const markScheme = applyDifficultyToMarkScheme(
+        Array.isArray(payload.markScheme)
+          ? (payload.markScheme as string[]).map((x) => String(x ?? ""))
+          : undefined,
+        tier
+      );
+      return attachBlockNumber(
+        {
+          type: "selfCheck" as const,
+          content: String(payload.content ?? ""),
+          title,
+          ...(role ? { role } : {}),
+          prompt,
+          questionType: qType,
+          options: qType === "short" ? ["", "", "", ""] : opts,
+          correctAnswer,
+          explanation,
+          ...(markScheme?.length ? { markScheme } : {}),
+        },
+        record
+      );
+    }
+    case "graph": {
+      const graphSource = mergeGraphBlockFromExportContent({
+        ...payload,
+        title: stripSs1PrefixFromTitle(String(payload.title ?? title ?? "").trim()),
+        content: payload.content,
+      });
+      const persisted = graphBlockForPersist(graphSource, { role: role || "graph" });
+      return attachBlockNumber(
+        {
+          ...persisted,
+          type: "graph" as const,
+        },
+        record
+      );
     }
     case "dragDropMatch": {
       const pairsRaw = Array.isArray(payload.pairs) ? payload.pairs : [];
-      const pairs = pairsRaw.map((row: unknown, i: number) => {
-        if (!row || typeof row !== "object") {
-          return { id: `imp_dnd_${i + 1}`, prompt: "", answer: "" };
-        }
-        const r = row as {
-          id?: unknown;
-          prompt?: unknown;
-          answer?: unknown;
-          explanation?: unknown;
-          answerImageUrl?: unknown;
-        };
-        const img = readDragDropPairAnswerImageUrl(row);
-        return {
-          id: String(r.id ?? "").trim() || `imp_dnd_${i + 1}`,
-          prompt: String(r.prompt ?? "").trim(),
-          answer: String(r.answer ?? "").trim(),
-          ...(r.explanation != null && String(r.explanation).trim()
-            ? { explanation: String(r.explanation) }
-            : {}),
-          ...(img ? { answerImageUrl: img } : {}),
-        };
-      });
+      const pairs = pairsRaw
+        .map((row: unknown, i: number) =>
+          normalizeDragDropPairRow(row, i, `imp_dnd_${i + 1}`)
+        )
+        .filter((row): row is NonNullable<typeof row> => Boolean(row));
       const p = payload as Record<string, unknown>;
       const pairIdsImp = pairs.map((row) => row.id);
       const rawDz = Array.isArray(p.dropZones) ? p.dropZones : [];
@@ -213,107 +401,175 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
         imageUrl: p.imageUrl,
         dropZones: rawDz,
       });
-      return {
-        type: "dragDropMatch" as const,
-        content: "",
-        title: String(payload.title ?? title ?? "").trim(),
-        ...(role ? { role } : { role: "match" }),
-        intro: String(payload.intro ?? ""),
-        instructions: String(payload.instructions ?? ""),
-        pairs,
-        ...(resolvedMode === "diagram"
-          ? {
-              matchMode: "diagram" as const,
-              ...(imgI ? { imageUrl: imgI } : {}),
-              ...(imageFit ? { imageFit } : {}),
-              ...(imagePosition ? { imagePosition } : {}),
-              dropZones: dropZonesImp,
-            }
-          : {}),
-        ...(resolvedMode === "text" ? { matchMode: "text" as const } : {}),
-      };
+      return attachBlockNumber(
+        {
+          type: "dragDropMatch" as const,
+          content: "",
+          title: String(payload.title ?? title ?? "").trim(),
+          ...(role ? { role } : { role: "match" }),
+          intro: mergeLessonBlockIntroFields(
+            String(payload.intro ?? ""),
+            String(payload.content ?? "")
+          ),
+          instructions: String(payload.instructions ?? ""),
+          pairs,
+          ...(resolvedMode === "diagram"
+            ? {
+                matchMode: "diagram" as const,
+                ...(imgI ? { imageUrl: imgI } : {}),
+                ...(imageFit ? { imageFit } : {}),
+                ...(imagePosition ? { imagePosition } : {}),
+                dropZones: dropZonesImp,
+              }
+            : {}),
+          ...(resolvedMode === "text" ? { matchMode: "text" as const } : {}),
+          ...(resolvedMode === "text-to-image" ? { matchMode: "text-to-image" as const } : {}),
+        },
+        record
+      );
     }
     case "interactiveDiagram": {
+      const introMerged = mergeLessonBlockIntroFields(
+        String(payload.intro ?? ""),
+        String(payload.content ?? "")
+      );
       const hsRaw = Array.isArray(payload.hotspots) ? payload.hotspots : [];
-      const hotspots = hsRaw.map((h: unknown, i: number) => {
+      let hotspots = hsRaw.map((h: unknown, i: number) => {
         if (!h || typeof h !== "object") {
           return { id: `imp_hs_${i + 1}`, label: "", description: "" };
         }
-        const o = h as { id?: unknown; label?: unknown; description?: unknown; x?: unknown; y?: unknown };
+        const o = h as {
+          id?: unknown;
+          label?: unknown;
+          description?: unknown;
+          explanation?: unknown;
+          x?: unknown;
+          y?: unknown;
+        };
         const label = String(o.label ?? "").trim();
-        const description = String(o.description ?? label).trim();
+        const description = String(
+          o.explanation ?? o.description ?? label
+        ).trim();
+        const x = o.x;
+        const y = o.y;
+        const isPlaceholderCenter =
+          typeof x === "number" &&
+          typeof y === "number" &&
+          Math.abs(x - 0.5) < 0.001 &&
+          Math.abs(y - 0.5) < 0.001;
         return {
           id: String(o.id ?? "").trim() || `imp_hs_${i + 1}`,
-          ...(typeof o.x === "number" ? { x: o.x } : {}),
-          ...(typeof o.y === "number" ? { y: o.y } : {}),
+          ...(!isPlaceholderCenter && typeof x === "number" ? { x } : {}),
+          ...(!isPlaceholderCenter && typeof y === "number" ? { y } : {}),
           label: label || `Part ${i + 1}`,
           description,
+          explanation: description,
         };
       });
-      return {
-        type: "interactiveDiagram" as const,
-        content: String(payload.content ?? ""),
-        title: String(payload.title ?? title ?? "").trim(),
-        ...(role ? { role } : { role: "hotspot" }),
-        intro: String(payload.intro ?? ""),
-        imageUrl: String(payload.imageUrl ?? ""),
-        hotspots,
-      };
+      if (
+        hotspots.length === 0 ||
+        hotspots.every((h) => !String(h.label ?? "").trim())
+      ) {
+        const fromScript = buildHotspotsFromGeneratorScript(introMerged, "");
+        if (fromScript.length > 0) {
+          hotspots = fromScript.map((spec, i) => ({
+            id: `imp_hs_${i + 1}`,
+            label: spec.label,
+            description: spec.description,
+            explanation: spec.description,
+          }));
+        }
+      }
+      return attachBlockNumber(
+        {
+          type: "interactiveDiagram" as const,
+          content: "",
+          title: String(payload.title ?? title ?? "").trim(),
+          ...(role ? { role } : { role: "hotspot" }),
+          intro: introMerged,
+          imageUrl: String(payload.imageUrl ?? ""),
+          hotspots,
+        },
+        record
+      );
     }
     case "interactiveSequence": {
+      const introStr = String(payload.intro ?? "");
+      const contentStr = String(payload.content ?? "");
+      const introMerged = mergeLessonBlockIntroFields(introStr, contentStr);
       const stepsRaw = Array.isArray(payload.sequenceSteps) ? payload.sequenceSteps : [];
-      const sequenceSteps = stepsRaw.map((s: unknown, i: number) => {
-        if (!s || typeof s !== "object") {
-          return {
-            id: `imp_seq_${i + 1}`,
-            title: `Step ${i + 1}`,
-            description: "",
-            imageUrl: "",
-            caption: "",
-          };
-        }
-        const o = s as {
-          id?: unknown;
-          title?: unknown;
-          description?: unknown;
-          imageUrl?: unknown;
-          caption?: unknown;
-          testExplanation?: unknown;
-        };
-        const te =
-          typeof o.testExplanation === "string" ? String(o.testExplanation).trim() : "";
+      const sequenceSteps = hydrateInteractiveSequenceStepsForEditor(
+        introStr,
+        contentStr,
+        stepsRaw
+      ).map((row, i) => {
+        const o = stepsRaw[i];
+        const tq =
+          o && typeof o === "object" && typeof (o as { testQuestion?: unknown }).testQuestion === "string"
+            ? String((o as { testQuestion: string }).testQuestion).trim()
+            : "";
         return {
-          id: String(o.id ?? "").trim() || `imp_seq_${i + 1}`,
-          title: String(o.title ?? `Step ${i + 1}`).trim(),
-          description: String(o.description ?? "").trim(),
-          imageUrl: String(o.imageUrl ?? "").trim(),
-          caption: String(o.caption ?? "").trim(),
-          ...(te ? { testExplanation: te } : {}),
+          id: row.id ?? `imp_seq_${i + 1}`,
+          title: row.title,
+          description: cleanSequenceStepDescription(row.description ?? "", {
+            stepTitle: row.title,
+            stepIndex: i,
+          }),
+          imageUrl: row.imageUrl,
+          caption: row.caption,
+          ...(tq ? { testQuestion: tq } : {}),
+          ...(row.testExplanation ? { testExplanation: row.testExplanation } : {}),
         };
       });
       return {
         type: "interactiveSequence" as const,
-        content: String(payload.content ?? ""),
+        content: contentStr,
         title: String(payload.title ?? title ?? "").trim(),
         ...(role ? { role } : { role: "sequence" }),
-        intro: String(payload.intro ?? ""),
+        intro: introMerged,
         sequenceSteps,
       };
     }
-    case "diagram":
-      return {
-        type: "diagram" as const,
-        content: String(payload.content ?? ""),
-        title,
-        ...(role ? { role } : { role: "concept" }),
-      };
+    case "diagram": {
+      const imageUrl = String(payload.imageUrl ?? "").trim();
+      const caption = String(payload.caption ?? "").trim();
+      return attachBlockNumber(
+        {
+          type: "diagram" as const,
+          content: String(payload.content ?? ""),
+          title,
+          ...(role ? { role } : { role: "concept" }),
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(caption ? { caption } : {}),
+          ...(payload.diagramVariant === "featured" ? { diagramVariant: "featured" as const } : {}),
+        },
+        record
+      );
+    }
+    case "keyIdeas":
+    case "keyWords":
+    case "examTips":
+    case "misconceptions":
+    case "deeperKnowledge":
+      return attachBlockNumber(
+        {
+          type: t,
+          content: String(payload.content ?? ""),
+          title,
+          ...(role ? { role } : {}),
+        },
+        record
+      );
     default:
-      return {
-        type: t,
-        content: String(payload.content ?? ""),
-        title,
-        ...(role ? { role } : {}),
-      };
+      return attachBlockNumber(
+        {
+          type: t,
+          content: String(payload.content ?? ""),
+          title,
+          ...(role ? { role } : {}),
+        },
+        record
+      );
   }
 }
 
@@ -332,8 +588,17 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
   const sorted = [...doc.pages].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0)
   );
+  let lessonBlockOrdinal = 0;
   return sorted.map((pg, idx) => {
-    const blocksRaw = (pg.blocks || []).map(recordToLessonBlock).filter(Boolean) as Record<
+    const numberedRecords = (pg.blocks || []).map((record) => {
+      lessonBlockOrdinal += 1;
+      const blockNumber =
+        typeof record.blockNumber === "number" && Number.isFinite(record.blockNumber)
+          ? record.blockNumber
+          : lessonBlockOrdinal;
+      return { ...record, blockNumber };
+    });
+    const blocksRaw = numberedRecords.map(recordToLessonBlock).filter(Boolean) as Record<
       string,
       unknown
     >[];
@@ -356,10 +621,72 @@ export type LessonMetaApply = {
   description?: string;
   subject?: string;
   topic?: string;
+  topicKey?: string;
+  canonicalTopicKey?: string;
+  specKey?: string;
   board?: string;
   level?: string;
   tier?: "" | "foundation" | "higher";
 };
+
+function inferSpecKeyFromExport(L: GeneratorExportV1Document["lesson"]): string | undefined {
+  const subject = String(L?.subject || "")
+    .trim()
+    .toLowerCase();
+  const board = String(L?.examBoard || "AQA").trim();
+  const ks = String(L?.keyStage || "").toUpperCase();
+  if (ks.includes("GCSE") || ks === "" || ks.includes("KEY STAGE 4")) {
+    if (board === "AQA" || board === "") {
+      if (subject === "biology") return "aqa-gcse-biology";
+      if (subject === "chemistry") return "aqa-gcse-chemistry";
+      if (subject === "physics") return "aqa-gcse-physics";
+    }
+  }
+  return undefined;
+}
+
+/** Resolve taxonomy topic slug from generator export lesson metadata (never slugify full title). */
+export function topicKeyFromGeneratorExport(doc: GeneratorExportV1Document): {
+  topicKey: string;
+  canonicalTopicKey?: string;
+  specKey?: string;
+} | null {
+  const L = doc.lesson ?? {};
+  const specKey = inferSpecKeyFromExport(L);
+  const canonicalHint = String(L.canonicalTopicKey || "").trim();
+  const exportTopicKey = String(L.topicKey || "").trim();
+  const candidates = [
+    canonicalHint,
+    exportTopicKey,
+    String(L.topic || "").trim(),
+    String(L.title || "").trim(),
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    const slug = canonicalSlugFromText(c);
+    if (slug) {
+      const namespaced = specKey ? `${specKey}:${slug}` : slug;
+      return {
+        topicKey: namespaced,
+        canonicalTopicKey: slug,
+        ...(specKey ? { specKey } : {}),
+      };
+    }
+  }
+
+  if (exportTopicKey && !exportTopicKey.includes(" ")) {
+    const slug = exportTopicKey.includes(":") ? exportTopicKey.split(":").pop()! : exportTopicKey;
+    if (slug.length <= 48 && !/\b(higher|foundation)-tier\b/.test(slug)) {
+      return {
+        topicKey: specKey && !exportTopicKey.includes(":") ? `${specKey}:${slug}` : exportTopicKey,
+        ...(canonicalHint ? { canonicalTopicKey: canonicalHint } : {}),
+        ...(specKey ? { specKey } : {}),
+      };
+    }
+  }
+
+  return null;
+}
 
 export function lessonMetaFromExport(doc: GeneratorExportV1Document): LessonMetaApply {
   const L = doc.lesson ?? {};
@@ -394,11 +721,18 @@ export function lessonMetaFromExport(doc: GeneratorExportV1Document): LessonMeta
     tierRaw.trim() ? `Tier: ${String(L.tier || "").trim()}` : "",
   ].filter(Boolean);
 
+  const topicResolution = topicKeyFromGeneratorExport(doc);
+  const displayTopic =
+    topic && topic !== title ? topic : topicResolution?.canonicalTopicKey === "photosynthesis" ? "Photosynthesis" : topic;
+
   return {
     title,
     description: descParts.length ? descParts.join(" · ") : undefined,
     subject,
-    topic,
+    topic: displayTopic,
+    topicKey: topicResolution?.topicKey,
+    canonicalTopicKey: topicResolution?.canonicalTopicKey,
+    specKey: topicResolution?.specKey,
     board: board || undefined,
     level: levelGcse,
     tier,

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "profiles": {
+    "photosynthesis-process-v1": {
+      "description": "AQA GCSE Biology photosynthesis process pack — exclude glucose/starch subtopics.",
+      "excludePatterns": [
+        "\\buses?\\s+of\\s+glucose\\b",
+        "\\bglucose\\s+uses?\\b",
+        "\\buses?\\s+of\\s+glucose\\s+from\\s+photosynthesis\\b",
+        "\\bfrom\\s+photosynthesis\\b.*\\buses?\\b",
+        "\\buses?\\b.*\\bfrom\\s+photosynthesis\\b",
+        "\\btest(ing)?\\s+(a\\s+)?leaf\\s+for\\s+starch\\b",
+        "\\bstarch\\s+test\\b",
+        "\\biodine\\s+(test|solution)\\b",
+        "\\bstorage\\s+of\\s+glucose\\b",
+        "\\btranslocation\\b",
+        "\\brespiration\\s+uses?\\b"
+      ],
+      "includePatterns": [
+        "\\blimiting\\s+factor",
+        "\\brate\\s+of\\s+photosynthesis\\b",
+        "\\bphotosynthetic\\s+reaction\\b",
+        "\\bprocess\\s+of\\s+photosynthesis\\b",
+        "\\bhow\\s+photosynthesis\\s+works\\b",
+        "\\bphotosynthesis\\s+overview\\b",
+        "\\bpondweed\\b",
+        "\\blight\\s+intensity\\b.*\\bphotosynth"
+      ],
+      "topicFallbackPatterns": [
+        "\\bphotosynth(?:esis|etic)\\b"
+      ],
+      "topicFallbackExcludeIf": [
+        "\\buses?\\s+of\\b.*\\bglucose\\b",
+        "\\buses?\\s+of\\b"
+      ],
+      "contentConflictPatterns": [
+        "\\b(starch|iodine|ethanol|decolourise|decolorize|boil(?:ing)?\\s+(?:the\\s+)?leaf|leaf\\s+test)\\b"
+      ],
+      "contentAlignPatterns": [
+        "\\b(chloroplast|chlorophyll|light\\s+absorption|carbon\\s+dioxide|oxygen\\s+release|glucose\\s+production)\\b"
+      ],
+      "stepTitles": [
+        "Light absorption",
+        "Carbon dioxide & water",
+        "Glucose production",
+        "Oxygen release"
+      ],
+      "requireStepAlignmentForSequence": true,
+      "minStepAlignCount": 2
+    },
+    "taxonomy-slug-only-v1": {
+      "description": "Match only when taxonomy slug / spec topic key hits — no fuzzy title fallback until assets exist.",
+      "matchTaxonomySlugOnly": true,
+      "requireStepAlignmentForSequence": false
+    },
+    "non-process-v1": {
+      "description": "English/Maths taxonomy slots — no process-diagram injection (curated heroes or text-only until a template exists).",
+      "matchTaxonomySlugOnly": true,
+      "requireStepAlignmentForSequence": false,
+      "neverInject": true
+    }
+  }
+}
