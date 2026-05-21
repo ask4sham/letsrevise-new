@@ -24,6 +24,7 @@ import {
 import { stripSs1PrefixFromTitle } from "./formatBlockHeading";
 import { mergeLessonBlockIntroFields } from "./lessonRichText";
 import { canonicalSlugFromText } from "./normalizeLessonTopicKey";
+import { cleanSequenceStepDescription } from "./cleanSequenceStepDescription";
 import {
   buildHotspotsFromGeneratorScript,
   hydrateInteractiveSequenceStepsForEditor,
@@ -510,7 +511,10 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
         return {
           id: row.id ?? `imp_seq_${i + 1}`,
           title: row.title,
-          description: row.description,
+          description: cleanSequenceStepDescription(row.description ?? "", {
+            stepTitle: row.title,
+            stepIndex: i,
+          }),
           imageUrl: row.imageUrl,
           caption: row.caption,
           ...(tq ? { testQuestion: tq } : {}),

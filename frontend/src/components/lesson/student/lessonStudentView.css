@@ -1782,14 +1782,29 @@ h1.lesson-view-title-split .lesson-title-main {
 }
 
 /* Step-by-step sequence: compact image lane (override 82vh rule above) */
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card--primary {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
-  width: auto !important;
+  width: 100% !important;
   max-width: 100% !important;
-  max-height: min(34vh, 320px) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  max-height: min(42vh, 420px) !important;
+  height: auto !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+}
+
+@media (min-width: 900px) {
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
+    max-height: min(58vh, 620px) !important;
+  }
 }
 
 /* Do not squeeze template/generator diagrams into the narrow split sidebar */

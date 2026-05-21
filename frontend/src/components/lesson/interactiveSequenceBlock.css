@@ -186,12 +186,13 @@
 .interactive-sequence__image {
   display: block;
   box-sizing: border-box;
-  width: auto;
+  width: 100%;
   max-width: 100%;
   height: auto;
-  margin: 0 auto;
+  margin: 0;
   object-fit: contain;
-  max-height: min(34vh, 320px);
+  object-position: center;
+  max-height: min(42vh, 420px);
   background: transparent;
   vertical-align: top;
 }
@@ -917,18 +918,27 @@
 }
 
 .interactive-sequence__figure .lesson-image-card {
-  margin: 0 auto;
-  padding: 6px 8px;
-  width: fit-content;
+  margin: 0;
+  padding: 4px 6px;
+  width: 100%;
   max-width: 100%;
   line-height: normal;
 }
 
 .interactive-sequence__figure .lesson-image-card > img {
-  width: auto;
+  width: 100%;
   max-width: 100%;
-  max-height: min(34vh, 320px);
-  margin: 0 auto;
+  max-height: min(42vh, 420px);
+  margin: 0;
+  object-fit: contain;
+  object-position: center;
+}
+
+@media (min-width: 900px) {
+  .interactive-sequence__image,
+  .interactive-sequence__figure .lesson-image-card > img {
+    max-height: min(58vh, 620px);
+  }
 }
 
 .interactive-sequence__figure-caption {
@@ -953,21 +963,30 @@
 
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card,
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card--primary {
-  margin: 0 auto !important;
-  padding: 6px 8px !important;
-  width: fit-content !important;
+  margin: 0 !important;
+  padding: 4px 6px !important;
+  width: 100% !important;
   max-width: 100% !important;
 }
 
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
+[data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
-  width: auto !important;
+  width: 100% !important;
   max-width: 100% !important;
-  max-height: min(34vh, 320px) !important;
+  max-height: min(42vh, 420px) !important;
   height: auto !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  margin: 0 !important;
   object-fit: contain !important;
+  object-position: center !important;
+}
+
+@media (min-width: 900px) {
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
+  [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
+    max-height: min(58vh, 620px) !important;
+  }
 }
 
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image-placeholder {

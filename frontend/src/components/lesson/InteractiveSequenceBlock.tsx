@@ -5,7 +5,7 @@ import {
   deriveSequenceTestMeQuestion,
   resolveSequenceTestMeAnswer,
 } from "../../utils/interactiveSequenceTestMe";
-import { stripSequenceStepImagePromptFromDescription } from "../../utils/interactiveSequenceStepImagePrompt";
+import { cleanSequenceStepDescription } from "../../utils/cleanSequenceStepDescription";
 import { AssessmentFeedback } from "./AssessmentFeedback";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./interactiveSequenceBlock.css";
@@ -62,7 +62,10 @@ export function InteractiveSequenceBlock({
   const recallCacheRef = useRef<Map<string, SequenceRecallPayload>>(new Map());
   const safeIndex = list.length > 0 ? Math.min(Math.max(0, active), list.length - 1) : 0;
   const step = list[safeIndex];
-  const descriptionStudent = stripSequenceStepImagePromptFromDescription(String(step?.description ?? ""));
+  const descriptionStudent = cleanSequenceStepDescription(String(step?.description ?? ""), {
+    stepTitle: step?.title,
+    stepIndex: safeIndex,
+  });
   const captionTrimmed = (step?.caption ?? "").trim();
   const storedQuestion = (step?.testQuestion ?? "").trim();
   const fallbackQuestion = deriveSequenceTestMeQuestion(step ?? {});
@@ -152,9 +155,12 @@ export function InteractiveSequenceBlock({
   }, [safeIndex, captionTrimmed, testExplanationTrimmed, storedQuestion]);
 
   const hasTestMe = Boolean(captionTrimmed || descriptionStudent.trim());
-  const anyStepHasTestMe = list.some((s) => {
+  const anyStepHasTestMe = list.some((s, stepIdx) => {
     const cap = String(s.caption ?? "").trim();
-    const desc = stripSequenceStepImagePromptFromDescription(String(s.description ?? "")).trim();
+    const desc = cleanSequenceStepDescription(String(s.description ?? ""), {
+      stepTitle: s.title,
+      stepIndex: stepIdx,
+    }).trim();
     return Boolean(cap || desc);
   });
 

@@ -4,11 +4,30 @@
 
 import { normalizeBlockType } from "../types/lessonBlocks";
 import {
+  cleanSequenceStepDescription,
+  sequenceStepDescriptionNeedsCleaning,
+} from "./cleanSequenceStepDescription";
+import {
   buildSequenceStepsFromGeneratorScript,
   hydrateInteractiveSequenceStepsForEditor,
   interactiveSequenceStepsNeedHydration,
   type InteractiveSequenceStepEditorRow,
 } from "./parseGeneratorVisualScript";
+
+function cleanStepRowDescription(
+  row: InteractiveSequenceStepEditorRow,
+  index: number
+): InteractiveSequenceStepEditorRow {
+  const desc = String(row.description ?? "");
+  if (!desc.trim()) return row;
+  if (!sequenceStepDescriptionNeedsCleaning(desc)) return row;
+  const cleaned = cleanSequenceStepDescription(desc, {
+    stepTitle: row.title,
+    stepIndex: index,
+  });
+  if (cleaned === desc) return row;
+  return { ...row, description: cleaned };
+}
 
 export type { InteractiveSequenceStepEditorRow };
 
@@ -35,7 +54,9 @@ export function normalizeInteractiveSequenceBlockForEditor(
       ? block.steps
       : [];
 
-  const sequenceSteps = hydrateInteractiveSequenceStepsForEditor(intro, content, rawSeq);
+  const sequenceSteps = hydrateInteractiveSequenceStepsForEditor(intro, content, rawSeq).map(
+    cleanStepRowDescription
+  );
 
   const out: Record<string, unknown> = {
     ...block,
