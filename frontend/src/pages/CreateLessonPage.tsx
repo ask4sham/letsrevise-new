@@ -8,7 +8,11 @@ import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/asse
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { LessonBlockContentTextarea } from "../components/lesson/LessonBlockContentTextarea";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
-import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
+import {
+  hideBrokenLessonImage,
+  LessonImageFrame,
+  lessonImageFrameImgStyle,
+} from "../components/lesson/LessonImageFrame";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { LessonAutoTextarea } from "../components/lesson/LessonAutoTextarea";
 import { sanitizeTeacherMarkdown } from "../utils/lessonTeacherMarkdown";
@@ -87,6 +91,16 @@ import {
 import { lessonBlockDisplayLabel } from "../utils/lessonBlockDisplayLabel";
 import { generateDragDropPairsFromText } from "../api/ai";
 import { CELL_ORGANELLES_DRAG_DROP_TEMPLATE } from "../components/lesson/dragDropMatchTemplates";
+import {
+  diagramImageUrlForPreview,
+  diagramMarkdownContentForPreview,
+} from "../utils/diagramBlockPreview";
+import {
+  attachLearningMetaForPersist,
+  warnLearningMetaIfMissing,
+  type LearningMeta,
+} from "../utils/learningMeta";
+import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 
 function newLessonBlockId() {
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -110,6 +124,7 @@ type LessonPageBlock = {
     testExplanation?: string;
   }>;
   imageUrl?: string;
+  caption?: string;
   hotspots?: Array<{ id: string; x?: number; y?: number; label: string; description: string }>;
   matchMode?: DragDropMatchAuthoringMatchMode;
   dragDropLayout?: string;
@@ -146,6 +161,7 @@ type LessonPageBlock = {
   }>;
   examQuestion?: string;
   examinerTip?: string;
+  learningMeta?: LearningMeta;
 };
 
 // Kept for backward compatibility only (UI removed)
@@ -1426,7 +1442,10 @@ const CreateLessonPage: React.FC = () => {
           out.correctAnswer = String(bsc.correctAnswer ?? "").trim();
         }
         return out;
-      }),
+      })
+        .map((out, idx) =>
+          attachLearningMetaForPersist(out, (p.blocks || [])[idx])
+        ),
       checkpoint: (() => {
         if (!p.checkpoint) {
           return { question: "", options: ["", "", "", ""], answer: "" };
@@ -1444,6 +1463,8 @@ const CreateLessonPage: React.FC = () => {
         };
       })(),
     }));
+
+    warnLearningMetaIfMissing(sanitizedPages, "create lesson");
 
     const payload: Record<string, unknown> = {
       title: formData.title,
@@ -1864,6 +1885,8 @@ const CreateLessonPage: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              <LearningIntelligenceSummaryPanel pages={pages ?? []} />
 
               <div style={{ ...ui.sectionTitle, marginTop: 16, marginBottom: 4 }}>Topic banks</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
@@ -3862,6 +3885,65 @@ const CreateLessonPage: React.FC = () => {
                               <div key={`prev-${idx}`} style={getBlockStyle(blockType)}>
                                 {labelRow}
                                 <GraphBlock block={b} showAnswers />
+                              </div>
+                            );
+                          }
+
+                          if (blockType === "diagram") {
+                            const d = b as LessonPageBlock;
+                            const img = diagramImageUrlForPreview(d.imageUrl);
+                            const caption = safeStr(d.caption, "");
+                            const md = diagramMarkdownContentForPreview(d.content, img);
+                            const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
+                            return (
+                              <div key={`prev-${idx}`} style={getBlockStyle(blockType)}>
+                                {labelRow}
+                                {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
+                                  <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
+                                    <img
+                                      src={imgSrc}
+                                      alt={caption || "Diagram"}
+                                      style={lessonImageFrameImgStyle}
+                                      onError={hideBrokenLessonImage}
+                                    />
+                                  </LessonImageFrame>
+                                ) : null}
+                                {md ? (
+                                  <div
+                                    className="lesson-content"
+                                    style={{ fontSize: "0.8rem", color: "#334155", wordBreak: "break-word" }}
+                                  >
+                                    <LessonMarkdown
+                                      className="lesson-md-body"
+                                      components={createPreviewMarkdownComponents}
+                                      urlTransform={(url) => {
+                                        try {
+                                          const decoded = url?.includes("%")
+                                            ? decodeURIComponent(url)
+                                            : (url ?? "");
+                                          const abs = toAbsoluteAssetUrl(decoded);
+                                          if (abs) return abs;
+                                          return defaultUrlTransform(url ?? "");
+                                        } catch {
+                                          return defaultUrlTransform(url ?? "");
+                                        }
+                                      }}
+                                    >
+                                      {preprocessMarkdownAssetUrls(md)}
+                                    </LessonMarkdown>
+                                  </div>
+                                ) : !imgSrc ? (
+                                  <p
+                                    style={{
+                                      margin: "6px 0 0",
+                                      fontSize: "0.75rem",
+                                      color: "#94a3b8",
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    Diagram image not set
+                                  </p>
+                                ) : null}
                               </div>
                             );
                           }

@@ -41,6 +41,15 @@ import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLesso
 import { evaluateLessonReadiness } from "../utils/lessonReadiness";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
+import {
+  hideBrokenLessonImage,
+  LessonImageFrame,
+  lessonImageFrameImgStyle,
+} from "../components/lesson/LessonImageFrame";
+import {
+  diagramImageUrlForPreview,
+  diagramMarkdownContentForPreview,
+} from "../utils/diagramBlockPreview";
 import { promoteHeroOnPages } from "../utils/pageHeroMigration";
 import { lessonBlockDisplayLabel } from "../utils/lessonBlockDisplayLabel";
 import {
@@ -53,6 +62,11 @@ import {
   normalizeInteractiveSequenceBlockForEditor,
 } from "../utils/normalizeInteractiveSequenceBlock";
 import { validateLessonStructure } from "../utils/validateLessonStructure";
+import {
+  attachLearningMetaForPersist,
+  warnLearningMetaIfMissing,
+} from "../utils/learningMeta";
+import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 import {
   formatPublishWithQualityWarningsMessage,
   type PublishWarningSummary,
@@ -3499,7 +3513,10 @@ const EditLessonPage: React.FC = () => {
           if (typeof b.title === "string" && b.title.trim()) contentOut.title = b.title.trim();
           if (typeof b.role === "string" && b.role.trim()) contentOut.role = b.role.trim();
           return contentOut;
-        }),
+        })
+          .map((out: Record<string, unknown>, idx: number) =>
+            attachLearningMetaForPersist(out, (p.blocks || [])[idx])
+          ),
       }));
 
       // Build quiz.questions from pageQuiz blocks + existing end-of-lesson questions
@@ -3539,6 +3556,8 @@ const EditLessonPage: React.FC = () => {
         (q: QuizQuestion) => !q.pageId || String(q.pageId) === "END"
       );
       const mergedQuizQuestions = [...pageQuizQuestions, ...bankAttachedPageQuiz, ...endOfLessonQuestions];
+
+    warnLearningMetaIfMissing(sanitizedPages, "edit lesson");
 
     return {
       title: lesson.title,
@@ -4903,6 +4922,8 @@ const EditLessonPage: React.FC = () => {
                   </div>
                 );
               })()}
+
+              <LearningIntelligenceSummaryPanel pages={lesson?.pages ?? []} />
 
               {/* Card 4: Practice questions (in this lesson) — Lane A */}
               <div id="edit-lesson-practice-lane" style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
@@ -9368,6 +9389,74 @@ const EditLessonPage: React.FC = () => {
                           }}
                         >
                           <GraphBlock block={b} showAnswers />
+                        </div>
+                      );
+                    }
+                    if (blockType === "diagram") {
+                      const d = b as {
+                        imageUrl?: string;
+                        caption?: string;
+                        content?: string;
+                      };
+                      const img = diagramImageUrlForPreview(d.imageUrl);
+                      const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
+                      const md = diagramMarkdownContentForPreview(blockContent, img);
+                      return (
+                        <div
+                          key={`${currentPage!.pageId}_prev_${idx}`}
+                          style={{
+                            marginBottom: 12,
+                            ...(linked
+                              ? {
+                                  outline: "2px solid rgba(59,130,246,0.45)",
+                                  outlineOffset: 4,
+                                  borderRadius: 10,
+                                }
+                              : {}),
+                          }}
+                        >
+                          {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
+                            <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
+                              <img
+                                src={imgSrc}
+                                alt={safeStr(d.caption, "") || "Diagram"}
+                                style={lessonImageFrameImgStyle}
+                                onError={hideBrokenLessonImage}
+                              />
+                            </LessonImageFrame>
+                          ) : null}
+                          {md ? (
+                            <div className="lesson-content" style={getBlockStyle(blockType)}>
+                              <LessonRenderer
+                                key={`preview-diag-md-${currentPage!.pageId}-${idx}`}
+                                text={md}
+                                markdownComponents={markdownComponents as any}
+                                urlTransform={(url: string) => {
+                                  try {
+                                    const decoded = url?.includes("%")
+                                      ? decodeURIComponent(url)
+                                      : (url ?? "");
+                                    const abs = makeAbsoluteAssetUrl(decoded);
+                                    if (abs) return abs;
+                                    return defaultUrlTransform(url ?? "");
+                                  } catch {
+                                    return defaultUrlTransform(url ?? "");
+                                  }
+                                }}
+                              />
+                            </div>
+                          ) : !imgSrc ? (
+                            <p
+                              style={{
+                                margin: "6px 0 0",
+                                fontSize: "0.75rem",
+                                color: "#94a3b8",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Diagram image not set
+                            </p>
+                          ) : null}
                         </div>
                       );
                     }

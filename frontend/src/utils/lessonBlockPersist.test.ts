@@ -22,6 +22,16 @@ describe("diagramBlockForPersist", () => {
     });
     expect(String(out.content)).toContain("Study the diagram");
   });
+
+  it("does not inject image here placeholder when imageUrl is set", () => {
+    const out = diagramBlockForPersist({
+      type: "diagram",
+      imageUrl: "https://cdn.example.com/leaf.png",
+      caption: "Leaf",
+    });
+    expect(out.imageUrl).toBe("https://cdn.example.com/leaf.png");
+    expect(out.content).toBe("");
+  });
 });
 
 describe("graphBlockForLessonSave", () => {

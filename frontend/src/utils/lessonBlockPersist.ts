@@ -28,9 +28,7 @@ export function diagramBlockForPersist(block: unknown): Record<string, unknown> 
   const rawContent = typeof b.content === "string" ? b.content.trim() : "";
   const content = rawContent
     ? sanitizeTeacherMarkdown(rawContent)
-    : imageUrl
-      ? "image here"
-      : "";
+    : "";
   const mode =
     b.mode === "annotated" || b.mode === "step" ? (b.mode as string) : "static";
 
