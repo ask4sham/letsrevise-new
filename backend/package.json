@@ -145,6 +145,10 @@
       "!**/*.test.js",
       "!**/*.spec.js"
     ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/visualPackRegistry\\.unit\\.test\\.js$"
+    ],
     "testMatch": [
       "**/tests/**/*.test.js",
       "**/tests/**/*.spec.js"

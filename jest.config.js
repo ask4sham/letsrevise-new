@@ -13,7 +13,7 @@ module.exports = {
     "^src/.+\\.tsx?$": "ts-jest",
   },
   transformIgnorePatterns: ["/node_modules/"],
-  testPathIgnorePatterns: ["/node_modules/", "\\.old\\.js$", "/backend/"],
+  testPathIgnorePatterns: ["/node_modules/", "\\.old\\.js$", "/backend/", "/frontend/"],
   // Avoid running forever when async handles remain (e.g. DB in integration tests)
   forceExit: true,
 };

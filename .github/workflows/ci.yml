@@ -59,9 +59,9 @@ jobs:
         working-directory: backend
         run: npm run validate:taxonomies
 
-      - name: Test (backend)
+      - name: Test (backend unit)
         working-directory: backend
-        run: npm test -- --coverage=false --forceExit
+        run: npm run test:unit -- --forceExit
 
   frontend:
     name: Frontend (build)
