@@ -53,6 +53,7 @@ import {
   normalizeGraphBlockForDisplay,
 } from "../components/lesson/graphBlockTypes";
 import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/formatBlockHeading";
+import { studentCheckpointFromBlock } from "../utils/studentCheckpointFromBlock";
 import {
   coerceDiagramZonePct,
   dragDropMatchModeForBlockProps,
@@ -3325,7 +3326,6 @@ const LessonViewPage: React.FC = () => {
       .map((b, idx) => ({ block: b, idx }))
       .filter(({ block: b }) => {
         if (b.type === "stretch" && !showDeeperKnowledge) return false;
-        if (b.type === "checkpoint") return false; // PR-UX-LESSON-3: always render checkpoint via LessonCheckpoint
         if (!SHOW_PAGE_KICKER && isKickerLikeBlock(b)) return false;
         return true;
       })
@@ -3369,31 +3369,14 @@ const LessonViewPage: React.FC = () => {
         });
       }
     }
-    const firstCheckpointBlock = blocks.find((b) => {
-      if (b.type !== "checkpoint") return false;
-      const qType = b.questionType === "short" ? "short" : "mcq";
-      const opts = Array.isArray(b.options) ? b.options : [];
-      const hasItems =
-        (qType === "short" && b.prompt != null && String(b.prompt).trim().length > 0) ||
-        (qType === "mcq" && opts.filter((o: any) => o != null && String(o).trim()).length >= 2);
-      return hasItems;
-    });
     const pageCpAny = pageCp as Record<string, unknown> | null | undefined;
     const pageCpExplanation =
       typeof pageCpAny?.explanation === "string" ? pageCpAny.explanation : undefined;
     const pageCpMarkScheme = Array.isArray(pageCpAny?.markScheme)
       ? (pageCpAny.markScheme as string[])
       : undefined;
-    const blockCpExplanation =
-      firstCheckpointBlock && firstCheckpointBlock.explanation != null
-        ? String(firstCheckpointBlock.explanation)
-        : undefined;
-    const blockCpMarkScheme =
-      firstCheckpointBlock &&
-      Array.isArray((firstCheckpointBlock as { markScheme?: string[] }).markScheme)
-        ? (firstCheckpointBlock as { markScheme?: string[] }).markScheme
-        : undefined;
 
+    /** Legacy page.checkpoint only — inline blocks render via LessonStudentBlockRenderer / map below. */
     const checkpointData = hasPageCheckpoint
       ? {
           mode: "mcq" as const,
@@ -3402,16 +3385,6 @@ const LessonViewPage: React.FC = () => {
           correctAnswer: safeStr(pageCp!.answer, ""),
           explanation: pageCpExplanation,
           markScheme: pageCpMarkScheme,
-          name: `checkpoint-${currentPage.pageId}`,
-        }
-      : firstCheckpointBlock
-      ? {
-          mode: (firstCheckpointBlock.questionType === "short" ? "short" : "mcq") as "mcq" | "short",
-          prompt: firstCheckpointBlock.prompt ?? "Quick check",
-          options: Array.isArray(firstCheckpointBlock.options) ? firstCheckpointBlock.options.filter((o: any) => o != null && String(o).trim()) : [],
-          correctAnswer: safeStr(firstCheckpointBlock.correctAnswer, ""),
-          explanation: blockCpExplanation,
-          markScheme: blockCpMarkScheme,
           name: `checkpoint-${currentPage.pageId}`,
         }
       : null;
@@ -3954,7 +3927,7 @@ const LessonViewPage: React.FC = () => {
                 </div>
                 </div>
 
-                {/* Blocks — checkpoint rendered via LessonCheckpoint below. PR-006.1: id=block-{idx} uses original block index for citation deep links. */}
+                {/* Blocks — inline checkpoints in list; legacy page.checkpoint still rendered below. PR-006.1: id=block-{idx} uses original block index for citation deep links. */}
                 <div
                   className={
                     v12StudentPresentation ? "lesson-student-page-body" : undefined
@@ -3985,6 +3958,16 @@ const LessonViewPage: React.FC = () => {
                                 lessonTitleForAi={lesson ? safeStr(lesson.title, "") : undefined}
                                 levelForAi={lesson ? safeStr(lesson.level, "") : undefined}
                                 subjectForAi={lesson ? safeStr(lesson.subject, "") : undefined}
+                                lessonId={id ?? undefined}
+                                pageId={
+                                  typeof currentPage.pageId === "string"
+                                    ? currentPage.pageId
+                                    : undefined
+                                }
+                                checkpointEntitled={Boolean(accessDecision?.allowed)}
+                                studentPresentation={
+                                  v12StudentPresentation ? "v12" : "default"
+                                }
                               />
                               {user && id && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
@@ -4083,6 +4066,30 @@ const LessonViewPage: React.FC = () => {
                               audience="student"
                               showAnswers={false}
                             />
+                          ) : blockKind === "checkpoint" ? (
+                            (() => {
+                              const data = studentCheckpointFromBlock(b, String(idx));
+                              if (!data) return null;
+                              return (
+                                <LessonCheckpoint
+                                  mode={data.mode}
+                                  prompt={data.prompt}
+                                  options={data.options}
+                                  correctAnswer={data.correctAnswer}
+                                  explanation={data.explanation}
+                                  markScheme={data.markScheme}
+                                  name={data.name}
+                                  lessonId={id ?? undefined}
+                                  pageId={
+                                    typeof currentPage.pageId === "string"
+                                      ? currentPage.pageId
+                                      : undefined
+                                  }
+                                  entitled={Boolean(accessDecision?.allowed)}
+                                  presentation={v12StudentPresentation ? "v12" : "default"}
+                                />
+                              );
+                            })()
                           ) : blockKind === "dragDropMatch" ? (
                             <DragDropMatchBlock
                               resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
@@ -4150,7 +4157,7 @@ const LessonViewPage: React.FC = () => {
                   </KeywordGlossaryProvider>
                 </div>
 
-                {/* PR-UX-LESSON-3: Single checkpoint per page — one component, unified styling */}
+                {/* PR-UX-LESSON-3: Legacy page.checkpoint (when set on page, not as a block) */}
                 {checkpointData && (
                   <div
                     className={

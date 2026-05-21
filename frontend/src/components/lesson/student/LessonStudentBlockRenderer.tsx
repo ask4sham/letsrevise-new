@@ -20,6 +20,7 @@ import {
 } from "./studentLessonBlocks";
 import type { ContentKeywordItem } from "./contentKeywordHighlight";
 import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
+import { LessonCheckpoint } from "../LessonCheckpoint";
 import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../InteractiveSequenceBlock";
 import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../DragDropMatchBlock";
@@ -47,6 +48,7 @@ import {
   formatStudentBlockHeading,
   studentContentStartsWithHeading,
 } from "../../../utils/formatBlockHeading";
+import { studentCheckpointFromBlock } from "../../../utils/studentCheckpointFromBlock";
 
 export type LessonStudentBlockRendererProps = {
   block: StudentLessonPageBlock;
@@ -63,6 +65,10 @@ export type LessonStudentBlockRendererProps = {
   lessonTitleForAi?: string;
   levelForAi?: string;
   subjectForAi?: string;
+  lessonId?: string;
+  pageId?: string;
+  checkpointEntitled?: boolean;
+  studentPresentation?: "default" | "v12";
 };
 
 function withStudentBlockHeading(
@@ -101,6 +107,10 @@ export function LessonStudentBlockRenderer({
   lessonTitleForAi,
   levelForAi,
   subjectForAi,
+  lessonId,
+  pageId,
+  checkpointEntitled = false,
+  studentPresentation = "default",
 }: LessonStudentBlockRendererProps): React.ReactElement | null {
   /** Interactive + diagram routing (handles mis-tagged drag-drop). */
   const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
@@ -111,7 +121,30 @@ export function LessonStudentBlockRenderer({
   const cleanedText = stripVideoMarkdown(raw);
 
   if (routed === "checkpoint") {
-    return null;
+    const data = studentCheckpointFromBlock(block, String(blockIndex));
+    if (!data) return null;
+    const cp = (
+      <div
+        className={
+          studentPresentation === "v12" ? "lesson-student-checkpoint-section" : undefined
+        }
+      >
+        <LessonCheckpoint
+          mode={data.mode}
+          prompt={data.prompt}
+          options={data.options}
+          correctAnswer={data.correctAnswer}
+          explanation={data.explanation}
+          markScheme={data.markScheme}
+          name={data.name}
+          lessonId={lessonId}
+          pageId={pageId}
+          entitled={checkpointEntitled}
+          presentation={studentPresentation}
+        />
+      </div>
+    );
+    return withStudentBlockHeading(cp, block, "");
   }
 
   const proseKinds = new Set([
