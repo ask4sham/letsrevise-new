@@ -103,6 +103,13 @@ export function dragDropMatchModeForBlockProps(
   return parseDragDropMatchMode(raw);
 }
 
+/** Resolve layout for student/preview — reads `dragDropLayout` when `matchMode` is omitted (API save shape). */
+export function dragDropMatchModeFromBlockForProps(
+  block: unknown
+): DragDropMatchPersistedMode | undefined {
+  return dragDropMatchModeForBlockProps(readDragDropMatchModeFromBlock(block));
+}
+
 export function parseDragDropDiagramImageFit(raw: unknown): DragDropDiagramImageFit | undefined {
   if (raw == null) return undefined;
   const s = String(raw).trim().toLowerCase();

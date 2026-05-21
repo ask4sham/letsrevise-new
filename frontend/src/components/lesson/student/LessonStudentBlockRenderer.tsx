@@ -39,7 +39,7 @@ import { applyPhotosynthesisHotspotDefaults } from "../../../utils/photosynthesi
 import { normalizePedagogicalRole } from "../../../utils/pedagogicalRoles";
 import {
   coerceDiagramZonePct,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
 } from "../../../utils/dragDropMatchDiagram";
 import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
@@ -247,7 +247,7 @@ export function LessonStudentBlockRenderer({
 
   if (routed === "dragDropMatch") {
     const b = block as StudentLessonPageBlock;
-    const mm = dragDropMatchModeForBlockProps(b.matchMode);
+    const mm = dragDropMatchModeFromBlockForProps(b);
     const ddm = (
       <DragDropMatchBlock
         resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}

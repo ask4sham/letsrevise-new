@@ -56,7 +56,7 @@ import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/fo
 import { studentCheckpointFromBlock } from "../utils/studentCheckpointFromBlock";
 import {
   coerceDiagramZonePct,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
 } from "../utils/dragDropMatchDiagram";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
@@ -131,9 +131,18 @@ interface LessonPageBlock {
   intro?: string;
   /** type === "dragDropMatch" */
   instructions?: string;
-  pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string; answerImageUrl?: string }>;
-  /** dragDropMatch — explicit diagram variant */
-  matchMode?: "text" | "diagram";
+  pairs?: Array<{
+    id: string;
+    prompt: string;
+    answer: string;
+    explanation?: string;
+    answerImageUrl?: string;
+    imageUrl?: string;
+    imageAlt?: string;
+  }>;
+  /** dragDropMatch — explicit layout variant */
+  matchMode?: "text" | "diagram" | "text-to-image" | "textToImage";
+  dragDropLayout?: string;
   dropZones?: Array<{
     id: string;
     x?: number;
@@ -4098,10 +4107,10 @@ const LessonViewPage: React.FC = () => {
                                 intro: safeStr(b.intro, ""),
                                 instructions: safeStr(b.instructions, ""),
                                 ...(() => {
-                                  const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                                  const mm = dragDropMatchModeFromBlockForProps(b);
                                   return mm ? { matchMode: mm } : {};
                                 })(),
-                                ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                                ...(dragDropMatchModeFromBlockForProps(b) === "diagram" &&
                                 safeStr(b.imageUrl, "")
                                   ? { imageUrl: safeStr(b.imageUrl, "") }
                                   : {}),

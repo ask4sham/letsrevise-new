@@ -48,7 +48,7 @@ import {
   buildDragDropMatchBlockForPersist,
   coerceDiagramZonePct,
   type DragDropMatchAuthoringMatchMode,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
   readDragDropPairAnswerImageUrl,
 } from "../utils/dragDropMatchDiagram";
@@ -3401,10 +3401,10 @@ const CreateLessonPage: React.FC = () => {
                                           intro: safeStr(b.intro, ""),
                                           instructions: safeStr(b.instructions, ""),
                                           ...(() => {
-                                            const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                                            const mm = dragDropMatchModeFromBlockForProps(b);
                                             return mm ? { matchMode: mm } : {};
                                           })(),
-                                          ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                                          ...(dragDropMatchModeFromBlockForProps(b) === "diagram" &&
                                           safeStr(b.imageUrl, "")
                                             ? { imageUrl: safeStr(b.imageUrl, "") }
                                             : {}),
@@ -3960,10 +3960,10 @@ const CreateLessonPage: React.FC = () => {
                                     intro: safeStr(ddm.intro, ""),
                                     instructions: safeStr(ddm.instructions, ""),
                                     ...(() => {
-                                      const mm = dragDropMatchModeForBlockProps(ddm.matchMode);
+                                      const mm = dragDropMatchModeFromBlockForProps(ddm);
                                       return mm ? { matchMode: mm } : {};
                                     })(),
-                                    ...(dragDropMatchModeForBlockProps(ddm.matchMode) === "diagram" &&
+                                    ...(dragDropMatchModeFromBlockForProps(ddm) === "diagram" &&
                                     safeStr(ddm.imageUrl, "")
                                       ? { imageUrl: safeStr(ddm.imageUrl, "") }
                                       : {}),

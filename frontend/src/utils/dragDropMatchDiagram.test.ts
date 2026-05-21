@@ -2,6 +2,7 @@ import {
   buildDragDropMatchBlockForPersist,
   coerceDiagramZonePct,
   dedupeDiagramZoneIds,
+  dragDropMatchModeFromBlockForProps,
   dragDropMatchModeFromUiSelect,
   dragDropPairsHaveTargetImages,
   isDragDropDiagramMode,
@@ -228,6 +229,42 @@ describe("dragDropMatchDiagram", () => {
     });
   });
 
+  describe("dragDropMatchModeFromBlockForProps", () => {
+    it("reads dragDropLayout when matchMode is omitted (GET reload shape)", () => {
+      expect(
+        dragDropMatchModeFromBlockForProps({
+          type: "dragDropMatch",
+          dragDropLayout: "textToImage",
+          pairs: [{ id: "p1", prompt: "A", answer: "B", imageUrl: "/t.png" }],
+        })
+      ).toBe("text-to-image");
+    });
+
+    it("does not coerce textToImage matchMode to text", () => {
+      expect(
+        dragDropMatchModeFromBlockForProps({ matchMode: "textToImage", dragDropLayout: "textToImage" })
+      ).toBe("text-to-image");
+      expect(
+        dragDropMatchModeFromBlockForProps({ matchMode: "textToImage", dragDropLayout: "textToImage" })
+      ).not.toBe("text");
+    });
+
+    it("resolveDragDropMatchModeForUi uses dragDropLayout for dropdown after reload", () => {
+      expect(
+        resolveDragDropMatchModeForUi(undefined, {
+          imageUrl: "https://example.com/diagram.png",
+          dropZones: [{ id: "z1", correctPairId: "p1" }],
+        })
+      ).toBe("diagram");
+      expect(
+        resolveDragDropMatchModeForUi("textToImage", {
+          imageUrl: "https://example.com/diagram.png",
+          dropZones: [{ id: "z1", correctPairId: "p1" }],
+        })
+      ).toBe("text-to-image");
+    });
+  });
+
   describe("layout select persistence", () => {
     it("buildDragDropMatchBlockForPersist emits text-to-image matchMode", () => {
       const out = buildDragDropMatchBlockForPersist(
@@ -242,6 +279,23 @@ describe("dragDropMatchDiagram", () => {
       expect(out?.dragDropLayout).toBe("textToImage");
       expect(out?.type).toBe("dragDropMatch");
       expect((out?.pairs as { imageUrl?: string }[])?.[0]?.imageUrl).toBe("/t.png");
+    });
+
+    it("buildDragDropMatchBlockForPersist preserves text-to-image from dragDropLayout only", () => {
+      const out = buildDragDropMatchBlockForPersist(
+        {
+          type: "dragDropMatch",
+          dragDropLayout: "textToImage",
+          pairs: [{ id: "p1", prompt: "Term", answer: "def", imageUrl: "/img.png", imageAlt: "alt" }],
+        },
+        { newId: () => "new_id" }
+      );
+      expect(out?.matchMode).toBe("textToImage");
+      expect(out?.dragDropLayout).toBe("textToImage");
+      expect((out?.pairs as { imageUrl?: string; imageAlt?: string }[])?.[0]).toMatchObject({
+        imageUrl: "/img.png",
+        imageAlt: "alt",
+      });
     });
 
     it("maps UI select values to persisted matchMode", () => {

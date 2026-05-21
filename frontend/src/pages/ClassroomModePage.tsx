@@ -25,7 +25,7 @@ import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/res
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
 import {
   coerceDiagramZonePct,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
 } from "../utils/dragDropMatchDiagram";
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
@@ -839,10 +839,10 @@ const ClassroomModePage: React.FC = () => {
                             intro: safeStr(b.intro, ""),
                             instructions: safeStr(b.instructions, ""),
                             ...(() => {
-                              const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                              const mm = dragDropMatchModeFromBlockForProps(b);
                               return mm ? { matchMode: mm } : {};
                             })(),
-                            ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                            ...(dragDropMatchModeFromBlockForProps(b) === "diagram" &&
                             safeStr(b.imageUrl, "")
                               ? { imageUrl: safeStr(b.imageUrl, "") }
                               : {}),

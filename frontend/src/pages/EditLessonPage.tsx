@@ -142,7 +142,7 @@ import {
   dragDropLayoutPersistedValues,
   type DragDropMatchAuthoringMatchMode,
   readDragDropPairAnswerImageUrl,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
   readDragDropMatchModeFromBlock,
   readDragDropPairTargetImageUrl,
@@ -8409,7 +8409,7 @@ const EditLessonPage: React.FC = () => {
                                   ? (b as LessonPageBlock).pairs!
                                   : []) as NonNullable<LessonPageBlock["pairs"]>;
                                 const ddmPairLabels = dragDropPairEditorLabels(
-                                  resolveDragDropMatchModeForUi((b as LessonPageBlock).matchMode, {
+                                  resolveDragDropMatchModeForUi(readDragDropMatchModeFromBlock(b), {
                                     imageUrl: (b as LessonPageBlock).imageUrl,
                                     dropZones: (b as LessonPageBlock).dropZones,
                                   })
@@ -9518,12 +9518,10 @@ const EditLessonPage: React.FC = () => {
                               intro: safeStr(ddm.intro, ""),
                               instructions: safeStr(ddm.instructions, ""),
                               ...(() => {
-                                const mm = dragDropMatchModeForBlockProps(
-                                  (ddm as LessonPageBlock).matchMode
-                                );
+                                const mm = dragDropMatchModeFromBlockForProps(ddm);
                                 return mm ? { matchMode: mm } : {};
                               })(),
-                              ...(dragDropMatchModeForBlockProps((ddm as LessonPageBlock).matchMode) ===
+                              ...(dragDropMatchModeFromBlockForProps(ddm) ===
                                 "diagram" &&
                               (ddm as LessonPageBlock).imageUrl != null &&
                               String((ddm as LessonPageBlock).imageUrl).trim()

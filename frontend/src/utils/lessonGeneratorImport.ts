@@ -10,6 +10,7 @@ import {
   normalizeDragDropPairRow,
   resolveDragDropMatchModeForPersist,
   sanitizeDiagramDropZonesForAuthoring,
+  readDragDropMatchModeFromBlock,
 } from "./dragDropMatchDiagram";
 import {
   graphBlockForPersist,
@@ -397,7 +398,7 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
       const imgI = typeof p.imageUrl === "string" ? p.imageUrl.trim() : "";
       const imageFit = parseDragDropDiagramImageFit(p.imageFit);
       const imagePosition = parseDragDropDiagramImagePosition(p.imagePosition);
-      const resolvedMode = resolveDragDropMatchModeForPersist(p.matchMode, {
+      const resolvedMode = resolveDragDropMatchModeForPersist(readDragDropMatchModeFromBlock(p), {
         imageUrl: p.imageUrl,
         dropZones: rawDz,
       });
