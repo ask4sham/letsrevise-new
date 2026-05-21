@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
+      # Full Jest suite loads app.js for integration tests; coverage doubles heap use on CI runners.
+      NODE_OPTIONS: --max-old-space-size=8192
 
     steps:
       - name: Checkout
@@ -59,7 +61,7 @@ jobs:
 
       - name: Test (backend)
         working-directory: backend
-        run: npm test
+        run: npm test -- --coverage=false --forceExit
 
   frontend:
     name: Frontend (build)
@@ -67,6 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Checkout
