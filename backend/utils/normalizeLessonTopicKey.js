@@ -7,6 +7,7 @@ const { isValidTopicSlugForSpec } = require("./specTopicRegistry");
 const { topicDisplayToCanonicalKey } = require("./topicTaxonomy");
 
 const PHOTOSYNTHESIS_RE = /\bphotosynth(?:esis|etic)\b/i;
+const RESPIRATION_RE = /\b(?:aerobic|anaerobic)?\s*respiration\b/i;
 
 function safeStr(v) {
   return v === undefined || v === null ? "" : String(v).trim();
@@ -31,6 +32,9 @@ function canonicalSlugFromNormalized(normalized) {
   if (PHOTOSYNTHESIS_RE.test(t)) return "photosynthesis";
   if (/\bbioenergetics\b/.test(t) && /\bphoto/.test(t)) return "photosynthesis";
   if (t.includes("photosynthesis")) return "photosynthesis";
+  if (RESPIRATION_RE.test(t)) return "respiration";
+  if (/\baerobic\b/.test(t) && /\banaerobic\b/.test(t)) return "respiration";
+  if (t.includes("respiration")) return "respiration";
   return null;
 }
 

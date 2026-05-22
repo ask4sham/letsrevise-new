@@ -3,8 +3,9 @@
  * No new runtime dependency — plain checks.
  */
 
-const { parseTopicKey, buildTopicKey } = require("../utils/topicKey");
+const { parseTopicKey } = require("../utils/topicKey");
 const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
+const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 
 function isNonEmptyString(s, minLen = 1) {
   return typeof s === "string" && s.trim().length >= minLen;
@@ -124,12 +125,25 @@ function validateExamQuestionDraftForAiLessonBank(item, specKey, namespacedTopic
  */
 function namespacedTopicKeyFromLesson(lesson) {
   const raw = (lesson.topicKey && String(lesson.topicKey).trim()) || "";
-  if (!raw) return { error: "Lesson has no topicKey" };
-  const parsed = parseTopicKey(raw);
-  const spec = (lesson.specKey && String(lesson.specKey).trim()) || parsed.specKey;
+  const parsed = raw ? parseTopicKey(raw) : { specKey: "", topicKey: "" };
+  const spec =
+    (lesson.specKey && String(lesson.specKey).trim()) ||
+    (parsed.specKey && String(parsed.specKey).trim()) ||
+    "";
   if (!spec) return { error: "Lesson has no specKey" };
-  const namespaced = raw.includes(":") ? raw : buildTopicKey(spec, parsed.topicKey || raw);
-  return { namespacedTopicKey: namespaced, specKey: spec };
+  const namespaced = normalizeNamespacedLessonTopicKey(spec, {
+    topicKey: lesson.topicKey,
+    canonicalTopicKey: lesson.canonicalTopicKey,
+    title: lesson.title,
+    topic: lesson.topic,
+    subTopic: lesson.subTopic,
+  });
+  if (namespaced) return { namespacedTopicKey: namespaced, specKey: spec };
+  if (!raw) return { error: "Lesson has no topicKey — set Topic to a syllabus sub-topic (e.g. Respiration) and save." };
+  return {
+    error:
+      "Lesson topicKey is not mapped to a valid syllabus sub-topic. Set Topic to match taxonomy (e.g. Respiration) and save, or use Rebuild Graph.",
+  };
 }
 
 module.exports = {

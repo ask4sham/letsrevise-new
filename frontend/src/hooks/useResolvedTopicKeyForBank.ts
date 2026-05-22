@@ -1,7 +1,6 @@
 /**
  * Resolve lesson topic to namespaced topicKeyForBank.
- * When lesson.topicKey is missing, fetches /api/taxonomy/resolve-topic to map display name (e.g. "Animal and plant cells")
- * to canonical key (e.g. "aqa-gcse-biology:animal-plant-cells"). Avoids wrong slugify like "animal-and-plant-cells".
+ * When lesson.topicKey is missing or title-derived, repairs via normalize + /api/taxonomy/resolve-topic.
  */
 import { useEffect, useState } from "react";
 import {
@@ -15,6 +14,19 @@ import {
 } from "../utils/normalizeLessonTopicKey";
 import { resolveTopicDisplayToKey } from "../api/taxonomy";
 
+function displayTextForTopicResolve(lesson: {
+  topic?: string | null;
+  subTopic?: string | null;
+  title?: string | null;
+} | null): string {
+  if (!lesson) return "";
+  const topic = typeof lesson.topic === "string" ? lesson.topic.trim() : "";
+  if (topic) return topic;
+  const sub = typeof lesson.subTopic === "string" ? lesson.subTopic.trim() : "";
+  if (sub) return sub;
+  return typeof lesson.title === "string" ? lesson.title.trim() : "";
+}
+
 export function useResolvedTopicKeyForBank(lesson: {
   id?: string;
   topicKey?: string | null;
@@ -22,6 +34,7 @@ export function useResolvedTopicKeyForBank(lesson: {
   title?: string | null;
   specKey?: string | null;
   topic?: string | null;
+  subTopic?: string | null;
   examBoardName?: string | null;
   level?: string | null;
   subject?: string | null;
@@ -36,26 +49,22 @@ export function useResolvedTopicKeyForBank(lesson: {
   const storedSlugInvalid =
     storedTopicKey.length > 0 && isLikelyInvalidTopicSlug(extractTopicSlug(storedTopicKey));
   const hasTopicKey = storedTopicKey.length > 0 && !storedSlugInvalid;
-  const topicTrimmed =
-    typeof lesson?.topic === "string" && lesson.topic.trim() ? lesson.topic.trim() : "";
+  const displayForResolve = displayTextForTopicResolve(lesson);
 
   useEffect(() => {
-    if (!lesson || hasTopicKey || !specKey || !topicTrimmed) {
+    if (!lesson || hasTopicKey || !specKey || !displayForResolve) {
       setResolvedFromDisplay(null);
       return;
     }
     let mounted = true;
-    // Do not clear the previous key to `undefined` on every `lesson` reference change
-    // (e.g. typing in description) — that flickers topicKeyForBank and can cascade re-renders.
-    resolveTopicDisplayToKey(specKey, topicTrimmed)
+    resolveTopicDisplayToKey(specKey, displayForResolve)
       .then((key) => mounted && setResolvedFromDisplay(key))
       .catch(() => mounted && setResolvedFromDisplay(null));
     return () => {
       mounted = false;
     };
-  }, [lesson?.id, lesson?.topicKey, hasTopicKey, specKey, topicTrimmed]);
+  }, [lesson?.id, lesson?.topicKey, lesson?.title, lesson?.topic, lesson?.subTopic, hasTopicKey, specKey, displayForResolve]);
 
-  // Sync path: valid stored topicKey, or repaired from canonical / title / topic text
   const normalized = normalizeLessonTopicSlugFromLesson(lesson);
   if (normalized.namespaced) {
     return normalized.namespaced;
@@ -63,10 +72,8 @@ export function useResolvedTopicKeyForBank(lesson: {
   if (hasTopicKey) {
     return resolveLessonTopicKeyForBankFromLesson(lesson);
   }
-  // Async path: resolved from API (correct mapping for "Animal and plant cells" → "animal-plant-cells")
   if (resolvedFromDisplay !== undefined) {
     return resolvedFromDisplay;
   }
-  // Loading: return null to avoid enabling buttons with wrong slugify-derived key
   return null;
 }

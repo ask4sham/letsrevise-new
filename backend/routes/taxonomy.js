@@ -8,6 +8,7 @@ const auth = require("../middleware/auth");
 const requireContentManager = require("../middleware/requireContentManager");
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { getMergedTaxonomyBySpecKey } = require("../services/adminTaxonomyService");
+const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
 const { getCreateLessonOptionsMerged } = require("../services/taxonomyService");
 const { postAdminSubtopic } = require("./adminTaxonomy");
 
@@ -37,8 +38,12 @@ router.get("/resolve-topic", async (req, res) => {
           return "";
         })()
       : "";
-    if (!canonicalKey) return res.json({ topicKey: null, resolved: false });
-    return res.json({ topicKey: `${specKey}:${canonicalKey}`, resolved: true });
+    if (canonicalKey) {
+      return res.json({ topicKey: `${specKey}:${canonicalKey}`, resolved: true });
+    }
+    const repaired = normalizeNamespacedLessonTopicKey(specKey, { topic, title: topic });
+    if (repaired) return res.json({ topicKey: repaired, resolved: true });
+    return res.json({ topicKey: null, resolved: false });
   } catch (err) {
     console.error("resolve-topic error:", err);
     return res.status(500).json({ error: "Failed to resolve topic" });

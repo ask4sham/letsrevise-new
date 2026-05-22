@@ -3730,8 +3730,16 @@ const EditLessonPage: React.FC = () => {
       setAiAssetsMessage(AI_ASSETS_PUBLISHED_MESSAGE);
       return;
     }
-    if (!topicKeyForBank) {
-      setAiAssetsMessage("Map this lesson to a syllabus subtopic first, then try again.");
+    const topicNormForAssets = normalizeLessonTopicSlugFromLesson({
+      ...lesson,
+      specKey: (lesson as { specKey?: string }).specKey,
+      canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
+    });
+    const effectiveTopicKey = topicNormForAssets.namespaced || topicKeyForBank;
+    if (!effectiveTopicKey) {
+      setAiAssetsMessage(
+        "Could not map this lesson to a syllabus sub-topic. Set Topic to a taxonomy label (e.g. Respiration for AQA GCSE Biology), save, or use Rebuild Graph — then try again."
+      );
       return;
     }
     setAiAssetsMessage(null);
@@ -4264,12 +4272,12 @@ const EditLessonPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void handleGenerateAiLessonAssets()}
-                  disabled={aiAssetsLoading || saving || !topicKeyForBank || !!lesson?.isPublished}
+                  disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
                   title={
                     lesson?.isPublished
                       ? AI_ASSETS_PUBLISHED_MESSAGE
                       : !topicKeyForBank
-                        ? "Set a syllabus subtopic on this lesson first."
+                        ? "Topic mapping may be incomplete — generation will try to repair from Topic/Title on save."
                         : "Saves your lesson, then creates draft flashcards and quiz in your topic banks (optional exam)."
                   }
                   style={{
@@ -4277,10 +4285,10 @@ const EditLessonPage: React.FC = () => {
                     borderRadius: 10,
                     border: "none",
                     background:
-                      aiAssetsLoading || saving || !topicKeyForBank || !!lesson?.isPublished ? "#d8b4fe" : "#7c3aed",
+                      aiAssetsLoading || saving || !!lesson?.isPublished ? "#d8b4fe" : "#7c3aed",
                     color: "#fff",
                     cursor:
-                      aiAssetsLoading || saving || !topicKeyForBank || !!lesson?.isPublished
+                      aiAssetsLoading || saving || !!lesson?.isPublished
                         ? "not-allowed"
                         : "pointer",
                     fontWeight: 900,

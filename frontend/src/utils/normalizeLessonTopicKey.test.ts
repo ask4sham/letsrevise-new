@@ -31,4 +31,16 @@ describe("normalizeLessonTopicKey", () => {
     expect(canonicalSlugFromText("photosynthesis reaction")).toBe("photosynthesis");
     expect(canonicalSlugFromText("bioenergetics photosynthesis")).toBe("photosynthesis");
   });
+
+  it("maps aerobic/anaerobic respiration title slug to respiration", () => {
+    const bad = "aerobic-anaerobic-respiration-aqa-gcse-biology-higher-tier";
+    expect(isLikelyInvalidTopicSlug(bad)).toBe(true);
+    expect(canonicalSlugFromText("Aerobic and anaerobic respiration")).toBe("respiration");
+    const r = normalizeLessonTopicSlug("aqa-gcse-biology", {
+      topicKey: bad,
+      title: "Aerobic and anaerobic respiration (AQA GCSE Biology) (Higher Tier)",
+    });
+    expect(r.slug).toBe("respiration");
+    expect(r.namespaced).toBe("aqa-gcse-biology:respiration");
+  });
 });
