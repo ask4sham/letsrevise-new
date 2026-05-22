@@ -2,19 +2,16 @@ import React, { useMemo, useState } from "react";
 import FlashcardsView from "../../revision/FlashcardsView";
 import { QuizView } from "../../revision/QuizView";
 import { deriveLessonRetrieval } from "../../../utils/deriveLessonRetrieval";
+import { buildRevisionPracticePool, type LayerQuizQuestion } from "../../../utils/lessonQuestionPools";
 import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
-import {
-  collectCheckpointMcqsFromPages,
-  filterQuizRecordsNotMatchingCheckpoints,
-  type CheckpointMcqSource,
-} from "../../../utils/revisionPracticeVariants";
-import { isNearDuplicateStem } from "../../../utils/questionStemSimilarity";
 import "./studentRetrievalSection.css";
 
 type Props = {
-  pages: Array<{ blocks?: unknown[] }>;
+  pages: Array<{ blocks?: unknown[]; checkpoint?: unknown }>;
   storedFlashcards: Array<Record<string, unknown>>;
-  storedQuizQuestions: Array<Record<string, unknown>>;
+  /** Pre-built revision layer (excludes checkpoint duplicates). When omitted, built from pages + stored quiz. */
+  revisionQuizPool?: LayerQuizQuestion[];
+  storedQuizQuestions?: Array<Record<string, unknown>>;
   hasFullAccess: boolean;
   onQuestionAnswered?: (correct: boolean) => void;
 };
@@ -48,51 +45,29 @@ function mergeFlashcards(
   return out.slice(0, 5);
 }
 
-function mergeQuiz(
-  stored: Array<Record<string, unknown>>,
-  derived: ReturnType<typeof deriveLessonRetrieval>["quizQuestions"],
-  checkpoints: CheckpointMcqSource[]
-) {
-  const filteredStored = filterQuizRecordsNotMatchingCheckpoints(stored, checkpoints);
-  const out: Array<Record<string, unknown>> = [...filteredStored];
-  const seen = new Set(
-    filteredStored.map(
-      (q) => `${String(q.question ?? q.prompt ?? "")}|${String(q.correctAnswer ?? q.answer ?? "")}`
-    )
-  );
-  for (const d of derived) {
-    const key = `${d.question}|${d.correctAnswer}`;
-    if (seen.has(key)) continue;
-    if (checkpoints.some((cp) => isNearDuplicateStem(d.question, cp.prompt))) continue;
-    seen.add(key);
-    out.push(d);
-  }
-  return out.slice(0, 5);
-}
-
 /**
- * End-of-lesson retrieval: quiz, flashcards, and short exam practice — auto-filled from lesson blocks when needed.
+ * End-of-lesson retrieval: quiz, flashcards, and short exam practice — separated from inline checkpoints.
  */
 export function StudentRetrievalSection({
   pages,
   storedFlashcards,
-  storedQuizQuestions,
+  revisionQuizPool,
+  storedQuizQuestions = [],
   hasFullAccess,
   onQuestionAnswered,
 }: Props): React.ReactElement | null {
   const derived = useMemo(() => deriveLessonRetrieval(pages), [pages]);
-  const checkpointSources = useMemo(() => collectCheckpointMcqsFromPages(pages), [pages]);
+  const revisionPool = useMemo(
+    () => revisionQuizPool ?? buildRevisionPracticePool(pages, storedQuizQuestions),
+    [revisionQuizPool, pages, storedQuizQuestions]
+  );
   const flashcards = useMemo(
     () => mergeFlashcards(storedFlashcards, derived.flashcards),
     [storedFlashcards, derived.flashcards]
   );
-  const quizRaw = useMemo(
-    () => mergeQuiz(storedQuizQuestions, derived.quizQuestions, checkpointSources),
-    [storedQuizQuestions, derived.quizQuestions, checkpointSources]
-  );
   const quizQuestions = useMemo(
-    () => quizRaw.map((q, i) => normalizeQuizQuestion(q, i)),
-    [quizRaw]
+    () => revisionPool.map((q, i) => normalizeQuizQuestion(q, i)),
+    [revisionPool]
   );
   const examQuestions = derived.examQuestions;
 

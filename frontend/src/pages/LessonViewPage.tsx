@@ -88,6 +88,10 @@ import {
   normalizeContentKeywords,
 } from "../components/lesson/student/contentKeywordHighlight";
 import { StudentRetrievalSection } from "../components/lesson/student/StudentRetrievalSection";
+import {
+  buildQuizPagePool,
+  buildRevisionPracticePool,
+} from "../utils/lessonQuestionPools";
 import { KeywordGlossaryProvider } from "../components/lesson/student/keywordGlossaryContext";
 import type { GlossaryFlashcardLite } from "../components/lesson/student/keywordGlossaryFlashcards";
 
@@ -1671,32 +1675,51 @@ const LessonViewPage: React.FC = () => {
     return [];
   }, [lesson]);
 
-  // Page-aware quiz: questions for current page only (structured view)
+  // Page-aware quiz: diversified pool — never raw checkpoint clones (see lessonQuestionPools).
   const totalPages = orderedPages.length;
   const isSinglePage = totalPages <= 1;
+  const storedQuizRecords = useMemo(
+    () => (quizQuestions as Array<Record<string, unknown>>) ?? [],
+    [quizQuestions]
+  );
+  const revisionPracticePool = useMemo(
+    () => buildRevisionPracticePool(orderedPages, storedQuizRecords),
+    [orderedPages, storedQuizRecords]
+  );
   const pageQuizQuestions = useMemo(() => {
-    if (!hasStructuredPages || !currentPage) return [];
-    const pageId = String(currentPage.pageId || "");
-    const withPageId = quizQuestions.filter((q: any) => String(q?.pageId || "") === pageId);
-    // Single-page fallback: show questions with no pageId in Page Quiz (legacy/auto-attached)
-    if (isSinglePage && withPageId.length === 0) {
-      return quizQuestions.filter((q: any) => {
-        const pid = String(q?.pageId ?? "").trim();
-        return !pid || pid === "END";
-      });
+    if (!hasStructuredPages) {
+      return buildQuizPagePool([], storedQuizRecords, revisionPracticePool, { max: 8 });
     }
-    return withPageId;
-  }, [hasStructuredPages, currentPage, quizQuestions, isSinglePage, orderedPages.length]);
+    if (!currentPage) return [];
+    const pageId = String(currentPage.pageId || "");
+    if (isSinglePage) {
+      const scoped = storedQuizRecords.filter((q) => {
+        const pid = String(q.pageId ?? "").trim();
+        return !pid || pid === "END" || pid === pageId;
+      });
+      return buildQuizPagePool(orderedPages, scoped, revisionPracticePool, { max: 8 });
+    }
+    return buildQuizPagePool(orderedPages, storedQuizRecords, revisionPracticePool, {
+      pageId,
+      max: 8,
+    });
+  }, [
+    hasStructuredPages,
+    currentPage,
+    storedQuizRecords,
+    isSinglePage,
+    orderedPages,
+    revisionPracticePool,
+  ]);
 
-  // End of lesson: questions with no pageId or pageId === "END"
-  // When single page, all such questions are shown in Page Quiz instead, so this stays empty.
   const endOfLessonQuizQuestions = useMemo(() => {
     if (isSinglePage) return [];
-    return quizQuestions.filter((q: any) => {
-      const pid = String(q?.pageId ?? "").trim();
+    const scoped = storedQuizRecords.filter((q) => {
+      const pid = String(q.pageId ?? "").trim();
       return !pid || pid === "END";
     });
-  }, [quizQuestions, isSinglePage]);
+    return buildQuizPagePool(orderedPages, scoped, revisionPracticePool, { max: 8 });
+  }, [isSinglePage, storedQuizRecords, orderedPages, revisionPracticePool]);
 
   // ✅ SINGLE SOURCE OF TRUTH: Flashcards
   const flashcards = useMemo(() => {
@@ -4321,7 +4344,7 @@ const LessonViewPage: React.FC = () => {
                 <StudentRetrievalSection
                   pages={orderedPages}
                   storedFlashcards={flashcards as Array<Record<string, unknown>>}
-                  storedQuizQuestions={quizQuestions as Array<Record<string, unknown>>}
+                  revisionQuizPool={revisionPracticePool}
                   hasFullAccess={Boolean(hasFullLessonAccess)}
                   onQuestionAnswered={
                     topicKeyForBank && isStudent
@@ -5268,7 +5291,7 @@ const LessonViewPage: React.FC = () => {
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               Quiz available with full access (included in your subscription).
             </div>
-          ) : quizQuestions.length === 0 ? (
+          ) : pageQuizQuestions.length === 0 ? (
             <div style={{ padding: 16, color: "#64748b", fontSize: 14 }}>
               {isTeacherOrAdmin ? (
                 id ? (
@@ -5284,7 +5307,7 @@ const LessonViewPage: React.FC = () => {
             <>
               <QuizView
                 title=""
-                questions={(quizQuestions ?? []).map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
+                questions={pageQuizQuestions.map((raw: any, idx: number) => normalizeQuizQuestion(raw, idx))}
                 onQuestionAnswered={topicKeyForBank && isStudent ? handleQuestionAnswered : undefined}
                 onContinueLesson={() => window.scrollBy({ top: 400, behavior: "smooth" })}
               />

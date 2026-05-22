@@ -34,7 +34,7 @@ export function stemSimilarity(a: string, b: string): number {
   return union === 0 ? 0 : inter / union;
 }
 
-const DEFAULT_DUPLICATE_THRESHOLD = 0.82;
+export const DEFAULT_DUPLICATE_THRESHOLD = 0.85;
 
 export function isNearDuplicateStem(
   a: string,
@@ -50,5 +50,28 @@ export function isNearDuplicateStem(
 }
 
 export function questionStemFromRecord(q: Record<string, unknown>): string {
-  return String(q.question ?? q.prompt ?? q.stem ?? q.text ?? "").trim();
+  return String(q.question ?? q.questionText ?? q.prompt ?? q.stem ?? q.text ?? "").trim();
+}
+
+export function correctAnswerFromRecord(q: Record<string, unknown>): string {
+  return String(q.correctAnswer ?? q.answer ?? q.modelAnswer ?? "").trim();
+}
+
+/** Stable key: normalised stem + correct answer (catches identical MCQ clones). */
+export function mcqFingerprintFromRecord(q: Record<string, unknown>): string {
+  const stem = normalizeQuestionStem(questionStemFromRecord(q));
+  const ca = normalizeQuestionStem(correctAnswerFromRecord(q));
+  return `${stem}|${ca}`;
+}
+
+export function isDuplicateMcqPair(
+  a: { question: string; correctAnswer: string },
+  b: { question: string; correctAnswer: string },
+  threshold = DEFAULT_DUPLICATE_THRESHOLD
+): boolean {
+  if (isNearDuplicateStem(a.question, b.question, threshold)) return true;
+  const caA = normalizeQuestionStem(a.correctAnswer);
+  const caB = normalizeQuestionStem(b.correctAnswer);
+  if (caA && caB && caA === caB && stemSimilarity(a.question, b.question) >= 0.7) return true;
+  return false;
 }
