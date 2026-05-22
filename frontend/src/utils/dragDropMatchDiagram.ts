@@ -103,6 +103,44 @@ export function dragDropMatchModeForBlockProps(
   return parseDragDropMatchMode(raw);
 }
 
+/** Text-to-image target field only (not answer-card thumbnails). */
+export function readDragDropPairExplicitTargetImageUrl(row: unknown): string | undefined {
+  if (!row || typeof row !== "object") return undefined;
+  const o = row as Record<string, unknown>;
+  const v = o.imageUrl ?? o.image_url;
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  return s ? s : undefined;
+}
+
+/**
+ * Resolve layout for save, hydrate, and preview — prefers `dragDropLayout` / `matchMode`, then pair
+ * `imageUrl` targets, then diagram inference. Never treats `answerImageUrl` alone as text-to-image.
+ */
+export function resolveDragDropPersistMode(block: unknown): DragDropMatchPersistedMode | undefined {
+  const b = block != null && typeof block === "object" ? (block as Record<string, unknown>) : {};
+  const raw = readDragDropMatchModeFromBlock(b);
+  const direct = parseDragDropMatchMode(raw);
+  if (direct === "text") return "text";
+  if (direct === "text-to-image") return "text-to-image";
+  if (direct === "diagram") return "diagram";
+  const pairs = Array.isArray(b.pairs) ? b.pairs : [];
+  if (pairs.some((row) => readDragDropPairExplicitTargetImageUrl(row))) {
+    return "text-to-image";
+  }
+  if (hasDiagramInferenceSignals({ imageUrl: b.imageUrl, dropZones: b.dropZones })) {
+    return "diagram";
+  }
+  return undefined;
+}
+
+/** Resolve layout for student/preview — reads `dragDropLayout` when `matchMode` is omitted. */
+export function dragDropMatchModeFromBlockForProps(
+  block: unknown
+): DragDropMatchPersistedMode | undefined {
+  return resolveDragDropPersistMode(block);
+}
+
 export function parseDragDropDiagramImageFit(raw: unknown): DragDropDiagramImageFit | undefined {
   if (raw == null) return undefined;
   const s = String(raw).trim().toLowerCase();
@@ -165,9 +203,11 @@ export function resolveDragDropMatchModeForUi(
   raw: unknown,
   ctx?: DragDropMatchModePersistContext
 ): DragDropMatchUiMode {
-  const m = resolveDragDropMatchModeForPersist(raw, ctx);
-  if (m === "diagram") return "diagram";
-  if (m === "text-to-image") return "text-to-image";
+  const direct = parseDragDropMatchMode(raw);
+  if (direct === "diagram") return "diagram";
+  if (direct === "text-to-image") return "text-to-image";
+  if (direct === "text") return "standard";
+  if (ctx && hasDiagramInferenceSignals(ctx)) return "diagram";
   return "standard";
 }
 
@@ -491,13 +531,7 @@ export function buildDragDropMatchBlockForPersist(
   const zonePairIds = pairs.map((row) => row.id);
   const rawZonesPersist = Array.isArray(b.dropZones) ? b.dropZones : [];
   const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(0, 40);
-  const rawMode = readDragDropMatchModeFromBlock(b);
-  const resolvedPersist =
-    parseDragDropMatchMode(rawMode) ??
-    resolveDragDropMatchModeForPersist(rawMode, {
-      imageUrl: b.imageUrl,
-      dropZones: rawZonesPersist,
-    });
+  const resolvedPersist = resolveDragDropPersistMode(b);
   const ddmOut: Record<string, unknown> = {
     type: "dragDropMatch",
     title: typeof b.title === "string" ? b.title.trim() : "",
@@ -513,8 +547,12 @@ export function buildDragDropMatchBlockForPersist(
     opts.logZoneBindings?.("persist payload (diagram)", dropZonesPersist, pairs);
   } else if (resolvedPersist === "text") {
     applyPersistedDragDropLayoutFields(ddmOut, "text");
+    delete ddmOut.imageUrl;
+    delete ddmOut.dropZones;
   } else if (resolvedPersist === "text-to-image") {
     applyPersistedDragDropLayoutFields(ddmOut, "text-to-image");
+    delete ddmOut.imageUrl;
+    delete ddmOut.dropZones;
   }
   if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
   return ddmOut;

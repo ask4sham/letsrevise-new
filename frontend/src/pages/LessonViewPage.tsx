@@ -56,7 +56,7 @@ import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/fo
 import { studentCheckpointFromBlock } from "../utils/studentCheckpointFromBlock";
 import {
   coerceDiagramZonePct,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
 } from "../utils/dragDropMatchDiagram";
 import { SummariseLesson } from "../components/ai/SummariseLesson";
@@ -4098,17 +4098,18 @@ const LessonViewPage: React.FC = () => {
                                 intro: safeStr(b.intro, ""),
                                 instructions: safeStr(b.instructions, ""),
                                 ...(() => {
-                                  const mm = dragDropMatchModeForBlockProps(b.matchMode);
+                                  const mm = dragDropMatchModeFromBlockForProps(b);
                                   return mm ? { matchMode: mm } : {};
                                 })(),
-                                ...(dragDropMatchModeForBlockProps(b.matchMode) === "diagram" &&
+                                ...(dragDropMatchModeFromBlockForProps(b) === "diagram" &&
                                 safeStr(b.imageUrl, "")
                                   ? { imageUrl: safeStr(b.imageUrl, "") }
                                   : {}),
                                 pairs: (Array.isArray(b.pairs) ? b.pairs : []).map((p, i) =>
                                   mapDragDropPairForBlockRender(p, i)
                                 ),
-                                ...(Array.isArray(b.dropZones)
+                                ...(dragDropMatchModeFromBlockForProps(b) === "diagram" &&
+                                Array.isArray(b.dropZones)
                                   ? {
                                       dropZones: b.dropZones.map((z, i) => {
                                         const x = coerceDiagramZonePct(z?.x);

@@ -41,4 +41,34 @@ describe("sanitisePagesInput dragDropMatch text-to-image", () => {
     expect(block.imageUrl).toBeUndefined();
     expect(block.dropZones).toBeUndefined();
   });
+
+  it("infers text-to-image from pair imageUrl when matchMode omitted", () => {
+    const pages = sanitisePagesInput(
+      [
+        {
+          pageId: "p1",
+          title: "Test",
+          order: 1,
+          hero: { type: "none", src: "", caption: "" },
+          blocks: [
+            {
+              type: "dragDropMatch",
+              pairs: [
+                {
+                  id: "pair_1",
+                  prompt: "Aerobic",
+                  answer: "Mitochondria",
+                  imageUrl: "/uploads/mito.png",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      true
+    );
+    const block = pages[0].blocks[0];
+    expect(block.matchMode).toBe("textToImage");
+    expect(block.pairs[0].imageUrl).toBe("/uploads/mito.png");
+  });
 });

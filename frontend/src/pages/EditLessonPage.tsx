@@ -142,9 +142,10 @@ import {
   dragDropLayoutPersistedValues,
   type DragDropMatchAuthoringMatchMode,
   readDragDropPairAnswerImageUrl,
-  dragDropMatchModeForBlockProps,
+  dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
   readDragDropMatchModeFromBlock,
+  resolveDragDropPersistMode,
   readDragDropPairTargetImageUrl,
   parseDragDropMatchMode,
   resolveDragDropMatchModeForPersist,
@@ -1566,13 +1567,7 @@ const EditLessonPage: React.FC = () => {
                     ? (b as { dropZones: unknown[] }).dropZones
                     : [];
                   const dropZonesSan = sanitizeDiagramDropZonesForAuthoring(rawZones, pairIdsForZones);
-                  const rawModeHydrate = readDragDropMatchModeFromBlock(b);
-                  const resolvedHydrate =
-                    parseDragDropMatchMode(rawModeHydrate) ??
-                    resolveDragDropMatchModeForPersist(rawModeHydrate, {
-                      imageUrl: (b as { imageUrl?: unknown }).imageUrl,
-                      dropZones: rawZones,
-                    });
+                  const resolvedHydrate = resolveDragDropPersistMode(b);
                   const outDdm: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1629,13 +1624,7 @@ const EditLessonPage: React.FC = () => {
                   const pairIdsRepair = pairs.map((r: { id: string }) => r.id);
                   const rawZonesRepair = Array.isArray((b as any).dropZones) ? (b as any).dropZones : [];
                   const dropZonesRepair = sanitizeDiagramDropZonesForAuthoring(rawZonesRepair, pairIdsRepair);
-                  const rawModeRepair = readDragDropMatchModeFromBlock(b);
-                  const resolvedRepair =
-                    parseDragDropMatchMode(rawModeRepair) ??
-                    resolveDragDropMatchModeForPersist(rawModeRepair, {
-                      imageUrl: (b as any).imageUrl,
-                      dropZones: rawZonesRepair,
-                    });
+                  const resolvedRepair = resolveDragDropPersistMode(b);
                   const repaired: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -3565,15 +3554,16 @@ const EditLessonPage: React.FC = () => {
       subject: lesson.subject,
       level: lesson.level,
       topic: lesson.topic,
-      topicKey:
-        normalizeLessonTopicSlugFromLesson({
+      topicKey: (() => {
+        const topicNorm = normalizeLessonTopicSlugFromLesson({
           ...lesson,
           specKey: (lesson as { specKey?: string }).specKey,
           canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
-        }).namespaced ??
-        topicKeyForBank ??
-        lesson.topicKey ??
-        undefined,
+        });
+        if (topicNorm.namespaced) return topicNorm.namespaced;
+        if (topicKeyForBank) return topicKeyForBank;
+        return undefined;
+      })(),
       specKey: (lesson as { specKey?: string }).specKey ?? undefined,
       mainTopic: (lesson as { mainTopic?: string }).mainTopic ?? undefined,
       subTopic: (lesson as { subTopic?: string }).subTopic ?? undefined,
@@ -9518,19 +9508,17 @@ const EditLessonPage: React.FC = () => {
                               intro: safeStr(ddm.intro, ""),
                               instructions: safeStr(ddm.instructions, ""),
                               ...(() => {
-                                const mm = dragDropMatchModeForBlockProps(
-                                  (ddm as LessonPageBlock).matchMode
-                                );
+                                const mm = dragDropMatchModeFromBlockForProps(ddm);
                                 return mm ? { matchMode: mm } : {};
                               })(),
-                              ...(dragDropMatchModeForBlockProps((ddm as LessonPageBlock).matchMode) ===
-                                "diagram" &&
+                              ...(dragDropMatchModeFromBlockForProps(ddm) === "diagram" &&
                               (ddm as LessonPageBlock).imageUrl != null &&
                               String((ddm as LessonPageBlock).imageUrl).trim()
                                 ? { imageUrl: String((ddm as LessonPageBlock).imageUrl).trim() }
                                 : {}),
                               pairs: previewPairsRaw.map((p, i) => mapDragDropPairForBlockRender(p, i)),
-                              ...(Array.isArray((ddm as LessonPageBlock).dropZones)
+                              ...(dragDropMatchModeFromBlockForProps(ddm) === "diagram" &&
+                              Array.isArray((ddm as LessonPageBlock).dropZones)
                                 ? {
                                     dropZones: (ddm as LessonPageBlock).dropZones!.map((z, i) => {
                                       const x = coerceDiagramZonePct(z?.x);

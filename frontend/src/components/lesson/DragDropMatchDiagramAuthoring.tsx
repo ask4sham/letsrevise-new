@@ -11,6 +11,7 @@ import {
   repairDiagramDropZonesForLessonEditor,
   dragDropLayoutPersistedValues,
   dragDropMatchModeFromUiSelect,
+  readDragDropMatchModeFromBlock,
   resolveDragDropMatchModeForUi,
   type DragDropMatchAuthoringMatchMode,
 } from "../../utils/dragDropMatchDiagram";
@@ -94,7 +95,7 @@ export function DragDropMatchDiagramAuthoring({
   const imageFit = parseDragDropDiagramImageFit(blk.imageFit) ?? "contain";
   const imagePosition = parseDragDropDiagramImagePosition(blk.imagePosition) ?? "center center";
 
-  const layoutMode = resolveDragDropMatchModeForUi(blk.matchMode, {
+  const layoutMode = resolveDragDropMatchModeForUi(readDragDropMatchModeFromBlock(blk), {
     imageUrl: blk.imageUrl,
     dropZones: blk.dropZones,
   });
