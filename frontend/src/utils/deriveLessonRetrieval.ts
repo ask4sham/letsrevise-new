@@ -1,7 +1,14 @@
 /**
  * Build quiz / flashcard / exam-practice retrieval from lesson blocks when the lesson
  * has no (or few) bank-generated revision items — shown automatically in student view.
+ * Checkpoint MCQs are turned into paraphrased / shuffled revision variants (not copies).
  */
+
+import {
+  buildRevisionVariantsFromCheckpoints,
+  extractCheckpointMcqFromBlock,
+  type CheckpointMcqSource,
+} from "./revisionPracticeVariants";
 
 type LooseBlock = Record<string, unknown>;
 
@@ -142,6 +149,8 @@ export function deriveLessonRetrieval(
   const blocks = collectBlocks(pages);
   const quizSeen = new Set<string>();
   const quizQuestions: DerivedQuizQuestion[] = [];
+  const checkpointSources: CheckpointMcqSource[] = [];
+  const checkpointSeen = new Set<string>();
   const flashcards: DerivedFlashcard[] = [];
   const fcSeen = new Set<string>();
   let examSource = "";
@@ -149,7 +158,14 @@ export function deriveLessonRetrieval(
   for (const b of blocks) {
     const t = blockType(b);
     if (t === "checkpoint" || t === "selfcheck" || t === "quickcheck") {
-      pushMcqFromBlock(b, quizQuestions, quizSeen);
+      const cp = extractCheckpointMcqFromBlock(b);
+      if (cp) {
+        const cpKey = `${cp.prompt}|${cp.correctAnswer}`;
+        if (!checkpointSeen.has(cpKey)) {
+          checkpointSeen.add(cpKey);
+          checkpointSources.push(cp);
+        }
+      }
       const prompt = safeStr(b.prompt ?? b.question);
       const answer = safeStr(b.correctAnswer ?? b.answer);
       if (t === "selfcheck" && prompt && answer && !Array.isArray(b.options)) {
@@ -217,6 +233,13 @@ export function deriveLessonRetrieval(
     ...q,
     modelAnswer: models[i] || q.modelAnswer,
   }));
+
+  for (const variant of buildRevisionVariantsFromCheckpoints(checkpointSources)) {
+    const key = `${variant.question}|${variant.correctAnswer}`;
+    if (quizSeen.has(key)) continue;
+    quizSeen.add(key);
+    quizQuestions.push(variant);
+  }
 
   return {
     flashcards: flashcards.slice(0, 5),

@@ -21,6 +21,8 @@ describe("deriveLessonRetrieval", () => {
 
     expect(result.quizQuestions).toHaveLength(1);
     expect(result.quizQuestions[0].correctAnswer).toBe("B");
+    expect(result.quizQuestions[0].question).not.toBe("What is a limiting factor?");
+    expect(result.quizQuestions[0].question.length).toBeGreaterThan(10);
     expect(result.flashcards.some((c) => c.front === "Limiting factor")).toBe(true);
   });
 

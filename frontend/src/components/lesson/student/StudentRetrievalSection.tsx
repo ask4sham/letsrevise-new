@@ -3,6 +3,12 @@ import FlashcardsView from "../../revision/FlashcardsView";
 import { QuizView } from "../../revision/QuizView";
 import { deriveLessonRetrieval } from "../../../utils/deriveLessonRetrieval";
 import { normalizeQuizQuestion } from "../../../utils/normalizeQuizQuestion";
+import {
+  collectCheckpointMcqsFromPages,
+  filterQuizRecordsNotMatchingCheckpoints,
+  type CheckpointMcqSource,
+} from "../../../utils/revisionPracticeVariants";
+import { isNearDuplicateStem } from "../../../utils/questionStemSimilarity";
 import "./studentRetrievalSection.css";
 
 type Props = {
@@ -44,15 +50,20 @@ function mergeFlashcards(
 
 function mergeQuiz(
   stored: Array<Record<string, unknown>>,
-  derived: ReturnType<typeof deriveLessonRetrieval>["quizQuestions"]
+  derived: ReturnType<typeof deriveLessonRetrieval>["quizQuestions"],
+  checkpoints: CheckpointMcqSource[]
 ) {
-  const out: Array<Record<string, unknown>> = [...stored];
+  const filteredStored = filterQuizRecordsNotMatchingCheckpoints(stored, checkpoints);
+  const out: Array<Record<string, unknown>> = [...filteredStored];
   const seen = new Set(
-    stored.map((q) => `${String(q.question ?? q.prompt ?? "")}|${String(q.correctAnswer ?? q.answer ?? "")}`)
+    filteredStored.map(
+      (q) => `${String(q.question ?? q.prompt ?? "")}|${String(q.correctAnswer ?? q.answer ?? "")}`
+    )
   );
   for (const d of derived) {
     const key = `${d.question}|${d.correctAnswer}`;
     if (seen.has(key)) continue;
+    if (checkpoints.some((cp) => isNearDuplicateStem(d.question, cp.prompt))) continue;
     seen.add(key);
     out.push(d);
   }
@@ -70,13 +81,14 @@ export function StudentRetrievalSection({
   onQuestionAnswered,
 }: Props): React.ReactElement | null {
   const derived = useMemo(() => deriveLessonRetrieval(pages), [pages]);
+  const checkpointSources = useMemo(() => collectCheckpointMcqsFromPages(pages), [pages]);
   const flashcards = useMemo(
     () => mergeFlashcards(storedFlashcards, derived.flashcards),
     [storedFlashcards, derived.flashcards]
   );
   const quizRaw = useMemo(
-    () => mergeQuiz(storedQuizQuestions, derived.quizQuestions),
-    [storedQuizQuestions, derived.quizQuestions]
+    () => mergeQuiz(storedQuizQuestions, derived.quizQuestions, checkpointSources),
+    [storedQuizQuestions, derived.quizQuestions, checkpointSources]
   );
   const quizQuestions = useMemo(
     () => quizRaw.map((q, i) => normalizeQuizQuestion(q, i)),
@@ -121,7 +133,7 @@ export function StudentRetrievalSection({
       <header className="student-retrieval__header">
         <h2 className="student-retrieval__title">Revision practice</h2>
         <p className="student-retrieval__lead">
-          Quick retrieval from this lesson — quiz, flashcards, and exam-style questions.
+          Reinforcement quiz, flashcards, and exam-style questions — varied from in-lesson checkpoints.
         </p>
       </header>
 
