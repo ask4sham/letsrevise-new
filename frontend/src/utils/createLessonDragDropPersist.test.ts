@@ -1,4 +1,8 @@
-import { resolveDragDropMatchModeForPersist } from "./dragDropMatchDiagram";
+import {
+  buildDragDropMatchBlockForPersist,
+  resolveDragDropMatchModeForPersist,
+  resolveDragDropPersistMode,
+} from "./dragDropMatchDiagram";
 
 /**
  * Regression: CreateLesson buildLessonPayload must emit text-to-image (see CreateLessonPage dragDropMatch branch).
@@ -12,5 +16,34 @@ describe("CreateLesson dragDropMatch persist shape", () => {
         dropZones: [{ id: "z1", correctPairId: "p1" }],
       })
     ).toBe("text-to-image");
+  });
+
+  it("resolveDragDropPersistMode keeps text-to-image when diagram fields linger on block", () => {
+    expect(
+      resolveDragDropPersistMode({
+        matchMode: "textToImage",
+        imageUrl: "https://example.com/old-diagram.png",
+        dropZones: [{ id: "z1", correctPairId: "p1" }],
+        pairs: [{ id: "p1", prompt: "A", answer: "B", imageUrl: "/target.png" }],
+      })
+    ).toBe("text-to-image");
+  });
+
+  it("buildDragDropMatchBlockForPersist keeps text-to-image when diagram inference signals exist", () => {
+    const out = buildDragDropMatchBlockForPersist(
+      {
+        type: "dragDropMatch",
+        matchMode: "textToImage",
+        dragDropLayout: "textToImage",
+        imageUrl: "https://example.com/old-diagram.png",
+        dropZones: [{ id: "z1", correctPairId: "p1" }],
+        pairs: [{ id: "p1", prompt: "A", answer: "B", imageUrl: "/target.png" }],
+      },
+      { newId: () => "id" }
+    );
+    expect(out?.matchMode).toBe("textToImage");
+    expect(out?.dragDropLayout).toBe("textToImage");
+    expect(out?.dropZones).toBeUndefined();
+    expect(out?.imageUrl).toBeUndefined();
   });
 });

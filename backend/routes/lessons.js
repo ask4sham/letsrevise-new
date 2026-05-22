@@ -691,8 +691,11 @@ function sanitisePageInput(p, isUpdate = false) {
                     : undefined,
               };
               if (answerImageUrlRaw) pairOut.answerImageUrl = answerImageUrlRaw;
-              const imageUrlRaw =
+              let imageUrlRaw =
                 typeof row.imageUrl === "string" ? row.imageUrl.trim().slice(0, 8000) : "";
+              if (!imageUrlRaw && typeof row.image_url === "string") {
+                imageUrlRaw = row.image_url.trim().slice(0, 8000);
+              }
               if (imageUrlRaw) pairOut.imageUrl = imageUrlRaw;
               const imageAltRaw =
                 typeof row.imageAlt === "string" ? row.imageAlt.trim().slice(0, 500) : "";
@@ -765,10 +768,15 @@ function sanitisePageInput(p, isUpdate = false) {
                     : undefined;
           let effectiveMm = mmNorm;
           if (effectiveMm !== "diagram" && effectiveMm !== "text" && effectiveMm !== "text-to-image") {
-            const inferredImg =
-              typeof b?.imageUrl === "string" && String(b.imageUrl).trim().length > 0;
-            if (inferredImg && dropZones.length > 0) {
-              effectiveMm = "diagram";
+            const hasPairTargetImages = pairs.some((row) => Boolean(row.imageUrl));
+            if (hasPairTargetImages) {
+              effectiveMm = "text-to-image";
+            } else {
+              const inferredImg =
+                typeof b?.imageUrl === "string" && String(b.imageUrl).trim().length > 0;
+              if (inferredImg && dropZones.length > 0) {
+                effectiveMm = "diagram";
+              }
             }
           }
           const ddmOut = {
