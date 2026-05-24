@@ -83,6 +83,8 @@ function sanitizePageForPreview(page) {
         if (typeof b.imageUrl === "string" && b.imageUrl.trim()) out.imageUrl = b.imageUrl.trim();
         if (typeof b.imageSource === "string" && b.imageSource.trim()) out.imageSource = b.imageSource.trim();
         if (typeof b.alt === "string" && b.alt.trim()) out.alt = b.alt.trim();
+        if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
+        if (typeof b.subtitle === "string" && b.subtitle.trim()) out.subtitle = b.subtitle.trim();
         return out;
       }
       return b;

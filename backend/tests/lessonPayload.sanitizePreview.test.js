@@ -52,6 +52,8 @@ describe("sanitizePageForPreview", () => {
         {
           type: "diagram",
           visualId: "507f1f77bcf86cd799439011",
+          title: "Animal cell structure",
+          subtitle: "Label the organelles you can see.",
           caption: "Animal cell",
           mode: "annotated",
           annotations: [{ id: "a1", kind: "label", text: "Nucleus", x: 0.3, y: 0.4 }],
@@ -65,12 +67,14 @@ describe("sanitizePageForPreview", () => {
     expect(diagramBlock).toBeDefined();
     expect(diagramBlock.type).toBe("diagram");
     expect(diagramBlock.visualId).toBe("507f1f77bcf86cd799439011");
+    expect(diagramBlock.title).toBe("Animal cell structure");
+    expect(diagramBlock.subtitle).toBe("Label the organelles you can see.");
     expect(diagramBlock.caption).toBe("Animal cell");
     expect(diagramBlock.mode).toBe("annotated");
     expect(diagramBlock.annotations).toEqual([{ id: "a1", kind: "label", text: "Nucleus", x: 0.3, y: 0.4 }]);
     expect(diagramBlock.steps).toEqual([{ id: "s1", title: "Step 1", showAnnotationIds: ["a1"] }]);
     expect(Object.keys(diagramBlock).sort()).toEqual(
-      ["annotations", "caption", "mode", "steps", "type", "visualId"].sort()
+      ["annotations", "caption", "mode", "steps", "subtitle", "title", "type", "visualId"].sort()
     );
   });
 

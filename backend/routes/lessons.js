@@ -536,6 +536,9 @@ function sanitisePageInput(p, isUpdate = false) {
             diagramBlock.diagramVariant = "featured";
           }
           if (typeof b?.title === "string" && b.title.trim()) diagramBlock.title = b.title.trim();
+          if (typeof b?.subtitle === "string" && b.subtitle.trim()) {
+            diagramBlock.subtitle = b.subtitle.trim().slice(0, 4000);
+          }
           if (typeof b?.number === "number" && Number.isFinite(b.number) && b.number > 0) {
             diagramBlock.number = Math.trunc(b.number);
           }
