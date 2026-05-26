@@ -62,13 +62,26 @@ describe("resolveLessonTopicKey", () => {
   });
 
   describe("resolveLessonTopicKeyForBankFromLesson", () => {
+    const biologyUnits = [
+      {
+        unit: "Cell Biology",
+        topics: [
+          { topic: "Cell structure", key: "cell-structure", tier: ["foundation", "higher"], requiredPractical: false },
+        ],
+      },
+    ] as import("../api/taxonomy").TaxonomyUnit[];
+
     it("returns namespaced topicKey for Biology GCSE with topic and empty board", () => {
-      const result = resolveLessonTopicKeyForBankFromLesson({
-        subject: "Biology",
-        level: "GCSE",
-        topic: "Cell structure",
-        examBoardName: "",
-      });
+      const result = resolveLessonTopicKeyForBankFromLesson(
+        {
+          subject: "Biology",
+          level: "GCSE",
+          topic: "Cell structure",
+          examBoardName: "",
+        },
+        undefined,
+        biologyUnits
+      );
       expect(result).toBe("aqa-gcse-biology:cell-structure");
     });
 

@@ -1,0 +1,416 @@
+import React from "react";
+import type { Components } from "react-markdown";
+import type {
+  InteractiveDiagramHotspotPersisted,
+  InteractiveSequenceStepPersisted,
+  StudentLessonPageBlock,
+} from "./types";
+import {
+  StudentExamTechniqueBlock,
+  StudentExamTipBlock,
+  StudentExplanationBlock,
+  StudentSynopticLinkBlock,
+  StudentWhyThisMattersBlock,
+  StudentHookBlock,
+  StudentKeyIdeaBlock,
+  StudentKeyWordsBlock,
+  StudentMisconceptionBlock,
+  StudentSynthesisBlock,
+  StudentWorkedExampleBlock,
+} from "./studentLessonBlocks";
+import type { ContentKeywordItem } from "./contentKeywordHighlight";
+import { InlineSelfCheckBlock } from "../InlineSelfCheckBlock";
+import { InteractiveSequenceBlock, type InteractiveSequenceStep } from "../InteractiveSequenceBlock";
+import { InteractiveDiagramBlock, type InteractiveDiagramHotspot } from "../InteractiveDiagramBlock";
+import { DragDropMatchBlock } from "../DragDropMatchBlock";
+import { GraphBlock } from "../GraphBlock";
+import { makeAbsoluteAssetUrl } from "../../../utils/assetUrl";
+import { hasRenderableLessonImageSrc } from "../../../constants/lessonImageDisplay";
+import {
+  isStudentVisibleDiagramBlock,
+  isStudentVisibleInteractiveDiagramBlock,
+  isStudentVisibleInteractiveSequenceBlock,
+} from "../../../utils/lessonBlockStudentVisibility";
+import { mergeCheckpointExplanationParts } from "../../../utils/checkpointFeedback";
+import { normalizeBlockType, resolveLessonDisplayBlockType } from "../../../types/lessonBlocks";
+import { normalizeGraphBlockForDisplay } from "../graphBlockTypes";
+import { applyPhotosynthesisHotspotDefaults } from "../../../utils/photosynthesisHotspotLayout";
+import { normalizePedagogicalRole } from "../../../utils/pedagogicalRoles";
+import {
+  coerceDiagramZonePct,
+  dragDropMatchModeForBlockProps,
+  mapDragDropPairForBlockRender,
+} from "../../../utils/dragDropMatchDiagram";
+import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
+import { StudentBlockHeading } from "./StudentBlockHeading";
+import {
+  formatStudentBlockHeading,
+  studentContentStartsWithHeading,
+} from "../../../utils/formatBlockHeading";
+
+export type LessonStudentBlockRendererProps = {
+  block: StudentLessonPageBlock;
+  blockIndex: number;
+  markdownComponents: Partial<Components>;
+  stripVideoMarkdown: (content: string) => string;
+  maybeParseKeywordsFromText: (text: string) => string[] | null;
+  renderDiagramBlock: (block: StudentLessonPageBlock, idx: number) => React.ReactNode;
+  /** V12: first `![](url)` line in text/keyIdea → SS2 side-by-side layout */
+  enableMarkdownMediaSplit?: boolean;
+  /** Lesson/page metadata — render-time highlights only (not applied to pageQuiz) */
+  highlightKeywords?: ContentKeywordItem[];
+  /** Lesson context for inline AI (e.g. interactive diagram “Test me”) */
+  lessonTitleForAi?: string;
+  levelForAi?: string;
+  subjectForAi?: string;
+};
+
+function withStudentBlockHeading(
+  node: React.ReactElement,
+  block: StudentLessonPageBlock,
+  contentForDedup: string
+): React.ReactElement {
+  const heading = formatStudentBlockHeading(block);
+  if (!heading || studentContentStartsWithHeading(contentForDedup, heading)) {
+    return node;
+  }
+  return (
+    <>
+      <StudentBlockHeading>{heading}</StudentBlockHeading>
+      {node}
+    </>
+  );
+}
+
+function studentBlockTitle(block: StudentLessonPageBlock): string {
+  return formatStudentBlockHeading(block) || String(block.title ?? "").trim();
+}
+
+/**
+ * Maps persisted lesson block types to premium student-facing shells. Unknown types fall back to explanation.
+ */
+export function LessonStudentBlockRenderer({
+  block,
+  blockIndex,
+  markdownComponents,
+  stripVideoMarkdown,
+  maybeParseKeywordsFromText,
+  renderDiagramBlock,
+  enableMarkdownMediaSplit,
+  highlightKeywords,
+  lessonTitleForAi,
+  levelForAi,
+  subjectForAi,
+}: LessonStudentBlockRendererProps): React.ReactElement | null {
+  /** Interactive + diagram routing (handles mis-tagged drag-drop). */
+  const routed = resolveLessonDisplayBlockType(block as { type?: unknown; pairs?: unknown });
+  /** Raw persisted `type` for legacy shells (keyIdea, examTip, hook, …). */
+  const kind = String(block.type ?? "").trim() || "text";
+  const semanticRole = normalizePedagogicalRole((block as { role?: unknown }).role);
+  const raw = typeof block.content === "string" ? block.content : "";
+  const cleanedText = stripVideoMarkdown(raw);
+
+  if (routed === "checkpoint") {
+    return null;
+  }
+
+  const proseKinds = new Set([
+    "text",
+    "keyIdea",
+    "keyWords",
+    "examTip",
+    "commonMistake",
+    "stretch",
+    "hook",
+    "workedExample",
+  ]);
+  if (
+    proseKinds.has(kind) &&
+    routed === kind &&
+    !cleanedText.trim() &&
+    !formatStudentBlockHeading(block)
+  ) {
+    return null;
+  }
+
+  if (routed === "selfCheck") {
+    const rawMs = (block as { markScheme?: string | string[] }).markScheme;
+    const scMs = Array.isArray(rawMs) ? rawMs : undefined;
+    const sc = (
+      <InlineSelfCheckBlock
+        prompt={String(block.prompt ?? "")}
+        questionType={block.questionType === "short" ? "short" : "mcq"}
+        options={Array.isArray(block.options) ? block.options : []}
+        correctAnswer={String(block.correctAnswer ?? "")}
+        markScheme={scMs}
+        explanation={
+          mergeCheckpointExplanationParts({
+            explanation: block.explanation != null ? String(block.explanation) : undefined,
+            markScheme: scMs,
+          })
+        }
+        contentFallback={typeof block.content === "string" ? block.content : ""}
+        presentation={enableMarkdownMediaSplit ? "v12" : "default"}
+      />
+    );
+    return withStudentBlockHeading(sc, block, cleanedText);
+  }
+
+  if (routed === "interactiveSequence") {
+    if (!isStudentVisibleInteractiveSequenceBlock(block as StudentLessonPageBlock)) {
+      return null;
+    }
+    const raw = (block as StudentLessonPageBlock).sequenceSteps ?? (block as { steps?: InteractiveSequenceStepPersisted[] }).steps;
+    const arr = Array.isArray(raw) ? raw : [];
+    const steps: InteractiveSequenceStep[] = arr.map((s: InteractiveSequenceStepPersisted) => {
+      const sid = typeof s.id === "string" ? String(s.id).trim() : "";
+      const tq = s.testQuestion != null ? String(s.testQuestion).trim() : "";
+      const te = s.testExplanation != null ? String(s.testExplanation).trim() : "";
+      return {
+        ...(sid ? { id: sid.slice(0, 64) } : {}),
+        title: String(s?.title ?? ""),
+        description: String(s?.description ?? ""),
+        imageUrl: String(s?.imageUrl ?? ""),
+        caption: String(s?.caption ?? ""),
+        ...(tq ? { testQuestion: tq } : {}),
+        ...(te ? { testExplanation: te } : {}),
+      };
+    });
+    const seq = (
+      <InteractiveSequenceBlock
+        blockTitle={studentBlockTitle(block)}
+        intro={String(block.intro ?? "")}
+        steps={steps}
+        resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+        lessonTitle={lessonTitleForAi}
+        level={levelForAi}
+        subject={subjectForAi}
+        viewMode="student"
+      />
+    );
+    const seqAttr = getVisualTeachingDataAttribute(routed, block);
+    const seqWrapped = seqAttr ? <div data-visual-block={seqAttr}>{seq}</div> : seq;
+    const proseBefore =
+      cleanedText.trim() && !studentContentStartsWithHeading(cleanedText, studentBlockTitle(block)) ? (
+        <StudentExplanationBlock
+          content={cleanedText}
+          markdownComponents={markdownComponents}
+          enableMarkdownMediaSplit={enableMarkdownMediaSplit}
+          highlightKeywords={highlightKeywords}
+        />
+      ) : null;
+    if (proseBefore) {
+      return withStudentBlockHeading(
+        <>
+          {proseBefore}
+          {seqWrapped}
+        </>,
+        block,
+        cleanedText
+      );
+    }
+    return seqWrapped;
+  }
+
+  if (routed === "dragDropMatch") {
+    const b = block as StudentLessonPageBlock;
+    const mm = dragDropMatchModeForBlockProps(b.matchMode);
+    const ddm = (
+      <DragDropMatchBlock
+        resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+        block={{
+          title: studentBlockTitle(block),
+          intro: String(block.intro ?? ""),
+          instructions: String(b.instructions ?? ""),
+          ...(mm ? { matchMode: mm } : {}),
+          ...(mm === "diagram" && b.imageUrl != null && String(b.imageUrl).trim()
+            ? { imageUrl: String(b.imageUrl).trim() }
+            : {}),
+          pairs: Array.isArray(b.pairs)
+            ? b.pairs!.map((p, i) => mapDragDropPairForBlockRender(p, i))
+            : [],
+          dropZones: Array.isArray(b.dropZones)
+            ? b.dropZones!.map((z, i) => {
+                const x = coerceDiagramZonePct(z?.x);
+                const y = coerceDiagramZonePct(z?.y);
+                return {
+                  id: String(z?.id ?? "").trim() || `dz${i}`,
+                  ...(x !== undefined ? { x } : {}),
+                  ...(y !== undefined ? { y } : {}),
+                  correctPairId: String(z?.correctPairId ?? "").trim(),
+                  ...(z?.explanation != null && String(z.explanation).trim()
+                    ? { explanation: String(z.explanation) }
+                    : {}),
+                };
+              })
+            : undefined,
+        }}
+      />
+    );
+    const ddmAttr = getVisualTeachingDataAttribute(routed, block);
+    return ddmAttr ? <div data-visual-block={ddmAttr}>{ddm}</div> : ddm;
+  }
+
+  if (routed === "graph") {
+    const graphBlock = normalizeGraphBlockForDisplay(block);
+    const gr = (
+      <GraphBlock
+        block={graphBlock}
+        blockIndex={blockIndex}
+        audience="student"
+        showAnswers={false}
+      />
+    );
+    const grAttr = getVisualTeachingDataAttribute(routed, block);
+    return grAttr ? <div data-visual-block={grAttr}>{gr}</div> : gr;
+  }
+
+  if (routed === "interactiveDiagram") {
+    if (!isStudentVisibleInteractiveDiagramBlock(block as StudentLessonPageBlock)) {
+      return null;
+    }
+    const imageUrlRaw = String((block as StudentLessonPageBlock).imageUrl ?? "").trim();
+    const imageUrlResolved = imageUrlRaw
+      ? (makeAbsoluteAssetUrl(imageUrlRaw) ?? imageUrlRaw)
+      : "";
+    const hasDiagramImage =
+      hasRenderableLessonImageSrc(imageUrlRaw) &&
+      hasRenderableLessonImageSrc(imageUrlResolved);
+
+    const raw = (block as StudentLessonPageBlock).hotspots;
+    const arr = Array.isArray(raw) ? raw : [];
+    const hotspots: InteractiveDiagramHotspot[] = arr.map((h: InteractiveDiagramHotspotPersisted, i: number) => {
+      const id = String(h?.id ?? "").trim() || `h${i + 1}`;
+      const label = String(h?.label ?? "");
+      const description = String(h?.description ?? "");
+      const explanation = h?.explanation != null ? String(h.explanation) : undefined;
+      const x = h?.x;
+      const y = h?.y;
+      const test = h?.test;
+      if (typeof x === "number" && Number.isFinite(x) && typeof y === "number" && Number.isFinite(y)) {
+        return {
+          id,
+          x,
+          y,
+          label,
+          description,
+          ...(explanation !== undefined ? { explanation } : {}),
+          ...(test !== undefined ? { test } : {}),
+        };
+      }
+      return {
+        id,
+        label,
+        description,
+        ...(explanation !== undefined ? { explanation } : {}),
+        ...(test !== undefined ? { test } : {}),
+      };
+    });
+    if (!hasDiagramImage) {
+      return null;
+    }
+    const placedHotspots = applyPhotosynthesisHotspotDefaults(
+      hotspots,
+      [lessonTitleForAi, studentBlockTitle(block), String(block.intro ?? "")].filter(Boolean).join(" ")
+    );
+    const idgr = (
+      <InteractiveDiagramBlock
+        blockTitle={studentBlockTitle(block)}
+        intro={String(block.intro ?? "")}
+        imageUrl={imageUrlRaw}
+        hotspots={placedHotspots}
+        resolveImageUrl={(url) => makeAbsoluteAssetUrl(url) ?? url}
+        lessonTitle={lessonTitleForAi}
+        level={levelForAi}
+        subject={subjectForAi}
+        viewMode="student"
+      />
+    );
+    const idgrAttr = getVisualTeachingDataAttribute(routed, block);
+    return idgrAttr ? <div data-visual-block={idgrAttr}>{idgr}</div> : idgr;
+  }
+
+  if (routed === "diagram") {
+    if (!isStudentVisibleDiagramBlock(block as StudentLessonPageBlock)) {
+      return null;
+    }
+    return withStudentBlockHeading(
+      <div className="lesson-student-diagram-slot" data-visual-block="diagram">
+        {renderDiagramBlock(block, blockIndex)}
+      </div>,
+      block,
+      cleanedText
+    );
+  }
+
+  const safeHighlightKeywords = normalizeBlockType(kind) === "pageQuiz" ? undefined : highlightKeywords;
+  const mdProps = { content: raw, markdownComponents, enableMarkdownMediaSplit, highlightKeywords: safeHighlightKeywords };
+
+  if (semanticRole === "examTechnique") {
+    return withStudentBlockHeading(<StudentExamTechniqueBlock {...mdProps} />, block, cleanedText);
+  }
+  if (semanticRole === "synopticLink") {
+    return withStudentBlockHeading(<StudentSynopticLinkBlock {...mdProps} />, block, cleanedText);
+  }
+  if (semanticRole === "whyThisMatters") {
+    return withStudentBlockHeading(<StudentWhyThisMattersBlock {...mdProps} />, block, cleanedText);
+  }
+
+  if (kind === "keyIdea") {
+    return withStudentBlockHeading(<StudentKeyIdeaBlock {...mdProps} />, block, cleanedText);
+  }
+  if (kind === "examTip") {
+    return withStudentBlockHeading(<StudentExamTipBlock {...mdProps} />, block, cleanedText);
+  }
+  if (kind === "commonMistake") {
+    return withStudentBlockHeading(<StudentMisconceptionBlock {...mdProps} />, block, cleanedText);
+  }
+  if (kind === "stretch") {
+    return withStudentBlockHeading(<StudentSynthesisBlock {...mdProps} />, block, cleanedText);
+  }
+
+  if (kind === "hook") {
+    return withStudentBlockHeading(<StudentHookBlock {...mdProps} />, block, cleanedText);
+  }
+  if (kind === "workedExample") {
+    return withStudentBlockHeading(<StudentWorkedExampleBlock {...mdProps} />, block, cleanedText);
+  }
+
+  // Comma-separated "key words" list callout: only when we are NOT also showing page/lesson
+  // glossary key terms. StudentKeyWordsBlock does not run LessonStudentMarkdown, so it would
+  // show bold/list only with zero KeywordMark (no red "i") — a common cause of "Add key term
+  // does nothing" on short text blocks.
+  if (kind === "keyWords") {
+    const keywords = maybeParseKeywordsFromText(cleanedText);
+    if (
+      keywords &&
+      keywords.length > 0 &&
+      (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
+    ) {
+      return withStudentBlockHeading(
+        <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />,
+        block,
+        cleanedText
+      );
+    }
+    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
+  }
+
+  if (kind === "text") {
+    const keywords = maybeParseKeywordsFromText(cleanedText);
+    if (
+      keywords &&
+      keywords.length > 0 &&
+      (!Array.isArray(safeHighlightKeywords) || safeHighlightKeywords.length === 0)
+    ) {
+      return withStudentBlockHeading(
+        <StudentKeyWordsBlock content={raw} markdownComponents={markdownComponents} keywords={keywords} />,
+        block,
+        cleanedText
+      );
+    }
+    return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
+  }
+
+  return withStudentBlockHeading(<StudentExplanationBlock {...mdProps} />, block, cleanedText);
+}

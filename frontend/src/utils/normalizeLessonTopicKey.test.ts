@@ -43,4 +43,20 @@ describe("normalizeLessonTopicKey", () => {
     expect(r.slug).toBe("respiration");
     expect(r.namespaced).toBe("aqa-gcse-biology:respiration");
   });
+
+  it("maps composite Metabolism label via taxonomy units", () => {
+    const units = [
+      {
+        unit: "Bioenergetics",
+        topics: [{ topic: "Metabolism", key: "metabolism", tier: ["foundation"], requiredPractical: false }],
+      },
+    ];
+    const r = normalizeLessonTopicSlug(
+      "aqa-gcse-biology",
+      { topic: "Biology — Metabolism (AQA GCSE Biology)" },
+      units as import("../api/taxonomy").TaxonomyUnit[]
+    );
+    expect(r.slug).toBe("metabolism");
+    expect(r.namespaced).toBe("aqa-gcse-biology:metabolism");
+  });
 });

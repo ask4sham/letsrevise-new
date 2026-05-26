@@ -11,6 +11,18 @@ type Props = {
   onNext: () => void;
 };
 
+function capLightboxImageToNaturalSize(img: HTMLImageElement) {
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  if (!nw || !nh) return;
+  const maxW = Math.min(nw * 1.2, window.innerWidth * 0.9, 900);
+  const maxH = Math.min(nh * 1.2, window.innerHeight * 0.85);
+  img.style.width = "auto";
+  img.style.height = "auto";
+  img.style.maxWidth = `${maxW}px`;
+  img.style.maxHeight = `${maxH}px`;
+}
+
 /**
  * Simple full-screen lightbox: large static image, no zoom/pinch/magnify.
  * Gallery: prev/next/arrow keys; always: backdrop click, X, Escape.
@@ -130,6 +142,7 @@ export function LessonLightboxPanel({ items, activeIndex, onClose, onPrev, onNex
               alt={item.alt || ""}
               className="lesson-lightbox-img"
               draggable={false}
+              onLoad={(e) => capLightboxImageToNaturalSize(e.currentTarget)}
             />
           </div>
 

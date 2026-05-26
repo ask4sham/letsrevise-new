@@ -9,6 +9,8 @@ const requireContentManager = require("../middleware/requireContentManager");
 const { getTaxonomyBySpecKey } = require("../utils/topicTaxonomy");
 const { getMergedTaxonomyBySpecKey } = require("../services/adminTaxonomyService");
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
+const { resolveTopicLabelToKey, logTopicMappingDebug } = require("../utils/resolveTopicLabelToKey");
+const contentGraphService = require("../services/contentGraphService");
 const { getCreateLessonOptionsMerged } = require("../services/taxonomyService");
 const { postAdminSubtopic } = require("./adminTaxonomy");
 
@@ -26,23 +28,41 @@ router.get("/resolve-topic", async (req, res) => {
   try {
     const specKey = (req.query.specKey || "").trim() || "aqa-gcse-biology";
     const topic = (req.query.topic || "").trim();
-    if (!topic) return res.status(400).json({ error: "topic query is required" });
-    const taxonomy = await getMergedTaxonomyBySpecKey(specKey);
-    const canonicalKey = taxonomy && taxonomy.units
-      ? (() => {
-          const norm = topic.toLowerCase();
-          for (const u of taxonomy.units) {
-            const found = (u.topics || []).find((t) => t.topic && String(t.topic).toLowerCase() === norm);
-            if (found && found.key) return String(found.key).trim();
-          }
-          return "";
-        })()
-      : "";
-    if (canonicalKey) {
-      return res.json({ topicKey: `${specKey}:${canonicalKey}`, resolved: true });
+  const subTopic = (req.query.subTopic || "").trim();
+  const title = (req.query.title || "").trim();
+    if (!topic && !subTopic && !title) {
+      return res.status(400).json({ error: "topic, subTopic, or title query is required" });
     }
-    const repaired = normalizeNamespacedLessonTopicKey(specKey, { topic, title: topic });
-    if (repaired) return res.json({ topicKey: repaired, resolved: true });
+    const resolved = resolveTopicLabelToKey(specKey, subTopic, topic, title);
+    let graphNode = null;
+    if (resolved.key) {
+      try {
+        graphNode = await contentGraphService.resolveTopicNode(specKey, resolved.key);
+      } catch {
+        graphNode = null;
+      }
+    }
+    logTopicMappingDebug("resolve-topic", {
+      specKey,
+      input: { topic, subTopic, title },
+      topicKey: resolved.key,
+      match: resolved.match,
+      candidate: resolved.candidate,
+      namespaced: resolved.key ? `${specKey}:${resolved.key}` : null,
+      graphLookup: graphNode ? "found" : resolved.key ? "missing" : "skipped",
+    });
+    if (resolved.key) {
+      return res.json({
+        topicKey: `${specKey}:${resolved.key}`,
+        topicKeySlug: resolved.key,
+        resolved: true,
+        match: resolved.match,
+      });
+    }
+    const repaired = normalizeNamespacedLessonTopicKey(specKey, { topic, subTopic, title });
+    if (repaired) {
+      return res.json({ topicKey: repaired, resolved: true, match: "normalize-fallback" });
+    }
     return res.json({ topicKey: null, resolved: false });
   } catch (err) {
     console.error("resolve-topic error:", err);

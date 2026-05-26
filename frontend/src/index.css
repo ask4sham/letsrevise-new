@@ -23,6 +23,10 @@
   --lesson-image-border: 1px solid #e5e7eb;
   --lesson-image-bg: #ffffff;
   --lesson-image-caption-gap: 8px;
+  /* Legacy image-card rhythm (unchanged unless [data-lesson-image-compact] overrides) */
+  --lesson-image-card-padding: 14px;
+  --lesson-image-card-margin-top: 20px;
+  --lesson-image-card-margin-bottom: 28px;
   /* Common control / thumb sizes (aligns with lightbox chrome; not yet wired to drag-drop). */
   --lesson-image-thumb-size-sm: 40px;
   --lesson-image-thumb-size-md: 44px;

@@ -368,12 +368,10 @@ export function LessonStudentBlockRenderer({
     if (!isStudentVisibleDiagramBlock(block as StudentLessonPageBlock)) {
       return null;
     }
-    return withStudentBlockHeading(
+    return (
       <div className="lesson-student-diagram-slot" data-visual-block="diagram">
         {renderDiagramBlock(block, blockIndex)}
-      </div>,
-      block,
-      cleanedText
+      </div>
     );
   }
 

@@ -32,8 +32,8 @@
     "brandMarkSize": 18
   },
   "spacing": {
-    "margin": 60,
-    "headerHeight": 200,
+    "margin": 24,
+    "headerHeight": 160,
     "stageGap": 24,
     "stagePadding": 20
   },

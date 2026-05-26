@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OXYGEN DEBT">
+  <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
+  <rect x="24" y="24" width="1352" height="752" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+
+  <rect x="32" y="32" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="52" y="64" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="224" y="64" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+
+  <text x="48" y="96" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">OXYGEN DEBT</text>
+  <text x="48" y="136" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Extra oxygen to oxidise lactic acid</text>
+  <text x="1352" y="64" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA HIGHER TIER BIOLOGY</text>
+
+  
+  <rect x="48" y="192" width="1304" height="552" rx="20" fill="#FFFFFF" stroke="#111827" stroke-width="3"/>
+  <line x1="700" y1="216" x2="700" y2="736" stroke="#111827" stroke-width="3" stroke-dasharray="12 8"/>
+  
+  <g id="organism-left">
+    <rect x="56" y="216" width="620" height="520" rx="16" fill="#FFFFFF" stroke="#111827" stroke-width="4"/>
+    <text x="80" y="252" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#111827">BODY SYSTEMS</text>
+
+    <ellipse cx="340" cy="516" rx="95" ry="150" fill="#FFFFFF" stroke="#111827" stroke-width="5"/>
+    <circle cx="340" cy="346" r="42" fill="#FFFFFF" stroke="#111827" stroke-width="5"/>
+
+    <ellipse cx="312" cy="381" rx="38" ry="52" fill="#DBEAFE" stroke="#2563EB" stroke-width="4"/>
+    <ellipse cx="368" cy="381" rx="38" ry="52" fill="#DBEAFE" stroke="#2563EB" stroke-width="4"/>
+    <text x="340" y="321" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#2563EB">LUNGS</text>
+    <text x="270" y="301" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" fill="#DC2626">EXTRA O₂</text>
+    <g>
+    <line x1="270" y1="316" x2="296.9715271789134" y2="354.5307531127334" stroke="#DC2626" stroke-width="4" stroke-linecap="round"/>
+    <polygon points="305,366 290.4176718147611,359.11845186764003 303.5253825430657,349.9430543578268" fill="#DC2626"/>
+  </g>
+
+    <path d="M 318 456 Q 340 486 362 456 Q 340 521 318 456 Z" fill="#FEE2E2" stroke="#DC2626" stroke-width="4"/>
+    <text x="340" y="481" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" fill="#DC2626">HEART</text>
+
+    <rect x="285" y="531" width="110" height="70" rx="12" fill="#FEF3C7" stroke="#111827" stroke-width="4"/>
+    <text x="340" y="564" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#111827">LIVER</text>
+
+    <rect x="415" y="506" width="70" height="100" rx="10" fill="#E5E7EB" stroke="#111827" stroke-width="3"/>
+    <text x="450" y="521" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="800" fill="#111827">MUSCLE</text>
+    <text x="450" y="544" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="800" fill="#111827">TISSUE</text>
+
+    <g>
+    <line x1="450" y1="561" x2="398.83720376710863" y2="553.1288005795552" stroke="#2563EB" stroke-width="4" stroke-linecap="round"/>
+    <polygon points="385,551 400.05366124114016,545.2218269983503 397.6207462930771,561.0357741607602" fill="#2563EB"/>
+  </g>
+    <text x="418" y="594" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="800" fill="#2563EB">LACTIC ACID</text>
+    <text x="418" y="610" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="800" fill="#2563EB">IN BLOOD</text>
+
+    <g>
+    <line x1="340" y1="506" x2="340" y2="514" stroke="#DC2626" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="340,528 332,514 348,514" fill="#DC2626"/>
+  </g>
+    <g>
+    <line x1="340" y1="601" x2="340" y2="542" stroke="#2563EB" stroke-width="4" stroke-linecap="round"/>
+    <polygon points="340,528 348,542 332,542" fill="#2563EB"/>
+  </g>
+
+    <rect x="84" y="664" width="564" height="52" rx="10" fill="#F3F4F6" stroke="#111827" stroke-width="3"/>
+    <text x="96" y="696" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#111827">OXYGEN DEBT</text>
+    <text x="96" y="718" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" fill="#DC2626">= EXTRA O₂ REQUIRED</text>
+  </g>
+  
+  <g id="process-right">
+    <rect x="740" y="216" width="604" height="520" rx="16" fill="#FFFFFF" stroke="#111827" stroke-width="4"/>
+    <text x="764" y="252" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#111827">CLOSE-UP: OXIDATION</text>
+
+    <rect x="780" y="286" width="520" height="360" rx="14" fill="#DBEAFE" stroke="#2563EB" stroke-width="4"/>
+    <text x="1040" y="326" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#2563EB">LIVER CELLS</text>
+
+    <rect x="840" y="456" width="160" height="72" rx="10" fill="#FFFFFF" stroke="#111827" stroke-width="4"/>
+    <text x="920" y="488" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#111827">LACTIC ACID</text>
+
+    <rect x="1010" y="441" width="90" height="50" rx="8" fill="#FEE2E2" stroke="#DC2626" stroke-width="3"/>
+    <text x="1055" y="474" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#DC2626">O₂</text>
+    <g>
+    <line x1="1002" y1="478" x2="994" y2="478" stroke="#DC2626" stroke-width="4" stroke-linecap="round"/>
+    <polygon points="1008,478 994,486 994,470" fill="#DC2626"/>
+  </g>
+
+    <rect x="1090" y="456" width="160" height="72" rx="10" fill="#FFFFFF" stroke="#111827" stroke-width="4"/>
+    <text x="1170" y="488" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#111827">CO₂ + H₂O</text>
+
+    <g>
+    <line x1="1002" y1="496" x2="1071" y2="496" stroke="#DC2626" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="1085,496 1071,504 1071,488" fill="#DC2626"/>
+  </g>
+    <g>
+    <line x1="1055" y1="496" x2="1071" y2="496" stroke="#DC2626" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="1085,496 1071,504 1071,488" fill="#DC2626"/>
+  </g>
+
+    <text x="1040" y="551" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#111827">LACTIC ACID + O₂</text>
+    <text x="1040" y="578" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#111827">→ OXIDISED</text>
+
+    <rect x="800" y="636" width="480" height="72" rx="12" fill="#FFFFFF" stroke="#DC2626" stroke-width="4"/>
+    <text x="820" y="674" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800" fill="#DC2626">KEY IDEA</text>
+    <text x="820" y="700" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800" fill="#111827">EXTRA O₂ NEEDED TO OXIDISE LACTIC ACID</text>
+    <text x="820" y="722" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="800" fill="#111827">AFTER ANAEROBIC RESPIRATION IN CELLS</text>
+  </g>
+  
+</svg>

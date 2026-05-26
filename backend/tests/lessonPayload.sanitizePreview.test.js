@@ -74,7 +74,7 @@ describe("sanitizePageForPreview", () => {
     expect(diagramBlock.annotations).toEqual([{ id: "a1", kind: "label", text: "Nucleus", x: 0.3, y: 0.4 }]);
     expect(diagramBlock.steps).toEqual([{ id: "s1", title: "Step 1", showAnnotationIds: ["a1"] }]);
     expect(Object.keys(diagramBlock).sort()).toEqual(
-      ["annotations", "caption", "mode", "steps", "subtitle", "title", "type", "visualId"].sort()
+      ["annotations", "caption", "content", "intro", "mode", "note", "steps", "subtitle", "title", "type", "visualId"].sort()
     );
   });
 

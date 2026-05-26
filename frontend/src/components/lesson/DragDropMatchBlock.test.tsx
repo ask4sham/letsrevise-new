@@ -8,6 +8,11 @@ jest.mock("./LessonImageFrame", () => ({
   ),
 }));
 
+const mockLightboxOpen = jest.fn();
+jest.mock("./LessonImageLightbox", () => ({
+  useLessonImageLightbox: () => ({ open: mockLightboxOpen, close: jest.fn() }),
+}));
+
 jest.mock("./LessonRichText", () => ({
   LessonRichText: ({ text }: { text?: string }) => (text ? <p>{text}</p> : null),
 }));
@@ -208,6 +213,92 @@ describe("DragDropMatchBlock text-to-image mode", () => {
   });
 });
 
+describe("DragDropMatchBlock compact card layout", () => {
+  const fourZoneBlock = {
+    matchMode: "diagram" as const,
+    title: "Respiration diagram",
+    imageUrl: "https://example.com/diagram.png",
+    pairs: [
+      { id: "p1", prompt: "", answer: "Anaerobic respiration", answerImageUrl: "https://example.com/a.png" },
+      { id: "p2", prompt: "", answer: "Fermentation in yeast" },
+      {
+        id: "p3",
+        prompt: "",
+        answer:
+          "Process occurring in muscle cells without oxygen producing lactic acid during intense exercise",
+      },
+      { id: "p4", prompt: "", answer: "Oxygen debt" },
+    ],
+    dropZones: [
+      { id: "za", x: 20, y: 20, correctPairId: "p1" },
+      { id: "zb", x: 40, y: 30, correctPairId: "p2" },
+      { id: "zc", x: 60, y: 40, correctPairId: "p3" },
+      { id: "zd", x: 80, y: 50, correctPairId: "p4" },
+    ],
+  };
+
+  const viewports = [1280, 1024, 768] as const;
+
+  it.each(viewports)("compact cards respect max width at %ipx viewport", (width) => {
+    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: width });
+    const { container } = render(
+      <DragDropMatchBlock block={fourZoneBlock} resolveImageUrl={(u) => u} />
+    );
+
+    const list = container.querySelector(".drag-drop-match__card-list--diagram-wrap") as HTMLElement;
+    expect(list).toBeTruthy();
+    list.style.width = `${Math.min(width, 900)}px`;
+
+    const cards = container.querySelectorAll("[data-testid='drag-drop-compact-card']");
+    expect(cards.length).toBe(4);
+
+    cards.forEach((card) => {
+      const el = card as HTMLElement;
+      expect(el.classList.contains("drag-drop-match__card--compact")).toBe(true);
+      const hasPreview = el.querySelector(".drag-drop-match__answer-thumb--card-preview");
+      const maxW = hasPreview ? 201 : 161;
+      expect(el.offsetWidth).toBeLessThanOrEqual(maxW);
+      expect(el.scrollWidth).toBeLessThanOrEqual(el.clientWidth + 2);
+    });
+
+    const previewImg = container.querySelector(
+      ".drag-drop-match__answer-thumb--card-preview"
+    ) as HTMLElement | null;
+    expect(previewImg).toBeTruthy();
+
+    const longCard = Array.from(cards).find((c) => c.textContent?.includes("Process occurring"));
+    expect(longCard?.textContent).toMatch(/…/);
+  });
+
+  it("placed zone chip fits inside zone button without horizontal overflow", () => {
+    render(<DragDropMatchBlock block={fourZoneBlock} resolveImageUrl={(u) => u} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /select answer:\s*Anaerobic respiration/i }));
+    fireEvent.click(screen.getByRole("button", { name: /drop answer on marker a/i }));
+
+    const chip = document.querySelector("[data-testid='drag-drop-zone-chip']") as HTMLElement | null;
+    expect(chip).toBeTruthy();
+    const zone = chip?.closest("button") as HTMLElement | null;
+    expect(zone).toBeTruthy();
+    if (chip && zone) {
+      expect(chip.scrollWidth).toBeLessThanOrEqual(zone.clientWidth + 4);
+    }
+  });
+
+  it("answer preview image opens lightbox without selecting the card", () => {
+    mockLightboxOpen.mockClear();
+    render(<DragDropMatchBlock block={fourZoneBlock} resolveImageUrl={(u) => u} />);
+
+    const zoomBtn = screen.getByRole("button", { name: /view larger image/i });
+    fireEvent.click(zoomBtn);
+
+    expect(mockLightboxOpen).toHaveBeenCalledWith("https://example.com/a.png");
+    expect(
+      screen.getByRole("button", { name: /select answer:\s*Anaerobic respiration/i })
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
 describe("DragDropMatchBlock text mode answer images", () => {
   const textBlockWithImage = {
     title: "Match cells",
@@ -230,7 +321,7 @@ describe("DragDropMatchBlock text mode answer images", () => {
 
   it("shows answer thumbnail in bank when answerImageUrl is set", () => {
     render(<DragDropMatchBlock block={textBlockWithImage} resolveImageUrl={(u) => u} />);
-    const thumbs = document.querySelectorAll("img.drag-drop-match__answer-thumb");
+    const thumbs = document.querySelectorAll("img.drag-drop-match__answer-thumb--card-preview");
     expect(thumbs).toHaveLength(1);
     expect(thumbs[0]).toHaveAttribute("src", "https://example.com/lymphocyte.png");
   });

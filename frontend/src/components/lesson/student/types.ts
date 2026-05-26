@@ -62,7 +62,10 @@ export type DragDropMatchDiagramZonePersisted = {
 export type StudentLessonPageBlock = {
   type: string;
   content?: string;
+  /** Block heading (interactive sequence/diagram, diagram block, etc.) */
   title?: string;
+  /** Diagram block: student-facing instructions above the image */
+  subtitle?: string;
   /** SS1 lesson block ordinal (generator export); optional — title may already include `N —`. */
   number?: number;
   intro?: string;

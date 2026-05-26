@@ -408,15 +408,10 @@ function topicDisplayToCanonicalKey(displayName, specKey = "aqa-gcse-biology") {
   if (!displayName || typeof displayName !== "string") return "";
   const display = displayName.trim();
   if (!display) return "";
-  const taxonomy = getTaxonomyBySpecKey(specKey);
-  if (!taxonomy || !Array.isArray(taxonomy.units)) return "";
-  const normalized = display.toLowerCase();
-  for (const u of taxonomy.units) {
-    const topics = Array.isArray(u.topics) ? u.topics : [];
-    const found = topics.find((t) => t.topic && String(t.topic).toLowerCase() === normalized);
-    if (found && found.key) return String(found.key).trim();
-  }
-  return "";
+  const { resolveTopicLabelToKey } = require("./resolveTopicLabelToKey");
+  const { key } = resolveTopicLabelToKey(specKey, display);
+  if (key) return key;
+  return topicToKey(display);
 }
 
 /**

@@ -3,10 +3,16 @@
 .lesson-uploaded-diagram {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  width: fit-content;
+  align-items: stretch;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   margin: 8px auto;
+}
+
+.lesson-uploaded-diagram .diagram-block-pedagogy__figure {
+  display: flex;
+  justify-content: center;
 }
 
 .lesson-uploaded-diagram__img {
@@ -14,9 +20,10 @@
   width: auto;
   max-width: 100%;
   height: auto;
-  margin: 0;
+  margin: 0 auto;
 }
 
+/* Legacy: caption-only diagrams may still use this class in old cached HTML */
 .lesson-uploaded-diagram__caption {
   width: 100%;
   margin-top: 6px;

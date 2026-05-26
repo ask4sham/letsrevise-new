@@ -62,6 +62,7 @@ interface LessonPageBlock {
     | "dragDropMatch";
   content?: string;
   title?: string;
+  subtitle?: string;
   intro?: string;
   instructions?: string;
   pairs?: Array<{ id: string; prompt: string; answer: string; explanation?: string; answerImageUrl?: string }>;
@@ -139,6 +140,8 @@ const resolveAssetUrl = (url: string) => makeAbsoluteAssetUrl(url) ?? "";
 function DiagramBlockContent({
   visualId,
   caption,
+  title,
+  subtitle,
   level,
   mode: blockMode = "static",
   annotations = [],
@@ -147,6 +150,8 @@ function DiagramBlockContent({
 }: {
   visualId: string;
   caption: string;
+  title?: string;
+  subtitle?: string;
   level: string;
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
@@ -200,13 +205,15 @@ function DiagramBlockContent({
   if (!src || !hasRenderableLessonImageSrc(src)) {
     return null;
   }
+  const titleTrim = typeof title === "string" ? title.trim() : "";
+  const imgAlt = titleTrim || (typeof caption === "string" ? caption.trim() : "") || "Diagram";
   return (
-    <LessonDiagramFrame variant={variant} caption={caption}>
+    <LessonDiagramFrame variant={variant} title={title} subtitle={subtitle} caption={caption}>
       <LessonImageFrame variant="primary" lightboxSrc={src}>
         <div style={{ position: "relative", display: "inline-block", maxWidth: 720, width: "100%" }}>
           <img
             src={src}
-            alt={caption || "Diagram"}
+            alt={imgAlt}
             style={{ width: "100%", maxWidth: 720, height: "auto", borderRadius: 12, margin: "0 auto", display: "block" }}
             onError={hideBrokenLessonImage}
           />
@@ -667,6 +674,8 @@ const ClassroomModePage: React.FC = () => {
         <DiagramBlockContent
           visualId={block.visualId ?? ""}
           caption={block.caption ?? ""}
+          title={block.title ?? ""}
+          subtitle={block.subtitle ?? ""}
           level={lesson?.level ?? "GCSE"}
           mode={mode}
           annotations={annotations}

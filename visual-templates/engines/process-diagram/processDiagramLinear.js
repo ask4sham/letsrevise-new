@@ -1,7 +1,7 @@
 const { escapeXml } = require("../shared/escapeXml");
 const { renderBrandedFrame } = require("../shared/brandedFrame");
 
-const CONTENT_TOP = 240;
+const CONTENT_TOP = 200;
 const STAGE_W = 280;
 const STAGE_H = 320;
 
@@ -101,7 +101,7 @@ function renderProcessStep(brand, processData, stageId) {
   if (!stage) throw new Error(`Unknown stage: ${stageId}`);
 
   const x = (brand.canvas.width - STAGE_W) / 2;
-  const y = CONTENT_TOP + 80;
+  const y = CONTENT_TOP + 48;
   const body = renderStageCard(brand, stage, x, y, { highlight: true });
 
   return renderBrandedFrame(brand, {

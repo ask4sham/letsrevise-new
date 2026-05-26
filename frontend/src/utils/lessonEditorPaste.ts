@@ -486,6 +486,7 @@ const PASTE_GUARD_STRING_KEYS = [
   "explanation",
   "correctAnswer",
   "caption",
+  "subtitle",
   "question",
   "answer",
   "note",

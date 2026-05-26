@@ -1,0 +1,136 @@
+/**
+ * Compact vertical/horizontal padding around lesson images (scoped; not global).
+ *
+ * REVERT (exact prior spacing):
+ *   1. REACT_APP_LESSON_IMAGE_COMPACT=0 in .env.local → rebuild (rules never match).
+ *   2. git checkout pre-image-padding-compact -- frontend/src/
+ *   3. Remove lessonImagePaddingCompact import from index.tsx and delete this file.
+ *
+ * All rules require [data-lesson-image-compact="1"] on <html> (see index.tsx).
+ */
+
+[data-lesson-image-compact="1"] {
+  --lesson-image-card-pad-compact: 4px;
+  --lesson-diagram-body-pad-compact: 4px;
+  --lesson-diagram-body-pad-featured-compact: 6px;
+}
+
+/* --- Student v12: diagram blocks (catalogue + uploaded) --- */
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-diagram-slot [data-lesson-image-frame].lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--with-media
+  .lesson-student-diagram-slot
+  [data-lesson-image-frame].lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--with-media
+  .lesson-student-diagram-slot
+  .lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--with-media
+  [data-lesson-image-frame].lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--with-media
+  .lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--stack
+  .lesson-student-diagram-slot
+  [data-lesson-image-frame].lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--stack
+  .lesson-student-diagram-slot
+  .lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] [data-ss2-image-only="1"] [data-lesson-image-frame].lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-diagram-frame {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-compact);
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-diagram-frame--featured {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-featured-compact);
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-uploaded-diagram {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+/* Generator / template visual blocks — not step-by-step sequence (keeps its own caps) */
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  [data-visual-block]:not([data-visual-block="interactive-sequence"])
+  .lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  [data-visual-block]:not([data-visual-block="interactive-sequence"])
+  [data-lesson-image-frame].lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  [data-visual-block]:not([data-visual-block="interactive-sequence"])
+  .lesson-diagram-frame {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-compact);
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"]
+  [data-visual-block]:not([data-visual-block="interactive-sequence"])
+  .lesson-diagram-frame--featured {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-featured-compact);
+}
+
+/* Page hero image */
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-hero-slot .lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="v12"] .lesson-student-hero-slot [data-lesson-image-frame].lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+  margin-top: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+/* Legacy student presentation */
+[data-lesson-image-compact="1"][data-lesson-presentation="legacy"] .lesson-student-diagram-slot .lesson-image-card,
+[data-lesson-image-compact="1"][data-lesson-presentation="legacy"] .lesson-student-diagram-slot [data-lesson-image-frame].lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+  margin-top: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+[data-lesson-image-compact="1"][data-lesson-presentation="legacy"] .lesson-student-diagram-slot .lesson-diagram-frame {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-compact);
+}
+
+/* Lesson editor: preview rail + inline diagram thumbnails */
+[data-lesson-image-compact="1"] [data-lesson-editor] .lesson-image-card,
+[data-lesson-image-compact="1"] [data-lesson-editor] [data-lesson-image-frame].lesson-image-card {
+  padding: var(--lesson-image-card-pad-compact) !important;
+  margin-top: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+[data-lesson-image-compact="1"] [data-lesson-editor] .lesson-editor-diagram-preview-frame {
+  padding: var(--lesson-image-card-pad-compact) !important;
+}
+
+/* Catalogue diagrams outside v12 student overrides */
+[data-lesson-image-compact="1"] .lesson-diagram-frame:not(.lesson-diagram-frame--featured) {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-compact);
+}
+
+[data-lesson-image-compact="1"] .lesson-diagram-frame--featured {
+  --lesson-diagram-body-pad: var(--lesson-diagram-body-pad-featured-compact);
+}

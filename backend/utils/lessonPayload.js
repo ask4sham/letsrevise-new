@@ -84,7 +84,19 @@ function sanitizePageForPreview(page) {
         if (typeof b.imageSource === "string" && b.imageSource.trim()) out.imageSource = b.imageSource.trim();
         if (typeof b.alt === "string" && b.alt.trim()) out.alt = b.alt.trim();
         if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
-        if (typeof b.subtitle === "string" && b.subtitle.trim()) out.subtitle = b.subtitle.trim();
+        const diagramInstructions =
+          (typeof b.subtitle === "string" && b.subtitle.trim()) ||
+          (typeof b.intro === "string" && b.intro.trim()) ||
+          (typeof b.note === "string" && b.note.trim()) ||
+          "";
+        if (diagramInstructions) {
+          out.subtitle = diagramInstructions;
+          out.intro = diagramInstructions;
+          out.note = diagramInstructions;
+          out.content = diagramInstructions;
+        } else if (typeof b.content === "string" && b.content.trim()) {
+          out.content = b.content.trim();
+        }
         return out;
       }
       return b;

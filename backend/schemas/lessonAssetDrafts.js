@@ -6,6 +6,7 @@
 const { parseTopicKey } = require("../utils/topicKey");
 const { assertValidNamespacedTopicKey } = require("../utils/specTopicValidation");
 const { normalizeNamespacedLessonTopicKey } = require("../utils/normalizeLessonTopicKey");
+const { resolveTopicLabelToKey, logTopicMappingDebug } = require("../utils/resolveTopicLabelToKey");
 
 function isNonEmptyString(s, minLen = 1) {
   return typeof s === "string" && s.trim().length >= minLen;
@@ -137,6 +138,20 @@ function namespacedTopicKeyFromLesson(lesson) {
     title: lesson.title,
     topic: lesson.topic,
     subTopic: lesson.subTopic,
+  });
+  logTopicMappingDebug("lesson-assets", {
+    specKey: spec,
+    storedTopicKey: raw || null,
+    normalizedTopicKey: namespaced,
+    topicLabel: lesson.topic || lesson.subTopic || lesson.title || null,
+    taxonomyLookup: resolveTopicLabelToKey(
+      spec,
+      lesson.subTopic,
+      lesson.topic,
+      lesson.title,
+      lesson.canonicalTopicKey,
+      raw
+    ),
   });
   if (namespaced) return { namespacedTopicKey: namespaced, specKey: spec };
   if (!raw) return { error: "Lesson has no topicKey — set Topic to a syllabus sub-topic (e.g. Respiration) and save." };

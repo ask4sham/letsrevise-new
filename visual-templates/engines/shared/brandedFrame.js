@@ -27,9 +27,9 @@ function renderBrandedFrame(brand, opts) {
   <text x="${spacing.margin + 28}" y="${spacing.margin + 40}" font-family="${typography.fontFamily}" font-size="${typography.brandMarkSize}" font-weight="800" fill="${colors.accent}">${escapeXml(brandText.markText)}</text>
   <text x="${spacing.margin + 200}" y="${spacing.margin + 40}" font-family="${typography.fontFamily}" font-size="14" font-weight="600" fill="${colors.inkMuted}">${escapeXml(brandText.markSubtext)}</text>
 
-  <text x="${spacing.margin + 24}" y="${spacing.margin + 110}" font-family="${typography.fontFamily}" font-size="${typography.titleSize}" font-weight="700" fill="${colors.ink}">${title}</text>
-  ${subtitle ? `<text x="${spacing.margin + 24}" y="${spacing.margin + 155}" font-family="${typography.fontFamily}" font-size="${typography.subtitleSize}" fill="${colors.inkMuted}">${subtitle}</text>` : ""}
-  ${board ? `<text x="${w - spacing.margin - 24}" y="${spacing.margin + 48}" text-anchor="end" font-family="${typography.fontFamily}" font-size="${typography.boardLabelSize}" font-weight="700" fill="${colors.accent}">${board}</text>` : ""}
+  <text x="${spacing.margin + 24}" y="${spacing.margin + 72}" font-family="${typography.fontFamily}" font-size="${typography.titleSize}" font-weight="700" fill="${colors.ink}">${title}</text>
+  ${subtitle ? `<text x="${spacing.margin + 24}" y="${spacing.margin + 112}" font-family="${typography.fontFamily}" font-size="${typography.subtitleSize}" fill="${colors.inkMuted}">${subtitle}</text>` : ""}
+  ${board ? `<text x="${w - spacing.margin - 24}" y="${spacing.margin + 40}" text-anchor="end" font-family="${typography.fontFamily}" font-size="${typography.boardLabelSize}" font-weight="700" fill="${colors.accent}">${board}</text>` : ""}
 
   ${body}
 </svg>`;

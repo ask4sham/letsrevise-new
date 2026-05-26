@@ -10,6 +10,7 @@ import {
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { hideBrokenLessonImage, LessonImageFrame, lessonImageFrameImgStyle } from "../components/lesson/LessonImageFrame";
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
+import { DiagramBlockPedagogy } from "../components/lesson/DiagramBlockPedagogy";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import {
   LessonStudentBlockRenderer,
@@ -52,7 +53,12 @@ import {
   contentLooksLikeGraphJson,
   normalizeGraphBlockForDisplay,
 } from "../components/lesson/graphBlockTypes";
-import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/formatBlockHeading";
+import {
+  formatStudentBlockHeading,
+  normalizePersistedBlockTitle,
+  resolveSs1BlockNumber,
+} from "../utils/formatBlockHeading";
+import { diagramSubtitleFromBlock } from "../utils/lessonBlockPersist";
 import { studentCheckpointFromBlock } from "../utils/studentCheckpointFromBlock";
 import {
   coerceDiagramZonePct,
@@ -129,8 +135,10 @@ interface LessonPageBlock {
     | "interactiveDiagram"
     | "dragDropMatch";
   content?: string;
-  /** Block heading (e.g. interactive sequence activity title) */
+  /** Block heading (interactive blocks, diagram title, etc.) */
   title?: string;
+  /** Diagram block: instructions / subtitle above the image */
+  subtitle?: string;
   /** type === "interactiveSequence" | "interactiveDiagram" */
   intro?: string;
   /** type === "dragDropMatch" */
@@ -462,6 +470,8 @@ const resolveAssetUrl = (url: string) => makeAbsoluteAssetUrl(url) ?? "";
 function DiagramBlockContent({
   visualId,
   caption,
+  title,
+  subtitle,
   level,
   mode: blockMode,
   annotations = [],
@@ -471,6 +481,8 @@ function DiagramBlockContent({
 }: {
   visualId: string;
   caption: string;
+  title?: string;
+  subtitle?: string;
   level: string;
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
@@ -533,8 +545,13 @@ function DiagramBlockContent({
     return null;
   }
 
+  const capTrim = typeof caption === "string" ? caption.trim() : "";
+  const titleTrim = typeof title === "string" ? title.trim() : "";
+  const subtitleTrim = typeof subtitle === "string" ? subtitle.trim() : "";
+  const imgAlt = titleTrim || capTrim || "Diagram";
+
   return (
-    <LessonDiagramFrame variant={variant} caption={caption}>
+    <LessonDiagramFrame variant={variant} title={title} subtitle={subtitle} caption={caption}>
       <LessonImageFrame variant="primary" lightboxSrc={src}>
         {showOverlay ? (
           <div
@@ -543,7 +560,7 @@ function DiagramBlockContent({
           >
             <img
               src={src}
-              alt={caption || "Diagram"}
+              alt={imgAlt}
               style={{
                 ...lessonImageFrameImgStyle,
                 borderRadius: 10,
@@ -637,7 +654,7 @@ function DiagramBlockContent({
         ) : (
           <img
             src={src}
-            alt={caption || "Diagram"}
+            alt={imgAlt}
             onError={hideBrokenLessonImage}
           />
         )}
@@ -2912,6 +2929,8 @@ const LessonViewPage: React.FC = () => {
 
   const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
     const caption = block.caption ?? "";
+    const title = formatStudentBlockHeading(block) || (block.title ?? "");
+    const subtitle = diagramSubtitleFromBlock(block) ?? "";
     const diagramVariant = block.diagramVariant === "featured" ? "featured" : "standard";
     const rawDiagramUrl = block.imageUrl != null ? String(block.imageUrl) : "";
     if (hasRenderableLessonImageSrc(rawDiagramUrl)) {
@@ -2920,15 +2939,19 @@ const LessonViewPage: React.FC = () => {
         : (makeAbsoluteAssetUrl(String(block.imageUrl)) ?? "");
       if (hasRenderableLessonImageSrc(src)) {
         const capTrim = typeof caption === "string" ? caption.trim() : "";
+        const titleTrim = typeof title === "string" ? title.trim() : "";
+        const subtitleTrim = typeof subtitle === "string" ? subtitle.trim() : "";
+        const imgAlt = titleTrim || block.alt?.trim() || capTrim || "Diagram";
         return (
           <div key={`diagram-${idx}-img`} className="lesson-uploaded-diagram">
-            <img
-              className="lesson-uploaded-diagram__img"
-              src={src}
-              alt={block.alt ?? (capTrim || "Diagram")}
-              onError={hideBrokenLessonImage}
-            />
-            {capTrim ? <p className="lesson-uploaded-diagram__caption">{caption}</p> : null}
+            <DiagramBlockPedagogy title={title} subtitle={subtitle} caption={caption}>
+              <img
+                className="lesson-uploaded-diagram__img"
+                src={src}
+                alt={imgAlt}
+                onError={hideBrokenLessonImage}
+              />
+            </DiagramBlockPedagogy>
           </div>
         );
       }
@@ -2943,6 +2966,8 @@ const LessonViewPage: React.FC = () => {
         key={`diagram-${idx}-${visualId}`}
         visualId={visualId}
         caption={caption}
+        title={title}
+        subtitle={subtitle}
         level={level}
         mode={mode}
         annotations={annotations}

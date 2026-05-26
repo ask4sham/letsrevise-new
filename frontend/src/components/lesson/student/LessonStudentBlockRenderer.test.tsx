@@ -51,6 +51,23 @@ const baseProps = {
 };
 
 describe("LessonStudentBlockRenderer", () => {
+  it("does not duplicate diagram block title via StudentBlockHeading", () => {
+    render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        renderDiagramBlock={() => <div data-testid="diagram-inner">Diagram</div>}
+        block={{
+          type: "diagram",
+          number: 9,
+          title: "Exercise Pathway During Aerobic and Anaerobic Respiration",
+          imageUrl: "/uploads/diagram.png",
+        }}
+      />
+    );
+    expect(screen.getByTestId("diagram-inner")).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+
   it("renders checkpoint blocks inline", () => {
     render(
       <LessonStudentBlockRenderer

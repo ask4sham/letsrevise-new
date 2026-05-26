@@ -900,6 +900,19 @@ h1.lesson-view-title-split .lesson-title-main {
   padding-bottom: 2px !important;
 }
 
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .diagram-block-pedagogy__title {
+  padding: 0 8px;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .diagram-block-pedagogy__subtitle {
+  padding: 0 8px;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .diagram-block-pedagogy__caption {
+  margin-top: 2px !important;
+  padding: 0 8px 6px !important;
+}
+
 [data-lesson-presentation="v12"] .lesson-student-diagram-slot .lesson-diagram-frame__caption {
   margin-top: 2px !important;
   padding: 6px 10px 8px !important;

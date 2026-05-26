@@ -5,6 +5,58 @@ function blockRecord(block: unknown): Record<string, unknown> {
   return block != null && typeof block === "object" ? (block as Record<string, unknown>) : {};
 }
 
+function plainTextFromHtmlish(raw: string): string {
+  return raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Persisted diagram instructions only — never fall back to legacy `content` (avoids overwriting editor field). */
+export function diagramAuthoringInstructionsFromBlock(block: unknown): string | undefined {
+  const b = blockRecord(block);
+  for (const key of ["subtitle", "intro", "note"] as const) {
+    const raw = typeof b[key] === "string" ? (b[key] as string).trim() : "";
+    if (!raw) continue;
+    const plain = plainTextFromHtmlish(raw);
+    if (plain.length > 0) return plain;
+  }
+  return undefined;
+}
+
+/** Student-facing diagram instructions: explicit subtitle, else legacy intro/note/content. */
+export function diagramSubtitleFromBlock(block: unknown): string | undefined {
+  const fromAuthoring = diagramAuthoringInstructionsFromBlock(block);
+  if (fromAuthoring) return fromAuthoring;
+
+  const b = blockRecord(block);
+  const content = typeof b.content === "string" ? b.content.trim() : "";
+  if (!content || /^image\s+here$/i.test(content)) return undefined;
+  const fromContent = plainTextFromHtmlish(content);
+  return fromContent.length >= 10 ? fromContent : undefined;
+}
+
+function attachDiagramInstructionsForPersist(
+  out: Record<string, unknown>,
+  instructions: string
+): void {
+  out.subtitle = instructions;
+  // Dual-write: `intro` + `note` predate `subtitle` in the Mongoose schema.
+  out.intro = instructions;
+  out.note = instructions;
+  // `content` always persisted historically — mirror instructions for student view round-trip.
+  out.content = instructions;
+}
+
+/** Editor hydrate: persisted fields first; long `content` only (avoids short generator blurbs). */
+export function diagramAuthoringInstructionsForEditor(block: unknown): string | undefined {
+  const fromFields = diagramAuthoringInstructionsFromBlock(block);
+  if (fromFields) return fromFields;
+
+  const b = blockRecord(block);
+  const content = typeof b.content === "string" ? b.content.trim() : "";
+  if (!content || /^image\s+here$/i.test(content)) return undefined;
+  const plain = plainTextFromHtmlish(content);
+  return plain.length >= 80 ? plain : undefined;
+}
+
 /** Attach SS1 / generator block ordinal when present on authoring state. */
 export function attachPersistedBlockNumber(
   out: Record<string, unknown>,
@@ -40,6 +92,9 @@ export function diagramBlockForPersist(block: unknown): Record<string, unknown> 
   };
 
   if (typeof b.title === "string" && b.title.trim()) out.title = b.title.trim();
+  const instructions = diagramAuthoringInstructionsFromBlock(b);
+  if (instructions) attachDiagramInstructionsForPersist(out, instructions);
+  else if (content) out.content = content;
   if (imageUrl) out.imageUrl = imageUrl;
   if (typeof b.imageSource === "string" && b.imageSource.trim()) {
     out.imageSource = b.imageSource.trim();
@@ -59,6 +114,57 @@ export function diagramBlockForPersist(block: unknown): Record<string, unknown> 
   if (connectors.length) out.connectors = connectors;
 
   return out;
+}
+
+type DiagramAuthoringPage = { pageId?: string; blocks?: unknown[] };
+
+/**
+ * After save+refetch, re-apply diagram instructions from the outgoing payload when the API
+ * response omitted them (legacy DB rows / stale server builds).
+ */
+export function mergeSavedDiagramAuthoringInstructions(
+  loadedPages: DiagramAuthoringPage[],
+  savedPages: DiagramAuthoringPage[]
+): DiagramAuthoringPage[] {
+  if (!Array.isArray(loadedPages) || !Array.isArray(savedPages)) return loadedPages;
+
+  const savedByPageId = new Map<string, DiagramAuthoringPage>();
+  for (const page of savedPages) {
+    const pid = page?.pageId != null ? String(page.pageId) : "";
+    if (pid) savedByPageId.set(pid, page);
+  }
+
+  return loadedPages.map((page) => {
+    const pid = page?.pageId != null ? String(page.pageId) : "";
+    const savedPage = pid ? savedByPageId.get(pid) : undefined;
+    if (!savedPage || !Array.isArray(page.blocks) || !Array.isArray(savedPage.blocks)) {
+      return page;
+    }
+
+    const blocks = page.blocks.map((block, idx) => {
+      const row = blockRecord(block);
+      if (String(row.type ?? "") !== "diagram") return block;
+
+      const savedRow = blockRecord(savedPage.blocks[idx]);
+      if (String(savedRow.type ?? "") !== "diagram") return block;
+
+      const instructions = diagramAuthoringInstructionsFromBlock(savedRow);
+      if (!instructions) return block;
+
+      const loadedInstructions = diagramAuthoringInstructionsFromBlock(row);
+      if (loadedInstructions === instructions) return block;
+
+      return {
+        ...row,
+        subtitle: instructions,
+        intro: instructions,
+        note: instructions,
+        content: instructions,
+      };
+    });
+
+    return { ...page, blocks };
+  });
 }
 
 /** Graph block for save — structured fields only (never JSON in `content`; that caused raw JSON prose). */

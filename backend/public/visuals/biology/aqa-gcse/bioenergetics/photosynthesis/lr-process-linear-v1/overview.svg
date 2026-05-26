@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="1400" height="800" viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Photosynthesis">
   <rect width="1400" height="800" rx="24" fill="#F7F7FB"/>
-  <rect x="60" y="60" width="1280" height="680" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+  <rect x="24" y="24" width="1352" height="752" rx="24" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
 
-  <rect x="68" y="68" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
-  <text x="88" y="100" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
-  <text x="260" y="100" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
+  <rect x="32" y="32" width="320" height="52" rx="12" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="2"/>
+  <text x="52" y="64" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#5B21B6">LET&apos;S REVISE</text>
+  <text x="224" y="64" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#374151">GCSE Biology</text>
 
-  <text x="84" y="170" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis</text>
-  <text x="84" y="215" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Light energy converted into chemical energy in glucose</text>
-  <text x="1316" y="108" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
+  <text x="48" y="96" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#111827">Photosynthesis</text>
+  <text x="48" y="136" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#374151">Light energy converted into chemical energy in glucose</text>
+  <text x="1352" y="64" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">GCSE AQA Biology</text>
 
   
   

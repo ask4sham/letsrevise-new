@@ -1,0 +1,54 @@
+/* Static diagram block — student-facing title hierarchy (matches interactive blocks). */
+
+.diagram-block-pedagogy {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.diagram-block-pedagogy__title {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.diagram-block-pedagogy__subtitle {
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.diagram-block-pedagogy__figure {
+  width: 100%;
+  min-width: 0;
+}
+
+.diagram-block-pedagogy__caption {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #94a3b8;
+  text-align: center;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .diagram-block-pedagogy__title {
+  font-size: 1.125rem;
+  margin-bottom: 4px;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .diagram-block-pedagogy__subtitle {
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot .diagram-block-pedagogy__caption {
+  margin-top: 4px;
+  font-size: 0.6875rem;
+}

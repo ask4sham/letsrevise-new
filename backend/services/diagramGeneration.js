@@ -17,7 +17,9 @@ const { tryPutBuffer } = require("./uploadObjectStorage");
 const UPLOADS_BASE = FILE_STORAGE_PATH;
 const AI_DIAGRAMS_FOLDER = "ai-diagrams";
 const IMAGE_MODEL = "dall-e-3";
-const IMAGE_SIZE = "1024x1024";
+const IMAGE_SIZE = "1792x1024";
+const TIGHT_LAYOUT_SUFFIX =
+  " Tight composition: minimal empty margin at top and bottom; main content fills the frame with only small inner padding. No large letterboxing bands.";
 const ALIGNMENT_THRESHOLD = 7; // 0-10 scale; retry if below
 const ALIGNMENT_MODEL = "gpt-4o"; // vision-capable for image + text
 
@@ -48,7 +50,7 @@ function buildDiagramPrompt(ctx) {
   if (topic) prompt += ` Topic: ${topic}.`;
   prompt += ` Simple schematic, no text in the image. Plain light background.`;
   if (content) prompt += ` Content to show: ${content.slice(0, 600)}`;
-  return prompt;
+  return `${prompt}${TIGHT_LAYOUT_SUFFIX}`;
 }
 
 /**

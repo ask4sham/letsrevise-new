@@ -33,8 +33,38 @@ describe("diagram block subtitle persistence", () => {
     expect(diagram.type).toBe("diagram");
     expect(diagram.title).toBe("Respiration during exercise");
     expect(diagram.subtitle).toBe(SUBTITLE);
+    expect(diagram.intro).toBe(SUBTITLE);
+    expect(diagram.note).toBe(SUBTITLE);
+    expect(diagram.content).toBe(SUBTITLE);
     expect(diagram.caption).toBe("Source: exam board specimen");
     expect(diagram.imageUrl).toBe("/uploads/lesson-media/diagram.png");
+  });
+
+  test("sanitisePagesInput preserves diagram intro when subtitle omitted (legacy)", () => {
+    const pages = sanitisePagesInput(
+      [
+        {
+          pageId: "page-1",
+          title: "Respiration",
+          order: 1,
+          blocks: [
+            {
+              type: "diagram",
+              title: "Respiration during exercise",
+              intro: SUBTITLE,
+              caption: "Source: exam board specimen",
+              imageUrl: "/uploads/lesson-media/diagram.png",
+              mode: "static",
+            },
+          ],
+        },
+      ],
+      true
+    );
+
+    const diagram = pages[0].blocks[0];
+    expect(diagram.subtitle).toBe(SUBTITLE);
+    expect(diagram.intro).toBe(SUBTITLE);
   });
 
   test("omits subtitle when empty (backward compatible)", () => {

@@ -1,12 +1,17 @@
 import React from "react";
 import "./lessonDiagramFrame.css";
+import { DiagramBlockPedagogy } from "./DiagramBlockPedagogy";
 
 export type LessonDiagramFrameVariant = "standard" | "featured";
 
 export type LessonDiagramFrameProps = {
   /** Default: standard — calm border + shadow. Featured: slightly stronger, for key visuals only. */
   variant?: LessonDiagramFrameVariant;
-  /** Renders below the body with caption styling (after interactive content inside body). */
+  /** Optional student-facing title (above image). */
+  title?: string | null;
+  /** Optional instructions / subtitle (above image). */
+  subtitle?: string | null;
+  /** Small caption or source note (below image). Legacy: sole label when title/subtitle empty. */
   caption?: string | null;
   children: React.ReactNode;
   className?: string;
@@ -19,13 +24,14 @@ export type LessonDiagramFrameProps = {
  */
 export function LessonDiagramFrame({
   variant = "standard",
+  title,
+  subtitle,
   caption,
   children,
   className,
 }: LessonDiagramFrameProps): React.ReactElement {
   const mod =
     variant === "featured" ? "lesson-diagram-frame--featured" : "lesson-diagram-frame--standard";
-  const cap = typeof caption === "string" ? caption.trim() : "";
 
   return (
     <div
@@ -33,8 +39,11 @@ export function LessonDiagramFrame({
       data-lesson-diagram-frame=""
     >
       <div className="lesson-diagram-frame__strip" aria-hidden />
-      <div className="lesson-diagram-frame__body">{children}</div>
-      {cap ? <p className="lesson-diagram-frame__caption">{cap}</p> : null}
+      <div className="lesson-diagram-frame__body">
+        <DiagramBlockPedagogy title={title} subtitle={subtitle} caption={caption}>
+          {children}
+        </DiagramBlockPedagogy>
+      </div>
     </div>
   );
 }
