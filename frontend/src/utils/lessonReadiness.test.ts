@@ -91,6 +91,22 @@ describe("evaluateLessonReadiness", () => {
     expect(r.minimumPublishable).toBe(true);
   });
 
+  it("passes topic check when resolvedTopicKey is valid namespaced key", () => {
+    const r = evaluateLessonReadiness(
+      { pages: [{ blocks: [{ type: "text", content: "Hi" }] }], topicKey: "stale-title-slug-aqa-gcse-biology-higher-tier" },
+      { resolvedTopicKey: "aqa-gcse-biology:response-to-exercise" }
+    );
+    expect(r.checks.find((c) => c.key === "topic")?.pass).toBe(true);
+  });
+
+  it("fails topic check when resolvedTopicKey missing and stored slug invalid", () => {
+    const r = evaluateLessonReadiness({
+      pages: [{ blocks: [{ type: "text", content: "Hi" }] }],
+      topicKey: "response-to-exercise-bioenergetics-aqa-gcse-higher-tier",
+    });
+    expect(r.checks.find((c) => c.key === "topic")?.pass).toBe(false);
+  });
+
   it("counts practiceAttached from readiness.signals.practiceCount", () => {
     const r = evaluateLessonReadiness({
       pages: [{ blocks: [{ type: "text", content: "Hi" }] }],

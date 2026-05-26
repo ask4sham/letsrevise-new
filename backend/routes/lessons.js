@@ -536,8 +536,17 @@ function sanitisePageInput(p, isUpdate = false) {
             diagramBlock.diagramVariant = "featured";
           }
           if (typeof b?.title === "string" && b.title.trim()) diagramBlock.title = b.title.trim();
-          if (typeof b?.subtitle === "string" && b.subtitle.trim()) {
-            diagramBlock.subtitle = b.subtitle.trim().slice(0, 4000);
+          const diagramInstructions =
+            (typeof b?.subtitle === "string" && b.subtitle.trim()) ||
+            (typeof b?.intro === "string" && b.intro.trim()) ||
+            (typeof b?.note === "string" && b.note.trim()) ||
+            "";
+          if (diagramInstructions) {
+            const trimmed = diagramInstructions.trim().slice(0, 4000);
+            diagramBlock.subtitle = trimmed;
+            diagramBlock.intro = trimmed;
+            diagramBlock.note = trimmed;
+            diagramBlock.content = trimmed;
           }
           if (typeof b?.number === "number" && Number.isFinite(b.number) && b.number > 0) {
             diagramBlock.number = Math.trunc(b.number);
@@ -1384,7 +1393,8 @@ async function createLessonHandler(req, res) {
             topicKey: lessonData.topicKey,
             canonicalTopicKey: lessonData.canonicalTopicKey,
             title: lessonData.title,
-            topic: lessonData.topic || lessonData.subTopic,
+            topic: lessonData.topic,
+            subTopic: lessonData.subTopic,
           }) ||
           (lessonData.topicKey.trim().includes(":") ? lessonData.topicKey.trim() : buildTopicKey(spec, lessonData.topicKey.trim()));
         assertValidNamespacedTopicKey(spec, namespaced);
@@ -3621,7 +3631,8 @@ router.put("/:id", auth, async (req, res) => {
             topicKey: updates.topicKey,
             canonicalTopicKey: updates.canonicalTopicKey,
             title: updates.title ?? lesson.title,
-            topic: updates.topic ?? updates.subTopic ?? lesson.topic ?? lesson.subTopic,
+            topic: updates.topic ?? lesson.topic,
+            subTopic: updates.subTopic ?? lesson.subTopic,
           }) ||
           (updates.topicKey.trim().includes(":") ? updates.topicKey.trim() : buildTopicKey(spec, updates.topicKey.trim()));
         assertValidNamespacedTopicKey(spec, namespaced);
@@ -4496,7 +4507,9 @@ router.post("/:id/exam-questions/attach-by-topic", auth, requireLessonOwnerOrAdm
     if (!mongoose.Types.ObjectId.isValid(lessonId)) {
       return res.status(400).json({ msg: "Invalid lesson id" });
     }
-    const lesson = await Lesson.findById(lessonId).select("topic teacherId organisationId examQuestions").lean();
+    const lesson = await Lesson.findById(lessonId)
+      .select("topic subTopic topicKey specKey title canonicalTopicKey metadata teacherId organisationId examQuestions")
+      .lean();
     if (!lesson) return res.status(404).json({ msg: "Lesson not found" });
 
     let limit = typeof req.body.limit === "number" ? req.body.limit : parseInt(req.body.limit, 10);

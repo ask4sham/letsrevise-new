@@ -6,7 +6,8 @@
 const mongoose = require("mongoose");
 const Lesson = require("../models/Lesson");
 const ExamQuestion = require("../models/ExamQuestion");
-const { findTopicByKey, topicToKey } = require("./topicTaxonomy");
+const { findTopicByKey } = require("./topicTaxonomy");
+const { resolveLessonTopicKeyForAttach } = require("./resolveLessonTopicKeyForAttach");
 const { parseTopicKey, queryCandidates, DEFAULT_SPEC_LEGACY, buildTopicKey } = require("./topicKey");
 const { assertValidNamespacedTopicKey } = require("./specTopicValidation");
 const { resolveQuestionBankNamespacedTopicKey } = require("./resolveTopicRuntimeKeys");
@@ -24,15 +25,21 @@ async function attachExamQuestionsByTopic(lesson, options = {}) {
 
   let rawTopic;
   if (options.topicKey != null && String(options.topicKey).trim() !== "") {
-    rawTopic = String(options.topicKey).trim();
+    const resolved = resolveLessonTopicKeyForAttach(lesson, options.topicKey);
+    if (!resolved) {
+      const err = new Error("Invalid topicKey");
+      err.code = "INVALID_TOPIC_KEY";
+      throw err;
+    }
+    rawTopic = resolved;
   } else {
-    const lessonKey = (lesson.topicKey && String(lesson.topicKey).trim()) || topicToKey(lesson.topic || "");
-    if (!lessonKey) {
+    const resolved = resolveLessonTopicKeyForAttach(lesson);
+    if (!resolved) {
       const err = new Error("Lesson topic isn't mapped to Biology taxonomy yet — set a valid topic.");
       err.code = "INVALID_TOPIC";
       throw err;
     }
-    rawTopic = lessonKey;
+    rawTopic = resolved;
   }
 
   const parsed = parseTopicKey(rawTopic);

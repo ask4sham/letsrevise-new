@@ -2,20 +2,42 @@
  * Canonical lesson readiness evaluator (frontend).
  * PR-READINESS-AUTO-ATTACH-LABELS-1: labels show source (auto-attached vs manual).
  */
+import { extractTopicSlug, isLikelyInvalidTopicSlug } from "./normalizeLessonTopicKey";
+
+export const TAXONOMY_TOPIC_UNMAPPED_LABEL =
+  "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.";
+
 export type LessonReadiness = {
   minimumPublishable: boolean;
   classroomReady: boolean;
   checks: { key: string; label: string; pass: boolean; note?: string }[];
   counts: { pages: number; diagrams: number; checkpoints: number; quizQuestions: number; flashcards: number; practiceAttached: number; misconceptions: number };
 };
+
+export type EvaluateLessonReadinessOptions = {
+  /** Same resolved key as centre syllabus panel (useResolvedTopicKeyForBank). */
+  resolvedTopicKey?: string | null;
+};
+
 type LessonBlock = { type?: string; content?: unknown; text?: unknown; prompt?: unknown };
+
 function hasImageInBlock(block: any): boolean {
   if (!block || typeof block !== "object") return false;
   const content = block.content ?? block.text ?? "";
   if (typeof content === "string" && /!\[.*?\]\(.*?\)|https?:\/\/[^\s)]+\.(jpg|jpeg|png|gif|webp)/i.test(content)) return true;
   return !!(block.source ?? block.url);
 }
-export function evaluateLessonReadiness(lesson: any): LessonReadiness {
+
+function isTaxonomyMappedTopicKey(topicKey: string | null | undefined): boolean {
+  const raw = typeof topicKey === "string" ? topicKey.trim() : "";
+  if (!raw) return false;
+  return !isLikelyInvalidTopicSlug(extractTopicSlug(raw));
+}
+
+export function evaluateLessonReadiness(
+  lesson: any,
+  options: EvaluateLessonReadinessOptions = {}
+): LessonReadiness {
   const blocks: LessonBlock[] = (lesson?.pages ?? []).flatMap((p: any) => (p?.blocks ?? [])).filter(Boolean);
   const pages = lesson?.pages ?? [];
   const pagesCount = Array.isArray(pages) ? pages.length : 0;
@@ -29,8 +51,20 @@ export function evaluateLessonReadiness(lesson: any): LessonReadiness {
   const flashcardsCount = Array.isArray(flashcardsRaw) ? flashcardsRaw.length : 0;
   const flashcardsHaveAuto = Array.isArray(flashcardsRaw) && flashcardsRaw.some((fc: any) => fc && typeof fc === "object" && Array.isArray(fc.tags) && fc.tags.includes("auto-attached"));
   const practiceAttached = lesson?.practiceQuestionsAttachedCount ?? lesson?.readiness?.signals?.practiceCount ?? 0;
-  const topicKey = lesson?.topicKey ?? lesson?.topic;
-  const hasTopic = typeof topicKey === "string" && topicKey.trim().length > 0;
+  const resolvedTopicKey =
+    options.resolvedTopicKey != null && String(options.resolvedTopicKey).trim()
+      ? String(options.resolvedTopicKey).trim()
+      : null;
+  const storedTopicKey =
+    typeof lesson?.topicKey === "string" && lesson.topicKey.trim()
+      ? lesson.topicKey.trim()
+      : typeof lesson?.topic === "string" && lesson.topic.trim()
+        ? lesson.topic.trim()
+        : null;
+  const taxonomyMapped = resolvedTopicKey
+    ? isTaxonomyMappedTopicKey(resolvedTopicKey)
+    : isTaxonomyMappedTopicKey(storedTopicKey);
+  const hasTopic = taxonomyMapped;
   const reviewed = lesson?.reviewed === true || lesson?.reviewedAt != null || lesson?.readiness?.reviewed === true || lesson?.readiness?.signals?.isReviewed === true;
   const contentBlockCount = blocks.filter((b) => { const content = (b.content ?? b.text ?? b.prompt ?? "").toString().trim(); return content.length > 0; }).length;
   const bankExists = !!(lesson?.readiness?.signals as any)?.hasPracticeQuestions;
@@ -42,7 +76,11 @@ export function evaluateLessonReadiness(lesson: any): LessonReadiness {
     { key: "content", label: "At least 1 content block", pass: contentBlockCount >= 1 },
     { key: "quiz", label: quizLabel, pass: quizQuestionsCount >= 3 },
     { key: "flashcards", label: flashcardsLabel, pass: flashcardsCount >= 10 },
-    { key: "topic", label: "Topic set", pass: hasTopic },
+    {
+      key: "topic",
+      label: taxonomyMapped ? "Topic mapped to syllabus" : TAXONOMY_TOPIC_UNMAPPED_LABEL,
+      pass: taxonomyMapped,
+    },
     { key: "reviewed", label: "Marked as reviewed", pass: reviewed },
     { key: "checkpoints", label: "At least 1 checkpoint (classroom)", pass: checkpointsCount >= 1 },
     { key: "misconceptions", label: "At least 1 misconception (classroom)", pass: misconceptionsCount >= 1 },
@@ -53,4 +91,3 @@ export function evaluateLessonReadiness(lesson: any): LessonReadiness {
   const classroomReady = minimumPublishable && checkpointsCount >= 1 && misconceptionsCount >= 1 && diagramsCount >= 1 && (counts.practiceAttached >= 10 || bankExists);
   return { minimumPublishable, classroomReady, checks, counts };
 }
-export {};

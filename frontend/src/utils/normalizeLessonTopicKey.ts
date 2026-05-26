@@ -3,6 +3,8 @@
  * Mirrors backend/utils/normalizeLessonTopicKey.js — keep alias rules in sync.
  */
 import { getSpecKeyFromLesson } from "./resolveLessonTopicKey";
+import type { TaxonomyUnit } from "../api/taxonomy";
+import { resolveTopicLabelFromUnits } from "./resolveTopicLabelToKey";
 
 const PHOTOSYNTHESIS_RE = /\bphotosynth(?:esis|etic)\b/i;
 const RESPIRATION_RE = /\b(?:aerobic|anaerobic)?\s*respiration\b/i;
@@ -29,6 +31,7 @@ export function canonicalSlugFromText(raw: string): string | null {
   if (RESPIRATION_RE.test(t)) return "respiration";
   if (/\baerobic\b/.test(t) && /\banaerobic\b/.test(t)) return "respiration";
   if (t.includes("respiration")) return "respiration";
+  if (/\bresponse to exercise\b/.test(t)) return "response-to-exercise";
   return null;
 }
 
@@ -67,7 +70,8 @@ export type NormalizeLessonTopicFields = {
  */
 export function normalizeLessonTopicSlug(
   specKey: string,
-  fields: NormalizeLessonTopicFields = {}
+  fields: NormalizeLessonTopicFields = {},
+  taxonomyUnits?: TaxonomyUnit[]
 ): { slug: string | null; namespaced: string | null; repaired: boolean } {
   const spec = safeStr(specKey);
   if (!spec) return { slug: null, namespaced: null, repaired: false };
@@ -87,25 +91,38 @@ export function normalizeLessonTopicSlug(
     Boolean(fromAlias && fromAlias !== rawSlug) ||
     Boolean(rawSlug && isLikelyInvalidTopicSlug(rawSlug));
 
-  const slug =
+  let slug =
     (canonicalHint && !isLikelyInvalidTopicSlug(canonicalHint) ? canonicalHint : null) ||
     fromAlias ||
     (rawSlug && !isLikelyInvalidTopicSlug(rawSlug) ? rawSlug : null);
+
+  if (!slug && taxonomyUnits?.length) {
+    const fromTaxonomy = resolveTopicLabelFromUnits(
+      taxonomyUnits,
+      fields.subTopic,
+      fields.topic,
+      fields.title,
+      fields.canonicalTopicKey,
+      fields.topicKey
+    );
+    if (fromTaxonomy.key) slug = fromTaxonomy.key;
+  }
 
   if (!slug) return { slug: null, namespaced: null, repaired };
 
   return {
     slug,
     namespaced: `${spec}:${slug}`,
-    repaired,
+    repaired: repaired || Boolean(rawSlug && rawSlug !== slug),
   };
 }
 
 export function normalizeLessonTopicSlugFromLesson(
-  lesson: NormalizeLessonTopicFields | null
+  lesson: NormalizeLessonTopicFields | null,
+  taxonomyUnits?: TaxonomyUnit[]
 ): { slug: string | null; namespaced: string | null; repaired: boolean } {
   if (!lesson) return { slug: null, namespaced: null, repaired: false };
   const specKey =
     safeStr(lesson.specKey) || getSpecKeyFromLesson(lesson) || "";
-  return normalizeLessonTopicSlug(specKey, lesson);
+  return normalizeLessonTopicSlug(specKey, lesson, taxonomyUnits);
 }

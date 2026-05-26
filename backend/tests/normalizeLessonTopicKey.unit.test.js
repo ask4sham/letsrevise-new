@@ -42,4 +42,23 @@ describe("normalizeLessonTopicKey", () => {
     expect(isValidTopicSlugForSpec("aqa-gcse-biology", r.slug)).toBe(true);
     expect(r.namespaced).toBe("aqa-gcse-biology:respiration");
   });
+
+  it("maps composite Metabolism lesson topic to metabolism", () => {
+    const r = normalizeLessonTopicSlug("aqa-gcse-biology", {
+      topic: "Biology — Metabolism (AQA GCSE Biology)",
+      title: "Metabolism (AQA GCSE Biology)",
+    });
+    expect(r.slug).toBe("metabolism");
+    expect(r.namespaced).toBe("aqa-gcse-biology:metabolism");
+  });
+
+  it("maps Response to exercise sub-topic via subTopic label", () => {
+    const r = normalizeLessonTopicSlug("aqa-gcse-biology", {
+      topicKey: "response-to-exercise-bioenergetics-aqa-gcse-higher-tier",
+      subTopic: "Response to exercise",
+      topic: "Response to exercise – Bioenergetics (AQA GCSE) (Higher Tier)",
+    });
+    expect(r.slug).toBe("response-to-exercise");
+    expect(r.namespaced).toBe("aqa-gcse-biology:response-to-exercise");
+  });
 });

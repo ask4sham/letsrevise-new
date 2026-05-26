@@ -5,6 +5,7 @@
 const { parseTopicKey, buildTopicKey } = require("./topicKey");
 const { isValidTopicSlugForSpec } = require("./specTopicRegistry");
 const { topicDisplayToCanonicalKey } = require("./topicTaxonomy");
+const { resolveTopicLabelToKey } = require("./resolveTopicLabelToKey");
 
 const PHOTOSYNTHESIS_RE = /\bphotosynth(?:esis|etic)\b/i;
 const RESPIRATION_RE = /\b(?:aerobic|anaerobic)?\s*respiration\b/i;
@@ -35,6 +36,7 @@ function canonicalSlugFromNormalized(normalized) {
   if (RESPIRATION_RE.test(t)) return "respiration";
   if (/\baerobic\b/.test(t) && /\banaerobic\b/.test(t)) return "respiration";
   if (t.includes("respiration")) return "respiration";
+  if (/\bresponse to exercise\b/.test(t)) return "response-to-exercise";
   return null;
 }
 
@@ -105,11 +107,24 @@ function normalizeLessonTopicSlug(specKey, fields = {}) {
   }
 
   if (!slug) {
-    const fromDisplay =
+    const fromDisplay = resolveTopicLabelToKey(
+      spec,
+      fields.subTopic,
+      fields.topic,
+      fields.title,
+      fields.canonicalTopicKey,
+      fields.topicKey
+    );
+    slug = trySlug(fromDisplay.key);
+    if (slug) repaired = true;
+  }
+
+  if (!slug) {
+    const fromLegacyDisplay =
       trySlug(topicDisplayToCanonicalKey(topic, spec)) ||
       trySlug(topicDisplayToCanonicalKey(title, spec));
-    if (fromDisplay) {
-      slug = fromDisplay;
+    if (fromLegacyDisplay) {
+      slug = fromLegacyDisplay;
       repaired = true;
     }
   }

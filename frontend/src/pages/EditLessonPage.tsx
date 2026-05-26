@@ -8,6 +8,7 @@ import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequen
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { GraphBlock } from "../components/lesson/GraphBlock";
+import { DiagramBlockPedagogy } from "../components/lesson/DiagramBlockPedagogy";
 import { GraphBlockAuthoring } from "../components/lesson/GraphBlockAuthoring";
 import {
   emptyGraphBlock,
@@ -36,9 +37,16 @@ import {
 } from "../utils/interactiveSequenceStepImagePrompt";
 import { toAbsoluteAssetUrl } from "../services/mediaUrl";
 import { useResolvedTopicKeyForBank } from "../hooks/useResolvedTopicKeyForBank";
-import { normalizeLessonTopicSlugFromLesson } from "../utils/normalizeLessonTopicKey";
+import {
+  extractTopicSlug,
+  isLikelyInvalidTopicSlug,
+  normalizeLessonTopicSlugFromLesson,
+} from "../utils/normalizeLessonTopicKey";
+import { logTopicMappingDebug } from "../utils/resolveTopicLabelToKey";
+import { resolveTopicDisplayToKey } from "../api/taxonomy";
+import { getSpecKeyFromLesson } from "../utils/resolveLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
-import { evaluateLessonReadiness } from "../utils/lessonReadiness";
+import { evaluateLessonReadiness, TAXONOMY_TOPIC_UNMAPPED_LABEL } from "../utils/lessonReadiness";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import {
@@ -66,6 +74,13 @@ import {
   attachLearningMetaForPersist,
   warnLearningMetaIfMissing,
 } from "../utils/learningMeta";
+import {
+  attachPersistedBlockNumber,
+  diagramAuthoringInstructionsForEditor,
+  diagramAuthoringInstructionsFromBlock,
+  diagramBlockForPersist,
+  mergeSavedDiagramAuthoringInstructions,
+} from "../utils/lessonBlockPersist";
 import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 import {
   formatPublishWithQualityWarningsMessage,
@@ -205,6 +220,8 @@ interface LessonPageBlock {
   /** Diagram block fields (when type === "diagram") */
   visualId?: string;
   caption?: string;
+  /** Student-facing instructions / subtitle (diagram blocks) */
+  subtitle?: string;
   /** PR11: diagram depth */
   mode?: "static" | "annotated" | "step";
   annotations?: Array<{ id: string; kind?: "label" | "callout"; text?: string; x?: number; y?: number; color?: string; align?: "left" | "center" | "right" }>;
@@ -366,6 +383,8 @@ interface Lesson {
   level: string;
   topic: string;
   topicKey?: string;
+  subTopic?: string;
+  specKey?: string;
   examBoardName: string | null;
   teacherName: string;
   teacherId: string;
@@ -1008,7 +1027,18 @@ const EditLessonPage: React.FC = () => {
   const assessmentQuestions = useMemo(() => lesson?.assessment?.questions || [], [lesson]);
 
   /** PR-CONTENT-TARGETING-1: namespaced topicKeyForBank — uses taxonomy resolve when lesson.topicKey missing */
-  const topicKeyForBank = useResolvedTopicKeyForBank(lesson);
+  const topicKeyForBank = useResolvedTopicKeyForBank(lesson, taxonomyUnits);
+
+  /** Keep lesson.topicKey in sync with resolved mapping so save/readiness use the repaired key. */
+  useEffect(() => {
+    if (!topicKeyForBank || !lesson) return;
+    const stored = typeof lesson.topicKey === "string" ? lesson.topicKey.trim() : "";
+    const needsRepair =
+      !stored || isLikelyInvalidTopicSlug(extractTopicSlug(stored)) || stored !== topicKeyForBank;
+    if (needsRepair) {
+      setLesson((prev) => (prev ? { ...prev, topicKey: topicKeyForBank } : prev));
+    }
+  }, [topicKeyForBank, lesson?.id]);
 
   const refreshAiLessonDraftCounts = useCallback(async () => {
     if (!id || !topicKeyForBank) {
@@ -1376,12 +1406,13 @@ const EditLessonPage: React.FC = () => {
               : undefined,
         specKey: typeof data.specKey === "string" ? data.specKey.trim() : undefined,
         topic: safeStr(data.topic, ""),
+        subTopic: safeStr(data.subTopic, ""),
         title: safeStr(data.title, ""),
         subject: safeStr(data.subject, ""),
         examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
         level: safeStr(data.level, ""),
       };
-      const topicNorm = normalizeLessonTopicSlugFromLesson(lessonForTopicNorm);
+      const topicNorm = normalizeLessonTopicSlugFromLesson(lessonForTopicNorm, taxonomyUnits);
 
       const mapped: Lesson = {
         id: safeStr(data._id || data.id || lessonId, lessonId),
@@ -1391,6 +1422,8 @@ const EditLessonPage: React.FC = () => {
         subject: safeStr(data.subject, "Not set"),
         level: safeStr(data.level, "Not set"),
         topic: safeStr(data.topic, "Not set"),
+        subTopic: safeStr(data.subTopic, "") || undefined,
+        specKey: lessonForTopicNorm.specKey,
         topicKey: topicNorm.namespaced ?? lessonForTopicNorm.topicKey,
         examBoardName: (data.examBoard ?? data.board) ? safeStr((data.examBoard ?? data.board) as string, "") : null,
         teacherName: safeStr(data.teacherName, "Teacher"),
@@ -1511,6 +1544,10 @@ const EditLessonPage: React.FC = () => {
                     type: "diagram" as const,
                     visualId: b.visualId != null ? String(b.visualId) : "",
                     caption: safeStr(b.caption, ""),
+                    title: safeStr(b.title, "") || undefined,
+                    subtitle: diagramAuthoringInstructionsForEditor(b),
+                    intro: safeStr(b.intro, "") || undefined,
+                    note: safeStr(b.note, "") || undefined,
                     mode,
                     annotations,
                     steps,
@@ -2154,6 +2191,8 @@ const EditLessonPage: React.FC = () => {
           type: "diagram",
           visualId: "",
           caption: "",
+          title: "",
+          subtitle: "",
           mode: "static",
           annotations: [],
           steps: [],
@@ -3427,25 +3466,7 @@ const EditLessonPage: React.FC = () => {
             return pqOut;
           }
           if (b.type === "diagram") {
-            const mode = b.mode === "annotated" || b.mode === "step" ? b.mode : "static";
-            const annotations = Array.isArray(b.annotations) ? b.annotations : [];
-            const steps = Array.isArray(b.steps) ? b.steps : [];
-            const connectors = Array.isArray(b.connectors) ? b.connectors : [];
-            const dOut: Record<string, unknown> = {
-              ...b,
-              type: "diagram",
-              visualId: b.visualId != null && String(b.visualId).trim() ? String(b.visualId).trim() : undefined,
-              caption: b.caption != null ? String(b.caption).trim() : undefined,
-              mode,
-              annotations: annotations.length ? annotations : undefined,
-              steps: steps.length ? steps : undefined,
-              connectors: connectors.length ? connectors : undefined,
-              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
-              imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
-              alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
-            };
-            if (typeof b.role === "string" && b.role.trim()) dOut.role = b.role.trim();
-            return dOut;
+            return attachPersistedBlockNumber(diagramBlockForPersist(b), b);
           }
           if (b.type === "interactiveSequence") {
             const normalizedSeq = normalizeInteractiveSequenceBlockForEditor(
@@ -3555,11 +3576,14 @@ const EditLessonPage: React.FC = () => {
       level: lesson.level,
       topic: lesson.topic,
       topicKey: (() => {
-        const topicNorm = normalizeLessonTopicSlugFromLesson({
-          ...lesson,
-          specKey: (lesson as { specKey?: string }).specKey,
-          canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
-        });
+        const topicNorm = normalizeLessonTopicSlugFromLesson(
+          {
+            ...lesson,
+            specKey: (lesson as { specKey?: string }).specKey,
+            canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
+          },
+          taxonomyUnits
+        );
         if (topicNorm.namespaced) return topicNorm.namespaced;
         if (topicKeyForBank) return topicKeyForBank;
         return undefined;
@@ -3643,10 +3667,23 @@ const EditLessonPage: React.FC = () => {
       }
 
       setSaveMsg("✅ Saved!");
+      const savedPages = Array.isArray(payload.pages) ? payload.pages : [];
       // Refetch is for editor UI only. Server already has persisted content for /generate-assets.
       // It must not flip save success — a failed/odd refetch used to make saveToBackend return false incorrectly.
       try {
         await fetchLessonSmart();
+        if (savedPages.length > 0) {
+          setLesson((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              pages: mergeSavedDiagramAuthoringInstructions(
+                (prev.pages || []) as Array<{ pageId?: string; blocks?: unknown[] }>,
+                savedPages as Array<{ pageId?: string; blocks?: unknown[] }>
+              ) as typeof prev.pages,
+            };
+          });
+        }
       } catch (refetchErr: unknown) {
         console.warn("[EditLesson] Refetch after save failed:", refetchErr);
         setSaveMsg("✅ Saved! (Could not reload the editor — refresh the page if content looks wrong.)");
@@ -3730,12 +3767,35 @@ const EditLessonPage: React.FC = () => {
       setAiAssetsMessage(AI_ASSETS_PUBLISHED_MESSAGE);
       return;
     }
-    const topicNormForAssets = normalizeLessonTopicSlugFromLesson({
-      ...lesson,
-      specKey: (lesson as { specKey?: string }).specKey,
-      canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
+    const topicNormForAssets = normalizeLessonTopicSlugFromLesson(
+      {
+        ...lesson,
+        specKey: (lesson as { specKey?: string }).specKey,
+        canonicalTopicKey: (lesson as { canonicalTopicKey?: string }).canonicalTopicKey,
+      },
+      taxonomyUnits
+    );
+    let effectiveTopicKey = topicNormForAssets.namespaced || topicKeyForBank;
+    if (!effectiveTopicKey && lesson) {
+      const specForResolve =
+        (lesson as { specKey?: string }).specKey?.trim() || getSpecKeyFromLesson(lesson) || "";
+      const lessonSubTopic = (lesson as { subTopic?: string }).subTopic;
+      if (specForResolve) {
+        effectiveTopicKey = await resolveTopicDisplayToKey(
+          specForResolve,
+          lesson.topic || lessonSubTopic || lesson.title || "",
+          { subTopic: lessonSubTopic, title: lesson.title }
+        );
+      }
+    }
+    logTopicMappingDebug("generate-ai-assets", {
+      specKey: (lesson as { specKey?: string }).specKey || getSpecKeyFromLesson(lesson),
+      storedTopicKey: lesson?.topicKey || null,
+      topicLabel: lesson?.topic || (lesson as { subTopic?: string }).subTopic || lesson?.title || null,
+      normalizedTopicKey: topicNormForAssets.namespaced,
+      taxonomyLookup: topicNormForAssets.slug,
+      resolvedTopicKey: effectiveTopicKey,
     });
-    const effectiveTopicKey = topicNormForAssets.namespaced || topicKeyForBank;
     if (!effectiveTopicKey) {
       setAiAssetsMessage(
         "Could not map this lesson to a syllabus sub-topic. Set Topic to a taxonomy label (e.g. Respiration for AQA GCSE Biology), save, or use Rebuild Graph — then try again."
@@ -4829,7 +4889,10 @@ const EditLessonPage: React.FC = () => {
 
               {/* Card 3: Readiness — moved from center */}
               {(() => {
-                const evalReadiness = lesson ? evaluateLessonReadiness(lesson) : null;
+                const evalReadiness = lesson
+                  ? evaluateLessonReadiness(lesson, { resolvedTopicKey: topicKeyForBank })
+                  : null;
+                const topicCheck = evalReadiness?.checks.find((c) => c.key === "topic");
                 const statusLabel = evalReadiness?.classroomReady ? "Classroom-ready" : evalReadiness?.minimumPublishable ? "Ready to publish" : "Needs review";
                 const statusBg = evalReadiness?.classroomReady ? "#c6f6d5" : evalReadiness?.minimumPublishable ? "#fef3c7" : "#e5e7eb";
                 const statusColor = evalReadiness?.classroomReady ? "#22543d" : evalReadiness?.minimumPublishable ? "#92400e" : "#4b5563";
@@ -4852,6 +4915,11 @@ const EditLessonPage: React.FC = () => {
                       <li>Flashcards: {c.flashcards}</li>
                       <li>Practice: {c.practiceAttached}</li>
                       <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
+                      {topicCheck && (
+                        <li style={{ color: topicCheck.pass ? "#15803d" : "#b91c1c" }}>
+                          {topicCheck.pass ? topicCheck.label : TAXONOMY_TOPIC_UNMAPPED_LABEL}
+                        </li>
+                      )}
                     </ul>
                     {id && (
                       <div style={{ marginTop: 8, fontSize: 12 }}>
@@ -4888,7 +4956,7 @@ const EditLessonPage: React.FC = () => {
                           setMakeClassroomReadyError(null);
                           setMakeClassroomReadyLoading(true);
                           try {
-                            const res = await api.post<{ ok: boolean; attach?: { added: number; addedIds?: string[] }; diagram?: { status: string }; plan?: { status: string }; review?: { status: string }; readiness?: { status: string; signals?: Record<string, unknown> } }>(`/reports/lessons/${id}/make-classroom-ready`, { days: 7, attachPractice: true, attachLimit: 10, ensureDiagram: true, regeneratePlan: true, planLimit: 10, markReviewed: true });
+                            const res = await api.post<{ ok: boolean; attach?: { added: number; addedIds?: string[] }; diagram?: { status: string }; plan?: { status: string }; review?: { status: string }; readiness?: { status: string; signals?: Record<string, unknown> } }>(`/reports/lessons/${id}/make-classroom-ready`, { days: 7, attachPractice: true, attachLimit: 10, ensureDiagram: true, regeneratePlan: true, planLimit: 10, markReviewed: true, ...(topicKeyForBank ? { topicKey: topicKeyForBank } : {}) });
                             const d = res?.data;
                             if (!d?.ok) { setMakeClassroomReadyError("Request failed"); return; }
                             if (d?.attach?.addedIds?.length) {
@@ -4943,7 +5011,10 @@ const EditLessonPage: React.FC = () => {
                       setAutoAttachMessage(null);
                       setAutoAttachLoading(true);
                       try {
-                        const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, { limit: autoAttachLimit });
+                        const res = await api.post(`/lessons/${id}/exam-questions/attach-by-topic`, {
+                          limit: autoAttachLimit,
+                          ...(topicKeyForBank ? { topicKey: topicKeyForBank } : {}),
+                        });
                         const data = res?.data;
                         const added = data?.added ?? 0;
                         const topicName = data?.topic ?? lesson?.topic ?? "topic";
@@ -6324,7 +6395,7 @@ const EditLessonPage: React.FC = () => {
                                   {((d.mode !== "annotated" && d.mode !== "step") || (!d.visualId && !d.imageUrl)) && (
                                     <div style={{ padding: 16, borderRadius: 10, background: "#f1f5f9", border: "2px dashed rgba(34,197,94,0.3)", textAlign: "center", color: "#64748b", fontSize: 14 }}>
                                       {d.visualId ? <span>Diagram: {String(d.visualId)}</span> : diagramSrc ? (
-                                        <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 720, margin: "0 auto" }}>
+                                        <div className="lesson-editor-diagram-preview-frame" style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 720, margin: "0 auto" }}>
                                           <img src={diagramSrc} alt={diagramAlt} style={{ width: "100%", height: "auto", borderRadius: 12 }} />
                                         </div>
                                       ) : (
@@ -6334,7 +6405,7 @@ const EditLessonPage: React.FC = () => {
                                   )}
                                 </>
                               ) : diagramSrc ? (
-                                <div style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 520 }}>
+                                <div className="lesson-editor-diagram-preview-frame" style={{ marginTop: 8, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, maxWidth: 520 }}>
                                   <img
                                     src={diagramSrc}
                                     alt={diagramAlt}
@@ -6349,8 +6420,8 @@ const EditLessonPage: React.FC = () => {
                               ));
                             })()}
                               <label style={{ display: "block" }}>
-                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption (optional)</div>
-                                <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>e.g. &quot;Simple cell with nucleus, cytoplasm, mitochondria and cell membrane&quot; — then add labels with Edit diagram → Place labels.</p>
+                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption / source note (optional)</div>
+                                <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>Small text below the image — source, credit, or brief figure note. For labels on the diagram, use Edit diagram → Place labels.</p>
                                 <LessonAutoTextarea
                                   editorVariant="plain"
                                   value={d.caption ?? ""}
@@ -6603,6 +6674,34 @@ const EditLessonPage: React.FC = () => {
                                 </>
                               )}
                               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
+                                <label style={{ display: "block", marginBottom: 10 }}>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Diagram title</div>
+                                  <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
+                                    Shown above the image for students — e.g. &quot;Structure of a leaf cell&quot;.
+                                  </p>
+                                  <LessonAutoTextarea
+                                    editorVariant="plain"
+                                    value={d.title ?? ""}
+                                    onChange={(v) => updateBlock(currentPage!.pageId, idx, { title: v })}
+                                    placeholder="What is this diagram about?"
+                                    minHeightPx={56}
+                                    style={{ fontSize: "0.9375rem" }}
+                                  />
+                                </label>
+                                <label style={{ display: "block", marginBottom: 10 }}>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Diagram instructions / subtitle</div>
+                                  <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
+                                    Short guidance before the image — e.g. &quot;Label the parts you can see, then check against the mark scheme.&quot;
+                                  </p>
+                                  <LessonAutoTextarea
+                                    editorVariant="plain"
+                                    value={d.subtitle ?? ""}
+                                    onChange={(v) => updateBlock(currentPage!.pageId, idx, { subtitle: v })}
+                                    placeholder="What should students do with this diagram?"
+                                    minHeightPx={72}
+                                    style={{ fontSize: "0.9375rem" }}
+                                  />
+                                </label>
                                 <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "#374151" }}>Add diagram</p>
                                 <p style={{ margin: "0 0 8px", fontSize: 11, color: "#6b7280" }}>Recommended: upload your own image (you must have rights to use it). AI is instructed to create original work only; do not use AI output if it resembles existing diagrams.</p>
                                 <input
@@ -9395,10 +9494,14 @@ const EditLessonPage: React.FC = () => {
                         imageUrl?: string;
                         caption?: string;
                         content?: string;
+                        title?: string;
+                        subtitle?: string;
                       };
                       const img = diagramImageUrlForPreview(d.imageUrl);
                       const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
-                      const md = diagramMarkdownContentForPreview(blockContent, img);
+                      const previewTitle = safeStr(d.title, "");
+                      const previewSubtitle = diagramAuthoringInstructionsForEditor(d) ?? "";
+                      const previewCaption = safeStr(d.caption, "");
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -9413,48 +9516,33 @@ const EditLessonPage: React.FC = () => {
                               : {}),
                           }}
                         >
-                          {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
-                            <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
-                              <img
-                                src={imgSrc}
-                                alt={safeStr(d.caption, "") || "Diagram"}
-                                style={lessonImageFrameImgStyle}
-                                onError={hideBrokenLessonImage}
-                              />
-                            </LessonImageFrame>
-                          ) : null}
-                          {md ? (
-                            <div className="lesson-content" style={getBlockStyle(blockType)}>
-                              <LessonRenderer
-                                key={`preview-diag-md-${currentPage!.pageId}-${idx}`}
-                                text={md}
-                                markdownComponents={markdownComponents as any}
-                                urlTransform={(url: string) => {
-                                  try {
-                                    const decoded = url?.includes("%")
-                                      ? decodeURIComponent(url)
-                                      : (url ?? "");
-                                    const abs = makeAbsoluteAssetUrl(decoded);
-                                    if (abs) return abs;
-                                    return defaultUrlTransform(url ?? "");
-                                  } catch {
-                                    return defaultUrlTransform(url ?? "");
-                                  }
+                          <DiagramBlockPedagogy
+                            title={previewTitle}
+                            subtitle={previewSubtitle}
+                            caption={previewCaption}
+                          >
+                            {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
+                              <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
+                                <img
+                                  src={imgSrc}
+                                  alt={previewCaption || previewTitle || "Diagram"}
+                                  style={lessonImageFrameImgStyle}
+                                  onError={hideBrokenLessonImage}
+                                />
+                              </LessonImageFrame>
+                            ) : (
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: "0.75rem",
+                                  color: "#94a3b8",
+                                  fontStyle: "italic",
                                 }}
-                              />
-                            </div>
-                          ) : !imgSrc ? (
-                            <p
-                              style={{
-                                margin: "6px 0 0",
-                                fontSize: "0.75rem",
-                                color: "#94a3b8",
-                                fontStyle: "italic",
-                              }}
-                            >
-                              Diagram image not set
-                            </p>
-                          ) : null}
+                              >
+                                Diagram image not set
+                              </p>
+                            )}
+                          </DiagramBlockPedagogy>
                         </div>
                       );
                     }

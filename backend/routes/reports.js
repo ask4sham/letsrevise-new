@@ -18,6 +18,7 @@ const Event = require("../models/Event");
 const auth = require("../middleware/auth");
 const { getLessonOwnerId } = require("../utils/lessonPayload");
 const { getBiologyTopics, findTopicByKey, topicToKey } = require("../utils/topicTaxonomy");
+const { resolveLessonTopicKeyForAttach } = require("../utils/resolveLessonTopicKeyForAttach");
 const { parseTopicKey } = require("../utils/topicKey");
 const { attachExamQuestionsByTopic } = require("../utils/attachExamQuestionsByTopic");
 const { computeLessonReadiness } = require("../utils/lessonReadiness");
@@ -936,35 +937,19 @@ router.post("/lessons/:lessonId/one-click-fix", auth, async (req, res) => {
 
     let topicKey = req.body?.topicKey != null ? String(req.body.topicKey).trim() : null;
     if (topicKey === "") topicKey = null;
-    if (topicKey != null) {
-      const found = findTopicByKey(topicKey.toLowerCase());
-      if (!found) {
-        return res.status(400).json({
-          error: "Invalid topicKey",
-          message: "topicKey is not in the Biology taxonomy.",
-        });
-      }
-      topicKey = found.key;
-    } else {
-      const derived = topicToKey(lesson.topic || "");
-      if (!derived) {
-        if (attachByTopic) {
-          return res.status(400).json({
-            error: "Invalid topic",
-            message: "Lesson topic isn't mapped to Biology taxonomy. Provide topicKey in body or set lesson topic.",
-          });
-        }
-        topicKey = null;
-      } else {
-        const found = findTopicByKey(derived);
-        if (!found && attachByTopic) {
-          return res.status(400).json({
-            error: "Invalid topic",
-            message: "Lesson topic isn't mapped to Biology taxonomy. Provide topicKey in body or set lesson topic.",
-          });
-        }
-        topicKey = found ? found.key : null;
-      }
+    const resolvedTopic = resolveLessonTopicKeyForAttach(lesson, topicKey);
+    if (topicKey != null && !resolvedTopic) {
+      return res.status(400).json({
+        error: "Invalid topicKey",
+        message: "topicKey is not in the Biology taxonomy.",
+      });
+    }
+    topicKey = resolvedTopic;
+    if (!topicKey && attachByTopic) {
+      return res.status(400).json({
+        error: "Invalid topic",
+        message: "Lesson topic isn't mapped to Biology taxonomy. Provide topicKey in body or set lesson topic.",
+      });
     }
 
     let attach = { requested: attachLimit, added: 0, addedIds: [] };
@@ -1195,7 +1180,7 @@ router.post("/lessons/:lessonId/make-classroom-ready", auth, async (req, res) =>
     if (requireLessonReportAccess(req, res, lessonId) !== true) return;
 
     const lessonDoc = await Lesson.findById(lessonId).select(
-      "teacherId topic topicKey board tier subject level status isPublished organisationId examQuestions reviewedAt reviewedBy pages"
+      "teacherId topic subTopic topicKey specKey title canonicalTopicKey metadata board tier subject level status isPublished organisationId examQuestions reviewedAt reviewedBy pages"
     );
     if (!lessonDoc) {
       return res.status(404).json({ error: "Lesson not found" });
@@ -1224,33 +1209,18 @@ router.post("/lessons/:lessonId/make-classroom-ready", auth, async (req, res) =>
 
     let topicKey = req.body?.topicKey != null ? String(req.body.topicKey).trim() : null;
     if (topicKey === "") topicKey = null;
-    if (topicKey != null) {
-      const found = findTopicByKey(topicKey.toLowerCase());
-      if (!found) {
-        return res.status(400).json({
-          error: "Invalid topicKey",
-          message: "topicKey is not in the Biology taxonomy.",
-        });
-      }
-      topicKey = found.key;
-    } else {
-      const derived = topicToKey(lesson.topic || "");
-      if (!derived) {
-        if (attachPractice) {
-          return res.status(400).json({
-            error: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
-          });
-        }
-        topicKey = null;
-      } else {
-        const found = findTopicByKey(derived);
-        if (!found && attachPractice) {
-          return res.status(400).json({
-            error: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
-          });
-        }
-        topicKey = found ? found.key : null;
-      }
+    const resolvedTopic = resolveLessonTopicKeyForAttach(lesson, topicKey);
+    if (topicKey != null && !resolvedTopic) {
+      return res.status(400).json({
+        error: "Invalid topicKey",
+        message: "topicKey is not in the Biology taxonomy.",
+      });
+    }
+    topicKey = resolvedTopic;
+    if (!topicKey && attachPractice) {
+      return res.status(400).json({
+        error: "Lesson topic isn't mapped to Biology taxonomy yet — set a valid topicKey.",
+      });
     }
 
     const attach = { requested: attachLimit, added: 0, addedIds: [] };
