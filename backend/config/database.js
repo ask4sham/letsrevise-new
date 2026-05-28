@@ -11,6 +11,24 @@ function maskMongoUri(uri) {
 }
 
 /**
+ * Some ISP/corporate DNS resolvers refuse SRV lookups for Node (querySrv ECONNREFUSED)
+ * while nslookup still works. Prepend public DNS so mongodb+srv:// can resolve.
+ */
+function configureDnsForMongoSrv(uri) {
+  if (!uri.includes("mongodb+srv://")) return;
+  if (process.env.MONGODB_SKIP_DNS_FIX === "1") return;
+  try {
+    const dns = require("dns");
+    const current = dns.getServers();
+    const publicDns = ["8.8.8.8", "1.1.1.1"];
+    const merged = [...publicDns, ...current.filter((s) => !publicDns.includes(s))];
+    dns.setServers(merged);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * Connect to MongoDB. Call once at process startup before accepting HTTP traffic.
  *
  * Env (first match wins):
@@ -37,6 +55,8 @@ const connectDB = async () => {
   }
 
   console.log(IS_PRODUCTION ? "[MongoDB] connecting…" : `[MongoDB] Connecting… ${maskMongoUri(uri)}`);
+
+  configureDnsForMongoSrv(uri);
 
   const opts = {
     serverSelectionTimeoutMS: 15_000,

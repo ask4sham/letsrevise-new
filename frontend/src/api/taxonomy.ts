@@ -76,10 +76,16 @@ export async function fetchTaxonomy(specKey: SpecKey): Promise<TaxonomyResponse>
 /** Resolve topic display name (e.g. "Animal and plant cells") to namespaced topicKey. Use when lesson.topicKey is missing. */
 export async function resolveTopicDisplayToKey(
   specKey: string,
-  topicDisplay: string
+  topicDisplay: string,
+  extra?: { subTopic?: string | null; title?: string | null }
 ): Promise<string | null> {
   const res = await api.get<{ topicKey: string | null; resolved: boolean }>("/taxonomy/resolve-topic", {
-    params: { specKey: specKey.trim(), topic: topicDisplay.trim() },
+    params: {
+      specKey: specKey.trim(),
+      topic: topicDisplay.trim(),
+      ...(extra?.subTopic ? { subTopic: String(extra.subTopic).trim() } : {}),
+      ...(extra?.title ? { title: String(extra.title).trim() } : {}),
+    },
   });
   return res.data?.resolved ? res.data.topicKey : null;
 }

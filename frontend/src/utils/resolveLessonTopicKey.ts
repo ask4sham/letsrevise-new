@@ -7,6 +7,7 @@ import {
   isLikelyInvalidTopicSlug,
   normalizeLessonTopicSlugFromLesson,
 } from "./normalizeLessonTopicKey";
+import type { TaxonomyUnit } from "../api/taxonomy";
 
 /** SpecKey type used for taxonomy (matches api/taxonomy). */
 export type ResolveSpecKey =
@@ -69,12 +70,14 @@ export function resolveLessonTopicKeyForBankFromLesson(
     canonicalTopicKey?: string | null;
     specKey?: string | null;
     topic?: string | null;
+    subTopic?: string | null;
     title?: string | null;
     examBoardName?: string | null;
     level?: string | null;
     subject?: string | null;
   } | null,
-  urlTopicKey?: string | null
+  urlTopicKey?: string | null,
+  taxonomyUnits?: TaxonomyUnit[]
 ): string | null {
   if (!lesson) return null;
   const specKey =
@@ -87,7 +90,7 @@ export function resolveLessonTopicKeyForBankFromLesson(
     return resolveLessonTopicKeyForBank({ specKey, topicKeyCandidate: urlTopicKey.trim() });
   }
 
-  const normalized = normalizeLessonTopicSlugFromLesson(lesson);
+  const normalized = normalizeLessonTopicSlugFromLesson(lesson, taxonomyUnits);
   if (normalized.namespaced) return normalized.namespaced;
 
   const stored = typeof lesson.topicKey === "string" && lesson.topicKey.trim() ? lesson.topicKey.trim() : "";

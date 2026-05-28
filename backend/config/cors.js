@@ -64,6 +64,13 @@ function getCorsOptions() {
   const originCallback = (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, origin);
+    // Dev: CRA may use 3002+ when 3000 is busy; allow any local port if API_BASE points at :5000
+    if (
+      !prod &&
+      (/^http:\/\/localhost:\d+$/i.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin))
+    ) {
+      return callback(null, origin);
+    }
     console.log("❌ CORS blocked origin:", origin);
     return callback(new Error("Not allowed by CORS"));
   };
