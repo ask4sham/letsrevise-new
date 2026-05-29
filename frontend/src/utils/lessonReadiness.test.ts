@@ -1,4 +1,8 @@
-import { evaluateLessonReadiness } from "./lessonReadiness";
+import {
+  countLessonCheckpoints,
+  evaluateLessonReadiness,
+  pageHasValidCheckpoint,
+} from "./lessonReadiness";
 
 describe("evaluateLessonReadiness", () => {
   it("returns minimumPublishable false when no pages", () => {
@@ -105,6 +109,55 @@ describe("evaluateLessonReadiness", () => {
       topicKey: "response-to-exercise-bioenergetics-aqa-gcse-higher-tier",
     });
     expect(r.checks.find((c) => c.key === "topic")?.pass).toBe(false);
+  });
+
+  it("counts page.checkpoint when no block checkpoint exists", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [{ type: "text", content: "Intro" }],
+          checkpoint: {
+            question: "How is respiration defined?",
+            options: ["A", "B", "C", "D"],
+            answer: "B",
+          },
+        },
+      ],
+    };
+    expect(countLessonCheckpoints(lesson)).toBe(1);
+    expect(evaluateLessonReadiness(lesson).counts.checkpoints).toBe(1);
+  });
+
+  it("does not count selfCheck as checkpoint", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "selfCheck",
+              prompt: "Which is correct?",
+              questionType: "mcq",
+              options: ["A", "B", "C", "D"],
+              correctAnswer: "A",
+            },
+          ],
+        },
+      ],
+    };
+    expect(countLessonCheckpoints(lesson)).toBe(0);
+  });
+
+  it("counts at most one checkpoint per page when block and page.checkpoint both exist", () => {
+    const page = {
+      blocks: [{ type: "checkpoint", prompt: "Block Q?", correctAnswer: "A" }],
+      checkpoint: {
+        question: "Page Q?",
+        options: ["1", "2", "3", "4"],
+        answer: "2",
+      },
+    };
+    expect(pageHasValidCheckpoint(page)).toBe(true);
+    expect(countLessonCheckpoints({ pages: [page] })).toBe(1);
   });
 
   it("counts practiceAttached from readiness.signals.practiceCount", () => {

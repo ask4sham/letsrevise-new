@@ -6,7 +6,11 @@ const bcrypt = require("bcryptjs");
 const app = require("../app");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
-const { computeLessonReadiness } = require("../utils/lessonReadiness");
+const {
+  computeLessonReadiness,
+  countCheckpointBlocks,
+  pageHasValidCheckpoint,
+} = require("../utils/lessonReadiness");
 
 const hashedPassword = bcrypt.hashSync("password123", 10);
 
@@ -46,6 +50,53 @@ describe("computeLessonReadiness", () => {
     expect(r.status).toBe("NEEDS_REVIEW");
     expect(r.signals.missing).toContain("NO_DIAGRAMS");
     expect(r.signals.missing).toContain("NOT_REVIEWED");
+  });
+
+  test("counts valid page.checkpoint when no block checkpoint", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [{ type: "text", content: "Intro" }],
+          checkpoint: {
+            question: "How is respiration defined?",
+            options: ["A", "B", "C", "D"],
+            answer: "B",
+          },
+        },
+      ],
+    };
+    expect(countCheckpointBlocks(lesson)).toBe(1);
+    expect(pageHasValidCheckpoint(lesson.pages[0])).toBe(true);
+  });
+
+  test("does not count selfCheck as checkpoint", () => {
+    const lesson = {
+      pages: [
+        {
+          blocks: [
+            {
+              type: "selfCheck",
+              prompt: "Which is correct?",
+              options: ["A", "B"],
+              correctAnswer: "A",
+            },
+          ],
+        },
+      ],
+    };
+    expect(countCheckpointBlocks(lesson)).toBe(0);
+  });
+
+  test("counts at most one checkpoint per page when block and page.checkpoint both exist", () => {
+    const page = {
+      blocks: [{ type: "checkpoint", prompt: "Block Q?" }],
+      checkpoint: {
+        question: "Page Q?",
+        options: ["1", "2"],
+        answer: "2",
+      },
+    };
+    expect(countCheckpointBlocks({ pages: [page] })).toBe(1);
   });
 
   test("draft => DRAFT", () => {

@@ -46,7 +46,11 @@ import { logTopicMappingDebug } from "../utils/resolveTopicLabelToKey";
 import { resolveTopicDisplayToKey } from "../api/taxonomy";
 import { getSpecKeyFromLesson } from "../utils/resolveLessonTopicKey";
 import { HowToCreateLessonCallout } from "../components/teacher/HowToCreateLessonCallout";
-import { evaluateLessonReadiness, TAXONOMY_TOPIC_UNMAPPED_LABEL } from "../utils/lessonReadiness";
+import {
+  countLessonCheckpoints,
+  evaluateLessonReadiness,
+  TAXONOMY_TOPIC_UNMAPPED_LABEL,
+} from "../utils/lessonReadiness";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import {
@@ -3877,11 +3881,10 @@ const EditLessonPage: React.FC = () => {
     attachedCount: number
   ): { issues: string[]; checkpointsCount: number; diagramsCount: number; practiceAttachedCount: number; notReviewed: boolean } {
     const pages = l?.pages ?? [];
-    let checkpointsCount = 0;
+    const checkpointsCount = countLessonCheckpoints(l);
     let diagramsCount = 0;
     for (const p of pages) {
       for (const b of p.blocks ?? []) {
-        if (b?.type === "checkpoint") checkpointsCount++;
         if (b?.type === "diagram") diagramsCount++;
       }
     }

@@ -34,6 +34,53 @@ function isTaxonomyMappedTopicKey(topicKey: string | null | undefined): boolean 
   return !isLikelyInvalidTopicSlug(extractTopicSlug(raw));
 }
 
+/** Valid page.checkpoint (student-facing MCQ on the page). */
+export function isValidPageCheckpoint(cp: unknown): boolean {
+  if (!cp || typeof cp !== "object") return false;
+  const row = cp as Record<string, unknown>;
+  const question = typeof row.question === "string" ? row.question.trim() : "";
+  if (!question) return false;
+  const options = Array.isArray(row.options) ? row.options : [];
+  const filledOptions = options.filter((o) => String(o ?? "").trim()).length;
+  if (filledOptions < 2) return false;
+  const answer =
+    typeof row.answer === "string"
+      ? row.answer.trim()
+      : typeof row.correctAnswer === "string"
+        ? row.correctAnswer.trim()
+        : "";
+  return answer.length > 0;
+}
+
+/** Valid block-level checkpoint (type checkpoint with stem). */
+export function isValidBlockCheckpoint(block: unknown): boolean {
+  if (!block || typeof block !== "object") return false;
+  const b = block as Record<string, unknown>;
+  if (String(b.type ?? "") !== "checkpoint") return false;
+  const prompt =
+    typeof b.prompt === "string"
+      ? b.prompt.trim()
+      : typeof b.question === "string"
+        ? b.question.trim()
+        : "";
+  return prompt.length > 0;
+}
+
+/** At most one checkpoint credit per page (block or page.checkpoint, not both). */
+export function pageHasValidCheckpoint(page: unknown): boolean {
+  if (!page || typeof page !== "object") return false;
+  const p = page as { blocks?: unknown[]; checkpoint?: unknown };
+  const blocks = Array.isArray(p.blocks) ? p.blocks : [];
+  if (blocks.some(isValidBlockCheckpoint)) return true;
+  return isValidPageCheckpoint(p.checkpoint);
+}
+
+/** Count pages that have a valid checkpoint (aligned with backend readiness). */
+export function countLessonCheckpoints(lesson: { pages?: unknown[] } | null | undefined): number {
+  const pages = Array.isArray(lesson?.pages) ? lesson.pages : [];
+  return pages.filter(pageHasValidCheckpoint).length;
+}
+
 export function evaluateLessonReadiness(
   lesson: any,
   options: EvaluateLessonReadinessOptions = {}
@@ -42,7 +89,7 @@ export function evaluateLessonReadiness(
   const pages = lesson?.pages ?? [];
   const pagesCount = Array.isArray(pages) ? pages.length : 0;
   const diagramsCount = blocks.filter((b) => (b.type && String(b.type).toLowerCase().includes("diagram")) || hasImageInBlock(b)).length;
-  const checkpointsCount = blocks.filter((b) => b.type && String(b.type).toLowerCase().includes("checkpoint")).length;
+  const checkpointsCount = countLessonCheckpoints(lesson);
   const misconceptionsCount = blocks.filter((b) => b.type && String(b.type).toLowerCase().includes("misconception")).length;
   const quizQuestions = lesson?.quiz?.questions ?? [];
   const quizQuestionsCount = Array.isArray(quizQuestions) ? quizQuestions.length : 0;

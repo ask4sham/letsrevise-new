@@ -19,17 +19,49 @@ function countDiagramBlocks(lesson) {
   return n;
 }
 
+function isValidPageCheckpoint(cp) {
+  if (!cp || typeof cp !== "object") return false;
+  const question = typeof cp.question === "string" ? cp.question.trim() : "";
+  if (!question) return false;
+  const options = Array.isArray(cp.options) ? cp.options : [];
+  const filledOptions = options.filter((o) => String(o ?? "").trim()).length;
+  if (filledOptions < 2) return false;
+  const answer =
+    typeof cp.answer === "string"
+      ? cp.answer.trim()
+      : typeof cp.correctAnswer === "string"
+        ? cp.correctAnswer.trim()
+        : "";
+  return answer.length > 0;
+}
+
+function isValidBlockCheckpoint(b) {
+  if (!b || b.type !== "checkpoint") return false;
+  const prompt =
+    typeof b.prompt === "string"
+      ? b.prompt.trim()
+      : typeof b.question === "string"
+        ? b.question.trim()
+        : "";
+  return prompt.length > 0;
+}
+
+/** At most one checkpoint credit per page (block-level or page.checkpoint). */
+function pageHasValidCheckpoint(page) {
+  const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
+  if (blocks.some(isValidBlockCheckpoint)) return true;
+  return isValidPageCheckpoint(page?.checkpoint);
+}
+
 /**
- * Count checkpoint blocks (type === "checkpoint" and prompt non-empty) across all pages.
+ * Count pages with a valid checkpoint (block type checkpoint or page.checkpoint).
+ * Max 1 per page; selfCheck blocks are not counted.
  */
 function countCheckpointBlocks(lesson) {
   const pages = Array.isArray(lesson?.pages) ? lesson.pages : [];
   let n = 0;
   for (const page of pages) {
-    const blocks = Array.isArray(page?.blocks) ? page.blocks : [];
-    for (const b of blocks) {
-      if (b?.type === "checkpoint" && typeof b.prompt === "string" && b.prompt.trim()) n += 1;
-    }
+    if (pageHasValidCheckpoint(page)) n += 1;
   }
   return n;
 }
@@ -94,4 +126,7 @@ module.exports = {
   computeLessonReadiness,
   countDiagramBlocks,
   countCheckpointBlocks,
+  isValidPageCheckpoint,
+  isValidBlockCheckpoint,
+  pageHasValidCheckpoint,
 };
