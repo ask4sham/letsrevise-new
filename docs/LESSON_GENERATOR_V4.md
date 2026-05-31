@@ -81,18 +81,20 @@ When V4 builds the premium appendix, it runs `runTeacherBrain({ topic, subject, 
 
 Does **not** change V2/V3 block order. Unknown topics fall back to generic brain profile; missing topic skips the brain section.
 
-## Teacher Brain Phase 3 — brief injection (V4 enabled)
+## Teacher Brain Phase 3 — brief injection (V4 enabled) ✅
+
+**Complete:** 31 May 2026 — tag `teacher-brain-phase3-complete`. See [teacher-brain/PHASE_3_COMPLETE.md](./teacher-brain/PHASE_3_COMPLETE.md).
 
 After generation (with V4 on), `applyTeacherBrainBriefInjection` writes design briefs into the existing `note` field on:
 
 - `interactiveDiagram`
-- `dragDropMatch`
+- `dragDropMatch` (layout-aware: text match, text→image, image+drop zones)
 - `interactiveSequence`
 - `hotspot` / label-style activities
 
-Teachers see **DIAGRAM BRIEF**, **DRAG & DROP BRIEF**, or **STEP-BY-STEP BRIEF** text — no images, no schema changes. Student `intro` / `instructions` are unchanged.
+Teachers see **DIAGRAM BRIEF**, **DRAG & DROP BRIEF**, **TEXT → IMAGE DESIGN BRIEF**, **IMAGE + DROP ZONES DESIGN BRIEF**, or **STEP-BY-STEP BRIEF** — no images, no schema changes. Student `intro` / `instructions` are unchanged.
 
-**Edit Lesson UI:** When `note` starts with `--- TEACHER BRAIN DESIGN BRIEF ---`, the teacher editor shows a collapsible **Teacher Brain Design Brief** panel (with **Copy brief**) above activity fields, and the raw `note` textarea below for storage. Student view never renders `note`.
+**Edit Lesson UI:** When `note` starts with `--- TEACHER BRAIN DESIGN BRIEF ---`, the teacher editor shows a collapsible **Teacher Brain Design Brief** panel (**Regenerate brief**, **Copy brief**, layout subtitle) above activity fields. Student view never renders `note`. Regression UI refs: [teacher-brain/REGRESSION_SCREENSHOTS.md](./teacher-brain/REGRESSION_SCREENSHOTS.md).
 
 ## API / UI
 
