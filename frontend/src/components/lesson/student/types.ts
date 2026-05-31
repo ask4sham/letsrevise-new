@@ -66,6 +66,8 @@ export type StudentLessonPageBlock = {
   /** SS1 lesson block ordinal (generator export); optional — title may already include `N —`. */
   number?: number;
   intro?: string;
+  /** Teacher-only design brief / notes — never rendered in student view. */
+  note?: string;
   /** Persisted name; API may also send `steps` as an alias when saving. */
   sequenceSteps?: InteractiveSequenceStepPersisted[];
   hotspots?: InteractiveDiagramHotspotPersisted[];

@@ -4,6 +4,7 @@
  */
 
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
+import { withPersistedBlockNote } from "./lessonBlockPersist";
 
 export type DragDropMatchPersistedMode = "text" | "diagram" | "text-to-image";
 /** Values written to Mongo / API (`textToImage` avoids hyphen enum issues). */
@@ -555,7 +556,7 @@ export function buildDragDropMatchBlockForPersist(
     delete ddmOut.dropZones;
   }
   if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
-  return ddmOut;
+  return withPersistedBlockNote(ddmOut, b);
 }
 
 export function mapDragDropPairForBlockRender(

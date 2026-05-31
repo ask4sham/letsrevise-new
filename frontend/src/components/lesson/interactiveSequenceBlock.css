@@ -144,7 +144,7 @@
 .interactive-sequence__main-column {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
   align-items: stretch;
 }
@@ -191,7 +191,7 @@
   height: auto;
   margin: 0;
   object-fit: contain;
-  object-position: center;
+  object-position: top center;
   max-height: min(42vh, 420px);
   background: transparent;
   vertical-align: top;
@@ -931,7 +931,7 @@
   max-height: min(42vh, 420px);
   margin: 0;
   object-fit: contain;
-  object-position: center;
+  object-position: top center;
 }
 
 @media (min-width: 900px) {
@@ -978,7 +978,7 @@
   height: auto !important;
   margin: 0 !important;
   object-fit: contain !important;
-  object-position: center !important;
+  object-position: top center !important;
 }
 
 @media (min-width: 900px) {

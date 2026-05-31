@@ -799,9 +799,9 @@
   height: auto;
   max-height: none;
   display: block;
-  vertical-align: middle;
+  vertical-align: top;
   object-fit: contain;
-  object-position: center;
+  object-position: top center;
 }
 
 .drag-drop-match__diagram-img {
@@ -1670,47 +1670,7 @@
   display: block;
 }
 
-/* Text-to-image mode — concept cards left (sticky), image targets right */
-
-.drag-drop-match__tti-grid {
-  display: grid;
-  grid-template-columns: minmax(200px, 34%) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-  margin-top: 10px;
-}
-
-.drag-drop-match__tti-grid > div {
-  min-width: 0;
-}
-
-@media (min-width: 768px) {
-  .drag-drop-match--text-to-image .drag-drop-match__tti-concept-column,
-  .text-to-image .concept-card-column {
-    position: sticky;
-    top: 90px;
-    align-self: start;
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    z-index: 1;
-  }
-}
-
-@media (max-width: 767px) {
-  .drag-drop-match__tti-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Concept cards above image targets on narrow screens */
-  .drag-drop-match__tti-concept-column {
-    order: 0;
-  }
-
-  .drag-drop-match__tti-targets-column {
-    order: 1;
-  }
-}
+/* Text-to-image layout (grid, column order, image caps): dragDropTextToImageLayout.css */
 
 .drag-drop-match__panel-title--tti-cards {
   color: #7c3aed;
@@ -1777,9 +1737,8 @@
 .drag-drop-match__tti-image,
 .text-to-image .image-target-card img {
   width: 100%;
-  max-height: 260px;
   object-fit: contain;
-  object-position: center;
+  object-position: top center;
   display: block;
 }
 

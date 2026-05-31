@@ -1,0 +1,121 @@
+/**
+ * Text-to-image drag-and-drop only — clues left, answer cards right on wide viewports.
+ * Does not apply to diagram DDM, standard text match, or other visual blocks.
+ */
+
+.drag-drop-match--text-to-image .drag-drop-match__tti-grid {
+  display: grid;
+  gap: 14px 16px;
+  align-items: start;
+  margin-top: 10px;
+}
+
+.drag-drop-match--text-to-image .drag-drop-match__tti-grid > div {
+  min-width: 0;
+}
+
+/* Wide: image clues ~68%, concept cards ~32% — both visible without page scroll */
+@media (min-width: 768px) {
+  .drag-drop-match--text-to-image .drag-drop-match__tti-grid[data-tti-layout="clues-left-v1"] {
+    grid-template-columns: minmax(0, 68%) minmax(220px, 32%);
+  }
+
+  .drag-drop-match--text-to-image .drag-drop-match__tti-targets-column {
+    grid-column: 1;
+    min-width: 0;
+    align-self: start;
+    max-height: calc(100vh - 108px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  .drag-drop-match--text-to-image .drag-drop-match__tti-concept-column {
+    grid-column: 2;
+    position: sticky;
+    top: 88px;
+    align-self: start;
+    max-height: calc(100vh - 108px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 1;
+    scrollbar-width: thin;
+  }
+}
+
+/* Narrow: stacked — concept cards above image targets (pedagogy: pick card then scroll to image) */
+@media (max-width: 767px) {
+  .drag-drop-match--text-to-image .drag-drop-match__tti-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drag-drop-match--text-to-image .drag-drop-match__tti-concept-column {
+    order: 0;
+  }
+
+  .drag-drop-match--text-to-image .drag-drop-match__tti-targets-column {
+    order: 1;
+  }
+}
+
+/* Keep target images readable but short enough that cards stay in the same viewport on desktop */
+.drag-drop-match--text-to-image .drag-drop-match__tti-image,
+.drag-drop-match--text-to-image .drag-drop-match__tti-frame.lesson-image-card > img,
+.drag-drop-match--text-to-image .drag-drop-match__tti-frame > img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: top center;
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .drag-drop-match--text-to-image .drag-drop-match__tti-image,
+  .drag-drop-match--text-to-image .drag-drop-match__tti-frame.lesson-image-card > img,
+  .drag-drop-match--text-to-image .drag-drop-match__tti-frame > img {
+    max-height: min(36vh, 280px);
+  }
+}
+
+@media (max-width: 767px) {
+  .drag-drop-match--text-to-image .drag-drop-match__tti-image,
+  .drag-drop-match--text-to-image .drag-drop-match__tti-frame.lesson-image-card > img,
+  .drag-drop-match--text-to-image .drag-drop-match__tti-frame > img {
+    max-height: min(42vh, 320px);
+  }
+}
+
+.drag-drop-match--text-to-image .drag-drop-match__tti-frame.lesson-image-card,
+.drag-drop-match--text-to-image .drag-drop-match__tti-frame {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 4px 6px !important;
+  box-sizing: border-box;
+}
+
+.drag-drop-match--text-to-image .drag-drop-match__tti-targets {
+  gap: 12px;
+}
+
+.drag-drop-match--text-to-image .drag-drop-match__tti-target {
+  padding: 8px;
+}
+
+/* V12 student: override generic [data-visual-block] 82vh image cap for text-to-image only */
+[data-lesson-presentation="v12"] .drag-drop-match--text-to-image .drag-drop-match__tti-image,
+[data-lesson-presentation="v12"] .drag-drop-match--text-to-image .drag-drop-match__tti-frame.lesson-image-card > img,
+[data-lesson-presentation="v12"] .drag-drop-match--text-to-image .drag-drop-match__tti-frame > img,
+[data-lesson-presentation="v12"] [data-visual-block="drag-drop-match"] .drag-drop-match--text-to-image .lesson-image-card > img {
+  max-height: min(36vh, 280px) !important;
+  object-position: top center !important;
+}
+
+@media (max-width: 767px) {
+  [data-lesson-presentation="v12"] .drag-drop-match--text-to-image .drag-drop-match__tti-image,
+  [data-lesson-presentation="v12"] .drag-drop-match--text-to-image .drag-drop-match__tti-frame.lesson-image-card > img,
+  [data-lesson-presentation="v12"] [data-visual-block="drag-drop-match"] .drag-drop-match--text-to-image .lesson-image-card > img {
+    max-height: min(42vh, 320px) !important;
+  }
+}

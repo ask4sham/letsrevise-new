@@ -1,0 +1,943 @@
+﻿{
+  "id": "6a11d4c2f29f858fa99810f2",
+  "title": "Biology - Aerobic & Anaerobic Respiration (AQA GCSE Biology) (Higher Tier)",
+  "pageId": "p_1779553471959_d6b2235c555e88",
+  "blockCountBefore": 15,
+  "blockCountAfter": 17,
+  "existingDiagramBlocks": 0,
+  "before": [
+    {
+      "blockNumber": 1,
+      "type": "keyIdea",
+      "title": "LESSON OBJECTIVES",
+      "role": "lessonObjectives",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Lesson objectives</strong></h2> <p>At the end of this lesson, you should be able to:</p> <ul> <li><strong>­ƒÄ»</strong> Recall AO1 facts: what <strong>respiration</strong> is, where it happe"
+    },
+    {
+      "blockNumber": 2,
+      "type": "text",
+      "title": "PRIOR KNOWLEDGE",
+      "role": "priorKnowledge",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Prior knowledge</strong></h2> <p>­ƒºá Before we start, you should already know:</p> <ul> <li>Cells contain <strong><span data-key-term=\"mitochondria\">mitochondria</span></strong> and the <st"
+    },
+    {
+      "blockNumber": 3,
+      "type": "text",
+      "title": "SCENARIO",
+      "role": "hook",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Right, letÔÇÖs look at thisÔÇª</strong></h2> <p>­ƒæë Picture a 200 m sprint: you explode off the line, finish gasping, legs burning, and youÔÇÖre still breathing hard minutes later.</p> <p>­ƒÆí This"
+    },
+    {
+      "blockNumber": 4,
+      "type": "keyIdea",
+      "title": "CORE RULE",
+      "role": "coreRule",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>The rule weÔÇÖre building today</strong></h2> <p>­ƒÆí The key idea is: <strong>cells respire continuously to transfer energy</strong>. They use <strong>oxygen (aerobic)</strong> most of the ti"
+    },
+    {
+      "blockNumber": 5,
+      "type": "text",
+      "title": "CORE LEARNING",
+      "role": "concept",
+      "hasEmbeddedImage": true,
+      "preview": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2> <p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>tra"
+    },
+    {
+      "blockNumber": 6,
+      "type": "text",
+      "title": "",
+      "role": "concept",
+      "hasEmbeddedImage": true,
+      "preview": "![Arobic V anerobic](https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/arobic-v-anerobic-177955"
+    },
+    {
+      "blockNumber": 7,
+      "type": "checkpoint",
+      "title": "",
+      "role": "checkpoint",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 8,
+      "type": "dragDropMatch",
+      "title": "Aerobic and Anerobic respiration",
+      "role": "match",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 9,
+      "type": "commonMistake",
+      "title": "COMMON MISTAKE",
+      "role": "commonMistake",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Common mistake</strong></h2> <p>­ƒæë This is where students lose silly marks ÔÇö letÔÇÖs fix it.</p> <ul> <li>­ƒÜ½ <strong>ÔÇ£Respiration is breathing.ÔÇØ</strong> Ô£à <strong>Correction:</strong> Respi"
+    },
+    {
+      "blockNumber": 10,
+      "type": "interactiveSequence",
+      "title": "",
+      "role": "sequence",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 11,
+      "type": "examTip",
+      "title": "EXAM TECHNIQUE (EXAM SKILL)",
+      "role": "examTechnique",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Exam technique: wording that earns marks</strong></h2> <ul> <li>­ƒÄ» Use ÔÇ£<strong>transfers energy</strong>ÔÇØ rather than ÔÇ£produces energyÔÇØ.</li> <li>­ƒÄ» Write the <strong>full word equations<"
+    },
+    {
+      "blockNumber": 12,
+      "type": "selfCheck",
+      "title": "",
+      "role": "workedExample",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 13,
+      "type": "selfCheck",
+      "title": "",
+      "role": "quickCheck",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 14,
+      "type": "text",
+      "title": "EXAM PRACTICE",
+      "role": "examPractice",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Exam practice</strong></h2> <p><strong>Q1 (1 mark):</strong> State the word equation for aerobic respiration.</p> <details> <summary>Reveal Answer</summary> glucose + oxygen ÔåÆ carbon dioxi"
+    },
+    {
+      "blockNumber": 15,
+      "type": "keyWords",
+      "title": "KEY WORDS",
+      "role": "keyWords",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Keywords</strong></h2> <p><strong>Respiration</strong> ÔÇô Chemical process in cells that transfers energy from glucose (exothermic)</p> <p><strong>Aerobic respiration</strong> ÔÇô Respiration"
+    }
+  ],
+  "embeddedDetail": [
+    {
+      "blockNumber": 5,
+      "blockType": "text",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/celluar-respiration-1779554001947.display.png",
+      "alt": "Celluar respiration",
+      "blockTitle": "CORE LEARNING",
+      "blockSubtitle": "",
+      "strippedProse": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathing.</p>\n\n- --\n<h3><strong>­ƒôÿ The key idea is:</strong></h3>\n<p><strong>Aerobic respiration</strong> uses <strong>oxygen</strong> to fully oxidise glucose ÔåÆ lots of ATP; <strong>anaerobic</strong> uses",
+      "proposed": {
+        "type": "diagram",
+        "mode": "static",
+        "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/celluar-respiration-1779554001947.display.png",
+        "title": "CORE LEARNING",
+        "subtitle": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathing.</p>\n\n- --\n<h3><strong>­ƒôÿ The key idea is:</strong></h3>\n<p><strong>Aerobic respiration</strong> uses <strong>oxygen</strong> to fully oxidise glucose ÔåÆ lots of ATP; <strong>anaerobic</strong> uses <strong>no oxygen</strong> ÔåÆ incomplete breakdown ÔåÆ less ATP + specific products.</p>\n<h3><strong>What happens in cells:</strong></h3>\n<ul>\n<li><strong>Aerobic</strong> (mainly in <strong>mitochondria</strong>): <em>glucose + oxygen ÔåÆ carbon dioxide + water</em> (+ energy transferred).</li>\n<li><strong>Anaerobic in animals</strong> (cytoplasm): <em>glucose ÔåÆ lactic acid</em> (+ small energy transfer).</li>\n<li><strong>Anaerobic in yeast/plants (fermentation)</strong>: <em>glucose ÔåÆ ethanol + carbon dioxide</em>.</li>\n</ul>\n<h3><strong>Why cells need the energy:</strong></h3>\n<ul>\n<li><strong>Build</strong> larger molecules (e.g. proteins).</li>\n<li><strong>Muscle contraction</strong> for movement.</li>\n<li><strong>Thermoregulation</strong> to keep enzymes at suitable temperature.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect:</strong></h3>\n<ul>\n<li><strong>Mitochondria</strong> have folded inner membranes ÔåÆ Ôåæ surface for enzymes ÔåÆ faster aerobic ATP transfer.</li>\n<li>During hard exercise, <strong>oxygen supply</strong> cannot meet demand ÔåÆ cells switch to <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> accumulates ÔåÆ <strong>oxygen debt</strong> after exercise to oxidise it.</li>",
+        "intro": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathing.</p>\n\n- --\n<h3><strong>­ƒôÿ The key idea is:</strong></h3>\n<p><strong>Aerobic respiration</strong> uses <strong>oxygen</strong> to fully oxidise glucose ÔåÆ lots of ATP; <strong>anaerobic</strong> uses <strong>no oxygen</strong> ÔåÆ incomplete breakdown ÔåÆ less ATP + specific products.</p>\n<h3><strong>What happens in cells:</strong></h3>\n<ul>\n<li><strong>Aerobic</strong> (mainly in <strong>mitochondria</strong>): <em>glucose + oxygen ÔåÆ carbon dioxide + water</em> (+ energy transferred).</li>\n<li><strong>Anaerobic in animals</strong> (cytoplasm): <em>glucose ÔåÆ lactic acid</em> (+ small energy transfer).</li>\n<li><strong>Anaerobic in yeast/plants (fermentation)</strong>: <em>glucose ÔåÆ ethanol + carbon dioxide</em>.</li>\n</ul>\n<h3><strong>Why cells need the energy:</strong></h3>\n<ul>\n<li><strong>Build</strong> larger molecules (e.g. proteins).</li>\n<li><strong>Muscle contraction</strong> for movement.</li>\n<li><strong>Thermoregulation</strong> to keep enzymes at suitable temperature.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect:</strong></h3>\n<ul>\n<li><strong>Mitochondria</strong> have folded inner membranes ÔåÆ Ôåæ surface for enzymes ÔåÆ faster aerobic ATP transfer.</li>\n<li>During hard exercise, <strong>oxygen supply</strong> cannot meet demand ÔåÆ cells switch to <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> accumulates ÔåÆ <strong>oxygen debt</strong> after exercise to oxidise it.</li>",
+        "note": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathing.</p>\n\n- --\n<h3><strong>­ƒôÿ The key idea is:</strong></h3>\n<p><strong>Aerobic respiration</strong> uses <strong>oxygen</strong> to fully oxidise glucose ÔåÆ lots of ATP; <strong>anaerobic</strong> uses <strong>no oxygen</strong> ÔåÆ incomplete breakdown ÔåÆ less ATP + specific products.</p>\n<h3><strong>What happens in cells:</strong></h3>\n<ul>\n<li><strong>Aerobic</strong> (mainly in <strong>mitochondria</strong>): <em>glucose + oxygen ÔåÆ carbon dioxide + water</em> (+ energy transferred).</li>\n<li><strong>Anaerobic in animals</strong> (cytoplasm): <em>glucose ÔåÆ lactic acid</em> (+ small energy transfer).</li>\n<li><strong>Anaerobic in yeast/plants (fermentation)</strong>: <em>glucose ÔåÆ ethanol + carbon dioxide</em>.</li>\n</ul>\n<h3><strong>Why cells need the energy:</strong></h3>\n<ul>\n<li><strong>Build</strong> larger molecules (e.g. proteins).</li>\n<li><strong>Muscle contraction</strong> for movement.</li>\n<li><strong>Thermoregulation</strong> to keep enzymes at suitable temperature.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect:</strong></h3>\n<ul>\n<li><strong>Mitochondria</strong> have folded inner membranes ÔåÆ Ôåæ surface for enzymes ÔåÆ faster aerobic ATP transfer.</li>\n<li>During hard exercise, <strong>oxygen supply</strong> cannot meet demand ÔåÆ cells switch to <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> accumulates ÔåÆ <strong>oxygen debt</strong> after exercise to oxidise it.</li>",
+        "content": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathing.</p>\n\n- --\n<h3><strong>­ƒôÿ The key idea is:</strong></h3>\n<p><strong>Aerobic respiration</strong> uses <strong>oxygen</strong> to fully oxidise glucose ÔåÆ lots of ATP; <strong>anaerobic</strong> uses <strong>no oxygen</strong> ÔåÆ incomplete breakdown ÔåÆ less ATP + specific products.</p>\n<h3><strong>What happens in cells:</strong></h3>\n<ul>\n<li><strong>Aerobic</strong> (mainly in <strong>mitochondria</strong>): <em>glucose + oxygen ÔåÆ carbon dioxide + water</em> (+ energy transferred).</li>\n<li><strong>Anaerobic in animals</strong> (cytoplasm): <em>glucose ÔåÆ lactic acid</em> (+ small energy transfer).</li>\n<li><strong>Anaerobic in yeast/plants (fermentation)</strong>: <em>glucose ÔåÆ ethanol + carbon dioxide</em>.</li>\n</ul>\n<h3><strong>Why cells need the energy:</strong></h3>\n<ul>\n<li><strong>Build</strong> larger molecules (e.g. proteins).</li>\n<li><strong>Muscle contraction</strong> for movement.</li>\n<li><strong>Thermoregulation</strong> to keep enzymes at suitable temperature.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect:</strong></h3>\n<ul>\n<li><strong>Mitochondria</strong> have folded inner membranes ÔåÆ Ôåæ surface for enzymes ÔåÆ faster aerobic ATP transfer.</li>\n<li>During hard exercise, <strong>oxygen supply</strong> cannot meet demand ÔåÆ cells switch to <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> accumulates ÔåÆ <strong>oxygen debt</strong> after exercise to oxidise it.</li>",
+        "caption": "Celluar respiration",
+        "alt": "Celluar respiration",
+        "role": "concept",
+        "_meta": {
+          "extractedFromBlockType": "text",
+          "indexInBlock": 0
+        }
+      }
+    },
+    {
+      "blockNumber": 6,
+      "blockType": "text",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/arobic-v-anerobic-1779558633529.display.png",
+      "alt": "Arobic V anerobic",
+      "blockTitle": "",
+      "blockSubtitle": "",
+      "strippedProse": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Respiration happens in <strong>all living cells</strong>, all the time.</li>\n<li><strong>Aerobic</strong>: needs oxygen, makes COÔéé + HÔééO, transfers <strong>more energy</s",
+      "proposed": {
+        "type": "diagram",
+        "mode": "static",
+        "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/arobic-v-anerobic-1779558633529.display.png",
+        "title": "Arobic V anerobic",
+        "subtitle": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Respiration happens in <strong>all living cells</strong>, all the time.</li>\n<li><strong>Aerobic</strong>: needs oxygen, makes COÔéé + HÔééO, transfers <strong>more energy</strong>.</li>\n<li><strong>Anaerobic</strong>: no oxygen, makes <strong>lactic acid</strong> (animals) or <strong>ethanol + COÔéé</strong> (yeast), transfers <strong>less energy</strong>.</li>\n</ul>",
+        "intro": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Respiration happens in <strong>all living cells</strong>, all the time.</li>\n<li><strong>Aerobic</strong>: needs oxygen, makes COÔéé + HÔééO, transfers <strong>more energy</strong>.</li>\n<li><strong>Anaerobic</strong>: no oxygen, makes <strong>lactic acid</strong> (animals) or <strong>ethanol + COÔéé</strong> (yeast), transfers <strong>less energy</strong>.</li>\n</ul>",
+        "note": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Respiration happens in <strong>all living cells</strong>, all the time.</li>\n<li><strong>Aerobic</strong>: needs oxygen, makes COÔéé + HÔééO, transfers <strong>more energy</strong>.</li>\n<li><strong>Anaerobic</strong>: no oxygen, makes <strong>lactic acid</strong> (animals) or <strong>ethanol + COÔéé</strong> (yeast), transfers <strong>less energy</strong>.</li>\n</ul>",
+        "content": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Respiration happens in <strong>all living cells</strong>, all the time.</li>\n<li><strong>Aerobic</strong>: needs oxygen, makes COÔéé + HÔééO, transfers <strong>more energy</strong>.</li>\n<li><strong>Anaerobic</strong>: no oxygen, makes <strong>lactic acid</strong> (animals) or <strong>ethanol + COÔéé</strong> (yeast), transfers <strong>less energy</strong>.</li>\n</ul>",
+        "caption": "Arobic V anerobic",
+        "alt": "Arobic V anerobic",
+        "role": "concept",
+        "_meta": {
+          "extractedFromBlockType": "text",
+          "indexInBlock": 0
+        }
+      }
+    }
+  ],
+  "afterOrdering": [
+    {
+      "blockNumber": 1,
+      "type": "keyIdea",
+      "title": "LESSON OBJECTIVES",
+      "role": "lessonObjectives",
+      "preview": "<h2><strong>Lesson objectives</strong></h2>\n<p>At the end of this lesson, you should be able to:</p>\n<ul>\n<li><strong>­ƒÄ»"
+    },
+    {
+      "blockNumber": 2,
+      "type": "text",
+      "title": "PRIOR KNOWLEDGE",
+      "role": "priorKnowledge",
+      "preview": "<h2><strong>Prior knowledge</strong></h2>\n<p>­ƒºá Before we start, you should already know:</p>\n<ul>\n<li>Cells contain <st"
+    },
+    {
+      "blockNumber": 3,
+      "type": "text",
+      "title": "SCENARIO",
+      "role": "hook",
+      "preview": "<h2><strong>Right, letÔÇÖs look at thisÔÇª</strong></h2>\n<p>­ƒæë Picture a 200 m sprint: you explode off the line, finish gasp"
+    },
+    {
+      "blockNumber": 4,
+      "type": "keyIdea",
+      "title": "CORE RULE",
+      "role": "coreRule",
+      "preview": "<h2><strong>The rule weÔÇÖre building today</strong></h2>\n<p>­ƒÆí The key idea is: <strong>cells respire continuously to tra"
+    },
+    {
+      "blockNumber": 5,
+      "type": "text",
+      "title": "CORE LEARNING",
+      "role": "concept",
+      "content": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathi",
+      "note": "text retained without image markdown"
+    },
+    {
+      "blockNumber": 6,
+      "type": "diagram",
+      "title": "CORE LEARNING",
+      "subtitle": "<h2><strong>Respiration: what it is, where it happens, and the two pathways</strong></h2>\n<p>­ƒôÿ Say it cleanly: <strong>respiration is an exothermic chemical process</strong> in cells that <strong>transfers energy</strong> from <strong>glucose</strong> for life processes ÔÇö it is <em>not</em> breathing.</p>\n\n- --\n<h3><strong>­ƒôÿ The key idea is:</strong></h3>\n<p><strong>Aerobic respiration</strong> uses <strong>oxygen</strong> to fully oxidise glucose ÔåÆ lots of ATP; <strong>anaerobic</strong> uses <strong>no oxygen</strong> ÔåÆ incomplete breakdown ÔåÆ less ATP + specific products.</p>\n<h3><strong>What happens in cells:</strong></h3>\n<ul>\n<li><strong>Aerobic</strong> (mainly in <strong>mitochondria</strong>): <em>glucose + oxygen ÔåÆ carbon dioxide + water</em> (+ energy transferred).</li>\n<li><strong>Anaerobic in animals</strong> (cytoplasm): <em>glucose ÔåÆ lactic acid</em> (+ small energy transfer).</li>\n<li><strong>Anaerobic in yeast/plants (fermentation)</strong>: <em>glucose ÔåÆ ethanol + carbon dioxide</em>.</li>\n</ul>\n<h3><strong>Why cells need the energy:</strong></h3>\n<ul>\n<li><strong>Build</strong> larger molecules (e.g. proteins).</li>\n<li><strong>Muscle contraction</strong> for movement.</li>\n<li><strong>Thermoregulation</strong> to keep enzymes at suitable temperature.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect:</strong></h3>\n<ul>\n<li><strong>Mitochondria</strong> have folded inner membranes ÔåÆ Ôåæ surface for enzymes ÔåÆ faster aerobic ATP transfer.</li>\n<li>During hard exercise, <strong>oxygen supply</strong> cannot meet demand ÔåÆ cells switch to <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> accumulates ÔåÆ <strong>oxygen debt</strong> after exercise to oxidise it.</li>",
+      "caption": "Celluar respiration",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/celluar-respiration-1779554001947.display.png",
+      "role": "concept"
+    },
+    {
+      "blockNumber": 7,
+      "type": "text",
+      "title": "",
+      "role": "concept",
+      "content": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In ",
+      "note": "text retained without image markdown"
+    },
+    {
+      "blockNumber": 8,
+      "type": "diagram",
+      "title": "Arobic V anerobic",
+      "subtitle": "</ul>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>­ƒÄ» Write ÔÇ£<strong>transfers energy</strong>ÔÇØ not ÔÇ£produces energyÔÇØ. Include the <strong>word equations</strong> and state that anaerobic is <strong>incomplete oxidation</strong> ÔåÆ <strong>less energy</strong> transferred.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Respiration happens in <strong>all living cells</strong>, all the time.</li>\n<li><strong>Aerobic</strong>: needs oxygen, makes COÔéé + HÔééO, transfers <strong>more energy</strong>.</li>\n<li><strong>Anaerobic</strong>: no oxygen, makes <strong>lactic acid</strong> (animals) or <strong>ethanol + COÔéé</strong> (yeast), transfers <strong>less energy</strong>.</li>\n</ul>",
+      "caption": "Arobic V anerobic",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/arobic-v-anerobic-1779558633529.display.png",
+      "role": "concept"
+    },
+    {
+      "blockNumber": 9,
+      "type": "checkpoint",
+      "title": "",
+      "role": "checkpoint",
+      "preview": ""
+    },
+    {
+      "blockNumber": 10,
+      "type": "dragDropMatch",
+      "title": "Aerobic and Anerobic respiration",
+      "role": "match",
+      "preview": ""
+    },
+    {
+      "blockNumber": 11,
+      "type": "commonMistake",
+      "title": "COMMON MISTAKE",
+      "role": "commonMistake",
+      "preview": "<h2><strong>Common mistake</strong></h2>\n<p>­ƒæë This is where students lose silly marks ÔÇö letÔÇÖs fix it.</p>\n<ul>\n<li>­ƒÜ½ <"
+    },
+    {
+      "blockNumber": 12,
+      "type": "interactiveSequence",
+      "title": "",
+      "role": "sequence",
+      "preview": ""
+    },
+    {
+      "blockNumber": 13,
+      "type": "examTip",
+      "title": "EXAM TECHNIQUE (EXAM SKILL)",
+      "role": "examTechnique",
+      "preview": "<h2><strong>Exam technique: wording that earns marks</strong></h2>\n<ul>\n<li>­ƒÄ» Use ÔÇ£<strong>transfers energy</strong>ÔÇØ r"
+    },
+    {
+      "blockNumber": 14,
+      "type": "selfCheck",
+      "title": "",
+      "role": "workedExample",
+      "preview": ""
+    },
+    {
+      "blockNumber": 15,
+      "type": "selfCheck",
+      "title": "",
+      "role": "quickCheck",
+      "preview": ""
+    },
+    {
+      "blockNumber": 16,
+      "type": "text",
+      "title": "EXAM PRACTICE",
+      "role": "examPractice",
+      "preview": "<h2><strong>Exam practice</strong></h2>\n<p><strong>Q1 (1 mark):</strong> State the word equation for aerobic respiration"
+    },
+    {
+      "blockNumber": 17,
+      "type": "keyWords",
+      "title": "KEY WORDS",
+      "role": "keyWords",
+      "preview": "<h2><strong>Keywords</strong></h2>\n<p><strong>Respiration</strong> ÔÇô Chemical process in cells that transfers energy fro"
+    }
+  ]
+}
+{
+  "id": "6a11f656f29f858fa9995c56",
+  "title": "Biology ÔÇö Metabolism (AQA GCSE Biology) (Higher Tier)",
+  "pageId": "p_1779562068420_be581ee173405",
+  "blockCountBefore": 16,
+  "blockCountAfter": 18,
+  "existingDiagramBlocks": 0,
+  "before": [
+    {
+      "blockNumber": 1,
+      "type": "keyIdea",
+      "title": "LESSON OBJECTIVES",
+      "role": "lessonObjectives",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Lesson objectives</strong></h2> <p>By the end of this lesson, you should be able to:</p> <ul> <li>­ƒÄ» Recall a clear definition of <strong>metabolism</strong> and understand the roles of <s"
+    },
+    {
+      "blockNumber": 2,
+      "type": "text",
+      "title": "PRIOR KNOWLEDGE",
+      "role": "priorKnowledge",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Prior knowledge</strong></h2> <p>­ƒºá Before we begin, you should already know:</p> <ul> <li>The basic roles of <strong>carbohydrates, lipids, and proteins</strong> in the body.</li> <li>Wha"
+    },
+    {
+      "blockNumber": 3,
+      "type": "text",
+      "title": "SCENARIO",
+      "role": "hook",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Right, letÔÇÖs look at thisÔÇª</strong></h2>  ­ƒæë A runner eats pasta the night before a race. The next day, their cells use glucose from the food to release energy for muscle contraction.  At "
+    },
+    {
+      "blockNumber": 4,
+      "type": "keyIdea",
+      "title": "CORE RULE",
+      "role": "coreRule",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>The rule weÔÇÖre building today</strong></h2> <p>­ƒôÿ The key idea is: <strong>Metabolism = all the enzyme-controlled reactions in a cell or body</strong> ÔÇö encompassing both <strong>breakdown"
+    },
+    {
+      "blockNumber": 5,
+      "type": "text",
+      "title": "CORE LEARNING",
+      "role": "concept",
+      "hasEmbeddedImage": true,
+      "preview": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2> <p>LetÔÇÖs ensure every label you use earns you marks.</p> <h3><strong>­ƒôÿ Central idea</strong></h3> <p><strong>Catabolism</strong> involves brea"
+    },
+    {
+      "blockNumber": 6,
+      "type": "text",
+      "title": "",
+      "role": "concept",
+      "hasEmbeddedImage": true,
+      "preview": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3> <p>Utilize precise pairs and chains to maximize your marks:</p> <ul> <li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li> <l"
+    },
+    {
+      "blockNumber": 7,
+      "type": "checkpoint",
+      "title": "",
+      "role": "checkpoint",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 8,
+      "type": "dragDropMatch",
+      "title": "",
+      "role": "match",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 9,
+      "type": "commonMistake",
+      "title": "COMMON MISTAKE",
+      "role": "commonMistake",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Common mistake</strong></h2> <p>­ƒÜ½ Writing ÔÇ£<em>Metabolism is digestion</em>ÔÇØ.</p> <p>Ô£à <strong>Better:</strong> ÔÇ£<strong>Metabolism</strong> is <em>all</em> enzyme-controlled reactions in"
+    },
+    {
+      "blockNumber": 10,
+      "type": "interactiveSequence",
+      "title": "",
+      "role": "sequence",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 11,
+      "type": "examTip",
+      "title": "EXAM TECHNIQUE (EXAM SKILL)",
+      "role": "examTechnique",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Exam technique ÔÇö write what earns marks</strong></h2> <p>­ƒÄ» Think like an examiner: provide a precise mechanism and an outcome.</p> <ul> <li>Utilize the key chains: ÔÇ£<strong>glucose ÔåÆ resp"
+    },
+    {
+      "blockNumber": 12,
+      "type": "selfCheck",
+      "title": "",
+      "role": "workedExample",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 13,
+      "type": "selfCheck",
+      "title": "",
+      "role": "quickCheck",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 14,
+      "type": "text",
+      "title": "EXAM PRACTICE",
+      "role": "examPractice",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Exam practice</strong></h2> <p>­ƒôØ Read the stems carefully: <em>define / describe / explain / compare</em> require different levels of depth.</p> <p><strong>Q1 (1 mark):</strong> Define me"
+    },
+    {
+      "blockNumber": 15,
+      "type": "keyIdea",
+      "title": "SUMMARY",
+      "role": "summary",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Summary</strong></h2> <ul> <li>Metabolism = <strong>all enzyme-controlled reactions</strong> in cells/bodies.</li> <li><strong>Catabolism</strong> breaks down molecules ÔåÆ <strong>respirati"
+    },
+    {
+      "blockNumber": 16,
+      "type": "keyWords",
+      "title": "KEY WORDS",
+      "role": "keyWords",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Keywords</strong></h2> <p><strong>Metabolism</strong> ÔÇô The sum of all enzyme-controlled reactions in a cell or the body.</p> <p><strong>Anabolism</strong> ÔÇô Reactions that build larger mo"
+    }
+  ],
+  "embeddedDetail": [
+    {
+      "blockNumber": 5,
+      "blockType": "text",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_4/metabolism-defined-1779562532465.display.png",
+      "alt": "Metabolism defined",
+      "blockTitle": "CORE LEARNING",
+      "blockSubtitle": "",
+      "strippedProse": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecules and <em>utilizing</em> that energy. The energy is released during <strong>respiration</strong> and is transferred to reactions by <strong>ATP</strong>.</p>\n<h3><strong>What actually happens</stron",
+      "proposed": {
+        "type": "diagram",
+        "mode": "static",
+        "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_4/metabolism-defined-1779562532465.display.png",
+        "title": "CORE LEARNING",
+        "subtitle": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecules and <em>utilizing</em> that energy. The energy is released during <strong>respiration</strong> and is transferred to reactions by <strong>ATP</strong>.</p>\n<h3><strong>What actually happens</strong></h3>\n<ul>\n<li>After digestion, cells receive <strong>glucose</strong>, <strong>fatty acids + glycerol</strong>, and <strong>amino acids</strong>.</li>\n<li><strong>Glucose</strong> is broken down in <strong>aerobic respiration</strong> (primarily in mitochondria) ÔåÆ energy is released ÔåÆ this energy is transferred by <strong>ATP</strong>.</li>\n<li><strong>ATP</strong> then drives <strong>anabolic</strong> reactions:\n  <ul>\n    <li>Glucose ÔåÆ <strong>glycogen</strong> (in animals) / <strong>starch & cellulose</strong> (in plants)</li>\n    <li>Glycerol + 3 fatty acids ÔåÆ <strong>lipid</strong> (triglyceride)</li>\n    <li>Amino acids ÔåÆ <strong>proteins</strong></li>\n  </ul>\n</li>\n<li>Plants also synthesize <strong>amino acids</strong> from <strong>glucose + nitrates</strong> ÔåÆ and subsequently build <strong>proteins</strong>.</li>\n<li>Excess amino acids undergo <strong>deamination</strong> in the liver ÔåÆ ammonia is converted to <strong>urea</strong> ÔåÆ the kidneys excrete urea in urine.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect</strong></h3>\n<ul>\n<li><strong>Specific enzymes</strong> (with active sites) ÔåÆ catalyse only certain reactions ÔåÆ allowing reactions to proceed rapidly at body temperature.</li>\n<li><strong>Mitochondria</strong> ÔåÆ the primary site of aerobic respiration ÔåÆ yielding high amounts of ATP ÔåÆ which fuels biosynthesis.</li>\n<li><strong>Liver</strong> ÔåÆ contains enzymes for <strong>deamination</strong> ÔåÆ converting toxic ammonia into <strong>urea</strong> for safe excretion.</li>\n</ul>\n<h3><strong>­ƒÆí Why this matters</strong></h3>\n<ul>\n<li>It clarifies <strong>where energy originates</strong> for building and repairing tissues.</li>\n<li>It connects diet to <strong>storage</strong> (glycogen/lipids) and to <strong>waste</strong> (urea).</li>\n</ul>\n<p><strong>Common slip to avoid:</strong> <em>Respiration</em> refers to a <em>chemical reaction in cells</em>; <em>breathing</em> is the physical movement of air in and out of the lungs.</p>",
+        "intro": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecules and <em>utilizing</em> that energy. The energy is released during <strong>respiration</strong> and is transferred to reactions by <strong>ATP</strong>.</p>\n<h3><strong>What actually happens</strong></h3>\n<ul>\n<li>After digestion, cells receive <strong>glucose</strong>, <strong>fatty acids + glycerol</strong>, and <strong>amino acids</strong>.</li>\n<li><strong>Glucose</strong> is broken down in <strong>aerobic respiration</strong> (primarily in mitochondria) ÔåÆ energy is released ÔåÆ this energy is transferred by <strong>ATP</strong>.</li>\n<li><strong>ATP</strong> then drives <strong>anabolic</strong> reactions:\n  <ul>\n    <li>Glucose ÔåÆ <strong>glycogen</strong> (in animals) / <strong>starch & cellulose</strong> (in plants)</li>\n    <li>Glycerol + 3 fatty acids ÔåÆ <strong>lipid</strong> (triglyceride)</li>\n    <li>Amino acids ÔåÆ <strong>proteins</strong></li>\n  </ul>\n</li>\n<li>Plants also synthesize <strong>amino acids</strong> from <strong>glucose + nitrates</strong> ÔåÆ and subsequently build <strong>proteins</strong>.</li>\n<li>Excess amino acids undergo <strong>deamination</strong> in the liver ÔåÆ ammonia is converted to <strong>urea</strong> ÔåÆ the kidneys excrete urea in urine.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect</strong></h3>\n<ul>\n<li><strong>Specific enzymes</strong> (with active sites) ÔåÆ catalyse only certain reactions ÔåÆ allowing reactions to proceed rapidly at body temperature.</li>\n<li><strong>Mitochondria</strong> ÔåÆ the primary site of aerobic respiration ÔåÆ yielding high amounts of ATP ÔåÆ which fuels biosynthesis.</li>\n<li><strong>Liver</strong> ÔåÆ contains enzymes for <strong>deamination</strong> ÔåÆ converting toxic ammonia into <strong>urea</strong> for safe excretion.</li>\n</ul>\n<h3><strong>­ƒÆí Why this matters</strong></h3>\n<ul>\n<li>It clarifies <strong>where energy originates</strong> for building and repairing tissues.</li>\n<li>It connects diet to <strong>storage</strong> (glycogen/lipids) and to <strong>waste</strong> (urea).</li>\n</ul>\n<p><strong>Common slip to avoid:</strong> <em>Respiration</em> refers to a <em>chemical reaction in cells</em>; <em>breathing</em> is the physical movement of air in and out of the lungs.</p>",
+        "note": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecules and <em>utilizing</em> that energy. The energy is released during <strong>respiration</strong> and is transferred to reactions by <strong>ATP</strong>.</p>\n<h3><strong>What actually happens</strong></h3>\n<ul>\n<li>After digestion, cells receive <strong>glucose</strong>, <strong>fatty acids + glycerol</strong>, and <strong>amino acids</strong>.</li>\n<li><strong>Glucose</strong> is broken down in <strong>aerobic respiration</strong> (primarily in mitochondria) ÔåÆ energy is released ÔåÆ this energy is transferred by <strong>ATP</strong>.</li>\n<li><strong>ATP</strong> then drives <strong>anabolic</strong> reactions:\n  <ul>\n    <li>Glucose ÔåÆ <strong>glycogen</strong> (in animals) / <strong>starch & cellulose</strong> (in plants)</li>\n    <li>Glycerol + 3 fatty acids ÔåÆ <strong>lipid</strong> (triglyceride)</li>\n    <li>Amino acids ÔåÆ <strong>proteins</strong></li>\n  </ul>\n</li>\n<li>Plants also synthesize <strong>amino acids</strong> from <strong>glucose + nitrates</strong> ÔåÆ and subsequently build <strong>proteins</strong>.</li>\n<li>Excess amino acids undergo <strong>deamination</strong> in the liver ÔåÆ ammonia is converted to <strong>urea</strong> ÔåÆ the kidneys excrete urea in urine.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect</strong></h3>\n<ul>\n<li><strong>Specific enzymes</strong> (with active sites) ÔåÆ catalyse only certain reactions ÔåÆ allowing reactions to proceed rapidly at body temperature.</li>\n<li><strong>Mitochondria</strong> ÔåÆ the primary site of aerobic respiration ÔåÆ yielding high amounts of ATP ÔåÆ which fuels biosynthesis.</li>\n<li><strong>Liver</strong> ÔåÆ contains enzymes for <strong>deamination</strong> ÔåÆ converting toxic ammonia into <strong>urea</strong> for safe excretion.</li>\n</ul>\n<h3><strong>­ƒÆí Why this matters</strong></h3>\n<ul>\n<li>It clarifies <strong>where energy originates</strong> for building and repairing tissues.</li>\n<li>It connects diet to <strong>storage</strong> (glycogen/lipids) and to <strong>waste</strong> (urea).</li>\n</ul>\n<p><strong>Common slip to avoid:</strong> <em>Respiration</em> refers to a <em>chemical reaction in cells</em>; <em>breathing</em> is the physical movement of air in and out of the lungs.</p>",
+        "content": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecules and <em>utilizing</em> that energy. The energy is released during <strong>respiration</strong> and is transferred to reactions by <strong>ATP</strong>.</p>\n<h3><strong>What actually happens</strong></h3>\n<ul>\n<li>After digestion, cells receive <strong>glucose</strong>, <strong>fatty acids + glycerol</strong>, and <strong>amino acids</strong>.</li>\n<li><strong>Glucose</strong> is broken down in <strong>aerobic respiration</strong> (primarily in mitochondria) ÔåÆ energy is released ÔåÆ this energy is transferred by <strong>ATP</strong>.</li>\n<li><strong>ATP</strong> then drives <strong>anabolic</strong> reactions:\n  <ul>\n    <li>Glucose ÔåÆ <strong>glycogen</strong> (in animals) / <strong>starch & cellulose</strong> (in plants)</li>\n    <li>Glycerol + 3 fatty acids ÔåÆ <strong>lipid</strong> (triglyceride)</li>\n    <li>Amino acids ÔåÆ <strong>proteins</strong></li>\n  </ul>\n</li>\n<li>Plants also synthesize <strong>amino acids</strong> from <strong>glucose + nitrates</strong> ÔåÆ and subsequently build <strong>proteins</strong>.</li>\n<li>Excess amino acids undergo <strong>deamination</strong> in the liver ÔåÆ ammonia is converted to <strong>urea</strong> ÔåÆ the kidneys excrete urea in urine.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect</strong></h3>\n<ul>\n<li><strong>Specific enzymes</strong> (with active sites) ÔåÆ catalyse only certain reactions ÔåÆ allowing reactions to proceed rapidly at body temperature.</li>\n<li><strong>Mitochondria</strong> ÔåÆ the primary site of aerobic respiration ÔåÆ yielding high amounts of ATP ÔåÆ which fuels biosynthesis.</li>\n<li><strong>Liver</strong> ÔåÆ contains enzymes for <strong>deamination</strong> ÔåÆ converting toxic ammonia into <strong>urea</strong> for safe excretion.</li>\n</ul>\n<h3><strong>­ƒÆí Why this matters</strong></h3>\n<ul>\n<li>It clarifies <strong>where energy originates</strong> for building and repairing tissues.</li>\n<li>It connects diet to <strong>storage</strong> (glycogen/lipids) and to <strong>waste</strong> (urea).</li>\n</ul>\n<p><strong>Common slip to avoid:</strong> <em>Respiration</em> refers to a <em>chemical reaction in cells</em>; <em>breathing</em> is the physical movement of air in and out of the lungs.</p>",
+        "caption": "Metabolism defined",
+        "alt": "Metabolism defined",
+        "role": "concept",
+        "_meta": {
+          "extractedFromBlockType": "text",
+          "indexInBlock": 0
+        }
+      }
+    },
+    {
+      "blockNumber": 6,
+      "blockType": "text",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_5/map-of-metabolism-1779562502602.display.png",
+      "alt": "Map of metabolism",
+      "blockTitle": "",
+      "blockSubtitle": "",
+      "strippedProse": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino acids ÔåÆ deamination (in the liver) ÔåÆ urea ÔåÆ excreted</strong></li>\n</ul>\n<h3><strong>In short</strong></h3>\n<ul>\n<li><strong>Metabolism</strong> encompasses all reactions occurring in cells.</li>\n<li><st",
+      "proposed": {
+        "type": "diagram",
+        "mode": "static",
+        "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_5/map-of-metabolism-1779562502602.display.png",
+        "title": "Map of metabolism",
+        "subtitle": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino acids ÔåÆ deamination (in the liver) ÔåÆ urea ÔåÆ excreted</strong></li>\n</ul>\n<h3><strong>In short</strong></h3>\n<ul>\n<li><strong>Metabolism</strong> encompasses all reactions occurring in cells.</li>\n<li><strong>Catabolic</strong> reactions release energy; <strong>anabolic</strong> reactions utilize it.</li>\n<li><strong>Respiration</strong> powers enzyme-controlled synthesis via <strong>ATP</strong>.</li>\n</ul>",
+        "intro": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino acids ÔåÆ deamination (in the liver) ÔåÆ urea ÔåÆ excreted</strong></li>\n</ul>\n<h3><strong>In short</strong></h3>\n<ul>\n<li><strong>Metabolism</strong> encompasses all reactions occurring in cells.</li>\n<li><strong>Catabolic</strong> reactions release energy; <strong>anabolic</strong> reactions utilize it.</li>\n<li><strong>Respiration</strong> powers enzyme-controlled synthesis via <strong>ATP</strong>.</li>\n</ul>",
+        "note": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino acids ÔåÆ deamination (in the liver) ÔåÆ urea ÔåÆ excreted</strong></li>\n</ul>\n<h3><strong>In short</strong></h3>\n<ul>\n<li><strong>Metabolism</strong> encompasses all reactions occurring in cells.</li>\n<li><strong>Catabolic</strong> reactions release energy; <strong>anabolic</strong> reactions utilize it.</li>\n<li><strong>Respiration</strong> powers enzyme-controlled synthesis via <strong>ATP</strong>.</li>\n</ul>",
+        "content": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino acids ÔåÆ deamination (in the liver) ÔåÆ urea ÔåÆ excreted</strong></li>\n</ul>\n<h3><strong>In short</strong></h3>\n<ul>\n<li><strong>Metabolism</strong> encompasses all reactions occurring in cells.</li>\n<li><strong>Catabolic</strong> reactions release energy; <strong>anabolic</strong> reactions utilize it.</li>\n<li><strong>Respiration</strong> powers enzyme-controlled synthesis via <strong>ATP</strong>.</li>\n</ul>",
+        "caption": "Map of metabolism",
+        "alt": "Map of metabolism",
+        "role": "concept",
+        "_meta": {
+          "extractedFromBlockType": "text",
+          "indexInBlock": 0
+        }
+      }
+    }
+  ],
+  "afterOrdering": [
+    {
+      "blockNumber": 1,
+      "type": "keyIdea",
+      "title": "LESSON OBJECTIVES",
+      "role": "lessonObjectives",
+      "preview": "<h2><strong>Lesson objectives</strong></h2>\n<p>By the end of this lesson, you should be able to:</p>\n<ul>\n<li>­ƒÄ» Recall "
+    },
+    {
+      "blockNumber": 2,
+      "type": "text",
+      "title": "PRIOR KNOWLEDGE",
+      "role": "priorKnowledge",
+      "preview": "<h2><strong>Prior knowledge</strong></h2>\n<p>­ƒºá Before we begin, you should already know:</p>\n<ul>\n<li>The basic roles o"
+    },
+    {
+      "blockNumber": 3,
+      "type": "text",
+      "title": "SCENARIO",
+      "role": "hook",
+      "preview": "<h2><strong>Right, letÔÇÖs look at thisÔÇª</strong></h2>\n\n­ƒæë A runner eats pasta the night before a race. The next day, thei"
+    },
+    {
+      "blockNumber": 4,
+      "type": "keyIdea",
+      "title": "CORE RULE",
+      "role": "coreRule",
+      "preview": "<h2><strong>The rule weÔÇÖre building today</strong></h2>\n<p>­ƒôÿ The key idea is: <strong>Metabolism = all the enzyme-contr"
+    },
+    {
+      "blockNumber": 5,
+      "type": "text",
+      "title": "CORE LEARNING",
+      "role": "concept",
+      "content": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecu",
+      "note": "text retained without image markdown"
+    },
+    {
+      "blockNumber": 6,
+      "type": "diagram",
+      "title": "CORE LEARNING",
+      "subtitle": "<h2><strong>Metabolism: the cellÔÇÖs economy</strong></h2>\n<p>LetÔÇÖs ensure every label you use earns you marks.</p>\n<h3><strong>­ƒôÿ Central idea</strong></h3>\n<p><strong>Catabolism</strong> involves breaking down molecules and releasing energy; <strong>anabolism</strong> involves building larger molecules and <em>utilizing</em> that energy. The energy is released during <strong>respiration</strong> and is transferred to reactions by <strong>ATP</strong>.</p>\n<h3><strong>What actually happens</strong></h3>\n<ul>\n<li>After digestion, cells receive <strong>glucose</strong>, <strong>fatty acids + glycerol</strong>, and <strong>amino acids</strong>.</li>\n<li><strong>Glucose</strong> is broken down in <strong>aerobic respiration</strong> (primarily in mitochondria) ÔåÆ energy is released ÔåÆ this energy is transferred by <strong>ATP</strong>.</li>\n<li><strong>ATP</strong> then drives <strong>anabolic</strong> reactions:\n  <ul>\n    <li>Glucose ÔåÆ <strong>glycogen</strong> (in animals) / <strong>starch & cellulose</strong> (in plants)</li>\n    <li>Glycerol + 3 fatty acids ÔåÆ <strong>lipid</strong> (triglyceride)</li>\n    <li>Amino acids ÔåÆ <strong>proteins</strong></li>\n  </ul>\n</li>\n<li>Plants also synthesize <strong>amino acids</strong> from <strong>glucose + nitrates</strong> ÔåÆ and subsequently build <strong>proteins</strong>.</li>\n<li>Excess amino acids undergo <strong>deamination</strong> in the liver ÔåÆ ammonia is converted to <strong>urea</strong> ÔåÆ the kidneys excrete urea in urine.</li>\n</ul>\n<h3><strong>Structure ÔåÆ function / Process ÔåÆ effect</strong></h3>\n<ul>\n<li><strong>Specific enzymes</strong> (with active sites) ÔåÆ catalyse only certain reactions ÔåÆ allowing reactions to proceed rapidly at body temperature.</li>\n<li><strong>Mitochondria</strong> ÔåÆ the primary site of aerobic respiration ÔåÆ yielding high amounts of ATP ÔåÆ which fuels biosynthesis.</li>\n<li><strong>Liver</strong> ÔåÆ contains enzymes for <strong>deamination</strong> ÔåÆ converting toxic ammonia into <strong>urea</strong> for safe excretion.</li>\n</ul>\n<h3><strong>­ƒÆí Why this matters</strong></h3>\n<ul>\n<li>It clarifies <strong>where energy originates</strong> for building and repairing tissues.</li>\n<li>It connects diet to <strong>storage</strong> (glycogen/lipids) and to <strong>waste</strong> (urea).</li>\n</ul>\n<p><strong>Common slip to avoid:</strong> <em>Respiration</em> refers to a <em>chemical reaction in cells</em>; <em>breathing</em> is the physical movement of air in and out of the lungs.</p>",
+      "caption": "Metabolism defined",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_4/metabolism-defined-1779562532465.display.png",
+      "role": "concept"
+    },
+    {
+      "blockNumber": 7,
+      "type": "text",
+      "title": "",
+      "role": "concept",
+      "content": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino aci",
+      "note": "text retained without image markdown"
+    },
+    {
+      "blockNumber": 8,
+      "type": "diagram",
+      "title": "Map of metabolism",
+      "subtitle": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>Utilize precise pairs and chains to maximize your marks:</p>\n<ul>\n<li><strong>Glucose ÔåÆ respiration ÔåÆ ATP</strong> ÔåÆ ATP powers synthesis</li>\n<li><strong>Glycerol + 3 fatty acids ÔåÆ lipid</strong> (triglyceride)</li>\n<li><strong>Excess amino acids ÔåÆ deamination (in the liver) ÔåÆ urea ÔåÆ excreted</strong></li>\n</ul>\n<h3><strong>In short</strong></h3>\n<ul>\n<li><strong>Metabolism</strong> encompasses all reactions occurring in cells.</li>\n<li><strong>Catabolic</strong> reactions release energy; <strong>anabolic</strong> reactions utilize it.</li>\n<li><strong>Respiration</strong> powers enzyme-controlled synthesis via <strong>ATP</strong>.</li>\n</ul>",
+      "caption": "Map of metabolism",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_5/map-of-metabolism-1779562502602.display.png",
+      "role": "concept"
+    },
+    {
+      "blockNumber": 9,
+      "type": "checkpoint",
+      "title": "",
+      "role": "checkpoint",
+      "preview": ""
+    },
+    {
+      "blockNumber": 10,
+      "type": "dragDropMatch",
+      "title": "",
+      "role": "match",
+      "preview": ""
+    },
+    {
+      "blockNumber": 11,
+      "type": "commonMistake",
+      "title": "COMMON MISTAKE",
+      "role": "commonMistake",
+      "preview": "<h2><strong>Common mistake</strong></h2>\n<p>­ƒÜ½ Writing ÔÇ£<em>Metabolism is digestion</em>ÔÇØ.</p>\n<p>Ô£à <strong>Better:</str"
+    },
+    {
+      "blockNumber": 12,
+      "type": "interactiveSequence",
+      "title": "",
+      "role": "sequence",
+      "preview": ""
+    },
+    {
+      "blockNumber": 13,
+      "type": "examTip",
+      "title": "EXAM TECHNIQUE (EXAM SKILL)",
+      "role": "examTechnique",
+      "preview": "<h2><strong>Exam technique ÔÇö write what earns marks</strong></h2>\n<p>­ƒÄ» Think like an examiner: provide a precise mechan"
+    },
+    {
+      "blockNumber": 14,
+      "type": "selfCheck",
+      "title": "",
+      "role": "workedExample",
+      "preview": ""
+    },
+    {
+      "blockNumber": 15,
+      "type": "selfCheck",
+      "title": "",
+      "role": "quickCheck",
+      "preview": ""
+    },
+    {
+      "blockNumber": 16,
+      "type": "text",
+      "title": "EXAM PRACTICE",
+      "role": "examPractice",
+      "preview": "<h2><strong>Exam practice</strong></h2>\n<p>­ƒôØ Read the stems carefully: <em>define / describe / explain / compare</em> r"
+    },
+    {
+      "blockNumber": 17,
+      "type": "keyIdea",
+      "title": "SUMMARY",
+      "role": "summary",
+      "preview": "<h2><strong>Summary</strong></h2>\n<ul>\n<li>Metabolism = <strong>all enzyme-controlled reactions</strong> in cells/bodies"
+    },
+    {
+      "blockNumber": 18,
+      "type": "keyWords",
+      "title": "KEY WORDS",
+      "role": "keyWords",
+      "preview": "<h2><strong>Keywords</strong></h2>\n<p><strong>Metabolism</strong> ÔÇô The sum of all enzyme-controlled reactions in a cell"
+    }
+  ]
+}
+{
+  "id": "6a12fd9fc2b860c3113e5bd6",
+  "title": "Biology ÔÇö Response to exercise ÔÇô Bioenergetics (AQA GCSE) (Higher Tier)",
+  "pageId": "p_1779629466959_605958b18239a8",
+  "blockCountBefore": 17,
+  "blockCountAfter": 18,
+  "existingDiagramBlocks": 1,
+  "before": [
+    {
+      "blockNumber": 1,
+      "type": "keyIdea",
+      "title": "LESSON OBJECTIVES",
+      "role": "lessonObjectives",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Lesson objectives</strong></h2> <p>At the end of this lesson, you should be able to:</p> <ul> <li><strong>­ƒôÿ</strong> Recall clear definitions for <strong>aerobic respiration</strong>, <st"
+    },
+    {
+      "blockNumber": 2,
+      "type": "text",
+      "title": "PRIOR KNOWLEDGE",
+      "role": "priorKnowledge",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Prior knowledge</strong></h2> <p>Before we start, you should already know:</p> <ul> <li><strong>­ƒºá</strong> Basic word equations for <strong>aerobic</strong> and <strong>anaerobic</strong>"
+    },
+    {
+      "blockNumber": 3,
+      "type": "text",
+      "title": "SCENARIO",
+      "role": "hook",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Right, letÔÇÖs look at thisÔÇª</strong></h2> <p>­ƒæë You finish a 400 m sprint. Your chest is heaving, your legs burn, and your pulse is racing. A one-mark question might ask ÔÇ£state one change i"
+    },
+    {
+      "blockNumber": 4,
+      "type": "keyIdea",
+      "title": "CORE RULE",
+      "role": "coreRule",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>The rule weÔÇÖre building today</strong></h2> <p>­ƒæë When muscles work harder, <strong>energy demand Ôåæ</strong> ÔåÆ the body <strong>raises heart rate, breathing rate, and breath volume</strong"
+    },
+    {
+      "blockNumber": 5,
+      "type": "text",
+      "title": "CORE LEARNING",
+      "role": "concept",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>How your body responds to exercise</strong></h2> <p><strong>­ƒôÿ LetÔÇÖs break it down:</strong> link each change to its <em>purpose</em> in getting oxygen to muscles and removing COÔéé.</p> <h3"
+    },
+    {
+      "blockNumber": 6,
+      "type": "text",
+      "title": "",
+      "role": "concept",
+      "hasEmbeddedImage": true,
+      "preview": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3> <p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé r"
+    },
+    {
+      "blockNumber": 7,
+      "type": "checkpoint",
+      "title": "",
+      "role": "checkpoint",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 8,
+      "type": "dragDropMatch",
+      "title": "Match respiration processes to their biological role",
+      "role": "match",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 9,
+      "type": "commonMistake",
+      "title": "COMMON MISTAKE",
+      "role": "commonMistake",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Common mistake</strong></h2> <p>­ƒæë ÔÇ£Anaerobic respiration happens when there is <em>no</em> oxygen in the body.ÔÇØ</p> <p><strong>Correction:</strong> It happens when <strong>oxygen supply i"
+    },
+    {
+      "blockNumber": 10,
+      "type": "diagram",
+      "title": "Exercise Pathway During Aerobic and Anaerobic Respiration",
+      "role": "concept",
+      "hasEmbeddedImage": false,
+      "preview": "On the diagram below, follow how oxygen, carbon dioxide, and energy move through the body during exercise. Compare what happens during aerobic respiration and anaerobic respiration in muscle cells."
+    },
+    {
+      "blockNumber": 11,
+      "type": "interactiveSequence",
+      "title": "STEP-BY-STEP PROCESS",
+      "role": "sequence",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 12,
+      "type": "examTip",
+      "title": "EXAM TECHNIQUE (EXAM SKILL)",
+      "role": "examTechnique",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Exam technique: turn facts into marks</strong></h2> <ul> <li><strong>Name the change + state its purpose.</strong> Example: ÔÇ£Breathing rate and volume increase <em>to increase oxygen uptak"
+    },
+    {
+      "blockNumber": 13,
+      "type": "selfCheck",
+      "title": "",
+      "role": "workedExample",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 14,
+      "type": "selfCheck",
+      "title": "",
+      "role": "quickCheck",
+      "hasEmbeddedImage": false,
+      "preview": ""
+    },
+    {
+      "blockNumber": 15,
+      "type": "text",
+      "title": "EXAM PRACTICE",
+      "role": "examPractice",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Exam practice</strong></h2> <p><strong>Q1 (1 mark):</strong> State one change in the breathing system during exercise that increases oxygen uptake.</p> <details> <summary>Reveal Answer</su"
+    },
+    {
+      "blockNumber": 16,
+      "type": "keyIdea",
+      "title": "SUMMARY",
+      "role": "summary",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Summary</strong></h2> <ul> <li>Exercise increases <strong>energy demand</strong> in muscles.</li> <li><strong>Breathing rate</strong> and <strong>breath volume</strong> rise to increase ox"
+    },
+    {
+      "blockNumber": 17,
+      "type": "keyWords",
+      "title": "KEY WORDS",
+      "role": "keyWords",
+      "hasEmbeddedImage": false,
+      "preview": "<h2><strong>Keywords</strong></h2> <p><strong>Aerobic respiration</strong> ÔÇô Release of energy from glucose using oxygen, producing carbon dioxide and water.</p> <p><strong>Anaerobic respiration</stro"
+    }
+  ],
+  "embeddedDetail": [
+    {
+      "blockNumber": 6,
+      "blockType": "text",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a12fd9fc2b860c3113e5bd6/page_p_1779629466959_605958b18239a8/block_5/exercise-cycle-1779703905450.display.png",
+      "alt": "Exercise cycle",
+      "blockTitle": "",
+      "blockSubtitle": "",
+      "strippedProse": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Exercise ÔåÆ <strong>energy demand Ôåæ</strong>.</li>\n<li>Body boosts <strong>heart</strong> and <strong>ventilation</strong> to supply OÔéé and remove COÔéé.</li>\n<li>If OÔéé is not",
+      "proposed": {
+        "type": "diagram",
+        "mode": "static",
+        "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a12fd9fc2b860c3113e5bd6/page_p_1779629466959_605958b18239a8/block_5/exercise-cycle-1779703905450.display.png",
+        "title": "Exercise cycle",
+        "subtitle": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Exercise ÔåÆ <strong>energy demand Ôåæ</strong>.</li>\n<li>Body boosts <strong>heart</strong> and <strong>ventilation</strong> to supply OÔéé and remove COÔéé.</li>\n<li>If OÔéé is not enough ÔåÆ <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> ÔåÆ <strong>oxygen debt</strong>.</li>\n</ul>\n<p><strong>ÔÜá´©Å Common confusion:</strong> <strong>Breathing rate</strong> = breaths per minute. <strong>Breath volume</strong> = how much air per breath. Name the correct one to avoid losing easy marks.</p>",
+        "intro": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Exercise ÔåÆ <strong>energy demand Ôåæ</strong>.</li>\n<li>Body boosts <strong>heart</strong> and <strong>ventilation</strong> to supply OÔéé and remove COÔéé.</li>\n<li>If OÔéé is not enough ÔåÆ <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> ÔåÆ <strong>oxygen debt</strong>.</li>\n</ul>\n<p><strong>ÔÜá´©Å Common confusion:</strong> <strong>Breathing rate</strong> = breaths per minute. <strong>Breath volume</strong> = how much air per breath. Name the correct one to avoid losing easy marks.</p>",
+        "note": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Exercise ÔåÆ <strong>energy demand Ôåæ</strong>.</li>\n<li>Body boosts <strong>heart</strong> and <strong>ventilation</strong> to supply OÔéé and remove COÔéé.</li>\n<li>If OÔéé is not enough ÔåÆ <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> ÔåÆ <strong>oxygen debt</strong>.</li>\n</ul>\n<p><strong>ÔÜá´©Å Common confusion:</strong> <strong>Breathing rate</strong> = breaths per minute. <strong>Breath volume</strong> = how much air per breath. Name the correct one to avoid losing easy marks.</p>",
+        "content": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Exercise ÔåÆ <strong>energy demand Ôåæ</strong>.</li>\n<li>Body boosts <strong>heart</strong> and <strong>ventilation</strong> to supply OÔéé and remove COÔéé.</li>\n<li>If OÔéé is not enough ÔåÆ <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> ÔåÆ <strong>oxygen debt</strong>.</li>\n</ul>\n<p><strong>ÔÜá´©Å Common confusion:</strong> <strong>Breathing rate</strong> = breaths per minute. <strong>Breath volume</strong> = how much air per breath. Name the correct one to avoid losing easy marks.</p>",
+        "caption": "Exercise cycle",
+        "alt": "Exercise cycle",
+        "role": "concept",
+        "_meta": {
+          "extractedFromBlockType": "text",
+          "indexInBlock": 0
+        }
+      }
+    }
+  ],
+  "afterOrdering": [
+    {
+      "blockNumber": 1,
+      "type": "keyIdea",
+      "title": "LESSON OBJECTIVES",
+      "role": "lessonObjectives",
+      "preview": "<h2><strong>Lesson objectives</strong></h2>\n<p>At the end of this lesson, you should be able to:</p>\n<ul>\n<li><strong>­ƒôÿ"
+    },
+    {
+      "blockNumber": 2,
+      "type": "text",
+      "title": "PRIOR KNOWLEDGE",
+      "role": "priorKnowledge",
+      "preview": "<h2><strong>Prior knowledge</strong></h2>\n<p>Before we start, you should already know:</p>\n<ul>\n<li><strong>­ƒºá</strong> "
+    },
+    {
+      "blockNumber": 3,
+      "type": "text",
+      "title": "SCENARIO",
+      "role": "hook",
+      "preview": "<h2><strong>Right, letÔÇÖs look at thisÔÇª</strong></h2>\n<p>­ƒæë You finish a 400 m sprint. Your chest is heaving, your legs b"
+    },
+    {
+      "blockNumber": 4,
+      "type": "keyIdea",
+      "title": "CORE RULE",
+      "role": "coreRule",
+      "preview": "<h2><strong>The rule weÔÇÖre building today</strong></h2>\n<p>­ƒæë When muscles work harder, <strong>energy demand Ôåæ</strong>"
+    },
+    {
+      "blockNumber": 5,
+      "type": "text",
+      "title": "CORE LEARNING",
+      "role": "concept",
+      "preview": "<h2><strong>How your body responds to exercise</strong></h2>\n<p><strong>­ƒôÿ LetÔÇÖs break it down:</strong> link each chang"
+    },
+    {
+      "blockNumber": 6,
+      "type": "text",
+      "title": "",
+      "role": "concept",
+      "content": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In sh",
+      "note": "text retained without image markdown"
+    },
+    {
+      "blockNumber": 7,
+      "type": "diagram",
+      "title": "Exercise cycle",
+      "subtitle": "<h3><strong>­ƒÄ» Think like an examiner</strong></h3>\n<p>DonÔÇÖt just list changes. Give the change <em>and</em> the reason: ÔÇ£<strong>Breathing rate and volume increase to increase oxygen uptake and COÔéé removal</strong>,ÔÇØ not just ÔÇ£breathing increasesÔÇØ. Mechanism ÔåÆ outcome = marks.</p>\n<h3><strong>In short:</strong></h3>\n<ul>\n<li>Exercise ÔåÆ <strong>energy demand Ôåæ</strong>.</li>\n<li>Body boosts <strong>heart</strong> and <strong>ventilation</strong> to supply OÔéé and remove COÔéé.</li>\n<li>If OÔéé is not enough ÔåÆ <strong>anaerobic</strong> ÔåÆ <strong>lactic acid</strong> ÔåÆ <strong>oxygen debt</strong>.</li>\n</ul>\n<p><strong>ÔÜá´©Å Common confusion:</strong> <strong>Breathing rate</strong> = breaths per minute. <strong>Breath volume</strong> = how much air per breath. Name the correct one to avoid losing easy marks.</p>",
+      "caption": "Exercise cycle",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a12fd9fc2b860c3113e5bd6/page_p_1779629466959_605958b18239a8/block_5/exercise-cycle-1779703905450.display.png",
+      "role": "concept"
+    },
+    {
+      "blockNumber": 8,
+      "type": "checkpoint",
+      "title": "",
+      "role": "checkpoint",
+      "preview": ""
+    },
+    {
+      "blockNumber": 9,
+      "type": "dragDropMatch",
+      "title": "Match respiration processes to their biological role",
+      "role": "match",
+      "preview": ""
+    },
+    {
+      "blockNumber": 10,
+      "type": "commonMistake",
+      "title": "COMMON MISTAKE",
+      "role": "commonMistake",
+      "preview": "<h2><strong>Common mistake</strong></h2>\n<p>­ƒæë ÔÇ£Anaerobic respiration happens when there is <em>no</em> oxygen in the bo"
+    },
+    {
+      "blockNumber": 11,
+      "type": "diagram",
+      "title": "Exercise Pathway During Aerobic and Anaerobic Respiration",
+      "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a12fd9fc2b860c3113e5bd6/page_p_1779629466959_605958b18239a8/block_8_diagram/exercise-pathway-1779629765623.display.png",
+      "subtitle": "On the diagram below, follow how oxygen, carbon dioxide, and energy move through the body during exercise. Compare what happens during aerobic respiration and anaerobic respiration in muscle cells.",
+      "unchanged": true
+    },
+    {
+      "blockNumber": 12,
+      "type": "interactiveSequence",
+      "title": "STEP-BY-STEP PROCESS",
+      "role": "sequence",
+      "preview": ""
+    },
+    {
+      "blockNumber": 13,
+      "type": "examTip",
+      "title": "EXAM TECHNIQUE (EXAM SKILL)",
+      "role": "examTechnique",
+      "preview": "<h2><strong>Exam technique: turn facts into marks</strong></h2>\n<ul>\n<li><strong>Name the change + state its purpose.</s"
+    },
+    {
+      "blockNumber": 14,
+      "type": "selfCheck",
+      "title": "",
+      "role": "workedExample",
+      "preview": ""
+    },
+    {
+      "blockNumber": 15,
+      "type": "selfCheck",
+      "title": "",
+      "role": "quickCheck",
+      "preview": ""
+    },
+    {
+      "blockNumber": 16,
+      "type": "text",
+      "title": "EXAM PRACTICE",
+      "role": "examPractice",
+      "preview": "<h2><strong>Exam practice</strong></h2>\n<p><strong>Q1 (1 mark):</strong> State one change in the breathing system during"
+    },
+    {
+      "blockNumber": 17,
+      "type": "keyIdea",
+      "title": "SUMMARY",
+      "role": "summary",
+      "preview": "<h2><strong>Summary</strong></h2>\n<ul>\n<li>Exercise increases <strong>energy demand</strong> in muscles.</li>\n<li><stron"
+    },
+    {
+      "blockNumber": 18,
+      "type": "keyWords",
+      "title": "KEY WORDS",
+      "role": "keyWords",
+      "preview": "<h2><strong>Keywords</strong></h2>\n<p><strong>Aerobic respiration</strong> ÔÇô Release of energy from glucose using oxygen"
+    }
+  ]
+}

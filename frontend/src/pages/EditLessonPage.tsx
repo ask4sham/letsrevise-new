@@ -82,10 +82,20 @@ import {
   attachPersistedBlockNumber,
   diagramAuthoringInstructionsForEditor,
   diagramAuthoringInstructionsFromBlock,
+  diagramPedagogyDisplayFromBlock,
   diagramBlockForPersist,
   mergeSavedDiagramAuthoringInstructions,
+  blockNoteForPersist,
+  withPersistedBlockNote,
 } from "../utils/lessonBlockPersist";
 import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
+import { TeacherBrainDesignBriefPanel } from "../components/lesson/TeacherBrainDesignBriefPanel";
+import { hasTeacherBrainDesignBrief } from "../utils/teacherBrainDesignBrief";
+import { injectTeacherBrainBriefs } from "../api/teacherBrainBriefs";
+import {
+  countTeacherBrainBriefsInPages,
+  countTeacherBrainEligibleActivityBlocks,
+} from "../utils/teacherBrainBriefPages";
 import {
   formatPublishWithQualityWarningsMessage,
   type PublishWarningSummary,
@@ -738,6 +748,8 @@ const EditLessonPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string>("");
+  const [teacherBrainInjectLoading, setTeacherBrainInjectLoading] = useState(false);
+  const [teacherBrainBriefRefreshKey, setTeacherBrainBriefRefreshKey] = useState(0);
   /** null = not probed yet; server 404 = feature off (CURRICULUM_AI_REVIEW_ENABLED) */
   const [curriculumAiReviewFeature, setCurriculumAiReviewFeature] = useState<boolean | null>(null);
   const [curriculumReviewLoading, setCurriculumReviewLoading] = useState(false);
@@ -1572,6 +1584,7 @@ const EditLessonPage: React.FC = () => {
                   const hotspots = rawH.map((h: any, i: number) =>
                     normalizeInteractiveDiagramHotspot(h, i)
                   );
+                  const notePersisted = blockNoteForPersist(b.note);
                   const outId: Record<string, unknown> = {
                     type: "interactiveDiagram" as const,
                     content: "",
@@ -1579,6 +1592,7 @@ const EditLessonPage: React.FC = () => {
                     intro: safeStr(b.intro, ""),
                     imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
                     hotspots,
+                    ...(notePersisted ? { note: notePersisted } : {}),
                   };
                   if (typeof b?.role === "string" && b.role.trim()) outId.role = b.role.trim();
                   return outId;
@@ -1609,6 +1623,7 @@ const EditLessonPage: React.FC = () => {
                     : [];
                   const dropZonesSan = sanitizeDiagramDropZonesForAuthoring(rawZones, pairIdsForZones);
                   const resolvedHydrate = resolveDragDropPersistMode(b);
+                  const ddmNote = blockNoteForPersist(b.note);
                   const outDdm: Record<string, unknown> = {
                     type: "dragDropMatch" as const,
                     content: "",
@@ -1616,6 +1631,7 @@ const EditLessonPage: React.FC = () => {
                     intro: safeStr(b.intro, ""),
                     instructions: safeStr(b.instructions, ""),
                     pairs,
+                    ...(ddmNote ? { note: ddmNote } : {}),
                   };
                   if (resolvedHydrate === "diagram") {
                     const stored = dragDropLayoutPersistedValues("diagram");
@@ -1673,6 +1689,9 @@ const EditLessonPage: React.FC = () => {
                     intro: safeStr(b.intro, ""),
                     instructions: safeStr((b as any).instructions, ""),
                     pairs,
+                    ...(blockNoteForPersist((b as { note?: string }).note)
+                      ? { note: blockNoteForPersist((b as { note?: string }).note) }
+                      : {}),
                   };
                   if (resolvedRepair === "diagram") {
                     const stored = dragDropLayoutPersistedValues("diagram");
@@ -3304,6 +3323,98 @@ const EditLessonPage: React.FC = () => {
     }
   };
 
+  const handleInjectTeacherBrainBriefs = async (ctx?: {
+    pageId?: string;
+    blockIndex?: number;
+    blockType?: string;
+  }) => {
+    console.log("[TeacherBrainUI] handleInjectTeacherBrainBriefs start", {
+      pageId: ctx?.pageId,
+      blockIndex: ctx?.blockIndex,
+      blockType: ctx?.blockType,
+    });
+    if (!lesson) return;
+    const topic =
+      safeStr(lesson.topic, "").trim() || safeStr(lesson.title, "").trim();
+    const subject = safeStr(lesson.subject, "");
+    const examBoard = safeStr(lesson.examBoardName, "") || undefined;
+    const tier = safeStr((lesson as { tier?: string }).tier, "") || undefined;
+    console.log("[TeacherBrainUI] inject context", { topic, subject, examBoard, tier });
+    if (!topic) {
+      setSaveMsg("Set a lesson topic before injecting Teacher Brain briefs.");
+      setTimeout(() => setSaveMsg(""), 6000);
+      return;
+    }
+    setTeacherBrainInjectLoading(true);
+    try {
+      if (ctx?.pageId != null && typeof ctx.blockIndex === "number") {
+        const page = lesson.pages?.find((p) => String(p.pageId) === String(ctx.pageId));
+        const block = page?.blocks?.[ctx.blockIndex] as LessonPageBlock | undefined;
+        if (block && String(block.type).toLowerCase().includes("dragdrop")) {
+          console.log("[TeacherBrainLayout] editor block before regenerate", {
+            type: block.type,
+            activityLayout: (block as { activityLayout?: string }).activityLayout,
+            dragDropLayout: block.dragDropLayout,
+            matchMode: block.matchMode,
+            imageUrl: block.imageUrl,
+            dropZones: block.dropZones,
+          });
+        }
+      }
+      const result = await injectTeacherBrainBriefs({
+        pages: lesson.pages || [],
+        topic,
+        subject,
+        examBoard,
+        tier,
+      });
+      const injectionCount =
+        result.teacherBrainInjection.injectionCount ??
+        countTeacherBrainBriefsInPages(result.pages);
+      const affectedTypes = (result.teacherBrainInjection.injections ?? [])
+        .map((row) =>
+          row && typeof row === "object" && "blockType" in row
+            ? String((row as { blockType?: string }).blockType ?? "")
+            : ""
+        )
+        .filter(Boolean);
+      console.log("[TeacherBrainUI] injection result", {
+        injectionCount,
+        affectedBlockTypes: affectedTypes,
+      });
+      setLesson((prev) =>
+        prev ? { ...prev, pages: result.pages as Lesson["pages"] } : prev
+      );
+      setTeacherBrainBriefRefreshKey((k) => k + 1);
+      if (ctx?.pageId != null && typeof ctx.blockIndex === "number") {
+        const page = (result.pages as Lesson["pages"])?.find(
+          (p) => String(p.pageId) === String(ctx.pageId)
+        );
+        const block = page?.blocks?.[ctx.blockIndex] as { note?: string } | undefined;
+        const hasBrief = String(block?.note ?? "").startsWith(
+          "--- TEACHER BRAIN DESIGN BRIEF ---"
+        );
+        console.log("[TeacherBrainUI] block note after update", {
+          pageId: ctx.pageId,
+          blockIndex: ctx.blockIndex,
+          hasTeacherBrainBrief: hasBrief,
+        });
+      }
+      setSaveMsg(
+        injectionCount > 0
+          ? `Regenerated ${injectionCount} Teacher Brain design brief(s). Click Save Changes to persist.`
+          : "No briefs were regenerated — check the lesson topic matches a supported profile (e.g. Metabolism)."
+      );
+      setTimeout(() => setSaveMsg(""), 9000);
+    } catch (err) {
+      console.error("[TeacherBrainUI] inject failed", err);
+      setSaveMsg("Could not inject Teacher Brain briefs.");
+      setTimeout(() => setSaveMsg(""), 6000);
+    } finally {
+      setTeacherBrainInjectLoading(false);
+    }
+  };
+
   /** dragDropMatch diagram mode — same pipeline as interactive diagram; distinct folder for assets */
   const uploadImageForDragDropMatch = async (
     file: File,
@@ -3498,25 +3609,31 @@ const EditLessonPage: React.FC = () => {
                   s.caption.length > 0 ||
                   Boolean((s as { testExplanation?: string }).testExplanation)
               );
-            const isOut: Record<string, unknown> = {
-              type: "interactiveSequence",
-              title: typeof b.title === "string" ? b.title.trim() : "",
-              intro: b.intro != null ? String(b.intro).trim() : "",
-              sequenceSteps,
-            };
+            const isOut: Record<string, unknown> = withPersistedBlockNote(
+              {
+                type: "interactiveSequence",
+                title: typeof b.title === "string" ? b.title.trim() : "",
+                intro: b.intro != null ? String(b.intro).trim() : "",
+                sequenceSteps,
+              },
+              b
+            );
             if (typeof b.role === "string" && b.role.trim()) isOut.role = b.role.trim();
             return isOut;
           }
           if (b.type === "interactiveDiagram") {
             const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
             const hotspots = rawH.map((h: any, i: number) => normalizeInteractiveDiagramHotspot(h, i));
-            const idOut: Record<string, unknown> = {
-              type: "interactiveDiagram",
-              title: typeof b.title === "string" ? b.title.trim() : "",
-              intro: b.intro != null ? String(b.intro).trim() : "",
-              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
-              hotspots,
-            };
+            const idOut: Record<string, unknown> = withPersistedBlockNote(
+              {
+                type: "interactiveDiagram",
+                title: typeof b.title === "string" ? b.title.trim() : "",
+                intro: b.intro != null ? String(b.intro).trim() : "",
+                imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
+                hotspots,
+              },
+              b
+            );
             if (typeof b.role === "string" && b.role.trim()) idOut.role = b.role.trim();
             return idOut;
           }
@@ -4901,6 +5018,12 @@ const EditLessonPage: React.FC = () => {
                 const statusColor = evalReadiness?.classroomReady ? "#22543d" : evalReadiness?.minimumPublishable ? "#92400e" : "#4b5563";
                 const c = evalReadiness?.counts ?? { pages: 0, diagrams: 0, checkpoints: 0, quizQuestions: 0, flashcards: 0, practiceAttached: 0, misconceptions: 0 };
                 const isReviewed = !!lesson?.reviewedAt || (lesson?.readiness as any)?.signals?.isReviewed;
+                const teacherBrainBriefCount = lesson?.pages
+                  ? countTeacherBrainBriefsInPages(lesson.pages)
+                  : 0;
+                const teacherBrainEligible = lesson?.pages
+                  ? countTeacherBrainEligibleActivityBlocks(lesson.pages)
+                  : 0;
                 return (
                   <div style={{ background: "white", borderRadius: 14, padding: 14, boxShadow: "0 10px 22px rgba(0,0,0,0.08)", border: "2px solid rgba(0,0,0,0.08)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -4918,12 +5041,40 @@ const EditLessonPage: React.FC = () => {
                       <li>Flashcards: {c.flashcards}</li>
                       <li>Practice: {c.practiceAttached}</li>
                       <li>Reviewed: {isReviewed ? "Yes" : "No"}</li>
+                      {teacherBrainEligible > 0 ? (
+                        <li style={{ color: teacherBrainBriefCount > 0 ? "#15803d" : "#7c3aed" }}>
+                          Teacher Brain briefs: {teacherBrainBriefCount} / {teacherBrainEligible} activity blocks
+                        </li>
+                      ) : null}
                       {topicCheck && (
                         <li style={{ color: topicCheck.pass ? "#15803d" : "#b91c1c" }}>
                           {topicCheck.pass ? topicCheck.label : TAXONOMY_TOPIC_UNMAPPED_LABEL}
                         </li>
                       )}
                     </ul>
+                    {teacherBrainEligible > 0 && teacherBrainBriefCount < teacherBrainEligible ? (
+                      <button
+                        type="button"
+                        disabled={teacherBrainInjectLoading}
+                        onClick={() => void handleInjectTeacherBrainBriefs()}
+                        style={{
+                          marginBottom: 10,
+                          padding: "8px 12px",
+                          borderRadius: 8,
+                          border: "2px solid rgba(124, 58, 237, 0.5)",
+                          background: "rgba(237, 233, 254, 0.9)",
+                          color: "#5b21b6",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: teacherBrainInjectLoading ? "wait" : "pointer",
+                          width: "100%",
+                        }}
+                      >
+                        {teacherBrainInjectLoading
+                          ? "Injecting briefs…"
+                          : "Inject Teacher Brain briefs"}
+                      </button>
+                    ) : null}
                     {id && (
                       <div style={{ marginTop: 8, fontSize: 12 }}>
                         <Link to={`/teacher/misconceptions?lessonId=${id}`} style={{ color: "#2563eb", textDecoration: "none", marginRight: 12 }}>View misconceptions →</Link>
@@ -6043,9 +6194,25 @@ const EditLessonPage: React.FC = () => {
                               }}
                               style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}
                             >
-                              <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
-                                {d.note ?? "Move labels and adjust as needed."}
-                              </p>
+                              <TeacherBrainDesignBriefPanel
+                                blockType={blockType}
+                                note={(b as LessonPageBlock).note}
+                                onNoteChange={(note) => updateBlock(currentPage!.pageId, idx, { note })}
+                                onRequestInject={() =>
+                                  void handleInjectTeacherBrainBriefs({
+                                    pageId: currentPage!.pageId,
+                                    blockIndex: idx,
+                                    blockType,
+                                  })
+                                }
+                                injectLoading={teacherBrainInjectLoading}
+                                refreshKey={teacherBrainBriefRefreshKey}
+                              />
+                              {!hasTeacherBrainDesignBrief((b as LessonPageBlock).note) ? (
+                                <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
+                                  {d.note ?? "Move labels and adjust as needed."}
+                                </p>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -6866,6 +7033,20 @@ const EditLessonPage: React.FC = () => {
                             </div>
                           ) : isInteractiveSequence ? (
                             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <TeacherBrainDesignBriefPanel
+                                blockType={blockType}
+                                note={(b as LessonPageBlock).note}
+                                onNoteChange={(note) => updateBlock(currentPage!.pageId, idx, { note })}
+                                onRequestInject={() =>
+                                  void handleInjectTeacherBrainBriefs({
+                                    pageId: currentPage!.pageId,
+                                    blockIndex: idx,
+                                    blockType,
+                                  })
+                                }
+                                injectLoading={teacherBrainInjectLoading}
+                                refreshKey={teacherBrainBriefRefreshKey}
+                              />
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Activity title</div>
                                 <input
@@ -7389,6 +7570,20 @@ const EditLessonPage: React.FC = () => {
                             </div>
                           ) : isInteractiveDiagram ? (
                             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <TeacherBrainDesignBriefPanel
+                                blockType={blockType}
+                                note={(b as LessonPageBlock).note}
+                                onNoteChange={(note) => updateBlock(currentPage!.pageId, idx, { note })}
+                                onRequestInject={() =>
+                                  void handleInjectTeacherBrainBriefs({
+                                    pageId: currentPage!.pageId,
+                                    blockIndex: idx,
+                                    blockType,
+                                  })
+                                }
+                                injectLoading={teacherBrainInjectLoading}
+                                refreshKey={teacherBrainBriefRefreshKey}
+                              />
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
                                 <input
@@ -8285,6 +8480,20 @@ const EditLessonPage: React.FC = () => {
                             </div>
                           ) : isDragDropMatch ? (
                             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                              <TeacherBrainDesignBriefPanel
+                                blockType={blockType}
+                                note={(b as LessonPageBlock).note}
+                                onNoteChange={(note) => updateBlock(currentPage!.pageId, idx, { note })}
+                                onRequestInject={() =>
+                                  void handleInjectTeacherBrainBriefs({
+                                    pageId: currentPage!.pageId,
+                                    blockIndex: idx,
+                                    blockType,
+                                  })
+                                }
+                                injectLoading={teacherBrainInjectLoading}
+                                refreshKey={teacherBrainBriefRefreshKey}
+                              />
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
                                 <input
@@ -9502,9 +9711,7 @@ const EditLessonPage: React.FC = () => {
                       };
                       const img = diagramImageUrlForPreview(d.imageUrl);
                       const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
-                      const previewTitle = safeStr(d.title, "");
-                      const previewSubtitle = diagramAuthoringInstructionsForEditor(d) ?? "";
-                      const previewCaption = safeStr(d.caption, "");
+                      const pedagogy = diagramPedagogyDisplayFromBlock(d);
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -9520,15 +9727,16 @@ const EditLessonPage: React.FC = () => {
                           }}
                         >
                           <DiagramBlockPedagogy
-                            title={previewTitle}
-                            subtitle={previewSubtitle}
-                            caption={previewCaption}
+                            title={pedagogy.title}
+                            subtitle={pedagogy.visibleInstructions ?? pedagogy.instructions}
+                            caption={pedagogy.caption}
+                            reveal={pedagogy.hiddenAnswer ?? pedagogy.reveal}
                           >
                             {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
                               <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
                                 <img
                                   src={imgSrc}
-                                  alt={previewCaption || previewTitle || "Diagram"}
+                                  alt={pedagogy.caption || pedagogy.title || safeStr(d.title, "") || "Diagram"}
                                   style={lessonImageFrameImgStyle}
                                   onError={hideBrokenLessonImage}
                                 />

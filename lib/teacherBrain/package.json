@@ -1,0 +1,7 @@
+{
+  "name": "letsrevise-teacher-brain",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "description": "Teacher Brain analysis and diagram brief injection (shared with backend)"
+}

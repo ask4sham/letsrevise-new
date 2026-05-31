@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { LessonStudentBlockRenderer } from "./LessonStudentBlockRenderer";
+import { TEACHER_BRAIN_DESIGN_BRIEF_MARKER } from "../../../utils/teacherBrainDesignBrief";
 
 jest.mock("../LessonCheckpoint", () => ({
   LessonCheckpoint: () => <div data-testid="lesson-checkpoint" />,
@@ -64,6 +65,25 @@ describe("LessonStudentBlockRenderer", () => {
       />
     );
     expect(screen.getByTestId("lesson-checkpoint")).toBeInTheDocument();
+  });
+
+  it("does not surface Teacher Brain design brief note in student view", () => {
+    const { container } = render(
+      <LessonStudentBlockRenderer
+        {...baseProps}
+        block={{
+          type: "dragDropMatch",
+          title: "Drag and Drop",
+          instructions: "Match each label.",
+          note: `${TEACHER_BRAIN_DESIGN_BRIEF_MARKER}\n\nDRAG & DROP BRIEF\n\nTitle:\nMetabolism`,
+          pairs: [{ id: "p1", prompt: "ATP", answer: "Energy currency" }],
+        }}
+      />
+    );
+    expect(screen.getByTestId("drag-drop-match")).toBeInTheDocument();
+    expect(screen.queryByText(/Teacher Brain Design Brief/i)).not.toBeInTheDocument();
+    expect(String(container.textContent ?? "")).not.toMatch(/TEACHER BRAIN DESIGN BRIEF/);
+    expect(String(container.textContent ?? "")).not.toMatch(/DRAG & DROP BRIEF/);
   });
 
   it("passes text-to-image matchMode from dragDropLayout after reload", () => {

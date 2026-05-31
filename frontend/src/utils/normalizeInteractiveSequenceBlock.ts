@@ -65,6 +65,9 @@ export function normalizeInteractiveSequenceBlockForEditor(
     content,
     sequenceSteps,
   };
+  const note = String(block.note ?? "").trim();
+  if (note) out.note = note;
+  else delete out.note;
   delete out.steps;
   return out;
 }

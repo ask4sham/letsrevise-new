@@ -1,36 +1,64 @@
 import { graphBlockForPersist } from "../components/lesson/graphBlockTypes";
+import {
+  diagramInstructionsForDisplayFromBlock,
+  normalizeDiagramPedagogyAuthoringForPersist,
+} from "./diagramPedagogyDisplay";
 import { sanitizeTeacherMarkdown } from "./lessonTeacherMarkdown";
+
+export {
+  diagramCaptionForDisplayFromBlock,
+  diagramInstructionsForDisplayFromBlock,
+  diagramPedagogyDisplayFromBlock,
+} from "./diagramPedagogyDisplay";
 
 function blockRecord(block: unknown): Record<string, unknown> {
   return block != null && typeof block === "object" ? (block as Record<string, unknown>) : {};
+}
+
+/** Teacher-only block note (e.g. Teacher Brain design brief) — round-trip on save/load. */
+export function blockNoteForPersist(note: unknown): string | undefined {
+  const s = String(note ?? "").trim();
+  return s || undefined;
+}
+
+export type BlockWithOptionalNote<T extends Record<string, unknown>> = T & {
+  note?: string;
+};
+
+export function withPersistedBlockNote<T extends Record<string, unknown>>(
+  out: T,
+  source: { note?: unknown }
+): BlockWithOptionalNote<T> {
+  const note = blockNoteForPersist(source.note);
+  if (!note) return out as BlockWithOptionalNote<T>;
+  return { ...out, note };
 }
 
 function plainTextFromHtmlish(raw: string): string {
   return raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-/** Persisted diagram instructions only — never fall back to legacy `content` (avoids overwriting editor field). */
-export function diagramAuthoringInstructionsFromBlock(block: unknown): string | undefined {
+/** Raw diagram pedagogy from authoring fields (before display normalization). */
+export function diagramAuthoringInstructionsRawFromBlock(block: unknown): string | undefined {
   const b = blockRecord(block);
   for (const key of ["subtitle", "intro", "note"] as const) {
     const raw = typeof b[key] === "string" ? (b[key] as string).trim() : "";
-    if (!raw) continue;
-    const plain = plainTextFromHtmlish(raw);
-    if (plain.length > 0) return plain;
+    if (raw) return raw;
   }
   return undefined;
 }
 
-/** Student-facing diagram instructions: explicit subtitle, else legacy intro/note/content. */
-export function diagramSubtitleFromBlock(block: unknown): string | undefined {
-  const fromAuthoring = diagramAuthoringInstructionsFromBlock(block);
-  if (fromAuthoring) return fromAuthoring;
+/** Persisted diagram instructions only — never fall back to legacy `content` (avoids overwriting editor field). */
+export function diagramAuthoringInstructionsFromBlock(block: unknown): string | undefined {
+  const raw = diagramAuthoringInstructionsRawFromBlock(block);
+  if (!raw) return undefined;
+  const normalized = normalizeDiagramPedagogyAuthoringForPersist(raw);
+  return normalized || plainTextFromHtmlish(raw);
+}
 
-  const b = blockRecord(block);
-  const content = typeof b.content === "string" ? b.content.trim() : "";
-  if (!content || /^image\s+here$/i.test(content)) return undefined;
-  const fromContent = plainTextFromHtmlish(content);
-  return fromContent.length >= 10 ? fromContent : undefined;
+/** Student-facing diagram instructions (display-normalized; does not change stored data). */
+export function diagramSubtitleFromBlock(block: unknown): string | undefined {
+  return diagramInstructionsForDisplayFromBlock(block);
 }
 
 function attachDiagramInstructionsForPersist(

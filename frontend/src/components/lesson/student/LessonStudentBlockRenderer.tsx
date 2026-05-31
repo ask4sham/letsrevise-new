@@ -44,6 +44,7 @@ import {
 } from "../../../utils/dragDropMatchDiagram";
 import { getVisualTeachingDataAttribute } from "./visualTeachingBlocks";
 import { StudentBlockHeading } from "./StudentBlockHeading";
+import { UploadedDiagramActivityShell } from "./UploadedDiagramActivityShell";
 import {
   formatStudentBlockHeading,
   studentContentStartsWithHeading,
@@ -56,7 +57,11 @@ export type LessonStudentBlockRendererProps = {
   markdownComponents: Partial<Components>;
   stripVideoMarkdown: (content: string) => string;
   maybeParseKeywordsFromText: (text: string) => string[] | null;
-  renderDiagramBlock: (block: StudentLessonPageBlock, idx: number) => React.ReactNode;
+  renderDiagramBlock: (
+    block: StudentLessonPageBlock,
+    idx: number,
+    options?: { suppressPedagogyTitle?: boolean }
+  ) => React.ReactNode;
   /** V12: first `![](url)` line in text/keyIdea → SS2 side-by-side layout */
   enableMarkdownMediaSplit?: boolean;
   /** Lesson/page metadata — render-time highlights only (not applied to pageQuiz) */
@@ -368,13 +373,31 @@ export function LessonStudentBlockRenderer({
     if (!isStudentVisibleDiagramBlock(block as StudentLessonPageBlock)) {
       return null;
     }
-    return withStudentBlockHeading(
-      <div className="lesson-student-diagram-slot" data-visual-block="diagram">
-        {renderDiagramBlock(block, blockIndex)}
-      </div>,
-      block,
-      cleanedText
+    const uploadedDiagramActivity = hasRenderableLessonImageSrc(
+      String((block as StudentLessonPageBlock).imageUrl ?? "")
     );
+    const diagramSlot = (
+      <div
+        className="lesson-student-diagram-slot"
+        data-visual-block="diagram"
+        {...(uploadedDiagramActivity ? { "data-uploaded-diagram-activity": "1" } : {})}
+      >
+        {renderDiagramBlock(block, blockIndex, {
+          suppressPedagogyTitle: uploadedDiagramActivity,
+        })}
+      </div>
+    );
+    if (uploadedDiagramActivity) {
+      const heading = formatStudentBlockHeading(block);
+      const showHeading =
+        Boolean(heading) && !studentContentStartsWithHeading(cleanedText, heading);
+      return (
+        <UploadedDiagramActivityShell heading={showHeading ? heading : null}>
+          {diagramSlot}
+        </UploadedDiagramActivityShell>
+      );
+    }
+    return withStudentBlockHeading(diagramSlot, block, cleanedText);
   }
 
   const safeHighlightKeywords = normalizeBlockType(kind) === "pageQuiz" ? undefined : highlightKeywords;

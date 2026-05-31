@@ -14,10 +14,14 @@ import {
   sanitizePlacedDiagramDropZones,
   type PlacedDragDropDiagramZone,
 } from "../../utils/dragDropMatchDiagram";
+import { resolveLessonStepImageSrc, resolveUploadedDiagramImageSrc } from "../../utils/assetUrl";
+import { AnswerCardPreviewShell } from "./DragDropAnswerCardPreview";
 import { AssessmentFeedback } from "./AssessmentFeedback";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import { LessonRichText } from "./LessonRichText";
 import "./dragDropMatchBlock.css";
+import "./dragDropTextToImageLayout.css";
+import "./dragDropDiagramWorksheetLayout.css";
 
 const DND_MIME = "application/x-letsrevise-dnd-pair";
 
@@ -129,27 +133,50 @@ function renderAnswerThumbImg(
   );
 }
 
+function pairAnswerPreviewImageSrc(
+  pair: DragDropMatchPair,
+  resolveImg: (url: string) => string
+): string | null {
+  const raw = String(pair.answerImageUrl ?? "").trim();
+  if (!raw || !hasRenderableLessonImageSrc(raw)) return null;
+  const src = resolvePairThumbDisplaySrc(raw, resolveImg);
+  return hasRenderableLessonImageSrc(src) ? src : null;
+}
+
 function DragDropAnswerWithOptionalThumb({
   pair,
   resolveImg,
   textClassName,
   thumbExtraClass,
+  enablePreviewZoom = false,
 }: {
   pair: DragDropMatchPair;
   resolveImg: (url: string) => string;
   textClassName: string;
   thumbExtraClass: string;
+  enablePreviewZoom?: boolean;
 }): React.ReactElement {
   const thumb = renderAnswerThumbImg(pair, resolveImg, thumbExtraClass);
   const text = pair.answer || "(No text)";
-  if (!thumb) {
-    return <span {...(textClassName ? { className: textClassName } : {})}>{text}</span>;
-  }
-  return (
+  const previewSrc = enablePreviewZoom ? pairAnswerPreviewImageSrc(pair, resolveImg) : null;
+
+  const inner = !thumb ? (
+    <span {...(textClassName ? { className: textClassName } : {})}>{text}</span>
+  ) : (
     <span className="drag-drop-match__answer-line">
       {thumb}
       <span {...(textClassName ? { className: textClassName } : {})}>{text}</span>
     </span>
+  );
+
+  return (
+    <AnswerCardPreviewShell
+      enablePreviewZoom={enablePreviewZoom}
+      answerText={text}
+      imageSrc={previewSrc}
+    >
+      {inner}
+    </AnswerCardPreviewShell>
   );
 }
 
@@ -530,7 +557,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const instructions = String(block.instructions ?? "").trim();
 
   const imgRaw = diagramMode ? String(block.imageUrl ?? "").trim() : "";
-  const imgResolved = imgRaw ? resolveImg(imgRaw) : "";
+  const imgResolved = imgRaw ? resolveUploadedDiagramImageSrc(resolveImg(imgRaw)) : "";
   const diagramImageFit = parseDragDropDiagramImageFit(block.imageFit) ?? "contain";
   const diagramImagePosition =
     parseDragDropDiagramImagePosition(block.imagePosition) ?? "center center";
@@ -551,7 +578,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     <section
       ref={rootRef}
       className={
-        "drag-drop-match" + (textToImageMode ? " drag-drop-match--text-to-image text-to-image" : "")
+        "drag-drop-match" +
+        (textToImageMode ? " drag-drop-match--text-to-image text-to-image" : "") +
+        (diagramMode ? " drag-drop-match--diagram" : "")
       }
       aria-label={title || "Drag and drop match activity"}
     >
@@ -578,63 +607,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       <LessonRichText text={instructions} className="drag-drop-match__instruction" />
 
       {textToImageMode ? (
-        <div className="drag-drop-match__tti-grid" data-testid="drag-drop-tti-grid">
-          <div className="drag-drop-match__tti-concept-column concept-card-column">
-            <div className="drag-drop-match__panel-title drag-drop-match__panel-title--tti-cards">
-              📝 Concept cards
-            </div>
-            <div
-              className="drag-drop-match__answers drag-drop-match__answers--tti"
-              onDragOver={onDragOver}
-              onDrop={(e) => {
-                e.preventDefault();
-                const sourceId = readDragPairId(e);
-                if (!sourceId) return;
-                for (const tid of targetIds) {
-                  if (placements[tid] === sourceId) {
-                    clearTarget(tid);
-                    return;
-                  }
-                }
-              }}
-            >
-              <div className="drag-drop-match__card-list drag-drop-match__card-list--tti">
-                {bankDisplayIds.length === 0 ? (
-                  <p className="drag-drop-match__pool-empty">All cards placed</p>
-                ) : (
-                  bankDisplayIds.map((sid, index) => {
-                    const p = findPairById(pairs, sid);
-                    if (!p) return null;
-                    const selected = selectedSourceId === sid;
-                    const tone = index % 6;
-                    return (
-                      <button
-                        key={sid}
-                        type="button"
-                        draggable
-                        onDragStart={(e) => onDragStartPool(e, sid)}
-                        onDragEnd={onDragEndPool}
-                        onClick={() => onPickFromPool(sid)}
-                        className={
-                          "drag-drop-match__card drag-drop-match__card--tone-" +
-                          tone +
-                          (selected ? " drag-drop-match__card--selected" : "") +
-                          " drag-drop-match__card--tti-prompt"
-                        }
-                        aria-pressed={selected}
-                        aria-label={`Select concept: ${p.prompt || p.answer || "card"}`}
-                      >
-                        <span className="drag-drop-match__card-text drag-drop-match__card-text--tti">
-                          {p.prompt || "(No text)"}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
+        <div
+          className="drag-drop-match__tti-grid"
+          data-testid="drag-drop-tti-grid"
+          data-tti-layout="clues-left-v1"
+        >
           <div className="drag-drop-match__tti-targets-column">
             <div className="drag-drop-match__panel-title drag-drop-match__panel-title--tti-targets">
               🖼️ Match to the image
@@ -652,7 +629,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                   (isWrong ? " drag-drop-match__tti-drop--incorrect" : "") +
                   (selectedSourceId && !sourcePlaced ? " drag-drop-match__tti-drop--active" : "");
                 const imgRaw = String(row.imageUrl ?? "").trim();
-                const imgResolvedTti = imgRaw ? resolveImg(imgRaw) : "";
+                const imgResolvedTti = imgRaw
+                  ? resolveLessonStepImageSrc(resolveImg(imgRaw))
+                  : "";
                 const showTtiImg =
                   hasRenderableLessonImageSrc(imgRaw) &&
                   hasRenderableLessonImageSrc(imgResolvedTti);
@@ -737,12 +716,78 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
               })}
             </div>
           </div>
+
+          <div className="drag-drop-match__tti-concept-column concept-card-column">
+            <div className="drag-drop-match__panel-title drag-drop-match__panel-title--tti-cards">
+              📝 Concept cards
+            </div>
+            <div
+              className="drag-drop-match__answers drag-drop-match__answers--tti"
+              onDragOver={onDragOver}
+              onDrop={(e) => {
+                e.preventDefault();
+                const sourceId = readDragPairId(e);
+                if (!sourceId) return;
+                for (const tid of targetIds) {
+                  if (placements[tid] === sourceId) {
+                    clearTarget(tid);
+                    return;
+                  }
+                }
+              }}
+            >
+              <div className="drag-drop-match__card-list drag-drop-match__card-list--tti">
+                {bankDisplayIds.length === 0 ? (
+                  <p className="drag-drop-match__pool-empty">All cards placed</p>
+                ) : (
+                  bankDisplayIds.map((sid, index) => {
+                    const p = findPairById(pairs, sid);
+                    if (!p) return null;
+                    const selected = selectedSourceId === sid;
+                    const tone = index % 6;
+                    return (
+                      <button
+                        key={sid}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => onDragStartPool(e, sid)}
+                        onDragEnd={onDragEndPool}
+                        onClick={() => onPickFromPool(sid)}
+                        className={
+                          "drag-drop-match__card drag-drop-match__card--tone-" +
+                          tone +
+                          (selected ? " drag-drop-match__card--selected" : "") +
+                          " drag-drop-match__card--tti-prompt"
+                        }
+                        aria-pressed={selected}
+                        aria-label={`Select concept: ${p.prompt || p.answer || "card"}`}
+                      >
+                        <AnswerCardPreviewShell
+                          enablePreviewZoom
+                          answerText={p.prompt || p.answer || "(No text)"}
+                        >
+                          <span className="drag-drop-match__card-text drag-drop-match__card-text--tti">
+                            {p.prompt || "(No text)"}
+                          </span>
+                        </AnswerCardPreviewShell>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       ) : diagramMode ? (
-        <div className="drag-drop-match__diagram-worksheet">
+        <div
+          className="drag-drop-match__diagram-worksheet"
+          data-ddm-diagram-layout="side-by-side-v1"
+          data-testid="drag-drop-diagram-worksheet"
+        >
           <div className="drag-drop-match__panel-title drag-drop-match__panel-title--diagram">
             📍 Diagram — drop zones
           </div>
+          <div className="drag-drop-match__diagram-worksheet-stage">
           <div className="drag-drop-match__diagram-panel">
             {showDiagramImg ? (
               <>
@@ -911,6 +956,103 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                       ) : null}
                     </div>
                 </div>
+                {zones.length > 0 ? (
+                  <div className="drag-drop-match__diagram-summary drag-drop-match__diagram-summary--under-image">
+                    <div className="drag-drop-match__diagram-summary-heading">Your labels</div>
+                    <ul
+                      className="drag-drop-match__diagram-summary-list"
+                      role="list"
+                      aria-label="Your labels"
+                    >
+                      {zones.map((zone, zi) => {
+                        const mark = diagramZoneMarkerLabel(zi);
+                        const sourcePlaced = placements[zone.id] ?? null;
+                        const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
+                        const corr = zone.correctPairId;
+                        const correctPair = corr ? findPairById(pairs, corr) : undefined;
+                        const mergedExpl = mergeDiagramZoneExplanation(
+                          zone.explanation,
+                          correctPair?.explanation
+                        );
+                        const isCorrect =
+                          Boolean(corr) && checked && sourcePlaced != null && sourcePlaced === corr;
+                        const isWrong =
+                          Boolean(corr) && checked && sourcePlaced != null && sourcePlaced !== corr;
+                        const isEmptyChecked = checked && sourcePlaced == null;
+                        const summaryStatus =
+                          checked && corr ? (isCorrect ? "Correct" : "Try again") : null;
+                        return (
+                          <li key={zone.id} className="drag-drop-match__diagram-summary-item" role="listitem">
+                            <div className="drag-drop-match__diagram-summary-main">
+                              <span className="drag-drop-match__diagram-summary-mark">{mark}</span>
+                              <span className="drag-drop-match__diagram-summary-arrow" aria-hidden="true">
+                                →
+                              </span>
+                              <span className="drag-drop-match__diagram-summary-text">
+                                {(() => {
+                                  if (!card) {
+                                    return (
+                                      <span className="drag-drop-match__diagram-summary-placeholder">
+                                        Not placed yet
+                                      </span>
+                                    );
+                                  }
+                                  const thumb = renderAnswerThumbImg(
+                                    card,
+                                    resolveImg,
+                                    "drag-drop-match__answer-thumb--summary"
+                                  );
+                                  if (card.answer) {
+                                    return (
+                                      <span className="drag-drop-match__diagram-summary-answer">
+                                        {thumb}
+                                        <span>{card.answer}</span>
+                                      </span>
+                                    );
+                                  }
+                                  if (thumb) {
+                                    return (
+                                      <span className="drag-drop-match__diagram-summary-answer">{thumb}</span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="drag-drop-match__diagram-summary-placeholder">
+                                      Not placed yet
+                                    </span>
+                                  );
+                                })()}
+                              </span>
+                              {summaryStatus ? (
+                                <span
+                                  className={
+                                    "drag-drop-match__diagram-summary-status" +
+                                    (isCorrect
+                                      ? " drag-drop-match__diagram-summary-status--ok"
+                                      : " drag-drop-match__diagram-summary-status--bad")
+                                  }
+                                >
+                                  {summaryStatus}
+                                </span>
+                              ) : null}
+                            </div>
+                            {checked && corr ? (
+                              <AssessmentFeedback
+                                className="drag-drop-match__assessment-feedback drag-drop-match__assessment-feedback--diagram-row"
+                                status={
+                                  isCorrect ? "correct" : isWrong || isEmptyChecked ? "incorrect" : undefined
+                                }
+                                answer={correctPair?.answer}
+                                answerLabel="Correct answer"
+                                explanation={mergedExpl}
+                                explanationLabel="Explanation"
+                              />
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
                 {diagramZonesEmptyOrMissing ? (
                   <p className="drag-drop-match__diagram-hint" role="status">
                     This diagram has no drop zones yet. Your teacher can add targets in the lesson editor.
@@ -988,6 +1130,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                             resolveImg={resolveImg}
                             textClassName="drag-drop-match__card-text"
                             thumbExtraClass="drag-drop-match__answer-thumb--diagram-card"
+                            enablePreviewZoom
                           />
                           {isPlaced ? (
                             <span className="drag-drop-match__card-placed-badge">Placed: {placedMark}</span>
@@ -1011,6 +1154,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
               </div>
             </div>
           </div>
+          </div>
 
           {diagramImageFit === "cover" ? (
             <p className="drag-drop-match__diagram-hint" role="status">
@@ -1019,105 +1163,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
             </p>
           ) : null}
 
-          {showDiagramImg && zones.length > 0 ? (
-            <React.Fragment>
-            <div className="drag-drop-match__diagram-summary">
-              <div className="drag-drop-match__diagram-summary-heading">Your labels</div>
-              <ul
-                className="drag-drop-match__diagram-summary-list"
-                role="list"
-                aria-label="Your labels"
-              >
-                {zones.map((zone, zi) => {
-                  const mark = diagramZoneMarkerLabel(zi);
-                  const sourcePlaced = placements[zone.id] ?? null;
-                  const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
-                  const corr = zone.correctPairId;
-                  const correctPair = corr ? findPairById(pairs, corr) : undefined;
-                  const mergedExpl = mergeDiagramZoneExplanation(
-                    zone.explanation,
-                    correctPair?.explanation
-                  );
-                  const isCorrect =
-                    Boolean(corr) && checked && sourcePlaced != null && sourcePlaced === corr;
-                  const isWrong =
-                    Boolean(corr) && checked && sourcePlaced != null && sourcePlaced !== corr;
-                  const isEmptyChecked = checked && sourcePlaced == null;
-                  const summaryStatus =
-                    checked && corr ? (isCorrect ? "Correct" : "Try again") : null;
-                  return (
-                    <li key={zone.id} className="drag-drop-match__diagram-summary-item" role="listitem">
-                      <div className="drag-drop-match__diagram-summary-main">
-                        <span className="drag-drop-match__diagram-summary-mark">{mark}</span>
-                        <span className="drag-drop-match__diagram-summary-arrow" aria-hidden="true">
-                          →
-                        </span>
-                        <span className="drag-drop-match__diagram-summary-text">
-                          {(() => {
-                            if (!card) {
-                              return (
-                                <span className="drag-drop-match__diagram-summary-placeholder">
-                                  Not placed yet
-                                </span>
-                              );
-                            }
-                            const thumb = renderAnswerThumbImg(
-                              card,
-                              resolveImg,
-                              "drag-drop-match__answer-thumb--summary"
-                            );
-                            if (card.answer) {
-                              return (
-                                <span className="drag-drop-match__diagram-summary-answer">
-                                  {thumb}
-                                  <span>{card.answer}</span>
-                                </span>
-                              );
-                            }
-                            if (thumb) {
-                              return (
-                                <span className="drag-drop-match__diagram-summary-answer">{thumb}</span>
-                              );
-                            }
-                            return (
-                              <span className="drag-drop-match__diagram-summary-placeholder">
-                                Not placed yet
-                              </span>
-                            );
-                          })()}
-                        </span>
-                        {summaryStatus ? (
-                          <span
-                            className={
-                              "drag-drop-match__diagram-summary-status" +
-                              (isCorrect
-                                ? " drag-drop-match__diagram-summary-status--ok"
-                                : " drag-drop-match__diagram-summary-status--bad")
-                            }
-                          >
-                            {summaryStatus}
-                          </span>
-                        ) : null}
-                      </div>
-                      {checked && corr ? (
-                        <AssessmentFeedback
-                          className="drag-drop-match__assessment-feedback drag-drop-match__assessment-feedback--diagram-row"
-                          status={
-                            isCorrect ? "correct" : isWrong || isEmptyChecked ? "incorrect" : undefined
-                          }
-                          answer={correctPair?.answer}
-                          answerLabel="Correct answer"
-                          explanation={mergedExpl}
-                          explanationLabel="Explanation"
-                        />
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            {typeof window !== "undefined" &&
+          {typeof window !== "undefined" &&
             window.localStorage?.getItem("DEBUG_DDM") === "1" &&
+            showDiagramImg &&
             zones.length > 0 ? (
               <div
                 className="drag-drop-match__ddm-debug-panel"
@@ -1166,8 +1214,6 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                 })}
               </div>
             ) : null}
-            </React.Fragment>
-          ) : null}
         </div>
       ) : (
         <div className="drag-drop-match__grid">

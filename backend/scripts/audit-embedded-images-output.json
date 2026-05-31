@@ -1,0 +1,2016 @@
+﻿[dotenv@17.2.3] injecting env (22) from .env -- tip: ­ƒöæ add access controls to secrets: https://dotenvx.com/ops
+{
+  "summary": {
+    "totalPublishedBiology": 52,
+    "lessonsWithEmbeddedInTextLikeBlocks": 49,
+    "lessonsEmbeddedOnlyNoDiagramBlock": 48,
+    "lessonsWithBothDiagramAndEmbedded": 1,
+    "lessonsWithDiagramBlockOnlyNoEmbedded": 1,
+    "lessonsNoDiagramAndNoEmbeddedTextImages": 2
+  },
+  "findings": [
+    {
+      "id": "69abe288634922917024b79f",
+      "title": "Cell structure ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69abe288634922917024b79f/page_p_1772872088725_31a1b26bec47d8/block_0/cell-1774016676786.png",
+          "altText": "Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69abe288634922917024b79f/page_p_1772872088725_31a1b26bec47d8/block_1/eukaryotic-cell-round-1774017773849.png",
+          "altText": "Eukaryotic cell round",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69abe288634922917024b79f/page_p_1772872088725_31a1b26bec47d8/block_1/bacteria-cell-1774018641899.png",
+          "altText": "Bacteria Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69ac52012ab324862fa7f493",
+      "title": "Animal and plant cells ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac52012ab324862fa7f493/page_p_1772900326132_c69b2779431078/block_0/animal-plant-cell-1774018838155.png",
+          "altText": "ANIMAL & PLANT CELL",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69ac8d148d76e08d5b4aae0a",
+      "title": "Eukaryotic & Prokaryotic Cells  (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 12,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_0/eukaryotic-cell-round-1774019163344.png",
+          "altText": "Eukaryotic cell round",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_0/animal-cell-organel-explanation-1774019258601.png",
+          "altText": "Animal Cell organel explanation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_1/plant-cell-3d-1774019807339.png",
+          "altText": "Plant Cell 3d",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_1/plant-cells-organell-explanation-1774019860882.png",
+          "altText": "Plant cells organell explanation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_2/bacteria-cell-1774019901646.png",
+          "altText": "Bacteria Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://letsrevise-new.onrender.com/uploads/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_2/bacteria-structure-explanation-1773856298202.png",
+          "altText": "Bacteria structure explanation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_2/comparison-of-eukaryotic-and-prokaryotics-1774019984710.png",
+          "altText": "Comparison of Eukaryotic and Prokaryotics",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://letsrevise-new.onrender.com/uploads/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1772915851373_ddbb2772ed2a48/block_3/eukaryotic-prokaryotic-cell-image-comparison-png-1-1773856645250.png",
+          "altText": "Eukaryotic & Prokaryotic Cell image comparison..png 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1773004031500_913cd5a0b27828/block_0/converting-between-units-1774020495116.png",
+          "altText": "Converting between Units",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1773004031500_913cd5a0b27828/block_0/understanding-size-1774020561928.png",
+          "altText": "Understanding size",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1773004031500_913cd5a0b27828/block_0/order-of-magnitude-1774020676129.png",
+          "altText": "Order of magnitude",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 12,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ac8d148d76e08d5b4aae0a/page_p_1773004031500_913cd5a0b27828/block_1/mathematical-relationship-table-of-powers-of-ten-1774020761570.png",
+          "altText": "Mathematical relationship table of powers of ten",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69ade4992c390e7644225935",
+      "title": "Cell specialisation ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 8,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773003820828_7b1c0829b39088/block_1/nerve-cell-1774179129460.png",
+          "altText": "Nerve Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773003820828_7b1c0829b39088/block_2/muscle-cell-1774179189199.png",
+          "altText": "Muscle Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773003820828_7b1c0829b39088/block_3/sperm-cell-1774179233875.png",
+          "altText": "Sperm Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "http://localhost:3000/uploads/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773087441024_613b0c2aad9f18/block_0/root-hair-cell-1773855284771.png",
+          "altText": "Root hair Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "http://localhost:3000/uploads/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773087441024_613b0c2aad9f18/block_1/xylem-1773855362416.png",
+          "altText": "Xylem",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "http://localhost:3000/uploads/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773087441024_613b0c2aad9f18/block_1/xylem-explanation-table-1773855763867.png",
+          "altText": "Xylem Explanation table.",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "http://localhost:3000/uploads/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773087441024_613b0c2aad9f18/block_2/phloem-cell-1773855416580.png",
+          "altText": "Phloem Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "http://localhost:3000/uploads/lesson-media/lesson_69ade4992c390e7644225935/page_p_1773087441024_613b0c2aad9f18/block_2/phloem-explanation-1773855510096.png",
+          "altText": "Phloem Explanation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69b04da0a852147c06d35c0a",
+      "title": "Cell differentiation ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 5,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b04da0a852147c06d35c0a/page_p_1773159381959_3867e1d25fa1b/block_0/differentiation-1774179478718.png",
+          "altText": "Differentiation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b04da0a852147c06d35c0a/page_p_1773159381959_3867e1d25fa1b/block_0/nerve-cell-differentiation-1774179533875.png",
+          "altText": "Nerve Cell Differentiation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b04da0a852147c06d35c0a/page_p_1773159381959_3867e1d25fa1b/block_3/root-hair-cell-1774179721648.png",
+          "altText": "Root hair Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b04da0a852147c06d35c0a/page_p_1773159381959_3867e1d25fa1b/block_3/xylem-1774179775545.png",
+          "altText": "Xylem",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b04da0a852147c06d35c0a/page_p_1773159381959_3867e1d25fa1b/block_3/phloem-cell-1774179802082.png",
+          "altText": "Phloem Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69b086aca852147c06d39e42",
+      "title": "Microscopy ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 6,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b086aca852147c06d39e42/page_p_1773176212711_8344546ca0c858/block_0/microscopy-1774021186515.png",
+          "altText": "Microscopy",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b086aca852147c06d39e42/page_p_1773176212711_8344546ca0c858/block_1/magnification-equation-1774021228558.png",
+          "altText": "Magnification equation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b086aca852147c06d39e42/page_p_1773176212711_8344546ca0c858/block_1/magnification-trangle-1774021493997.png",
+          "altText": "Magnification Trangle",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b086aca852147c06d39e42/page_p_1773176212711_8344546ca0c858/block_1/triangle-worked-out-example-1774021615302.png",
+          "altText": "Triangle worked out example",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://letsrevise-new.onrender.com/uploads/lesson-media/lesson_69b086aca852147c06d39e42/page_p_1773176212711_8344546ca0c858/block_3/magnified-leaf-1773853922596.png",
+          "altText": "Magnified leaf",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://letsrevise-new.onrender.com/uploads/lesson-media/lesson_69b086aca852147c06d39e42/page_p_1773176212711_8344546ca0c858/block_4/converting-between-units-1773854207660.png",
+          "altText": "Converting between Units",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69b2f1565da1c638798c0f58",
+      "title": "Required Practical: Microscopy ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b2f1565da1c638798c0f58/page_p_1773334825127_4b0b84ab4ef8a8/block_0/onion-cell-prep-1774026960094.png",
+          "altText": "Onion Cell prep",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b2f1565da1c638798c0f58/page_p_1773334825127_4b0b84ab4ef8a8/block_1/use-of-microscope-1777213459917.display.png",
+          "altText": "Use of microscope",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b2f1565da1c638798c0f58/page_p_1773334825127_4b0b84ab4ef8a8/block_2/onion-cell-view-under-microscope-1774178750933.png",
+          "altText": "Onion Cell view under microscope",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69b3dd4d5da1c638798c7e19",
+      "title": "Cell Division - Chromosomes ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69b3dd4d5da1c638798c7e19/page_p_1773395211519_c92fc8b61e2e/block_1/cell-mitosis-1774027753871.png",
+          "altText": "Cell Mitosis",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69c17315e2fb4b3a234e7363",
+      "title": "Cell specialisation ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 6,
+      "entries": [
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c17315e2fb4b3a234e7363/page_p_1774285468619_ba1126d763dde8/block_4/nerve-cell-1774286825306.png",
+          "altText": "Nerve Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c17315e2fb4b3a234e7363/page_p_1774285468619_ba1126d763dde8/block_6/muscle-cell-1774287139725.png",
+          "altText": "Muscle Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c17315e2fb4b3a234e7363/page_p_1774285468619_ba1126d763dde8/block_7/sperm-cell-1774287282493.png",
+          "altText": "Sperm Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 10,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c17315e2fb4b3a234e7363/page_p_1774285468619_ba1126d763dde8/block_9/root-hair-cell-1774287985075.png",
+          "altText": "Root hair Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c17315e2fb4b3a234e7363/page_p_1774285468619_ba1126d763dde8/block_10/xylem-1774289137770.png",
+          "altText": "Xylem",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c17315e2fb4b3a234e7363/page_p_1774285468619_ba1126d763dde8/block_10/phloem-cell-1774289342134.png",
+          "altText": "Phloem Cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69c3d735817f2d36ab1af5f5",
+      "title": "Stem cells ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c3d735817f2d36ab1af5f5/page_p_1774440222498_52d186586b0198/block_1/stem-cells-table-1774448747317.png",
+          "altText": "Stem cells Table",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c3d735817f2d36ab1af5f5/page_p_1774440222498_52d186586b0198/block_5/cloning-1774475078983.png",
+          "altText": "Cloning",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c3d735817f2d36ab1af5f5/page_p_1774440222498_52d186586b0198/block_7/ethics-of-stem-cells-1774475973717.png",
+          "altText": "Ethics of stem cells",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c3d735817f2d36ab1af5f5/page_p_1774440222498_52d186586b0198/block_8/splant-stem-cells-1774478408297.png",
+          "altText": "SPlant Stem Cells",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69c5832234a75def81bbaead",
+      "title": "Transport in cells - Diffusion ÔÇô Cell Biology (GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 5,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c5832234a75def81bbaead/page_p_1774532538619_58b64deab19d4/block_0/diffusion-1774624105257.png",
+          "altText": "Diffusion",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c5832234a75def81bbaead/page_p_1774532538619_58b64deab19d4/block_1/diffusion-5-1774631665663.png",
+          "altText": "Diffusion 5",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c5832234a75def81bbaead/page_p_1774532538619_58b64deab19d4/block_4/plant-cell-diffusion-2-1774871362814.png",
+          "altText": "Plant cell diffusion 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c5832234a75def81bbaead/page_p_1774532538619_58b64deab19d4/block_4/visking-tube-exp-2-1774870707610.png",
+          "altText": "Visking tube exp 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c5832234a75def81bbaead/page_p_1774532538619_58b64deab19d4/block_4/visking-tube-experiment-1774870765687.png",
+          "altText": "VIsking tube experiment",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69c6bdab1c0ac7d07d6b8817",
+      "title": "Factors that affect diffusion ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c6bdab1c0ac7d07d6b8817/page_p_1774631748833_7600f12a1f60b8/block_1/sav-comparison-1774684387505.png",
+          "altText": "SAV comparison",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c6bdab1c0ac7d07d6b8817/page_p_1774631748833_7600f12a1f60b8/block_1/sav-examples-in-humans-1774687394234.png",
+          "altText": "SAV examples in humans",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69c79eb91c0ac7d07d6bfac5",
+      "title": "Diffusion In Multicelluar organisms ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 5,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1774688373306_9787df9412c45/block_0/diffusion-in-multicellurs-1774689872062.png",
+          "altText": "Diffusion in Multicellurs",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c79eb91c0ac7d07d6bfac5/page_p_1774688373306_9787df9412c45/block_1/diffusion-in-intestine-1774716043619.png",
+          "altText": "Diffusion in Intestine",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c79eb91c0ac7d07d6bfac5/page_p_1774688373306_9787df9412c45/block_2/heart-and-lung-png-4-1774715042836.png",
+          "altText": "Heart and lung.png 4",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c79eb91c0ac7d07d6bfac5/page_p_1774688373306_9787df9412c45/block_2/fish-gills-1-1774818585511.png",
+          "altText": "Fish Gills 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c79eb91c0ac7d07d6bfac5/page_p_1774688373306_9787df9412c45/block_3/leaf-cell-1774729337708.png",
+          "altText": "Leaf cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69c8dac34c2dbc705a4fd195",
+      "title": "Osmosis ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c8dac34c2dbc705a4fd195/page_p_1774769657171_10341ff0be0de8/block_1/osmosis-1774790085734.png",
+          "altText": "Osmosis",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c8dac34c2dbc705a4fd195/page_p_1774769657171_10341ff0be0de8/block_1/solution-concentration-1774793145734.png",
+          "altText": "Solution concentration",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c8dac34c2dbc705a4fd195/page_p_1774769657171_10341ff0be0de8/block_1/water-potental-1774797504074.png",
+          "altText": "Water Potental",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69c8dac34c2dbc705a4fd195/page_p_1774769657171_10341ff0be0de8/block_3/osmosis-in-plants-png-2-1774804448058.png",
+          "altText": "Osmosis in plants.png 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69ca7331daf14e69a015070a",
+      "title": "Required Practical: Osmosis ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ca7331daf14e69a015070a/page_p_1774871448965_8365845394e37/block_1/osmosis-3-1775470720077.display.png",
+          "altText": "Osmosis 3",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ca7331daf14e69a015070a/page_p_1774871448965_8365845394e37/block_3/osmosis-practical-1775479877542.display.png",
+          "altText": "Osmosis practical",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69cac401daf14e69a0166189",
+      "title": "Active transport ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1774893295716_876a4c81bd93d8/block_0/active-transport-ant-1774894541115.png",
+          "altText": "Active transport Ant",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1774893295716_876a4c81bd93d8/block_1/active-trans-port-1774895050970.png",
+          "altText": "Active trans port",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1774893295716_876a4c81bd93d8/block_2/comparison-of-transport-mechanism-1774895853896.png",
+          "altText": "Comparison of transport mechanism",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69cad9bcdaf14e69a016abe8",
+      "title": "Transport summary and applications ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cad9bcdaf14e69a016abe8/page_p_1774896872696_c3642f7fb7a4f8/block_0/comparison-of-transport-mechanism-1774941764115.png",
+          "altText": "Comparison of transport mechanism",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cad9bcdaf14e69a016abe8/page_p_1774896872696_c3642f7fb7a4f8/block_0/active-transport-3-1774943158143.png",
+          "altText": "Active transport 3",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        }
+      ]
+    },
+    {
+      "id": "69cbe65d3c22db841301332b",
+      "title": "Principles of organisation ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cbe65d3c22db841301332b/page_p_1774958013920_865f03c984211/block_0/organisation-1774979744412.png",
+          "altText": "Organisation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cbe65d3c22db841301332b/page_p_1774958013920_865f03c984211/block_1/organisation-chain-1-1775464724680.display.png",
+          "altText": "Organisation chain 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cbe65d3c22db841301332b/page_p_1774958013920_865f03c984211/block_1/cells-to-tissues-1774972890283.png",
+          "altText": "Cells to tissues",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cbe65d3c22db841301332b/page_p_1774958013920_865f03c984211/block_1/tissue-to-organ-1774980204905.png",
+          "altText": "Tissue to organ",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69cc3e5b3c22db841301a0eb",
+      "title": "Digestive system ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cc3e5b3c22db841301a0eb/page_p_1774980929623_e59818eda7ad28/block_0/organisation-chain-1-1775422219473.display.png",
+          "altText": "Organisation chain 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cc3e5b3c22db841301a0eb/page_p_1774980929623_e59818eda7ad28/block_1/diagestive-system-1775027911506.png",
+          "altText": "Diagestive system",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cc3e5b3c22db841301a0eb/page_p_1774980929623_e59818eda7ad28/block_3/enzyme-digestion-1774995076242.png",
+          "altText": "Enzyme digestion",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "keyIdea",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cc3e5b3c22db841301a0eb/page_p_1774980929623_e59818eda7ad28/block_6/summary-digestive-system-png-2-1775463847912.display.png",
+          "altText": "Summary Digestive system.png 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "finalMemoryRule"
+        }
+      ]
+    },
+    {
+      "id": "69ccce683c22db84130202b7",
+      "title": "Enzymes ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 7,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_1/enzyme-substrate-1775037206470.png",
+          "altText": "Enzyme substrate",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_2/lock-and-key-1775033167270.png",
+          "altText": "Lock and Key",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_2/enzyme-substrate-png-3-1775037051516.png",
+          "altText": "Enzyme substrate.png 3",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_3/enzynes-temprature-1775040304707.png",
+          "altText": "Enzynes & Temprature",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_3/enzyme-tem-graph-1775054343800.png",
+          "altText": "Enzyme tem Graph",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_4/enzyme-ph-image-1775060184867.png",
+          "altText": "Enzyme PH image",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ccce683c22db84130202b7/page_p_1775028505699_2a6d9ac49b3c2/block_5/enzyme-metabolism-summary-1-1775061184563.png",
+          "altText": "Enzyme metabolism summary 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "finalMemoryRule"
+        }
+      ]
+    },
+    {
+      "id": "69cfa31d173195fad51a6009",
+      "title": "Required Practical: Enzymes ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cfa31d173195fad51a6009/page_p_1775213878146_6fb2474a2e8c08/block_0/engyme-sustrate-reaction-1775397767782.display.png",
+          "altText": "Engyme Sustrate reaction",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cfa31d173195fad51a6009/page_p_1775213878146_6fb2474a2e8c08/block_1/enzyme-required-practical-1775387483468.display.png",
+          "altText": "Enzyme required practical",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cfa31d173195fad51a6009/page_p_1775213878146_6fb2474a2e8c08/block_1/amylase-ph-expriment-1775397850848.display.png",
+          "altText": "Amylase pH expriment",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69cfa31d173195fad51a6009/page_p_1775213878146_6fb2474a2e8c08/block_3/denatured-enzymes-2-1775408007456.display.png",
+          "altText": "Denatured enzymes 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69d3d837a674b9e6d5688105",
+      "title": "Stomach ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1775487150845_f27f1eebfa605/block_0/organisation-chain-stomach-1775490892186.display.png",
+          "altText": "Organisation chain - Stomach",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d3d837a674b9e6d5688105/page_p_1775487150845_f27f1eebfa605/block_2/mechnical-digestion-1-1775546126708.display.png",
+          "altText": "Mechnical digestion 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69d50705a674b9e6d5691dda",
+      "title": "Digestive system ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d50705a674b9e6d5691dda/page_p_1775567985124_60c38674a166d/block_1/digestive-system-1775569155482.display.png",
+          "altText": "Digestive system",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d50705a674b9e6d5691dda/page_p_1775567985124_60c38674a166d/block_2/from-food-to-waste-1-1775581789202.display.png",
+          "altText": "From food to waste 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d50705a674b9e6d5691dda/page_p_1775567985124_60c38674a166d/block_4/digestive-system-key-words-1775581418310.display.png",
+          "altText": "Digestive system Key words",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69d5495aa674b9e6d56a40de",
+      "title": "Heart ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 6,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d5495aa674b9e6d56a40de/page_p_1775584365903_5bd0afb71477c/block_1/the-heart-1775724955967.display.png",
+          "altText": "The Heart",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d5495aa674b9e6d56a40de/page_p_1775584365903_5bd0afb71477c/block_2/haert-labelled-1775811210742.display.png",
+          "altText": "Haert Labelled",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d5495aa674b9e6d56a40de/page_p_1775584365903_5bd0afb71477c/block_3/heart-and-lung-1775812702900.display.png",
+          "altText": "Heart and lung",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d5495aa674b9e6d56a40de/page_p_1775584365903_5bd0afb71477c/block_4/heart-outside-1775818317905.display.png",
+          "altText": "Heart outside",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d5495aa674b9e6d56a40de/page_p_1775584365903_5bd0afb71477c/block_5/heart-rate-1775819881422.display.png",
+          "altText": "Heart rate",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69d5495aa674b9e6d56a40de/page_p_1775584365903_5bd0afb71477c/block_6/pacemaker-1-1775822479806.display.png",
+          "altText": "Pacemaker 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69da43553074a5de7c721cd4",
+      "title": "Circulatory system ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 8,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1775910112894_d4e382c24a17b8/block_0/cell-and-diffusion-1775911744830.display.png",
+          "altText": "Cell and diffusion",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_1/circulatory-system-1775912774134.display.png",
+          "altText": "Circulatory system",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_2/haert-labelled-1775917365239.display.png",
+          "altText": "Haert Labelled",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_3/circulatory-system-1-1775917513669.display.png",
+          "altText": "Circulatory system 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_4/artery-vein-cap-1775976202446.display.png",
+          "altText": "Artery vein Cap",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_5/artery-structure-1775976912993.display.png",
+          "altText": "Artery Structure",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_7/blood-structure-1775979250188.display.png",
+          "altText": "Blood structure",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69da43553074a5de7c721cd4/page_p_1775910112894_d4e382c24a17b8/block_8/blood-cell-type-1775980472241.display.png",
+          "altText": "Blood cell type",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69dccded90aac5ca1279edec",
+      "title": "Coronary heart disease ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 1,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1776075262176_cb1fd66b3f22/block_0/chd3-1776078301584.display.png",
+          "altText": "CHD3",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": ""
+        },
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69dccded90aac5ca1279edec/page_p_1776075262176_cb1fd66b3f22/block_1/chd4-1776078971697.display.png",
+          "altText": "CHD4",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69dccded90aac5ca1279edec/page_p_1776075262176_cb1fd66b3f22/block_2/chd5-1776079260739.display.png",
+          "altText": "CHD5",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69dccded90aac5ca1279edec/page_p_1776075262176_cb1fd66b3f22/block_3/chd-6-1776079538273.display.png",
+          "altText": "CHD 6",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69e294f5a258f4a437ab2f38",
+      "title": "Non-communicable diseases ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1776455962445_63efd2d6f68dd/block_2/chd3-1776456612543.display.png",
+          "altText": "CHD3",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e294f5a258f4a437ab2f38/page_p_1776455962445_63efd2d6f68dd/block_5/smoking-and-chd-1776491742212.display.png",
+          "altText": "Smoking and CHD",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e294f5a258f4a437ab2f38/page_p_1776455962445_63efd2d6f68dd/block_6/diet-and-chd-1776495880160.display.png",
+          "altText": "Diet and CHD",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69e3905955b1e51c1c45d04b",
+      "title": "Cancer ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1776514697879_032bcdbcc86d38/block_2/cancer-1776519774396.display.png",
+          "altText": "Cancer",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/teacher_teacher_unknown/lesson_new/page_p_1776514697879_032bcdbcc86d38/block_3/cancer-2-1776521244242.display.png",
+          "altText": "Cancer 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3905955b1e51c1c45d04b/page_p_1776514697879_032bcdbcc86d38/block_5/cancer-3-1776521437633.display.png",
+          "altText": "Cancer 3",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69e3a6e555b1e51c1c4712d8",
+      "title": "Health and disease ÔÇô Data and Lifestyle Factors (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3a6e555b1e51c1c4712d8/page_p_1776523707513_7aaeec8bec89d/block_2/correlation-curve-1776528362607.display.png",
+          "altText": "Correlation Curve",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3a6e555b1e51c1c4712d8/page_p_1776523707513_7aaeec8bec89d/block_5/smoking-1776528446509.display.png",
+          "altText": "Smoking",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3a6e555b1e51c1c4712d8/page_p_1776523707513_7aaeec8bec89d/block_6/smokers-v-non-smokers-1776528497568.display.png",
+          "altText": "Smokers V non-smokers",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69e3f83a55b1e51c1c48f22c",
+      "title": "Transport in plants ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 7,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776544134328_e5b18922e0148/block_1/plant-direction-of-water-food-1776616170098.display.png",
+          "altText": "Plant - direction of water & food.",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776544134328_e5b18922e0148/block_2/xylem-1776618188072.display.png",
+          "altText": "Xylem",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776544134328_e5b18922e0148/block_3/phloem-1776618607224.display.png",
+          "altText": "Phloem",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776544134328_e5b18922e0148/block_5/translocation-6-1776956969998.display.png",
+          "altText": "Translocation 6",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 15,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776937804928_475012ff3fadb8/block_2/translocation-1-1776947611578.display.png",
+          "altText": "Translocation 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 17,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776937804928_475012ff3fadb8/block_4/translocation-2-1776947972605.display.png",
+          "altText": "Translocation 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 20,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69e3f83a55b1e51c1c48f22c/page_p_1776937804928_475012ff3fadb8/block_7/transpiration-6-1776959945684.display.png",
+          "altText": "Transpiration 6",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69ea4a59d861d0e167564709",
+      "title": "Required Practical: Plant transport ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ea4a59d861d0e167564709/page_p_1776961719810_fb0310935c6368/block_1/transpiration-8-1777023987662.display.png",
+          "altText": "Transpiration 8",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ea4a59d861d0e167564709/page_p_1776961719810_fb0310935c6368/block_5/translocation-1-png-bubble-setup-1777025515697.display.png",
+          "altText": "Translocation 1.png Bubble setup",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ea4a59d861d0e167564709/page_p_1776961719810_fb0310935c6368/block_8/transpiration-effect-of-airflow-1-1777024731174.display.png",
+          "altText": "Transpiration - effect of airflow 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69eb5617f4503aa9e240a741",
+      "title": "AQA- GCSE                                                           Transpiration and stomata ÔÇô Organisation",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69eb5617f4503aa9e240a741/page_p_1777030062992_aaa9e650423d5/block_2/leaf-cross-section-1777032205881.display.png",
+          "altText": "Leaf Cross-section",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69eb5617f4503aa9e240a741/page_p_1777030062992_aaa9e650423d5/block_3/stomat-close-open-1777036379616.display.png",
+          "altText": "Stomat Close open",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69eb5617f4503aa9e240a741/page_p_1777030062992_aaa9e650423d5/block_6/transpiration-stream-1777032897020.display.png",
+          "altText": "Transpiration Stream",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69eb5617f4503aa9e240a741/page_p_1777030062992_aaa9e650423d5/block_10/potometer-setup-png-1-1777036185417.display.png",
+          "altText": "Potometer Setup.png 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69ebc7d9f4503aa9e243cfc1",
+      "title": "Plant cell organisation ÔÇô Organisation (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 2,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ebc7d9f4503aa9e243cfc1/page_p_1777059345133_c231120bad2968/block_1/plant-cell-organisation-simple-stair-case-style-1777147232716.display.png",
+          "altText": "Plant Cell organisation Simple stair case style",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ebc7d9f4503aa9e243cfc1/page_p_1777059345133_c231120bad2968/block_3/plant-cell-organisation-whole-plant-with-key-labels-1777147584816.display.png",
+          "altText": "Plant Cell organisation Whole Plant with key labels.",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ebc7d9f4503aa9e243cfc1/page_p_1777059345133_c231120bad2968/block_5/leaf-structure-cross-section-1777148058706.display.png",
+          "altText": "Leaf Structure - Cross section",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 7,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ebc7d9f4503aa9e243cfc1/page_p_1777059345133_c231120bad2968/block_6/vascular-bundle-1777149197309.display.png",
+          "altText": "Vascular Bundle",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69ef153e2267af49500b3003",
+      "title": "Cell structure ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ef153e2267af49500b3003/page_p_1777275745378_2a8a7c611308e8/block_3/eukarotic-and-prokaryotic-comparison-1778239714905.display.png",
+          "altText": "Eukarotic and prokaryotic comparison",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ef153e2267af49500b3003/page_p_1777275745378_2a8a7c611308e8/block_7/microscope-magnification-1778233692266.display.png",
+          "altText": "Microscope magnification",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 11,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69ef153e2267af49500b3003/page_p_1777275745378_2a8a7c611308e8/block_10/micrograph-animal-cell-1778236526146.display.png",
+          "altText": "Micrograph animal cell",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69f092e851b264f7ab5b6043",
+      "title": "Mitosis and the cell cycle ÔÇô Cell Biology (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 9,
+      "entries": [
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_7/cell-cycle-1-1777446048540.display.png",
+          "altText": "Cell Cycle 1",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 13,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_12/calculating-cell-cycle-equation-png2-1777456139768.display.png",
+          "altText": "Calculating Cell cycle equation.png2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 14,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_12/cell-clock-1777457284782.display.png",
+          "altText": "Cell Clock",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 15,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_13/the-cell-clock-1777460257164.display.png",
+          "altText": "The Cell Clock",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 18,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_17/counting-cells-2-1777475310283.display.png",
+          "altText": "Counting Cells 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 19,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_16/counting-in-microscope-field-1777457789980.display.png",
+          "altText": "Counting in Microscope field",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 28,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_27/stem-cell-potentail-1777469973207.display.png",
+          "altText": "Stem Cell Potentail",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 29,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_26/cloning-therapeutic-benefits-1777472641003.display.png",
+          "altText": "Cloning - therapeutic Benefits",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 30,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f092e851b264f7ab5b6043/page_p_1777372218055_4a258f4a2bd39/block_27/cloning-in-plants-1777474061028.display.png",
+          "altText": "Cloning in Plants",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69f2f9e1d7c671bc79a3e12a",
+      "title": "Communicable disease ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f2f9e1d7c671bc79a3e12a/page_p_1777527944060_123fa1a0e8e5b/block_3/vector-groups-1777562277995.display.png",
+          "altText": "Vector groups",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f2f9e1d7c671bc79a3e12a/page_p_1777527944060_123fa1a0e8e5b/block_3/pathogen-spread-1777532182416.display.png",
+          "altText": "Pathogen Spread",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f2f9e1d7c671bc79a3e12a/page_p_1777527944060_123fa1a0e8e5b/block_5/disease-prevention-png-2-1777534452890.display.png",
+          "altText": "Disease Prevention.png 2",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 9,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f2f9e1d7c671bc79a3e12a/page_p_1777527944060_123fa1a0e8e5b/block_6/disease-spreading-in-populations-1777535779601.display.png",
+          "altText": "Disease Spreading in populations",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69f43dee7e06908a2ea0f150",
+      "title": "Viral diseases ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69f43dee7e06908a2ea0f150/page_p_1777613891458_23cc16fda2025/block_7/viral-infection-1777648144169.display.png",
+          "altText": "Viral infection",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69fae95d58ed600aac7873f2",
+      "title": "Fungal and protist diseases ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69fae95d58ed600aac7873f2/page_p_1778046858898_6cd6ba137cbfd8/block_3/fungal-disease-in-plants-1778149813953.display.png",
+          "altText": "Fungal disease in plants",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69fdf3aec73c9d24005619b6",
+      "title": "Human defence systems ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69fdf3aec73c9d24005619b6/page_p_1778249079037_70a38c0dbbaab/block_3/non-specific-defense-1778517855141.display.png",
+          "altText": "Non specific defense",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69fdf3aec73c9d24005619b6/page_p_1778249079037_70a38c0dbbaab/block_4/specicic-iommune-response-1778523011355.display.png",
+          "altText": "Specicic iommune response",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "69fe244cb22e644210912486",
+      "title": "Vaccination ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 3,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69fe244cb22e644210912486/page_p_1778263065777_4ad5b33cf9baa8/block_3/vaccination-1778510771121.display.png",
+          "altText": "Vaccination",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69fe244cb22e644210912486/page_p_1778263065777_4ad5b33cf9baa8/block_3/vaccinate-population-1778505469603.display.png",
+          "altText": "Vaccinate population",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_69fe244cb22e644210912486/page_p_1778263065777_4ad5b33cf9baa8/block_4/immunity-and-vaccination-1778512159212.display.png",
+          "altText": "Immunity and vaccination",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a021cb66f9cf0d2c2e60465",
+      "title": "Antibiotics and painkillers ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 4,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a021cb66f9cf0d2c2e60465/page_p_1778523238906_cb6203d0adbe/block_3/graph-on-intro-of-antibiotics-1778590413013.display.png",
+          "altText": "Graph on intro of antibiotics",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a021cb66f9cf0d2c2e60465/page_p_1778523238906_cb6203d0adbe/block_3/pennicillin-effect-1778569959130.display.png",
+          "altText": "Pennicillin effect",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a021cb66f9cf0d2c2e60465/page_p_1778523238906_cb6203d0adbe/block_7/antibiotic-resistance-1778590524285.display.png",
+          "altText": "Antibiotic resistance",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 10,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a021cb66f9cf0d2c2e60465/page_p_1778523238906_cb6203d0adbe/block_9/practical-effect-of-antibiotics-1778601123482.display.png",
+          "altText": "Practical - effect of antibiotics",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a0420828e701b867f09d200",
+      "title": "Drug development ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 8,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a0420828e701b867f09d200/page_p_1778655318227_6216e2bceead4/block_7/drug-development-1778661477846.display.png",
+          "altText": "Drug development",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a044bcf8e701b867f0d26cf",
+      "title": "Monoclonal antibodies-PRODUCTION ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a044bcf8e701b867f0d26cf/page_p_1778666339122_f406979fa12588/block_3/monoclonal-production-1778668762167.display.png",
+          "altText": "Monoclonal production",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a05b3a9ca8598555b149890",
+      "title": "Monoclonal antibodies - Uses ÔÇô Infection and Response (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 4,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a05b3a9ca8598555b149890/page_p_1778753724032_cf9fa95a46ac6/block_3/pregnancy-test-1778766520763.display.png",
+          "altText": "Pregnancy test",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a06d505ca8598555b16d5d1",
+      "title": "Plant disease ÔÇô Detection and Identification of Plant Diseases (AQA GCSE)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 3,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a06d505ca8598555b16d5d1/page_p_1778831131789_af80efb3d90a68/block_3/plant-disease-1778834473056.display.png",
+          "altText": "pLANT DISEASE",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a0ac71028a7004bd255f686",
+      "title": "Biology ÔÇö Photosynthetic Reaction (AQA GCSE Biology) (Higher Tier)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a0ac71028a7004bd255f686/page_p_1779091157497_ef78eb456843d8/block_4/photosynthesis-the-concept-1779134064884.display.png",
+          "altText": "Photosynthesis the concept",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a0ac71028a7004bd255f686/page_p_1779091157497_ef78eb456843d8/block_4/photosynthesis-equation-1779133270640.display.png",
+          "altText": "Photosynthesis equation",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a11d4c2f29f858fa99810f2",
+      "title": "Biology - Aerobic & Anaerobic Respiration (AQA GCSE Biology) (Higher Tier)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/celluar-respiration-1779554001947.display.png",
+          "altText": "Celluar respiration",
+          "blockTitle": "CORE LEARNING",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11d4c2f29f858fa99810f2/page_p_1779553471959_d6b2235c555e88/block_4/arobic-v-anerobic-1779558633529.display.png",
+          "altText": "Arobic V anerobic",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a11f656f29f858fa9995c56",
+      "title": "Biology ÔÇö Metabolism (AQA GCSE Biology) (Higher Tier)",
+      "hasDiagramBlock": false,
+      "embeddedCount": 2,
+      "entries": [
+        {
+          "blockNumber": 5,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_4/metabolism-defined-1779562532465.display.png",
+          "altText": "Metabolism defined",
+          "blockTitle": "CORE LEARNING",
+          "subtitle": "",
+          "role": "concept"
+        },
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a11f656f29f858fa9995c56/page_p_1779562068420_be581ee173405/block_5/map-of-metabolism-1779562502602.display.png",
+          "altText": "Map of metabolism",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    },
+    {
+      "id": "6a12fd9fc2b860c3113e5bd6",
+      "title": "Biology ÔÇö Response to exercise ÔÇô Bioenergetics (AQA GCSE) (Higher Tier)",
+      "hasDiagramBlock": true,
+      "embeddedCount": 1,
+      "entries": [
+        {
+          "blockNumber": 6,
+          "blockType": "text",
+          "imageUrl": "https://dyjiwezataxahbpuxjhz.supabase.co/storage/v1/object/public/lesson-media/lesson_6a12fd9fc2b860c3113e5bd6/page_p_1779629466959_605958b18239a8/block_5/exercise-cycle-1779703905450.display.png",
+          "altText": "Exercise cycle",
+          "blockTitle": "",
+          "subtitle": "",
+          "role": "concept"
+        }
+      ]
+    }
+  ]
+}

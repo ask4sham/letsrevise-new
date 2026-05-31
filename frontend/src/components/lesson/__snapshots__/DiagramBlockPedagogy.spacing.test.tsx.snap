@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DiagramBlockPedagogy spacing regression matches compact spacing contract snapshot 1`] = `
+Object {
+  "captionTop": "8px",
+  "mediaToTask": "16px",
+  "taskParagraphGap": "8px",
+  "taskToReveal": "12px",
+  "titleToMedia": "14px",
+}
+`;
+
+exports[`DiagramBlockPedagogy spacing regression metabolism diagram block uses compact layout snapshot 1`] = `
+Object {
+  "order": Array [
+    "media",
+    "task",
+    "reveal",
+  ],
+  "spacing": Object {
+    "captionTop": "8px",
+    "mediaToTask": "16px",
+    "taskParagraphGap": "8px",
+    "taskToReveal": "12px",
+    "titleToMedia": "14px",
+  },
+}
+`;

@@ -37,6 +37,8 @@ function buildExtras({
   tier,
   autoFixMissingBlocks,
   lessonSuggestions,
+  useLessonGeneratorV2,
+  useLessonGeneratorV3,
 }) {
   const ss1Rules = `Output in numbered LetsRevise lesson sections.
 Do not use the word "BLOCK" in the lesson.
@@ -93,6 +95,34 @@ Before outputting, check whether any required SS1 block is missing.
 If missing, insert it naturally into the lesson before finalising.`;
 }
 
+function buildPlannerExtras({ useLessonGeneratorV2, useLessonGeneratorV3, useLessonGeneratorV4 }) {
+  if (!useLessonGeneratorV2 && !useLessonGeneratorV3 && !useLessonGeneratorV4) return "";
+  const lines = ["", "--- Lesson Generator V2/V3/V4 (prompt guidance for this run) ---"];
+  if (useLessonGeneratorV2) {
+    lines.push(
+      "V2 planner: Use teach→test rhythm — never more than 2 teaching blocks in a row without a checkpoint or activity.",
+      "Place activities immediately after the concept they assess (not all at the end)."
+    );
+  }
+  if (useLessonGeneratorV3) {
+    lines.push(
+      "V3 structure: Include objectives, prior knowledge, scenario/hook, core rule, then teach/checkpoint alternation, exam technique, exam practice, summary, keywords.",
+      "Avoid duplicate checkpoint wording for the same concept."
+    );
+  }
+  if (useLessonGeneratorV4) {
+    lines.push(
+      "V4 teaching: Sound like an outstanding GCSE teacher — hook, prior bridge, WHAT/HOW/WHY for each concept.",
+      "Weave in: Students often write… / AQA expects… / A better answer would be… / Full-mark example…",
+      "Spiral retrieval checkpoints; activities from recall through to exam-style thinking."
+    );
+  }
+  lines.push(
+    "Note: Full V2 blueprint + V3 enforcement + V4 teaching scores run on Teacher Dashboard → Generate lesson with AI (saves via /api/ai/generate-and-save)."
+  );
+  return lines.join("\n");
+}
+
 export default function GeneratorForm({ onResult, onLoading, onLessonContext }) {
   const [subject, setSubject] = useState("Biology");
   const [keyStage, setKeyStage] = useState("KS4 - GCSE");
@@ -102,6 +132,9 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
   const [tier, setTier] = useState("Higher Tier");
   const [autoFixMissingBlocks, setAutoFixMissingBlocks] = useState(true);
   const [polishAfterGeneration, setPolishAfterGeneration] = useState(false);
+  const [useLessonGeneratorV2, setUseLessonGeneratorV2] = useState(false);
+  const [useLessonGeneratorV3, setUseLessonGeneratorV3] = useState(false);
+  const [useLessonGeneratorV4, setUseLessonGeneratorV4] = useState(false);
   const [lessonSuggestions, setLessonSuggestions] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -112,8 +145,19 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
         tier,
         autoFixMissingBlocks,
         lessonSuggestions,
-      }),
-    [qualityMode, tier, autoFixMissingBlocks, lessonSuggestions]
+        useLessonGeneratorV2,
+        useLessonGeneratorV3,
+        useLessonGeneratorV4,
+      }) + buildPlannerExtras({ useLessonGeneratorV2, useLessonGeneratorV3, useLessonGeneratorV4 }),
+    [
+      qualityMode,
+      tier,
+      autoFixMissingBlocks,
+      lessonSuggestions,
+      useLessonGeneratorV2,
+      useLessonGeneratorV3,
+      useLessonGeneratorV4,
+    ]
   );
 
   const showExamBoard = keyStage === "KS4 - GCSE" || keyStage === "A-Level";
@@ -151,6 +195,9 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
           tier: showTier ? tier : "",
           qualificationType: qualificationTypeFromSubject(subject),
           extras,
+          useLessonGeneratorV2: useLessonGeneratorV2 === true,
+          useLessonGeneratorV3: useLessonGeneratorV3 === true,
+          useLessonGeneratorV4: useLessonGeneratorV4 === true,
         }),
       });
 
@@ -309,6 +356,72 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
           </span>
         </span>
       </label>
+
+      <fieldset className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+        <legend className="px-1 text-sm font-semibold text-emerald-900">
+          Lesson planner (V2 / V3)
+        </legend>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={useLessonGeneratorV2}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setUseLessonGeneratorV2(checked);
+              if (!checked) setUseLessonGeneratorV3(false);
+            }}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-semibold text-slate-900">
+              Generate with V2 planner (teach→test journey)
+            </span>
+            <span className="text-slate-600">
+              Adds blueprint-style rules to this run. Full blueprint engine runs on Teacher Dashboard
+              generate-and-save.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={useLessonGeneratorV3}
+            disabled={!useLessonGeneratorV2}
+            onChange={(e) => setUseLessonGeneratorV3(e.target.checked)}
+            className="mt-1 disabled:opacity-50"
+          />
+          <span>
+            <span className="block font-semibold text-slate-900">
+              Enforce structure with V3 (architecture gate before save)
+            </span>
+            <span className="text-slate-600">
+              Requires V2. Structural enforcement applies when saving via Teacher Dashboard
+              (generate-and-save), not this SS1 text export.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={useLessonGeneratorV4}
+            disabled={!useLessonGeneratorV2}
+            onChange={(e) => setUseLessonGeneratorV4(e.target.checked)}
+            className="mt-1 disabled:opacity-50"
+          />
+          <span>
+            <span className="block font-semibold text-slate-900">
+              Teaching intelligence V4 (teacher voice + exam modelling)
+            </span>
+            <span className="text-slate-600">
+              Requires V2. Adds teaching journey and examiner language to the prompt; full scoring on
+              generate-and-save.
+            </span>
+          </span>
+        </label>
+      </fieldset>
 
       <div>
         <label className="mb-2 block text-sm font-medium">Topic</label>

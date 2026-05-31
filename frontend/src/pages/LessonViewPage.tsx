@@ -10,6 +10,8 @@ import {
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { hideBrokenLessonImage, LessonImageFrame, lessonImageFrameImgStyle } from "../components/lesson/LessonImageFrame";
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
+import { LessonDiagramBlockDisplay } from "../components/lesson/LessonDiagramBlockDisplay";
+import { diagramCaptionForDisplayFromBlock } from "../utils/diagramPedagogyDisplay";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import {
   LessonStudentBlockRenderer,
@@ -44,7 +46,11 @@ import { copyBankToLesson } from "../api/flashcardBank";
 import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
-import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import {
+  makeAbsoluteAssetUrl,
+  preprocessMarkdownAssetUrls,
+  resolveUploadedDiagramImageSrc,
+} from "../utils/assetUrl";
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
@@ -2910,26 +2916,36 @@ const LessonViewPage: React.FC = () => {
     );
   };
 
-  const renderDiagramBlock = (block: LessonPageBlock, idx: number) => {
+  const renderDiagramBlock = (
+    block: LessonPageBlock,
+    idx: number,
+    options?: { suppressPedagogyTitle?: boolean }
+  ) => {
     const caption = block.caption ?? "";
     const diagramVariant = block.diagramVariant === "featured" ? "featured" : "standard";
     const rawDiagramUrl = block.imageUrl != null ? String(block.imageUrl) : "";
     if (hasRenderableLessonImageSrc(rawDiagramUrl)) {
-      const src = String(block.imageUrl).startsWith("http")
+      const absoluteSrc = String(block.imageUrl).startsWith("http")
         ? String(block.imageUrl)
         : (makeAbsoluteAssetUrl(String(block.imageUrl)) ?? "");
+      const src = resolveUploadedDiagramImageSrc(absoluteSrc);
       if (hasRenderableLessonImageSrc(src)) {
         const capTrim = typeof caption === "string" ? caption.trim() : "";
         return (
-          <div key={`diagram-${idx}-img`} className="lesson-uploaded-diagram">
-            <img
-              className="lesson-uploaded-diagram__img"
-              src={src}
-              alt={block.alt ?? (capTrim || "Diagram")}
-              onError={hideBrokenLessonImage}
-            />
-            {capTrim ? <p className="lesson-uploaded-diagram__caption">{caption}</p> : null}
-          </div>
+          <LessonDiagramBlockDisplay
+            key={`diagram-${idx}-img`}
+            block={block}
+            suppressPedagogyTitle={options?.suppressPedagogyTitle}
+          >
+            <div className="lesson-uploaded-diagram" data-uploaded-diagram="1">
+              <img
+                className="lesson-uploaded-diagram__img"
+                src={src}
+                alt={block.alt ?? (capTrim || "Diagram")}
+                onError={hideBrokenLessonImage}
+              />
+            </div>
+          </LessonDiagramBlockDisplay>
         );
       }
     }
@@ -2939,17 +2955,22 @@ const LessonViewPage: React.FC = () => {
     const annotations = Array.isArray(block.annotations) ? block.annotations : [];
     const steps = Array.isArray(block.steps) ? block.steps : [];
     return (
-      <DiagramBlockContent
+      <LessonDiagramBlockDisplay
         key={`diagram-${idx}-${visualId}`}
-        visualId={visualId}
-        caption={caption}
-        level={level}
-        mode={mode}
-        annotations={annotations}
-        steps={steps}
-        makeAbsoluteAssetUrl={resolveAssetUrl}
-        variant={diagramVariant}
-      />
+        block={block}
+        showPedagogyCaption={false}
+      >
+        <DiagramBlockContent
+          visualId={visualId}
+          caption={diagramCaptionForDisplayFromBlock(block) ?? ""}
+          level={level}
+          mode={mode}
+          annotations={annotations}
+          steps={steps}
+          makeAbsoluteAssetUrl={resolveAssetUrl}
+          variant={diagramVariant}
+        />
+      </LessonDiagramBlockDisplay>
     );
   };
 

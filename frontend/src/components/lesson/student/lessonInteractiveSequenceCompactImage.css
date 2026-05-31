@@ -1,0 +1,80 @@
+/**
+ * Step-by-step process (interactiveSequence) — compact image lane only.
+ * Does not affect standard uploaded diagrams, drag-drop, hotspot, or catalogue diagrams.
+ */
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__main-column {
+  gap: 14px;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__media-card {
+  align-self: stretch;
+}
+
+[data-visual-block="interactive-sequence"]
+  .interactive-sequence__media-zone[data-interactive-sequence-compact-image="compact-v1"],
+[data-visual-block="interactive-sequence"] .interactive-sequence__media-zone--sized {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 8px 8px 0;
+  box-sizing: border-box;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__media-card {
+  margin-bottom: 0;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__fade-slot--media,
+[data-visual-block="interactive-sequence"] .interactive-sequence__figure {
+  width: 100%;
+  min-height: 0;
+  align-self: stretch;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__figure .lesson-image-card,
+[data-visual-block="interactive-sequence"] .interactive-sequence__figure .lesson-image-card--primary,
+.interactive-sequence__figure .lesson-image-card,
+.interactive-sequence__figure .lesson-image-card--primary {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 4px 6px 0 !important;
+  box-sizing: border-box;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__figure .lesson-image-card.clickable:hover {
+  transform: none;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__image,
+[data-visual-block="interactive-sequence"] .lesson-image-card > img,
+[data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
+.interactive-sequence__image,
+.interactive-sequence__figure .lesson-image-card > img {
+  object-position: top center !important;
+  vertical-align: top;
+}
+
+[data-visual-block="interactive-sequence"] .interactive-sequence__image-placeholder {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: 10px;
+  min-height: min(28vh, 260px);
+}
+
+/* Student SS2: do not vertically centre the section when it holds a step-by-step block */
+[data-lesson-presentation="v12"]
+  .lesson-student-section-chunk--with-media:has([data-visual-block="interactive-sequence"]) {
+  align-items: start !important;
+}
+
+[data-lesson-presentation="v12"]
+  .lesson-student-section-chunk__media:has([data-visual-block="interactive-sequence"]) {
+  align-self: start !important;
+  min-height: 0 !important;
+  height: auto !important;
+}

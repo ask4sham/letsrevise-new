@@ -61,6 +61,10 @@ export type GeneratorExportV1Document = {
   formatVersion: string;
   exportedAt?: string;
   source?: string;
+  teacherBrainInjection?: {
+    injectionCount?: number;
+    injections?: unknown[];
+  };
   lesson?: {
     title?: string;
     subject?: string;
@@ -98,6 +102,11 @@ function generatorImportBlockTitle(record: GeneratorExportV1Block): string {
     String(record.headingTitle ?? record.title ?? "").trim()
   );
   return label;
+}
+
+function importNoteFromPayload(payload: Record<string, unknown>): string | undefined {
+  const note = String(payload.note ?? "").trim();
+  return note || undefined;
 }
 
 function attachBlockNumber(
@@ -412,6 +421,7 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
           ),
           instructions: String(payload.instructions ?? ""),
           pairs,
+          ...(importNoteFromPayload(payload) ? { note: importNoteFromPayload(payload) } : {}),
           ...(resolvedMode === "diagram"
             ? {
                 matchMode: "diagram" as const,
@@ -488,6 +498,7 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
           intro: introMerged,
           imageUrl: String(payload.imageUrl ?? ""),
           hotspots,
+          ...(importNoteFromPayload(payload) ? { note: importNoteFromPayload(payload) } : {}),
         },
         record
       );
@@ -520,14 +531,18 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
           ...(row.testExplanation ? { testExplanation: row.testExplanation } : {}),
         };
       });
-      return {
-        type: "interactiveSequence" as const,
-        content: contentStr,
-        title: String(payload.title ?? title ?? "").trim(),
-        ...(role ? { role } : { role: "sequence" }),
-        intro: introMerged,
-        sequenceSteps,
-      };
+      return attachBlockNumber(
+        {
+          type: "interactiveSequence" as const,
+          content: contentStr,
+          title: String(payload.title ?? title ?? "").trim(),
+          ...(role ? { role } : { role: "sequence" }),
+          intro: introMerged,
+          sequenceSteps,
+          ...(importNoteFromPayload(payload) ? { note: importNoteFromPayload(payload) } : {}),
+        },
+        record
+      );
     }
     case "diagram": {
       const imageUrl = String(payload.imageUrl ?? "").trim();
@@ -541,6 +556,7 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
           ...(imageUrl ? { imageUrl } : {}),
           ...(caption ? { caption } : {}),
           ...(payload.diagramVariant === "featured" ? { diagramVariant: "featured" as const } : {}),
+          ...(importNoteFromPayload(payload) ? { note: importNoteFromPayload(payload) } : {}),
         },
         record
       );

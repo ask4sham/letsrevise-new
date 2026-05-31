@@ -5,10 +5,12 @@ import {
   deriveSequenceTestMeQuestion,
   resolveSequenceTestMeAnswer,
 } from "../../utils/interactiveSequenceTestMe";
+import { resolveLessonStepImageSrc } from "../../utils/assetUrl";
 import { cleanSequenceStepDescription } from "../../utils/cleanSequenceStepDescription";
 import { AssessmentFeedback } from "./AssessmentFeedback";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./interactiveSequenceBlock.css";
+import "./student/lessonInteractiveSequenceCompactImage.css";
 import { LessonRichText } from "./LessonRichText";
 
 export type InteractiveSequenceStep = {
@@ -93,6 +95,11 @@ export function InteractiveSequenceBlock({
     e.currentTarget.blur();
   }, []);
 
+  const resolveStepImage = useCallback(
+    (url: string) => resolveLessonStepImageSrc(resolveImageUrl(url)),
+    [resolveImageUrl]
+  );
+
   const go = useCallback(
     (next: number) => {
       if (list.length === 0) return;
@@ -129,12 +136,12 @@ export function InteractiveSequenceBlock({
     list.forEach((s) => {
       const raw = (s.imageUrl ?? "").trim();
       if (!hasRenderableLessonImageSrc(raw)) return;
-      const resolved = resolveImageUrl(raw);
+      const resolved = resolveStepImage(raw);
       if (!hasRenderableLessonImageSrc(resolved)) return;
       const img = new Image();
       img.src = resolved;
     });
-  }, [list, resolveImageUrl]);
+  }, [list, resolveStepImage]);
 
   const onArrowNav = useCallback(
     (e: React.KeyboardEvent) => {
@@ -266,7 +273,7 @@ export function InteractiveSequenceBlock({
   }
 
   const imgRaw = (step?.imageUrl ?? "").trim();
-  const imgResolved = imgRaw ? resolveImageUrl(imgRaw) : "";
+  const imgResolved = imgRaw ? resolveStepImage(imgRaw) : "";
   const showImg = hasRenderableLessonImageSrc(imgRaw) && hasRenderableLessonImageSrc(imgResolved);
   const hideImagePlaceholder = viewMode === "student" && !showImg;
   const total = list.length;
@@ -295,7 +302,10 @@ export function InteractiveSequenceBlock({
         <div className="interactive-sequence__main-column">
         {!hideImagePlaceholder ? (
         <div className="interactive-sequence__media-card">
-          <div className="interactive-sequence__media-zone interactive-sequence__media-zone--sized">
+          <div
+            className="interactive-sequence__media-zone interactive-sequence__media-zone--sized"
+            data-interactive-sequence-compact-image="compact-v1"
+          >
             <div className="interactive-sequence__fade-slot interactive-sequence__fade-slot--media">
               {showImg ? (
                 <figure className="interactive-sequence__figure">

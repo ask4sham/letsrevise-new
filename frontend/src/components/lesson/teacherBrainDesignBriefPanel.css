@@ -1,0 +1,146 @@
+.lr-teacher-brain-brief {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 2px solid rgba(124, 58, 237, 0.45);
+  background: linear-gradient(180deg, rgba(237, 233, 254, 0.95) 0%, rgba(245, 243, 255, 0.9) 100%);
+  box-shadow: 0 1px 3px rgba(91, 33, 182, 0.12);
+}
+
+.lr-teacher-brain-brief__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+}
+
+.lr-teacher-brain-brief--collapsed .lr-teacher-brain-brief__header {
+  padding-bottom: 10px;
+}
+
+.lr-teacher-brain-brief__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lr-teacher-brain-brief__title {
+  font-weight: 800;
+  color: #5b21b6;
+}
+
+.lr-teacher-brain-brief__kind {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #7c3aed;
+  letter-spacing: 0.01em;
+}
+
+.lr-teacher-brain-brief__badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.15);
+  color: #6d28d9;
+}
+
+.lr-teacher-brain-brief__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.lr-teacher-brain-brief__regenerate,
+.lr-teacher-brain-brief__copy,
+.lr-teacher-brain-brief__toggle {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(124, 58, 237, 0.5);
+  background: #fff;
+  color: #5b21b6;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lr-teacher-brain-brief__regenerate:hover,
+.lr-teacher-brain-brief__copy:hover,
+.lr-teacher-brain-brief__toggle:hover {
+  background: rgba(237, 233, 254, 0.8);
+}
+
+.lr-teacher-brain-brief__copy:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lr-teacher-brain-brief__body {
+  padding: 0 12px 12px;
+  border-top: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.lr-teacher-brain-brief__pre {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #312e81;
+}
+
+.lr-teacher-brain-teacher-note {
+  margin-top: 12px;
+}
+
+.lr-teacher-brain-teacher-note__label {
+  font-weight: 800;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.lr-teacher-brain-teacher-note__hint {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.lr-teacher-brain-brief--missing {
+  padding: 10px 12px;
+  border-style: dashed;
+  background: rgba(245, 243, 255, 0.65);
+}
+
+.lr-teacher-brain-brief__missing-text {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #5b21b6;
+}
+
+.lr-teacher-brain-brief__inject-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(124, 58, 237, 0.5);
+  background: #fff;
+  color: #5b21b6;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lr-teacher-brain-brief__inject-btn:hover:not(:disabled) {
+  background: rgba(237, 233, 254, 0.8);
+}
+
+.lr-teacher-brain-brief__inject-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`uploaded diagram activity layout keeps block heading to image margin chain under 20px 1`] = `8`;
+
+exports[`uploaded diagram activity layout matches compact uploaded activity spacing contract snapshot 1`] = `
+Object {
+  "blockHeadingMarginBottom": "0px",
+  "diagramSlotMarginTop": "0px",
+  "headingToImageMaxPx": 20,
+  "shellFlexGap": "8px",
+}
+`;

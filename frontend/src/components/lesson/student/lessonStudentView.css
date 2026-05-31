@@ -1,4 +1,5 @@
 @import url("../lessonUploadedDiagram.css");
+@import url("./lessonUploadedDiagramActivity.css");
 
 /**
  * SS2-style V12 lesson — composition, authority, chunked scan path.
@@ -699,6 +700,8 @@ h1.lesson-view-title-split .lesson-title-main {
   padding: 0 !important;
   border: none !important;
 }
+
+/* Default SS1 heading rhythm; uploaded diagram activities tighten further in lessonUploadedDiagramActivity.css */
 
 [data-lesson-presentation="v12"] .lesson-student-header {
   padding-bottom: 0;
@@ -1786,6 +1789,8 @@ h1.lesson-view-title-split .lesson-title-main {
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card--primary {
   width: 100% !important;
   max-width: 100% !important;
+  margin: 0 !important;
+  padding: 4px 6px 0 !important;
 }
 
 [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card > img,
@@ -1797,6 +1802,7 @@ h1.lesson-view-title-split .lesson-title-main {
   height: auto !important;
   margin: 0 !important;
   object-fit: contain !important;
+  object-position: top center !important;
 }
 
 @media (min-width: 900px) {
@@ -1804,6 +1810,7 @@ h1.lesson-view-title-split .lesson-title-main {
   [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .lesson-image-card picture > img,
   [data-lesson-presentation="v12"] [data-visual-block="interactive-sequence"] .interactive-sequence__image {
     max-height: min(58vh, 620px) !important;
+    object-position: top center !important;
   }
 }
 
@@ -1894,4 +1901,25 @@ h1.lesson-view-title-split .lesson-title-main {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+}
+
+/*
+ * Uploaded diagram activities (imageUrl) — end of sheet so we beat ss2 image-only + visual-block img caps.
+ * Scoped to .lesson-uploaded-diagram__img only (not catalogue / interactive / sequence / drag-drop).
+ */
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img):not(:has(.lesson-image-card)) .lesson-uploaded-diagram__img {
+  width: auto !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  object-fit: unset !important;
+}
+
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img),
+[data-lesson-presentation="v12"] .lesson-student-main-card .lesson-student-page-body [id^="block-"] > .lesson-uploaded-diagram-activity-shell {
+  margin: 0 !important;
+  text-align: left !important;
+  min-height: 0 !important;
+  height: auto !important;
 }

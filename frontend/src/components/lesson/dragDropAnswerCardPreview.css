@@ -1,0 +1,145 @@
+/* Scoped answer-card magnify — diagram DDM bank + optional TTI concept cards only */
+
+.ddm-answer-preview__wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.ddm-answer-preview__zoom-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #334155;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+}
+
+.ddm-answer-preview__zoom-btn:hover,
+.ddm-answer-preview__zoom-btn:focus-visible {
+  background: #eef2ff;
+  border-color: rgba(99, 102, 241, 0.35);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+.ddm-answer-preview__popover {
+  position: fixed;
+  z-index: 10050;
+  transform: translateX(-50%);
+  max-width: min(380px, calc(100vw - 24px));
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+}
+
+.ddm-answer-preview__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.ddm-answer-preview__dialog {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: min(88vh, 640px);
+  overflow: auto;
+  padding: 20px 18px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #ffffff;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22);
+}
+
+.ddm-answer-preview__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.ddm-answer-preview__img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(320px, 100%);
+  max-height: min(320px, 52vh);
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #f8fafc;
+}
+
+.ddm-answer-preview__text {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.45;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.ddm-answer-preview__popover .ddm-answer-preview__text {
+  font-size: 1rem;
+}
+
+.ddm-answer-preview__sr-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ddm-answer-preview__close {
+  display: block;
+  margin: 14px auto 0;
+  padding: 8px 18px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ddm-answer-preview__close:hover,
+.ddm-answer-preview__close:focus-visible {
+  background: #e2e8f0;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+@media (max-width: 767px) {
+  .ddm-answer-preview__popover {
+    display: none;
+  }
+}

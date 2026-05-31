@@ -49,7 +49,26 @@ const {
   v6TokenSetForOverlap,
   v6JaccardSimilarity,
 } = require("../services/lessonDraftValidation");
-const { scoreLessonQuality } = require("../lib/lessonQualityScoring");
+const { scoreLessonQuality, getLessonQualityBand } = require("../lib/lessonQualityScoring");
+const {
+  planLessonV2,
+  mergeV2IntoAdditionalInstructions,
+  resolveV2Enabled,
+  refactorExistingLesson,
+  runBlueprintDiagnostics,
+} = require("../services/lessonGeneratorV2Service");
+const {
+  resolveV3Enabled,
+  applyV3BeforeExport,
+  runLessonArchitectureDiagnostics,
+} = require("../services/lessonGeneratorV3Service");
+const {
+  resolveV4Enabled,
+  mergeV4IntoAdditionalInstructions,
+  buildV4PromptForBlueprint,
+  applyV4AfterGeneration,
+} = require("../services/lessonGeneratorV4Service");
+const { applyTeacherBrainBriefInjection } = require("../services/teacherBrainInjectionService");
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -5284,6 +5303,77 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
     const thinCoverage = specPoints.length === 0;
 
+    const useLessonGeneratorV2 = req.body?.useLessonGeneratorV2 === true;
+    const v2Enabled = resolveV2Enabled({ requestFlag: useLessonGeneratorV2 });
+    let lessonBlueprintV2 = null;
+    let blueprintDiagnostics = null;
+    let instructionsForGeneration = additionalInstructions;
+
+    if (v2Enabled) {
+      const v2Plan = planLessonV2(
+        {
+          topic: subTopicDisplay || topic,
+          subject,
+          board,
+          tier,
+          topicKey: canonicalTopicKey,
+          durationTier: safeStr(req.body?.durationTier, "standard") || "standard",
+        },
+        { requestFlag: true }
+      );
+      lessonBlueprintV2 = v2Plan.blueprint;
+      instructionsForGeneration = mergeV2IntoAdditionalInstructions(
+        additionalInstructions,
+        v2Plan.promptAppendix
+      );
+      if (process.env.NODE_ENV !== "production") {
+        blueprintDiagnostics = v2Plan.diagnostics || runBlueprintDiagnostics(lessonBlueprintV2);
+        console.log("[generate-and-save] Lesson Generator V2 blueprint:", {
+          archetype: lessonBlueprintV2?.lessonArchetype,
+          steps: lessonBlueprintV2?.learningJourney?.length,
+        });
+      }
+    }
+
+    const useLessonGeneratorV4 = req.body?.useLessonGeneratorV4 === true;
+    const v4Enabled = resolveV4Enabled({ requestFlag: useLessonGeneratorV4 });
+    if (v4Enabled && lessonBlueprintV2) {
+      instructionsForGeneration = mergeV4IntoAdditionalInstructions(
+        instructionsForGeneration,
+        buildV4PromptForBlueprint(lessonBlueprintV2, {
+          tier,
+          subject,
+          topic: subTopicDisplay || topic,
+          examBoard: board,
+        })
+      );
+    } else if (v4Enabled && !lessonBlueprintV2) {
+      const v4Blueprint =
+        planLessonV2(
+          {
+            topic: subTopicDisplay || topic,
+            subject,
+            board,
+            tier,
+            topicKey: canonicalTopicKey,
+            durationTier: safeStr(req.body?.durationTier, "standard") || "standard",
+          },
+          { requestFlag: true }
+        ).blueprint || null;
+      if (v4Blueprint) {
+        lessonBlueprintV2 = lessonBlueprintV2 || v4Blueprint;
+        instructionsForGeneration = mergeV4IntoAdditionalInstructions(
+          instructionsForGeneration,
+          buildV4PromptForBlueprint(v4Blueprint, {
+            tier,
+            subject,
+            topic: subTopicDisplay || topic,
+            examBoard: board,
+          })
+        );
+      }
+    }
+
     // ✅ 2) Generate AI draft (sanitized) with sub-topic scope guardrails
     let sanitized = (await generateSanitizedDraft({
       topic,
@@ -5297,7 +5387,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       topicKey: canonicalTopicKey,
       requiredKeywords,
       requiredMisconceptions,
-      additionalInstructions,
+      additionalInstructions: instructionsForGeneration,
       strictSpec,
       retainTeachingIntentMetadata,
       teachingIntentTagOnly,
@@ -5498,15 +5588,135 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
-    const pagesPromoted = promoteHeroOnLesson({ pages: pagesMerged }).pages;
+    let pagesPromoted = promoteHeroOnLesson({ pages: pagesMerged }).pages;
+
+    const useLessonGeneratorV3 = req.body?.useLessonGeneratorV3 === true;
+    const v3Enabled = resolveV3Enabled({ requestFlag: useLessonGeneratorV3 });
+    let lessonGeneratorV3Result = null;
+    let architectureDiagnostics = null;
+
+    if (v3Enabled) {
+      const blueprintForV3 =
+        lessonBlueprintV2 ||
+        planLessonV2(
+          {
+            topic: subTopicDisplay || topic,
+            subject,
+            board,
+            tier,
+            topicKey: canonicalTopicKey,
+            durationTier: safeStr(req.body?.durationTier, "standard") || "standard",
+          },
+          { requestFlag: v2Enabled || true }
+        ).blueprint;
+
+      lessonGeneratorV3Result = applyV3BeforeExport(pagesPromoted, blueprintForV3, {
+        strict: req.body?.lessonGeneratorV3Strict !== false,
+      });
+      pagesPromoted = lessonGeneratorV3Result.pages;
+
+      if (lessonGeneratorV3Result.qualityGate?.blockExport) {
+        const diag =
+          process.env.NODE_ENV !== "production"
+            ? lessonGeneratorV3Result.diagnostics
+            : null;
+        return res.status(422).json({
+          error: "Lesson architecture quality gate failed",
+          details: lessonGeneratorV3Result.qualityGate.failures.join("; "),
+          flowScore: lessonGeneratorV3Result.flowScore,
+          ...(diag && { architectureDiagnostics: diag }),
+          code: "LESSON_ARCHITECTURE_GATE",
+        });
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        architectureDiagnostics = lessonGeneratorV3Result.diagnostics;
+        console.log("[generate-and-save] Lesson Generator V3 flow score:", lessonGeneratorV3Result.flowScore);
+      }
+    }
+
+    let lessonGeneratorV4Result = null;
+    let teachingDiagnostics = null;
+    if (v4Enabled) {
+      const blueprintForV4 =
+        lessonBlueprintV2 ||
+        planLessonV2(
+          {
+            topic: subTopicDisplay || topic,
+            subject,
+            board,
+            tier,
+            topicKey: canonicalTopicKey,
+            durationTier: safeStr(req.body?.durationTier, "standard") || "standard",
+          },
+          { requestFlag: true }
+        ).blueprint;
+
+      lessonGeneratorV4Result = applyV4AfterGeneration(pagesPromoted, blueprintForV4, {
+        strict: req.body?.lessonGeneratorV4Strict === true,
+        tier,
+        subject,
+      });
+
+      if (lessonGeneratorV4Result.qualityGate?.blockExport) {
+        return res.status(422).json({
+          error: "Lesson teaching quality gate failed",
+          details: lessonGeneratorV4Result.qualityGate.failures.join("; "),
+          flowScore: lessonGeneratorV4Result.flowScore,
+          teachingDiagnostics: lessonGeneratorV4Result.diagnostics,
+          code: "LESSON_TEACHING_GATE",
+        });
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        teachingDiagnostics = lessonGeneratorV4Result.diagnostics;
+        console.log("[generate-and-save] Lesson Generator V4 teaching score:", {
+          overallTeaching: lessonGeneratorV4Result.flowScore?.overallTeachingScore,
+          canAchievePremium: lessonGeneratorV4Result.qualityGate?.canAchievePremium,
+        });
+      }
+    }
+
+    let teacherBrainInjection = null;
+    if (v4Enabled) {
+      const briefResult = applyTeacherBrainBriefInjection(pagesPromoted, {
+        topic: subTopicDisplay || topic,
+        subject,
+        examBoard: board,
+        tier,
+        blueprint: lessonBlueprintV2,
+      });
+      pagesPromoted = briefResult.pages;
+      teacherBrainInjection = {
+        injectionCount: briefResult.injections?.length || 0,
+        injections: briefResult.injections,
+      };
+      if (process.env.NODE_ENV !== "production" && briefResult.injections?.length) {
+        console.log("[generate-and-save] Teacher Brain brief injection:", briefResult.injections);
+      }
+    }
 
     // ✅ Step 16: Compute and persist quality metadata
     const finalDraftForQuality = { ...sanitized, pages: pagesPromoted };
-    const aiQualityResult = scoreLessonQuality(finalDraftForQuality, {
+    let aiQualityResult = scoreLessonQuality(finalDraftForQuality, {
       structureIssues: [],
       curriculumIssues: [],
       source: "ai",
     });
+    if (lessonGeneratorV4Result && !lessonGeneratorV4Result.qualityGate?.canAchievePremium) {
+      const capped = Math.min(aiQualityResult.score, 84);
+      if (capped < aiQualityResult.score) {
+        aiQualityResult = {
+          ...aiQualityResult,
+          score: capped,
+          band: getLessonQualityBand(capped),
+          issues: [
+            ...aiQualityResult.issues,
+            "V4 teaching gate: cannot reach 9/10+ until teaching sub-scores exceed 80.",
+          ],
+        };
+      }
+    }
 
     const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;
 
@@ -5552,7 +5762,28 @@ router.post("/generate-and-save", auth, async (req, res) => {
       ...(gold?._id && { templateSource: gold._id }),
 
       // ✅ Curriculum validation (generation metadata)
-      metadata: { generationValidation },
+      metadata: {
+        generationValidation,
+        ...(lessonBlueprintV2 && {
+          lessonGeneratorVersion: v4Enabled ? 4 : v3Enabled ? 3 : 2,
+          lessonBlueprintV2,
+        }),
+        ...(lessonGeneratorV3Result && {
+          lessonGeneratorV3: {
+            flowScore: lessonGeneratorV3Result.flowScore,
+            qualityGate: lessonGeneratorV3Result.qualityGate,
+            enforcement: lessonGeneratorV3Result.enforcement?.changes,
+          },
+        }),
+        ...(lessonGeneratorV4Result && {
+          lessonGeneratorV4: {
+            flowScore: lessonGeneratorV4Result.flowScore,
+            qualityGate: lessonGeneratorV4Result.qualityGate,
+            overallTeachingScore: lessonGeneratorV4Result.flowScore?.overallTeachingScore,
+          },
+        }),
+        ...(teacherBrainInjection && { teacherBrainInjection }),
+      },
     });
 
     await lessonDoc.save();
@@ -5600,6 +5831,24 @@ router.post("/generate-and-save", auth, async (req, res) => {
       ...(autoAttachResult && { attached: autoAttachResult }),
       ...(thinCoverage && { thinCoverage: true }),
       generationValidation,
+      ...(v2Enabled && {
+        lessonGeneratorV2: true,
+        lessonArchetype: lessonBlueprintV2?.lessonArchetype,
+        estimatedDurationMinutes: lessonBlueprintV2?.estimatedDuration?.minutes,
+      }),
+      ...(blueprintDiagnostics && { blueprintDiagnostics }),
+      ...(v3Enabled && {
+        lessonGeneratorV3: true,
+        flowScore: lessonGeneratorV3Result?.flowScore,
+      }),
+      ...(v4Enabled && {
+        lessonGeneratorV4: true,
+        teachingFlowScore: lessonGeneratorV4Result?.flowScore,
+        canAchievePremium: lessonGeneratorV4Result?.qualityGate?.canAchievePremium,
+      }),
+      ...(architectureDiagnostics && { architectureDiagnostics }),
+      ...(teachingDiagnostics && { teachingDiagnostics }),
+      ...(teacherBrainInjection && { teacherBrainInjection }),
     };
     if (thinCoverage) {
       responsePayload.warning = "Content coverage for this sub-topic is limited. The draft was kept within the selected sub-topic.";
@@ -5646,6 +5895,76 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
     return sendInternalError("ai/generate-and-save", error, res, {
       extra: { error: "Failed to generate lesson materials" },
+    });
+  }
+});
+
+/* =========================================================
+   ✅ Refactor existing lesson with V2 planner (optional — teacher opt-in only)
+   POST /api/ai/refactor-lesson-v2
+   Body: { lessonId, removeDuplicates?, durationTier? }
+   Reorders/rechunks blocks to match blueprint; does not regenerate content from scratch.
+   ========================================================= */
+router.post("/refactor-lesson-v2", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    if (!requireTeacherOrAdmin(req, res)) return;
+
+    const lessonId = req.body?.lessonId != null ? String(req.body.lessonId).trim() : null;
+    if (!lessonId || !mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Valid lessonId is required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const { getLessonOwnerId } = require("../utils/lessonPayload");
+    const ownerId = getLessonOwnerId(lesson);
+    const currentUserId = req.user?._id || req.user?.userId || req.user?.id;
+    const isOwner = ownerId != null && String(currentUserId) === String(ownerId);
+    const isAdmin = (req.user?.userType || req.user?.role || "").toString().toLowerCase() === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Only the lesson owner or an admin can refactor this lesson" });
+    }
+
+    const refactorResult = refactorExistingLesson({
+      topic: safeStr(lesson.topic, ""),
+      subject: safeStr(lesson.subject, "Biology"),
+      examBoard: safeStr(lesson.board, "AQA"),
+      tier: safeStr(lesson.tier, "higher"),
+      topicKey: lesson.topicKey,
+      durationTier: safeStr(req.body?.durationTier, "standard") || "standard",
+      pages: lesson.pages,
+      removeDuplicates: req.body?.removeDuplicates !== false,
+    });
+
+    const pagesSafe = makeLessonDbSafe({ pages: refactorResult.pages }).pages;
+    lesson.pages = pagesSafe;
+    lesson.metadata = {
+      ...(lesson.metadata && typeof lesson.metadata === "object" ? lesson.metadata : {}),
+      lessonGeneratorVersion: 2,
+      lessonBlueprintV2: refactorResult.blueprint,
+      v2RefactoredAt: new Date().toISOString(),
+      v2RefactorChanges: refactorResult.changes,
+    };
+    await lesson.save();
+
+    const diagnostics =
+      process.env.NODE_ENV !== "production"
+        ? runBlueprintDiagnostics(refactorResult.blueprint, pagesSafe)
+        : undefined;
+
+    return res.json({
+      success: true,
+      message: "Lesson refactored with V2 planner.",
+      lessonId: String(lesson._id),
+      changes: refactorResult.changes,
+      lessonArchetype: refactorResult.blueprint?.lessonArchetype,
+      ...(diagnostics && { blueprintDiagnostics: diagnostics }),
+    });
+  } catch (error) {
+    return sendInternalError("ai/refactor-lesson-v2", error, res, {
+      extra: { error: "Failed to refactor lesson with V2" },
     });
   }
 });
@@ -7006,6 +7325,39 @@ router.post("/structure-notes", auth, async (req, res) => {
     console.error("POST /api/ai/structure-notes error:", err.message);
     return sendInternalError("ai/structure-notes", err, res, {
       extra: { error: "Failed to structure notes" },
+    });
+  }
+});
+
+// @route   POST /api/ai/inject-teacher-brain-briefs
+router.post("/inject-teacher-brain-briefs", auth, async (req, res) => {
+  try {
+    const { pages, topic, subject, examBoard, tier, blueprint } = req.body || {};
+    if (!Array.isArray(pages) || pages.length === 0) {
+      return res.status(400).json({ error: "pages array is required" });
+    }
+    const topicStr = String(topic || blueprint?.topic || "").trim();
+    if (!topicStr) {
+      return res.status(400).json({ error: "topic is required" });
+    }
+    const result = applyTeacherBrainBriefInjection(pages, {
+      topic: topicStr,
+      subject,
+      examBoard,
+      tier,
+      blueprint,
+    });
+    return res.json({
+      pages: result.pages,
+      teacherBrainInjection: {
+        injectionCount: result.injections?.length ?? 0,
+        injections: result.injections ?? [],
+      },
+    });
+  } catch (err) {
+    console.error("POST /api/ai/inject-teacher-brain-briefs error:", err?.message || err);
+    return sendInternalError("ai/inject-teacher-brain-briefs", err, res, {
+      extra: { error: "Failed to inject Teacher Brain briefs" },
     });
   }
 });

@@ -173,6 +173,9 @@ const TeacherDashboard: React.FC = () => {
     autoGenerateFromBanks: true,
     additionalInstructions: "",
     strictSpec: false,
+    useLessonGeneratorV2: false,
+    useLessonGeneratorV3: false,
+    useLessonGeneratorV4: false,
     forceComparisonTable: false,
     forceExamQuestion: false,
     forceDiagramSuggestion: false,
@@ -612,6 +615,9 @@ const TeacherDashboard: React.FC = () => {
         tier: aiForm.level === "GCSE" ? (aiForm.tier || "").trim() : "",
         autoGenerateFromBanks: aiForm.autoGenerateFromBanks === true,
         strictSpec: aiForm.strictSpec === true,
+        useLessonGeneratorV2: aiForm.useLessonGeneratorV2 === true,
+        useLessonGeneratorV3: aiForm.useLessonGeneratorV3 === true,
+        useLessonGeneratorV4: aiForm.useLessonGeneratorV4 === true,
       };
       if (topicKey) payload.topicKey = topicKey;
       if (instr) payload.additionalInstructions = instr;
@@ -2058,6 +2064,68 @@ const TeacherDashboard: React.FC = () => {
                     <option value="foundation">foundation</option>
                     <option value="higher">higher</option>
                   </select>
+                </div>
+
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    border: "1px solid #86efac",
+                    background: "rgba(34,197,94,0.08)",
+                  }}
+                >
+                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#166534", marginBottom: 8 }}>
+                    Lesson planner (V2 / V3)
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem", color: "#374151", marginBottom: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={aiForm.useLessonGeneratorV2 === true}
+                      onChange={(e) =>
+                        setAiForm((p) => ({
+                          ...p,
+                          useLessonGeneratorV2: e.target.checked,
+                          useLessonGeneratorV3: e.target.checked ? p.useLessonGeneratorV3 : false,
+                          useLessonGeneratorV4: e.target.checked ? p.useLessonGeneratorV4 : false,
+                        }))
+                      }
+                    />
+                    Generate with V2 planner (teach→test journey)
+                  </label>
+                  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 2, marginLeft: 24, marginBottom: 8 }}>
+                    Plans the learning journey before blocks are generated. V1 remains the default.
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem", color: "#374151" }}>
+                    <input
+                      type="checkbox"
+                      checked={aiForm.useLessonGeneratorV3 === true}
+                      disabled={aiForm.useLessonGeneratorV2 !== true}
+                      onChange={(e) =>
+                        setAiForm((p) => ({
+                          ...p,
+                          useLessonGeneratorV3: e.target.checked,
+                          useLessonGeneratorV4: e.target.checked ? p.useLessonGeneratorV4 : false,
+                        }))
+                      }
+                    />
+                    Enforce structure with V3 (architecture gate before save)
+                  </label>
+                  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 2, marginLeft: 24, marginBottom: 8 }}>
+                    Reorders blocks and validates architecture scores before export. Requires V2 planner.
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.85rem", color: "#374151" }}>
+                    <input
+                      type="checkbox"
+                      checked={aiForm.useLessonGeneratorV4 === true}
+                      disabled={aiForm.useLessonGeneratorV2 !== true}
+                      onChange={(e) => setAiForm((p) => ({ ...p, useLessonGeneratorV4: e.target.checked }))}
+                    />
+                    Teaching intelligence V4 (teacher voice + exam modelling)
+                  </label>
+                  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 2, marginLeft: 24 }}>
+                    Adds teaching journey, examiner language, and spiral retrieval to the prompt; scores teaching quality after save. Requires V2.
+                  </div>
                 </div>
 
                 <div style={{ gridColumn: "1 / -1" }}>

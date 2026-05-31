@@ -1,0 +1,26 @@
+.lr-diagram-pedagogy-reveal {
+  margin: var(--lr-diagram-gap-task-reveal, 12px) 0 0;
+  padding: 0;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.04);
+  text-align: left;
+}
+
+.lr-diagram-pedagogy-reveal__summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #5b21b6;
+  padding: 10px 12px;
+  list-style: none;
+}
+
+.lr-diagram-pedagogy-reveal__summary::-webkit-details-marker {
+  display: none;
+}
+
+.lr-diagram-pedagogy-reveal__body {
+  padding: 0 12px 12px;
+  border-top: 1px solid rgba(124, 58, 237, 0.12);
+}

@@ -5,7 +5,11 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api, { getVisualById } from "../services/api";
-import { makeAbsoluteAssetUrl, preprocessMarkdownAssetUrls } from "../utils/assetUrl";
+import {
+  makeAbsoluteAssetUrl,
+  preprocessMarkdownAssetUrls,
+  resolveUploadedDiagramImageSrc,
+} from "../utils/assetUrl";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import { LessonMarkdown } from "../components/lesson/LessonMarkdown";
 import { CheckpointCard } from "../components/lesson/CheckpointCard";
@@ -16,6 +20,7 @@ import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { LessonImageLightboxProvider } from "../components/lesson/LessonImageLightbox";
 import { hideBrokenLessonImage, LessonImageFrame } from "../components/lesson/LessonImageFrame";
 import { LessonDiagramFrame } from "../components/lesson/LessonDiagramFrame";
+import { LessonDiagramBlockDisplay } from "../components/lesson/LessonDiagramBlockDisplay";
 import {
   createLessonMarkdownViewComponents,
   lessonMarkdownUrlTransform,
@@ -83,6 +88,7 @@ interface LessonPageBlock {
   explanation?: string;
   visualId?: string;
   caption?: string;
+  alt?: string;
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
   steps?: DiagramStep[];
@@ -662,17 +668,44 @@ const ClassroomModePage: React.FC = () => {
     const annotations = Array.isArray(block.annotations) ? block.annotations : [];
     const steps = Array.isArray(block.steps) ? block.steps : [];
     const diagramVariant = block.diagramVariant === "featured" ? "featured" : "standard";
+    const caption = block.caption ?? "";
+    const rawDiagramUrl = block.imageUrl != null ? String(block.imageUrl) : "";
+    if (hasRenderableLessonImageSrc(rawDiagramUrl)) {
+      const absoluteSrc = String(block.imageUrl).startsWith("http")
+        ? String(block.imageUrl)
+        : (makeAbsoluteAssetUrl(String(block.imageUrl)) ?? "");
+      const src = resolveUploadedDiagramImageSrc(absoluteSrc);
+      if (hasRenderableLessonImageSrc(src)) {
+        const capTrim = typeof caption === "string" ? caption.trim() : "";
+        return (
+          <div key={`diagram-${idx}`} className="lesson-classroom-uploaded-diagram-wrap">
+            <LessonDiagramBlockDisplay block={block}>
+              <div className="lesson-uploaded-diagram" data-uploaded-diagram="1">
+                <img
+                  className="lesson-uploaded-diagram__img"
+                  src={src}
+                  alt={block.alt ?? (capTrim || "Diagram")}
+                  onError={hideBrokenLessonImage}
+                />
+              </div>
+            </LessonDiagramBlockDisplay>
+          </div>
+        );
+      }
+    }
     return (
       <div key={`diagram-${idx}`} style={{ marginTop: 14 }}>
-        <DiagramBlockContent
-          visualId={block.visualId ?? ""}
-          caption={block.caption ?? ""}
-          level={lesson?.level ?? "GCSE"}
-          mode={mode}
-          annotations={annotations}
-          steps={steps}
-          variant={diagramVariant}
-        />
+        <LessonDiagramBlockDisplay block={block} showPedagogyCaption={false}>
+          <DiagramBlockContent
+            visualId={block.visualId ?? ""}
+            caption={caption}
+            level={lesson?.level ?? "GCSE"}
+            mode={mode}
+            annotations={annotations}
+            steps={steps}
+            variant={diagramVariant}
+          />
+        </LessonDiagramBlockDisplay>
       </div>
     );
   };

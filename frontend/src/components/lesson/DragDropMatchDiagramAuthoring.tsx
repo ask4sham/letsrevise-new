@@ -110,27 +110,45 @@ export function DragDropMatchDiagramAuthoring({
             const persisted = dragDropMatchModeFromUiSelect(e.target.value);
             if (persisted === "diagram") {
               const stored = dragDropLayoutPersistedValues("diagram");
-              onPatch({
+              const patch = {
                 matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
                 dragDropLayout: stored.dragDropLayout,
                 dropZones: Array.isArray(blk.dropZones) ? blk.dropZones : [],
+              };
+              console.log("[TeacherBrainLayout] activity layout changed", {
+                activityLayout: patch.dragDropLayout,
+                dragDropLayout: patch.dragDropLayout,
+                matchMode: patch.matchMode,
               });
+              onPatch(patch);
             } else if (persisted === "text-to-image") {
               const stored = dragDropLayoutPersistedValues("text-to-image");
-              onPatch({
+              const patch = {
                 matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
                 dragDropLayout: stored.dragDropLayout,
                 dropZones: [],
                 imageUrl: "",
+              };
+              console.log("[TeacherBrainLayout] activity layout changed", {
+                activityLayout: patch.dragDropLayout,
+                dragDropLayout: patch.dragDropLayout,
+                matchMode: patch.matchMode,
               });
+              onPatch(patch);
               onPlacingZoneId(null);
             } else {
               const stored = dragDropLayoutPersistedValues("text");
-              onPatch({
+              const patch = {
                 matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
                 dragDropLayout: stored.dragDropLayout,
                 dropZones: [],
+              };
+              console.log("[TeacherBrainLayout] activity layout changed", {
+                activityLayout: patch.dragDropLayout,
+                dragDropLayout: patch.dragDropLayout,
+                matchMode: patch.matchMode,
               });
+              onPatch(patch);
               onPlacingZoneId(null);
             }
           }}

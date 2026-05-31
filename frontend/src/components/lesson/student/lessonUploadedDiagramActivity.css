@@ -1,0 +1,321 @@
+/**
+
+ * Uploaded diagram activities only (type diagram + imageUrl).
+
+ * Does not apply to catalogue diagrams, interactive/hotspot, sequence, or drag-drop.
+
+ *
+
+ * Primary rhythm: flex gap on .lesson-uploaded-diagram-activity-shell (see UploadedDiagramActivityShell.tsx).
+
+ */
+
+
+
+/* --- Compact activity shell (title + diagram slot) --- */
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell {
+
+  display: flex !important;
+
+  flex-direction: column !important;
+
+  align-items: flex-start !important;
+
+  justify-content: flex-start !important;
+
+  gap: 8px !important;
+
+  width: 100% !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  box-sizing: border-box !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell > h2.lesson-student-block-heading {
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  width: 100% !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell > .lesson-student-diagram-slot {
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  width: 100% !important;
+
+  text-align: left !important;
+
+  display: block !important;
+
+}
+
+
+
+/* Legacy path: heading still direct sibling of slot (no shell) */
+
+[data-lesson-presentation="v12"] .lesson-student-page-body [id^="block-"] > h2.lesson-student-block-heading:has(+ .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"]),
+
+[data-lesson-presentation="v12"] .lesson-student-page-body [id^="block-"] > h2.lesson-student-block-heading:has(+ .lesson-student-diagram-slot .lesson-uploaded-diagram__img) {
+
+  margin-bottom: 8px !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-student-page-body [id^="block-"] > h2.lesson-student-block-heading + .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"],
+
+[data-lesson-presentation="v12"] .lesson-student-page-body [id^="block-"] > h2.lesson-student-block-heading + .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) {
+
+  margin-top: 0 !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-student-page-body [id^="block-"] > .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"],
+
+[data-lesson-presentation="v12"] .lesson-student-page-body [id^="block-"] > .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img),
+
+[data-lesson-presentation="v12"] [id^="block-"] > .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"] {
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  text-align: left !important;
+
+  display: block !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell .lr-diagram-pedagogy,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"] .lr-diagram-pedagogy,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) .lr-diagram-pedagogy {
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  width: 100% !important;
+
+  max-width: 100% !important;
+
+  display: block !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell .lr-diagram-pedagogy__media,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"] .lr-diagram-pedagogy__media,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) .lr-diagram-pedagogy__media {
+
+  margin-top: 0 !important;
+
+  margin-bottom: 16px !important;
+
+  padding: 0 !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  display: block !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell .lesson-uploaded-diagram,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"] .lesson-uploaded-diagram,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) .lesson-uploaded-diagram {
+
+  display: block !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  width: fit-content !important;
+
+  max-width: 100% !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-student-page-body img.lesson-uploaded-diagram__img,
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell .lesson-uploaded-diagram__img,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"] .lesson-uploaded-diagram__img,
+
+[data-lesson-presentation="v12"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) .lesson-uploaded-diagram__img {
+
+  display: block !important;
+
+  margin: 0 !important;
+
+  max-width: 100% !important;
+
+  width: auto !important;
+
+  height: auto !important;
+
+  max-height: none !important;
+
+  object-fit: unset !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-uploaded-diagram-activity-shell,
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"],
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) {
+
+  margin: 0 !important;
+
+  text-align: left !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot[data-uploaded-diagram-activity="1"] > div,
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"] .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) > div {
+
+  margin-top: 0 !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"]
+
+  .lesson-student-section-chunk--with-media:has(.lesson-uploaded-diagram-activity-shell),
+
+[data-lesson-presentation="v12"]
+
+  .lesson-student-section-chunk--with-media:has(.lesson-student-diagram-slot[data-uploaded-diagram-activity="1"]),
+
+[data-lesson-presentation="v12"]
+
+  .lesson-student-section-chunk--with-media:has(.lesson-student-diagram-slot .lesson-uploaded-diagram__img),
+
+[data-lesson-presentation="v12"] .lesson-student-section-chunk--stack:has(.lesson-uploaded-diagram__img),
+
+[data-lesson-presentation="v12"] [data-ss2-image-only="1"]:has(.lesson-uploaded-diagram__img) {
+
+  align-items: start !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"]
+
+  .lesson-student-section-chunk--with-media:has(.lesson-uploaded-diagram-activity-shell)
+
+  .lesson-student-section-chunk__media,
+
+[data-lesson-presentation="v12"]
+
+  .lesson-student-section-chunk--with-media:has(.lesson-student-diagram-slot[data-uploaded-diagram-activity="1"])
+
+  .lesson-student-section-chunk__media,
+
+[data-lesson-presentation="v12"]
+
+  .lesson-student-section-chunk--with-media:has(.lesson-student-diagram-slot .lesson-uploaded-diagram__img)
+
+  .lesson-student-section-chunk__media {
+
+  align-self: start !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] [data-visual-block="diagram"]:has(.lesson-uploaded-diagram__img) {
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  display: block !important;
+
+}
+
+
+
+[data-lesson-presentation="v12"] .lesson-uploaded-diagram-activity-shell .lr-diagram-pedagogy__title,
+
+[data-lesson-presentation="v12"] h2.lesson-student-block-heading + .lesson-student-diagram-slot:has(.lesson-uploaded-diagram__img) .lr-diagram-pedagogy__title {
+
+  display: none !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+  height: 0 !important;
+
+  min-height: 0 !important;
+
+  overflow: hidden !important;
+
+}
+
+

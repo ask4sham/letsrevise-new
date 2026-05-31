@@ -69,6 +69,7 @@ import {
   diagramBlockForPersist,
   graphBlockForLessonSave,
   logLessonSaveBlocksDebug,
+  withPersistedBlockNote,
 } from "../utils/lessonBlockPersist";
 import { LESSON_DESCRIPTION_MAX_LENGTH } from "../constants/lessonDescription";
 import {
@@ -90,6 +91,12 @@ import {
 } from "../utils/parseFlexibleCheckpointPaste";
 import { lessonBlockDisplayLabel } from "../utils/lessonBlockDisplayLabel";
 import { generateDragDropPairsFromText } from "../api/ai";
+import { injectTeacherBrainBriefs } from "../api/teacherBrainBriefs";
+import { TeacherBrainDesignBriefPanel } from "../components/lesson/TeacherBrainDesignBriefPanel";
+import {
+  countTeacherBrainBriefsInPages,
+  countTeacherBrainEligibleActivityBlocks,
+} from "../utils/teacherBrainBriefPages";
 import { CELL_ORGANELLES_DRAG_DROP_TEMPLATE } from "../components/lesson/dragDropMatchTemplates";
 import {
   diagramImageUrlForPreview,
@@ -112,6 +119,8 @@ type LessonPageBlock = {
   type: LessonBlockType;
   content: string;
   title?: string;
+  /** Teacher-only (e.g. Teacher Brain design brief) — not shown to students. */
+  note?: string;
   role?: string;
   intro?: string;
   instructions?: string;
@@ -675,7 +684,7 @@ const CreateLessonPage: React.FC = () => {
         setTimeout(() => setError(""), 8000);
         return;
       }
-      const nextPages: LessonPage[] = built.map((row): LessonPage => ({
+      let nextPages: LessonPage[] = built.map((row): LessonPage => ({
         pageId: row.pageId,
         title: row.title,
         order: row.order,
@@ -703,9 +712,51 @@ const CreateLessonPage: React.FC = () => {
         ),
       }));
 
+      const exportBriefCount =
+        typeof doc.teacherBrainInjection?.injectionCount === "number"
+          ? doc.teacherBrainInjection.injectionCount
+          : countTeacherBrainBriefsInPages(nextPages);
+      let briefCount = countTeacherBrainBriefsInPages(nextPages);
+      const eligibleActivity = countTeacherBrainEligibleActivityBlocks(nextPages);
+      const topicForBrief =
+        meta.topic?.trim() ||
+        formData.topic?.trim() ||
+        doc.lesson?.topic?.trim() ||
+        "";
+
+      if (briefCount === 0 && eligibleActivity > 0 && topicForBrief) {
+        try {
+          const injected = await injectTeacherBrainBriefs({
+            pages: nextPages,
+            topic: topicForBrief,
+            subject: meta.subject ?? formData.subject,
+            examBoard: meta.board ?? formData.board,
+            tier: meta.tier,
+          });
+          nextPages = injected.pages as LessonPage[];
+          briefCount = countTeacherBrainBriefsInPages(nextPages);
+        } catch {
+          /* import still succeeds; teacher can inject from Edit Lesson */
+        }
+      }
+
       setPages(nextPages);
-      setSuccess("Imported lesson from LetsRevise Generator.");
-      setTimeout(() => setSuccess(""), 4500);
+      if (briefCount > 0) {
+        setSuccess(
+          `Imported lesson — ${briefCount} Teacher Brain design brief${briefCount === 1 ? "" : "s"} on diagram/activity blocks.`
+        );
+      } else if (exportBriefCount > 0) {
+        setSuccess(
+          "Imported lesson — export listed briefs but none were found on blocks. Re-export with V4 or use Inject on Edit Lesson."
+        );
+      } else if (eligibleActivity > 0) {
+        setSuccess(
+          "Imported lesson — no Teacher Brain briefs yet. Enable V4 on export, or open Edit Lesson and use Inject Teacher Brain briefs."
+        );
+      } else {
+        setSuccess("Imported lesson from LetsRevise Generator.");
+      }
+      setTimeout(() => setSuccess(""), 6500);
     } catch {
       setError("Could not read or parse that JSON file.");
       setTimeout(() => setError(""), 8000);
@@ -1364,27 +1415,33 @@ const CreateLessonPage: React.FC = () => {
                 s.caption.length > 0 ||
                 Boolean((s as { testExplanation?: string }).testExplanation)
             );
-          const isOut: Record<string, unknown> = {
-            type: "interactiveSequence",
-            title: typeof b.title === "string" ? b.title.trim() : "",
-            intro: b.intro != null ? String(b.intro).trim() : "",
-            content: "",
-            sequenceSteps,
-          };
+          const isOut: Record<string, unknown> = withPersistedBlockNote(
+            {
+              type: "interactiveSequence",
+              title: typeof b.title === "string" ? b.title.trim() : "",
+              intro: b.intro != null ? String(b.intro).trim() : "",
+              content: "",
+              sequenceSteps,
+            },
+            b
+          );
           if (typeof b.role === "string" && b.role.trim()) isOut.role = b.role.trim();
           return isOut;
         }
         if (blockType === "interactiveDiagram") {
           const rawH = Array.isArray(b.hotspots) ? b.hotspots : [];
           const hotspots = rawH.map((h, i) => normalizeInteractiveDiagramHotspot(h, i));
-          const idOut: Record<string, unknown> = {
-            type: "interactiveDiagram",
-            title: typeof b.title === "string" ? b.title.trim() : "",
-            intro: b.intro != null ? String(b.intro).trim() : "",
-            content: "",
-            imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
-            hotspots,
-          };
+          const idOut: Record<string, unknown> = withPersistedBlockNote(
+            {
+              type: "interactiveDiagram",
+              title: typeof b.title === "string" ? b.title.trim() : "",
+              intro: b.intro != null ? String(b.intro).trim() : "",
+              content: "",
+              imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() : "",
+              hotspots,
+            },
+            b
+          );
           if (typeof b.role === "string" && b.role.trim()) idOut.role = b.role.trim();
           return idOut;
         }
@@ -2444,6 +2501,15 @@ const CreateLessonPage: React.FC = () => {
                                   border: "1px solid #c4b5fd",
                                 }}
                               >
+                                {b.type === "interactiveSequence" ||
+                                b.type === "interactiveDiagram" ||
+                                b.type === "dragDropMatch" ? (
+                                  <TeacherBrainDesignBriefPanel
+                                    blockType={b.type}
+                                    note={b.note}
+                                    onNoteChange={(note) => updateBlock(pg.pageId, idx, { note })}
+                                  />
+                                ) : null}
                                 <p style={{ margin: "0 0 10px", fontSize: 13, color: "#5b21b6", lineHeight: 1.5 }}>
                                   {b.type === "interactiveSequence" ? (
                                     <>

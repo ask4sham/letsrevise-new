@@ -1,5 +1,5 @@
 /**
- * Normalised PNG “display” variants for lesson diagrams: fixed square canvas, aspect preserved, transparent padding.
+ * Normalised PNG “display” variants for lesson diagrams: fixed square canvas, aspect preserved, top-aligned transparent padding.
  * Original uploads are never overwritten; a sibling file `name.display.png` is created when applicable.
  */
 const sharp = require("sharp");
@@ -36,6 +36,7 @@ async function createLessonPngDisplayBuffer(inputBuffer) {
       .ensureAlpha()
       .resize(LESSON_PNG_DISPLAY_SIZE, LESSON_PNG_DISPLAY_SIZE, {
         fit: "contain",
+        position: "north",
         background: { r: 0, g: 0, b: 0, alpha: 0 },
       })
       .png()

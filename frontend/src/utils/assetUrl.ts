@@ -97,6 +97,22 @@ export function resolveFullResolutionImageUrlForLightbox(url: string): string {
   return t.replace(/\.display\.png/gi, ".png");
 }
 
+/**
+ * Student uploaded diagram activities: use full-res PNG, not 600×600 `.display.png`.
+ * Display variants centre the figure in a square (transparent padding above/below wide diagrams).
+ */
+export function resolveUploadedDiagramImageSrc(url: string): string {
+  return resolveFullResolutionImageUrlForLightbox(url);
+}
+
+/**
+ * Step-by-step sequence step images (and similar lesson uploads): use full-res PNG, not `.display.png`.
+ * Display variants are 600×600 with contain fit — wide diagrams get large transparent bands above/below.
+ */
+export function resolveLessonStepImageSrc(url: string): string {
+  return resolveUploadedDiagramImageSrc(url);
+}
+
 /** Safe prefixes for asset paths we transform — never allow javascript:, data:, etc. */
 const ASSET_PREFIXES = ["/uploads/", "/visuals/", "/content/", "uploads/", "visuals/", "content/"];
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
