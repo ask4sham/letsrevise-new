@@ -1,5 +1,4 @@
 import React, { useRef } from "react";
-import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import { LessonAutoTextarea } from "./LessonAutoTextarea"; // drop-zone explanations (diagram mode)
 import { DragDropMatchBlock } from "./DragDropMatchBlock";
 import "./dragDropMatchBlock.css";
@@ -177,25 +176,15 @@ export function DragDropMatchDiagramAuthoring({
           data-testid="drag-drop-match-step-1-upload"
           style={{
             marginTop: 8,
-            padding: 14,
-            borderRadius: 12,
-            border: "2px solid rgba(16, 185, 129, 0.3)",
-            background: "linear-gradient(180deg, rgba(240, 253, 244, 0.9) 0%, #ffffff 100%)",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #bbf7d0",
+            background: "#f0fdf4",
           }}
         >
-          <div style={{ fontWeight: 900, fontSize: 15, color: "#047857", marginBottom: 8 }}>
-            Step 1 — Upload Activity Image
+          <div style={{ fontWeight: 800, fontSize: 14, color: "#047857", marginBottom: 8 }}>
+            Step 1 — Upload target images
           </div>
-          <p
-            style={{
-              margin: "0 0 10px",
-              fontSize: 13,
-              lineHeight: 1.45,
-              color: "#475569",
-            }}
-          >
-            Upload one target image per pair. Add labels and explanations in Step 2 below.
-          </p>
           {pairsDd.length === 0 ? (
             <button
               type="button"
@@ -213,32 +202,25 @@ export function DragDropMatchDiagramAuthoring({
                 })
               }
               style={{
-                padding: "8px 14px",
+                padding: "6px 12px",
                 borderRadius: 8,
-                border: "2px solid rgba(16, 185, 129, 0.45)",
-                background: "rgba(240, 253, 244, 0.9)",
+                border: "1px solid #86efac",
+                background: "#fff",
                 color: "#047857",
-                fontWeight: 800,
-                fontSize: 13,
+                fontWeight: 700,
+                fontSize: 12,
                 cursor: "pointer",
               }}
             >
               + Add first image pair
             </button>
           ) : (
-            <div
-              data-testid="tti-step-1-pair-uploads"
-              style={{ display: "flex", flexDirection: "column", gap: 12 }}
-            >
+            <div data-testid="tti-step-1-pair-uploads" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {pairsDd.map((pair, pi) => {
-                const rawPairImg = String(
-                  readDragDropPairTargetImageUrl(pair) ?? pair.imageUrl ?? ""
-                ).trim();
-                const pairImgSrc =
-                  rawPairImg && hasRenderableLessonImageSrc(rawPairImg)
-                    ? resolveImageUrlForPreview(rawPairImg)
-                    : "";
                 const pairUploading = isPairTargetImageUploading?.(pi) ?? false;
+                const hasImg = Boolean(
+                  String(readDragDropPairTargetImageUrl(pair) ?? pair.imageUrl ?? "").trim()
+                );
                 const patchPair = (rowPatch: Partial<(typeof pairsDd)[number]>) => {
                   const next = [...pairsDd];
                   if (next[pi]) {
@@ -251,15 +233,22 @@ export function DragDropMatchDiagramAuthoring({
                     key={pair.id || `tti-pair-${pi}`}
                     data-testid={`tti-step-1-pair-${pi}`}
                     style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      border: "1px solid #bbf7d0",
-                      background: "#fff",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      alignItems: "center",
                     }}
                   >
-                    <div style={{ fontWeight: 800, fontSize: 13, color: "#047857", marginBottom: 8 }}>
+                    <span
+                      style={{
+                        flex: "0 0 52px",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        color: "#047857",
+                      }}
+                    >
                       Pair {pi + 1}
-                    </div>
+                    </span>
                     <input
                       ref={(el) => {
                         ttiPairFileInputRefs.current[pi] = el;
@@ -273,94 +262,65 @@ export function DragDropMatchDiagramAuthoring({
                         if (f && onPairTargetImageFile) void Promise.resolve(onPairTargetImageFile(f, pi));
                       }}
                     />
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                    <button
+                      type="button"
+                      disabled={!onPairTargetImageFile || pairUploading}
+                      onClick={() => {
+                        const input = ttiPairFileInputRefs.current[pi];
+                        if (input) {
+                          input.value = "";
+                          input.click();
+                        }
+                      }}
+                      style={{
+                        flex: "0 0 auto",
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "1px solid #86efac",
+                        background: pairUploading ? "#e2e8f0" : "#fff",
+                        color: "#047857",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: !onPairTargetImageFile || pairUploading ? "not-allowed" : "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {pairUploading ? "Uploading…" : "Upload"}
+                    </button>
+                    <input
+                      value={String(pair.imageUrl ?? readDragDropPairTargetImageUrl(pair) ?? "")}
+                      onChange={(e) => patchPair({ imageUrl: e.target.value, answerImageUrl: undefined })}
+                      placeholder="Image URL"
+                      aria-label={`Pair ${pi + 1} image URL`}
+                      style={{
+                        flex: "1 1 160px",
+                        minWidth: 0,
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "1px solid #cbd5e1",
+                        boxSizing: "border-box",
+                        fontSize: 12,
+                        background: "#fff",
+                      }}
+                    />
+                    {hasImg ? (
                       <button
                         type="button"
-                        disabled={!onPairTargetImageFile || pairUploading}
-                        onClick={() => {
-                          const input = ttiPairFileInputRefs.current[pi];
-                          if (input) {
-                            input.value = "";
-                            input.click();
-                          }
-                        }}
+                        onClick={() => patchPair({ imageUrl: "", answerImageUrl: undefined })}
                         style={{
-                          padding: "8px 14px",
-                          borderRadius: 8,
-                          border: "2px solid rgba(16, 185, 129, 0.45)",
-                          background: pairUploading ? "#e2e8f0" : "#ecfdf5",
-                          color: "#047857",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          cursor: !onPairTargetImageFile || pairUploading ? "not-allowed" : "pointer",
+                          flex: "0 0 auto",
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          border: "1px solid #fecaca",
+                          background: "#fff",
+                          color: "#b91c1c",
+                          fontWeight: 600,
+                          fontSize: 11,
+                          cursor: "pointer",
                         }}
                       >
-                        {pairUploading ? "Uploading…" : "Upload image"}
+                        Clear
                       </button>
-                      <label style={{ flex: "1 1 180px", minWidth: 0, margin: 0 }}>
-                        <span style={{ display: "block", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
-                          Image URL
-                        </span>
-                        <input
-                          value={String(pair.imageUrl ?? readDragDropPairTargetImageUrl(pair) ?? "")}
-                          onChange={(e) =>
-                            patchPair({ imageUrl: e.target.value, answerImageUrl: undefined })
-                          }
-                          placeholder="https://… or path after upload"
-                          style={{
-                            width: "100%",
-                            padding: "8px 10px",
-                            borderRadius: 8,
-                            border: "1px solid #cbd5e1",
-                            boxSizing: "border-box",
-                            fontSize: 13,
-                          }}
-                        />
-                      </label>
-                    </div>
-                    {rawPairImg && pairImgSrc ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          gap: 10,
-                          marginTop: 8,
-                          padding: 8,
-                          borderRadius: 8,
-                          border: "1px solid #e2e8f0",
-                          background: "#f8fafc",
-                        }}
-                      >
-                        <img
-                          src={pairImgSrc}
-                          alt=""
-                          style={{
-                            width: 72,
-                            height: 72,
-                            objectFit: "contain",
-                            borderRadius: 8,
-                            border: "1px solid #cbd5e1",
-                            background: "#fff",
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => patchPair({ imageUrl: "", answerImageUrl: undefined })}
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: 8,
-                            border: "1px solid #f87171",
-                            background: "#fef2f2",
-                            color: "#b91c1c",
-                            fontWeight: 700,
-                            fontSize: 12,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Clear image
-                        </button>
-                      </div>
                     ) : null}
                   </div>
                 );
@@ -382,17 +342,18 @@ export function DragDropMatchDiagramAuthoring({
                 }
                 style={{
                   alignSelf: "flex-start",
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "2px solid rgba(16, 185, 129, 0.35)",
-                  background: "rgba(240, 253, 244, 0.6)",
+                  marginTop: 2,
+                  padding: "4px 0",
+                  border: "none",
+                  background: "transparent",
                   color: "#047857",
                   fontWeight: 700,
-                  fontSize: 13,
+                  fontSize: 12,
                   cursor: "pointer",
+                  textDecoration: "underline",
                 }}
               >
-                + Add another image pair
+                + Add pair
               </button>
             </div>
           )}
@@ -401,14 +362,14 @@ export function DragDropMatchDiagramAuthoring({
       {layoutMode === "text-to-image" && pairsDd.length > 0 ? (
         <div
           style={{
-            marginTop: 12,
-            padding: 14,
-            borderRadius: 12,
+            marginTop: 8,
+            padding: 10,
+            borderRadius: 10,
             border: "1px solid #bbf7d0",
-            background: "linear-gradient(180deg, rgba(240,253,244,0.9) 0%, #ffffff 100%)",
+            background: "#fff",
           }}
         >
-          <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 6 }}>Student preview</div>
+          <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6, color: "#0f172a" }}>Student preview</div>
           <div className="drag-drop-match-diagram-authoring-preview-shell">
             <DragDropMatchBlock
               resolveImageUrl={resolveImageUrlForPreview}
