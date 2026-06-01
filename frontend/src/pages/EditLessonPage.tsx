@@ -8526,6 +8526,28 @@ const EditLessonPage: React.FC = () => {
                                   )
                                 }
                                 diagramImageUploading={uploadingKey === `${currentPage!.pageId}:${idx}:ddm`}
+                                onPairTargetImageFile={(file, pi) =>
+                                  uploadImageForDragDropMatchPairAnswer(
+                                    file,
+                                    currentPage!.pageId,
+                                    idx,
+                                    pi,
+                                    (url) => {
+                                      const pairsList = Array.isArray((b as LessonPageBlock).pairs)
+                                        ? [...((b as LessonPageBlock).pairs as NonNullable<LessonPageBlock["pairs"]>)]
+                                        : [];
+                                      if (pairsList[pi]) {
+                                        pairsList[pi] = {
+                                          ...pairsList[pi],
+                                          imageUrl: url,
+                                          answerImageUrl: undefined,
+                                        };
+                                      }
+                                      updateBlock(currentPage!.pageId, idx, { pairs: pairsList });
+                                    }
+                                  )
+                                }
+                                isPairTargetImageUploading={(pi) => uploadingKey === `${key}:ddm-pair:${pi}`}
                               />
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
@@ -8787,16 +8809,11 @@ const EditLessonPage: React.FC = () => {
                                         }}
                                       />
                                     </label>
-                                    {(() => {
+                                    {!ddmTtiMode
+                                      ? (() => {
                                       const ddmPairKey = `${key}:ddm-pair:${pi}`;
                                       const pairImgUploading = uploadingKey === ddmPairKey;
-                                      const rawPairImg = ddmTtiMode
-                                        ? String(
-                                            readDragDropPairTargetImageUrl(pair) ??
-                                              pair.imageUrl ??
-                                              ""
-                                          ).trim()
-                                        : String(pair.answerImageUrl ?? "").trim();
+                                      const rawPairImg = String(pair.answerImageUrl ?? "").trim();
                                       const pairImgSrc =
                                         rawPairImg && hasRenderableLessonImageSrc(rawPairImg)
                                           ? makeAbsoluteAssetUrl(rawPairImg) ?? rawPairImg
@@ -8817,26 +8834,24 @@ const EditLessonPage: React.FC = () => {
                                             type="file"
                                             accept="image/*"
                                             style={{ display: "none" }}
-                                            onChange={(e) => {
-                                              const f = e.target.files?.[0];
-                                              if (!f) return;
-                                              uploadImageForDragDropMatchPairAnswer(
-                                                f,
-                                                currentPage!.pageId,
-                                                idx,
-                                                pi,
-                                                (url) => {
-                                                  const next = [...pairsList];
-                                                  if (next[pi]) {
-                                                    next[pi] = ddmTtiMode
-                                                      ? { ...next[pi], imageUrl: url, answerImageUrl: undefined }
-                                                      : { ...next[pi], answerImageUrl: url };
-                                                  }
-                                                  updateBlock(currentPage!.pageId, idx, { pairs: next });
-                                                }
-                                              );
-                                              e.target.value = "";
-                                            }}
+                                                onChange={(e) => {
+                                                  const f = e.target.files?.[0];
+                                                  if (!f) return;
+                                                  uploadImageForDragDropMatchPairAnswer(
+                                                    f,
+                                                    currentPage!.pageId,
+                                                    idx,
+                                                    pi,
+                                                    (url) => {
+                                                      const next = [...pairsList];
+                                                      if (next[pi]) {
+                                                        next[pi] = { ...next[pi], answerImageUrl: url };
+                                                      }
+                                                      updateBlock(currentPage!.pageId, idx, { pairs: next });
+                                                    }
+                                                  );
+                                                  e.target.value = "";
+                                                }}
                                           />
                                           <div
                                             style={{
@@ -8852,17 +8867,11 @@ const EditLessonPage: React.FC = () => {
                                                 Image URL
                                               </span>
                                               <input
-                                                value={
-                                                  ddmTtiMode
-                                                    ? String(pair.imageUrl ?? readDragDropPairTargetImageUrl(pair) ?? "")
-                                                    : String(pair.answerImageUrl ?? "")
-                                                }
+                                                value={String(pair.answerImageUrl ?? "")}
                                                 onChange={(e) => {
                                                   const next = [...pairsList];
                                                   if (next[pi]) {
-                                                    next[pi] = ddmTtiMode
-                                                      ? { ...next[pi], imageUrl: e.target.value }
-                                                      : { ...next[pi], answerImageUrl: e.target.value };
+                                                    next[pi] = { ...next[pi], answerImageUrl: e.target.value };
                                                   }
                                                   updateBlock(currentPage!.pageId, idx, { pairs: next });
                                                 }}
@@ -8946,9 +8955,7 @@ const EditLessonPage: React.FC = () => {
                                                   onClick={() => {
                                                     const next = [...pairsList];
                                                     if (next[pi]) {
-                                                      next[pi] = ddmTtiMode
-                                                        ? { ...next[pi], imageUrl: "", answerImageUrl: undefined }
-                                                        : { ...next[pi], answerImageUrl: "" };
+                                                      next[pi] = { ...next[pi], answerImageUrl: "" };
                                                     }
                                                     updateBlock(currentPage!.pageId, idx, { pairs: next });
                                                   }}
@@ -8971,7 +8978,8 @@ const EditLessonPage: React.FC = () => {
                                           ) : null}
                                         </div>
                                       );
-                                    })()}
+                                    })()
+                                      : null}
                                     <label style={{ display: "block", marginBottom: 8 }}>
                                       <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>Explanation (optional)</div>
                                       <LessonAutoTextarea

@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import { LessonAutoTextarea } from "./LessonAutoTextarea";
 import { DragDropMatchBlock } from "./DragDropMatchBlock";
 import "./dragDropMatchBlock.css";
@@ -54,6 +55,9 @@ export type DragDropMatchDiagramAuthoringProps = {
   /** Optional — wire Supabase/API image upload from the lesson editor (sets imageUrl via onPatch). */
   onDiagramImageFile?: (file: File) => void | Promise<void>;
   diagramImageUploading?: boolean;
+  /** Text-to-image: per-pair target image upload (reuses editor upload handler). */
+  onPairTargetImageFile?: (file: File, pairIndex: number) => void | Promise<void>;
+  isPairTargetImageUploading?: (pairIndex: number) => boolean;
 };
 
 /** Stable row id for diagram zones in the editor (avoids duplicate React keys when `id` is ""). */
@@ -80,9 +84,12 @@ export function DragDropMatchDiagramAuthoring({
   safeStr,
   onDiagramImageFile,
   diagramImageUploading,
+  onPairTargetImageFile,
+  isPairTargetImageUploading,
 }: DragDropMatchDiagramAuthoringProps): React.ReactElement {
   const placementContainerRef = useRef<HTMLDivElement | null>(null);
   const diagramFileInputRef = useRef<HTMLInputElement | null>(null);
+  const ttiPairFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const zones = Array.isArray(blk.dropZones) ? [...blk.dropZones] : [];
   const pairsDd = Array.isArray(blk.pairs) ? blk.pairs : [];
   const placeIdxDd = placingZoneId
@@ -181,16 +188,214 @@ export function DragDropMatchDiagramAuthoring({
           </div>
           <p
             style={{
-              margin: 0,
+              margin: "0 0 10px",
               fontSize: 13,
               lineHeight: 1.45,
               color: "#475569",
             }}
           >
-            Students drag <strong>concept cards</strong> (prompt) onto <strong>large image targets</strong>. Add a pair
-            below, then upload one target image per pair. Labels (answer) appear after Check. Without images, the
-            activity falls back to standard text layout.
+            Upload one target image per pair. Add labels and explanations in Step 2 below.
           </p>
+          {pairsDd.length === 0 ? (
+            <button
+              type="button"
+              data-testid="tti-add-first-pair"
+              onClick={() =>
+                onPatch({
+                  pairs: [
+                    {
+                      id: newId(),
+                      prompt: "",
+                      answer: "",
+                      explanation: "",
+                    },
+                  ],
+                })
+              }
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "2px solid rgba(16, 185, 129, 0.45)",
+                background: "rgba(240, 253, 244, 0.9)",
+                color: "#047857",
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              + Add first image pair
+            </button>
+          ) : (
+            <div
+              data-testid="tti-step-1-pair-uploads"
+              style={{ display: "flex", flexDirection: "column", gap: 12 }}
+            >
+              {pairsDd.map((pair, pi) => {
+                const rawPairImg = String(
+                  readDragDropPairTargetImageUrl(pair) ?? pair.imageUrl ?? ""
+                ).trim();
+                const pairImgSrc =
+                  rawPairImg && hasRenderableLessonImageSrc(rawPairImg)
+                    ? resolveImageUrlForPreview(rawPairImg)
+                    : "";
+                const pairUploading = isPairTargetImageUploading?.(pi) ?? false;
+                const patchPair = (rowPatch: Partial<(typeof pairsDd)[number]>) => {
+                  const next = [...pairsDd];
+                  if (next[pi]) {
+                    next[pi] = { ...next[pi], ...rowPatch };
+                    onPatch({ pairs: next });
+                  }
+                };
+                return (
+                  <div
+                    key={pair.id || `tti-pair-${pi}`}
+                    data-testid={`tti-step-1-pair-${pi}`}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      border: "1px solid #bbf7d0",
+                      background: "#fff",
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: 13, color: "#047857", marginBottom: 8 }}>
+                      Pair {pi + 1}
+                    </div>
+                    <input
+                      ref={(el) => {
+                        ttiPairFileInputRefs.current[pi] = el;
+                      }}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f && onPairTargetImageFile) void Promise.resolve(onPairTargetImageFile(f, pi));
+                      }}
+                    />
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                      <button
+                        type="button"
+                        disabled={!onPairTargetImageFile || pairUploading}
+                        onClick={() => {
+                          const input = ttiPairFileInputRefs.current[pi];
+                          if (input) {
+                            input.value = "";
+                            input.click();
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: "2px solid rgba(16, 185, 129, 0.45)",
+                          background: pairUploading ? "#e2e8f0" : "#ecfdf5",
+                          color: "#047857",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: !onPairTargetImageFile || pairUploading ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {pairUploading ? "Uploading…" : "Upload image"}
+                      </button>
+                      <label style={{ flex: "1 1 180px", minWidth: 0, margin: 0 }}>
+                        <span style={{ display: "block", fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+                          Image URL
+                        </span>
+                        <input
+                          value={String(pair.imageUrl ?? readDragDropPairTargetImageUrl(pair) ?? "")}
+                          onChange={(e) =>
+                            patchPair({ imageUrl: e.target.value, answerImageUrl: undefined })
+                          }
+                          placeholder="https://… or path after upload"
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            border: "1px solid #cbd5e1",
+                            boxSizing: "border-box",
+                            fontSize: 13,
+                          }}
+                        />
+                      </label>
+                    </div>
+                    {rawPairImg && pairImgSrc ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 10,
+                          marginTop: 8,
+                          padding: 8,
+                          borderRadius: 8,
+                          border: "1px solid #e2e8f0",
+                          background: "#f8fafc",
+                        }}
+                      >
+                        <img
+                          src={pairImgSrc}
+                          alt=""
+                          style={{
+                            width: 72,
+                            height: 72,
+                            objectFit: "contain",
+                            borderRadius: 8,
+                            border: "1px solid #cbd5e1",
+                            background: "#fff",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => patchPair({ imageUrl: "", answerImageUrl: undefined })}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            border: "1px solid #f87171",
+                            background: "#fef2f2",
+                            color: "#b91c1c",
+                            fontWeight: 700,
+                            fontSize: 12,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Clear image
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() =>
+                  onPatch({
+                    pairs: [
+                      ...pairsDd,
+                      {
+                        id: newId(),
+                        prompt: "",
+                        answer: "",
+                        explanation: "",
+                      },
+                    ],
+                  })
+                }
+                style={{
+                  alignSelf: "flex-start",
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "2px solid rgba(16, 185, 129, 0.35)",
+                  background: "rgba(240, 253, 244, 0.6)",
+                  color: "#047857",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                + Add another image pair
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
       {layoutMode === "text-to-image" && pairsDd.length > 0 ? (
