@@ -313,6 +313,17 @@ describe("dragDropMatchDiagram", () => {
         })
       ).toBe("text-to-image");
     });
+
+    it("does not treat stale dragDropLayout standard as text when matchMode is textToImage", () => {
+      expect(
+        resolveDragDropPersistMode({
+          matchMode: "textToImage",
+          dragDropLayout: "standard",
+          imageUrl: "https://example.com/main.png",
+          pairs: [{ id: "p1", prompt: "A", answer: "B" }],
+        })
+      ).toBe("text-to-image");
+    });
   });
 
   describe("dragDropMatchModeFromBlockForProps", () => {
@@ -341,6 +352,23 @@ describe("dragDropMatchDiagram", () => {
       expect(out?.dragDropLayout).toBe("textToImage");
       expect(out?.type).toBe("dragDropMatch");
       expect((out?.pairs as { imageUrl?: string }[])?.[0]?.imageUrl).toBe("/t.png");
+    });
+
+    it("buildDragDropMatchBlockForPersist keeps main imageUrl when dragDropLayout is stale standard", () => {
+      const out = buildDragDropMatchBlockForPersist(
+        {
+          type: "dragDropMatch",
+          matchMode: "textToImage",
+          dragDropLayout: "standard",
+          imageUrl: "https://example.com/main.png",
+          pairs: [{ id: "p1", prompt: "Term", answer: "def" }],
+        },
+        { newId: () => "id" }
+      );
+      expect(out?.matchMode).toBe("textToImage");
+      expect(out?.dragDropLayout).toBe("textToImage");
+      expect(out?.imageUrl).toBe("https://example.com/main.png");
+      expect(out?.dropZones).toBeUndefined();
     });
 
     it("buildDragDropMatchBlockForPersist strips diagram fields for text-to-image", () => {

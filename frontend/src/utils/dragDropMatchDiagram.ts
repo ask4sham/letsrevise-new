@@ -56,6 +56,14 @@ export function readDragDropLayoutFromBlock(block: unknown): unknown {
 export function readDragDropMatchModeFromBlock(block: unknown): unknown {
   if (!block || typeof block !== "object") return undefined;
   const o = block as Record<string, unknown>;
+  const fromLayout = parseDragDropMatchMode(readDragDropLayoutFromBlock(block));
+  const fromMatch = parseDragDropMatchMode(o.matchMode ?? o.match_mode ?? o.matchmode);
+  if (fromMatch === "text-to-image" || fromLayout === "text-to-image") {
+    return dragDropLayoutPersistedValues("text-to-image").matchMode;
+  }
+  if (fromMatch === "diagram" || fromLayout === "diagram") {
+    return dragDropLayoutPersistedValues("diagram").matchMode;
+  }
   const layout = readDragDropLayoutFromBlock(block);
   if (layout != null && String(layout).trim()) return layout;
   return o.matchMode ?? o.match_mode ?? o.matchmode;
@@ -115,16 +123,17 @@ export function readDragDropPairExplicitTargetImageUrl(row: unknown): string | u
 }
 
 /**
- * Resolve layout for save, hydrate, and preview — prefers `dragDropLayout` / `matchMode`, then pair
- * `imageUrl` targets, then diagram inference. Never treats `answerImageUrl` alone as text-to-image.
+ * Resolve layout for save, hydrate, and preview — reads both `dragDropLayout` and `matchMode` so a
+ * stale `standard` layout cannot override `textToImage`. Then pair `imageUrl` targets, then diagram
+ * inference. Never treats `answerImageUrl` alone as text-to-image.
  */
 export function resolveDragDropPersistMode(block: unknown): DragDropMatchPersistedMode | undefined {
   const b = block != null && typeof block === "object" ? (block as Record<string, unknown>) : {};
-  const raw = readDragDropMatchModeFromBlock(b);
-  const direct = parseDragDropMatchMode(raw);
-  if (direct === "text") return "text";
-  if (direct === "text-to-image") return "text-to-image";
-  if (direct === "diagram") return "diagram";
+  const fromLayout = parseDragDropMatchMode(readDragDropLayoutFromBlock(b));
+  const fromMatch = parseDragDropMatchMode(b.matchMode ?? b.match_mode ?? b.matchmode);
+  if (fromMatch === "text-to-image" || fromLayout === "text-to-image") return "text-to-image";
+  if (fromMatch === "diagram" || fromLayout === "diagram") return "diagram";
+  if (fromMatch === "text" || fromLayout === "text") return "text";
   const pairs = Array.isArray(b.pairs) ? b.pairs : [];
   if (pairs.some((row) => readDragDropPairExplicitTargetImageUrl(row))) {
     return "text-to-image";
