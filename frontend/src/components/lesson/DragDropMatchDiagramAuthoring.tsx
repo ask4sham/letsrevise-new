@@ -134,7 +134,6 @@ export function DragDropMatchDiagramAuthoring({
                 matchMode: stored.matchMode as DragDropMatchAuthoringMatchMode,
                 dragDropLayout: stored.dragDropLayout,
                 dropZones: [],
-                imageUrl: "",
               };
               console.log("[TeacherBrainLayout] activity layout changed", {
                 activityLayout: patch.dragDropLayout,
@@ -455,6 +454,9 @@ export function DragDropMatchDiagramAuthoring({
                 intro: safeStr(blk.intro, ""),
                 instructions: safeStr(blk.instructions, ""),
                 matchMode: "text-to-image",
+                ...(blk.imageUrl != null && String(blk.imageUrl).trim()
+                  ? { imageUrl: String(blk.imageUrl).trim() }
+                  : {}),
                 pairs: pairsDd.map((p, pi) => {
                   const img = readDragDropPairTargetImageUrl(p);
                   return {

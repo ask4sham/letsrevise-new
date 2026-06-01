@@ -261,7 +261,9 @@ export function LessonStudentBlockRenderer({
           intro: String(block.intro ?? ""),
           instructions: String(b.instructions ?? ""),
           ...(mm ? { matchMode: mm } : {}),
-          ...(mm === "diagram" && b.imageUrl != null && String(b.imageUrl).trim()
+          ...((mm === "diagram" || mm === "text-to-image") &&
+          b.imageUrl != null &&
+          String(b.imageUrl).trim()
             ? { imageUrl: String(b.imageUrl).trim() }
             : {}),
           pairs: Array.isArray(b.pairs)

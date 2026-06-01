@@ -217,6 +217,36 @@ describe("DragDropMatchBlock diagram mode", () => {
   });
 });
 
+describe("DragDropMatchBlock text-to-image main image mode", () => {
+  const ttiMainBlock = {
+    matchMode: "text-to-image" as const,
+    title: "Label the diagram",
+    imageUrl: "https://example.com/main-diagram.png",
+    pairs: [
+      { id: "p1", prompt: "ATP release", answer: "Mitochondria" },
+      { id: "p2", prompt: "Photosynthesis", answer: "Chloroplast" },
+    ],
+  };
+
+  it("renders main image worksheet with concept cards", () => {
+    render(<DragDropMatchBlock block={ttiMainBlock} resolveImageUrl={(u) => u} />);
+    expect(screen.getByTestId("drag-drop-tti-main-worksheet")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /label the diagram/i })).toHaveAttribute(
+      "src",
+      "https://example.com/main-diagram.png"
+    );
+    expect(screen.getByRole("button", { name: /select concept:\s*ATP release/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("drag-drop-tti-grid")).toBeNull();
+  });
+
+  it("click-to-place concept onto auto zone on main image", () => {
+    render(<DragDropMatchBlock block={ttiMainBlock} resolveImageUrl={(u) => u} />);
+    fireEvent.click(screen.getByRole("button", { name: /select concept:\s*ATP release/i }));
+    fireEvent.click(screen.getByRole("button", { name: /drop concept on marker a/i }));
+    expect(screen.getByText("ATP release")).toBeInTheDocument();
+  });
+});
+
 describe("DragDropMatchBlock text-to-image mode", () => {
   const ttiBlock = {
     matchMode: "text-to-image" as const,

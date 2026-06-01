@@ -816,6 +816,11 @@ function sanitisePageInput(p, isUpdate = false) {
           } else if (effectiveMm === "text-to-image") {
             ddmOut.matchMode = "textToImage";
             ddmOut.dragDropLayout = "textToImage";
+            const imageUrl =
+              typeof b?.imageUrl === "string" && b.imageUrl.trim()
+                ? b.imageUrl.trim().slice(0, 8000)
+                : "";
+            if (imageUrl) ddmOut.imageUrl = imageUrl;
           }
           return ddmOut;
         }

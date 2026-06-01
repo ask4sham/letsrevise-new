@@ -44,6 +44,6 @@ describe("CreateLesson dragDropMatch persist shape", () => {
     expect(out?.matchMode).toBe("textToImage");
     expect(out?.dragDropLayout).toBe("textToImage");
     expect(out?.dropZones).toBeUndefined();
-    expect(out?.imageUrl).toBeUndefined();
+    expect(out?.imageUrl).toBe("https://example.com/old-diagram.png");
   });
 });

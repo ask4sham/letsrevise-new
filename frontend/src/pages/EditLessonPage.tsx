@@ -9846,9 +9846,14 @@ const EditLessonPage: React.FC = () => {
                                 const mm = dragDropMatchModeFromBlockForProps(ddm);
                                 return mm ? { matchMode: mm } : {};
                               })(),
-                              ...(dragDropMatchModeFromBlockForProps(ddm) === "diagram" &&
-                              (ddm as LessonPageBlock).imageUrl != null &&
-                              String((ddm as LessonPageBlock).imageUrl).trim()
+                              ...((() => {
+                                const ddmMm = dragDropMatchModeFromBlockForProps(ddm);
+                                return (
+                                  (ddmMm === "diagram" || ddmMm === "text-to-image") &&
+                                  (ddm as LessonPageBlock).imageUrl != null &&
+                                  String((ddm as LessonPageBlock).imageUrl).trim()
+                                );
+                              })()
                                 ? { imageUrl: String((ddm as LessonPageBlock).imageUrl).trim() }
                                 : {}),
                               pairs: previewPairsRaw.map((p, i) => mapDragDropPairForBlockRender(p, i)),

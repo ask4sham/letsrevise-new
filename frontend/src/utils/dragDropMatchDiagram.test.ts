@@ -4,7 +4,10 @@ import {
   dedupeDiagramZoneIds,
   dragDropMatchModeFromBlockForProps,
   dragDropMatchModeFromUiSelect,
+  buildDefaultTextToImageDropZones,
+  dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
+  dragDropTextToImageCanRender,
   isDragDropDiagramMode,
   isDragDropTextToImageMode,
   logDragDropMatchZoneBindings,
@@ -219,6 +222,44 @@ describe("dragDropMatchDiagram", () => {
       expect(parseDragDropMatchMode("TEXT")).toBe("text");
       expect(parseDragDropMatchMode("text-to-image")).toBe("text-to-image");
       expect(parseDragDropMatchMode("Text To Image")).toBe("text-to-image");
+    });
+  });
+
+  describe("buildDefaultTextToImageDropZones", () => {
+    it("creates one zone per pair with spread coordinates", () => {
+      const z = buildDefaultTextToImageDropZones(["p1", "p2"]);
+      expect(z).toHaveLength(2);
+      expect(z[0]).toMatchObject({ id: "tti-auto-0", correctPairId: "p1" });
+      expect(z[1]).toMatchObject({ id: "tti-auto-1", correctPairId: "p2" });
+      expect(z[0].x).toBeGreaterThan(0);
+      expect(z[0].y).toBeGreaterThan(0);
+    });
+  });
+
+  describe("dragDropTextToImageCanRender", () => {
+    it("is true for main imageUrl without per-pair targets", () => {
+      expect(
+        dragDropTextToImageCanRender(
+          { matchMode: "text-to-image", imageUrl: "https://example.com/main.png" },
+          [{ id: "p1", prompt: "A", answer: "B" }]
+        )
+      ).toBe(true);
+    });
+
+    it("is false when mode is not text-to-image", () => {
+      expect(
+        dragDropTextToImageCanRender(
+          { matchMode: "text", imageUrl: "https://example.com/main.png" },
+          []
+        )
+      ).toBe(false);
+    });
+  });
+
+  describe("dragDropBlockHasRenderableMainImage", () => {
+    it("reads block.imageUrl", () => {
+      expect(dragDropBlockHasRenderableMainImage({ imageUrl: " /x.png " })).toBe(true);
+      expect(dragDropBlockHasRenderableMainImage({ imageUrl: "  " })).toBe(false);
     });
   });
 

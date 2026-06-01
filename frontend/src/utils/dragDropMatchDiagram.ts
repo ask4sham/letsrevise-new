@@ -223,6 +223,25 @@ export function isDragDropTextToImageMode(matchMode: unknown): boolean {
   return parseDragDropMatchMode(matchMode) === "text-to-image";
 }
 
+/** Block-level main activity image (`block.imageUrl`) for text-to-image. */
+export function readDragDropBlockMainImageUrl(block: unknown): string | undefined {
+  if (!block || typeof block !== "object") return undefined;
+  const o = block as Record<string, unknown>;
+  const v = o.imageUrl ?? o.image_url;
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  return s ? s : undefined;
+}
+
+/** True when the block has a renderable main activity image. */
+export function dragDropBlockHasRenderableMainImage(
+  block: unknown,
+  hasRenderable: (url: string) => boolean = (url) => Boolean(String(url ?? "").trim())
+): boolean {
+  const img = readDragDropBlockMainImageUrl(block);
+  return Boolean(img && hasRenderable(img));
+}
+
 /** True when at least one pair has a renderable target image (text-to-image student layout). */
 export function dragDropPairsHaveTargetImages(
   pairs: ReadonlyArray<unknown>,
@@ -233,6 +252,46 @@ export function dragDropPairsHaveTargetImages(
   return pairs.some((row) => {
     const img = readDragDropPairTargetImageUrl(row);
     return Boolean(img && ok(img));
+  });
+}
+
+/** Student text-to-image layout can render when main and/or per-pair target images exist. */
+export function dragDropTextToImageCanRender(
+  block: { matchMode?: unknown; imageUrl?: unknown; pairs?: unknown },
+  pairs: ReadonlyArray<unknown>,
+  hasRenderable?: (url: string) => boolean
+): boolean {
+  if (!isDragDropTextToImageMode(block.matchMode)) return false;
+  const ok = hasRenderable ?? ((url: string) => Boolean(String(url ?? "").trim()));
+  return (
+    dragDropBlockHasRenderableMainImage(block, ok) ||
+    dragDropPairsHaveTargetImages(pairs, ok)
+  );
+}
+
+/**
+ * Default overlay targets for text-to-image when the teacher uploaded a main image but has not
+ * placed diagram-style drop zones (text-to-image persist omits `dropZones`).
+ */
+export function buildDefaultTextToImageDropZones(
+  pairIds: ReadonlyArray<string>
+): PlacedDragDropDiagramZone[] {
+  const ids = pairIds.map((id) => String(id ?? "").trim()).filter(Boolean);
+  const n = ids.length;
+  if (n === 0) return [];
+  const cols = n <= 4 ? n : Math.ceil(Math.sqrt(n));
+  const rows = Math.ceil(n / cols);
+  return ids.map((correctPairId, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const x = clampPct(((col + 1) / (cols + 1)) * 100);
+    const y = clampPct(((row + 1) / (rows + 1)) * 100);
+    return {
+      id: `tti-auto-${i}`,
+      x,
+      y,
+      correctPairId,
+    };
   });
 }
 

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import {
+  buildDefaultTextToImageDropZones,
+  dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
   isDragDropDiagramMode,
   isDragDropTextToImageMode,
@@ -252,10 +254,20 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       });
   }, [block.pairs, diagramMode, textToImageRequested]);
 
-  const textToImageMode =
+  const textToImageMainMode =
     textToImageRequested &&
     !diagramMode &&
+    dragDropBlockHasRenderableMainImage(block, hasRenderableLessonImageSrc);
+
+  const textToImagePerPairMode =
+    textToImageRequested &&
+    !diagramMode &&
+    !textToImageMainMode &&
     dragDropPairsHaveTargetImages(pairs, hasRenderableLessonImageSrc);
+
+  const textToImageMode = textToImageMainMode || textToImagePerPairMode;
+  const worksheetImageMode = diagramMode || textToImageMainMode;
+  const useTtiConceptBank = textToImageMainMode;
 
   useLayoutEffect(() => {
     if (typeof window === "undefined" || window.localStorage?.getItem(DDM_PAIR_IMG_DEBUG_KEY) !== "1") return;
@@ -303,17 +315,24 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
   const pairIds = useMemo(() => pairs.map((p) => p.id), [pairs]);
 
-  const zones: PlacedDragDropDiagramZone[] = useMemo(
-    () => (diagramMode ? sanitizePlacedDiagramDropZones(block.dropZones, pairIds) : []),
-    [diagramMode, block.dropZones, pairIds]
-  );
+  const zones: PlacedDragDropDiagramZone[] = useMemo(() => {
+    if (diagramMode) {
+      return sanitizePlacedDiagramDropZones(block.dropZones, pairIds);
+    }
+    if (textToImageMainMode) {
+      const placed = sanitizePlacedDiagramDropZones(block.dropZones, pairIds);
+      if (placed.length > 0) return placed;
+      return buildDefaultTextToImageDropZones(pairIds);
+    }
+    return [];
+  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds]);
 
   const [placements, setPlacements] = useState<Placements>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
 
-  const layoutResetKey = diagramMode
-    ? `${pairIds.join("|")}|${zones.map((z) => `${z.id}:${z.x}:${z.y}:${z.correctPairId}`).join("|")}`
+  const layoutResetKey = worksheetImageMode
+    ? `${textToImageMainMode ? "tti-main" : "diagram"}|${String(block.imageUrl ?? "").trim()}|${pairIds.join("|")}|${zones.map((z) => `${z.id}:${z.x}:${z.y}:${z.correctPairId}`).join("|")}`
     : `${textToImageMode ? "tti" : "text"}|${pairIds.join("|")}`;
 
   useEffect(() => {
@@ -323,8 +342,8 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   }, [layoutResetKey]);
 
   const targetIds = useMemo(
-    () => (diagramMode ? zones.map((z) => z.id) : pairs.map((p) => p.id)),
-    [diagramMode, zones, pairs]
+    () => (worksheetImageMode ? zones.map((z) => z.id) : pairs.map((p) => p.id)),
+    [worksheetImageMode, zones, pairs]
   );
 
   const poolIds = useMemo(() => {
@@ -346,16 +365,16 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     return bankOrder.filter((id) => poolSet.has(id));
   }, [bankOrder, poolIds]);
 
-  /** Diagram mode: pair id → zone marker letter for placed cards (badges). */
+  /** Worksheet modes: pair id → zone marker letter for placed cards (badges). */
   const diagramPairToMarker = useMemo(() => {
     const m = new Map<string, string>();
-    if (!diagramMode) return m;
+    if (!worksheetImageMode) return m;
     zones.forEach((z, zi) => {
       const pid = placements[z.id];
       if (pid) m.set(pid, diagramZoneMarkerLabel(zi));
     });
     return m;
-  }, [diagramMode, zones, placements]);
+  }, [worksheetImageMode, zones, placements]);
 
   const place = useCallback((targetId: string, sourceId: string) => {
     const sid = String(sourceId ?? "").trim();
@@ -487,7 +506,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     e.dataTransfer.setData(DND_MIME, sid);
     e.dataTransfer.setData("text/plain", sid);
     e.dataTransfer.effectAllowed = "move";
-    if (diagramMode) setDiagramDragActive(true);
+    if (worksheetImageMode) setDiagramDragActive(true);
   };
 
   const onDragEndPool = () => {
@@ -556,13 +575,15 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const intro = String(block.intro ?? "").trim();
   const instructions = String(block.instructions ?? "").trim();
 
-  const imgRaw = diagramMode ? String(block.imageUrl ?? "").trim() : "";
+  const imgRaw = worksheetImageMode ? String(block.imageUrl ?? "").trim() : "";
   const imgResolved = imgRaw ? resolveUploadedDiagramImageSrc(resolveImg(imgRaw)) : "";
   const diagramImageFit = parseDragDropDiagramImageFit(block.imageFit) ?? "contain";
   const diagramImagePosition =
     parseDragDropDiagramImagePosition(block.imagePosition) ?? "center center";
-  const showDiagramImg =
-    diagramMode && hasRenderableLessonImageSrc(imgRaw) && hasRenderableLessonImageSrc(imgResolved);
+  const showWorksheetImg =
+    worksheetImageMode &&
+    hasRenderableLessonImageSrc(imgRaw) &&
+    hasRenderableLessonImageSrc(imgResolved);
 
   if (pairs.length === 0) {
     return (
@@ -572,7 +593,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     );
   }
 
-  const diagramZonesEmptyOrMissing = diagramMode && showDiagramImg && zones.length === 0;
+  const worksheetZonesEmptyOrMissing = worksheetImageMode && showWorksheetImg && zones.length === 0;
 
   return (
     <section
@@ -580,6 +601,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       className={
         "drag-drop-match" +
         (textToImageMode ? " drag-drop-match--text-to-image text-to-image" : "") +
+        (textToImageMainMode ? " drag-drop-match--tti-main" : "") +
         (diagramMode ? " drag-drop-match--diagram" : "")
       }
       aria-label={title || "Drag and drop match activity"}
@@ -606,7 +628,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
       <LessonRichText text={intro} className="drag-drop-match__intro" />
       <LessonRichText text={instructions} className="drag-drop-match__instruction" />
 
-      {textToImageMode ? (
+      {textToImagePerPairMode ? (
         <div
           className="drag-drop-match__tti-grid"
           data-testid="drag-drop-tti-grid"
@@ -778,18 +800,25 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
             </div>
           </div>
         </div>
-      ) : diagramMode ? (
+      ) : worksheetImageMode ? (
         <div
           className="drag-drop-match__diagram-worksheet"
           data-ddm-diagram-layout="side-by-side-v1"
-          data-testid="drag-drop-diagram-worksheet"
+          data-testid={
+            useTtiConceptBank ? "drag-drop-tti-main-worksheet" : "drag-drop-diagram-worksheet"
+          }
         >
-          <div className="drag-drop-match__panel-title drag-drop-match__panel-title--diagram">
-            📍 Diagram — drop zones
+          <div
+            className={
+              "drag-drop-match__panel-title drag-drop-match__panel-title--diagram" +
+              (useTtiConceptBank ? " drag-drop-match__panel-title--tti-targets" : "")
+            }
+          >
+            {useTtiConceptBank ? "🖼️ Match to the image" : "📍 Diagram — drop zones"}
           </div>
           <div className="drag-drop-match__diagram-worksheet-stage">
           <div className="drag-drop-match__diagram-panel">
-            {showDiagramImg ? (
+            {showWorksheetImg ? (
               <>
                 <div className="drag-drop-match__diagram-visual">
                   <div className="drag-drop-match__diagram-image-container">
@@ -876,7 +905,9 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                 aria-label={
                                   sourcePlaced && card
                                     ? `Zone ${mark}: ${card.answer || "answer"}. Click to remove, or drag another card to replace.`
-                                    : `Drop answer on marker ${mark}`
+                                    : useTtiConceptBank
+                                      ? `Drop concept on marker ${mark}`
+                                      : `Drop answer on marker ${mark}`
                                 }
                               >
                                 {sourcePlaced && card ? (
@@ -958,11 +989,13 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                 </div>
                 {zones.length > 0 ? (
                   <div className="drag-drop-match__diagram-summary drag-drop-match__diagram-summary--under-image">
-                    <div className="drag-drop-match__diagram-summary-heading">Your labels</div>
+                    <div className="drag-drop-match__diagram-summary-heading">
+                      {useTtiConceptBank ? "Correct labels" : "Your labels"}
+                    </div>
                     <ul
                       className="drag-drop-match__diagram-summary-list"
                       role="list"
-                      aria-label="Your labels"
+                      aria-label={useTtiConceptBank ? "Correct labels" : "Your labels"}
                     >
                       {zones.map((zone, zi) => {
                         const mark = diagramZoneMarkerLabel(zi);
@@ -1053,9 +1086,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                     </ul>
                   </div>
                 ) : null}
-                {diagramZonesEmptyOrMissing ? (
+                {worksheetZonesEmptyOrMissing ? (
                   <p className="drag-drop-match__diagram-hint" role="status">
-                    This diagram has no drop zones yet. Your teacher can add targets in the lesson editor.
+                    {useTtiConceptBank
+                      ? "This activity has no drop targets yet. Add matching pairs in the lesson editor."
+                      : "This diagram has no drop zones yet. Your teacher can add targets in the lesson editor."}
                   </p>
                 ) : null}
               </>
@@ -1067,11 +1102,21 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
           </div>
 
           <div className="drag-drop-match__diagram-bank">
-            <div className="drag-drop-match__panel-title drag-drop-match__panel-title--answers">
-              🧩 Answer cards
+            <div
+              className={
+                "drag-drop-match__panel-title drag-drop-match__panel-title--answers" +
+                (useTtiConceptBank ? " drag-drop-match__panel-title--tti-cards" : "")
+              }
+            >
+              {useTtiConceptBank ? "📝 Concept cards" : "🧩 Answer cards"}
             </div>
             <div
-              className="drag-drop-match__answers drag-drop-match__answers--diagram"
+              className={
+                "drag-drop-match__answers" +
+                (useTtiConceptBank
+                  ? " drag-drop-match__answers--tti"
+                  : " drag-drop-match__answers--diagram")
+              }
               onDragOver={onDragOver}
               onDrop={(e) => {
                 e.preventDefault();
@@ -1085,72 +1130,127 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                 }
               }}
             >
-              <div className="drag-drop-match__card-list drag-drop-match__card-list--diagram-wrap">
-                {bankOrder
-                  .filter((sid) => pairIdExists(pairs, sid))
-                  .map((sid, index) => {
-                    const p = findPairById(pairs, sid);
-                    if (!p) return null;
-                    const placedMark = diagramPairToMarker.get(sid);
-                    const isPlaced = Boolean(placedMark);
-                    const zoneForCard = zones.find((z) => placements[z.id] === sid);
-                    const corrId = zoneForCard?.correctPairId;
-                    const isCorrect = checked && isPlaced && Boolean(corrId) && corrId === sid;
-                    const isWrong = checked && isPlaced && Boolean(corrId) && corrId !== sid;
-                    const selected = selectedSourceId === sid;
-                    const tone = index % 6;
-                    return (
-                      <button
-                        key={sid}
-                        type="button"
-                        draggable={!isPlaced}
-                        onDragStart={
-                          isPlaced ? undefined : (e: React.DragEvent) => onDragStartPool(e, sid)
-                        }
-                        onDragEnd={onDragEndPool}
-                        onClick={() => onDiagramBankCardClick(sid)}
-                        className={
-                          "drag-drop-match__card drag-drop-match__card--tone-" +
-                          tone +
-                          (selected ? " drag-drop-match__card--selected" : "") +
-                          (isPlaced ? " drag-drop-match__card--diagram-placed" : "") +
-                          (isCorrect ? " drag-drop-match__card--diagram-correct" : "") +
-                          (isWrong ? " drag-drop-match__card--diagram-incorrect" : "")
-                        }
-                        aria-pressed={selected}
-                        aria-label={
-                          isPlaced
-                            ? `Answer placed at ${placedMark}: ${p.answer}. Click to remove placement.`
-                            : `Select answer: ${p.answer}`
-                        }
-                      >
-                        <span className="drag-drop-match__card-inner">
-                          <DragDropAnswerWithOptionalThumb
-                            pair={p}
-                            resolveImg={resolveImg}
-                            textClassName="drag-drop-match__card-text"
-                            thumbExtraClass="drag-drop-match__answer-thumb--diagram-card"
+              <div
+                className={
+                  "drag-drop-match__card-list" +
+                  (useTtiConceptBank
+                    ? " drag-drop-match__card-list--tti"
+                    : " drag-drop-match__card-list--diagram-wrap")
+                }
+              >
+                {useTtiConceptBank
+                  ? bankDisplayIds.map((sid, index) => {
+                      const p = findPairById(pairs, sid);
+                      if (!p) return null;
+                      const placedMark = diagramPairToMarker.get(sid);
+                      const isPlaced = Boolean(placedMark);
+                      const selected = selectedSourceId === sid;
+                      const tone = index % 6;
+                      return (
+                        <button
+                          key={sid}
+                          type="button"
+                          draggable={!isPlaced}
+                          onDragStart={
+                            isPlaced ? undefined : (e: React.DragEvent) => onDragStartPool(e, sid)
+                          }
+                          onDragEnd={onDragEndPool}
+                          onClick={() => onDiagramBankCardClick(sid)}
+                          className={
+                            "drag-drop-match__card drag-drop-match__card--tone-" +
+                            tone +
+                            (selected ? " drag-drop-match__card--selected" : "") +
+                            (isPlaced ? " drag-drop-match__card--diagram-placed" : "") +
+                            " drag-drop-match__card--tti-prompt"
+                          }
+                          aria-pressed={selected}
+                          aria-label={
+                            isPlaced
+                              ? `Concept placed at ${placedMark}: ${p.prompt || p.answer}. Click to remove placement.`
+                              : `Select concept: ${p.prompt || p.answer || "card"}`
+                          }
+                        >
+                          <AnswerCardPreviewShell
                             enablePreviewZoom
-                          />
+                            answerText={p.prompt || p.answer || "(No text)"}
+                          >
+                            <span className="drag-drop-match__card-text drag-drop-match__card-text--tti">
+                              {p.prompt || "(No text)"}
+                            </span>
+                          </AnswerCardPreviewShell>
                           {isPlaced ? (
                             <span className="drag-drop-match__card-placed-badge">Placed: {placedMark}</span>
                           ) : null}
-                          {checked && isPlaced && (isCorrect || isWrong) ? (
-                            <span
-                              className={
-                                "drag-drop-match__card-check" +
-                                (isCorrect
-                                  ? " drag-drop-match__card-check--ok"
-                                  : " drag-drop-match__card-check--bad")
-                              }
-                            >
-                              {isCorrect ? "Correct" : "Try again"}
+                        </button>
+                      );
+                    })
+                  : bankOrder
+                      .filter((sid) => pairIdExists(pairs, sid))
+                      .map((sid, index) => {
+                        const p = findPairById(pairs, sid);
+                        if (!p) return null;
+                        const placedMark = diagramPairToMarker.get(sid);
+                        const isPlaced = Boolean(placedMark);
+                        const zoneForCard = zones.find((z) => placements[z.id] === sid);
+                        const corrId = zoneForCard?.correctPairId;
+                        const isCorrect = checked && isPlaced && Boolean(corrId) && corrId === sid;
+                        const isWrong = checked && isPlaced && Boolean(corrId) && corrId !== sid;
+                        const selected = selectedSourceId === sid;
+                        const tone = index % 6;
+                        return (
+                          <button
+                            key={sid}
+                            type="button"
+                            draggable={!isPlaced}
+                            onDragStart={
+                              isPlaced ? undefined : (e: React.DragEvent) => onDragStartPool(e, sid)
+                            }
+                            onDragEnd={onDragEndPool}
+                            onClick={() => onDiagramBankCardClick(sid)}
+                            className={
+                              "drag-drop-match__card drag-drop-match__card--tone-" +
+                              tone +
+                              (selected ? " drag-drop-match__card--selected" : "") +
+                              (isPlaced ? " drag-drop-match__card--diagram-placed" : "") +
+                              (isCorrect ? " drag-drop-match__card--diagram-correct" : "") +
+                              (isWrong ? " drag-drop-match__card--diagram-incorrect" : "")
+                            }
+                            aria-pressed={selected}
+                            aria-label={
+                              isPlaced
+                                ? `Answer placed at ${placedMark}: ${p.answer}. Click to remove placement.`
+                                : `Select answer: ${p.answer}`
+                            }
+                          >
+                            <span className="drag-drop-match__card-inner">
+                              <DragDropAnswerWithOptionalThumb
+                                pair={p}
+                                resolveImg={resolveImg}
+                                textClassName="drag-drop-match__card-text"
+                                thumbExtraClass="drag-drop-match__answer-thumb--diagram-card"
+                                enablePreviewZoom
+                              />
+                              {isPlaced ? (
+                                <span className="drag-drop-match__card-placed-badge">
+                                  Placed: {placedMark}
+                                </span>
+                              ) : null}
+                              {checked && isPlaced && (isCorrect || isWrong) ? (
+                                <span
+                                  className={
+                                    "drag-drop-match__card-check" +
+                                    (isCorrect
+                                      ? " drag-drop-match__card-check--ok"
+                                      : " drag-drop-match__card-check--bad")
+                                  }
+                                >
+                                  {isCorrect ? "Correct" : "Try again"}
+                                </span>
+                              ) : null}
                             </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          </button>
+                        );
+                      })}
               </div>
             </div>
           </div>
@@ -1165,7 +1265,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
           {typeof window !== "undefined" &&
             window.localStorage?.getItem("DEBUG_DDM") === "1" &&
-            showDiagramImg &&
+            showWorksheetImg &&
             zones.length > 0 ? (
               <div
                 className="drag-drop-match__ddm-debug-panel"
