@@ -225,6 +225,8 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     expect(pages[0].blocks[0].note).toMatch(/IMAGE DESIGN REQUIREMENTS/);
     expect(pages[0].blocks[0].note).toMatch(/900×1350 portrait/i);
     expect(pages[0].blocks[0].note).toMatch(/232×76 px/);
+    expect(pages[0].blocks[0].note).toMatch(/right functional matching rail/i);
+    expect(pages[0].blocks[0].note).toMatch(/not a decorative panel/i);
     expect(pages[0].blocks[0].note).not.toMatch(/DRAG & DROP BRIEF/);
   });
 
@@ -247,6 +249,7 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     expect(pages[0].blocks[0].note).toMatch(/IMAGE \+ DROP ZONES DESIGN BRIEF/);
     expect(pages[0].blocks[0].note).toMatch(/IMAGE DESIGN REQUIREMENTS/);
     expect(pages[0].blocks[0].note).toMatch(/MUST NOT use landscape layout/i);
+    expect(pages[0].blocks[0].note).toMatch(/Do not stretch boxes vertically/i);
     expect(pages[0].blocks[0].note).toMatch(/Drop Zone Locations:/);
     expect(pages[0].blocks[0].note).toMatch(/Distractors:/);
     expect(pages[0].blocks[0].imageUrl).toBe(block.imageUrl);

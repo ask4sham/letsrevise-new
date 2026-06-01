@@ -14,13 +14,26 @@ const {
 const CONTRACT_MUST_LINES = [
   /MUST be 900×1350 portrait/i,
   /MUST NOT use landscape layout/i,
-  /68% left diagram area and 32% right drop-zone rail/i,
+  /68% left diagram area and 32% right functional matching rail/i,
+  /not a decorative panel/i,
   /four empty drop boxes labelled A, B, C, D only/i,
   /MUST NOT use extra numeric labels 1–4/i,
   /232×76 px on the 900×1350 artboard/i,
+  /Do not stretch boxes vertically/i,
+  /same horizontal centreline/i,
   /Concept cards are rendered separately by the application/i,
   /Do NOT draw concept card answer text inside the image/i,
 ];
+
+const REFLEX_ARC_BLOCK = {
+  title: "Reflex arc — drag and drop match",
+  pairs: [
+    { prompt: "Sensory neurone", answer: "Carries impulses from receptor to the CNS" },
+    { prompt: "Relay neurone", answer: "Links neurones inside the spinal cord for fast reflexes" },
+    { prompt: "Motor neurone", answer: "Carries impulses from the CNS to a muscle or gland" },
+    { prompt: "Effector", answer: "Produces the response" },
+  ],
+};
 
 function expectContractBlock(text) {
   expect(text).toMatch(IMAGE_DESIGN_REQUIREMENTS_HEADING);
@@ -41,8 +54,10 @@ describe("dragDropVisualContract", () => {
         { prompt: "Relay neurone", answer: "In spinal cord" },
       ],
     });
-    expect(text).toMatch(/A — printed empty box aligned beside: Sensory neurone/);
+    expect(text).toMatch(/Box A MUST align horizontally with the matching structure on the left \(Sensory neurone\)/);
+    expect(text).toMatch(/same vertical level as that structure — not above or below it/);
     expect(text).toMatch(/In-app concept cards \(NOT in image\)/);
+    expect(text).toMatch(/Check that A aligns to Sensory neurone/);
   });
 });
 
@@ -122,5 +137,14 @@ describe("validation topic prompts (Phase 2)", () => {
   test.each(topics)("$name brief contains full contract block", ({ block }) => {
     const brief = formatTextToImageBrief(null, { title: block.title }, block);
     expectContractBlock(brief);
+  });
+
+  test("Reflex arc brief includes refined alignment and final checklist", () => {
+    const brief = formatTextToImageBrief(null, { title: "Reflex arc" }, REFLEX_ARC_BLOCK);
+    expect(brief).toMatch(/Strict vertical alignment/i);
+    expect(brief).toMatch(/Check that A aligns to Sensory neurone/);
+    expect(brief).toMatch(/Check that B aligns to Relay neurone/);
+    expect(brief).toMatch(/Check that C aligns to Motor neurone/);
+    expect(brief).toMatch(/Check that D aligns to Effector/);
   });
 });

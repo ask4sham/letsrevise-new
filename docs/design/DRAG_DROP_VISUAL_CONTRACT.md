@@ -87,16 +87,24 @@ Artboard:
 
 Layout:
 68% diagram (left) — pathway or labelled structures
-32% right-hand column reserved for empty drop targets (do not draw concept cards here)
+32% right functional matching rail (not a decorative panel)
 
 Drop zones:
 4
 
 Drop zone size:
 232 × 76 px (empty rectangles, labels only)
+Keep all drop boxes identical in size
+Do not exceed the specified dimensions
+Do not stretch boxes vertically
 
 Labels:
 A, B, C, D
+
+Alignment:
+Strict vertical alignment — each box must share the same horizontal centreline as its matching structure on the left
+Example (reflex arc): A ↔ sensory neurone; B ↔ relay neurone; C ↔ motor neurone; D ↔ effector
+Students should be able to visually connect each labelled structure to its matching A–D box without ambiguity
 
 Rules:
 - White background
@@ -104,6 +112,12 @@ Rules:
 - No answer text inside drop rectangles
 - No concept cards inside the image — concept cards are rendered separately by the application
 - Portrait orientation; pathway flows top-to-bottom where applicable
+
+Before finalising the image:
+- Check that A aligns to sensory neurone (or matching structure 1)
+- Check that B aligns to relay neurone (or matching structure 2)
+- Check that C aligns to motor neurone (or matching structure 3)
+- Check that D aligns to effector (or matching structure 4)
 ```
 
 ---
@@ -149,3 +163,4 @@ Phase 1 is **documentation only**. Do not modify as part of this contract:
 | Date | Change |
 |------|--------|
 | 2026-06-01 | Initial freeze from measured CSS + reflex portrait SVG analysis. Documentation-only commit. |
+| 2026-06-01 | Prompt refinement: functional right rail, strict horizontal alignment, box sizing discipline, pre-delivery checklist. |
