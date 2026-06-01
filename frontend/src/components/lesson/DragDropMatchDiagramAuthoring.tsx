@@ -166,22 +166,32 @@ export function DragDropMatchDiagramAuthoring({
         </select>
       </label>
       {layoutMode === "text-to-image" ? (
-        <p
+        <div
+          data-testid="drag-drop-match-step-1-upload"
           style={{
-            margin: "8px 0 0",
-            fontSize: 13,
-            lineHeight: 1.45,
-            color: "#475569",
-            padding: "10px 12px",
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: 8,
+            marginTop: 8,
+            padding: 14,
+            borderRadius: 12,
+            border: "2px solid rgba(16, 185, 129, 0.3)",
+            background: "linear-gradient(180deg, rgba(240, 253, 244, 0.9) 0%, #ffffff 100%)",
           }}
         >
-          Students drag <strong>concept cards</strong> (prompt) onto <strong>large image targets</strong>. Set a target
-          image per pair below; labels (answer) appear after Check. Without images, the activity falls back to standard
-          text layout.
-        </p>
+          <div style={{ fontWeight: 900, fontSize: 15, color: "#047857", marginBottom: 8 }}>
+            Step 1 — Upload Activity Image
+          </div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              lineHeight: 1.45,
+              color: "#475569",
+            }}
+          >
+            Students drag <strong>concept cards</strong> (prompt) onto <strong>large image targets</strong>. Add a pair
+            below, then upload one target image per pair. Labels (answer) appear after Check. Without images, the
+            activity falls back to standard text layout.
+          </p>
+        </div>
       ) : null}
       {layoutMode === "text-to-image" && pairsDd.length > 0 ? (
         <div
@@ -222,74 +232,88 @@ export function DragDropMatchDiagramAuthoring({
       ) : null}
       {layoutMode === "diagram" ? (
         <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-            <label style={{ display: "block", flex: "1 1 220px", minWidth: 0 }}>
-              <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
-                Diagram image URL (or upload below)
-              </div>
-              <input
-                value={safeStr(blk.imageUrl, "")}
-                onChange={(e) => onPatch({ imageUrl: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  boxSizing: "border-box",
-                }}
-                placeholder="https://…"
-              />
-            </label>
-            {onDiagramImageFile ? (
-              <>
-                <input
-                  ref={diagramFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (f) void Promise.resolve(onDiagramImageFile(f));
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={Boolean(diagramImageUploading)}
-                  onClick={() => diagramFileInputRef.current?.click()}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    border: "1px solid #0ea5e9",
-                    background: diagramImageUploading ? "#e2e8f0" : "#e0f2fe",
-                    color: "#0369a1",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: diagramImageUploading ? "not-allowed" : "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  {diagramImageUploading ? "Uploading…" : "Upload image"}
-                </button>
-              </>
-            ) : null}
-          </div>
-          <p
+          <div
+            data-testid="drag-drop-match-step-1-upload"
             style={{
-              margin: "10px 0 0",
-              padding: "10px 12px",
-              fontSize: 13,
-              lineHeight: 1.45,
-              color: "#475569",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
+              marginTop: 8,
+              padding: 14,
+              borderRadius: 12,
+              border: "2px solid rgba(14, 165, 233, 0.35)",
+              background: "linear-gradient(180deg, rgba(224, 242, 254, 0.65) 0%, #ffffff 100%)",
             }}
           >
-            <strong style={{ color: "#334155" }}>Tip:</strong> If there is too much blank space around your
-            diagram, crop the image before upload. The activity does not auto-crop images because that can shift
-            hotspot coordinates.
-          </p>
+            <div style={{ fontWeight: 900, fontSize: 15, color: "#0369a1", marginBottom: 10 }}>
+              Step 1 — Upload Activity Image
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+              <label style={{ display: "block", flex: "1 1 220px", minWidth: 0 }}>
+                <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>
+                  Diagram image URL (or upload below)
+                </div>
+                <input
+                  value={safeStr(blk.imageUrl, "")}
+                  onChange={(e) => onPatch({ imageUrl: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    boxSizing: "border-box",
+                  }}
+                  placeholder="https://…"
+                />
+              </label>
+              {onDiagramImageFile ? (
+                <>
+                  <input
+                    ref={diagramFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (f) void Promise.resolve(onDiagramImageFile(f));
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={Boolean(diagramImageUploading)}
+                    onClick={() => diagramFileInputRef.current?.click()}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "1px solid #0ea5e9",
+                      background: diagramImageUploading ? "#e2e8f0" : "#e0f2fe",
+                      color: "#0369a1",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: diagramImageUploading ? "not-allowed" : "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {diagramImageUploading ? "Uploading…" : "Upload image"}
+                  </button>
+                </>
+              ) : null}
+            </div>
+            <p
+              style={{
+                margin: "10px 0 0",
+                padding: "10px 12px",
+                fontSize: 13,
+                lineHeight: 1.45,
+                color: "#475569",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+              }}
+            >
+              <strong style={{ color: "#334155" }}>Tip:</strong> If there is too much blank space around your
+              diagram, crop the image before upload. The activity does not auto-crop images because that can shift
+              hotspot coordinates.
+            </p>
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
             <label style={{ display: "block", flex: "1 1 180px", minWidth: 0 }}>
               <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 13 }}>Image fit</div>

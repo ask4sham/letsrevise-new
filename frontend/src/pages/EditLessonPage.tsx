@@ -7584,6 +7584,76 @@ const EditLessonPage: React.FC = () => {
                                 injectLoading={teacherBrainInjectLoading}
                                 refreshKey={teacherBrainBriefRefreshKey}
                               />
+                              <div
+                                data-testid="interactive-diagram-step-1-upload"
+                                style={{
+                                  padding: 14,
+                                  borderRadius: 12,
+                                  border: "2px solid rgba(220, 38, 38, 0.25)",
+                                  background: "linear-gradient(180deg, rgba(254, 242, 242, 0.65) 0%, #ffffff 100%)",
+                                }}
+                              >
+                                <div style={{ fontWeight: 900, fontSize: 15, color: "#991b1b", marginBottom: 10 }}>
+                                  Step 1 — Upload Activity Image
+                                </div>
+                                <input
+                                  ref={(el) => {
+                                    fileInputRef.current[`${key}:idiagram`] = el;
+                                  }}
+                                  type="file"
+                                  accept="image/*"
+                                  style={{ display: "none" }}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (!f) return;
+                                    uploadImageForInteractiveDiagram(
+                                      f,
+                                      currentPage!.pageId,
+                                      idx,
+                                      (url) => updateBlock(currentPage!.pageId, idx, { imageUrl: url })
+                                    );
+                                    e.target.value = "";
+                                  }}
+                                />
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const input = fileInputRef.current[`${key}:idiagram`];
+                                      if (input) {
+                                        input.value = "";
+                                        input.click();
+                                      }
+                                    }}
+                                    disabled={uploadingKey === `${key}:idiagram`}
+                                    style={{
+                                      padding: "8px 14px",
+                                      borderRadius: 8,
+                                      border: "2px solid rgba(220,38,38,0.35)",
+                                      background: "rgba(254,242,242,0.6)",
+                                      cursor: uploadingKey === `${key}:idiagram` ? "not-allowed" : "pointer",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {uploadingKey === `${key}:idiagram` ? "Uploading…" : "Upload image"}
+                                  </button>
+                                </div>
+                                <label style={{ display: "block", marginTop: 10 }}>
+                                  <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 12 }}>Image URL (optional)</div>
+                                  <input
+                                    value={safeStr((b as LessonPageBlock).imageUrl, "")}
+                                    onChange={(e) => updateBlock(currentPage!.pageId, idx, { imageUrl: e.target.value })}
+                                    style={{
+                                      width: "100%",
+                                      padding: "8px 10px",
+                                      borderRadius: 8,
+                                      border: "1px solid #cbd5e1",
+                                      boxSizing: "border-box",
+                                    }}
+                                    placeholder="https://… or from upload"
+                                  />
+                                </label>
+                              </div>
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
                                 <input
@@ -7609,47 +7679,7 @@ const EditLessonPage: React.FC = () => {
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
-                              <input
-                                ref={(el) => {
-                                  fileInputRef.current[`${key}:idiagram`] = el;
-                                }}
-                                type="file"
-                                accept="image/*"
-                                style={{ display: "none" }}
-                                onChange={(e) => {
-                                  const f = e.target.files?.[0];
-                                  if (!f) return;
-                                  uploadImageForInteractiveDiagram(
-                                    f,
-                                    currentPage!.pageId,
-                                    idx,
-                                    (url) => updateBlock(currentPage!.pageId, idx, { imageUrl: url })
-                                  );
-                                  e.target.value = "";
-                                }}
-                              />
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const input = fileInputRef.current[`${key}:idiagram`];
-                                    if (input) {
-                                      input.value = "";
-                                      input.click();
-                                    }
-                                  }}
-                                  disabled={uploadingKey === `${key}:idiagram`}
-                                  style={{
-                                    padding: "8px 14px",
-                                    borderRadius: 8,
-                                    border: "2px solid rgba(220,38,38,0.35)",
-                                    background: "rgba(254,242,242,0.6)",
-                                    cursor: uploadingKey === `${key}:idiagram` ? "not-allowed" : "pointer",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {uploadingKey === `${key}:idiagram` ? "Uploading…" : "Upload image"}
-                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -7844,20 +7874,6 @@ const EditLessonPage: React.FC = () => {
                                   {interactiveDiagramTemplateHint[key]}
                                 </p>
                               ) : null}
-                              <label style={{ display: "block" }}>
-                                <div style={{ fontWeight: 800, marginBottom: 4, fontSize: 12 }}>Image URL (optional)</div>
-                                <input
-                                  value={safeStr((b as LessonPageBlock).imageUrl, "")}
-                                  onChange={(e) => updateBlock(currentPage!.pageId, idx, { imageUrl: e.target.value })}
-                                  style={{
-                                    width: "100%",
-                                    padding: "8px 10px",
-                                    borderRadius: 8,
-                                    border: "1px solid #cbd5e1",
-                                  }}
-                                  placeholder="https://… or from upload"
-                                />
-                              </label>
                               {(() => {
                                 const idgHotspots = Array.isArray((b as LessonPageBlock).hotspots)
                                   ? (b as LessonPageBlock).hotspots!
@@ -8494,6 +8510,23 @@ const EditLessonPage: React.FC = () => {
                                 injectLoading={teacherBrainInjectLoading}
                                 refreshKey={teacherBrainBriefRefreshKey}
                               />
+                              <DragDropMatchDiagramAuthoring
+                                blk={b as LessonPageBlock}
+                                newId={newId}
+                                onPatch={(patch) => updateBlock(currentPage!.pageId, idx, patch)}
+                                placingZoneId={dragDropDiagramPlacingId[key] ?? null}
+                                onPlacingZoneId={(id) =>
+                                  setDragDropDiagramPlacingId((p) => ({ ...p, [key]: id }))
+                                }
+                                resolveImageUrlForPreview={(u) => makeAbsoluteAssetUrl(u) ?? u}
+                                safeStr={safeStr}
+                                onDiagramImageFile={(file) =>
+                                  uploadImageForDragDropMatch(file, currentPage!.pageId, idx, (url) =>
+                                    updateBlock(currentPage!.pageId, idx, { imageUrl: url })
+                                  )
+                                }
+                                diagramImageUploading={uploadingKey === `${currentPage!.pageId}:${idx}:ddm`}
+                              />
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Title</div>
                                 <input
@@ -8530,23 +8563,6 @@ const EditLessonPage: React.FC = () => {
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
-                              <DragDropMatchDiagramAuthoring
-                                blk={b as LessonPageBlock}
-                                newId={newId}
-                                onPatch={(patch) => updateBlock(currentPage!.pageId, idx, patch)}
-                                placingZoneId={dragDropDiagramPlacingId[key] ?? null}
-                                onPlacingZoneId={(id) =>
-                                  setDragDropDiagramPlacingId((p) => ({ ...p, [key]: id }))
-                                }
-                                resolveImageUrlForPreview={(u) => makeAbsoluteAssetUrl(u) ?? u}
-                                safeStr={safeStr}
-                                onDiagramImageFile={(file) =>
-                                  uploadImageForDragDropMatch(file, currentPage!.pageId, idx, (url) =>
-                                    updateBlock(currentPage!.pageId, idx, { imageUrl: url })
-                                  )
-                                }
-                                diagramImageUploading={uploadingKey === `${currentPage!.pageId}:${idx}:ddm`}
-                              />
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 13 }}>
                                   AI topic or prompt (optional)
