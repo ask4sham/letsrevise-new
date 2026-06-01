@@ -311,9 +311,22 @@ export function dragDropTextToImageCanRender(
   );
 }
 
-/** Printed drop box size on 900×1350 artboard (visual contract). Runtime only — not persisted. */
-export const TTI_BOXED_ZONE_WIDTH_PCT = (232 / 900) * 100;
-export const TTI_BOXED_ZONE_HEIGHT_PCT = (76 / 1350) * 100;
+/** Printed drop box size on 600×600 display thumbnails (runtime only — not persisted). */
+export const TTI_BOXED_ZONE_WIDTH_PCT = 21.67;
+export const TTI_BOXED_ZONE_HEIGHT_PCT = 10.33;
+/** Portrait artboard reference (900×1350 SVG). */
+export const TTI_BOXED_ZONE_PORTRAIT_WIDTH_PCT = (232 / 900) * 100;
+export const TTI_BOXED_ZONE_PORTRAIT_HEIGHT_PCT = (76 / 1350) * 100;
+
+export type TtiMainImageBoxedLayout = "portrait" | "square-display";
+
+/** Center points measured on 600×600 `.display.png` lesson assets (Reflex Arc reference). */
+const TTI_SQUARE_DISPLAY_BOX_CENTERS: ReadonlyArray<{ x: number; y: number }> = [
+  { x: 70.25, y: 25.92 },
+  { x: 70.25, y: 48.08 },
+  { x: 70.25, y: 70.08 },
+  { x: 70.25, y: 91.08 },
+];
 
 /** Center points for 4 right-rail boxes on contract portrait artboard (reflex reference). */
 const TTI_CONTRACT_PORTRAIT_BOX_CENTERS: ReadonlyArray<{ x: number; y: number }> = [
@@ -325,11 +338,44 @@ const TTI_CONTRACT_PORTRAIT_BOX_CENTERS: ReadonlyArray<{ x: number; y: number }>
 
 /** True when image natural aspect matches 900×1350 portrait (±5%). */
 export function isContractPortraitImageAspect(naturalWidth: number, naturalHeight: number): boolean {
-  if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight)) return false;
-  if (naturalWidth <= 0 || naturalHeight <= 0) return false;
+  return detectTtiMainImageLayout(naturalWidth, naturalHeight) === "portrait";
+}
+
+/** Detect boxed layout from loaded image dimensions. */
+export function detectTtiMainImageLayout(
+  naturalWidth: number,
+  naturalHeight: number
+): TtiMainImageBoxedLayout | null {
+  if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight)) return null;
+  if (naturalWidth <= 0 || naturalHeight <= 0) return null;
   const ratio = naturalWidth / naturalHeight;
-  const target = 900 / 1350;
-  return Math.abs(ratio - target) / target <= 0.05;
+  const portraitTarget = 900 / 1350;
+  if (Math.abs(ratio - portraitTarget) / portraitTarget <= 0.05) return "portrait";
+  if (Math.abs(ratio - 1) <= 0.05) return "square-display";
+  return null;
+}
+
+/** Infer square display from persisted `.display.png` URL (before natural dimensions known). */
+export function inferTtiMainImageLayoutFromUrl(imageUrl: unknown): TtiMainImageBoxedLayout | null {
+  const url = String(imageUrl ?? "").trim().toLowerCase();
+  if (!url) return null;
+  if (/\.display\.(png|webp|jpe?g)(\?|$)/i.test(url)) return "square-display";
+  return null;
+}
+
+export function ttiBoxedZoneSizePct(
+  layout: TtiMainImageBoxedLayout | null | undefined
+): { widthPct: number; heightPct: number } | null {
+  if (layout === "portrait") {
+    return {
+      widthPct: TTI_BOXED_ZONE_PORTRAIT_WIDTH_PCT,
+      heightPct: TTI_BOXED_ZONE_PORTRAIT_HEIGHT_PCT,
+    };
+  }
+  if (layout === "square-display") {
+    return { widthPct: TTI_BOXED_ZONE_WIDTH_PCT, heightPct: TTI_BOXED_ZONE_HEIGHT_PCT };
+  }
+  return null;
 }
 
 /**
@@ -343,6 +389,22 @@ export function buildContractTextToImageBoxedDropZones(
   if (ids.length !== 4) return buildDefaultTextToImageDropZones(pairIds);
   return ids.map((correctPairId, i) => {
     const center = TTI_CONTRACT_PORTRAIT_BOX_CENTERS[i] ?? TTI_CONTRACT_PORTRAIT_BOX_CENTERS[0];
+    return {
+      id: `tti-boxed-${i}`,
+      x: clampPct(center.x),
+      y: clampPct(center.y),
+      correctPairId,
+    };
+  });
+}
+
+export function buildSquareDisplayTextToImageBoxedDropZones(
+  pairIds: ReadonlyArray<string>
+): PlacedDragDropDiagramZone[] {
+  const ids = pairIds.map((id) => String(id ?? "").trim()).filter(Boolean);
+  if (ids.length !== 4) return buildDefaultTextToImageDropZones(pairIds);
+  return ids.map((correctPairId, i) => {
+    const center = TTI_SQUARE_DISPLAY_BOX_CENTERS[i] ?? TTI_SQUARE_DISPLAY_BOX_CENTERS[0];
     return {
       id: `tti-boxed-${i}`,
       x: clampPct(center.x),
@@ -378,13 +440,16 @@ export function buildDefaultTextToImageDropZones(
   });
 }
 
-/** Runtime zone list for text-to-image main image (contract portrait vs fallback grid). */
+/** Runtime zone list for text-to-image main image (boxed layout vs fallback grid). */
 export function buildTextToImageMainDropZones(
   pairIds: ReadonlyArray<string>,
-  useContractPortraitLayout: boolean
+  layout: TtiMainImageBoxedLayout | null | undefined
 ): PlacedDragDropDiagramZone[] {
-  if (useContractPortraitLayout && pairIds.length === 4) {
+  if (pairIds.length === 4 && layout === "portrait") {
     return buildContractTextToImageBoxedDropZones(pairIds);
+  }
+  if (pairIds.length === 4 && layout === "square-display") {
+    return buildSquareDisplayTextToImageBoxedDropZones(pairIds);
   }
   return buildDefaultTextToImageDropZones(pairIds);
 }

@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import {
   buildTextToImageMainDropZones,
+  detectTtiMainImageLayout,
   dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
-  isContractPortraitImageAspect,
+  inferTtiMainImageLayoutFromUrl,
   isDragDropDiagramMode,
   isDragDropTextToImageMode,
+  ttiBoxedZoneSizePct,
+  type TtiMainImageBoxedLayout,
   type DragDropMatchAuthoringMatchMode,
   mergeDiagramZoneExplanation,
   parseDragDropDiagramImageFit,
@@ -20,6 +23,7 @@ import {
 import { resolveLessonStepImageSrc, resolveUploadedDiagramImageSrc } from "../../utils/assetUrl";
 import { AnswerCardPreviewShell } from "./DragDropAnswerCardPreview";
 import { AssessmentFeedback } from "./AssessmentFeedback";
+import { TtiPlacedAnswerMagnify } from "./TtiPlacedAnswerMagnify";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import { LessonRichText } from "./LessonRichText";
 import "./dragDropMatchBlock.css";
@@ -271,7 +275,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const useTtiConceptBank = textToImageMainMode;
   const useTtiBoxedZones = textToImageMainMode;
 
-  const [ttiMainImageContractPortrait, setTtiMainImageContractPortrait] = useState<boolean | null>(
+  const [ttiMainImageLayout, setTtiMainImageLayout] = useState<TtiMainImageBoxedLayout | null>(
     null
   );
 
@@ -321,6 +325,22 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
   const pairIds = useMemo(() => pairs.map((p) => p.id), [pairs]);
 
+  const ttiBoxedLayout = useMemo((): TtiMainImageBoxedLayout | null => {
+    if (!textToImageMainMode || pairIds.length !== 4) return null;
+    if (ttiMainImageLayout) return ttiMainImageLayout;
+    return inferTtiMainImageLayoutFromUrl(block.imageUrl) ?? "square-display";
+  }, [textToImageMainMode, pairIds.length, ttiMainImageLayout, block.imageUrl]);
+
+  const ttiOverlayBoxStyle = useMemo((): React.CSSProperties | undefined => {
+    if (!useTtiBoxedZones) return undefined;
+    const dims = ttiBoxedZoneSizePct(ttiBoxedLayout);
+    if (!dims) return undefined;
+    return {
+      "--tti-boxed-w": `${dims.widthPct}%`,
+      "--tti-boxed-h": `${dims.heightPct}%`,
+    } as React.CSSProperties;
+  }, [useTtiBoxedZones, ttiBoxedLayout]);
+
   const zones: PlacedDragDropDiagramZone[] = useMemo(() => {
     if (diagramMode) {
       return sanitizePlacedDiagramDropZones(block.dropZones, pairIds);
@@ -328,13 +348,10 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     if (textToImageMainMode) {
       const placed = sanitizePlacedDiagramDropZones(block.dropZones, pairIds);
       if (placed.length > 0) return placed;
-      return buildTextToImageMainDropZones(
-        pairIds,
-        pairIds.length === 4 && ttiMainImageContractPortrait === true
-      );
+      return buildTextToImageMainDropZones(pairIds, ttiBoxedLayout);
     }
     return [];
-  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds, ttiMainImageContractPortrait]);
+  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds, ttiBoxedLayout]);
 
   const [placements, setPlacements] = useState<Placements>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
@@ -585,7 +602,18 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const instructions = String(block.instructions ?? "").trim();
 
   const imgRaw = worksheetImageMode ? String(block.imageUrl ?? "").trim() : "";
-  const imgResolved = imgRaw ? resolveUploadedDiagramImageSrc(resolveImg(imgRaw)) : "";
+  const imgDisplaySrc = imgRaw ? resolveImg(imgRaw) || imgRaw : "";
+  /** TTI main: use `.display.png` so overlay coords match the 600×600 artboard (SS1/SS2). */
+  const imgResolved = imgRaw
+    ? textToImageMainMode
+      ? imgDisplaySrc
+      : resolveUploadedDiagramImageSrc(imgDisplaySrc)
+    : "";
+  const imgLightboxSrc = imgRaw
+    ? textToImageMainMode
+      ? resolveUploadedDiagramImageSrc(imgDisplaySrc)
+      : imgResolved
+    : "";
   const diagramImageFit = parseDragDropDiagramImageFit(block.imageFit) ?? "contain";
   const diagramImagePosition =
     parseDragDropDiagramImagePosition(block.imagePosition) ?? "center center";
@@ -596,19 +624,15 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
   useEffect(() => {
     if (!textToImageMainMode) {
-      setTtiMainImageContractPortrait(null);
-      return;
+      setTtiMainImageLayout(null);
     }
-    setTtiMainImageContractPortrait(null);
-  }, [textToImageMainMode, imgRaw]);
+  }, [textToImageMainMode]);
 
   const onTtiMainDiagramImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       if (!textToImageMainMode) return;
       const img = e.currentTarget;
-      setTtiMainImageContractPortrait(
-        isContractPortraitImageAspect(img.naturalWidth, img.naturalHeight)
-      );
+      setTtiMainImageLayout(detectTtiMainImageLayout(img.naturalWidth, img.naturalHeight));
     },
     [textToImageMainMode]
   );
@@ -853,7 +877,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                     <LessonImageFrame
                       className="drag-drop-match__diagram-frame"
                       variant="primary"
-                      lightboxSrc={imgResolved}
+                      lightboxSrc={imgLightboxSrc}
                     >
                       <img
                         className="drag-drop-match__diagram-img"
@@ -868,7 +892,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                       />
                     </LessonImageFrame>
                     {zones.length > 0 ? (
-                      <div ref={diagramOverlayRef} className="drag-drop-match__diagram-overlay">
+                      <div
+                        ref={diagramOverlayRef}
+                        className="drag-drop-match__diagram-overlay"
+                        style={ttiOverlayBoxStyle}
+                      >
                           {diagramDragActive ? (
                             <div
                               className="drag-drop-match__diagram-overlay-catcher"
@@ -881,6 +909,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                             const sourcePlaced = placements[zone.id] ?? null;
                             const card = sourcePlaced ? findPairById(pairs, sourcePlaced) : null;
                             const corr = zone.correctPairId;
+                            const correctPair = corr ? findPairById(pairs, corr) : null;
+                            const placedMagnifyExplanation = mergeDiagramZoneExplanation(
+                              zone.explanation,
+                              correctPair?.explanation
+                            );
                             const mark = diagramZoneMarkerLabel(zi);
                             const isCorrect =
                               checked && sourcePlaced != null && sourcePlaced === corr;
@@ -950,12 +983,20 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                       </span>
                                       {checked ? (
                                         isCorrect ? (
-                                          <span
-                                            className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--ok"
-                                            aria-hidden="true"
-                                          >
-                                            ✓
-                                          </span>
+                                          <>
+                                            <span
+                                              className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--ok"
+                                              aria-hidden="true"
+                                            >
+                                              ✓
+                                            </span>
+                                            <TtiPlacedAnswerMagnify
+                                              conceptCard={String(card.prompt ?? "")}
+                                              answer={String(correctPair?.answer ?? "")}
+                                              explanation={placedMagnifyExplanation}
+                                              markerLabel={mark}
+                                            />
+                                          </>
                                         ) : isWrong ? (
                                           <span
                                             className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--bad"

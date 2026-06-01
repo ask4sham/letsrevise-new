@@ -259,13 +259,22 @@ describe("dragDropMatchDiagram", () => {
   });
 
   describe("buildTextToImageMainDropZones", () => {
-    it("uses contract layout when portrait flag is true and four pairs", () => {
-      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], true);
+    it("uses portrait contract layout when layout is portrait and four pairs", () => {
+      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], "portrait");
       expect(z[0].id).toBe("tti-boxed-0");
+      expect(z[0].x).toBeCloseTo(82.67, 1);
     });
 
-    it("uses fallback grid when portrait flag is false", () => {
-      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], false);
+    it("uses square-display layout when layout is square-display and four pairs", () => {
+      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], "square-display");
+      expect(z[0].id).toBe("tti-boxed-0");
+      expect(z[0].x).toBeCloseTo(70.25, 1);
+      expect(z[0].y).toBeCloseTo(25.92, 1);
+      expect(z[3].y).toBeCloseTo(91.08, 1);
+    });
+
+    it("uses fallback grid when layout is null", () => {
+      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], null);
       expect(z[0].id).toBe("tti-auto-0");
     });
   });
@@ -279,9 +288,9 @@ describe("dragDropMatchDiagram", () => {
   });
 
   describe("TTI boxed zone contract proportions", () => {
-    it("matches visual contract artboard ratios", () => {
-      expect(TTI_BOXED_ZONE_WIDTH_PCT).toBeCloseTo((232 / 900) * 100, 2);
-      expect(TTI_BOXED_ZONE_HEIGHT_PCT).toBeCloseTo((76 / 1350) * 100, 2);
+    it("matches 600×600 display artboard ratios (Reflex Arc reference)", () => {
+      expect(TTI_BOXED_ZONE_WIDTH_PCT).toBeCloseTo(21.67, 2);
+      expect(TTI_BOXED_ZONE_HEIGHT_PCT).toBeCloseTo(10.33, 2);
     });
   });
 

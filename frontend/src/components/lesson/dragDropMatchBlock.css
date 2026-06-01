@@ -1820,8 +1820,8 @@
 .drag-drop-match--tti-main
   .drag-drop-match__diagram-worksheet
   .drag-drop-match__diagram-zone--tti-boxed {
-  width: 25.78%;
-  height: 5.63%;
+  width: var(--tti-boxed-w, 21.67%);
+  height: var(--tti-boxed-h, 10.33%);
   min-width: 0;
   min-height: 0;
   max-width: none;
@@ -1845,19 +1845,49 @@
 .drag-drop-match--tti-main
   .drag-drop-match__diagram-worksheet
   .drag-drop-match__diagram-zone--tti-boxed.drag-drop-match__diagram-zone--filled {
-  width: 25.78%;
-  height: 5.63%;
+  /* Slightly larger than hit-target box so green fill covers printed black stroke (coords unchanged). */
+  width: calc(var(--tti-boxed-w, 21.67%) * 1.32);
+  height: calc(var(--tti-boxed-h, 10.33%) * 1.16);
   min-width: 0;
   min-height: 0;
   max-width: none;
   max-height: none;
-  padding: 1px 4px;
-  border-radius: 4px;
+  padding: 2px 5px;
+  border-radius: 5px;
   border-style: solid;
   border-width: 1px;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  /* Nudge filled card down so green fill does not cover printed A–D labels (coords unchanged). */
+  transform: translate(-50%, calc(-50% + 8px));
+}
+
+.drag-drop-match--tti-main
+  .drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--tti-boxed.drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--correct {
+  border-color: #dcfce7;
+  outline: 3px solid #dcfce7;
+  outline-offset: 1px;
+}
+
+.drag-drop-match--tti-main
+  .drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--tti-boxed.drag-drop-match__diagram-zone--filled.drag-drop-match__diagram-zone--incorrect {
+  border-color: #fee2e2;
+  outline: 2px solid #fee2e2;
+  outline-offset: 1px;
+}
+
+.drag-drop-match--tti-main
+  .drag-drop-match__diagram-worksheet
+  .drag-drop-match__diagram-zone--tti-boxed.drag-drop-match__diagram-zone--filled
+  .drag-drop-match__diagram-zone-boxed-text {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.12;
 }
 
 .drag-drop-match__diagram-zone-boxed-fill {

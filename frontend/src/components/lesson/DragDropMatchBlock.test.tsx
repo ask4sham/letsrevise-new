@@ -256,6 +256,59 @@ describe("DragDropMatchBlock text-to-image main image mode", () => {
     fireEvent.click(screen.getByRole("button", { name: /drop concept in box a/i }));
     expect(screen.getByText("ATP release")).toBeInTheDocument();
   });
+
+  it("shows magnify on correct green box after check with full answer modal", () => {
+    const fourPairBlock = {
+      matchMode: "text-to-image" as const,
+      title: "Reflex arc",
+      imageUrl: "https://example.com/main-diagram.display.png",
+      pairs: [
+        {
+          id: "p1",
+          prompt: "Sensory clue",
+          answer: "Sensory neurone",
+          explanation: "Carries impulses from receptor to the CNS.",
+        },
+        { id: "p2", prompt: "Relay clue", answer: "Relay neurone" },
+        { id: "p3", prompt: "Motor clue", answer: "Motor neurone" },
+        { id: "p4", prompt: "Effector clue", answer: "Muscle or gland" },
+      ],
+    };
+    render(<DragDropMatchBlock block={fourPairBlock} resolveImageUrl={(u) => u} />);
+    fireEvent.click(screen.getByRole("button", { name: /select concept:\s*Sensory clue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /drop concept in box a/i }));
+    fireEvent.click(screen.getByRole("button", { name: /check answers/i }));
+    const magnify = screen.getByRole("button", { name: /view full answer for box a/i });
+    expect(magnify).toBeInTheDocument();
+    fireEvent.click(magnify);
+    const dialog = screen.getByTestId("tti-placed-magnify-dialog");
+    expect(dialog.textContent).toMatch(/Concept card/i);
+    expect(dialog.textContent).toMatch(/Sensory clue/i);
+    expect(dialog.textContent).toMatch(/Sensory neurone/i);
+    expect(dialog.textContent).toMatch(/Carries impulses from receptor to the CNS/i);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByTestId("tti-placed-magnify-dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not show magnify before check or on incorrect placement", () => {
+    const fourPairBlock = {
+      matchMode: "text-to-image" as const,
+      title: "Reflex arc",
+      imageUrl: "https://example.com/main-diagram.display.png",
+      pairs: [
+        { id: "p1", prompt: "Sensory clue", answer: "Sensory neurone" },
+        { id: "p2", prompt: "Relay clue", answer: "Relay neurone" },
+        { id: "p3", prompt: "Motor clue", answer: "Motor neurone" },
+        { id: "p4", prompt: "Effector clue", answer: "Muscle or gland" },
+      ],
+    };
+    render(<DragDropMatchBlock block={fourPairBlock} resolveImageUrl={(u) => u} />);
+    fireEvent.click(screen.getByRole("button", { name: /select concept:\s*Relay clue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /drop concept in box a/i }));
+    expect(screen.queryByRole("button", { name: /view full answer for box a/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /check answers/i }));
+    expect(screen.queryByRole("button", { name: /view full answer for box a/i })).not.toBeInTheDocument();
+  });
 });
 
 describe("DragDropMatchBlock text-to-image mode", () => {
