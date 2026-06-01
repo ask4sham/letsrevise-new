@@ -30,8 +30,11 @@ This contract freezes **measured** dimensions from the current renderer and a re
 | **Concept card height** | **52px** target (single-line GCSE label) |
 | **Concept card max height** | **72px** (two-line prompts) |
 | **Card gap** | **8px** vertical between stacked concept cards (desktop side-by-side layout) |
-| **Drop zone width** | **232px** (printed empty rectangle on the image, @ 900px artboard width) |
-| **Drop zone height** | **76px** (printed empty rectangle on the image, @ 900px artboard height) |
+| **Drop zone width** | **320px minimum** (printed empty rectangle on the image, @ 900px artboard width) |
+| **Drop zone height** | **110px minimum** (printed empty rectangle on the image, @ 900px artboard height) |
+| **Drop zone sizing rule** | **All four boxes identical size** — at least 320×110; large enough for the longest concept-card label to fit inside after placement |
+| **Drop zone vertical spacing** | **≥140px** between box tops (four stacked boxes on portrait artboard) |
+| **Right matching rail** | **68% / 32%** preferred; may expand to **~36%** artboard width if needed to fit 320px-wide boxes |
 | **Drop zone labels** | **A, B, C, D** only — no numeric 1–4 on the image |
 | **Drop zone count** | **4** |
 | **Background** | **White** |
@@ -60,18 +63,19 @@ These values document **what exists today**. Phase 1 does not change them.
 
 ### Printed drop rectangles (image asset)
 
-- Reference: `backend/public/visuals/Metabolism/Nervious system/reflex-arc-drag-drop-match-portrait.svg`
-- Boxes at x=628, width=232, height=76 ( **25.8% × 5.6%** of artboard)
-- Right rail starts ~**70%** from left edge
-- Vertical spacing between box tops (reflex asset): **~110–178px** (target **~120px** for briefs)
+- **Minimum standard (June 2026):** **320 × 110 px** @ 900×1350 artboard (**35.6% × 8.1%** of artboard)
+- All four boxes **identical** width and height
+- Each box must fit the **longest concept-card prompt** when a student drops it — no text overflowing above or below the printed rectangle
+- **≥140px** vertical gap between box tops when four boxes are stacked
+- Prefer **68% / 32%** layout; right rail may expand to **~36%** if 320px boxes require it
+- Legacy reference (superseded): `reflex-arc-drag-drop-match-portrait.svg` used **232 × 76** — too small for in-box placement at display scale
 
-### Interactive overlay markers (HTML — not the same as printed boxes)
+### Interactive overlay (HTML — runtime, not artwork)
 
-- Empty marker: **48×44px** (circular), positioned by **%** x/y on the diagram
-- Filled chip: **66px** height
-- Teachers may place custom zones; auto zones use a grid when `dropZones` is empty
+- Text-to-image main uses **transparent rectangular** hit targets aligned to printed boxes (not circular A–D markers)
+- Diagram mode retains teacher-placed circular/ chip markers (unchanged)
 
-**Important:** Image prompts and Teacher Brain must target **printed 232×76** rectangles. Overlay markers are smaller unless a future phase explicitly aligns them (out of scope for Phase 1).
+**Important:** Image prompts and Teacher Brain must target **printed 320×110 minimum** rectangles. Generated artwork must not rely on the app to draw answer text inside boxes.
 
 ---
 
@@ -93,10 +97,17 @@ Drop zones:
 4
 
 Drop zone size:
-232 × 76 px (empty rectangles, labels only)
-Keep all drop boxes identical in size
-Do not exceed the specified dimensions
-Do not stretch boxes vertically
+320 × 110 px minimum (empty rectangles, labels only)
+All four drop boxes MUST be identical in size
+Each box MUST be large enough to contain the longest concept card text when placed — no overflow above or below the box
+Do not stretch boxes to different heights
+
+Vertical spacing:
+At least 140 px between drop box tops (four stacked boxes)
+
+Right rail:
+Prefer 68% diagram / 32% matching rail
+If 320 px-wide boxes do not fit in 32%, expand the right rail slightly (up to ~36% of artboard width)
 
 Labels:
 A, B, C, D
@@ -153,7 +164,7 @@ Phase 1 is **documentation only**. Do not modify as part of this contract:
 |------|----------------|
 | **Text-to-image main** (`block.imageUrl` + `--tti-main`) | This contract applies. Side-by-side 68/32. |
 | **Text-to-image per-pair** (`tti-grid`) | Same 68/32 column split; left column shows per-pair target images (different image height caps). Concept card sizes still follow this contract. |
-| **Diagram drop zones** | Same worksheet grid; overlay markers per diagram mode CSS. Artwork drop boxes may still use 232×76 when printed on a single diagram image. |
+| **Diagram drop zones** | Same worksheet grid; diagram mode overlay markers unchanged. New artwork should use **320×110 minimum** printed boxes when applicable. |
 | **Standard text match** | No activity image; this contract does not apply. |
 
 ---
@@ -164,3 +175,4 @@ Phase 1 is **documentation only**. Do not modify as part of this contract:
 |------|--------|
 | 2026-06-01 | Initial freeze from measured CSS + reflex portrait SVG analysis. Documentation-only commit. |
 | 2026-06-01 | Prompt refinement: functional right rail, strict horizontal alignment, box sizing discipline, pre-delivery checklist. |
+| 2026-06-01 | Enlarge printed drop boxes to **320×110 px minimum** so dropped concept-card text fits inside printed rectangles at display scale. |
