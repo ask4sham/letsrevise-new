@@ -133,6 +133,15 @@ export function resolveDragDropPersistMode(block: unknown): DragDropMatchPersist
   const fromMatch = parseDragDropMatchMode(b.matchMode ?? b.match_mode ?? b.matchmode);
   if (fromMatch === "text-to-image" || fromLayout === "text-to-image") return "text-to-image";
   if (fromMatch === "diagram" || fromLayout === "diagram") return "diagram";
+  const blockMainImg = readDragDropBlockMainImageUrl(b);
+  if (
+    blockMainImg &&
+    !hasDiagramInferenceSignals({ imageUrl: blockMainImg, dropZones: b.dropZones }) &&
+    fromMatch !== "text" &&
+    fromLayout !== "text"
+  ) {
+    return "text-to-image";
+  }
   if (fromMatch === "text" || fromLayout === "text") return "text";
   const pairs = Array.isArray(b.pairs) ? b.pairs : [];
   if (pairs.some((row) => readDragDropPairExplicitTargetImageUrl(row))) {
@@ -142,6 +151,30 @@ export function resolveDragDropPersistMode(block: unknown): DragDropMatchPersist
     return "diagram";
   }
   return undefined;
+}
+
+/** Merge layout fields when patching main `imageUrl` so save payload keeps text-to-image / diagram mode. */
+export function coalesceDragDropMatchBlockPatch(
+  block: unknown,
+  patch: Record<string, unknown>
+): Record<string, unknown> {
+  if (!patch || typeof patch !== "object" || !Object.prototype.hasOwnProperty.call(patch, "imageUrl")) {
+    return patch;
+  }
+  const merged =
+    block != null && typeof block === "object"
+      ? { ...(block as Record<string, unknown>), ...patch }
+      : { ...patch };
+  const nextMain = readDragDropBlockMainImageUrl(merged);
+  if (!nextMain) return patch;
+  const mode = resolveDragDropPersistMode(merged);
+  if (mode !== "text-to-image" && mode !== "diagram") return patch;
+  const stored = dragDropLayoutPersistedValues(mode);
+  return {
+    ...patch,
+    matchMode: stored.matchMode,
+    dragDropLayout: stored.dragDropLayout,
+  };
 }
 
 /** Resolve layout for student/preview — reads `dragDropLayout` when `matchMode` is omitted. */
@@ -600,6 +633,7 @@ export function buildDragDropMatchBlockForPersist(
   const zonePairIds = pairs.map((row) => row.id);
   const rawZonesPersist = Array.isArray(b.dropZones) ? b.dropZones : [];
   const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(0, 40);
+  const blockMainImg = readDragDropBlockMainImageUrl(b);
   const resolvedPersist = resolveDragDropPersistMode(b);
   const ddmOut: Record<string, unknown> = {
     type: "dragDropMatch",
@@ -608,21 +642,30 @@ export function buildDragDropMatchBlockForPersist(
     instructions: b.instructions != null ? String(b.instructions).trim() : "",
     pairs,
   };
+  const persistTextToImageMain = () => {
+    applyPersistedDragDropLayoutFields(ddmOut, "text-to-image");
+    if (blockMainImg) ddmOut.imageUrl = blockMainImg;
+    delete ddmOut.dropZones;
+  };
   if (resolvedPersist === "diagram") {
     applyPersistedDragDropLayoutFields(ddmOut, "diagram");
-    const imgP = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
-    if (imgP) ddmOut.imageUrl = imgP;
+    if (blockMainImg) ddmOut.imageUrl = blockMainImg;
     ddmOut.dropZones = dropZonesPersist;
     opts.logZoneBindings?.("persist payload (diagram)", dropZonesPersist, pairs);
   } else if (resolvedPersist === "text") {
-    applyPersistedDragDropLayoutFields(ddmOut, "text");
-    delete ddmOut.imageUrl;
-    delete ddmOut.dropZones;
+    const matchHint = parseDragDropMatchMode(b.matchMode ?? b.match_mode ?? b.matchmode);
+    const layoutHint = parseDragDropMatchMode(readDragDropLayoutFromBlock(b));
+    if (matchHint === "text-to-image" || layoutHint === "text-to-image") {
+      persistTextToImageMain();
+    } else {
+      applyPersistedDragDropLayoutFields(ddmOut, "text");
+      delete ddmOut.imageUrl;
+      delete ddmOut.dropZones;
+    }
   } else if (resolvedPersist === "text-to-image") {
-    applyPersistedDragDropLayoutFields(ddmOut, "text-to-image");
-    const imgTti = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
-    if (imgTti) ddmOut.imageUrl = imgTti;
-    delete ddmOut.dropZones;
+    persistTextToImageMain();
+  } else if (blockMainImg) {
+    persistTextToImageMain();
   }
   if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();
   return withPersistedBlockNote(ddmOut, b);

@@ -5,6 +5,7 @@ import {
   dragDropMatchModeFromBlockForProps,
   dragDropMatchModeFromUiSelect,
   buildDefaultTextToImageDropZones,
+  coalesceDragDropMatchBlockPatch,
   dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
   dragDropTextToImageCanRender,
@@ -314,6 +315,16 @@ describe("dragDropMatchDiagram", () => {
       ).toBe("text-to-image");
     });
 
+    it("infers text-to-image from main block imageUrl when layout fields are omitted", () => {
+      expect(
+        resolveDragDropPersistMode({
+          type: "dragDropMatch",
+          imageUrl: "https://example.com/main.png",
+          pairs: [{ id: "p1", prompt: "A", answer: "B" }],
+        })
+      ).toBe("text-to-image");
+    });
+
     it("does not treat stale dragDropLayout standard as text when matchMode is textToImage", () => {
       expect(
         resolveDragDropPersistMode({
@@ -352,6 +363,33 @@ describe("dragDropMatchDiagram", () => {
       expect(out?.dragDropLayout).toBe("textToImage");
       expect(out?.type).toBe("dragDropMatch");
       expect((out?.pairs as { imageUrl?: string }[])?.[0]?.imageUrl).toBe("/t.png");
+    });
+
+    it("buildDragDropMatchBlockForPersist keeps main imageUrl when only imageUrl is set on block", () => {
+      const out = buildDragDropMatchBlockForPersist(
+        {
+          type: "dragDropMatch",
+          imageUrl: "https://example.com/main-only.png",
+          pairs: [{ id: "p1", prompt: "Clue", answer: "Label" }],
+        },
+        { newId: () => "id" }
+      );
+      expect(out?.matchMode).toBe("textToImage");
+      expect(out?.imageUrl).toBe("https://example.com/main-only.png");
+    });
+
+    it("coalesceDragDropMatchBlockPatch adds layout fields when patching main imageUrl", () => {
+      const out = coalesceDragDropMatchBlockPatch(
+        {
+          type: "dragDropMatch",
+          matchMode: "textToImage",
+          pairs: [{ id: "p1", prompt: "A", answer: "B" }],
+        },
+        { imageUrl: "https://example.com/main.png" }
+      );
+      expect(out.matchMode).toBe("textToImage");
+      expect(out.dragDropLayout).toBe("textToImage");
+      expect(out.imageUrl).toBe("https://example.com/main.png");
     });
 
     it("buildDragDropMatchBlockForPersist keeps main imageUrl when dragDropLayout is stale standard", () => {

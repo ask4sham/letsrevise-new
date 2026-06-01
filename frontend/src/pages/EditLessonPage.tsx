@@ -168,6 +168,8 @@ import {
   dragDropPairEditorLabels,
   normalizeDragDropPairRow,
   buildDragDropMatchBlockForPersist,
+  coalesceDragDropMatchBlockPatch,
+  readDragDropBlockMainImageUrl,
   dragDropLayoutPersistedValues,
   type DragDropMatchAuthoringMatchMode,
   readDragDropPairAnswerImageUrl,
@@ -1648,8 +1650,8 @@ const EditLessonPage: React.FC = () => {
                     const stored = dragDropLayoutPersistedValues("text-to-image");
                     outDdm.matchMode = stored.matchMode;
                     outDdm.dragDropLayout = stored.dragDropLayout;
-                    const imgTti = (b as { imageUrl?: unknown }).imageUrl;
-                    if (typeof imgTti === "string" && imgTti.trim()) outDdm.imageUrl = imgTti.trim();
+                    const imgTti = readDragDropBlockMainImageUrl(b);
+                    if (imgTti) outDdm.imageUrl = imgTti;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
                   return outDdm;
@@ -1710,8 +1712,8 @@ const EditLessonPage: React.FC = () => {
                     const stored = dragDropLayoutPersistedValues("text-to-image");
                     repaired.matchMode = stored.matchMode;
                     repaired.dragDropLayout = stored.dragDropLayout;
-                    const imgTtiR = (b as { imageUrl?: unknown }).imageUrl;
-                    if (typeof imgTtiR === "string" && imgTtiR.trim()) repaired.imageUrl = imgTtiR.trim();
+                    const imgTtiR = readDragDropBlockMainImageUrl(b);
+                    if (imgTtiR) repaired.imageUrl = imgTtiR;
                   }
                   if (typeof b?.role === "string" && b.role.trim()) repaired.role = b.role.trim();
                   return repaired;
@@ -8517,7 +8519,13 @@ const EditLessonPage: React.FC = () => {
                               <DragDropMatchDiagramAuthoring
                                 blk={b as LessonPageBlock}
                                 newId={newId}
-                                onPatch={(patch) => updateBlock(currentPage!.pageId, idx, patch)}
+                                onPatch={(patch) =>
+                                  updateBlock(
+                                    currentPage!.pageId,
+                                    idx,
+                                    coalesceDragDropMatchBlockPatch(b, patch as Record<string, unknown>)
+                                  )
+                                }
                                 placingZoneId={dragDropDiagramPlacingId[key] ?? null}
                                 onPlacingZoneId={(id) =>
                                   setDragDropDiagramPlacingId((p) => ({ ...p, [key]: id }))
@@ -8526,7 +8534,11 @@ const EditLessonPage: React.FC = () => {
                                 safeStr={safeStr}
                                 onDiagramImageFile={(file) =>
                                   uploadImageForDragDropMatch(file, currentPage!.pageId, idx, (url) =>
-                                    updateBlock(currentPage!.pageId, idx, { imageUrl: url })
+                                    updateBlock(
+                                      currentPage!.pageId,
+                                      idx,
+                                      coalesceDragDropMatchBlockPatch(b, { imageUrl: url })
+                                    )
                                   )
                                 }
                                 diagramImageUploading={uploadingKey === `${currentPage!.pageId}:${idx}:ddm`}
