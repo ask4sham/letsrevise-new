@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
-import { LessonAutoTextarea } from "./LessonAutoTextarea";
+import { LessonAutoTextarea } from "./LessonAutoTextarea"; // drop-zone explanations (diagram mode)
 import { DragDropMatchBlock } from "./DragDropMatchBlock";
 import "./dragDropMatchBlock.css";
 import {
