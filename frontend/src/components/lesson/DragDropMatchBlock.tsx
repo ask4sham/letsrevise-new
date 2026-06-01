@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { hasRenderableLessonImageSrc } from "../../constants/lessonImageDisplay";
 import {
-  buildDefaultTextToImageDropZones,
+  buildTextToImageMainDropZones,
   dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
+  isContractPortraitImageAspect,
   isDragDropDiagramMode,
   isDragDropTextToImageMode,
   type DragDropMatchAuthoringMatchMode,
@@ -268,6 +269,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
   const textToImageMode = textToImageMainMode || textToImagePerPairMode;
   const worksheetImageMode = diagramMode || textToImageMainMode;
   const useTtiConceptBank = textToImageMainMode;
+  const useTtiBoxedZones = textToImageMainMode;
+
+  const [ttiMainImageContractPortrait, setTtiMainImageContractPortrait] = useState<boolean | null>(
+    null
+  );
 
   useLayoutEffect(() => {
     if (typeof window === "undefined" || window.localStorage?.getItem(DDM_PAIR_IMG_DEBUG_KEY) !== "1") return;
@@ -322,10 +328,13 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     if (textToImageMainMode) {
       const placed = sanitizePlacedDiagramDropZones(block.dropZones, pairIds);
       if (placed.length > 0) return placed;
-      return buildDefaultTextToImageDropZones(pairIds);
+      return buildTextToImageMainDropZones(
+        pairIds,
+        pairIds.length === 4 && ttiMainImageContractPortrait === true
+      );
     }
     return [];
-  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds]);
+  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds, ttiMainImageContractPortrait]);
 
   const [placements, setPlacements] = useState<Placements>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
@@ -585,6 +594,25 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     hasRenderableLessonImageSrc(imgRaw) &&
     hasRenderableLessonImageSrc(imgResolved);
 
+  useEffect(() => {
+    if (!textToImageMainMode) {
+      setTtiMainImageContractPortrait(null);
+      return;
+    }
+    setTtiMainImageContractPortrait(null);
+  }, [textToImageMainMode, imgRaw]);
+
+  const onTtiMainDiagramImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      if (!textToImageMainMode) return;
+      const img = e.currentTarget;
+      setTtiMainImageContractPortrait(
+        isContractPortraitImageAspect(img.naturalWidth, img.naturalHeight)
+      );
+    },
+    [textToImageMainMode]
+  );
+
   if (pairs.length === 0) {
     return (
       <div className="drag-drop-match">
@@ -835,6 +863,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                           objectFit: diagramImageFit,
                           objectPosition: diagramImagePosition,
                         }}
+                        onLoad={textToImageMainMode ? onTtiMainDiagramImageLoad : undefined}
                         onError={hideBrokenLessonImage}
                       />
                     </LessonImageFrame>
@@ -864,9 +893,10 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                             const chipGrowRight = zxPct < 50;
                             const targetClass =
                               "drag-drop-match__diagram-zone" +
+                              (useTtiBoxedZones ? " drag-drop-match__diagram-zone--tti-boxed" : "") +
                               (sourcePlaced ? " drag-drop-match__diagram-zone--filled" : "") +
                               (sourcePlaced ? ` drag-drop-match__diagram-zone--chip-tone-${zi % 6}` : "") +
-                              (sourcePlaced
+                              (!useTtiBoxedZones && sourcePlaced
                                 ? chipGrowRight
                                   ? " drag-drop-match__diagram-zone--chip-grow-right"
                                   : " drag-drop-match__diagram-zone--chip-grow-left"
@@ -888,7 +918,7 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                 style={{
                                   left: `${zone.x}%`,
                                   top: `${zone.y}%`,
-                                  ...(sourcePlaced && card
+                                  ...(sourcePlaced && card && !useTtiBoxedZones
                                     ? {
                                         maxWidth: chipGrowRight
                                           ? `min(260px, calc(100% - ${zxPct}% - 10px))`
@@ -905,12 +935,38 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                 aria-label={
                                   sourcePlaced && card
                                     ? `Zone ${mark}: ${card.answer || "answer"}. Click to remove, or drag another card to replace.`
-                                    : useTtiConceptBank
-                                      ? `Drop concept on marker ${mark}`
-                                      : `Drop answer on marker ${mark}`
+                                    : useTtiBoxedZones
+                                      ? `Drop concept in box ${mark}`
+                                      : useTtiConceptBank
+                                        ? `Drop concept on marker ${mark}`
+                                        : `Drop answer on marker ${mark}`
                                 }
                               >
                                 {sourcePlaced && card ? (
+                                  useTtiBoxedZones ? (
+                                    <span className="drag-drop-match__diagram-zone-boxed-fill">
+                                      <span className="drag-drop-match__diagram-zone-boxed-text">
+                                        {chipLabel}
+                                      </span>
+                                      {checked ? (
+                                        isCorrect ? (
+                                          <span
+                                            className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--ok"
+                                            aria-hidden="true"
+                                          >
+                                            ✓
+                                          </span>
+                                        ) : isWrong ? (
+                                          <span
+                                            className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--bad"
+                                            aria-hidden="true"
+                                          >
+                                            ✗
+                                          </span>
+                                        ) : null
+                                      ) : null}
+                                    </span>
+                                  ) : (
                                   <span className="drag-drop-match__diagram-zone-chip">
                                     <span
                                       className="drag-drop-match__diagram-zone-chip-mark"
@@ -959,6 +1015,27 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                                       </span>
                                     )}
                                   </span>
+                                  )
+                                ) : useTtiBoxedZones ? (
+                                  checked && (isCorrect || isWrong || isEmpty) ? (
+                                    <span className="drag-drop-match__diagram-zone-boxed-status-only">
+                                      {isCorrect ? (
+                                        <span
+                                          className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--ok"
+                                          aria-hidden="true"
+                                        >
+                                          ✓
+                                        </span>
+                                      ) : (
+                                        <span
+                                          className="drag-drop-match__diagram-zone-boxed-status drag-drop-match__diagram-zone-boxed-status--bad"
+                                          aria-hidden="true"
+                                        >
+                                          ✗
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : null
                                 ) : (
                                   <span className="drag-drop-match__diagram-zone-marker-inner">
                                     <span

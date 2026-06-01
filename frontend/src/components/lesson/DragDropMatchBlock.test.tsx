@@ -51,6 +51,8 @@ describe("DragDropMatchBlock diagram mode", () => {
     render(<DragDropMatchBlock block={diagramBlock} resolveImageUrl={(u) => u} />);
 
     const zoneA = screen.getByRole("button", { name: /drop answer on marker a/i });
+    expect(document.querySelector(".drag-drop-match__diagram-zone--tti-boxed")).toBeNull();
+    expect(document.querySelector(".drag-drop-match__diagram-zone-letter")).toBeTruthy();
     const store: Record<string, string> = {};
     const dt = {
       effectAllowed: "move",
@@ -239,10 +241,19 @@ describe("DragDropMatchBlock text-to-image main image mode", () => {
     expect(screen.queryByTestId("drag-drop-tti-grid")).toBeNull();
   });
 
-  it("click-to-place concept onto auto zone on main image", () => {
+  it("uses rectangular boxed drop zones without circular marker letters", () => {
+    const { container } = render(
+      <DragDropMatchBlock block={ttiMainBlock} resolveImageUrl={(u) => u} />
+    );
+    expect(container.querySelectorAll(".drag-drop-match__diagram-zone--tti-boxed").length).toBe(2);
+    expect(container.querySelector(".drag-drop-match__diagram-zone-letter")).toBeNull();
+    expect(screen.getByRole("button", { name: /drop concept in box a/i })).toBeInTheDocument();
+  });
+
+  it("click-to-place concept into boxed drop zone on main image", () => {
     render(<DragDropMatchBlock block={ttiMainBlock} resolveImageUrl={(u) => u} />);
     fireEvent.click(screen.getByRole("button", { name: /select concept:\s*ATP release/i }));
-    fireEvent.click(screen.getByRole("button", { name: /drop concept on marker a/i }));
+    fireEvent.click(screen.getByRole("button", { name: /drop concept in box a/i }));
     expect(screen.getByText("ATP release")).toBeInTheDocument();
   });
 });

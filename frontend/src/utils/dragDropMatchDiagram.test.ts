@@ -4,7 +4,12 @@ import {
   dedupeDiagramZoneIds,
   dragDropMatchModeFromBlockForProps,
   dragDropMatchModeFromUiSelect,
+  buildContractTextToImageBoxedDropZones,
   buildDefaultTextToImageDropZones,
+  buildTextToImageMainDropZones,
+  isContractPortraitImageAspect,
+  TTI_BOXED_ZONE_HEIGHT_PCT,
+  TTI_BOXED_ZONE_WIDTH_PCT,
   coalesceDragDropMatchBlockPatch,
   dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
@@ -234,6 +239,49 @@ describe("dragDropMatchDiagram", () => {
       expect(z[1]).toMatchObject({ id: "tti-auto-1", correctPairId: "p2" });
       expect(z[0].x).toBeGreaterThan(0);
       expect(z[0].y).toBeGreaterThan(0);
+    });
+  });
+
+  describe("buildContractTextToImageBoxedDropZones", () => {
+    it("returns four contract-aligned zones for four pairs", () => {
+      const z = buildContractTextToImageBoxedDropZones(["p1", "p2", "p3", "p4"]);
+      expect(z).toHaveLength(4);
+      expect(z[0]).toMatchObject({ id: "tti-boxed-0", correctPairId: "p1" });
+      expect(z[0].x).toBeCloseTo(82.67, 1);
+      expect(z[0].y).toBeCloseTo(33.04, 1);
+      expect(z[3].y).toBeGreaterThan(z[0].y);
+    });
+
+    it("falls back to default grid when pair count is not four", () => {
+      const z = buildContractTextToImageBoxedDropZones(["p1", "p2"]);
+      expect(z[0].id).toBe("tti-auto-0");
+    });
+  });
+
+  describe("buildTextToImageMainDropZones", () => {
+    it("uses contract layout when portrait flag is true and four pairs", () => {
+      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], true);
+      expect(z[0].id).toBe("tti-boxed-0");
+    });
+
+    it("uses fallback grid when portrait flag is false", () => {
+      const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], false);
+      expect(z[0].id).toBe("tti-auto-0");
+    });
+  });
+
+  describe("isContractPortraitImageAspect", () => {
+    it("accepts 900×1350 and 2× export dimensions", () => {
+      expect(isContractPortraitImageAspect(900, 1350)).toBe(true);
+      expect(isContractPortraitImageAspect(1800, 2700)).toBe(true);
+      expect(isContractPortraitImageAspect(1600, 900)).toBe(false);
+    });
+  });
+
+  describe("TTI boxed zone contract proportions", () => {
+    it("matches visual contract artboard ratios", () => {
+      expect(TTI_BOXED_ZONE_WIDTH_PCT).toBeCloseTo((232 / 900) * 100, 2);
+      expect(TTI_BOXED_ZONE_HEIGHT_PCT).toBeCloseTo((76 / 1350) * 100, 2);
     });
   });
 

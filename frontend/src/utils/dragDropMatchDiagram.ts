@@ -311,6 +311,47 @@ export function dragDropTextToImageCanRender(
   );
 }
 
+/** Printed drop box size on 900×1350 artboard (visual contract). Runtime only — not persisted. */
+export const TTI_BOXED_ZONE_WIDTH_PCT = (232 / 900) * 100;
+export const TTI_BOXED_ZONE_HEIGHT_PCT = (76 / 1350) * 100;
+
+/** Center points for 4 right-rail boxes on contract portrait artboard (reflex reference). */
+const TTI_CONTRACT_PORTRAIT_BOX_CENTERS: ReadonlyArray<{ x: number; y: number }> = [
+  { x: ((628 + 116) / 900) * 100, y: ((408 + 38) / 1350) * 100 },
+  { x: ((628 + 116) / 900) * 100, y: ((662 + 38) / 1350) * 100 },
+  { x: ((628 + 116) / 900) * 100, y: ((848 + 38) / 1350) * 100 },
+  { x: ((628 + 116) / 900) * 100, y: ((1048 + 38) / 1350) * 100 },
+];
+
+/** True when image natural aspect matches 900×1350 portrait (±5%). */
+export function isContractPortraitImageAspect(naturalWidth: number, naturalHeight: number): boolean {
+  if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight)) return false;
+  if (naturalWidth <= 0 || naturalHeight <= 0) return false;
+  const ratio = naturalWidth / naturalHeight;
+  const target = 900 / 1350;
+  return Math.abs(ratio - target) / target <= 0.05;
+}
+
+/**
+ * Contract-aligned overlay targets for 4-pair portrait text-to-image main images.
+ * Runtime only — text-to-image persist omits `dropZones`.
+ */
+export function buildContractTextToImageBoxedDropZones(
+  pairIds: ReadonlyArray<string>
+): PlacedDragDropDiagramZone[] {
+  const ids = pairIds.map((id) => String(id ?? "").trim()).filter(Boolean);
+  if (ids.length !== 4) return buildDefaultTextToImageDropZones(pairIds);
+  return ids.map((correctPairId, i) => {
+    const center = TTI_CONTRACT_PORTRAIT_BOX_CENTERS[i] ?? TTI_CONTRACT_PORTRAIT_BOX_CENTERS[0];
+    return {
+      id: `tti-boxed-${i}`,
+      x: clampPct(center.x),
+      y: clampPct(center.y),
+      correctPairId,
+    };
+  });
+}
+
 /**
  * Default overlay targets for text-to-image when the teacher uploaded a main image but has not
  * placed diagram-style drop zones (text-to-image persist omits `dropZones`).
@@ -335,6 +376,17 @@ export function buildDefaultTextToImageDropZones(
       correctPairId,
     };
   });
+}
+
+/** Runtime zone list for text-to-image main image (contract portrait vs fallback grid). */
+export function buildTextToImageMainDropZones(
+  pairIds: ReadonlyArray<string>,
+  useContractPortraitLayout: boolean
+): PlacedDragDropDiagramZone[] {
+  if (useContractPortraitLayout && pairIds.length === 4) {
+    return buildContractTextToImageBoxedDropZones(pairIds);
+  }
+  return buildDefaultTextToImageDropZones(pairIds);
 }
 
 export function dragDropPairEditorLabels(mode: DragDropMatchUiMode): {
