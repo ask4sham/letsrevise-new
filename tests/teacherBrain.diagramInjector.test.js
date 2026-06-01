@@ -222,6 +222,9 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     expect(pages[0].blocks[0].note).toMatch(/Image Title:/);
     expect(pages[0].blocks[0].note).toMatch(/Required Labels:/);
     expect(pages[0].blocks[0].note).toMatch(/Hotspots:/);
+    expect(pages[0].blocks[0].note).toMatch(/IMAGE DESIGN REQUIREMENTS/);
+    expect(pages[0].blocks[0].note).toMatch(/900×1350 portrait/i);
+    expect(pages[0].blocks[0].note).toMatch(/232×76 px/);
     expect(pages[0].blocks[0].note).not.toMatch(/DRAG & DROP BRIEF/);
   });
 
@@ -242,6 +245,8 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     const { pages, injections } = injectDiagramAndActivityBriefs([{ blocks: [block] }], brain);
     expect(injections[0].briefKind).toBe("imageDropZones");
     expect(pages[0].blocks[0].note).toMatch(/IMAGE \+ DROP ZONES DESIGN BRIEF/);
+    expect(pages[0].blocks[0].note).toMatch(/IMAGE DESIGN REQUIREMENTS/);
+    expect(pages[0].blocks[0].note).toMatch(/MUST NOT use landscape layout/i);
     expect(pages[0].blocks[0].note).toMatch(/Drop Zone Locations:/);
     expect(pages[0].blocks[0].note).toMatch(/Distractors:/);
     expect(pages[0].blocks[0].imageUrl).toBe(block.imageUrl);
@@ -279,10 +284,13 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
   test("formatTextToImageBrief and formatImageDropZonesBrief are layout-specific", () => {
     const compare = brain.requiredDiagrams.find((d) => /compare/i.test(d.title));
     const economy = brain.requiredDiagrams.find((d) => /economy/i.test(d.title));
-    expect(formatTextToImageBrief(null, compare, { title: "Compare panel" })).toMatch(
-      /TEXT → IMAGE/
-    );
-    expect(formatImageDropZonesBrief(null, economy, {})).toMatch(/IMAGE \+ DROP ZONES/);
+    const tti = formatTextToImageBrief(null, compare, { title: "Compare panel" });
+    expect(tti).toMatch(/TEXT → IMAGE/);
+    expect(tti).toMatch(/IMAGE DESIGN REQUIREMENTS/);
+    const dropZones = formatImageDropZonesBrief(null, economy, {});
+    expect(dropZones).toMatch(/IMAGE \+ DROP ZONES/);
+    expect(dropZones).toMatch(/232×76 px/);
     expect(formatTextMatchBrief(null, economy, {})).toMatch(/DRAG & DROP BRIEF/);
+    expect(formatTextMatchBrief(null, economy, {})).not.toMatch(/IMAGE DESIGN REQUIREMENTS/);
   });
 });
