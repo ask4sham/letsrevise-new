@@ -316,7 +316,7 @@ describe("dragDropMatchDiagram", () => {
       );
       expect(out?.matchMode).toBe("textToImage");
       expect(out?.dropZones).toBeUndefined();
-      expect(out?.imageUrl).toBeUndefined();
+      expect(out?.imageUrl).toBe("https://example.com/diagram.png");
       expect((out?.pairs as { imageUrl?: string; imageAlt?: string }[])?.[0]).toMatchObject({
         imageUrl: "/img.png",
         imageAlt: "alt",

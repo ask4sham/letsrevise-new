@@ -552,7 +552,8 @@ export function buildDragDropMatchBlockForPersist(
     delete ddmOut.dropZones;
   } else if (resolvedPersist === "text-to-image") {
     applyPersistedDragDropLayoutFields(ddmOut, "text-to-image");
-    delete ddmOut.imageUrl;
+    const imgTti = typeof b.imageUrl === "string" ? b.imageUrl.trim() : "";
+    if (imgTti) ddmOut.imageUrl = imgTti;
     delete ddmOut.dropZones;
   }
   if (typeof b.role === "string" && b.role.trim()) ddmOut.role = b.role.trim();

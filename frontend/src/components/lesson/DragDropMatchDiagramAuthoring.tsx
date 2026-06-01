@@ -88,6 +88,7 @@ export function DragDropMatchDiagramAuthoring({
 }: DragDropMatchDiagramAuthoringProps): React.ReactElement {
   const placementContainerRef = useRef<HTMLDivElement | null>(null);
   const diagramFileInputRef = useRef<HTMLInputElement | null>(null);
+  const ttiMainImageFileInputRef = useRef<HTMLInputElement | null>(null);
   const ttiPairFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const zones = Array.isArray(blk.dropZones) ? [...blk.dropZones] : [];
   const pairsDd = Array.isArray(blk.pairs) ? blk.pairs : [];
@@ -184,6 +185,82 @@ export function DragDropMatchDiagramAuthoring({
         >
           <div style={{ fontWeight: 800, fontSize: 14, color: "#047857", marginBottom: 8 }}>
             Step 1 — Upload target images
+          </div>
+          <div
+            data-testid="tti-step-1-main-image"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 8,
+              paddingBottom: pairsDd.length > 0 ? 8 : 0,
+              borderBottom: pairsDd.length > 0 ? "1px solid #bbf7d0" : undefined,
+            }}
+          >
+            <span
+              style={{
+                flex: "0 0 auto",
+                fontWeight: 700,
+                fontSize: 12,
+                color: "#047857",
+                minWidth: 118,
+              }}
+            >
+              Main activity image:
+            </span>
+            <input
+              ref={ttiMainImageFileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f && onDiagramImageFile) void Promise.resolve(onDiagramImageFile(f));
+              }}
+            />
+            <button
+              type="button"
+              disabled={!onDiagramImageFile || Boolean(diagramImageUploading)}
+              onClick={() => {
+                const input = ttiMainImageFileInputRef.current;
+                if (input) {
+                  input.value = "";
+                  input.click();
+                }
+              }}
+              style={{
+                flex: "0 0 auto",
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid #86efac",
+                background: diagramImageUploading ? "#e2e8f0" : "#fff",
+                color: "#047857",
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: !onDiagramImageFile || diagramImageUploading ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {diagramImageUploading ? "Uploading…" : "Upload main image"}
+            </button>
+            <input
+              value={safeStr(blk.imageUrl, "")}
+              onChange={(e) => onPatch({ imageUrl: e.target.value })}
+              placeholder="Main image URL"
+              aria-label="Main activity image URL"
+              style={{
+                flex: "1 1 160px",
+                minWidth: 0,
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                boxSizing: "border-box",
+                fontSize: 12,
+                background: "#fff",
+              }}
+            />
           </div>
           {pairsDd.length === 0 ? (
             <button

@@ -1648,6 +1648,8 @@ const EditLessonPage: React.FC = () => {
                     const stored = dragDropLayoutPersistedValues("text-to-image");
                     outDdm.matchMode = stored.matchMode;
                     outDdm.dragDropLayout = stored.dragDropLayout;
+                    const imgTti = (b as { imageUrl?: unknown }).imageUrl;
+                    if (typeof imgTti === "string" && imgTti.trim()) outDdm.imageUrl = imgTti.trim();
                   }
                   if (typeof b?.role === "string" && b.role.trim()) outDdm.role = b.role.trim();
                   return outDdm;
@@ -1708,6 +1710,8 @@ const EditLessonPage: React.FC = () => {
                     const stored = dragDropLayoutPersistedValues("text-to-image");
                     repaired.matchMode = stored.matchMode;
                     repaired.dragDropLayout = stored.dragDropLayout;
+                    const imgTtiR = (b as { imageUrl?: unknown }).imageUrl;
+                    if (typeof imgTtiR === "string" && imgTtiR.trim()) repaired.imageUrl = imgTtiR.trim();
                   }
                   if (typeof b?.role === "string" && b.role.trim()) repaired.role = b.role.trim();
                   return repaired;
