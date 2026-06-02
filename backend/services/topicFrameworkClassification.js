@@ -27,7 +27,11 @@ function safeStr(v) {
  *     "application_comparison" |
  *     "structure_function" |
  *     "feedback_loop" |
- *     "process_sequence",
+ *     "process_sequence" |
+ *     "comparison" |
+ *     "inheritance_model" |
+ *     "sequence_pathway" |
+ *     "data_interpretation",
  *   visualModel:
  *     "signal_flow_map" |
  *     "molecular_process_map" |
@@ -41,7 +45,11 @@ function safeStr(v) {
  *     "structure_label_map" |
  *     "organelle_function_map" |
  *     "feedback_control_loop" |
- *     "process_sequence_map",
+ *     "process_sequence_map" |
+ *     "comparison_grid" |
+ *     "inheritance_flow_map" |
+ *     "timeline_sequence_map" |
+ *     "evidence_comparison_grid",
  *   confidence: "high" | "medium",
  *   matchedBy: string
  * }}
@@ -81,6 +89,78 @@ function classifyTopicFramework(input = {}) {
     return out;
   }
 
+  // Inheritance, Variation and Evolution unit (before generic disease/classification rules).
+  if (/sexual and asexual reproduction/i.test(hay)) {
+    out.framework = "comparison";
+    out.visualModel = "comparison_grid";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_comparison_keywords";
+    return out;
+  }
+  if (/genetic inheritance/i.test(hay)) {
+    out.framework = "inheritance_model";
+    out.visualModel = "inheritance_flow_map";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_inheritance_keywords";
+    return out;
+  }
+  if (/evidence for evolution/i.test(hay)) {
+    out.framework = "data_interpretation";
+    out.visualModel = "evidence_comparison_grid";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_evidence_keywords";
+    return out;
+  }
+  if (/\bfossils?\b/i.test(hay)) {
+    out.framework = "sequence_pathway";
+    out.visualModel = "timeline_sequence_map";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_sequence_keywords";
+    return out;
+  }
+  if (/(dna and the genome|understanding of genetics)/i.test(hay)) {
+    out.framework = "structure_function";
+    out.visualModel = "structure_label_map";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_structure_keywords";
+    return out;
+  }
+  if (/^variation$/i.test(topic)) {
+    out.framework = "classification";
+    out.visualModel = "classification_grid";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_classification_keywords";
+    return out;
+  }
+  if (/^classification$/i.test(topic)) {
+    out.framework = "classification";
+    out.visualModel = "classification_grid";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_classification_keywords";
+    return out;
+  }
+  if (/(inherited disorders|extinction|resistant bacteria)/i.test(hay)) {
+    out.framework = "cause_effect";
+    out.visualModel = "cause_effect_chain_map";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_cause_effect_keywords";
+    return out;
+  }
+  if (/\bevolution\b/i.test(hay)) {
+    out.framework = "cause_effect";
+    out.visualModel = "cause_effect_chain_map";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_cause_effect_keywords";
+    return out;
+  }
+  if (/speciation/i.test(hay)) {
+    out.framework = "sequence_pathway";
+    out.visualModel = "timeline_sequence_map";
+    out.confidence = "high";
+    out.matchedBy = "inheritance_evolution_sequence_keywords";
+    return out;
+  }
+
   // Disease / infection: classification (pathogen types) vs cause-effect chains.
   const isDiseaseTopic =
     /(plant disease|rose black spot|measles|salmonella|viral diseases?|bacterial diseases?|fungal diseases?|protist diseases?|human defen[cs]e|vaccination|antibiotic|painkiller|pathogen|disease|infection)/i.test(
@@ -88,9 +168,10 @@ function classifyTopicFramework(input = {}) {
     );
   if (isDiseaseTopic) {
     const isClassificationFocus =
-      /(viral diseases?|bacterial diseases?|fungal diseases?|protist diseases?|pathogen types?|types of (disease|pathogen|pathogens)|classification)/i.test(
+      /(viral diseases?|bacterial diseases?|fungal diseases?|protist diseases?|pathogen types?|types of (disease|pathogen|pathogens))/i.test(
         hay
       ) ||
+      (/classification/i.test(hay) && /(disease|pathogen)/i.test(hay)) ||
       /(type|types)\s+of\s+(disease|pathogen|pathogens)/i.test(hay) ||
       /(disease|pathogen|pathogens)\s+(type|types)/i.test(hay);
     if (isClassificationFocus) {

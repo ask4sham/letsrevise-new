@@ -125,7 +125,96 @@ describe("topic framework classifier", () => {
     test("Inheritance Classification topic is not ecology biodiversity classification", () => {
       const result = classifyTopicFramework({ topic: "Classification", subject: "Biology" });
       expect(result.matchedBy).not.toBe("ecology_classification_keywords");
+      expect(result.matchedBy).not.toBe("disease_classification_keywords");
     });
+  });
+
+  describe("Inheritance, Variation and Evolution unit", () => {
+    test.each([
+      [
+        "Sexual and asexual reproduction",
+        "comparison",
+        "comparison_grid",
+        "high",
+        "inheritance_evolution_comparison_keywords",
+      ],
+      [
+        "DNA and the genome",
+        "structure_function",
+        "structure_label_map",
+        "high",
+        "inheritance_evolution_structure_keywords",
+      ],
+      [
+        "Genetic inheritance",
+        "inheritance_model",
+        "inheritance_flow_map",
+        "high",
+        "inheritance_evolution_inheritance_keywords",
+      ],
+      [
+        "Inherited disorders",
+        "cause_effect",
+        "cause_effect_chain_map",
+        "high",
+        "inheritance_evolution_cause_effect_keywords",
+      ],
+      ["Variation", "classification", "classification_grid", "high", "inheritance_evolution_classification_keywords"],
+      ["Evolution", "cause_effect", "cause_effect_chain_map", "high", "inheritance_evolution_cause_effect_keywords"],
+      [
+        "Evidence for evolution",
+        "data_interpretation",
+        "evidence_comparison_grid",
+        "high",
+        "inheritance_evolution_evidence_keywords",
+      ],
+      [
+        "Fossils",
+        "sequence_pathway",
+        "timeline_sequence_map",
+        "high",
+        "inheritance_evolution_sequence_keywords",
+      ],
+      ["Extinction", "cause_effect", "cause_effect_chain_map", "high", "inheritance_evolution_cause_effect_keywords"],
+      [
+        "Resistant bacteria",
+        "cause_effect",
+        "cause_effect_chain_map",
+        "high",
+        "inheritance_evolution_cause_effect_keywords",
+      ],
+      [
+        "Classification",
+        "classification",
+        "classification_grid",
+        "high",
+        "inheritance_evolution_classification_keywords",
+      ],
+      [
+        "Understanding of genetics",
+        "structure_function",
+        "structure_label_map",
+        "high",
+        "inheritance_evolution_structure_keywords",
+      ],
+      [
+        "Speciation",
+        "sequence_pathway",
+        "timeline_sequence_map",
+        "high",
+        "inheritance_evolution_sequence_keywords",
+      ],
+    ])(
+      "%s -> %s / %s (%s, %s)",
+      (topic, framework, visualModel, confidence, matchedBy) => {
+        const result = classifyTopicFramework({ topic, subject: "Biology" });
+        expect(result.framework).toBe(framework);
+        expect(result.visualModel).toBe(visualModel);
+        expect(result.confidence).toBe(confidence);
+        expect(result.matchedBy).toBe(matchedBy);
+        expect(result.matchedBy).not.toBe("biology_subject_fallback");
+      }
+    );
   });
 
   describe("Homeostasis and Response unit", () => {
