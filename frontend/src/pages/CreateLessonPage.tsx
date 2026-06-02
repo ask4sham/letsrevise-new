@@ -2264,6 +2264,7 @@ const CreateLessonPage: React.FC = () => {
                     value={formData.description}
                     maxLength={LESSON_DESCRIPTION_MAX_LENGTH}
                     minHeightPx={160}
+                    showExpandButton
                     onChange={(v) => {
                       setDescriptionTouched(true);
                       setFormData((prev) => ({ ...prev, description: v }));

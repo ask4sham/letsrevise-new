@@ -40,7 +40,7 @@ export function LessonBlockContentTextarea({
   onKeyTermClick,
   onSuggestKeyTermsClick,
 }: LessonBlockContentTextareaProps) {
-  const minHeightPx = minHeightProp ?? (sizeVariant === "long" ? 300 : 240);
+  const minHeightPx = minHeightProp ?? (sizeVariant === "long" ? 300 : 160);
 
   const restoreCursor = (cursor: number) => {
     const el = getTextarea();

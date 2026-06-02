@@ -5659,6 +5659,7 @@ const EditLessonPage: React.FC = () => {
                         value={lesson.description}
                         onChange={(v) => updateLessonField("description", v)}
                         minHeightPx={160}
+                        showExpandButton
                         maxLength={LESSON_DESCRIPTION_MAX_LENGTH}
                         style={{ fontSize: "0.9375rem" }}
                       />
@@ -6267,7 +6268,7 @@ const EditLessonPage: React.FC = () => {
                                     updateBlock(currentPage!.pageId, idx, { prompt: v })
                                   }
                                   placeholder="Question or instruction..."
-                                  minHeightPx={240}
+                                  minHeightPx={144}
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
@@ -6410,6 +6411,7 @@ const EditLessonPage: React.FC = () => {
                                   }
                                   placeholder="Why this answer is correct..."
                                   minHeightPx={300}
+                                  showExpandButton
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
@@ -6848,7 +6850,7 @@ const EditLessonPage: React.FC = () => {
                                     updateBlock(currentPage!.pageId, idx, { caption: v })
                                   }
                                   placeholder="e.g. A single simple animal cell"
-                                  minHeightPx={120}
+                                  minHeightPx={80}
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
@@ -7317,7 +7319,7 @@ const EditLessonPage: React.FC = () => {
                                   value={safeStr((b as LessonPageBlock).intro, "")}
                                   onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
                                   placeholder="Short introduction for students…"
-                                  minHeightPx={120}
+                                  minHeightPx={80}
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
@@ -7563,7 +7565,7 @@ const EditLessonPage: React.FC = () => {
                                           updateBlock(currentPage!.pageId, idx, { sequenceSteps: steps });
                                         }}
                                         placeholder="What happens in this step…"
-                                        minHeightPx={100}
+                                        minHeightPx={80}
                                         style={{ fontSize: "0.875rem" }}
                                       />
                                     </label>
@@ -7924,7 +7926,7 @@ const EditLessonPage: React.FC = () => {
                                   value={safeStr((b as LessonPageBlock).intro, "")}
                                   onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
                                   placeholder="e.g. Click each letter to learn what it does."
-                                  minHeightPx={100}
+                                  minHeightPx={80}
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
@@ -8829,7 +8831,7 @@ const EditLessonPage: React.FC = () => {
                                   value={safeStr((b as LessonPageBlock).intro, "")}
                                   onChange={(v) => updateBlock(currentPage!.pageId, idx, { intro: v })}
                                   placeholder="Short introduction for students…"
-                                  minHeightPx={100}
+                                  minHeightPx={80}
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>
@@ -8840,7 +8842,7 @@ const EditLessonPage: React.FC = () => {
                                   value={safeStr((b as LessonPageBlock).instructions, "")}
                                   onChange={(v) => updateBlock(currentPage!.pageId, idx, { instructions: v })}
                                   placeholder="What students should do…"
-                                  minHeightPx={80}
+                                  minHeightPx={72}
                                   style={{ fontSize: "0.9375rem" }}
                                 />
                               </label>

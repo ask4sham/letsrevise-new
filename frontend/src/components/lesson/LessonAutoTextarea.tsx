@@ -7,6 +7,7 @@ export type LessonAutoTextareaProps = {
   minHeightPx?: number;
   /** Height of the editor in focus mode (viewport fraction). */
   focusModeVh?: number;
+  /** Show expand/focus mode control (main content fields only). */
   showExpandButton?: boolean;
   assignRef?: (el: HTMLTextAreaElement | null) => void;
   onPaste?: React.ClipboardEventHandler<HTMLTextAreaElement>;
@@ -79,9 +80,9 @@ function syncTextareaHeight(
 export function LessonAutoTextarea({
   value,
   onChange,
-  minHeightPx = 240,
+  minHeightPx = 144,
   focusModeVh = 70,
-  showExpandButton = true,
+  showExpandButton = false,
   assignRef,
   onPaste,
   placeholder,
