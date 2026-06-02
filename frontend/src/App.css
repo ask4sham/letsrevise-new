@@ -495,6 +495,12 @@ header.site-header {
   }
 }
 
+.edit-lesson-page {
+  padding-left: clamp(12px, 2vw, 24px);
+  padding-right: clamp(12px, 2vw, 24px);
+  box-sizing: border-box;
+}
+
 /*
  * Edit Lesson: centered app column + responsive grid.
  * ResizeObserver ref is on .edit-lesson-editor-column so breakpoints use capped width (not full viewport).
@@ -527,6 +533,213 @@ header.site-header {
   grid-template-rows: none;
 }
 
+/* Edit Lesson: fallback top action row (medium / narrow) */
+.edit-lesson-top-action-row {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.edit-lesson-top-action-row__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.edit-lesson-page-top-nav__back {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.edit-lesson-page-top-nav__back:hover {
+  color: #475569;
+}
+
+/* Outside rail: left of bordered editor frame (wide layout only) */
+.edit-lesson-frame-row {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.edit-lesson-frame-row--with-outside-rail {
+  display: grid;
+  grid-template-columns: minmax(180px, 200px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.edit-lesson-outside-actions-rail {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 96px;
+  z-index: 10;
+  width: 100%;
+  max-width: 220px;
+  align-self: start;
+}
+
+.edit-lesson-lesson-actions-card {
+  background: #ffffff;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+.edit-lesson-lesson-actions-card__title {
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.edit-lesson-lesson-actions-card__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-lesson-lesson-actions-card__btn {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 13px;
+  line-height: 1.25;
+  min-height: 36px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.edit-lesson-lesson-actions-card__btn--ai {
+  border: none;
+  color: #ffffff;
+}
+
+.edit-lesson-lesson-actions-card__ai-label {
+  font-weight: 800;
+  font-size: 12px;
+  color: #5b21b6;
+  margin-top: 4px;
+}
+
+.edit-lesson-lesson-actions-card__ai-hint {
+  font-size: 11px;
+  color: #6d28d9;
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+
+.edit-lesson-lesson-actions-card__checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #4c1d95;
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.edit-lesson-lesson-actions-card__status {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.edit-lesson-lesson-actions-card__status--ok {
+  color: #15803d;
+}
+
+.edit-lesson-lesson-actions-card__subpanel {
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #5b21b6;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 8px;
+}
+
+.edit-lesson-lesson-actions-card__draft-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.edit-lesson-lesson-actions-card__draft-links a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #7c3aed;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: none;
+  text-align: center;
+}
+
+.edit-lesson-page .edit-lesson-save-state-indicator {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.edit-lesson-page .edit-lesson-save-state-indicator[data-state="saving"] {
+  color: #92400e;
+}
+
+.edit-lesson-page .edit-lesson-save-state-indicator[data-state="saved"] {
+  color: #15803d;
+}
+
+/* CSS fallback: hide outside rail if viewport too narrow (JS also falls back to top row) */
+@media (max-width: 1219px) {
+  .edit-lesson-frame-row--with-outside-rail {
+    display: block;
+  }
+
+  .edit-lesson-outside-actions-rail {
+    display: none;
+  }
+}
+
+/*
+ * Wide desktop (≥1400px): use more horizontal space for the editor column.
+ * Rails (outside actions, left sidebar, preview) keep their widths; center column grows via 1fr.
+ */
+@media (min-width: 1400px) {
+  .edit-lesson-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .edit-lesson-page .edit-lesson-editor-column {
+    max-width: min(1760px, calc(100vw - 24px));
+  }
+
+  .edit-lesson-page .edit-lesson-frame-row--with-outside-rail {
+    gap: 12px;
+  }
+
+  .edit-lesson-page .edit-lesson-layout-grid--wide {
+    gap: 12px;
+  }
+}
+
 /* Edit-lesson wide: sticky rails from 900px; static below — same 900/899 pairing as lesson view. */
 @media (min-width: 900px) {
   .edit-lesson-layout-grid--wide .edit-lesson-left-rail,
@@ -542,6 +755,7 @@ header.site-header {
     overflow-x: hidden;
     overflow-y: auto;
   }
+
 }
 
 /* Edit-lesson wide rails: below 900px drop sticky (pairs with min-width:900px above). */

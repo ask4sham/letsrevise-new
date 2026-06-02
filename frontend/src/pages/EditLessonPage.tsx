@@ -3341,11 +3341,25 @@ const EditLessonPage: React.FC = () => {
     });
     if (!lesson) return;
     const topic =
-      safeStr(lesson.topic, "").trim() || safeStr(lesson.title, "").trim();
+      safeStr(lesson.topic, "").trim() ||
+      safeStr((lesson as { subTopic?: string }).subTopic, "").trim() ||
+      safeStr(lesson.title, "").trim();
+    const topicKey =
+      topicKeyForBank ||
+      safeStr((lesson as { topicKey?: string }).topicKey, "").trim() ||
+      undefined;
+    const subTopic = safeStr((lesson as { subTopic?: string }).subTopic, "").trim() || undefined;
     const subject = safeStr(lesson.subject, "");
     const examBoard = safeStr(lesson.examBoardName, "") || undefined;
     const tier = safeStr((lesson as { tier?: string }).tier, "") || undefined;
-    console.log("[TeacherBrainUI] inject context", { topic, subject, examBoard, tier });
+    console.log("[TeacherBrainUI] inject context", {
+      topic,
+      topicKey,
+      subTopic,
+      subject,
+      examBoard,
+      tier,
+    });
     if (!topic) {
       setSaveMsg("Set a lesson topic before injecting Teacher Brain briefs.");
       setTimeout(() => setSaveMsg(""), 6000);
@@ -3370,6 +3384,8 @@ const EditLessonPage: React.FC = () => {
       const result = await injectTeacherBrainBriefs({
         pages: lesson.pages || [],
         topic,
+        topicKey,
+        subTopic,
         subject,
         examBoard,
         tier,
@@ -4291,6 +4307,467 @@ const EditLessonPage: React.FC = () => {
 
   const pagesReady = hasStructuredPages && currentPage;
 
+  const renderLessonActionsPanel = (cardClassName: string) => (
+    <div className={cardClassName}>
+      <div className="edit-lesson-lesson-actions-card__title">Lesson actions</div>
+
+      {saving || (saveMsg && saveMsg.startsWith("✅")) ? (
+        <span
+          className="edit-lesson-save-state-indicator"
+          data-state={saving ? "saving" : "saved"}
+          aria-live="polite"
+        >
+          {saving ? "Saving..." : "Saved"}
+        </span>
+      ) : null}
+
+      {uploadMsg ? (
+        <div className="edit-lesson-lesson-actions-card__status edit-lesson-lesson-actions-card__status--ok">
+          {uploadMsg}
+        </div>
+      ) : null}
+
+      {saveMsg ? (
+        <div
+          className="edit-lesson-lesson-actions-card__status"
+          style={{
+            color: saveMsg.startsWith("✅")
+              ? "#15803d"
+              : saveMsg.startsWith("🚫") || saveMsg.startsWith("✋")
+                ? "#b45309"
+                : saveMsg.startsWith("⏳") || saveMsg.startsWith("⚠️")
+                  ? "#92400e"
+                  : "#b91c1c",
+          }}
+        >
+          {saveMsg}
+        </div>
+      ) : null}
+
+      <div className="edit-lesson-lesson-actions-card__stack">
+        <button
+          type="button"
+          onClick={saveToBackend}
+          disabled={saving}
+          className="edit-lesson-lesson-actions-card__btn edit-lesson-lesson-actions-card__btn--primary"
+          style={{
+            border: "2px solid rgba(0,0,0,0.18)",
+            background: saving ? "#e5e7eb" : "white",
+            cursor: saving ? "not-allowed" : "pointer",
+            color: "#111827",
+          }}
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handlePublishToggle()}
+          disabled={publishing}
+          className="edit-lesson-lesson-actions-card__btn"
+          style={{
+            border: lesson.isPublished ? "2px solid rgba(239,68,68,0.5)" : "2px solid rgba(16,185,129,0.5)",
+            background: publishing ? "#e5e7eb" : lesson.isPublished ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)",
+            cursor: publishing ? "not-allowed" : "pointer",
+            color: lesson.isPublished ? "#b91c1c" : "#15803d",
+          }}
+        >
+          {publishing ? "Processing..." : lesson.isPublished ? "Unpublish Lesson" : "Publish Lesson"}
+        </button>
+
+        {lesson && isMongoObjectId(id || "") ? (
+          <>
+            <span className="edit-lesson-lesson-actions-card__ai-label">AI topic banks</span>
+            <span className="edit-lesson-lesson-actions-card__ai-hint">
+              Generate while lesson is draft/unpublished.
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleGenerateAiLessonAssets()}
+              disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
+              className="edit-lesson-lesson-actions-card__btn edit-lesson-lesson-actions-card__btn--ai"
+              title={
+                lesson?.isPublished
+                  ? AI_ASSETS_PUBLISHED_MESSAGE
+                  : !topicKeyForBank
+                    ? "Topic mapping may be incomplete — generation will try to repair from Topic/Title on save."
+                    : "Saves your lesson, then creates draft flashcards and quiz in your topic banks (optional exam)."
+              }
+              style={{
+                background: aiAssetsLoading || saving || !!lesson?.isPublished ? "#d8b4fe" : "#7c3aed",
+                cursor:
+                  aiAssetsLoading || saving || !!lesson?.isPublished ? "not-allowed" : "pointer",
+              }}
+            >
+              {aiAssetsLoading ? "Working…" : "Generate AI assets"}
+            </button>
+            <label className="edit-lesson-lesson-actions-card__checkbox">
+              <input
+                type="checkbox"
+                checked={includeExamInAiAssets}
+                onChange={(e) => setIncludeExamInAiAssets(e.target.checked)}
+                disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
+              />
+              Include exam drafts
+            </label>
+          </>
+        ) : null}
+
+        {curriculumAiReviewFeature && lesson && canRunCurriculumReview(lesson) ? (
+          <button
+            type="button"
+            onClick={() => void handleCurriculumCheck()}
+            disabled={
+              curriculumReviewLoading ||
+              lesson.curriculumAiReview?.status === "running" ||
+              lesson.curriculumAiReview?.status === "queued"
+            }
+            className="edit-lesson-lesson-actions-card__btn"
+            title="AI compares this draft to your spec/topic context. Nothing is changed automatically."
+            style={{
+              border: "2px solid rgba(99,102,241,0.45)",
+              background:
+                curriculumReviewLoading ||
+                lesson.curriculumAiReview?.status === "running" ||
+                lesson.curriculumAiReview?.status === "queued"
+                  ? "#e5e7eb"
+                  : "rgba(238,242,255,0.95)",
+              cursor:
+                curriculumReviewLoading ||
+                lesson.curriculumAiReview?.status === "running" ||
+                lesson.curriculumAiReview?.status === "queued"
+                  ? "not-allowed"
+                  : "pointer",
+              color: "#3730a3",
+              fontWeight: 800,
+            }}
+          >
+            {curriculumReviewLoading ||
+            lesson.curriculumAiReview?.status === "running" ||
+            lesson.curriculumAiReview?.status === "queued"
+              ? "Checking…"
+              : lesson.curriculumAiReview?.status === "failed"
+                ? "Retry curriculum check"
+                : "Check against curriculum"}
+          </button>
+        ) : null}
+      </div>
+
+      {(aiAssetsMessage || hasAiLessonDraftReviewToolbar) ? (
+        <div className="edit-lesson-lesson-actions-card__subpanel">
+          {aiAssetsMessage ? <div>{aiAssetsMessage}</div> : null}
+          {hasAiLessonDraftReviewToolbar && topicKeyForBank && id ? (
+            <div className="edit-lesson-lesson-actions-card__draft-links">
+              {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
+                <Link
+                  to={buildAiLessonAssetBankReviewUrl("flashcards", {
+                    topicKeySlug: topicKeyForBank.includes(":")
+                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                      : topicKeyForBank,
+                    specKey:
+                      (lesson as { specKey?: string })?.specKey ||
+                      topicKeyForBank.split(":")[0] ||
+                      getStoredSpecKey(),
+                    lessonId: id,
+                  })}
+                >
+                  Review flashcard drafts
+                </Link>
+              ) : null}
+              {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
+                <Link
+                  to={buildAiLessonAssetBankReviewUrl("quizzes", {
+                    topicKeySlug: topicKeyForBank.includes(":")
+                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                      : topicKeyForBank,
+                    specKey:
+                      (lesson as { specKey?: string })?.specKey ||
+                      topicKeyForBank.split(":")[0] ||
+                      getStoredSpecKey(),
+                    lessonId: id,
+                  })}
+                >
+                  Review quiz drafts
+                </Link>
+              ) : null}
+              {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+                <Link
+                  to={buildAiLessonAssetExamReviewUrl({
+                    topicKeySlug: topicKeyForBank.includes(":")
+                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                      : topicKeyForBank,
+                    specKey:
+                      (lesson as { specKey?: string })?.specKey ||
+                      topicKeyForBank.split(":")[0] ||
+                      getStoredSpecKey(),
+                    lessonId: id,
+                  })}
+                >
+                  Review exam drafts
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  /** Wide layout only: actions sit in margin left of the bordered editor frame, not inside the left sidebar. */
+  const showOutsideActionsRail = layoutBreakpoint === "wide";
+
+  const renderTopActionRow = () => (
+    <div className="edit-lesson-top-action-row">
+      <Link to={backHref} style={{ color: "#667eea", textDecoration: "none" }}>
+        ← Back
+      </Link>
+
+      <div className="edit-lesson-top-action-row__actions">
+        {uploadMsg ? <span style={{ fontWeight: 900, color: "#15803d" }}>{uploadMsg}</span> : null}
+
+        {saveMsg ? (
+          <span
+            style={{
+              fontWeight: 800,
+              color: saveMsg.startsWith("✅")
+                ? "#15803d"
+                : saveMsg.startsWith("🚫") || saveMsg.startsWith("✋")
+                  ? "#b45309"
+                  : saveMsg.startsWith("⏳") || saveMsg.startsWith("⚠️")
+                    ? "#92400e"
+                    : "#b91c1c",
+            }}
+          >
+            {saveMsg}
+          </span>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => handlePublishToggle()}
+          disabled={publishing}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: lesson.isPublished ? "2px solid rgba(239,68,68,0.5)" : "2px solid rgba(16,185,129,0.5)",
+            background: publishing ? "#e5e7eb" : lesson.isPublished ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)",
+            cursor: publishing ? "not-allowed" : "pointer",
+            fontWeight: 900,
+            color: lesson.isPublished ? "#b91c1c" : "#15803d",
+          }}
+        >
+          {publishing ? "Processing..." : lesson.isPublished ? "Unpublish Lesson" : "Publish Lesson"}
+        </button>
+
+        <button
+          type="button"
+          onClick={saveToBackend}
+          disabled={saving}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "2px solid rgba(0,0,0,0.18)",
+            background: saving ? "#e5e7eb" : "white",
+            cursor: saving ? "not-allowed" : "pointer",
+            fontWeight: 900,
+          }}
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+
+        {lesson && isMongoObjectId(id || "") ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "2px solid rgba(124,58,237,0.35)",
+              background: "#f5f3ff",
+            }}
+          >
+            <span style={{ fontWeight: 800, fontSize: 13, color: "#5b21b6" }}>AI topic banks</span>
+            <span style={{ fontSize: 12, color: "#6d28d9" }}>
+              Generate while lesson is draft/unpublished.
+            </span>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#4c1d95", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={includeExamInAiAssets}
+                onChange={(e) => setIncludeExamInAiAssets(e.target.checked)}
+                disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
+              />
+              Include exam drafts
+            </label>
+            <button
+              type="button"
+              onClick={() => void handleGenerateAiLessonAssets()}
+              disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
+              title={
+                lesson?.isPublished
+                  ? AI_ASSETS_PUBLISHED_MESSAGE
+                  : !topicKeyForBank
+                    ? "Topic mapping may be incomplete — generation will try to repair from Topic/Title on save."
+                    : "Saves your lesson, then creates draft flashcards and quiz in your topic banks (optional exam)."
+              }
+              style={{
+                padding: "10px 16px",
+                borderRadius: 10,
+                border: "none",
+                background: aiAssetsLoading || saving || !!lesson?.isPublished ? "#d8b4fe" : "#7c3aed",
+                color: "#fff",
+                cursor: aiAssetsLoading || saving || !!lesson?.isPublished ? "not-allowed" : "pointer",
+                fontWeight: 900,
+                fontSize: 14,
+              }}
+            >
+              {aiAssetsLoading ? "Working…" : "Generate AI assets"}
+            </button>
+          </div>
+        ) : null}
+
+        {curriculumAiReviewFeature && lesson && canRunCurriculumReview(lesson) ? (
+          <button
+            type="button"
+            onClick={() => void handleCurriculumCheck()}
+            disabled={
+              curriculumReviewLoading ||
+              lesson.curriculumAiReview?.status === "running" ||
+              lesson.curriculumAiReview?.status === "queued"
+            }
+            title="AI compares this draft to your spec/topic context. Nothing is changed automatically."
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "2px solid rgba(99,102,241,0.45)",
+              background:
+                curriculumReviewLoading ||
+                lesson.curriculumAiReview?.status === "running" ||
+                lesson.curriculumAiReview?.status === "queued"
+                  ? "#e5e7eb"
+                  : "#eef2ff",
+              cursor:
+                curriculumReviewLoading ||
+                lesson.curriculumAiReview?.status === "running" ||
+                lesson.curriculumAiReview?.status === "queued"
+                  ? "not-allowed"
+                  : "pointer",
+              fontWeight: 800,
+              color: "#3730a3",
+            }}
+          >
+            {curriculumReviewLoading ||
+            lesson.curriculumAiReview?.status === "running" ||
+            lesson.curriculumAiReview?.status === "queued"
+              ? "Checking…"
+              : lesson.curriculumAiReview?.status === "failed"
+                ? "Retry curriculum check"
+                : "Check against curriculum"}
+          </button>
+        ) : null}
+      </div>
+
+      {(aiAssetsMessage || hasAiLessonDraftReviewToolbar) ? (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "10px 14px",
+            fontSize: 13,
+            color: "#5b21b6",
+            background: "#faf5ff",
+            borderRadius: 10,
+            border: "1px solid #e9d5ff",
+            maxWidth: 720,
+            width: "100%",
+          }}
+        >
+          {aiAssetsMessage ? <div>{aiAssetsMessage}</div> : null}
+          {hasAiLessonDraftReviewToolbar && topicKeyForBank && id ? (
+            <div style={{ marginTop: aiAssetsMessage ? 10 : 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
+                <Link
+                  to={buildAiLessonAssetBankReviewUrl("flashcards", {
+                    topicKeySlug: topicKeyForBank.includes(":")
+                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                      : topicKeyForBank,
+                    specKey:
+                      (lesson as { specKey?: string })?.specKey ||
+                      topicKeyForBank.split(":")[0] ||
+                      getStoredSpecKey(),
+                    lessonId: id,
+                  })}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    background: "#7c3aed",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    textDecoration: "none",
+                  }}
+                >
+                  Review flashcard drafts
+                </Link>
+              ) : null}
+              {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
+                <Link
+                  to={buildAiLessonAssetBankReviewUrl("quizzes", {
+                    topicKeySlug: topicKeyForBank.includes(":")
+                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                      : topicKeyForBank,
+                    specKey:
+                      (lesson as { specKey?: string })?.specKey ||
+                      topicKeyForBank.split(":")[0] ||
+                      getStoredSpecKey(),
+                    lessonId: id,
+                  })}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    background: "#7c3aed",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    textDecoration: "none",
+                  }}
+                >
+                  Review quiz drafts
+                </Link>
+              ) : null}
+              {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
+                <Link
+                  to={buildAiLessonAssetExamReviewUrl({
+                    topicKeySlug: topicKeyForBank.includes(":")
+                      ? topicKeyForBank.split(":")[1] || topicKeyForBank
+                      : topicKeyForBank,
+                    specKey:
+                      (lesson as { specKey?: string })?.specKey ||
+                      topicKeyForBank.split(":")[0] ||
+                      getStoredSpecKey(),
+                    lessonId: id,
+                  })}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    background: "#7c3aed",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    textDecoration: "none",
+                  }}
+                >
+                  Review exam drafts
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div
       data-lesson-editor="true"
@@ -4335,13 +4812,14 @@ const EditLessonPage: React.FC = () => {
         />
       )}
     <div
+      className="edit-lesson-page"
       style={{
         minHeight: "100vh",
         width: "100%",
         maxWidth: "100%",
         minWidth: 0,
         background: "linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%)",
-        padding: "12px clamp(12px, 2vw, 24px)",
+        padding: "12px 0",
         boxSizing: "border-box",
       }}
     >
@@ -4365,263 +4843,28 @@ const EditLessonPage: React.FC = () => {
           </div>
         )}
 
-        <div
-          style={{
-            marginBottom: 12,
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <Link to={backHref} style={{ color: "#667eea", textDecoration: "none" }}>
-            ← Back
-          </Link>
-
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            {uploadMsg ? <span style={{ fontWeight: 900, color: "#15803d" }}>{uploadMsg}</span> : null}
-
-            {saveMsg ? (
-              <span
-                style={{
-                  fontWeight: 800,
-                  color: saveMsg.startsWith("✅")
-                    ? "#15803d"
-                    : saveMsg.startsWith("🚫") || saveMsg.startsWith("✋")
-                      ? "#b45309"
-                      : saveMsg.startsWith("⏳") || saveMsg.startsWith("⚠️")
-                        ? "#92400e"
-                        : "#b91c1c",
-                }}
-              >
-                {saveMsg}
-              </span>
-            ) : null}
-
-            <button
-              onClick={() => handlePublishToggle()}
-              disabled={publishing}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: lesson.isPublished ? "2px solid rgba(239,68,68,0.5)" : "2px solid rgba(16,185,129,0.5)",
-                background: publishing ? "#e5e7eb" : (lesson.isPublished ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)"),
-                cursor: publishing ? "not-allowed" : "pointer",
-                fontWeight: 900,
-                color: lesson.isPublished ? "#b91c1c" : "#15803d",
-              }}
-            >
-              {publishing ? "Processing..." : (lesson.isPublished ? "Unpublish Lesson" : "Publish Lesson")}
-            </button>
-
-            <button
-              onClick={saveToBackend}
-              disabled={saving}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "2px solid rgba(0,0,0,0.18)",
-                background: saving ? "#e5e7eb" : "white",
-                cursor: saving ? "not-allowed" : "pointer",
-                fontWeight: 900,
-              }}
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-
-            {lesson && isMongoObjectId(id || "") ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  flexWrap: "wrap",
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "2px solid rgba(124,58,237,0.35)",
-                  background: "rgba(245,243,255,0.95)",
-                }}
-              >
-                <span style={{ fontWeight: 800, fontSize: 13, color: "#5b21b6" }}>AI topic banks</span>
-                <span style={{ fontSize: 12, color: "#6d28d9", opacity: 0.9 }}>
-                  Generate while lesson is draft/unpublished.
-                </span>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#4c1d95", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={includeExamInAiAssets}
-                    onChange={(e) => setIncludeExamInAiAssets(e.target.checked)}
-                    disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
-                  />
-                  Include exam drafts
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void handleGenerateAiLessonAssets()}
-                  disabled={aiAssetsLoading || saving || !!lesson?.isPublished}
-                  title={
-                    lesson?.isPublished
-                      ? AI_ASSETS_PUBLISHED_MESSAGE
-                      : !topicKeyForBank
-                        ? "Topic mapping may be incomplete — generation will try to repair from Topic/Title on save."
-                        : "Saves your lesson, then creates draft flashcards and quiz in your topic banks (optional exam)."
-                  }
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: 10,
-                    border: "none",
-                    background:
-                      aiAssetsLoading || saving || !!lesson?.isPublished ? "#d8b4fe" : "#7c3aed",
-                    color: "#fff",
-                    cursor:
-                      aiAssetsLoading || saving || !!lesson?.isPublished
-                        ? "not-allowed"
-                        : "pointer",
-                    fontWeight: 900,
-                    fontSize: 14,
-                  }}
-                >
-                  {aiAssetsLoading ? "Working…" : "Generate AI assets"}
-                </button>
-              </div>
-            ) : null}
-
-            {curriculumAiReviewFeature && lesson && canRunCurriculumReview(lesson) ? (
-              <button
-                type="button"
-                onClick={() => void handleCurriculumCheck()}
-                disabled={
-                  curriculumReviewLoading ||
-                  lesson.curriculumAiReview?.status === "running" ||
-                  lesson.curriculumAiReview?.status === "queued"
-                }
-                title="AI compares this draft to your spec/topic context. Nothing is changed automatically."
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "2px solid rgba(99,102,241,0.45)",
-                  background:
-                    curriculumReviewLoading ||
-                    lesson.curriculumAiReview?.status === "running" ||
-                    lesson.curriculumAiReview?.status === "queued"
-                      ? "#e5e7eb"
-                      : "rgba(238,242,255,0.95)",
-                  cursor:
-                    curriculumReviewLoading ||
-                    lesson.curriculumAiReview?.status === "running" ||
-                    lesson.curriculumAiReview?.status === "queued"
-                      ? "not-allowed"
-                      : "pointer",
-                  fontWeight: 800,
-                  color: "#3730a3",
-                }}
-              >
-                {curriculumReviewLoading ||
-                lesson.curriculumAiReview?.status === "running" ||
-                lesson.curriculumAiReview?.status === "queued"
-                  ? "Checking…"
-                  : lesson.curriculumAiReview?.status === "failed"
-                    ? "Retry curriculum check"
-                    : "Check against curriculum"}
-              </button>
-            ) : null}
+        {showOutsideActionsRail ? (
+          <div className="edit-lesson-page-top-nav" style={{ marginBottom: 12 }}>
+            <Link to={backHref} className="edit-lesson-page-top-nav__back">
+              ← Back
+            </Link>
           </div>
-          {(aiAssetsMessage || hasAiLessonDraftReviewToolbar) ? (
-            <div
-              style={{
-                marginTop: 10,
-                padding: "10px 14px",
-                fontSize: 13,
-                color: "#5b21b6",
-                background: "#faf5ff",
-                borderRadius: 10,
-                border: "1px solid #e9d5ff",
-                maxWidth: 720,
-              }}
-            >
-              {aiAssetsMessage ? <div>{aiAssetsMessage}</div> : null}
-              {hasAiLessonDraftReviewToolbar && topicKeyForBank && id ? (
-                  <div style={{ marginTop: aiAssetsMessage ? 10 : 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {aiReviewPanel.pendingDrafts.flashcards > 0 ? (
-                    <Link
-                      to={buildAiLessonAssetBankReviewUrl("flashcards", {
-                        topicKeySlug: topicKeyForBank.includes(":")
-                          ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                          : topicKeyForBank,
-                        specKey:
-                          (lesson as { specKey?: string })?.specKey ||
-                          topicKeyForBank.split(":")[0] ||
-                          getStoredSpecKey(),
-                        lessonId: id,
-                      })}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 6,
-                        background: "#7c3aed",
-                        color: "#fff",
-                        fontWeight: 600,
-                        fontSize: 13,
-                        textDecoration: "none",
-                      }}
-                    >
-                      Review flashcard drafts
-                    </Link>
-                    ) : null}
-                    {aiReviewPanel.pendingDrafts.quizQuestions > 0 ? (
-                    <Link
-                      to={buildAiLessonAssetBankReviewUrl("quizzes", {
-                        topicKeySlug: topicKeyForBank.includes(":")
-                          ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                          : topicKeyForBank,
-                        specKey:
-                          (lesson as { specKey?: string })?.specKey ||
-                          topicKeyForBank.split(":")[0] ||
-                          getStoredSpecKey(),
-                        lessonId: id,
-                      })}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 6,
-                        background: "#7c3aed",
-                        color: "#fff",
-                        fontWeight: 600,
-                        fontSize: 13,
-                        textDecoration: "none",
-                      }}
-                    >
-                      Review quiz drafts
-                    </Link>
-                    ) : null}
-                    {aiReviewPanel.pendingDrafts.examQuestions > 0 ? (
-                      <Link
-                        to={buildAiLessonAssetExamReviewUrl({
-                          topicKeySlug: topicKeyForBank.includes(":")
-                            ? topicKeyForBank.split(":")[1] || topicKeyForBank
-                            : topicKeyForBank,
-                          specKey:
-                            (lesson as { specKey?: string })?.specKey ||
-                            topicKeyForBank.split(":")[0] ||
-                            getStoredSpecKey(),
-                          lessonId: id,
-                        })}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 6,
-                          background: "#7c3aed",
-                          color: "#fff",
-                          fontWeight: 600,
-                          fontSize: 13,
-                          textDecoration: "none",
-                        }}
-                      >
-                        Review exam drafts
-                      </Link>
-                    ) : null}
-                  </div>
-                ) : null}
-            </div>
+        ) : (
+          renderTopActionRow()
+        )}
+
+        <div
+          className={
+            showOutsideActionsRail
+              ? "edit-lesson-frame-row edit-lesson-frame-row--with-outside-rail"
+              : "edit-lesson-frame-row"
+          }
+        >
+          {showOutsideActionsRail ? (
+            <aside className="edit-lesson-outside-actions-rail" aria-label="Lesson actions">
+              {renderLessonActionsPanel("edit-lesson-lesson-actions-card")}
+            </aside>
           ) : null}
-        </div>
 
         <div
           className="edit-lesson-layout-shell"
@@ -10381,6 +10624,7 @@ const EditLessonPage: React.FC = () => {
             </div>
 
           </div>
+        </div>
         </div>
       </div>
 

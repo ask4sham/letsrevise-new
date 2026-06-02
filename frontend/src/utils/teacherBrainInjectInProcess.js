@@ -127,8 +127,12 @@ function cloneLessonPagesForState(pages) {
  */
 function injectTeacherBrainBriefsInProcess(editorPages, meta) {
   const topic = safeStr(meta?.topic);
+  const topicKey = safeStr(meta?.topicKey);
+  const subTopic = safeStr(meta?.subTopic);
   const brain = runTeacherBrain({
     topic,
+    topicKey,
+    subTopic,
     subject: meta?.subject || "Biology",
     examBoard: meta?.examBoard || "AQA",
     tier: meta?.tier || "Higher",
@@ -148,7 +152,11 @@ function injectTeacherBrainBriefsInProcess(editorPages, meta) {
       }
     }
   }
-  const { pages: injectedPages, injections } = injectDiagramAndActivityBriefs(apiShape, brain);
+  const { pages: injectedPages, injections } = injectDiagramAndActivityBriefs(apiShape, brain, {
+    topic: brain.topic || topic,
+    topicKey: brain.topicKey || topicKey,
+    subTopic: brain.subTopic || subTopic,
+  });
   const merged = mergeTeacherBrainNotesIntoPages(editorPages, injectedPages, injections);
 
   return {

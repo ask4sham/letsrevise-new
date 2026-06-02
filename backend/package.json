@@ -40,6 +40,7 @@
     "create:content-sprint-tracker": "node scripts/createContentSprintTracker.js",
     "diagnose:lesson-flashcards": "node scripts/diagnoseLessonFlashcards.js",
     "audit:question-banks-biology": "node scripts/questionBankAuditBiologyGcse.js",
+    "audit:framework-classification-curriculum": "node scripts/frameworkClassificationCurriculumAudit.js",
     "audit:question-banks:spec": "node scripts/auditQuestionBanks.js --spec",
     "audit:question-banks:all": "node scripts/auditQuestionBanks.js --all",
     "convert:exam-csv": "node scripts/convertExamQuestionsCsvToJson.js",

@@ -19,14 +19,23 @@ function applyTeacherBrainBriefInjection(pages, input = {}) {
     return { pages, brain: null, injections: [] };
   }
 
+  const topicKey = String(input.topicKey || input.blueprint?.topicKey || "").trim();
+  const subTopic = String(input.subTopic || input.blueprint?.subTopic || "").trim();
+
   const brain = runTeacherBrain({
     topic,
+    topicKey,
+    subTopic,
     subject: input.subject || input.blueprint?.subject || "Biology",
     examBoard: input.examBoard || input.blueprint?.examBoard || input.blueprint?.board || "AQA",
     tier: input.tier || input.blueprint?.tier || "Higher",
   });
 
-  const result = injectDiagramAndActivityBriefs(pages, brain);
+  const result = injectDiagramAndActivityBriefs(pages, brain, {
+    topic: brain.topic || topic,
+    topicKey: brain.topicKey || topicKey,
+    subTopic: brain.subTopic || subTopic,
+  });
 
   const logInjection =
     process.env.TEACHER_BRAIN_INJECTION_LOG === "1" ||

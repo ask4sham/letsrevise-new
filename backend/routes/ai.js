@@ -35,6 +35,7 @@ const { validateGeneratedContentAgainstTopic } = require("../utils/topicDriftVal
 const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../utils/topicKey");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { makeLessonDbSafe } = require("../utils/lessonDbSafe");
+const { classifyTopicFramework } = require("../services/topicFrameworkClassification");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
 const {
   validateLessonDraftAgainstCurriculum,
@@ -5283,6 +5284,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
       });
     }
 
+    // Additive classification telemetry only (no behavioural impact).
+    const frameworkClassification = classifyTopicFramework({
+      topic: subTopicDisplay || topic,
+      topicKey: canonicalTopicKey || "",
+      subject,
+    });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[generate-and-save] framework classification:", frameworkClassification);
+    }
+
     const topicKeyForGroupCheck = String(canonicalTopicKey || "").includes(":")
       ? canonicalTopicKey
       : `${specKey}:${canonicalTopicKey}`;
@@ -5830,6 +5841,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       ...(gold?._id && { templateSource: String(gold._id) }),
       ...(autoAttachResult && { attached: autoAttachResult }),
       ...(thinCoverage && { thinCoverage: true }),
+      frameworkClassification,
       generationValidation,
       ...(v2Enabled && {
         lessonGeneratorV2: true,
@@ -5895,6 +5907,79 @@ router.post("/generate-and-save", auth, async (req, res) => {
 
     return sendInternalError("ai/generate-and-save", error, res, {
       extra: { error: "Failed to generate lesson materials" },
+    });
+  }
+});
+
+/* =========================================================
+   Read-only framework classification audit for generated lessons
+   GET /api/ai/framework-classification-audit?subject=Biology&limit=50
+   ========================================================= */
+router.get("/framework-classification-audit", auth, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+    if (!requireTeacherOrAdmin(req, res)) return;
+
+    const subject = safeStr(req.query?.subject, "");
+    const parsedLimit = Number.parseInt(String(req.query?.limit ?? "50"), 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(200, parsedLimit)) : 50;
+
+    const query = {
+      isTemplate: { $ne: true },
+      "metadata.lessonGeneratorVersion": { $exists: true },
+    };
+    if (subject) query.subject = subject;
+
+    const lessons = await Lesson.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select({
+        _id: 1,
+        title: 1,
+        subject: 1,
+        topic: 1,
+        topicKey: 1,
+        createdAt: 1,
+        metadata: 1,
+      })
+      .lean();
+
+    const rows = lessons.map((lesson) => {
+      const topicKeyRaw = safeStr(lesson.topicKey, "");
+      const topicKeyParsed = parseTopicKey(topicKeyRaw);
+      const classification =
+        lesson?.metadata?.frameworkClassification &&
+        typeof lesson.metadata.frameworkClassification === "object"
+          ? lesson.metadata.frameworkClassification
+          : classifyTopicFramework({
+              topic: lesson.topic,
+              topicKey: topicKeyParsed.topicKey || topicKeyRaw,
+              subject: lesson.subject,
+            });
+
+      return {
+        lessonId: String(lesson._id),
+        title: safeStr(lesson.title, ""),
+        subject: safeStr(lesson.subject, ""),
+        topic: safeStr(lesson.topic, ""),
+        subtopic: topicKeyParsed.topicKey || topicKeyRaw || "",
+        framework: classification.framework,
+        visualModel: classification.visualModel,
+        confidence: classification.confidence,
+        matchedBy: classification.matchedBy,
+        generatedAt: lesson.createdAt || null,
+      };
+    });
+
+    return res.json({
+      success: true,
+      filters: { subject: subject || null, limit },
+      count: rows.length,
+      rows,
+    });
+  } catch (error) {
+    return sendInternalError("ai/framework-classification-audit", error, res, {
+      extra: { error: "Failed to load framework classification audit" },
     });
   }
 });

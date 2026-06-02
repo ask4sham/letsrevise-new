@@ -10,9 +10,9 @@ jest.mock("../../api/ai", () => ({
   }),
 }));
 
-jest.mock("./LessonRichText", () => ({
-  LessonRichText: ({ text, className }: { text?: string; className?: string }) =>
-    text ? <p className={className}>{text}</p> : null,
+jest.mock("./InteractiveSequenceIntro", () => ({
+  InteractiveSequenceIntro: ({ intro, className }: { intro?: string; className?: string }) =>
+    intro ? <p className={className}>{intro}</p> : null,
 }));
 
 const steps = [

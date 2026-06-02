@@ -2,6 +2,8 @@
 
 Reference captures for activity-aware design briefs (tag: `teacher-brain-phase3-complete`, commit `5bdc0ea1`).
 
+**Edit Lesson layout (outside actions rail):** see [EDITOR_LAYOUT_REGRESSION.md](./EDITOR_LAYOUT_REGRESSION.md) (tag: `editor-layout-stable-2026-06`).
+
 Use these when changing `lib/teacherBrain/diagramBriefInjector.js`, `pagesForTeacherBrainInjectionApi`, or `TeacherBrainDesignBriefPanel` to confirm layout detection and regenerate still work.
 
 ## Quick checklist

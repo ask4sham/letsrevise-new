@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1350" width="900" height="1350" role="img" aria-labelledby="title desc">
+  <title id="title">Reflex arc - drag and drop match (GCSE AQA Biology)</title>
+  <desc id="desc">Vertical reflex pathway with empty drop zones A-D on the right for sensory neurone, relay neurone, motor neurone, and effector.</desc>
+
+  <rect width="900" height="1350" fill="#FFFFFF"/>
+
+  <!-- Brand header -->
+  <path d="M0 0 H200 V88 H0 Z" fill="#1B3A6B"/>
+  <rect x="18" y="18" width="36" height="28" rx="4" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2"/>
+  <line x1="24" y1="26" x2="48" y2="26" stroke="#1B3A6B" stroke-width="2.5"/>
+  <line x1="24" y1="32" x2="48" y2="32" stroke="#1B3A6B" stroke-width="2.5"/>
+  <line x1="24" y1="38" x2="42" y2="38" stroke="#1B3A6B" stroke-width="2.5"/>
+  <text x="62" y="34" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#FFFFFF" letter-spacing="0.5">LET'S</text>
+  <text x="62" y="52" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#FFFFFF" letter-spacing="0.5">REVISE</text>
+
+  <rect x="548" y="16" width="332" height="44" rx="10" fill="#FFD54F" stroke="#111111" stroke-width="3"/>
+  <text x="714" y="46" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#111111">GCSE AQA HIGHER TIER BIOLOGY</text>
+
+  <!-- Titles -->
+  <text x="450" y="128" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#111111">DRAG AND DROP MATCH</text>
+  <text x="450" y="168" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#333333">Match each structure to its function.</text>
+
+  <!-- Drop zones A-D (right rail) -->
+  <g id="drop-zones" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#111111">
+    <rect x="628" y="408" width="232" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
+    <text x="744" y="458" text-anchor="middle" font-size="36">A</text>
+
+    <rect x="628" y="662" width="232" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
+    <text x="744" y="712" text-anchor="middle" font-size="36">B</text>
+
+    <rect x="628" y="848" width="232" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
+    <text x="744" y="898" text-anchor="middle" font-size="36">C</text>
+
+    <rect x="628" y="1048" width="232" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
+    <text x="744" y="1098" text-anchor="middle" font-size="36">D</text>
+  </g>
+
+  <!-- 1. Stimulus / receptor -->
+  <g id="stimulus">
+    <text x="48" y="228" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">1. STIMULUS / RECEPTOR</text>
+    <path d="M120 290 Q130 250 170 248 Q210 246 220 280 L228 310 Q232 330 210 338 L185 345 Q165 350 155 330 L148 305 Q140 292 120 290 Z" fill="#F5D0B5" stroke="#111111" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M218 278 L268 258 L278 268 L240 318 L218 310 Z" fill="#F5D0B5" stroke="#111111" stroke-width="3.5" stroke-linejoin="round"/>
+    <line x1="278" y1="258" x2="302" y2="232" stroke="#111111" stroke-width="3"/>
+    <circle cx="306" cy="228" r="6" fill="#CC3333" stroke="#111111" stroke-width="2"/>
+    <path d="M310 220 L318 208 M314 232 L326 232 M308 242 L318 252" stroke="#CC3333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <text x="320" y="300" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="600" fill="#111111">Pain receptor</text>
+    <text x="320" y="320" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#333333">in skin detects stimulus</text>
+  </g>
+
+  <path d="M240 350 L240 378" stroke="#111111" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+  <!-- 2. Sensory neurone -->
+  <g id="sensory-neurone">
+    <text x="48" y="400" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">2. SENSORY NEURONE</text>
+    <path d="M240 382 L240 430 L200 468 L200 510 L240 548 L240 576" fill="none" stroke="#3B7DD8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="200" cy="490" r="22" fill="#3B7DD8" stroke="#111111" stroke-width="3"/>
+    <text x="268" y="470" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="600" fill="#1B4F9C">Impulse to CNS</text>
+  </g>
+
+  <text x="300" y="562" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" fill="#444444">SYNAPSE</text>
+
+  <path d="M240 576 L240 598" stroke="#111111" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+  <!-- 3. Relay neurone / spinal cord -->
+  <g id="relay-spinal-cord">
+    <text x="48" y="618" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">3. RELAY NEURONE (SPINAL CORD / CNS)</text>
+    <ellipse cx="240" cy="700" rx="88" ry="52" fill="#E8D4B8" stroke="#111111" stroke-width="3.5"/>
+    <path d="M240 660 Q200 700 240 740 Q280 700 240 660 Z" fill="#B8B8B8" stroke="#111111" stroke-width="2.5"/>
+    <path d="M240 668 Q215 700 240 732 Q265 700 240 668 Z" fill="#888888" stroke="#111111" stroke-width="2"/>
+    <text x="240" y="706" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" fill="#111111">Grey matter</text>
+    <path d="M210 700 L270 700" stroke="#3DAA3D" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="240" cy="700" r="14" fill="#3DAA3D" stroke="#111111" stroke-width="2.5"/>
+    <text x="340" y="692" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="600" fill="#2D6E2D">Relay neurone</text>
+    <text x="340" y="712" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#333333">connects sensory to motor</text>
+  </g>
+
+  <text x="300" y="758" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" fill="#444444">SYNAPSE</text>
+
+  <path d="M240 768 L240 790" stroke="#111111" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+  <!-- 4. Motor neurone -->
+  <g id="motor-neurone">
+    <text x="48" y="818" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">4. MOTOR NEURONE</text>
+    <path d="M240 790 L240 838 L280 876 L280 918 L240 956 L240 984" fill="none" stroke="#D94A3B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="280" cy="898" r="22" fill="#D94A3B" stroke="#111111" stroke-width="3"/>
+    <text x="340" y="878" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="600" fill="#9C2B1B">Impulse to effector</text>
+  </g>
+
+  <text x="300" y="970" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" fill="#444444">SYNAPSE</text>
+
+  <path d="M240 984 L240 1006" stroke="#111111" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+  <!-- 5. Effector -->
+  <g id="effector">
+    <text x="48" y="1036" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">5. EFFECTOR (MUSCLE OR GLAND)</text>
+    <ellipse cx="200" cy="1088" rx="56" ry="28" fill="#E85A4F" stroke="#111111" stroke-width="3.5"/>
+    <path d="M156 1088 Q200 1060 244 1088 Q200 1116 156 1088" fill="#CC3333" stroke="#111111" stroke-width="2"/>
+    <text x="200" y="1094" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">Muscle</text>
+    <circle cx="310" cy="1088" r="30" fill="#FFD54F" stroke="#111111" stroke-width="3.5"/>
+    <text x="310" y="1094" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#111111">Gland</text>
+    <text x="48" y="1138" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#333333">Carries out the response</text>
+  </g>
+
+  <path d="M255 1148 L255 1176" stroke="#111111" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+  <!-- 6. Response -->
+  <g id="response">
+    <text x="48" y="1208" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">6. RESPONSE</text>
+    <rect x="120" y="1220" width="280" height="56" rx="8" fill="#F0F8FF" stroke="#111111" stroke-width="3"/>
+    <text x="260" y="1256" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#111111">e.g. hand withdraws from sharp object</text>
+  </g>
+
+  <rect x="48" y="1290" width="804" height="48" rx="8" fill="#FFFFFF" stroke="#111111" stroke-width="3"/>
+  <polygon points="64,1314 78,1302 78,1326" fill="#FFD54F" stroke="#111111" stroke-width="2"/>
+  <text x="92" y="1322" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" fill="#111111">Exam focus:</text>
+  <text x="200" y="1322" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#111111">Reflex = rapid, automatic - pathway avoids conscious brain for protection.</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#111111"/>
+    </marker>
+  </defs>
+</svg>

@@ -11,7 +11,7 @@ import { AssessmentFeedback } from "./AssessmentFeedback";
 import { hideBrokenLessonImage, LessonImageFrame } from "./LessonImageFrame";
 import "./interactiveSequenceBlock.css";
 import "./student/lessonInteractiveSequenceCompactImage.css";
-import { LessonRichText } from "./LessonRichText";
+import { InteractiveSequenceIntro } from "./InteractiveSequenceIntro";
 
 export type InteractiveSequenceStep = {
   /** Optional stable id (templates / editor); list keys fall back to index. */
@@ -290,8 +290,8 @@ export function InteractiveSequenceBlock({
       onKeyDown={onArrowNav}
     >
       {blockTitle.trim() ? <h3 className="interactive-sequence__main-title">{blockTitle}</h3> : null}
-      <LessonRichText
-        text={intro}
+      <InteractiveSequenceIntro
+        intro={intro}
         className="interactive-sequence__intro"
         markdownClassName="interactive-sequence__intro--md lesson-content lesson-md-body"
       />
