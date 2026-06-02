@@ -410,6 +410,47 @@ function classifyTopicFramework(input = {}) {
     return out;
   }
 
+  // Ecology unit: explicit titles before keyword heuristics (avoids biology_subject_fallback).
+  if (/required practical:\s*(ecosystems|decay)/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "ecology_practical_keywords";
+    return out;
+  }
+  if (/^levels of organisation$/i.test(topic)) {
+    out.framework = "classification";
+    out.visualModel = "classification_grid";
+    out.confidence = "high";
+    out.matchedBy = "ecology_levels_organisation_keywords";
+    return out;
+  }
+  if (/^ecology$/i.test(topic)) {
+    out.framework = "system_flow";
+    out.visualModel = "physiology_system_flow_map";
+    out.confidence = "high";
+    out.matchedBy = "ecology_topic_keywords";
+    return out;
+  }
+  if (
+    /(impact of environmental change|land use|waste management|factors affecting food security|sustainable fisheries)/i.test(
+      hay
+    )
+  ) {
+    out.framework = "cause_effect";
+    out.visualModel = "cause_effect_chain_map";
+    out.confidence = "high";
+    out.matchedBy = "ecology_environmental_cause_effect_keywords";
+    return out;
+  }
+  if (/(farming techniques|role of biotechnology)/i.test(hay)) {
+    out.framework = "application_comparison";
+    out.visualModel = "application_compare_grid";
+    out.confidence = "high";
+    out.matchedBy = "ecology_application_keywords";
+    return out;
+  }
+
   // Ecology unit: ecosystem flows, cycles, classification, and environmental cause-effect.
   if (/\bbiodiversity\b/i.test(hay) && !/maintaining biodiversity/i.test(hay)) {
     out.framework = "classification";

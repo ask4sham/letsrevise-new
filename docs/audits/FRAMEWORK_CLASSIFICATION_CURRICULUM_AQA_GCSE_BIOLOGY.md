@@ -1,6 +1,6 @@
 # Framework classification — AQA GCSE Biology (curriculum audit)
 
-**Generated:** 2026-06-02T12:15:25.077Z
+**Generated:** 2026-06-02T12:46:32.888Z
 **Source:** `backend/config/aqa_gcse_biology_topics.json`
 **Classifier:** `backend/services/topicFrameworkClassification.js` (read-only telemetry)
 
@@ -9,22 +9,22 @@
 ## Summary
 
 - **Topics classified:** 107
-- **High confidence:** 96
-- **Medium confidence (review):** 11
+- **High confidence:** 107
+- **Medium confidence (review):** 0
 
 ### Framework distribution
 
 | Framework | Count |
 |-----------|------:|
-| molecular_process | 24 |
-| cause_effect | 18 |
-| system_flow | 13 |
+| cause_effect | 23 |
+| system_flow | 14 |
+| molecular_process | 13 |
+| practical_method | 11 |
 | structure_function | 10 |
-| practical_method | 9 |
-| classification | 6 |
+| classification | 7 |
+| application_comparison | 6 |
 | signal_pathway | 5 |
 | feedback_loop | 5 |
-| application_comparison | 4 |
 | comparison | 3 |
 | cellular_sequence | 3 |
 | cycle_pathway | 3 |
@@ -121,41 +121,25 @@
 | Inheritance, Variation and Evolution | Classification | classification | classification_grid | high | inheritance_evolution_classification_keywords |
 | Inheritance, Variation and Evolution | Understanding of genetics | structure_function | structure_label_map | high | inheritance_evolution_structure_keywords |
 | Inheritance, Variation and Evolution | Speciation | sequence_pathway | timeline_sequence_map | high | inheritance_evolution_sequence_keywords |
-| Ecology | Levels of organisation | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Ecology | Levels of organisation | classification | classification_grid | high | ecology_levels_organisation_keywords |
 | Ecology | Interdependence | system_flow | physiology_system_flow_map | high | ecology_system_flow_keywords |
 | Ecology | Biodiversity | classification | classification_grid | high | ecology_classification_keywords |
-| Ecology | Ecology | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Ecology | Required Practical: Ecosystems | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Ecology | Ecology | system_flow | physiology_system_flow_map | high | ecology_topic_keywords |
+| Ecology | Required Practical: Ecosystems | practical_method | practical_method_flow | high | ecology_practical_keywords |
 | Ecology | Adaptations | cause_effect | cause_effect_chain_map | high | ecology_cause_effect_keywords |
-| Ecology | Impact of environmental change | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Ecology | Impact of environmental change | cause_effect | cause_effect_chain_map | high | ecology_environmental_cause_effect_keywords |
 | Ecology | Trophic levels | system_flow | physiology_system_flow_map | high | ecology_system_flow_keywords |
 | Ecology | Pyramids of biomass | system_flow | physiology_system_flow_map | high | ecology_system_flow_keywords |
 | Ecology | Transfer of biomass | system_flow | physiology_system_flow_map | high | ecology_system_flow_keywords |
 | Ecology | Decomposition | cycle_pathway | cycle_system_map | high | ecology_cycle_keywords |
-| Ecology | Required Practical: Decay | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Ecology | Required Practical: Decay | practical_method | practical_method_flow | high | ecology_practical_keywords |
 | Ecology | How materials are cycled | cycle_pathway | cycle_system_map | high | ecology_cycle_keywords |
-| Ecology | Land use | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Ecology | Land use | cause_effect | cause_effect_chain_map | high | ecology_environmental_cause_effect_keywords |
 | Ecology | Deforestation | cause_effect | cause_effect_chain_map | high | ecology_cause_effect_keywords |
 | Ecology | Global warming | cause_effect | cause_effect_chain_map | high | ecology_cause_effect_keywords |
 | Ecology | Maintaining biodiversity | cause_effect | cause_effect_chain_map | high | ecology_cause_effect_keywords |
-| Ecology | Waste management | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Ecology | Factors affecting food security | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Ecology | Farming techniques | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Ecology | Sustainable fisheries | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Ecology | Role of biotechnology | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-
-## Medium confidence — review before Phase 5
-
-| Unit | Topic | Framework | matchedBy |
-|------|-------|-----------|-------------|
-| Ecology | Levels of organisation | molecular_process | biology_subject_fallback |
-| Ecology | Ecology | molecular_process | biology_subject_fallback |
-| Ecology | Required Practical: Ecosystems | molecular_process | biology_subject_fallback |
-| Ecology | Impact of environmental change | molecular_process | biology_subject_fallback |
-| Ecology | Required Practical: Decay | molecular_process | biology_subject_fallback |
-| Ecology | Land use | molecular_process | biology_subject_fallback |
-| Ecology | Waste management | molecular_process | biology_subject_fallback |
-| Ecology | Factors affecting food security | molecular_process | biology_subject_fallback |
-| Ecology | Farming techniques | molecular_process | biology_subject_fallback |
-| Ecology | Sustainable fisheries | molecular_process | biology_subject_fallback |
-| Ecology | Role of biotechnology | molecular_process | biology_subject_fallback |
+| Ecology | Waste management | cause_effect | cause_effect_chain_map | high | ecology_environmental_cause_effect_keywords |
+| Ecology | Factors affecting food security | cause_effect | cause_effect_chain_map | high | ecology_environmental_cause_effect_keywords |
+| Ecology | Farming techniques | application_comparison | application_compare_grid | high | ecology_application_keywords |
+| Ecology | Sustainable fisheries | cause_effect | cause_effect_chain_map | high | ecology_environmental_cause_effect_keywords |
+| Ecology | Role of biotechnology | application_comparison | application_compare_grid | high | ecology_application_keywords |
