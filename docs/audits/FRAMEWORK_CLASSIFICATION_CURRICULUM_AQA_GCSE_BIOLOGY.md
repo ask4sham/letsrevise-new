@@ -1,6 +1,6 @@
 # Framework classification — AQA GCSE Biology (curriculum audit)
 
-**Generated:** 2026-06-02T11:11:49.523Z
+**Generated:** 2026-06-02T11:30:10.023Z
 **Source:** `backend/config/aqa_gcse_biology_topics.json`
 **Classifier:** `backend/services/topicFrameworkClassification.js` (read-only telemetry)
 
@@ -9,23 +9,24 @@
 ## Summary
 
 - **Topics classified:** 107
-- **High confidence:** 46
-- **Medium confidence (review):** 61
+- **High confidence:** 60
+- **Medium confidence (review):** 47
 
 ### Framework distribution
 
 | Framework | Count |
 |-----------|------:|
-| molecular_process | 68 |
+| molecular_process | 54 |
 | cause_effect | 12 |
-| system_flow | 9 |
-| structure_function | 4 |
+| system_flow | 10 |
+| structure_function | 6 |
+| signal_pathway | 5 |
+| feedback_loop | 5 |
 | classification | 4 |
+| application_comparison | 4 |
 | cycle_pathway | 3 |
-| signal_pathway | 3 |
 | cellular_sequence | 2 |
-| application_comparison | 1 |
-| feedback_loop | 1 |
+| practical_method | 2 |
 
 ## Full curriculum
 
@@ -87,21 +88,21 @@
 | Homeostasis and Response | The nervous system | signal_pathway | signal_flow_map | high | signal_keywords |
 | Homeostasis and Response | Structure and function of the nervous system | signal_pathway | signal_flow_map | high | signal_keywords |
 | Homeostasis and Response | The reflex arc | signal_pathway | signal_flow_map | high | signal_keywords |
-| Homeostasis and Response | Required Practical: Reaction time | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | The brain | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | The eye | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Control of body temperature | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Human endocrine system | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Homeostasis and Response | Required Practical: Reaction time | practical_method | practical_method_flow | high | homeostasis_response_practical_keywords |
+| Homeostasis and Response | The brain | structure_function | structure_label_map | high | homeostasis_response_structure_keywords |
+| Homeostasis and Response | The eye | structure_function | structure_label_map | high | homeostasis_response_structure_keywords |
+| Homeostasis and Response | Control of body temperature | feedback_loop | feedback_control_loop | high | homeostasis_feedback_keywords |
+| Homeostasis and Response | Human endocrine system | system_flow | physiology_system_flow_map | high | homeostasis_response_system_flow_keywords |
 | Homeostasis and Response | Control of blood glucose concentration | feedback_loop | feedback_control_loop | high | homeostasis_feedback_keywords |
-| Homeostasis and Response | Diabetes | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Maintaining water and nitrogen balance | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Hormones in human reproduction | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Contraception | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Uses of hormones to treat infertility | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Plant hormones | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Uses of plant hormones | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Required Practical: Plant growth | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Homeostasis and Response | Negative feedback | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Homeostasis and Response | Diabetes | feedback_loop | feedback_control_loop | high | homeostasis_feedback_keywords |
+| Homeostasis and Response | Maintaining water and nitrogen balance | feedback_loop | feedback_control_loop | high | homeostasis_feedback_keywords |
+| Homeostasis and Response | Hormones in human reproduction | signal_pathway | signal_flow_map | high | homeostasis_response_signal_keywords |
+| Homeostasis and Response | Contraception | application_comparison | application_compare_grid | high | homeostasis_response_application_keywords |
+| Homeostasis and Response | Uses of hormones to treat infertility | application_comparison | application_compare_grid | high | homeostasis_response_application_keywords |
+| Homeostasis and Response | Plant hormones | signal_pathway | signal_flow_map | high | homeostasis_response_signal_keywords |
+| Homeostasis and Response | Uses of plant hormones | application_comparison | application_compare_grid | high | homeostasis_response_application_keywords |
+| Homeostasis and Response | Required Practical: Plant growth | practical_method | practical_method_flow | high | homeostasis_response_practical_keywords |
+| Homeostasis and Response | Negative feedback | feedback_loop | feedback_control_loop | high | homeostasis_feedback_keywords |
 | Inheritance, Variation and Evolution | Sexual and asexual reproduction | molecular_process | molecular_process_map | medium | biology_subject_fallback |
 | Inheritance, Variation and Evolution | Meiosis | cellular_sequence | cellular_stage_sequence | high | cellular_sequence_keywords |
 | Inheritance, Variation and Evolution | DNA and the genome | molecular_process | molecular_process_map | medium | biology_subject_fallback |
@@ -166,20 +167,6 @@
 | Infection and Response | Monoclonal antibodies | application_comparison | mab_topic_fallback |
 | Infection and Response | Required Practical: Microbiology | molecular_process | biology_subject_fallback |
 | Bioenergetics | Response to exercise | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Required Practical: Reaction time | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | The brain | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | The eye | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Control of body temperature | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Human endocrine system | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Diabetes | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Maintaining water and nitrogen balance | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Hormones in human reproduction | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Contraception | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Uses of hormones to treat infertility | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Plant hormones | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Uses of plant hormones | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Required Practical: Plant growth | molecular_process | biology_subject_fallback |
-| Homeostasis and Response | Negative feedback | molecular_process | biology_subject_fallback |
 | Inheritance, Variation and Evolution | Sexual and asexual reproduction | molecular_process | biology_subject_fallback |
 | Inheritance, Variation and Evolution | DNA and the genome | molecular_process | biology_subject_fallback |
 | Inheritance, Variation and Evolution | Genetic inheritance | molecular_process | biology_subject_fallback |

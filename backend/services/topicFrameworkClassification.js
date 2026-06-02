@@ -62,7 +62,11 @@ function classifyTopicFramework(input = {}) {
   };
 
   // Homeostasis topics should be loop/system models unless explicitly signaling-focused.
-  if (/(blood glucose|thermoregulation|temperature regulation|osmoregulation)/i.test(hay)) {
+  if (
+    /(blood glucose|thermoregulation|temperature regulation|osmoregulation|control of body temperature|diabetes|negative feedback|water and nitrogen|nitrogen balance)/i.test(
+      hay
+    )
+  ) {
     out.framework = "feedback_loop";
     out.visualModel = "feedback_control_loop";
     out.confidence = "high";
@@ -227,6 +231,46 @@ function classifyTopicFramework(input = {}) {
     out.visualModel = "physiology_system_flow_map";
     out.confidence = "high";
     out.matchedBy = "ecology_system_flow_keywords";
+    return out;
+  }
+
+  // Homeostasis and Response unit: practicals, structure, hormones, and endocrine system flow.
+  if (/required practical:\s*(reaction time|plant growth)/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "homeostasis_response_practical_keywords";
+    return out;
+  }
+  if (/(contraception|uses of hormones to treat infertility|uses of plant hormones)/i.test(hay)) {
+    out.framework = "application_comparison";
+    out.visualModel = "application_compare_grid";
+    out.confidence = "high";
+    out.matchedBy = "homeostasis_response_application_keywords";
+    return out;
+  }
+  if (/\b(the brain|the eye)\b/i.test(hay)) {
+    out.framework = "structure_function";
+    out.visualModel = "structure_label_map";
+    out.confidence = "high";
+    out.matchedBy = "homeostasis_response_structure_keywords";
+    return out;
+  }
+  if (/human endocrine system/i.test(hay)) {
+    out.framework = "system_flow";
+    out.visualModel = "physiology_system_flow_map";
+    out.confidence = "high";
+    out.matchedBy = "homeostasis_response_system_flow_keywords";
+    return out;
+  }
+  if (
+    /(hormones in human reproduction|plant hormones)/i.test(hay) &&
+    !/uses of (plant )?hormones/i.test(hay)
+  ) {
+    out.framework = "signal_pathway";
+    out.visualModel = "signal_flow_map";
+    out.confidence = "high";
+    out.matchedBy = "homeostasis_response_signal_keywords";
     return out;
   }
 

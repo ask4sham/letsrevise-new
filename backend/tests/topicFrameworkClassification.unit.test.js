@@ -127,5 +127,88 @@ describe("topic framework classifier", () => {
       expect(result.matchedBy).not.toBe("ecology_classification_keywords");
     });
   });
+
+  describe("Homeostasis and Response unit", () => {
+    test.each([
+      [
+        "Required Practical: Reaction time",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "homeostasis_response_practical_keywords",
+      ],
+      ["The brain", "structure_function", "structure_label_map", "high", "homeostasis_response_structure_keywords"],
+      ["The eye", "structure_function", "structure_label_map", "high", "homeostasis_response_structure_keywords"],
+      [
+        "Control of body temperature",
+        "feedback_loop",
+        "feedback_control_loop",
+        "high",
+        "homeostasis_feedback_keywords",
+      ],
+      [
+        "Human endocrine system",
+        "system_flow",
+        "physiology_system_flow_map",
+        "high",
+        "homeostasis_response_system_flow_keywords",
+      ],
+      ["Diabetes", "feedback_loop", "feedback_control_loop", "high", "homeostasis_feedback_keywords"],
+      [
+        "Maintaining water and nitrogen balance",
+        "feedback_loop",
+        "feedback_control_loop",
+        "high",
+        "homeostasis_feedback_keywords",
+      ],
+      [
+        "Hormones in human reproduction",
+        "signal_pathway",
+        "signal_flow_map",
+        "high",
+        "homeostasis_response_signal_keywords",
+      ],
+      [
+        "Contraception",
+        "application_comparison",
+        "application_compare_grid",
+        "high",
+        "homeostasis_response_application_keywords",
+      ],
+      [
+        "Uses of hormones to treat infertility",
+        "application_comparison",
+        "application_compare_grid",
+        "high",
+        "homeostasis_response_application_keywords",
+      ],
+      ["Plant hormones", "signal_pathway", "signal_flow_map", "high", "homeostasis_response_signal_keywords"],
+      [
+        "Uses of plant hormones",
+        "application_comparison",
+        "application_compare_grid",
+        "high",
+        "homeostasis_response_application_keywords",
+      ],
+      [
+        "Required Practical: Plant growth",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "homeostasis_response_practical_keywords",
+      ],
+      ["Negative feedback", "feedback_loop", "feedback_control_loop", "high", "homeostasis_feedback_keywords"],
+    ])(
+      "%s -> %s / %s (%s, %s)",
+      (topic, framework, visualModel, confidence, matchedBy) => {
+        const result = classifyTopicFramework({ topic, subject: "Biology" });
+        expect(result.framework).toBe(framework);
+        expect(result.visualModel).toBe(visualModel);
+        expect(result.confidence).toBe(confidence);
+        expect(result.matchedBy).toBe(matchedBy);
+        expect(result.matchedBy).not.toBe("biology_subject_fallback");
+      }
+    );
+  });
 });
 
