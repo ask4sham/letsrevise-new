@@ -129,6 +129,80 @@ describe("topic framework classifier", () => {
     });
   });
 
+  describe("Cell Biology unit", () => {
+    test.each([
+      [
+        "Eukaryotes and prokaryotes",
+        "comparison",
+        "comparison_grid",
+        "high",
+        "cell_biology_comparison_keywords",
+      ],
+      [
+        "Cell specialisation",
+        "structure_function",
+        "structure_label_map",
+        "high",
+        "cell_biology_structure_keywords",
+      ],
+      [
+        "Cell differentiation",
+        "cellular_sequence",
+        "cellular_stage_sequence",
+        "high",
+        "cell_biology_sequence_keywords",
+      ],
+      ["Microscopy", "practical_method", "practical_method_flow", "high", "cell_biology_practical_keywords"],
+      [
+        "Required Practical: Microscopy",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "cell_biology_practical_keywords",
+      ],
+      ["Chromosomes", "structure_function", "structure_label_map", "high", "cell_biology_structure_keywords"],
+      ["Stem cells", "cause_effect", "cause_effect_chain_map", "high", "cell_biology_cause_effect_keywords"],
+      [
+        "Transport in Cells",
+        "molecular_process",
+        "molecular_process_map",
+        "high",
+        "cell_biology_transport_keywords",
+      ],
+      [
+        "Transport summary and applications",
+        "comparison",
+        "comparison_grid",
+        "high",
+        "cell_biology_comparison_keywords",
+      ],
+      [
+        "Culturing microorganisms",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "cell_biology_practical_keywords",
+      ],
+      [
+        "Required Practical: Growth",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "cell_biology_practical_keywords",
+      ],
+    ])(
+      "%s -> %s / %s (%s, %s)",
+      (topic, framework, visualModel, confidence, matchedBy) => {
+        const result = classifyTopicFramework({ topic, subject: "Biology" });
+        expect(result.framework).toBe(framework);
+        expect(result.visualModel).toBe(visualModel);
+        expect(result.confidence).toBe(confidence);
+        expect(result.matchedBy).toBe(matchedBy);
+        expect(result.matchedBy).not.toBe("biology_subject_fallback");
+      }
+    );
+  });
+
   describe("Inheritance, Variation and Evolution unit", () => {
     test.each([
       [

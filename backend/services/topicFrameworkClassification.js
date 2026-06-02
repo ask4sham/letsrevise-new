@@ -228,6 +228,78 @@ function classifyTopicFramework(input = {}) {
     return out;
   }
 
+  // Cell Biology unit: practicals, transport, structure, and cell processes.
+  if (/required practical:\s*(microscopy|growth)/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_practical_keywords";
+    return out;
+  }
+  if (/culturing microorganisms/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_practical_keywords";
+    return out;
+  }
+  if (/^microscopy$/i.test(topic)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_practical_keywords";
+    return out;
+  }
+  if (/transport in cells/i.test(hay)) {
+    out.framework = "molecular_process";
+    out.visualModel = "molecular_process_map";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_transport_keywords";
+    return out;
+  }
+  if (/transport summary/i.test(hay)) {
+    out.framework = "comparison";
+    out.visualModel = "comparison_grid";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_comparison_keywords";
+    return out;
+  }
+  if (/eukaryotes and prokaryotes/i.test(hay)) {
+    out.framework = "comparison";
+    out.visualModel = "comparison_grid";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_comparison_keywords";
+    return out;
+  }
+  if (/cell specialisation/i.test(hay)) {
+    out.framework = "structure_function";
+    out.visualModel = "structure_label_map";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_structure_keywords";
+    return out;
+  }
+  if (/cell differentiation/i.test(hay)) {
+    out.framework = "cellular_sequence";
+    out.visualModel = "cellular_stage_sequence";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_sequence_keywords";
+    return out;
+  }
+  if (/chromosomes/i.test(hay)) {
+    out.framework = "structure_function";
+    out.visualModel = "structure_label_map";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_structure_keywords";
+    return out;
+  }
+  if (/stem cells/i.test(hay)) {
+    out.framework = "cause_effect";
+    out.visualModel = "cause_effect_chain_map";
+    out.confidence = "high";
+    out.matchedBy = "cell_biology_cause_effect_keywords";
+    return out;
+  }
+
   // Cell structure should not be molecular_process.
   if (/(cell structure|animal cell|plant cell|eukaryotic|prokaryotic|organelle|organelles)/i.test(hay)) {
     if (/(eukaryotic|prokaryotic|compare|difference|different types)/i.test(hay)) {

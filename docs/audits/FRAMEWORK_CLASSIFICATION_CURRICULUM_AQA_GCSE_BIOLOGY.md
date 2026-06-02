@@ -1,6 +1,6 @@
 # Framework classification — AQA GCSE Biology (curriculum audit)
 
-**Generated:** 2026-06-02T11:47:24.313Z
+**Generated:** 2026-06-02T12:04:55.935Z
 **Source:** `backend/config/aqa_gcse_biology_topics.json`
 **Classifier:** `backend/services/topicFrameworkClassification.js` (read-only telemetry)
 
@@ -9,26 +9,26 @@
 ## Summary
 
 - **Topics classified:** 107
-- **High confidence:** 73
-- **Medium confidence (review):** 34
+- **High confidence:** 84
+- **Medium confidence (review):** 23
 
 ### Framework distribution
 
 | Framework | Count |
 |-----------|------:|
-| molecular_process | 41 |
-| cause_effect | 16 |
+| molecular_process | 31 |
+| cause_effect | 17 |
+| structure_function | 10 |
 | system_flow | 10 |
-| structure_function | 8 |
+| practical_method | 6 |
 | classification | 6 |
 | signal_pathway | 5 |
 | feedback_loop | 5 |
 | application_comparison | 4 |
+| comparison | 3 |
+| cellular_sequence | 3 |
 | cycle_pathway | 3 |
-| cellular_sequence | 2 |
-| practical_method | 2 |
 | sequence_pathway | 2 |
-| comparison | 1 |
 | inheritance_model | 1 |
 | data_interpretation | 1 |
 
@@ -38,25 +38,25 @@
 |------|-------|-----------|--------------|------------|-------------|
 | Cell Biology | Cell structure | structure_function | structure_label_map | high | cell_structure_keywords |
 | Cell Biology | Animal and plant cells | structure_function | structure_label_map | high | cell_structure_keywords |
-| Cell Biology | Eukaryotes and prokaryotes | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Cell specialisation | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Cell differentiation | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Microscopy | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Required Practical: Microscopy | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Cell Biology | Eukaryotes and prokaryotes | comparison | comparison_grid | high | cell_biology_comparison_keywords |
+| Cell Biology | Cell specialisation | structure_function | structure_label_map | high | cell_biology_structure_keywords |
+| Cell Biology | Cell differentiation | cellular_sequence | cellular_stage_sequence | high | cell_biology_sequence_keywords |
+| Cell Biology | Microscopy | practical_method | practical_method_flow | high | cell_biology_practical_keywords |
+| Cell Biology | Required Practical: Microscopy | practical_method | practical_method_flow | high | cell_biology_practical_keywords |
 | Cell Biology | Cell Division | cellular_sequence | cellular_stage_sequence | high | cellular_sequence_keywords |
-| Cell Biology | Chromosomes | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Cell Biology | Chromosomes | structure_function | structure_label_map | high | cell_biology_structure_keywords |
 | Cell Biology | Mitosis and the cell cycle | cycle_pathway | cycle_system_map | high | cycle_keywords |
-| Cell Biology | Stem cells | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Transport in Cells | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Cell Biology | Stem cells | cause_effect | cause_effect_chain_map | high | cell_biology_cause_effect_keywords |
+| Cell Biology | Transport in Cells | molecular_process | molecular_process_map | high | cell_biology_transport_keywords |
 | Cell Biology | Diffusion | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Cell Biology | Factors that affect diffusion | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Cell Biology | Osmosis | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Cell Biology | Required Practical: Osmosis | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Cell Biology | Active transport | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Cell Biology | Diffusion in multicellular organisms | molecular_process | molecular_process_map | high | molecular_process_keywords |
-| Cell Biology | Transport summary and applications | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Culturing microorganisms | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Cell Biology | Required Practical: Growth | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Cell Biology | Transport summary and applications | comparison | comparison_grid | high | cell_biology_comparison_keywords |
+| Cell Biology | Culturing microorganisms | practical_method | practical_method_flow | high | cell_biology_practical_keywords |
+| Cell Biology | Required Practical: Growth | practical_method | practical_method_flow | high | cell_biology_practical_keywords |
 | Organisation | Principles of organisation | system_flow | physiology_system_flow_map | high | organisation_system_flow_keywords |
 | Organisation | Digestive system | system_flow | physiology_system_flow_map | high | organisation_system_flow_keywords |
 | Organisation | Enzymes | molecular_process | molecular_process_map | high | molecular_process_keywords |
@@ -148,17 +148,6 @@
 
 | Unit | Topic | Framework | matchedBy |
 |------|-------|-----------|-------------|
-| Cell Biology | Eukaryotes and prokaryotes | molecular_process | biology_subject_fallback |
-| Cell Biology | Cell specialisation | molecular_process | biology_subject_fallback |
-| Cell Biology | Cell differentiation | molecular_process | biology_subject_fallback |
-| Cell Biology | Microscopy | molecular_process | biology_subject_fallback |
-| Cell Biology | Required Practical: Microscopy | molecular_process | biology_subject_fallback |
-| Cell Biology | Chromosomes | molecular_process | biology_subject_fallback |
-| Cell Biology | Stem cells | molecular_process | biology_subject_fallback |
-| Cell Biology | Transport in Cells | molecular_process | biology_subject_fallback |
-| Cell Biology | Transport summary and applications | molecular_process | biology_subject_fallback |
-| Cell Biology | Culturing microorganisms | molecular_process | biology_subject_fallback |
-| Cell Biology | Required Practical: Growth | molecular_process | biology_subject_fallback |
 | Organisation | Coronary heart disease | cause_effect | disease_topic_fallback |
 | Organisation | Health and disease | cause_effect | disease_topic_fallback |
 | Organisation | Non-communicable diseases | cause_effect | disease_topic_fallback |
