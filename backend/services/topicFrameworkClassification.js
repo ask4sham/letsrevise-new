@@ -192,7 +192,11 @@ function classifyTopicFramework(input = {}) {
       out.matchedBy = "disease_cause_effect_keywords";
       return out;
     }
-    if (/(plant disease|rose black spot|measles|salmonella)/i.test(hay)) {
+    if (
+      /(plant disease|rose black spot|measles|salmonella|communicable disease|coronary heart disease|health and disease|non-communicable diseases)/i.test(
+        hay
+      )
+    ) {
       out.framework = "cause_effect";
       out.visualModel = "cause_effect_chain_map";
       out.confidence = "high";
@@ -201,8 +205,24 @@ function classifyTopicFramework(input = {}) {
     }
     out.framework = "cause_effect";
     out.visualModel = "cause_effect_chain_map";
-    out.confidence = "medium";
+    out.confidence = "high";
     out.matchedBy = "disease_topic_fallback";
+    return out;
+  }
+
+  // Infection and Response unit: drug development, microbiology practical.
+  if (/required practical:\s*microbiology/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "infection_response_practical_keywords";
+    return out;
+  }
+  if (/drug development/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "infection_response_method_keywords";
     return out;
   }
 
@@ -225,6 +245,43 @@ function classifyTopicFramework(input = {}) {
     out.visualModel = "physiology_system_flow_map";
     out.confidence = "high";
     out.matchedBy = "organisation_system_flow_keywords";
+    return out;
+  }
+  if (/(coronary heart disease|health and disease|non-communicable diseases)/i.test(hay)) {
+    out.framework = "cause_effect";
+    out.visualModel = "cause_effect_chain_map";
+    out.confidence = "high";
+    out.matchedBy = "organisation_health_keywords";
+    return out;
+  }
+  if (/^cancer$/i.test(topic)) {
+    out.framework = "cause_effect";
+    out.visualModel = "cause_effect_chain_map";
+    out.confidence = "high";
+    out.matchedBy = "organisation_health_keywords";
+    return out;
+  }
+  if (/(transport in plants|transpiration|stomata)/i.test(hay)) {
+    out.framework = "system_flow";
+    out.visualModel = "physiology_system_flow_map";
+    out.confidence = "high";
+    out.matchedBy = "organisation_plant_transport_keywords";
+    return out;
+  }
+  if (/required practical:\s*plant transport/i.test(hay)) {
+    out.framework = "practical_method";
+    out.visualModel = "practical_method_flow";
+    out.confidence = "high";
+    out.matchedBy = "organisation_practical_keywords";
+    return out;
+  }
+
+  // Bioenergetics: exercise-linked energy demand.
+  if (/response to exercise/i.test(hay)) {
+    out.framework = "system_flow";
+    out.visualModel = "physiology_system_flow_map";
+    out.confidence = "high";
+    out.matchedBy = "bioenergetics_response_keywords";
     return out;
   }
 
@@ -348,7 +405,7 @@ function classifyTopicFramework(input = {}) {
     }
     out.framework = "application_comparison";
     out.visualModel = "application_compare_grid";
-    out.confidence = "medium";
+    out.confidence = "high";
     out.matchedBy = "mab_topic_fallback";
     return out;
   }

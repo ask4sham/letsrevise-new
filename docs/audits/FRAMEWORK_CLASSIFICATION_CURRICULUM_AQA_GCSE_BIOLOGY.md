@@ -1,6 +1,6 @@
 # Framework classification — AQA GCSE Biology (curriculum audit)
 
-**Generated:** 2026-06-02T12:04:55.935Z
+**Generated:** 2026-06-02T12:15:25.077Z
 **Source:** `backend/config/aqa_gcse_biology_topics.json`
 **Classifier:** `backend/services/topicFrameworkClassification.js` (read-only telemetry)
 
@@ -9,18 +9,18 @@
 ## Summary
 
 - **Topics classified:** 107
-- **High confidence:** 84
-- **Medium confidence (review):** 23
+- **High confidence:** 96
+- **Medium confidence (review):** 11
 
 ### Framework distribution
 
 | Framework | Count |
 |-----------|------:|
-| molecular_process | 31 |
-| cause_effect | 17 |
+| molecular_process | 24 |
+| cause_effect | 18 |
+| system_flow | 13 |
 | structure_function | 10 |
-| system_flow | 10 |
-| practical_method | 6 |
+| practical_method | 9 |
 | classification | 6 |
 | signal_pathway | 5 |
 | feedback_loop | 5 |
@@ -64,30 +64,30 @@
 | Organisation | Circulatory system | system_flow | physiology_system_flow_map | high | organisation_system_flow_keywords |
 | Organisation | Heart | system_flow | physiology_system_flow_map | high | organisation_system_flow_keywords |
 | Organisation | Blood vessels and blood | structure_function | structure_label_map | high | organisation_structure_keywords |
-| Organisation | Coronary heart disease | cause_effect | cause_effect_chain_map | medium | disease_topic_fallback |
-| Organisation | Health and disease | cause_effect | cause_effect_chain_map | medium | disease_topic_fallback |
-| Organisation | Non-communicable diseases | cause_effect | cause_effect_chain_map | medium | disease_topic_fallback |
-| Organisation | Cancer | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Organisation | Coronary heart disease | cause_effect | cause_effect_chain_map | high | disease_named_topic |
+| Organisation | Health and disease | cause_effect | cause_effect_chain_map | high | disease_named_topic |
+| Organisation | Non-communicable diseases | cause_effect | cause_effect_chain_map | high | disease_named_topic |
+| Organisation | Cancer | cause_effect | cause_effect_chain_map | high | organisation_health_keywords |
 | Organisation | Plant cell organisation | structure_function | structure_label_map | high | organisation_structure_keywords |
-| Organisation | Transport in plants | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Organisation | Transpiration and stomata | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Organisation | Required Practical: Plant transport | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Infection and Response | Communicable disease | cause_effect | cause_effect_chain_map | medium | disease_topic_fallback |
+| Organisation | Transport in plants | system_flow | physiology_system_flow_map | high | organisation_plant_transport_keywords |
+| Organisation | Transpiration and stomata | system_flow | physiology_system_flow_map | high | organisation_plant_transport_keywords |
+| Organisation | Required Practical: Plant transport | practical_method | practical_method_flow | high | organisation_practical_keywords |
+| Infection and Response | Communicable disease | cause_effect | cause_effect_chain_map | high | disease_named_topic |
 | Infection and Response | Viral diseases | classification | classification_grid | high | disease_classification_keywords |
 | Infection and Response | Bacterial diseases | classification | classification_grid | high | disease_classification_keywords |
 | Infection and Response | Fungal and protist diseases | classification | classification_grid | high | disease_classification_keywords |
 | Infection and Response | Human defence systems | cause_effect | cause_effect_chain_map | high | disease_cause_effect_keywords |
 | Infection and Response | Vaccination | cause_effect | cause_effect_chain_map | high | disease_cause_effect_keywords |
 | Infection and Response | Antibiotics and painkillers | cause_effect | cause_effect_chain_map | high | disease_cause_effect_keywords |
-| Infection and Response | Drug development | molecular_process | molecular_process_map | medium | biology_subject_fallback |
-| Infection and Response | Monoclonal antibodies | application_comparison | application_compare_grid | medium | mab_topic_fallback |
-| Infection and Response | Required Practical: Microbiology | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Infection and Response | Drug development | practical_method | practical_method_flow | high | infection_response_method_keywords |
+| Infection and Response | Monoclonal antibodies | application_comparison | application_compare_grid | high | mab_topic_fallback |
+| Infection and Response | Required Practical: Microbiology | practical_method | practical_method_flow | high | infection_response_practical_keywords |
 | Infection and Response | Plant disease | cause_effect | cause_effect_chain_map | high | disease_named_topic |
 | Bioenergetics | Photosynthesis | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Bioenergetics | Required Practical: Photosynthesis | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Bioenergetics | Respiration | molecular_process | molecular_process_map | high | molecular_process_keywords |
 | Bioenergetics | Metabolism | molecular_process | molecular_process_map | high | molecular_process_keywords |
-| Bioenergetics | Response to exercise | molecular_process | molecular_process_map | medium | biology_subject_fallback |
+| Bioenergetics | Response to exercise | system_flow | physiology_system_flow_map | high | bioenergetics_response_keywords |
 | Homeostasis and Response | Homeostasis | system_flow | physiology_system_flow_map | high | homeostasis_system_keywords |
 | Homeostasis and Response | The nervous system | signal_pathway | signal_flow_map | high | signal_keywords |
 | Homeostasis and Response | Structure and function of the nervous system | signal_pathway | signal_flow_map | high | signal_keywords |
@@ -148,18 +148,6 @@
 
 | Unit | Topic | Framework | matchedBy |
 |------|-------|-----------|-------------|
-| Organisation | Coronary heart disease | cause_effect | disease_topic_fallback |
-| Organisation | Health and disease | cause_effect | disease_topic_fallback |
-| Organisation | Non-communicable diseases | cause_effect | disease_topic_fallback |
-| Organisation | Cancer | molecular_process | biology_subject_fallback |
-| Organisation | Transport in plants | molecular_process | biology_subject_fallback |
-| Organisation | Transpiration and stomata | molecular_process | biology_subject_fallback |
-| Organisation | Required Practical: Plant transport | molecular_process | biology_subject_fallback |
-| Infection and Response | Communicable disease | cause_effect | disease_topic_fallback |
-| Infection and Response | Drug development | molecular_process | biology_subject_fallback |
-| Infection and Response | Monoclonal antibodies | application_comparison | mab_topic_fallback |
-| Infection and Response | Required Practical: Microbiology | molecular_process | biology_subject_fallback |
-| Bioenergetics | Response to exercise | molecular_process | biology_subject_fallback |
 | Ecology | Levels of organisation | molecular_process | biology_subject_fallback |
 | Ecology | Ecology | molecular_process | biology_subject_fallback |
 | Ecology | Required Practical: Ecosystems | molecular_process | biology_subject_fallback |

@@ -85,8 +85,33 @@ describe("topic framework classifier", () => {
     test("Coronary heart disease stays cause_effect (not organisation heart rule)", () => {
       const result = classifyTopicFramework({ topic: "Coronary heart disease", subject: "Biology" });
       expect(result.framework).toBe("cause_effect");
-      expect(result.matchedBy).toBe("disease_topic_fallback");
+      expect(result.confidence).toBe("high");
+      expect(result.matchedBy).toBe("disease_named_topic");
     });
+
+    test.each([
+      ["Cancer", "cause_effect", "cause_effect_chain_map", "high", "organisation_health_keywords"],
+      ["Transport in plants", "system_flow", "physiology_system_flow_map", "high", "organisation_plant_transport_keywords"],
+      ["Transpiration and stomata", "system_flow", "physiology_system_flow_map", "high", "organisation_plant_transport_keywords"],
+      [
+        "Required Practical: Plant transport",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "organisation_practical_keywords",
+      ],
+      ["Health and disease", "cause_effect", "cause_effect_chain_map", "high", "disease_named_topic"],
+      ["Non-communicable diseases", "cause_effect", "cause_effect_chain_map", "high", "disease_named_topic"],
+    ])(
+      "%s -> %s / %s (%s, %s)",
+      (topic, framework, visualModel, confidence, matchedBy) => {
+        const result = classifyTopicFramework({ topic, subject: "Biology" });
+        expect(result.framework).toBe(framework);
+        expect(result.visualModel).toBe(visualModel);
+        expect(result.confidence).toBe(confidence);
+        expect(result.matchedBy).toBe(matchedBy);
+      }
+    );
 
     test("Levels of organisation is not forced to Organisation system_flow", () => {
       const result = classifyTopicFramework({ topic: "Levels of organisation", subject: "Biology" });
@@ -126,6 +151,53 @@ describe("topic framework classifier", () => {
       const result = classifyTopicFramework({ topic: "Classification", subject: "Biology" });
       expect(result.matchedBy).not.toBe("ecology_classification_keywords");
       expect(result.matchedBy).not.toBe("disease_classification_keywords");
+    });
+  });
+
+  describe("Infection and Response unit (remaining)", () => {
+    test.each([
+      ["Communicable disease", "cause_effect", "cause_effect_chain_map", "high", "disease_named_topic"],
+      [
+        "Drug development",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "infection_response_method_keywords",
+      ],
+      [
+        "Monoclonal antibodies",
+        "application_comparison",
+        "application_compare_grid",
+        "high",
+        "mab_topic_fallback",
+      ],
+      [
+        "Required Practical: Microbiology",
+        "practical_method",
+        "practical_method_flow",
+        "high",
+        "infection_response_practical_keywords",
+      ],
+    ])(
+      "%s -> %s / %s (%s, %s)",
+      (topic, framework, visualModel, confidence, matchedBy) => {
+        const result = classifyTopicFramework({ topic, subject: "Biology" });
+        expect(result.framework).toBe(framework);
+        expect(result.visualModel).toBe(visualModel);
+        expect(result.confidence).toBe(confidence);
+        expect(result.matchedBy).toBe(matchedBy);
+        expect(result.matchedBy).not.toBe("biology_subject_fallback");
+      }
+    );
+  });
+
+  describe("Bioenergetics unit", () => {
+    test("Response to exercise -> system_flow high", () => {
+      const result = classifyTopicFramework({ topic: "Response to exercise", subject: "Biology" });
+      expect(result.framework).toBe("system_flow");
+      expect(result.visualModel).toBe("physiology_system_flow_map");
+      expect(result.confidence).toBe("high");
+      expect(result.matchedBy).toBe("bioenergetics_response_keywords");
     });
   });
 
