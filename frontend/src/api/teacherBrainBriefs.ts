@@ -2,24 +2,7 @@ import {
   cloneLessonPagesForState,
   type TeacherBrainInjectionMeta,
 } from "../utils/teacherBrainBriefPages";
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { injectTeacherBrainBriefsInProcess } = require("../utils/teacherBrainInjectInProcess") as {
-  injectTeacherBrainBriefsInProcess: (
-    editorPages: Array<{ title?: string; blocks?: unknown[] }>,
-    meta: {
-      topic: string;
-      topicKey?: string;
-      subTopic?: string;
-      subject?: string;
-      examBoard?: string;
-      tier?: string;
-    }
-  ) => {
-    pages: Array<{ title?: string; blocks?: unknown[] }>;
-    teacherBrainInjection: TeacherBrainInjectionMeta;
-  };
-};
+import { injectTeacherBrainBriefsInProcess } from "../utils/teacherBrainInjectInProcess";
 
 export type InjectTeacherBrainBriefsInput = {
   pages: Array<{ title?: string; blocks?: unknown[] }>;
@@ -64,4 +47,3 @@ export async function injectTeacherBrainBriefs(
     teacherBrainInjection: local.teacherBrainInjection,
   };
 }
-

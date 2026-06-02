@@ -3,12 +3,11 @@
  * Self-contained for CRA bundle — does not require .ts modules at runtime.
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-const {
+import {
   runTeacherBrain,
   injectDiagramAndActivityBriefs,
   resolveDragDropActivityLayout,
-} = require("letsrevise-teacher-brain");
+} from "letsrevise-teacher-brain";
 
 const BRIEF_MARKER = "--- TEACHER BRAIN DESIGN BRIEF ---";
 
@@ -168,7 +167,7 @@ function injectTeacherBrainBriefsInProcess(editorPages, meta) {
   };
 }
 
-module.exports = {
+export {
   injectTeacherBrainBriefsInProcess,
   mergeTeacherBrainNotesIntoPages,
   pagesForTeacherBrainInjectionApi,
