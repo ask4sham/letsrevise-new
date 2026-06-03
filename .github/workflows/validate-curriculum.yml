@@ -187,11 +187,12 @@ jobs:
           trap 'kill $SERVER_PID' EXIT
           sleep 1
 
-          FEATURE_SLOTGEN_AI=true \
-          SLOTGEN_ALLOWLIST_PATH=/tmp/slotgen-allowlist-enabled-match-stub.json \
-          SLOTGEN_AI_ROLLOUT_PERCENT=100 \
-          OPENAI_API_KEY="test-key" \
-          OPENAI_BASE_URL="http://127.0.0.1:3100" \
+          export FEATURE_SLOTGEN_AI=true
+          export SLOTGEN_ALLOWLIST_PATH=/tmp/slotgen-allowlist-enabled-match-stub.json
+          export SLOTGEN_AI_ROLLOUT_PERCENT=100
+          export OPENAI_API_KEY="test-key"
+          export OPENAI_BASE_URL="http://127.0.0.1:3100"
+
           echo '{
             "version": "v1",
             "appliesTo": {
