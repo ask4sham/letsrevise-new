@@ -16,6 +16,9 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
       - name: Run unit tests
         run: npm test
         env:
