@@ -90,6 +90,7 @@ import {
 } from "../utils/lessonBlockPersist";
 import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 import { TeacherBrainDesignBriefPanel } from "../components/lesson/TeacherBrainDesignBriefPanel";
+import { TeacherCoverageReviewPanel } from "../components/lesson/TeacherCoverageReviewPanel";
 import { hasTeacherBrainDesignBrief } from "../utils/teacherBrainDesignBrief";
 import { injectTeacherBrainBriefs } from "../api/teacherBrainBriefs";
 import {
@@ -752,6 +753,7 @@ const EditLessonPage: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<string>("");
   const [teacherBrainInjectLoading, setTeacherBrainInjectLoading] = useState(false);
   const [teacherBrainBriefRefreshKey, setTeacherBrainBriefRefreshKey] = useState(0);
+  const [coverageReviewRefreshKey, setCoverageReviewRefreshKey] = useState(0);
   /** null = not probed yet; server 404 = feature off (CURRICULUM_AI_REVIEW_ENABLED) */
   const [curriculumAiReviewFeature, setCurriculumAiReviewFeature] = useState<boolean | null>(null);
   const [curriculumReviewLoading, setCurriculumReviewLoading] = useState(false);
@@ -1106,6 +1108,7 @@ const EditLessonPage: React.FC = () => {
           examQuestions: examList.length,
         },
       }));
+      setCoverageReviewRefreshKey((k) => k + 1);
     } catch {
       setAiReviewPanel((prev) => ({ ...prev, pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 } }));
     }
@@ -5391,6 +5394,13 @@ const EditLessonPage: React.FC = () => {
                   </div>
                 );
               })()}
+
+              <div style={{ marginTop: 12 }}>
+                <TeacherCoverageReviewPanel
+                  lessonId={id}
+                  refreshKey={coverageReviewRefreshKey}
+                />
+              </div>
 
               <LearningIntelligenceSummaryPanel pages={lesson?.pages ?? []} />
 
