@@ -30,7 +30,7 @@ describe("LessonDiagramBlockDisplay", () => {
       <LessonDiagramBlockDisplay
         block={{
           title: "Cell diagram",
-          subtitle: "<p>Study the labels.</p>",
+          subtitle: "<p>Instruction: Study the labels.</p>",
         }}
       >
         <img alt="cell" src="/cell.png" />
@@ -44,6 +44,7 @@ describe("LessonDiagramBlockDisplay", () => {
       true
     );
     expect(instructions.textContent).not.toMatch(/<p>/i);
+    expect(instructions.textContent).toMatch(/Instruction:/i);
     expect(instructions.textContent).toContain("Study the labels.");
   });
 
@@ -51,7 +52,7 @@ describe("LessonDiagramBlockDisplay", () => {
     render(
       <LessonDiagramBlockDisplay
         block={{
-          subtitle: "<p>Label the diagram.</p>",
+          subtitle: "<p>Task: Label the diagram.</p>",
           caption: "<p>Label the diagram.</p>",
           content: "<p>Label the diagram.</p>",
         }}

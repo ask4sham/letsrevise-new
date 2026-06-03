@@ -3,9 +3,12 @@ import {
   containsDiagramAnswerMaterial,
   diagramCaptionForDisplayFromBlock,
   diagramInstructionsForDisplayFromBlock,
+  diagramInstructionsHiddenFromStudents,
   diagramPedagogyDisplayFromBlock,
   extractDiagramRevealSections,
+  extractExplicitDiagramStudentInstructions,
   extractVisibleInstructionsFromCleaned,
+  hasExplicitDiagramStudentMarker,
   isDiagramStudentTask,
   isDiagramTeachingProse,
   normalizeDiagramPedagogyAuthoringForPersist,
@@ -53,8 +56,18 @@ describe("metabolism diagram regression", () => {
       ...METABOLISM_DEFINED_DIAGRAM_BLOCK,
       intro: "Instruction: Name the three inputs to respiration.",
     });
-    expect(display.visibleInstructions).toBe("Name the three inputs to respiration.");
+    expect(display.visibleInstructions).toMatch(/Instruction:\s*Name the three inputs to respiration/i);
     expect(display.caption).toBe("Metabolism defined");
+  });
+
+  it("flags editor warning when teaching prose lacks explicit student markers", () => {
+    expect(diagramInstructionsHiddenFromStudents(METABOLISM_DEFINED_DIAGRAM_BLOCK)).toBe(true);
+    expect(
+      diagramInstructionsHiddenFromStudents({
+        ...METABOLISM_DEFINED_DIAGRAM_BLOCK,
+        intro: "Instruction: Label the organelles.",
+      })
+    ).toBe(false);
   });
 
   it("suppresses caption when it duplicates title (map of metabolism)", () => {
@@ -90,13 +103,13 @@ describe("metabolism diagram regression", () => {
     expect(pedagogyTitleDuplicatesBlockHeading(block, "6 — Metabolism in a nutshell")).toBe(true);
   });
 
-  it("shows student task with bullets above image and hides model answer in reveal", () => {
+  it("shows student task with bullets and hides preamble plus model answer in reveal", () => {
     const display = diagramPedagogyDisplayFromBlock(METABOLISM_GLUCOSE_JOURNEY_TASK_BLOCK);
     const visible = display.visibleInstructions ?? "";
-    expect(visible).toContain("Trace the journey of glucose");
     expect(visible).toMatch(/Task:/i);
     expect(visible).toContain("- Identify one pathway where glucose is broken down");
     expect(visible).toContain("Then explain how ATP links");
+    expect(visible).not.toContain("Trace the journey of glucose");
     expect(visible).not.toMatch(/<p>|<ul>|<li>|Reveal Answer/i);
     expect(visible).not.toContain("Catabolic reactions such as respiration");
 
@@ -106,10 +119,60 @@ describe("metabolism diagram regression", () => {
   });
 });
 
+describe("explicit diagram student markers", () => {
+  it("renders Task: marked instructions only", () => {
+    const display = diagramPedagogyDisplayFromBlock({
+      type: "diagram",
+      title: "Nervous system",
+      imageUrl: "https://example.com/diagram.png",
+      caption: "Reflex arc",
+      subtitle: "Task:\n- Label the sensory neurone\n- Describe the relay neurone",
+    });
+    expect(display.visibleInstructions).toMatch(/Task:/i);
+    expect(display.visibleInstructions).toContain("sensory neurone");
+    expect(display.caption).toBe("Reflex arc");
+  });
+
+  it("renders Diagram task: and Student task: markers", () => {
+    expect(
+      extractExplicitDiagramStudentInstructions(
+        "Diagram task:\n- Sketch the reflex pathway"
+      )
+    ).toContain("Sketch the reflex pathway");
+    expect(
+      diagramPedagogyDisplayFromBlock({
+        type: "diagram",
+        imageUrl: "https://example.com/x.png",
+        subtitle: "Student task:\n- Name structure A",
+      }).visibleInstructions
+    ).toMatch(/Student task:/i);
+  });
+
+  it("hides unmarked short lines and unmarked long teaching prose", () => {
+    expect(
+      extractVisibleInstructionsFromCleaned("Label the parts on the diagram.")
+    ).toBeUndefined();
+    expect(
+      diagramPedagogyDisplayFromBlock({
+        type: "diagram",
+        imageUrl: "https://example.com/x.png",
+        subtitle: "Label the parts on the diagram.",
+        caption: "Figure 1",
+      }).visibleInstructions
+    ).toBeUndefined();
+    expect(hasExplicitDiagramStudentMarker("Instruction: one line")).toBe(true);
+    expect(isDiagramStudentTask("Think like an examiner\n- a\n- b\n- c")).toBe(false);
+  });
+});
+
 describe("reveal answer handling", () => {
   it("does not leave Reveal Answer as plain visible caption text", () => {
-    const display = diagramPedagogyDisplayFromBlock(DIAGRAM_WITH_REVEAL_BLOCK);
-    expect(display.visibleInstructions).toBe("Label the organelles on the diagram.");
+    const display = diagramPedagogyDisplayFromBlock({
+      ...DIAGRAM_WITH_REVEAL_BLOCK,
+      subtitle: "Instruction: Label the organelles on the diagram.",
+    });
+    expect(display.visibleInstructions).toMatch(/Instruction:/i);
+    expect(display.visibleInstructions).toContain("Label the organelles");
     expect(display.caption).toBeUndefined();
     expect(display.hiddenAnswer?.body).toContain("mitochondria");
     expect(display.hiddenAnswer?.body).not.toMatch(/<p>/i);
@@ -122,12 +185,13 @@ describe("reveal answer handling", () => {
     );
   });
 
-  it("treats structured Task bullets as student task, not teaching prose", () => {
+  it("treats explicit Task marker as student task, not teaching prose", () => {
     const taskHtml = `<p><strong>Task:</strong></p><ul><li>Identify A</li><li>Identify B</li></ul>`;
     const { remainder } = extractDiagramRevealSections(taskHtml);
     const visible = extractVisibleInstructionsFromCleaned(remainder.replace(/<[^>]+>/g, "\n"));
     expect(isDiagramStudentTask(visible ?? "")).toBe(true);
     expect(isDiagramTeachingProse(visible ?? "")).toBe(false);
+    expect(visible).toMatch(/Task:/i);
   });
 });
 
@@ -155,7 +219,7 @@ describe("diagramCaptionForDisplayFromBlock", () => {
   it("suppresses duplicate task in caption when instructions exist", () => {
     const block = {
       type: "diagram",
-      subtitle: "Label the parts on the diagram.",
+      subtitle: "Task:\n- Label the parts on the diagram.",
       caption: "Label the parts on the diagram.",
     };
     expect(diagramInstructionsForDisplayFromBlock(block)).toContain("Label the parts");

@@ -82,6 +82,7 @@ import {
   attachPersistedBlockNumber,
   diagramAuthoringInstructionsForEditor,
   diagramAuthoringInstructionsFromBlock,
+  diagramInstructionsHiddenFromStudents,
   diagramPedagogyDisplayFromBlock,
   diagramBlockForPersist,
   mergeSavedDiagramAuthoringInstructions,
@@ -7119,16 +7120,47 @@ const EditLessonPage: React.FC = () => {
                                     style={{ fontSize: "0.9375rem" }}
                                   />
                                 </label>
+                                {diagramInstructionsHiddenFromStudents(d) ? (
+                                  <div
+                                    role="status"
+                                    style={{
+                                      marginBottom: 10,
+                                      padding: "10px 12px",
+                                      borderRadius: 8,
+                                      border: "1px solid #fcd34d",
+                                      background: "#fffbeb",
+                                      color: "#92400e",
+                                      fontSize: 12,
+                                      lineHeight: 1.45,
+                                    }}
+                                  >
+                                    This long diagram text may be hidden from student view. Add &quot;Task:&quot; or
+                                    &quot;Instruction:&quot; to make student-facing instructions appear.
+                                  </div>
+                                ) : null}
                                 <label style={{ display: "block", marginBottom: 10 }}>
                                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Diagram instructions / subtitle</div>
                                   <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
-                                    Short guidance before the image — e.g. &quot;Label the parts you can see, then check against the mark scheme.&quot;
+                                    Shown below the diagram for students only when you start with{" "}
+                                    <strong>Task:</strong>, <strong>Diagram task:</strong>, <strong>Instruction:</strong>, or{" "}
+                                    <strong>Student task:</strong>. Long teaching prose without those markers may be hidden.
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "0 0 6px",
+                                      fontSize: 11,
+                                      color: "#6b7280",
+                                      fontFamily: "ui-monospace, monospace",
+                                      whiteSpace: "pre-wrap",
+                                    }}
+                                  >
+                                    {`Task:\n- Label the parts you can see\n- Explain one process\n\nInstruction: Name the three structures labelled A, B, and C.`}
                                   </p>
                                   <LessonAutoTextarea
                                     editorVariant="plain"
                                     value={d.subtitle ?? ""}
                                     onChange={(v) => updateBlock(currentPage!.pageId, idx, { subtitle: v })}
-                                    placeholder="What should students do with this diagram?"
+                                    placeholder={"Task:\n- ...\nInstruction: ..."}
                                     minHeightPx={72}
                                     style={{ fontSize: "0.9375rem" }}
                                   />

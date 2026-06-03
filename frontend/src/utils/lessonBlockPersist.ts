@@ -8,6 +8,7 @@ import { sanitizeTeacherMarkdown } from "./lessonTeacherMarkdown";
 export {
   diagramCaptionForDisplayFromBlock,
   diagramInstructionsForDisplayFromBlock,
+  diagramInstructionsHiddenFromStudents,
   diagramPedagogyDisplayFromBlock,
 } from "./diagramPedagogyDisplay";
 
