@@ -247,8 +247,9 @@ jobs:
       - name: OpenAI slotgen kill-switch dominance
         run: |
           set -e
-          FEATURE_SLOTGEN_AI=true SLOTGEN_AI_KILL=true \
-            echo '{
+          export FEATURE_SLOTGEN_AI=true
+          export SLOTGEN_AI_KILL=true
+          echo '{
               "version": "v1",
               "appliesTo": {
                 "subject": "Biology",
@@ -269,7 +270,7 @@ jobs:
                 }
               ],
               "metadata": { "requiresReview": false }
-            }' | npm run slotgen:openai > /tmp/slotgen-openai-kill-stdout.json 2> /tmp/slotgen-openai-kill-stderr.log
+            }' | node scripts/run-slot-generation-openai.js > /tmp/slotgen-openai-kill-stdout.json 2> /tmp/slotgen-openai-kill-stderr.log
           node scripts/validate-json.js /tmp/slotgen-openai-kill-stdout.json docs/curriculum/engine/slot-generation-result.v1.schema.json
           grep '"status": "STUB"' /tmp/slotgen-openai-kill-stdout.json
           tail -n 1 /tmp/slotgen-openai-kill-stderr.log > /tmp/slotgen-openai-kill-telemetry.json
