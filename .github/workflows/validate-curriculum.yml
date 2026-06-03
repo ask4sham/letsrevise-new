@@ -135,8 +135,8 @@ jobs:
       - name: OpenAI slotgen returns NOT_ALLOWLISTED when enabled but not allowlisted
         run: |
           set -e
-          FEATURE_SLOTGEN_AI=true npm run slotgen:openai > /tmp/slotgen-not-allowlisted.stdout.json 2> /tmp/slotgen-not-allowlisted.stderr.log << 'EOF'
-          {
+          FEATURE_SLOTGEN_AI=true \
+          echo '{
             "version": "v1",
             "appliesTo": {
               "subject": "Biology",
@@ -157,8 +157,7 @@ jobs:
               }
             ],
             "metadata": { "requiresReview": false }
-          }
-          EOF
+          }' | node scripts/run-slot-generation-openai.js > /tmp/slotgen-not-allowlisted.stdout.json 2> /tmp/slotgen-not-allowlisted.stderr.log
           grep '"status": "STUB"' /tmp/slotgen-not-allowlisted.stdout.json
           grep 'NOT_ALLOWLISTED' /tmp/slotgen-not-allowlisted.stderr.log
           node scripts/validate-json.js /tmp/slotgen-not-allowlisted.stdout.json docs/curriculum/engine/slot-generation-result.v1.schema.json
