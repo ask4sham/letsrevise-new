@@ -7,6 +7,11 @@ const { searchKnowledge } = require("../knowledge/knowledgeSearchService");
 const { generatePracticeSet: llmGeneratePracticeSet } = require("../llm/provider");
 const { normalizeSpecKey } = require("../../config/featureFlags");
 const adminTaxonomyService = require("../adminTaxonomyService");
+const {
+  createCoverageGenerationGate,
+  planCoverageGatedQuestionBatch,
+  formatCoveragePlanForPrompt,
+} = require("../../../lib/teacherBrain/coverageGatedGeneration");
 
 const VALID_SOURCE_TYPES = ["specStatement", "lessonBlock", "teacherNote", "lessonDiagram"];
 const DEFAULT_COUNTS = {
@@ -141,12 +146,47 @@ async function runPracticeSetGeneration({
     warnings.push("Limited trusted sources; output may be generic. Consider enabling external sources.");
   }
 
+  const topicLabel = topic.split(":").pop() || topic;
+  const coverageGate = createCoverageGenerationGate({
+    topic: topicLabel,
+    subject: "Biology",
+    examBoard: "AQA",
+    tier: "Higher",
+  });
+  const flashPlans = planCoverageGatedQuestionBatch(
+    coverageGate,
+    effectiveCounts.flashcards || 6,
+    "retrieval"
+  );
+  const mcqPlans = planCoverageGatedQuestionBatch(
+    coverageGate,
+    effectiveCounts.quizMcq || 5,
+    "quiz"
+  );
+  const shortPlans = planCoverageGatedQuestionBatch(
+    coverageGate,
+    effectiveCounts.quizShort || 3,
+    "practice"
+  );
+  const examPlans = planCoverageGatedQuestionBatch(
+    coverageGate,
+    effectiveCounts.exam || 2,
+    "exam"
+  );
+  const coveragePlan = formatCoveragePlanForPrompt([
+    ...flashPlans,
+    ...mcqPlans,
+    ...shortPlans,
+    ...examPlans,
+  ]);
+
   const pack = await generatePracticeSet({
     specKey: normalized,
     topicKey: topic,
     contextChunks,
     counts: effectiveCounts,
     weakConfidence: isWeakConfidence,
+    coveragePlan,
   });
 
   return {
@@ -154,6 +194,7 @@ async function runPracticeSetGeneration({
     contextChunks,
     counts: effectiveCounts,
     warnings,
+    coverageDiagnostics: coverageGate.diagnostics,
   };
 }
 

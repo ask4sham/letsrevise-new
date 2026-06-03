@@ -3,6 +3,11 @@
  * Does not save — caller validates and persists TopicFlashcard rows.
  */
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
+const {
+  ensureCoverageGate,
+  appendCoveragePlanToUserPrompt,
+  tagItemsWithCoverageDiagnostics,
+} = require("../utils/coverageGatedLessonLlm");
 
 const SYSTEM = `You are a UK GCSE Biology tutor. Generate revision flashcards ONLY from the lesson excerpt provided.
 Rules:
@@ -26,7 +31,9 @@ async function generateFlashcardsFromLesson(opts) {
   const maxItems = Math.min(12, Math.max(1, Number(opts.maxItems) || 8));
   const pageList = (opts.pageIds || []).length ? opts.pageIds.join(", ") : "(no page ids — omit pageId on each card)";
 
-  const user = `Lesson topicKey: ${opts.namespacedTopicKey}
+  const gate = ensureCoverageGate(opts);
+
+  const userBase = `Lesson topicKey: ${opts.namespacedTopicKey}
 specKey: ${opts.specKey}
 Valid pageIds for this lesson: ${pageList}
 
@@ -36,6 +43,10 @@ ${opts.lessonText || "(empty)"}
 Return JSON: { "flashcards": [ { "front": "...", "back": "...", "pageId": "" } ] }
 Use at most ${maxItems} flashcards. Omit pageId or use "" if not tied to a specific page.`;
 
+  const user = gate
+    ? appendCoveragePlanToUserPrompt(userBase, gate, maxItems, "retrieval")
+    : userBase;
+
   const parsed = await callOpenAiJson({
     system: SYSTEM,
     user,
@@ -43,13 +54,15 @@ Use at most ${maxItems} flashcards. Omit pageId or use "" if not tied to a speci
   });
 
   const raw = Array.isArray(parsed.flashcards) ? parsed.flashcards : [];
-  return raw
+  const mapped = raw
     .map((f) => ({
       front: String(f.front || "").trim(),
       back: String(f.back || "").trim(),
       pageId: f.pageId != null && String(f.pageId).trim() ? String(f.pageId).trim() : undefined,
     }))
     .filter((f) => f.front && f.back);
+
+  return tagItemsWithCoverageDiagnostics(mapped.slice(0, maxItems), gate);
 }
 
 module.exports = { generateFlashcardsFromLesson };

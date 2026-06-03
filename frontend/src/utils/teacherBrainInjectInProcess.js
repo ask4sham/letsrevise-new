@@ -128,6 +128,7 @@ function injectTeacherBrainBriefsInProcess(editorPages, meta) {
   const topic = safeStr(meta?.topic);
   const topicKey = safeStr(meta?.topicKey);
   const subTopic = safeStr(meta?.subTopic);
+  const apiShapeForCoverage = pagesForTeacherBrainInjectionApi(editorPages);
   const brain = runTeacherBrain({
     topic,
     topicKey,
@@ -135,9 +136,10 @@ function injectTeacherBrainBriefsInProcess(editorPages, meta) {
     subject: meta?.subject || "Biology",
     examBoard: meta?.examBoard || "AQA",
     tier: meta?.tier || "Higher",
+    pages: apiShapeForCoverage,
   });
 
-  const apiShape = pagesForTeacherBrainInjectionApi(editorPages);
+  const apiShape = apiShapeForCoverage;
   if (process.env.NODE_ENV !== "production") {
     for (const page of apiShape) {
       for (const block of page.blocks || []) {

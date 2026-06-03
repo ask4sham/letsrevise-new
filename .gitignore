@@ -10,9 +10,9 @@ letsrevise-frontend/dist/
 dist/
 **/dist/
 
-# coverage (lcov, clover)
+# Test coverage reports (lcov, clover) — use /coverage/ so backend/services/coverage/ is not ignored
 backend/coverage/
-coverage/
+/coverage/
 *.lcov
 
 # Python

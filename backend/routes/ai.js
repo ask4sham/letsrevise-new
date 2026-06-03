@@ -70,6 +70,26 @@ const {
   applyV4AfterGeneration,
 } = require("../services/lessonGeneratorV4Service");
 const { applyTeacherBrainBriefInjection } = require("../services/teacherBrainInjectionService");
+const { mergeOneShotCoveragePlanIntoInstructions } = require("../../lib/teacherBrain/oneShotLessonCoveragePlan");
+const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
+const {
+  createCoverageGateFromLesson,
+  createCoverageGenerationGate,
+  planCoverageGatedQuestion,
+  planCoverageGatedQuestionBatch,
+  formatCoveragePlanForPrompt,
+  prependCoverageDirectiveToPrompt,
+} = require("../utils/teacherBrainCoverageGate");
+
+const VALID_COVERAGE_GENERATION_KINDS = new Set([
+  "activity",
+  "checkpoint",
+  "quiz",
+  "hotspot",
+  "practice",
+  "retrieval",
+  "exam",
+]);
 
 /** Taxonomy topicKey → VisualModel conceptKeys. Use topicKey for diagram lookup (deterministic). */
 const BIOLOGY_DIAGRAM_MAP = {
@@ -5085,6 +5105,19 @@ router.post("/generate-lesson", auth, async (req, res) => {
       );
     }
 
+    const additionalInstructionsWithCoverage = mergeOneShotCoveragePlanIntoInstructions(
+      additionalInstructions,
+      {
+        topic,
+        subject,
+        examBoard: board,
+        tier,
+        pages: req.body?.seedPages || req.body?.pages,
+        quiz: req.body?.quiz,
+        flashcards: req.body?.flashcards,
+      }
+    );
+
     let { sanitized, ai } = await generateSanitizedDraft({
       topic,
       subject,
@@ -5093,7 +5126,7 @@ router.post("/generate-lesson", auth, async (req, res) => {
       tier,
       specPoints,
       pastPaperSnippets,
-      additionalInstructions,
+      additionalInstructions: additionalInstructionsWithCoverage,
       retainTeachingIntentMetadata,
       teachingIntentTagOnly,
     });
@@ -5117,7 +5150,7 @@ router.post("/generate-lesson", auth, async (req, res) => {
           specPoints,
           pastPaperSnippets,
           extraCoveragePoints: missingPoints,
-          additionalInstructions,
+          additionalInstructions: additionalInstructionsWithCoverage,
           retainTeachingIntentMetadata,
           teachingIntentTagOnly,
         });
@@ -5356,6 +5389,9 @@ router.post("/generate-and-save", auth, async (req, res) => {
           subject,
           topic: subTopicDisplay || topic,
           examBoard: board,
+          pages: req.body?.seedPages || req.body?.pages,
+          quiz: req.body?.quiz,
+          flashcards: req.body?.flashcards,
         })
       );
     } else if (v4Enabled && !lessonBlueprintV2) {
@@ -5380,10 +5416,24 @@ router.post("/generate-and-save", auth, async (req, res) => {
             subject,
             topic: subTopicDisplay || topic,
             examBoard: board,
+            pages: req.body?.seedPages || req.body?.pages,
+            quiz: req.body?.quiz,
+            flashcards: req.body?.flashcards,
           })
         );
       }
     }
+
+    instructionsForGeneration = mergeOneShotCoveragePlanIntoInstructions(instructionsForGeneration, {
+      topic: subTopicDisplay || topic,
+      topicKey: canonicalTopicKey,
+      subject,
+      examBoard: board,
+      tier,
+      pages: req.body?.seedPages || req.body?.pages,
+      quiz: req.body?.quiz,
+      flashcards: req.body?.flashcards,
+    });
 
     // ✅ 2) Generate AI draft (sanitized) with sub-topic scope guardrails
     let sanitized = (await generateSanitizedDraft({
@@ -6529,14 +6579,51 @@ async function callOpenAIChat(systemPrompt, userPrompt, maxTokens = 800) {
   return content;
 }
 
+/**
+ * Optional Phase 4 coverage gate for explain-chunk / verbatim generation flows.
+ * @param {object} body
+ * @param {string} text
+ */
+async function applyCoverageGateToPrompt(body, text) {
+  const lessonId = body?.lessonId != null ? String(body.lessonId).trim() : "";
+  const generationKind =
+    body?.generationKind != null ? String(body.generationKind).trim().toLowerCase() : "";
+  if (!lessonId || !generationKind || !VALID_COVERAGE_GENERATION_KINDS.has(generationKind)) {
+    return { text, coverage: null };
+  }
+
+  const lesson = await Lesson.findById(lessonId)
+    .select("pages quiz flashcards assessment topic subTopic subject board level topicKey title")
+    .lean();
+  if (!lesson) return { text, coverage: null };
+
+  const gate = createCoverageGateFromLesson(lesson);
+  const { diagnostic } = planCoverageGatedQuestion(gate, {
+    generationKind,
+    suggestedConceptId: body?.suggestedConceptId,
+  });
+
+  return {
+    text: prependCoverageDirectiveToPrompt(text, diagnostic),
+    coverage: {
+      conceptId: diagnostic.conceptId,
+      cognitiveSkill: diagnostic.cognitiveSkill,
+      reasonSelected: diagnostic.reasonSelected,
+      avoidedDuplicates: diagnostic.avoidedDuplicates,
+      coverageBefore: diagnostic.coverageBefore,
+      coverageAfter: diagnostic.coverageAfter,
+    },
+  };
+}
+
 // @route   POST /api/ai/explain-chunk
 // @desc    Explain a paragraph/chunk in simpler terms (any authenticated user)
-// @body    { text: string (required), level?: string, subject?: string }
+// @body    { text: string (required), level?: string, subject?: string, lessonId?, generationKind?, suggestedConceptId? }
 router.post("/explain-chunk", auth, async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: "Not authenticated" });
     const rawText = req.body?.text != null ? String(req.body.text) : "";
-    const text = rawText.trim();
+    let text = rawText.trim();
     if (!text) return res.status(400).json({ error: "text is required" });
     if (text.length > EXPLAIN_CHUNK_MAX_TEXT_LENGTH) {
       return res.status(400).json({ error: `text must be at most ${EXPLAIN_CHUNK_MAX_TEXT_LENGTH} characters` });
@@ -6554,19 +6641,29 @@ router.post("/explain-chunk", auth, async (req, res) => {
     const verbatim =
       req.body?.verbatim === true ||
       String(req.body?.instructionMode || "").toLowerCase() === "verbatim";
+
+    const coverageApplied = await applyCoverageGateToPrompt(req.body, text);
+    text = coverageApplied.text;
+
     /* Verbatim: client sends the full system+task text (e.g. JSON-only MCQ). Do not wrap in "explain in simpler terms". */
     if (verbatim) {
       const systemPrompt =
         "You are a UK curriculum assistant. Follow the user's instructions exactly. If they require JSON only, output valid JSON only with no markdown code fences and no text before or after the JSON object.";
       const userPrompt = text;
       const explanation = await callOpenAIChat(systemPrompt, userPrompt, 1200);
-      return res.json({ explanation: explanation || "No response generated." });
+      return res.json({
+        explanation: explanation || "No response generated.",
+        ...(coverageApplied.coverage ? { coverage: coverageApplied.coverage } : {}),
+      });
     }
 
     const systemPrompt = "You are an expert UK curriculum educator. Explain concepts in simple, clear terms. Use British English. Do not mention you are an AI. Keep the explanation concise (2–4 sentences).";
     const userPrompt = `Explain the following in simpler terms for a ${level} ${subject} student. Provide a brief analogy if helpful.\n\n---\n${text}`;
     const explanation = await callOpenAIChat(systemPrompt, userPrompt, 500);
-    return res.json({ explanation: explanation || "No explanation generated." });
+    return res.json({
+      explanation: explanation || "No explanation generated.",
+      ...(coverageApplied.coverage ? { coverage: coverageApplied.coverage } : {}),
+    });
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/explain-chunk error:", err.message);
@@ -6716,8 +6813,29 @@ router.post("/generate-practice-quiz", auth, async (req, res) => {
 Each item must be: { "type": "mcq" | "short", "question": "...", "correctAnswer": "...", "marks": 1 }
 For "mcq" also include "options": ["A", "B", "C", "D"] (exactly 4 options; correctAnswer must equal one of them). Use British English.`;
 
-    const userPrompt = `Subject: ${subject}, Level: ${level}. Topic: ${topic}.
+    let userPrompt = `Subject: ${subject}, Level: ${level}. Topic: ${topic}.
 Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return only a JSON array.`;
+
+    let coverageDiagnostics = [];
+    const lessonId = req.body?.lessonId != null ? String(req.body.lessonId).trim() : "";
+    if (lessonId) {
+      const lesson = await Lesson.findById(lessonId)
+        .select("pages quiz flashcards assessment topic subTopic subject board level topicKey title")
+        .lean();
+      if (lesson) {
+        const gate = createCoverageGateFromLesson(lesson);
+        const plans = planCoverageGatedQuestionBatch(gate, numQuestions, "practice");
+        const section = formatCoveragePlanForPrompt(plans);
+        if (section) userPrompt = `${section}\n\n${userPrompt}`;
+        coverageDiagnostics = gate.diagnostics;
+      }
+    } else if (topic) {
+      const gate = createCoverageGenerationGate({ topic, subject, tier: level });
+      const plans = planCoverageGatedQuestionBatch(gate, numQuestions, "practice");
+      const section = formatCoveragePlanForPrompt(plans);
+      if (section) userPrompt = `${section}\n\n${userPrompt}`;
+      coverageDiagnostics = gate.diagnostics;
+    }
 
     const rawContent = await callOpenAIChat(systemPrompt, userPrompt, 2000);
     const parsed = parseQuizJson(rawContent);
@@ -6732,7 +6850,25 @@ Generate exactly ${numQuestions} questions. Mix of MCQ and short-answer. Return 
     if (questions.length === 0) {
       return res.status(502).json({ error: "No valid questions in AI response" });
     }
-    return res.json({ questions });
+    const questionsWithCoverage = questions.map((q, i) => {
+      const d = coverageDiagnostics[i];
+      if (!d) return q;
+      return {
+        ...q,
+        coverage: {
+          conceptId: d.conceptId,
+          cognitiveSkill: d.cognitiveSkill,
+          reasonSelected: d.reasonSelected,
+          avoidedDuplicates: d.avoidedDuplicates,
+          coverageBefore: d.coverageBefore,
+          coverageAfter: d.coverageAfter,
+        },
+      };
+    });
+    return res.json({
+      questions: questionsWithCoverage,
+      ...(coverageDiagnostics.length ? { coverageDiagnostics } : {}),
+    });
   } catch (err) {
     if (err.response?.status === 429) return res.status(429).json({ error: "Rate limit exceeded" });
     console.error("POST /api/ai/generate-practice-quiz error:", err.message);
