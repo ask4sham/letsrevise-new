@@ -2,6 +2,8 @@
  * Admin Taxonomy CRUD tests: rename, move, delete (guarded by linked content).
  * Run: npm test -- adminTaxonomy.crud.test.js
  */
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
+
 const request = require("supertest");
 const mongoose = require("mongoose");
 const AdminTaxonomyItem = require("../models/AdminTaxonomyItem");
@@ -13,6 +15,12 @@ const User = require("../models/User");
 let app;
 
 let authToken;
+let adminUserId;
+
+/** Match admin section created with title "Cell Division" (slug cell-division). */
+function findCellDivisionSection(sections) {
+  return (sections || []).find((s) => (s.slug || "").toLowerCase() === "cell-division");
+}
 
 beforeAll(async () => {
   app = require("../app");
@@ -23,12 +31,13 @@ beforeAll(async () => {
     password: bcrypt.hashSync("password123", 10),
     userType: "admin",
   });
+  adminUserId = admin._id;
   const loginRes = await request(app)
     .post("/api/auth/login")
     .send({ email: "taxonomy-admin@test.com", password: "password123" });
   authToken = loginRes.body?.token;
   if (!authToken) throw new Error("Admin login failed");
-});
+}, 60000);
 
 afterEach(async () => {
   await AdminTaxonomyItem.deleteMany({ specKey: "aqa-gcse-biology", unitKey: /^test-unit-/ });
@@ -116,9 +125,15 @@ describe("Admin Taxonomy CRUD", () => {
     });
     await Lesson.create({
       title: "Test Lesson",
+      description: "Fixture lesson for taxonomy delete guard",
+      content: "Test content",
+      teacherId: adminUserId,
+      teacherName: "Taxonomy Admin",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Topic With Content",
       topicKey: "aqa-gcse-biology:test-topic-with-content",
       status: "draft",
-      ownerId: new mongoose.Types.ObjectId(),
     });
     const res = await request(app)
       .delete(`/api/admin/taxonomy/sub-topic/${sub._id}`)
@@ -158,7 +173,7 @@ describe("Admin Taxonomy CRUD", () => {
     const aqaBio = bio?.specs?.find((sp) => sp.specKey === "aqa-gcse-biology");
     const cellBio = aqaBio?.mainTopics?.find((u) => (u.unitKey || "").toLowerCase() === "cell-biology");
     expect(cellBio).toBeDefined();
-    const cellDivSection = cellBio?.sections?.find((s) => (s.title || s.slug || "").toLowerCase().includes("cell-division"));
+    const cellDivSection = findCellDivisionSection(cellBio?.sections);
     expect(cellDivSection).toBeDefined();
     const sectionTopicKeys = (cellDivSection?.topics || []).map((t) => (t.key || "").toLowerCase());
     expect(sectionTopicKeys).toContain("chromosomes");
@@ -174,7 +189,6 @@ describe("Admin Taxonomy CRUD", () => {
       .get("/api/admin/taxonomy")
       .set("Authorization", `Bearer ${authToken}`);
     const cellBio2 = hier2Res.body?.hierarchy?.find((s) => s.subject === "Biology")?.specs?.find((sp) => sp.specKey === "aqa-gcse-biology")?.mainTopics?.find((u) => (u.unitKey || "").toLowerCase() === "cell-biology");
-    const hasCellDivSection = (cellBio2?.sections || []).some((s) => (s.title || s.slug || "").toLowerCase().includes("cell-division"));
-    expect(hasCellDivSection).toBe(false);
+    expect(findCellDivisionSection(cellBio2?.sections)).toBeUndefined();
   });
 });
