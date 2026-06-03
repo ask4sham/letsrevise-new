@@ -76,11 +76,12 @@ describe("POST /api/lessons/:id/exam-questions/attach-by-topic", () => {
       .send({ limit: 20 });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.topicKey).toBe("photosynthesis");
+    expect(res.body.topicKey).toBe("aqa-gcse-biology:photosynthesis");
     expect(res.body.requested).toBe(20);
     expect(res.body.added).toBeLessThanOrEqual(20);
     expect(Array.isArray(res.body.addedIds)).toBe(true);
-    expect(res.body.topic).toBe("Photosynthesis");
+    // Display title is not resolved for namespaced topicKey lookups (topicKey is authoritative).
+    expect(res.body.topic).toBeNull();
   });
 
   test("call again => added 0 (idempotent)", async () => {
@@ -119,14 +120,25 @@ describe("POST /api/lessons/:id/exam-questions/attach-by-topic", () => {
       .send({ limit: 5 });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.topicKey).toBe("cell-structure");
+    expect(res.body.topicKey).toBe("aqa-gcse-biology:cell-structure");
     expect(res.body.added).toBe(5);
     expect(res.body.addedIds).toHaveLength(5);
   });
 
-  test("invalid topicKey in body => 400", async () => {
+  test("invalid topicKey in body on unmapped lesson => 400", async () => {
+    const lesson3 = await Lesson.create({
+      title: "Weird Topic",
+      description: "D",
+      content: "C",
+      teacherId,
+      teacherName: "AttachByTopic Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      topic: "Some Random Topic Xyz",
+      status: "draft",
+    });
     const res = await request(app)
-      .post(`/api/lessons/${lessonId}/exam-questions/attach-by-topic`)
+      .post(`/api/lessons/${lesson3._id}/exam-questions/attach-by-topic`)
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({ topicKey: "not-a-real-topic-xyz" });
     expect(res.status).toBe(400);

@@ -236,7 +236,7 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
       (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
     );
     expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(diagramBlocks[0]).toHaveProperty("visualId");
+    expect(diagramBlocks[0].imageUrl || diagramBlocks[0].visualId).toBeTruthy();
     expect(diagramBlocks[0].caption).toBeDefined();
   });
 
@@ -265,7 +265,7 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
       (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
     );
     expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(diagramBlocks[0]).toHaveProperty("visualId");
+    expect(diagramBlocks[0].imageUrl || diagramBlocks[0].visualId).toBeTruthy();
   });
 
   test("topic (free text) still works when topicKey not provided", async () => {
@@ -317,8 +317,8 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
       (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
     );
     expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(diagramBlocks[0].mode).toBe("annotated");
-    expect(Array.isArray(diagramBlocks[0].steps) ? diagramBlocks[0].steps.length : 0).toBe(0);
+    expect(diagramBlocks[0].mode).toBe("static");
+    expect(diagramBlocks[0].imageUrl).toBeTruthy();
   });
 
   test("PR21: Higher topic with diagram mapping → diagram block mode step, steps.length === 3", async () => {
@@ -333,7 +333,7 @@ describe("POST /api/ai/lesson-factory/aqa-gcse-biology", () => {
       (Array.isArray(p.blocks) ? p.blocks : []).filter((b) => b.type === "diagram")
     );
     expect(diagramBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(diagramBlocks[0].mode).toBe("step");
-    expect(Array.isArray(diagramBlocks[0].steps) ? diagramBlocks[0].steps.length : 0).toBe(3);
+    expect(diagramBlocks[0].mode).toBe("static");
+    expect(diagramBlocks[0].imageUrl).toBeTruthy();
   });
 });

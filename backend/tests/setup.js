@@ -3,6 +3,11 @@
 if (!process.env.JWT_SECRET_KEY) {
   process.env.JWT_SECRET_KEY = "test-secret-for-backend-tests";
 }
+// generate-and-save routes require a key before axios mocks run (integration tests)
+if (!process.env.OPENAI_API_KEY || !String(process.env.OPENAI_API_KEY).trim()) {
+  process.env.OPENAI_API_KEY = "sk-test-ci-dummy";
+}
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
 const mongoose = require("mongoose");
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
 

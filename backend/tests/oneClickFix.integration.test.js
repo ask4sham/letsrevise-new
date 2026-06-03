@@ -114,9 +114,9 @@ describe("POST /api/reports/lessons/:lessonId/one-click-fix", () => {
     expect(res.body.error).toMatch(/owner|forbidden/i);
   });
 
-  test("invalid topicKey => 400", async () => {
+  test("invalid topicKey on unmapped lesson => 400", async () => {
     const res = await request(app)
-      .post(`/api/reports/lessons/${lessonId}/one-click-fix`)
+      .post(`/api/reports/lessons/${lessonUnmappedId}/one-click-fix`)
       .set("Authorization", `Bearer ${ownerToken}`)
       .send({ topicKey: "not-a-valid-key-xyz", attachByTopic: true, regeneratePlan: false });
     expect(res.status).toBe(400);
@@ -146,7 +146,7 @@ describe("POST /api/reports/lessons/:lessonId/one-click-fix", () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.lessonId).toBe(String(lessonId));
-    expect(res.body.topicKey).toBe("photosynthesis");
+    expect(res.body.topicKey).toBe("aqa-gcse-biology:photosynthesis");
     expect(res.body.attach).toBeDefined();
     expect(typeof res.body.attach.requested).toBe("number");
     expect(typeof res.body.attach.added).toBe("number");

@@ -6,6 +6,10 @@ const request = require("supertest");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const app = require("../app");
+const {
+  getValidCellStructureBlocks,
+  getValidCellStructureDraft,
+} = require("./helpers/validAiStructureLessonDraft");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 
@@ -71,33 +75,7 @@ describe("AI generate-and-save: taxonomy scoping", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default mock: valid cell-structure content (no drift) — Responses API format
-    const defaultPayload = {
-      title: "Cell Structure",
-      description: "Eukaryotic cell organelles.",
-      estimatedDuration: 25,
-      tags: ["cells", "biology"],
-      board: "AQA",
-      tier: "foundation",
-      pages: [
-        {
-          title: "Overview",
-          order: 1,
-          pageType: "intro",
-          blocks: [
-            {
-              type: "text",
-              content:
-                "Eukaryotic cells have a nucleus, cytoplasm, and cell membrane. Plant cells also have chloroplasts and a cell wall.",
-            },
-          ],
-          checkpoint: {
-            question: "What organelle contains DNA?",
-            options: ["Nucleus", "Cytoplasm", "Ribosome", "Mitochondria"],
-            answer: "Nucleus",
-          },
-        },
-      ],
-    };
+    const defaultPayload = getValidCellStructureDraft();
     axios.post.mockResolvedValue({
       data: { output_text: JSON.stringify(defaultPayload) },
     });
@@ -137,33 +115,16 @@ describe("AI generate-and-save: taxonomy scoping", () => {
 
   test("drift validation surfaces warning when content includes sibling topics", async () => {
     // Mock LLM to return content with mitosis (sibling of cell-structure)
-    mockOpenAIResponse({
-      title: "Cell Structure",
-      description: "Cells.",
-      estimatedDuration: 25,
-      tags: ["cells"],
-      board: "AQA",
-      tier: "foundation",
-      pages: [
-        {
-          title: "Overview",
-          order: 1,
-          pageType: "intro",
-          blocks: [
-            {
-              type: "text",
-              content:
-                "Cells have a nucleus. Mitosis is the process of cell division. Mitosis produces two identical daughter cells. Mitotic division is important.",
-            },
-          ],
-          checkpoint: {
-            question: "What is mitosis?",
-            options: ["A", "B", "C", "D"],
-            answer: "A",
-          },
-        },
-      ],
-    });
+    const driftBlocks = [
+      ...getValidCellStructureBlocks(),
+      {
+        type: "text",
+        role: "concept",
+        content:
+          "Mitosis is the process of cell division. Mitosis produces two identical daughter cells during mitotic division.",
+      },
+    ];
+    mockOpenAIResponse(getValidCellStructureDraft({ blocks: driftBlocks }));
 
     const res = await request(app)
       .post("/api/ai/generate-and-save")
