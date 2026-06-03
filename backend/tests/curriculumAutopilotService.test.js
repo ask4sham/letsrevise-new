@@ -7,15 +7,45 @@ jest.mock("../services/curriculumGapDetectionService");
 jest.mock("../services/autopilotGenerationAdapters");
 jest.mock("../services/contentGraphService");
 jest.mock("../services/contentCoverageService");
+jest.mock("../services/autopilotGatingService");
+jest.mock("../services/autopilotFeedbackService");
+jest.mock("../services/topicEvidenceService");
+jest.mock("../services/studentTopicEvidenceService");
 
 const curriculumGapDetectionService = require("../services/curriculumGapDetectionService");
 const autopilotGenerationAdapters = require("../services/autopilotGenerationAdapters");
 const contentGraphService = require("../services/contentGraphService");
 const contentCoverageService = require("../services/contentCoverageService");
+const autopilotGatingService = require("../services/autopilotGatingService");
+const autopilotFeedbackService = require("../services/autopilotFeedbackService");
+const topicEvidenceService = require("../services/topicEvidenceService");
+const studentTopicEvidenceService = require("../services/studentTopicEvidenceService");
+
+const allowAutopilotGate = {
+  gateStatus: "allow",
+  reasons: ["Evidence is strong; all actions allowed."],
+  allowedActions: ["generate_flashcards", "generate_quiz", "generate_exam_questions"],
+  blockedActions: [],
+};
 
 describe("curriculumAutopilotService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    autopilotGatingService.getAutopilotGate.mockResolvedValue(allowAutopilotGate);
+    autopilotFeedbackService.getFeedbackByPromptPack.mockResolvedValue({ promptPacks: [] });
+    topicEvidenceService.getTopicEvidence.mockResolvedValue({
+      derivedMetrics: { evidenceHealth: "weak", approvalRate: 0 },
+      evidenceCounts: {
+        lessonIssues: 0,
+        autopilotRuns: 0,
+        autopilotApprovals: 0,
+        autopilotRejections: 0,
+      },
+    });
+    studentTopicEvidenceService.getTopicLearningEvidence.mockResolvedValue({
+      derivedMetrics: { masteryScore: 0 },
+      quizStats: { attempts: 0 },
+    });
   });
 
   describe("decideAutopilotActions", () => {

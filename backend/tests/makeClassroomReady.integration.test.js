@@ -147,9 +147,9 @@ describe("POST /api/reports/lessons/:lessonId/make-classroom-ready", () => {
     expect(res.body.error).toMatch(/owner|forbidden/i);
   });
 
-  test("400 invalid topicKey", async () => {
+  test("400 invalid topicKey on unmapped lesson", async () => {
     const res = await request(app)
-      .post(`/api/reports/lessons/${lessonId}/make-classroom-ready`)
+      .post(`/api/reports/lessons/${lessonUnmappedId}/make-classroom-ready`)
       .set("Authorization", `Bearer ${ownerToken}`)
       .send({ topicKey: "not-a-valid-key-xyz", attachPractice: true });
     expect(res.status).toBe(400);

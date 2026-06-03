@@ -8,6 +8,10 @@ jest.mock("../services/curriculumGapDetectionService");
 jest.mock("../services/autopilotGenerationAdapters");
 jest.mock("../services/contentGraphService");
 jest.mock("../services/contentCoverageService");
+jest.mock("../services/autopilotGatingService");
+jest.mock("../services/autopilotFeedbackService");
+jest.mock("../services/topicEvidenceService");
+jest.mock("../services/studentTopicEvidenceService");
 jest.mock("../models/Lesson");
 jest.mock("../models/TopicFlashcard");
 jest.mock("../models/TopicQuizQuestion");
@@ -17,6 +21,10 @@ const curriculumGapDetectionService = require("../services/curriculumGapDetectio
 const autopilotGenerationAdapters = require("../services/autopilotGenerationAdapters");
 const contentGraphService = require("../services/contentGraphService");
 const contentCoverageService = require("../services/contentCoverageService");
+const autopilotGatingService = require("../services/autopilotGatingService");
+const autopilotFeedbackService = require("../services/autopilotFeedbackService");
+const topicEvidenceService = require("../services/topicEvidenceService");
+const studentTopicEvidenceService = require("../services/studentTopicEvidenceService");
 const Lesson = require("../models/Lesson");
 const TopicFlashcard = require("../models/TopicFlashcard");
 const TopicQuizQuestion = require("../models/TopicQuizQuestion");
@@ -27,6 +35,26 @@ describe("curriculumAutopilotService run history", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    autopilotGatingService.getAutopilotGate.mockResolvedValue({
+      gateStatus: "allow",
+      reasons: [],
+      allowedActions: ["generate_flashcards", "generate_quiz", "generate_exam_questions"],
+      blockedActions: [],
+    });
+    autopilotFeedbackService.getFeedbackByPromptPack.mockResolvedValue({ promptPacks: [] });
+    topicEvidenceService.getTopicEvidence.mockResolvedValue({
+      derivedMetrics: { evidenceHealth: "weak", approvalRate: 0 },
+      evidenceCounts: {
+        lessonIssues: 0,
+        autopilotRuns: 0,
+        autopilotApprovals: 0,
+        autopilotRejections: 0,
+      },
+    });
+    studentTopicEvidenceService.getTopicLearningEvidence.mockResolvedValue({
+      derivedMetrics: { masteryScore: 0 },
+      quizStats: { attempts: 0 },
+    });
     AutopilotRun.create = jest.fn().mockResolvedValue({});
     contentGraphService.resolveTopicNode.mockResolvedValue({ _id: "node1" });
     contentGraphService.linkLessonToTopic.mockResolvedValue({});
@@ -222,6 +250,7 @@ describe("curriculumAutopilotService run history", () => {
   });
 
   it("topic run stores coverageBefore and coverageAfter when generation succeeds", async () => {
+    contentCoverageService.getTopicCoverage.mockReset();
     contentCoverageService.getTopicCoverage
       .mockResolvedValueOnce({
         lessonCount: 1,
@@ -232,7 +261,7 @@ describe("curriculumAutopilotService run history", () => {
         coverageScore: 40,
         status: "weak",
       })
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         lessonCount: 1,
         flashcardCount: 5,
         quizCount: 3,

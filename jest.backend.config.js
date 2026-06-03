@@ -2,6 +2,10 @@
 if (!process.env.JWT_SECRET_KEY) {
   process.env.JWT_SECRET_KEY = "test-secret-for-backend-tests";
 }
+if (!process.env.OPENAI_API_KEY || !String(process.env.OPENAI_API_KEY).trim()) {
+  process.env.OPENAI_API_KEY = "sk-test-ci-dummy";
+}
+process.env.NODE_ENV = process.env.NODE_ENV || "test";
 module.exports = {
   rootDir: ".",
   testEnvironment: "node",
@@ -17,7 +21,11 @@ module.exports = {
     "<rootDir>/backend/services/curriculumGapDetectionService.test.js",
   ],
 
-  testPathIgnorePatterns: ["/node_modules/"],
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    // Node assert script — run via: node backend/tests/visualPackRegistry.unit.test.js
+    "visualPackRegistry\\.unit\\.test\\.js",
+  ],
 
   setupFilesAfterEnv: ["<rootDir>/backend/tests/setup.js"],
   forceExit: true,

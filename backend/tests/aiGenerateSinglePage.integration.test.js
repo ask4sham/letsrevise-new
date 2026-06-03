@@ -8,6 +8,10 @@ const axios = require("axios");
 const app = require("../app");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
+const {
+  getValidCellStructureBlocks,
+  getValidCellStructureDraft,
+} = require("./helpers/validAiStructureLessonDraft");
 
 jest.mock("axios");
 
@@ -63,34 +67,7 @@ describe("AI generate-and-save: single-page default", () => {
   test("creates exactly 1 page by default", async () => {
     axios.post.mockResolvedValue({
       data: {
-        output_text: JSON.stringify({
-          title: "Cell Structure",
-          description: "Eukaryotic and prokaryotic cells.",
-          estimatedDuration: 35,
-          tags: ["cells", "biology"],
-          board: "AQA",
-          tier: "foundation",
-          pages: [
-            {
-              title: "Page 1",
-              order: 1,
-              pageType: "",
-              blocks: [
-                { type: "text", content: "Eukaryotic cells have a nucleus." },
-                { type: "keyIdea", content: "Key organelles: nucleus, cytoplasm, cell membrane." },
-                { type: "examTip", content: "Know the function of each organelle." },
-                {
-                  type: "checkpoint",
-                  prompt: "What organelle contains DNA?",
-                  questionType: "mcq",
-                  options: ["Nucleus", "Cytoplasm", "Ribosome", "Mitochondria"],
-                  correctAnswer: "Nucleus",
-                  explanation: "",
-                },
-              ],
-            },
-          ],
-        }),
+        output_text: JSON.stringify(getValidCellStructureDraft()),
       },
     });
 
@@ -121,27 +98,19 @@ describe("AI generate-and-save: single-page default", () => {
 
   test("collapses multiple LLM pages into one (deterministic post-processing)", async () => {
     // Simulate LLM returning subsection headings as separate pages (old behavior)
+    const blocks = getValidCellStructureBlocks();
+    const third = Math.ceil(blocks.length / 3);
     axios.post.mockResolvedValue({
       data: {
-        output_text: JSON.stringify({
-          title: "Cell Structure",
-          description: "Cells.",
-          estimatedDuration: 30,
-          tags: ["cells"],
-          board: "AQA",
-          tier: "foundation",
-          pages: [
-            { title: "Core Concept 1", order: 1, pageType: "", blocks: [{ type: "text", content: "Eukaryotic cells have a nucleus." }] },
-            { title: "Exam Tips", order: 2, pageType: "", blocks: [{ type: "text", content: "Know organelle functions for the exam." }] },
-            {
-              title: "Check Understanding",
-              order: 3,
-              pageType: "",
-              blocks: [],
-              checkpoint: { question: "What contains DNA?", options: ["A", "B", "C", "D"], answer: "A" },
-            },
-          ],
-        }),
+        output_text: JSON.stringify(
+          getValidCellStructureDraft({
+            pages: [
+              { title: "Core Concept 1", order: 1, pageType: "", blocks: blocks.slice(0, third) },
+              { title: "Exam Tips", order: 2, pageType: "", blocks: blocks.slice(third, third * 2) },
+              { title: "Check Understanding", order: 3, pageType: "", blocks: blocks.slice(third * 2) },
+            ],
+          })
+        ),
       },
     });
 
@@ -162,28 +131,27 @@ describe("AI generate-and-save: single-page default", () => {
     const lesson = await Lesson.findById(res.body.lessonId).lean();
     expect(lesson.pages.length).toBe(1);
     // All content should be in blocks on Page 1 (Core Concept, Exam Tips, Check Understanding merged)
-    const blocks = lesson.pages[0].blocks || [];
-    expect(blocks.length).toBeGreaterThanOrEqual(2);
-    const hasCheckpoint = blocks.some((b) => b.type === "checkpoint");
+    const pageBlocks = lesson.pages[0].blocks || [];
+    expect(pageBlocks.length).toBeGreaterThanOrEqual(2);
+    const hasCheckpoint = pageBlocks.some((b) => b.type === "checkpoint");
     expect(hasCheckpoint).toBe(true);
   });
 
   test("no separate pages for Core Concept, Exam Tips, Check Understanding, Stretch", async () => {
+    const blocks = getValidCellStructureBlocks();
+    const third = Math.ceil(blocks.length / 3);
     axios.post.mockResolvedValue({
       data: {
-        output_text: JSON.stringify({
-          title: "Enzymes",
-          description: "Enzyme action.",
-          estimatedDuration: 40,
-          tags: ["enzymes"],
-          board: "AQA",
-          tier: "higher",
-          pages: [
-            { title: "Overview", order: 1, pageType: "", blocks: [{ type: "text", content: "Intro." }] },
-            { title: "Core Concept 2", order: 2, pageType: "", blocks: [{ type: "keyIdea", content: "Lock and key." }] },
-            { title: "Stretch: Deeper Knowledge", order: 3, pageType: "", blocks: [{ type: "stretch", content: "Extension." }] },
-          ],
-        }),
+        output_text: JSON.stringify(
+          getValidCellStructureDraft({
+            tier: "higher",
+            pages: [
+              { title: "Overview", order: 1, pageType: "", blocks: blocks.slice(0, third) },
+              { title: "Core Concept 2", order: 2, pageType: "", blocks: blocks.slice(third, third * 2) },
+              { title: "Stretch: Deeper Knowledge", order: 3, pageType: "", blocks: blocks.slice(third * 2) },
+            ],
+          })
+        ),
       },
     });
 
@@ -191,11 +159,11 @@ describe("AI generate-and-save: single-page default", () => {
       .post("/api/ai/generate-and-save")
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
-        topic: "Enzymes",
+        topic: "Cell structure",
         subject: "Biology",
         level: "GCSE",
         board: "AQA",
-        topicKey: "aqa-gcse-biology:enzymes",
+        topicKey: "aqa-gcse-biology:cell-structure",
       });
 
     expect(res.status).toBe(200);
