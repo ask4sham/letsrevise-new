@@ -248,6 +248,25 @@ export function TeacherCoverageReviewPanel({
                   </li>
                 ))}
               </ul>
+              {review.boundaryReplacementPlan.interactionReplacementPlans?.length ? (
+                <details className="teacher-coverage-review__collapse" style={{ marginTop: 8 }}>
+                  <summary className="teacher-coverage-review__muted">
+                    Interaction replacements ({review.boundaryReplacementPlan.interactionReplacementPlans.length})
+                  </summary>
+                  <ul className="teacher-coverage-review__list">
+                    {review.boundaryReplacementPlan.interactionReplacementPlans.slice(0, 6).map((p) => (
+                      <li key={`${p.originalConceptId}-${p.originalActivityKind}-${p.replacementBlockType}`}>
+                        <strong>{p.originalConceptId}</strong> ({p.originalActivityKind}) →{" "}
+                        <strong>{p.title}</strong>
+                        <span className="teacher-coverage-review__muted">
+                          {" "}
+                          · {p.replacementBlockType} · {p.replacementConceptId}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </details>
           ) : null}
 

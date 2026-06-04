@@ -58,6 +58,23 @@ export type BoundaryReplacementPlanItem = {
   reason: string;
 };
 
+export type BoundaryInteractionReplacementPlanItem = {
+  originalConceptId: string;
+  originalActivityKind: string;
+  replacementTemplateKey?: string;
+  replacementConceptId: string;
+  replacementActivityKind: string;
+  replacementBlockType: string;
+  title: string;
+  instructions: string;
+  cards?: string[];
+  targets?: string[];
+  diagramBrief?: string | null;
+  checkpointPrompt?: string | null;
+  examFocus?: string | null;
+  reason: string;
+};
+
 export type LessonBoundaryReplacementPlan = {
   boundaryProfileKey?: string;
   boundaryMode?: number;
@@ -67,6 +84,8 @@ export type LessonBoundaryReplacementPlan = {
   preferredConceptIds?: string[];
   replacementCount?: number;
   replacementPlans?: BoundaryReplacementPlanItem[];
+  interactionReplacementPlans?: BoundaryInteractionReplacementPlanItem[];
+  interactionRerouteActive?: boolean;
   promptInstructions?: string[];
 };
 

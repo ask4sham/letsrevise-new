@@ -184,6 +184,7 @@ describe("boundaryReplacementPlanner (Phase 3C)", () => {
     });
     const prompt = appendCoveragePlanToUserPrompt("BASE PROMPT", gate, 3, "quiz");
     expect(prompt).toMatch(/BOUNDARY REPLACEMENT PLAN/);
+    expect(prompt).toMatch(/BOUNDARY INTERACTION REPLACEMENT/);
     expect(prompt).toMatch(/thermoregulation|Reflex/i);
     expect(prompt).toContain("BASE PROMPT");
   });
