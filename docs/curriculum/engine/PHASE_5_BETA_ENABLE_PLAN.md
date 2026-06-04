@@ -1,5 +1,8 @@
 # Phase 5 — Beta Enable Plan (Controlled Runtime)
 
+> Machine-readable contract: `phase-5-beta-enable-plan.v1.json` (validated in CI).
+> This Markdown file is the human-readable companion.
+
 This document defines the operational plan for enabling Beta at runtime in a
 controlled, reversible manner.
 

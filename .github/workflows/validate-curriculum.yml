@@ -484,7 +484,7 @@ jobs:
       - name: Phase 5 beta enable plan schema validates
         run: |
           node scripts/validate-json.js \
-            docs/curriculum/engine/PHASE_5_BETA_ENABLE_PLAN.md \
+            docs/curriculum/engine/phase-5-beta-enable-plan.v1.json \
             docs/curriculum/engine/phase-5-beta-enable-plan.v1.schema.json
       - name: Phase 8 runtime enable plan schema validates
         run: |
