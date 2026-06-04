@@ -3,6 +3,24 @@ const path = require("path");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const EXECUTOR_PATH = path.join(REPO_ROOT, "scripts", "run-slot-generation-openai.js");
+
+/** Prevent parent-shell slotgen/OpenAI vars from leaking into spawned processes. */
+const SLOTGEN_ENV_VARS_TO_STRIP = [
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "SLOTGEN_ALLOWLIST_PATH",
+  "SLOTGEN_AI_KILL",
+  "SLOTGEN_AI_ROLLOUT_PERCENT",
+  "FEATURE_SLOTGEN_AI",
+];
+
+function sanitizedSlotgenEnv(overrides = {}) {
+  const env = { ...process.env };
+  for (const key of SLOTGEN_ENV_VARS_TO_STRIP) {
+    delete env[key];
+  }
+  return { ...env, ...overrides };
+}
 const VALID_JOB = JSON.stringify(
   {
     version: "v1",
@@ -35,7 +53,7 @@ function runExecutor(inputJson, extraEnv = {}) {
     cwd: REPO_ROOT,
     input: inputJson,
     encoding: "utf8",
-    env: { ...process.env, ...extraEnv },
+    env: sanitizedSlotgenEnv(extraEnv),
   });
 }
 
@@ -148,15 +166,14 @@ describe("run-slot-generation-openai (Phase 4C dark-launch skeleton)", () => {
       cwd: REPO_ROOT,
       input: validJobNoNetwork,
       encoding: "utf8",
-      env: {
-        ...process.env,
+      env: sanitizedSlotgenEnv({
         FEATURE_SLOTGEN_AI: "true",
         SLOTGEN_AI_KILL: "false",
         SLOTGEN_ALLOWLIST_PATH: tmpAllowlistPath,
         // Provide fake key/base to ensure any accidental network attempt would be obvious.
         OPENAI_API_KEY: "test-key",
-        OPENAI_BASE_URL: "http://127.0.0.1:1"
-      }
+        OPENAI_BASE_URL: "http://127.0.0.1:1",
+      }),
     });
 
     // Must succeed and STUB (no OpenAI call path).
@@ -215,11 +232,10 @@ describe("Deterministic rollout gating", () => {
       cwd: REPO_ROOT,
       input: JSON.stringify(job),
       encoding: "utf8",
-      env: {
-        ...process.env,
+      env: sanitizedSlotgenEnv({
         FEATURE_SLOTGEN_AI: "true",
-        SLOTGEN_AI_ROLLOUT_PERCENT: String(rolloutPercent)
-      }
+        SLOTGEN_AI_ROLLOUT_PERCENT: String(rolloutPercent),
+      }),
     });
   }
 
