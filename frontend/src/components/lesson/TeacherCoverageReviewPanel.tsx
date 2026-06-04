@@ -310,6 +310,42 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.conceptCompressionCoverage?.enabled ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Concept compression coverage</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.conceptCompressionCoverage.compressionScorePct}%
+                </span>
+              </summary>
+              <ul className="teacher-coverage-review__list">
+                <li>{review.conceptCompressionCoverage.definitionPresent ? "✓" : "✗"} Definition (early)</li>
+                <li>{review.conceptCompressionCoverage.whyItMattersPresent ? "✓" : "✗"} Why it matters (early)</li>
+                <li>{review.conceptCompressionCoverage.coreModelPresent ? "✓" : "✗"} Core model (early)</li>
+                <li>
+                  Exam anchors: {review.conceptCompressionCoverage.examAnchorsCovered}/
+                  {review.conceptCompressionCoverage.examAnchorsTotal}
+                  {review.conceptCompressionCoverage.examAnchorsMatched?.length ? (
+                    <span className="teacher-coverage-review__muted">
+                      {" "}
+                      ({review.conceptCompressionCoverage.examAnchorsMatched.join(", ")})
+                    </span>
+                  ) : null}
+                </li>
+              </ul>
+              {review.conceptCompressionCoverage.gaps?.length ? (
+                <ul className="teacher-coverage-review__list">
+                  {review.conceptCompressionCoverage.gaps.slice(0, 4).map((g) => (
+                    <li key={g} className="teacher-coverage-review__warning">
+                      {g}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </details>
+          ) : null}
+
           {review.pedagogyCoverage?.enabled ? (
             <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
               <summary>

@@ -226,6 +226,28 @@ export type LessonBoundaryAudit = {
   };
 };
 
+export type ConceptCompressionCoverageSummary = {
+  enabled: boolean;
+  taxonomyKey?: string;
+  compressionScorePct: number;
+  definitionPresent: boolean;
+  whyItMattersPresent: boolean;
+  coreModelPresent: boolean;
+  examAnchorsCovered: number;
+  examAnchorsTotal: number;
+  examAnchorsMatched: string[];
+  examAnchorsMissing: string[];
+  earlyBlockCount?: number;
+  gaps?: string[];
+  warnings?: string[];
+  expectedCompression?: {
+    definition: string;
+    whyItMatters: string;
+    coreModel: string;
+    examAnchors: string[];
+  };
+};
+
 export type LessonCoverageReview = {
   centralConceptId: string | null;
   centralConceptName: string | null;
@@ -257,6 +279,7 @@ export type LessonCoverageReview = {
   pedagogyCoverage?: PedagogyCoverageSummary;
   reasoningCoverage?: GcseReasoningCoverageSummary;
   interactionAuthority?: InteractionAuthoritySummary;
+  conceptCompressionCoverage?: ConceptCompressionCoverageSummary;
   generatedAt: string;
 };
 
