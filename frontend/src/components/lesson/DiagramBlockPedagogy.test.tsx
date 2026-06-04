@@ -49,7 +49,10 @@ describe("DiagramBlockPedagogy", () => {
   });
 
   it("places reveal answer directly below instructions", () => {
-    const display = diagramPedagogyDisplayFromBlock(DIAGRAM_WITH_REVEAL_BLOCK);
+    const display = diagramPedagogyDisplayFromBlock({
+      ...DIAGRAM_WITH_REVEAL_BLOCK,
+      subtitle: "Instruction: Label the organelles on the diagram.",
+    });
     const { container } = render(
       <DiagramBlockPedagogy subtitle={display.instructions} reveal={display.reveal}>
         <img alt="fig" src="/x.png" />
@@ -89,7 +92,7 @@ describe("DiagramBlockPedagogy", () => {
 
     expect(nodeFollows(img, instructions!)).toBe(true);
     expect(nodeFollows(instructions!, reveal)).toBe(true);
-    expect(instructions).toHaveTextContent(/Trace the journey of glucose/i);
+    expect(instructions).toHaveTextContent(/Task:/i);
     expect(instructions).toHaveTextContent(/Identify one pathway where glucose is broken down/i);
     expect(screen.getByText(/Catabolic reactions such as respiration/i)).not.toBeVisible();
     await userEvent.click(screen.getByText(/Reveal answer/i));

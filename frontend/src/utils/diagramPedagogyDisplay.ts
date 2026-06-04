@@ -31,6 +31,10 @@ export type DiagramPedagogyDisplay = {
 const TEACHING_PROSE_MARKERS =
   /\b(central idea|think like an examiner|what actually happens|structure\s*→|why this matters|common slip|exam technique|in short)\b/i;
 
+/** Student-facing diagram copy must start with one of these markers (case-insensitive). */
+export const EXPLICIT_DIAGRAM_STUDENT_MARKER_RE =
+  /(?:^|\n)\s*(?:task|diagram\s+task|instruction|student\s+task)\s*:/i;
+
 const STUDENT_TASK_MARKERS =
   /\b(task:|trace the journey|using the diagram|on the diagram|then explain|how does|how do|what role|your task)\b/i;
 
@@ -128,19 +132,43 @@ export function blockHasDiagramTeachingProse(block: unknown): boolean {
   return false;
 }
 
+export function hasExplicitDiagramStudentMarker(text: string): boolean {
+  return EXPLICIT_DIAGRAM_STUDENT_MARKER_RE.test(String(text ?? "").trim());
+}
+
+/** Text from the first Task / Instruction / Student task marker onward (teaching preamble above is omitted). */
+export function extractExplicitDiagramStudentInstructions(cleaned: string): string | undefined {
+  const t = cleaned.trim();
+  if (!t || !hasExplicitDiagramStudentMarker(t)) return undefined;
+
+  const markerIndex = t.search(EXPLICIT_DIAGRAM_STUDENT_MARKER_RE);
+  if (markerIndex < 0) return undefined;
+
+  let section = t.slice(markerIndex).trim();
+  if (!section || containsDiagramAnswerMaterial(section)) return undefined;
+  if (section.length > 4000) section = section.slice(0, 4000);
+  return section;
+}
+
 function findExplicitDiagramInstruction(block: Record<string, unknown>): string | undefined {
   for (const key of PEDAGOGY_BODY_FIELD_KEYS) {
     const cleaned = cleanedPedagogyField(block, key);
     if (!cleaned) continue;
-    const instrLine = cleaned.match(/(?:^|\n)\s*instruction:\s*(.+)/i);
-    if (instrLine?.[1]) {
-      const line = instrLine[1].trim();
-      if (line.length > 0 && line.length <= 240 && !containsDiagramAnswerMaterial(line)) {
-        return line;
-      }
-    }
+    const extracted = extractExplicitDiagramStudentInstructions(cleaned);
+    if (extracted) return extracted;
   }
   return undefined;
+}
+
+/** True when long teaching prose is stored but no explicit student Task/Instruction marker. */
+export function diagramInstructionsHiddenFromStudents(block: unknown): boolean {
+  if (!blockHasDiagramTeachingProse(block)) return false;
+  const b = blockRecord(block);
+  for (const key of PEDAGOGY_BODY_FIELD_KEYS) {
+    const cleaned = cleanedPedagogyField(b, key);
+    if (cleaned && hasExplicitDiagramStudentMarker(cleaned)) return false;
+  }
+  return true;
 }
 
 function isDiagramTaskLikeCaption(cleaned: string): boolean {
@@ -202,16 +230,9 @@ export function containsDiagramAnswerMaterial(text: string): boolean {
   return false;
 }
 
-/** Structured student task (bullets + prompt), not migrated teaching article. */
+/** True when cleaned text includes an explicit student-facing diagram marker. */
 export function isDiagramStudentTask(cleaned: string): boolean {
-  const t = cleaned.trim();
-  if (!t) return false;
-  if (/(?:^|\n)\s*task\s*:/im.test(t)) return true;
-  if (STUDENT_TASK_MARKERS.test(t)) return true;
-  const actionBullets = (t.match(TASK_ACTION_BULLET_RE) ?? []).length;
-  if (actionBullets >= 2) return true;
-  if (actionBullets >= 1 && /\b(then explain|how does|how do)\b/i.test(t)) return true;
-  return false;
+  return hasExplicitDiagramStudentMarker(cleaned);
 }
 
 export function isDiagramTeachingProse(cleaned: string): boolean {
@@ -247,32 +268,14 @@ export function isValidDiagramSourceCaption(cleaned: string): boolean {
   return false;
 }
 
-/** Visible task text after answer sections are removed (may include bullets and prompts). */
+/** Visible student task text — only when explicitly marked (Task / Instruction / etc.). */
 export function extractVisibleInstructionsFromCleaned(cleaned: string): string | undefined {
   const t = cleaned.trim();
   if (!t) return undefined;
-
-  const instrLine = t.match(/(?:^|\n)\s*instruction:\s*(.+)/i);
-  if (instrLine?.[1]) {
-    const line = instrLine[1].trim();
-    if (line.length > 0 && line.length <= 240 && !containsDiagramAnswerMaterial(line)) {
-      return line;
-    }
-  }
-
-  if (SOURCE_CAPTION_MARKERS.test(t) && !isDiagramStudentTask(t)) {
+  if (SOURCE_CAPTION_MARKERS.test(t) && !hasExplicitDiagramStudentMarker(t)) {
     return undefined;
   }
-
-  if (isDiagramStudentTask(t)) {
-    return t;
-  }
-
-  if (isDiagramTeachingProse(t)) return undefined;
-  if (containsDiagramAnswerMaterial(t)) return undefined;
-  if (t.length > 240) return undefined;
-
-  return t;
+  return extractExplicitDiagramStudentInstructions(t);
 }
 
 function parseFieldForVisibleAndReveal(raw: string): {

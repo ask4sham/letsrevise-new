@@ -1374,7 +1374,14 @@ function mockGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, wea
   return { flashcards, quiz, exam };
 }
 
-async function openaiGeneratePracticeSet({ specKey, topicKey, contextChunks, counts, weakConfidence }) {
+async function openaiGeneratePracticeSet({
+  specKey,
+  topicKey,
+  contextChunks,
+  counts,
+  weakConfidence,
+  coveragePlan,
+}) {
   const axios = require("axios");
   const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey || !String(apiKey).trim()) {
@@ -1404,7 +1411,9 @@ Rules:
 - Keep language GCSE/A-Level appropriate.
 - Return valid JSON only.${weakNote}`;
 
-  const userPrompt = `Spec: ${specKey}
+  const coverageSection = coveragePlan ? `${coveragePlan}\n\n` : "";
+
+  const userPrompt = `${coverageSection}Spec: ${specKey}
 Topic: ${topicKey}
 
 Generate:
@@ -1551,7 +1560,15 @@ function mockGenerateLessonCheckpointDraft({ lessonTitle, specKey, topicKey, ext
   };
 }
 
-async function openaiGenerateLessonCheckpointDraft({ lessonTitle, specKey, topicKey, subject, level, extracted }) {
+async function openaiGenerateLessonCheckpointDraft({
+  lessonTitle,
+  specKey,
+  topicKey,
+  subject,
+  level,
+  extracted,
+  coveragePlan,
+}) {
   const axios = require("axios");
   const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey || !String(apiKey).trim()) {
@@ -1574,7 +1591,9 @@ Rules:
 - Questions must be answerable from the excerpt alone; do not require facts not implied by the excerpt.
 - British English; exam-neutral wording.`;
 
-  const userPrompt = `Lesson title: ${lessonTitle}
+  const coverageSection = coveragePlan ? `${coveragePlan}\n\n` : "";
+
+  const userPrompt = `${coverageSection}Lesson title: ${lessonTitle}
 Spec: ${specKey || "unknown"}
 Topic key: ${topicKey || "unknown"}
 Subject: ${subject || ""}

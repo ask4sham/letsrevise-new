@@ -1,0 +1,36 @@
+{
+  "version": "v1",
+  "purpose": "Operational plan for enabling Beta slot generation at runtime in a controlled, reversible manner. Planning artifact only; no production flag changes in Phase 5 Step 1.",
+  "preconditions": [
+    "Phase 4 slot generation interface and executor contracts are locked and CI-green",
+    "Kill-switch dominance is proven (SLOTGEN_AI_KILL=true forces STUB)",
+    "Allowlist deny-by-default policy remains in force until explicitly enabled"
+  ],
+  "enableOrder": [
+    "Confirm kill-switch is ON (SLOTGEN_AI_KILL=true)",
+    "Confirm FEATURE_SLOTGEN_AI=true for target environment while kill-switch remains ON",
+    "Enable allowlist with minimal cohort rule set (smallest safe scope)",
+    "Set SLOTGEN_AI_ROLLOUT_PERCENT via canary progression (0 -> 1 -> 5) only when stable",
+    "Verify telemetry and health after each step",
+    "Disable kill-switch (SLOTGEN_AI_KILL=false) only after all checks pass"
+  ],
+  "flags": [
+    "FEATURE_SLOTGEN_AI",
+    "SLOTGEN_AI_KILL",
+    "SLOTGEN_AI_ROLLOUT_PERCENT",
+    "slot-generation-allowlist.v1.json (or approved SLOTGEN_ALLOWLIST_PATH override)"
+  ],
+  "verification": [
+    "Executor status remains schema-valid",
+    "Telemetry is emitted and schema-valid",
+    "path=stub when blocked; path=openai only when all gates pass",
+    "Error code distribution is expected (KILL_SWITCH, NOT_ALLOWLISTED, ROLLOUT_EXCLUDED, or OpenAI path outcomes)",
+    "Latency remains within accepted bounds for the current rollout level"
+  ],
+  "rollback": [
+    "Halt progression and set SLOTGEN_AI_KILL=true (instant STUB everywhere)",
+    "Reduce SLOTGEN_AI_ROLLOUT_PERCENT to 0 or disable allowlist",
+    "Set FEATURE_SLOTGEN_AI=false if required",
+    "All changes must be reversible within one operator action"
+  ]
+}

@@ -29,6 +29,9 @@ function applyTeacherBrainBriefInjection(pages, input = {}) {
     subject: input.subject || input.blueprint?.subject || "Biology",
     examBoard: input.examBoard || input.blueprint?.examBoard || input.blueprint?.board || "AQA",
     tier: input.tier || input.blueprint?.tier || "Higher",
+    pages,
+    quiz: input.quiz || input.blueprint?.quiz,
+    lessonId: input.lessonId || input.blueprint?.lessonId,
   });
 
   const result = injectDiagramAndActivityBriefs(pages, brain, {
@@ -61,6 +64,7 @@ function applyTeacherBrainBriefInjection(pages, input = {}) {
     pages: result.pages,
     brain,
     injections: result.injections,
+    coverageMap: brain.coverageMap,
   };
 }
 

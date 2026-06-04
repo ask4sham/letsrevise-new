@@ -16,6 +16,9 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
       - name: Run unit tests
         run: npm test
         env:
@@ -129,10 +132,11 @@ jobs:
             "metadata": { "requiresReview": false }
           }' | node scripts/run-slot-generation-openai.js | node scripts/validate-json.js - docs/curriculum/engine/slot-generation-result.v1.schema.json
 
-      - name: OpenAI slotgen fails when feature enabled (not implemented)
+      - name: OpenAI slotgen returns NOT_ALLOWLISTED when enabled but not allowlisted
         run: |
-          ! FEATURE_SLOTGEN_AI=true npm run slotgen:openai << 'EOF'
-          {
+          set -e
+          FEATURE_SLOTGEN_AI=true \
+          echo '{
             "version": "v1",
             "appliesTo": {
               "subject": "Biology",
@@ -153,20 +157,67 @@ jobs:
               }
             ],
             "metadata": { "requiresReview": false }
-          }
-          EOF
+          }' | node scripts/run-slot-generation-openai.js > /tmp/slotgen-not-allowlisted.stdout.json 2> /tmp/slotgen-not-allowlisted.stderr.log
+          grep '"status": "STUB"' /tmp/slotgen-not-allowlisted.stdout.json
+          grep 'NOT_ALLOWLISTED' /tmp/slotgen-not-allowlisted.stderr.log
+          node scripts/validate-json.js /tmp/slotgen-not-allowlisted.stdout.json docs/curriculum/engine/slot-generation-result.v1.schema.json
       - name: OpenAI slotgen enabled path uses stubbed server (no real network)
         run: |
+          set -e
+          cat > /tmp/slotgen-allowlist-enabled-match-stub.json << 'EOF'
+          {
+            "version": "allowlist.v1",
+            "enabled": true,
+            "mode": "deny_by_default",
+            "rules": [
+              {
+                "id": "stub-server-rule",
+                "enabled": true,
+                "appliesTo": {"subject":["Biology"],"level":["GCSE"],"board":["AQA"],"specVersion":["v1"]},
+                "kinds": ["explanatory"],
+                "slotIds": [],
+                "maxJobsPerRun": 5
+              }
+            ]
+          }
+          EOF
+
           node -e 'const http=require("http");const srv=http.createServer((req,res)=>{let b="";req.on("data",c=>b+=c);req.on("end",()=>{const resp={choices:[{message:{content:"{\"field\":\"content\"}"}}]};res.writeHead(200,{"Content-Type":"application/json"});res.end(JSON.stringify(resp));});});srv.listen(3100);' &
           SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
           sleep 1
-          set -e
-          FEATURE_SLOTGEN_AI=true OPENAI_API_KEY="test-key" OPENAI_BASE_URL="http://127.0.0.1:3100" \
-            echo '{            "version": "v1",            "appliesTo": {              "subject": "Biology",              "level": "GCSE",              "board": "AQA",              "specVersion": "v1"            },            "jobs": [              {                "jobId": "J1",                "slotId": "S1",                "kind": "explanatory",                "mode": "generate",                "input": {},                "output": { "field": "content", "type": "text" },                "sources": [],                "required": true              }            ],            "metadata": { "requiresReview": false }          }' \
-            | npm run slotgen:openai | tee /tmp/slotgen-openai-enabled.json
-          node scripts/validate-json.js /tmp/slotgen-openai-enabled.json docs/curriculum/engine/slot-generation-result.v1.schema.json
-          grep '"status": "COMPLETED"' /tmp/slotgen-openai-enabled.json
-          kill $SERVER_PID
+
+          export FEATURE_SLOTGEN_AI=true
+          export SLOTGEN_ALLOWLIST_PATH=/tmp/slotgen-allowlist-enabled-match-stub.json
+          export SLOTGEN_AI_ROLLOUT_PERCENT=100
+          export OPENAI_API_KEY="test-key"
+          export OPENAI_BASE_URL="http://127.0.0.1:3100"
+
+          echo '{
+            "version": "v1",
+            "appliesTo": {
+              "subject": "Biology",
+              "level": "GCSE",
+              "board": "AQA",
+              "specVersion": "v1"
+            },
+            "jobs": [
+              {
+                "jobId": "J1",
+                "slotId": "S1",
+                "kind": "explanatory",
+                "mode": "generate",
+                "input": {},
+                "output": { "field": "content", "type": "text" },
+                "sources": [],
+                "required": true
+              }
+            ],
+            "metadata": { "requiresReview": false, "allowAI": true }
+          }' | node scripts/run-slot-generation-openai.js > /tmp/slotgen-openai-enabled.stdout.json 2> /tmp/slotgen-openai-enabled.stderr.log
+
+          grep '"status": "COMPLETED"' /tmp/slotgen-openai-enabled.stdout.json
+          node scripts/validate-json.js /tmp/slotgen-openai-enabled.stdout.json docs/curriculum/engine/slot-generation-result.v1.schema.json
       - name: OpenAI slotgen telemetry validates
         run: |
           echo '{
@@ -196,8 +247,9 @@ jobs:
       - name: OpenAI slotgen kill-switch dominance
         run: |
           set -e
-          FEATURE_SLOTGEN_AI=true SLOTGEN_AI_KILL=true \
-            echo '{
+          export FEATURE_SLOTGEN_AI=true
+          export SLOTGEN_AI_KILL=true
+          echo '{
               "version": "v1",
               "appliesTo": {
                 "subject": "Biology",
@@ -218,7 +270,7 @@ jobs:
                 }
               ],
               "metadata": { "requiresReview": false }
-            }' | npm run slotgen:openai > /tmp/slotgen-openai-kill-stdout.json 2> /tmp/slotgen-openai-kill-stderr.log
+            }' | node scripts/run-slot-generation-openai.js > /tmp/slotgen-openai-kill-stdout.json 2> /tmp/slotgen-openai-kill-stderr.log
           node scripts/validate-json.js /tmp/slotgen-openai-kill-stdout.json docs/curriculum/engine/slot-generation-result.v1.schema.json
           grep '"status": "STUB"' /tmp/slotgen-openai-kill-stdout.json
           tail -n 1 /tmp/slotgen-openai-kill-stderr.log > /tmp/slotgen-openai-kill-telemetry.json
@@ -432,7 +484,7 @@ jobs:
       - name: Phase 5 beta enable plan schema validates
         run: |
           node scripts/validate-json.js \
-            docs/curriculum/engine/PHASE_5_BETA_ENABLE_PLAN.md \
+            docs/curriculum/engine/phase-5-beta-enable-plan.v1.json \
             docs/curriculum/engine/phase-5-beta-enable-plan.v1.schema.json
       - name: Phase 8 runtime enable plan schema validates
         run: |

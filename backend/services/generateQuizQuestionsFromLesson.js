@@ -2,6 +2,11 @@
  * Generate draft MCQ payloads for Topic Quiz Bank from lesson text.
  */
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
+const {
+  ensureCoverageGate,
+  appendCoveragePlanToUserPrompt,
+  tagItemsWithCoverageDiagnostics,
+} = require("../utils/coverageGatedLessonLlm");
 
 const SYSTEM = `You are a UK GCSE Biology tutor. Create multiple-choice quiz questions ONLY from the lesson excerpt.
 Rules:
@@ -18,7 +23,9 @@ async function generateQuizQuestionsFromLesson(opts) {
   const maxItems = Math.min(10, Math.max(1, Number(opts.maxItems) || 6));
   const pageList = (opts.pageIds || []).length ? opts.pageIds.join(", ") : "(no page ids)";
 
-  const user = `Lesson topicKey: ${opts.namespacedTopicKey}
+  const gate = ensureCoverageGate(opts);
+
+  const userBase = `Lesson topicKey: ${opts.namespacedTopicKey}
 specKey: ${opts.specKey}
 Valid pageIds: ${pageList}
 
@@ -28,6 +35,10 @@ ${opts.lessonText || "(empty)"}
 Return JSON: { "questions": [ { "questionText": "...", "choices": ["A","B","C","D"], "correctIndex": 0, "explanation": "...", "pageId": "" } ] }
 At most ${maxItems} questions. correctIndex is 0-based.`;
 
+  const user = gate
+    ? appendCoveragePlanToUserPrompt(userBase, gate, maxItems, "quiz")
+    : userBase;
+
   const parsed = await callOpenAiJson({
     system: SYSTEM,
     user,
@@ -35,7 +46,7 @@ At most ${maxItems} questions. correctIndex is 0-based.`;
   });
 
   const raw = Array.isArray(parsed.questions) ? parsed.questions : [];
-  return raw
+  const mapped = raw
     .map((q) => ({
       questionText: String(q.questionText || "").trim(),
       choices: Array.isArray(q.choices) ? q.choices.map((c) => String(c || "").trim()).filter(Boolean) : [],
@@ -44,6 +55,8 @@ At most ${maxItems} questions. correctIndex is 0-based.`;
       pageId: q.pageId != null && String(q.pageId).trim() ? String(q.pageId).trim() : undefined,
     }))
     .filter((q) => q.questionText && q.choices.length >= 2 && Number.isFinite(q.correctIndex));
+
+  return tagItemsWithCoverageDiagnostics(mapped.slice(0, maxItems), gate);
 }
 
 module.exports = { generateQuizQuestionsFromLesson };

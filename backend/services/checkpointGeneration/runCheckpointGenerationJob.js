@@ -7,6 +7,11 @@ const { validateAndNormalizeCheckpointPayload } = require("./validateCheckpointP
 const { validateCheckpointQuality, combineScores } = require("./checkpointQualityValidation");
 const { applyCheckpointItemsToLesson } = require("./applyDraftToLesson");
 const { generateLessonCheckpointDraft } = require("../llm/provider");
+const {
+  createCoverageGateFromLesson,
+  planCoverageGatedQuestionBatch,
+  formatCoveragePlanForPrompt,
+} = require("../../utils/teacherBrainCoverageGate");
 
 function addLog(job, msg) {
   if (!job.logs) job.logs = [];
@@ -33,7 +38,15 @@ async function runCheckpointGenerationJob(job) {
   const specKey = job.specKey || lesson.specKey || "";
   const topicKey = job.topicKey || lesson.topicKey || "";
 
-  addLog(job, "Calling LLM for checkpoint draft");
+  const coverageGate = createCoverageGateFromLesson(lesson);
+  const pageCount = Array.isArray(extracted?.pages) ? extracted.pages.length : 0;
+  const coveragePlans =
+    pageCount > 0
+      ? planCoverageGatedQuestionBatch(coverageGate, pageCount, "checkpoint")
+      : [];
+  const coveragePlan = formatCoveragePlanForPrompt(coveragePlans);
+
+  addLog(job, "Calling LLM for checkpoint draft (coverage-gated)");
   const gen = await generateLessonCheckpointDraft({
     lessonTitle: lesson.title,
     specKey,
@@ -41,6 +54,8 @@ async function runCheckpointGenerationJob(job) {
     subject: lesson.subject,
     level: lesson.level,
     extracted,
+    coveragePlan,
+    coverageDiagnostics: coverageGate.diagnostics,
   });
 
   const rawItems = gen.checkpointItems || [];
@@ -56,9 +71,27 @@ async function runCheckpointGenerationJob(job) {
     combinedScore = combineScores(structuralScore, qualityReport.qualityScore);
   }
 
+  const itemsWithCoverage = items.map((item, i) => {
+    const diagnostic = coverageGate.diagnostics[i];
+    if (!diagnostic) return item;
+    return {
+      ...item,
+      coverage: {
+        conceptId: diagnostic.conceptId,
+        conceptName: diagnostic.conceptName,
+        cognitiveSkill: diagnostic.cognitiveSkill,
+        reasonSelected: diagnostic.reasonSelected,
+        avoidedDuplicates: diagnostic.avoidedDuplicates,
+        coverageBefore: diagnostic.coverageBefore,
+        coverageAfter: diagnostic.coverageAfter,
+      },
+    };
+  });
+
   job.resultPayload = {
-    items,
+    items: itemsWithCoverage,
     rawItemCount: rawItems.length,
+    coverageDiagnostics: coverageGate.diagnostics,
     extractedSummary: extracted.summary,
     structuralScore,
     quality: qualityReport,
@@ -108,7 +141,9 @@ async function runCheckpointGenerationJob(job) {
     combinedScore >= legacyThreshold;
 
   if (autoApplyAllowed) {
-    const { updatedPages } = applyCheckpointItemsToLesson(lesson, items, { onlyIfCheckpointEmpty: true });
+    const { updatedPages } = applyCheckpointItemsToLesson(lesson, itemsWithCoverage, {
+      onlyIfCheckpointEmpty: true,
+    });
     job.reviewStatus = updatedPages > 0 ? "auto_applied" : "pending_review";
     addLog(
       job,

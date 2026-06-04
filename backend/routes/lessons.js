@@ -27,7 +27,9 @@ const { generateLessonQuizFromTopic } = require("../services/generateLessonQuizF
 const { generateLessonPastPapersFromTopic } = require("../services/generateLessonPastPapersFromTopic");
 const { generateLessonAssessmentFromTopic } = require("../services/generateLessonAssessmentFromTopic");
 const { autoGenerateLessonFromBanks } = require("../services/autoGenerateLessonFromBanks");
-const { generateLessonAssets } = require("../services/generateLessonAssets");
+const { generateLessonAssets, META_SOURCE } = require("../services/generateLessonAssets");
+const TopicFlashcard = require("../models/TopicFlashcard");
+const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const auth = require("../middleware/auth");
 const { applyLessonAccess } = require("../middleware");
@@ -3915,6 +3917,77 @@ router.post("/:id/auto-generate", auth, requireLessonOwnerOrAdmin, async (req, r
     }
     console.error("auto-generate error:", err);
     return res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/**
+ * GET /api/lessons/:id/coverage-review — live Teacher Brain coverage diagnostics (no persistence).
+ */
+router.get("/:id/coverage-review", auth, requireLessonOwnerOrAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: "Invalid lesson id" });
+    }
+    const lesson = await Lesson.findById(lessonId).lean();
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    const lid = String(lesson._id);
+    const topicKey = lesson.topicKey || "";
+    const specKey = lesson.specKey || (topicKey.includes(":") ? topicKey.split(":")[0] : "");
+    const ownerId = lesson.teacherId;
+
+    const bankFlashcards = await TopicFlashcard.find({
+      ownerId,
+      "metadata.source": META_SOURCE,
+      "metadata.lessonId": lid,
+    })
+      .select("front back metadata")
+      .lean();
+
+    const bankQuizQuestions = await TopicQuizQuestion.find({
+      ownerId,
+      "metadata.source": META_SOURCE,
+      "metadata.lessonId": lid,
+    })
+      .select("questionText explanation metadata")
+      .lean();
+
+    const bankExamQuestions = await ExamQuestion.find({
+      teacherId: ownerId,
+      "metadata.source": META_SOURCE,
+      "metadata.lessonId": lid,
+    })
+      .select("question markScheme metadata")
+      .lean();
+
+    const review = buildLessonCoverageReview({
+      topic: lesson.subTopic || lesson.topic || lesson.title,
+      topicKey,
+      subTopic: lesson.subTopic,
+      subject: lesson.subject,
+      examBoard: lesson.board,
+      tier: lesson.level,
+      pages: lesson.pages,
+      quiz: lesson.quiz,
+      flashcards: lesson.flashcards,
+      practiceQuestions: [
+        ...(lesson.quiz?.questions || []),
+        ...(lesson.assessment?.questions || []),
+      ],
+      bankFlashcards,
+      bankQuizQuestions,
+      bankExamQuestions,
+    });
+
+    return res.json({ review });
+  } catch (err) {
+    console.error("coverage-review error:", err);
+    return sendInternalError("lessons/coverage-review", err, res, {
+      extra: { error: err.message || "Coverage review failed" },
+    });
   }
 });
 

@@ -31,6 +31,7 @@ describe("Teacher Brain (Phase 1)", () => {
         activityRecommendations: expect.any(Array),
         examTargets: expect.any(Array),
         retrievalPlan: expect.any(Array),
+        coverageMap: expect.any(Object),
       })
     );
   });

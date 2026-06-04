@@ -12,6 +12,11 @@ export type ExplainChunkParams = {
    * Use for structured outputs (e.g. diagram “Test me” JSON) so the model follows the client’s instructions.
    */
   verbatim?: boolean;
+  /** Phase 4: lesson id for coverage-gated generation (optional). */
+  lessonId?: string;
+  /** Phase 4: activity | checkpoint | quiz | hotspot | practice | retrieval | exam */
+  generationKind?: string;
+  suggestedConceptId?: string;
 };
 
 export type ExplainChunkResponse = {
@@ -41,6 +46,9 @@ export async function explainChunk(params: ExplainChunkParams): Promise<ExplainC
     level: params.level,
     subject: params.subject,
     verbatim: params.verbatim,
+    lessonId: params.lessonId,
+    generationKind: params.generationKind,
+    suggestedConceptId: params.suggestedConceptId,
   });
   const body = res.data ?? {};
   const direct =
@@ -342,6 +350,7 @@ export type GenerateHotspotMcqParams = {
   description: string;
   level?: string;
   subject?: string;
+  lessonId?: string;
 };
 
 /** First top-level `{ ... }` balanced-brace substring (handles leading/trailing prose). */
@@ -492,6 +501,8 @@ export async function generateHotspotMcqFromConcept(
       level: params.level,
       subject: params.subject,
       verbatim: true,
+      lessonId: params.lessonId,
+      generationKind: "hotspot",
     });
 
   let res = await explainOnce();
@@ -522,6 +533,7 @@ export type GenerateSequenceRecallParams = {
   keyIdeaHint?: string;
   level?: string;
   subject?: string;
+  lessonId?: string;
 };
 
 export function parseSequenceRecallJson(rawInput: string | unknown): SequenceRecallPayload | null {
@@ -576,6 +588,8 @@ export async function generateSequenceRecallFromStep(
       level: params.level,
       subject: params.subject,
       verbatim: true,
+      lessonId: params.lessonId,
+      generationKind: "retrieval",
     });
 
   let res = await explainOnce();
@@ -664,6 +678,7 @@ export async function generateDragDropPairsFromText(input: {
   subject?: string;
   level?: string;
   text: string;
+  lessonId?: string;
   /**
    * "topic" — short label (e.g. virus structure); 4–6 pairs from the topic alone.
    * "lessonExcerpt" — longer pasted content (up to 8 pairs).
@@ -723,6 +738,8 @@ export async function generateDragDropPairsFromText(input: {
     level: input.level,
     subject: input.subject,
     verbatim: true,
+    lessonId: input.lessonId,
+    generationKind: "activity",
   });
   const raw = String(res.explanation ?? extractTextFromExplainChunkResponse(res) ?? "").trim();
   if (!raw) {

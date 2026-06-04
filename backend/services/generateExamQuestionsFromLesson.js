@@ -3,6 +3,11 @@
  * Distinct from Topic Quiz Bank: no quick recall MCQs here—use quiz generation for those.
  */
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
+const {
+  ensureCoverageGate,
+  appendCoveragePlanToUserPrompt,
+  tagItemsWithCoverageDiagnostics,
+} = require("../utils/coverageGatedLessonLlm");
 
 const SYSTEM = `You are a UK GCSE Biology teacher. Generate EXAM-STYLE structured short / extended written questions from the lesson excerpt only.
 This output feeds the Exam Question Bank (formal assessed items), NOT the Topic Quiz Bank (quick checks).
@@ -29,7 +34,9 @@ async function generateExamQuestionsFromLesson(opts) {
 
   const pageList = (opts.pageIds || []).length ? opts.pageIds.join(", ") : "(no page ids)";
 
-  const user = `Lesson topicKey: ${opts.namespacedTopicKey}
+  const gate = ensureCoverageGate(opts);
+
+  const userBase = `Lesson topicKey: ${opts.namespacedTopicKey}
 specKey: ${opts.specKey}
 Valid pageIds: ${pageList}
 
@@ -47,6 +54,10 @@ Return JSON: { "examQuestions": [ {
 } ] }
 Produce up to ${maxItems} questions (target 10 when the excerpt supports it). All items MUST have type exactly "short". Never include options, choices, or correctIndex.`;
 
+  const user = gate
+    ? appendCoveragePlanToUserPrompt(userBase, gate, maxItems, "exam")
+    : userBase;
+
   const parsed = await callOpenAiJson({
     system: SYSTEM,
     user,
@@ -54,7 +65,7 @@ Produce up to ${maxItems} questions (target 10 when the excerpt supports it). Al
   });
 
   const rawList = Array.isArray(parsed.examQuestions) ? parsed.examQuestions : [];
-  return rawList
+  const mapped = rawList
     .filter((q) => {
       const t = String(q.type || "short").toLowerCase();
       if (t === "mcq") return false;
@@ -74,6 +85,8 @@ Produce up to ${maxItems} questions (target 10 when the excerpt supports it). Al
       pageId: q.pageId != null && String(q.pageId).trim() ? String(q.pageId).trim() : undefined,
     }))
     .filter((q) => q.question && q.markScheme.length >= 2 && q.modelAnswer);
+
+  return tagItemsWithCoverageDiagnostics(mapped.slice(0, maxItems), gate);
 }
 
 module.exports = { generateExamQuestionsFromLesson };

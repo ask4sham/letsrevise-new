@@ -82,6 +82,7 @@ import {
   attachPersistedBlockNumber,
   diagramAuthoringInstructionsForEditor,
   diagramAuthoringInstructionsFromBlock,
+  diagramInstructionsHiddenFromStudents,
   diagramPedagogyDisplayFromBlock,
   diagramBlockForPersist,
   mergeSavedDiagramAuthoringInstructions,
@@ -90,6 +91,7 @@ import {
 } from "../utils/lessonBlockPersist";
 import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 import { TeacherBrainDesignBriefPanel } from "../components/lesson/TeacherBrainDesignBriefPanel";
+import { TeacherCoverageReviewPanel } from "../components/lesson/TeacherCoverageReviewPanel";
 import { hasTeacherBrainDesignBrief } from "../utils/teacherBrainDesignBrief";
 import { injectTeacherBrainBriefs } from "../api/teacherBrainBriefs";
 import {
@@ -752,6 +754,7 @@ const EditLessonPage: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<string>("");
   const [teacherBrainInjectLoading, setTeacherBrainInjectLoading] = useState(false);
   const [teacherBrainBriefRefreshKey, setTeacherBrainBriefRefreshKey] = useState(0);
+  const [coverageReviewRefreshKey, setCoverageReviewRefreshKey] = useState(0);
   /** null = not probed yet; server 404 = feature off (CURRICULUM_AI_REVIEW_ENABLED) */
   const [curriculumAiReviewFeature, setCurriculumAiReviewFeature] = useState<boolean | null>(null);
   const [curriculumReviewLoading, setCurriculumReviewLoading] = useState(false);
@@ -1106,6 +1109,7 @@ const EditLessonPage: React.FC = () => {
           examQuestions: examList.length,
         },
       }));
+      setCoverageReviewRefreshKey((k) => k + 1);
     } catch {
       setAiReviewPanel((prev) => ({ ...prev, pendingDrafts: { flashcards: 0, quizQuestions: 0, examQuestions: 0 } }));
     }
@@ -5392,6 +5396,13 @@ const EditLessonPage: React.FC = () => {
                 );
               })()}
 
+              <div style={{ marginTop: 12 }}>
+                <TeacherCoverageReviewPanel
+                  lessonId={id}
+                  refreshKey={coverageReviewRefreshKey}
+                />
+              </div>
+
               <LearningIntelligenceSummaryPanel pages={lesson?.pages ?? []} />
 
               {/* Card 4: Practice questions (in this lesson) — Lane A */}
@@ -7109,16 +7120,47 @@ const EditLessonPage: React.FC = () => {
                                     style={{ fontSize: "0.9375rem" }}
                                   />
                                 </label>
+                                {diagramInstructionsHiddenFromStudents(d) ? (
+                                  <div
+                                    role="status"
+                                    style={{
+                                      marginBottom: 10,
+                                      padding: "10px 12px",
+                                      borderRadius: 8,
+                                      border: "1px solid #fcd34d",
+                                      background: "#fffbeb",
+                                      color: "#92400e",
+                                      fontSize: 12,
+                                      lineHeight: 1.45,
+                                    }}
+                                  >
+                                    This long diagram text may be hidden from student view. Add &quot;Task:&quot; or
+                                    &quot;Instruction:&quot; to make student-facing instructions appear.
+                                  </div>
+                                ) : null}
                                 <label style={{ display: "block", marginBottom: 10 }}>
                                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Diagram instructions / subtitle</div>
                                   <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
-                                    Short guidance before the image — e.g. &quot;Label the parts you can see, then check against the mark scheme.&quot;
+                                    Shown below the diagram for students only when you start with{" "}
+                                    <strong>Task:</strong>, <strong>Diagram task:</strong>, <strong>Instruction:</strong>, or{" "}
+                                    <strong>Student task:</strong>. Long teaching prose without those markers may be hidden.
+                                  </p>
+                                  <p
+                                    style={{
+                                      margin: "0 0 6px",
+                                      fontSize: 11,
+                                      color: "#6b7280",
+                                      fontFamily: "ui-monospace, monospace",
+                                      whiteSpace: "pre-wrap",
+                                    }}
+                                  >
+                                    {`Task:\n- Label the parts you can see\n- Explain one process\n\nInstruction: Name the three structures labelled A, B, and C.`}
                                   </p>
                                   <LessonAutoTextarea
                                     editorVariant="plain"
                                     value={d.subtitle ?? ""}
                                     onChange={(v) => updateBlock(currentPage!.pageId, idx, { subtitle: v })}
-                                    placeholder="What should students do with this diagram?"
+                                    placeholder={"Task:\n- ...\nInstruction: ..."}
                                     minHeightPx={72}
                                     style={{ fontSize: "0.9375rem" }}
                                   />

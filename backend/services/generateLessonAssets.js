@@ -200,6 +200,7 @@ async function generateLessonAssets(opts) {
         metadata: {
           ...baseMetadata(lesson._id, fc.pageId, "flashcard", lesson),
           kind: "flashcard",
+          ...(fc.coverage ? { coverage: fc.coverage } : {}),
           ...metadataQualityPatch(
             scoreFlashcardDraft({ front: fc.front, back: fc.back, pageId: fc.pageId }),
             "heuristic"
@@ -254,6 +255,7 @@ async function generateLessonAssets(opts) {
         metadata: {
           ...baseMetadata(lesson._id, q.pageId, "quiz", lesson),
           kind: "quiz_mcq",
+          ...(q.coverage ? { coverage: q.coverage } : {}),
           ...metadataQualityPatch(
             scoreQuizMcqDraft({
               questionText: q.questionText,
@@ -334,6 +336,7 @@ async function generateLessonAssets(opts) {
         kind: "exam",
         commandWord: ex.commandWord || "",
         modelAnswer: ex.modelAnswer || "",
+        ...(ex.coverage ? { coverage: ex.coverage } : {}),
         ...metadataQualityPatch(
           scoreExamDraft({
             question: ex.question,
