@@ -80,6 +80,7 @@ const {
   planBoundaryReplacements,
   boundaryReplacementResponseMeta,
 } = require("../../lib/teacherBrain/boundaryReplacementPlanner");
+const { enforceObjectiveBoundariesOnDraft } = require("../../lib/teacherBrain/objectiveBoundaryEnforcer");
 const { resolveSubTopicProfile } = require("../../lib/teacherBrain/subTopicProfiles");
 const {
   createCoverageGateFromLesson,
@@ -4969,6 +4970,19 @@ function sanitizeDraft(draft, opts = {}) {
   // Required by validateLessonStructure; V10.5 / dedupe may drop a keyIdea that held this role earlier.
   ensureSynthesisRole(clean, topic);
 
+  const objectiveBoundaryResult = enforceObjectiveBoundariesOnDraft({
+    pages: clean.pages,
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+    topic,
+  });
+  if (objectiveBoundaryResult.changed) {
+    clean.pages = objectiveBoundaryResult.pages;
+  }
+  if (objectiveBoundaryResult.objectiveBoundary?.outOfScopeObjectiveCount > 0) {
+    clean.objectiveBoundary = objectiveBoundaryResult.objectiveBoundary;
+  }
+
   return clean;
 }
 
@@ -5058,6 +5072,8 @@ async function generateSanitizedDraft({
     subject,
     level,
     topic,
+    topicKey,
+    subTopic: subTopicDisplay || topic,
     strictBlueprint,
     retainTeachingIntentMetadata,
     teachingIntentTagOnly,
@@ -5177,6 +5193,7 @@ router.post("/generate-lesson", auth, async (req, res) => {
       success: true,
       message: "Lesson draft generated successfully.",
       draft: sanitized,
+      ...(sanitized.objectiveBoundary ? { objectiveBoundary: sanitized.objectiveBoundary } : {}),
       mappingHint: {
         lesson: {
           title: sanitized.title,

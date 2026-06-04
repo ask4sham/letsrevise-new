@@ -205,6 +205,14 @@ export function TeacherCoverageReviewPanel({
                     : "High (>10%) — neighbouring-topic leakage detected."}
                 {!review.boundaryAudit.summary.safeToPublish ? " · blockers present (enforce mode)." : null}
               </p>
+              {review.objectiveBoundary?.outOfScopeObjectiveCount ? (
+                <p className="teacher-coverage-review__muted" style={{ marginBottom: 8 }}>
+                  Objectives: {review.objectiveBoundary.outOfScopeObjectiveCount} out-of-scope
+                  {review.objectiveBoundary.replacementItems.length
+                    ? ` · ${review.objectiveBoundary.replacementItems.length} suggested replacements`
+                    : null}
+                </p>
+              ) : null}
               {review.boundaryAudit.blockFindings
                 .filter(
                   (f) => f.boundaryStatus === "forbidden" || f.boundaryStatus === "neighbouring"

@@ -75,6 +75,27 @@ export type BoundaryInteractionReplacementPlanItem = {
   reason: string;
 };
 
+export type ObjectiveBoundarySummary = {
+  outOfScopeObjectiveCount: number;
+  removedOutOfScopeItems: {
+    field: string;
+    text: string;
+    primaryConceptId: string | null;
+    violationType: string | null;
+    reason: string | null;
+  }[];
+  replacementItems: {
+    field: string;
+    original: string;
+    replacement: string;
+    primaryConceptId: string | null;
+    violationType: string | null;
+  }[];
+  warnings: string[];
+  boundaryMode?: number;
+  changed?: boolean;
+};
+
 export type LessonBoundaryReplacementPlan = {
   boundaryProfileKey?: string;
   boundaryMode?: number;
@@ -140,6 +161,7 @@ export type LessonCoverageReview = {
   boundaryWarnings?: string[];
   boundaryAudit?: LessonBoundaryAudit;
   boundaryReplacementPlan?: LessonBoundaryReplacementPlan;
+  objectiveBoundary?: ObjectiveBoundarySummary;
   generatedAt: string;
 };
 
