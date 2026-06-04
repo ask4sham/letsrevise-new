@@ -75,6 +75,32 @@ export type BoundaryInteractionReplacementPlanItem = {
   reason: string;
 };
 
+export type ConceptPriorityTierRow = {
+  id: string;
+  name: string;
+  taughtCount: number;
+  testedCount: number;
+  total: number;
+};
+
+export type ConceptPriorityDistribution = {
+  enabled: boolean;
+  taxonomyKey?: string;
+  tiers: {
+    tier: number;
+    label: string;
+    concepts: ConceptPriorityTierRow[];
+    allConcepts?: ConceptPriorityTierRow[];
+  }[];
+  underrepresented: {
+    conceptId: string;
+    name: string;
+    total: number;
+    message: string;
+  }[];
+  warnings: string[];
+};
+
 export type ObjectiveBoundarySummary = {
   outOfScopeObjectiveCount: number;
   removedOutOfScopeItems: {
@@ -162,6 +188,7 @@ export type LessonCoverageReview = {
   boundaryAudit?: LessonBoundaryAudit;
   boundaryReplacementPlan?: LessonBoundaryReplacementPlan;
   objectiveBoundary?: ObjectiveBoundarySummary;
+  conceptPriorityDistribution?: ConceptPriorityDistribution;
   generatedAt: string;
 };
 

@@ -278,6 +278,38 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.conceptPriorityDistribution?.enabled &&
+          review.conceptPriorityDistribution.tiers?.length ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Concept priority distribution</h4>
+              </summary>
+              {review.conceptPriorityDistribution.underrepresented.length > 0 ? (
+                <ul className="teacher-coverage-review__list">
+                  {review.conceptPriorityDistribution.underrepresented.slice(0, 4).map((u) => (
+                    <li key={u.conceptId} className="teacher-coverage-review__warning">
+                      {u.message}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {review.conceptPriorityDistribution.tiers.map((tier) =>
+                tier.concepts.length > 0 ? (
+                  <div key={tier.tier} style={{ marginTop: 8 }}>
+                    <div className="teacher-coverage-review__muted">{tier.label}</div>
+                    <ul className="teacher-coverage-review__list">
+                      {tier.concepts.slice(0, 6).map((c) => (
+                        <li key={c.id}>
+                          {c.name} ({c.total})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null
+              )}
+            </details>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>
