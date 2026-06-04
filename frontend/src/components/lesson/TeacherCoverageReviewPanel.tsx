@@ -185,6 +185,47 @@ export function TeacherCoverageReviewPanel({
             </div>
           ) : null}
 
+          {review.boundaryAudit?.boundaryProfileKey &&
+          review.boundaryAudit.boundaryMode > 0 ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Boundary audit</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.boundaryAudit.scopeContaminationScore}% contamination ·{" "}
+                  {review.boundaryAudit.neighbourItems + review.boundaryAudit.forbiddenItems}{" "}
+                  out-of-scope
+                </span>
+              </summary>
+              <p className="teacher-coverage-review__muted">
+                {review.boundaryAudit.summary.contaminationLevel === "good"
+                  ? "Within target (0–5%)."
+                  : review.boundaryAudit.summary.contaminationLevel === "warning"
+                    ? "Elevated (5–10%) — review before publish."
+                    : "High (>10%) — neighbouring-topic leakage detected."}
+                {!review.boundaryAudit.summary.safeToPublish ? " · blockers present (enforce mode)." : null}
+              </p>
+              {review.boundaryAudit.blockFindings
+                .filter(
+                  (f) => f.boundaryStatus === "forbidden" || f.boundaryStatus === "neighbouring"
+                )
+                .slice(0, 8)
+                .map((f) => (
+                  <div key={f.blockId} className="teacher-coverage-review__warning">
+                    <strong>
+                      {f.title || f.primaryConceptName} — {f.boundaryStatus}
+                    </strong>
+                    <div className="teacher-coverage-review__muted">{f.location}</div>
+                    {f.suggestedReplacementFocus ? (
+                      <div className="teacher-coverage-review__muted" style={{ marginTop: 4 }}>
+                        Suggested: {f.suggestedReplacementFocus}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+            </details>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>

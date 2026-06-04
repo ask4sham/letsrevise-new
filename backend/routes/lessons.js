@@ -4018,6 +4018,7 @@ router.post("/:id/generate-assets", auth, requireLessonOwnerOrAdmin, async (req,
       skipped: result.skipped,
       errors: result.errors,
       status: result.status,
+      ...(result.boundaryAudit ? { boundaryAudit: result.boundaryAudit } : {}),
     });
   } catch (err) {
     if (err.statusCode === 404) {

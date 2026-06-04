@@ -73,6 +73,10 @@ const { applyTeacherBrainBriefInjection } = require("../services/teacherBrainInj
 const { mergeOneShotCoveragePlanIntoInstructions } = require("../../lib/teacherBrain/oneShotLessonCoveragePlan");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const {
+  auditLessonBoundary,
+  boundaryAuditResponseMeta,
+} = require("../../lib/teacherBrain/lessonBoundaryAudit");
+const {
   createCoverageGateFromLesson,
   createCoverageGenerationGate,
   planCoverageGatedQuestion,
@@ -5925,6 +5929,26 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const v12AdvisorySave = collectV12VisualAdvisoryNotes(finalDraftForQuality);
     const mergedAdvisorySave = [...v7AdvisorySave, ...v12AdvisorySave];
     if (mergedAdvisorySave.length) responsePayload.teachingAdvisory = mergedAdvisorySave;
+
+    try {
+      const boundaryAuditFull = auditLessonBoundary({
+        topic: subTopicDisplay || topic,
+        topicKey: canonicalTopicKey,
+        subTopic: subTopicDisplay,
+        pages: pagesForDb,
+        quiz: lessonDoc.quiz,
+        flashcards: lessonDoc.flashcards,
+        practiceQuestions: lessonDoc.examQuestions,
+      });
+      const boundaryAuditMeta = boundaryAuditResponseMeta(boundaryAuditFull);
+      if (boundaryAuditMeta) responsePayload.boundaryAudit = boundaryAuditMeta;
+    } catch (boundaryAuditErr) {
+      console.warn(
+        "[generate-and-save] boundary audit skipped:",
+        boundaryAuditErr?.message || boundaryAuditErr
+      );
+    }
+
     return res.json(responsePayload);
   } catch (error) {
     if (process.env.NODE_ENV !== "production" && error?.stack) {

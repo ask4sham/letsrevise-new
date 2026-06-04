@@ -33,6 +33,45 @@ export type BoundaryScopeConcept = {
   scope: "in_scope" | "forbidden" | "neighbouring";
 };
 
+export type BoundaryAuditFinding = {
+  blockId: string;
+  blockType: string;
+  title?: string;
+  location: string;
+  primaryConceptId: string | null;
+  primaryConceptName: string;
+  boundaryStatus: "in_scope" | "neighbouring" | "forbidden" | "unknown";
+  severity: "info" | "warning" | "blocker";
+  reason: string;
+  suggestedAction: string;
+  suggestedReplacementFocus?: string;
+};
+
+export type LessonBoundaryAudit = {
+  boundaryProfileKey: string | null;
+  boundaryMode: number;
+  scopeContaminationScore: number;
+  totalAuditedItems: number;
+  inScopeItems: number;
+  neighbourItems: number;
+  forbiddenItems: number;
+  blockFindings: BoundaryAuditFinding[];
+  summary: {
+    safeToPublish: boolean;
+    warnings: string[];
+    blockers: string[];
+    contaminationLevel?: string;
+    assessedCount?: number;
+    repairRecommendations?: {
+      blockId: string;
+      location: string;
+      primaryConceptId: string | null;
+      suggestedReplacementFocus?: string;
+      suggestedAction: string;
+    }[];
+  };
+};
+
 export type LessonCoverageReview = {
   centralConceptId: string | null;
   centralConceptName: string | null;
@@ -57,6 +96,7 @@ export type LessonCoverageReview = {
   outOfScopeConcepts?: BoundaryScopeConcept[];
   scopeContaminationScore?: number;
   boundaryWarnings?: string[];
+  boundaryAudit?: LessonBoundaryAudit;
   generatedAt: string;
 };
 

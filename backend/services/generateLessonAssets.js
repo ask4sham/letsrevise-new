@@ -26,6 +26,10 @@ const {
   scoreExamDraft,
   metadataQualityPatch,
 } = require("../utils/draftQualityScoring");
+const {
+  auditLessonBoundary,
+  boundaryAuditResponseMeta,
+} = require("../../lib/teacherBrain/lessonBoundaryAudit");
 
 const META_SOURCE = "ai_lesson_assets";
 
@@ -359,8 +363,44 @@ async function generateLessonAssets(opts) {
 
   const examSkippedInvalid = summary.skipped.filter((s) => s.type === "exam");
 
+  const lid = String(lesson._id);
+  const bankFlashcards = await TopicFlashcard.find({
+    ownerId,
+    "metadata.source": META_SOURCE,
+    "metadata.lessonId": lid,
+  })
+    .select("front back metadata")
+    .lean();
+  const bankQuizQuestions = await TopicQuizQuestion.find({
+    ownerId,
+    "metadata.source": META_SOURCE,
+    "metadata.lessonId": lid,
+  })
+    .select("questionText explanation metadata")
+    .lean();
+  const bankExamQuestions = await ExamQuestion.find({
+    teacherId: ownerId,
+    "metadata.source": META_SOURCE,
+    "metadata.lessonId": lid,
+  })
+    .select("question markScheme metadata")
+    .lean();
+
+  const boundaryAuditFull = auditLessonBoundary({
+    topic: lesson.subTopic || lesson.topic || lesson.title,
+    topicKey: namespacedTopicKey,
+    subTopic: lesson.subTopic,
+    pages: lesson.pages,
+    quiz: lesson.quiz,
+    flashcards: lesson.flashcards,
+    bankFlashcards,
+    bankQuizQuestions,
+    bankExamQuestions,
+  });
+  const boundaryAudit = boundaryAuditResponseMeta(boundaryAuditFull);
+
   return {
-    lessonId: String(lesson._id),
+    lessonId: lid,
     lessonUpdatedAtSnapshot,
     generated: {
       flashcards: summary.flashcards,
@@ -379,6 +419,7 @@ async function generateLessonAssets(opts) {
     skipped: summary.skipped,
     errors: summary.errors,
     status: summary.errors.length ? "partial" : "ok",
+    ...(boundaryAudit ? { boundaryAudit } : {}),
   };
 }
 
