@@ -83,6 +83,35 @@ export type ConceptPriorityTierRow = {
   total: number;
 };
 
+export type GcseReasoningCoverageSummary = {
+  enabled: boolean;
+  reasoningScorePct: number;
+  structureBlocks: number;
+  adaptationBlocks: number;
+  functionBlocks: number;
+  consequenceBlocks: number;
+  examBlocks: number;
+  fullChainsFound?: number;
+  examChainsFound?: number;
+  conceptReasoning?: {
+    conceptId: string;
+    name: string;
+    mentionCount: number;
+    steps: Record<string, boolean>;
+    stepsComplete: number;
+    complete: boolean;
+  }[];
+  gaps?: {
+    conceptId: string;
+    name: string;
+    missingSteps: string[];
+    steps: Record<string, boolean>;
+    recommendations: string[];
+  }[];
+  recommendations?: string[];
+  warnings?: string[];
+};
+
 export type PedagogyCoverageSummary = {
   enabled: boolean;
   pedagogyScorePct: number;
@@ -211,6 +240,7 @@ export type LessonCoverageReview = {
   objectiveBoundary?: ObjectiveBoundarySummary;
   conceptPriorityDistribution?: ConceptPriorityDistribution;
   pedagogyCoverage?: PedagogyCoverageSummary;
+  reasoningCoverage?: GcseReasoningCoverageSummary;
   generatedAt: string;
 };
 

@@ -337,6 +337,50 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.reasoningCoverage?.enabled ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>GCSE Reasoning Coverage</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.reasoningCoverage.reasoningScorePct}%
+                </span>
+              </summary>
+              <ul className="teacher-coverage-review__list">
+                <li>Structure blocks: {review.reasoningCoverage.structureBlocks}</li>
+                <li>Adaptation blocks: {review.reasoningCoverage.adaptationBlocks}</li>
+                <li>Function blocks: {review.reasoningCoverage.functionBlocks}</li>
+                <li>Consequence blocks: {review.reasoningCoverage.consequenceBlocks}</li>
+                <li>Exam application blocks: {review.reasoningCoverage.examBlocks}</li>
+              </ul>
+              {review.reasoningCoverage.conceptReasoning
+                ?.filter((c) => c.mentionCount > 0)
+                .slice(0, 4)
+                .map((c) => (
+                  <div key={c.conceptId} style={{ marginTop: 8 }}>
+                    <strong>{c.name}</strong>
+                    <ul className="teacher-coverage-review__list teacher-coverage-review__muted">
+                      {Object.entries(c.steps || {}).map(([step, ok]) => (
+                        <li key={step}>
+                          {ok ? "✓" : "✗"} {step.replace(/_/g, " ")}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              {review.reasoningCoverage.gaps?.length ? (
+                <ul className="teacher-coverage-review__list">
+                  {review.reasoningCoverage.gaps.slice(0, 3).map((g) => (
+                    <li key={g.conceptId} className="teacher-coverage-review__warning">
+                      <strong>{g.name}</strong>
+                      {g.recommendations?.[0] ? ` — ${g.recommendations[0]}` : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </details>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>
