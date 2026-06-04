@@ -310,6 +310,33 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.pedagogyCoverage?.enabled ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Pedagogy coverage</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.pedagogyCoverage.pedagogyScorePct}%
+                </span>
+              </summary>
+              <ul className="teacher-coverage-review__list">
+                <li>Structure blocks: {review.pedagogyCoverage.structureBlocks}</li>
+                <li>Adaptation blocks: {review.pedagogyCoverage.adaptationBlocks}</li>
+                <li>Function blocks: {review.pedagogyCoverage.functionBlocks}</li>
+                <li>Exam application blocks: {review.pedagogyCoverage.examBlocks}</li>
+              </ul>
+              {review.pedagogyCoverage.gaps?.length ? (
+                <ul className="teacher-coverage-review__list">
+                  {review.pedagogyCoverage.gaps.slice(0, 4).map((g) => (
+                    <li key={g} className="teacher-coverage-review__warning">
+                      {g}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </details>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>

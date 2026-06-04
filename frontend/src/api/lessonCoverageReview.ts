@@ -83,6 +83,27 @@ export type ConceptPriorityTierRow = {
   total: number;
 };
 
+export type PedagogyCoverageSummary = {
+  enabled: boolean;
+  pedagogyScorePct: number;
+  structureBlocks: number;
+  adaptationBlocks: number;
+  functionBlocks: number;
+  examBlocks: number;
+  requiredInteractionsPresent?: Record<string, boolean>;
+  tier1ConceptCoverage?: {
+    conceptId: string;
+    name: string;
+    mentionCount: number;
+    phasesComplete: number;
+    complete: boolean;
+  }[];
+  gaps: string[];
+  warnings: string[];
+  hasStructureFunctionTable?: boolean;
+  hasMandatoryExam?: boolean;
+};
+
 export type ConceptPriorityDistribution = {
   enabled: boolean;
   taxonomyKey?: string;
@@ -189,6 +210,7 @@ export type LessonCoverageReview = {
   boundaryReplacementPlan?: LessonBoundaryReplacementPlan;
   objectiveBoundary?: ObjectiveBoundarySummary;
   conceptPriorityDistribution?: ConceptPriorityDistribution;
+  pedagogyCoverage?: PedagogyCoverageSummary;
   generatedAt: string;
 };
 
