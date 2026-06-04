@@ -83,6 +83,21 @@ export type ConceptPriorityTierRow = {
   total: number;
 };
 
+export type InteractionAuthoritySummary = {
+  enabled: boolean;
+  profileKey?: string;
+  boundaryMode?: number;
+  authorizedUsed?: string[];
+  blockedRisks?: { blockTitle?: string; blockedKey: string; snippet?: string }[];
+  unauthorisedDetected?: string[];
+  suggestedReplacements?: {
+    blocked: string;
+    replaceWith: string;
+    replaceTitle: string;
+  }[];
+  enforce?: boolean;
+};
+
 export type GcseReasoningCoverageSummary = {
   enabled: boolean;
   reasoningScorePct: number;
@@ -241,6 +256,7 @@ export type LessonCoverageReview = {
   conceptPriorityDistribution?: ConceptPriorityDistribution;
   pedagogyCoverage?: PedagogyCoverageSummary;
   reasoningCoverage?: GcseReasoningCoverageSummary;
+  interactionAuthority?: InteractionAuthoritySummary;
   generatedAt: string;
 };
 

@@ -381,6 +381,34 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.interactionAuthority?.enabled ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Interaction authority</h4>
+              </summary>
+              {review.interactionAuthority.authorizedUsed?.length ? (
+                <p className="teacher-coverage-review__muted">
+                  Authorised used: {review.interactionAuthority.authorizedUsed.join(", ")}
+                </p>
+              ) : null}
+              {review.interactionAuthority.suggestedReplacements?.length ? (
+                <ul className="teacher-coverage-review__list">
+                  {review.interactionAuthority.suggestedReplacements.slice(0, 4).map((s) => (
+                    <li key={s.blocked} className="teacher-coverage-review__warning">
+                      Blocked: {s.blocked.replace(/_/g, " ")} → Replace with: {s.replaceTitle}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {review.interactionAuthority.unauthorisedDetected?.length ? (
+                <p className="teacher-coverage-review__muted">
+                  Unauthorised detected:{" "}
+                  {review.interactionAuthority.unauthorisedDetected.join(", ")}
+                </p>
+              ) : null}
+            </details>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>

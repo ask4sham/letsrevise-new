@@ -90,7 +90,7 @@ describe("boundaryInteractionReplacementPlanner (Phase 3D)", () => {
     expect(plan.interactionReplacementPlans).toEqual([]);
   });
 
-  test("reflex_arc_pathway dragDrop replaces with neurone_structure_drag_drop", () => {
+  test("reflex_arc_pathway dragDrop: 3D template then authority reroute in mode 2", () => {
     process.env.TEACHER_BRAIN_SUBTOPIC_BOUNDARY = "2";
     const profile = resolveSubTopicProfile(STRUCTURE_INPUT);
     const template = nervousSystemStructureInteractionTemplate(
@@ -107,7 +107,8 @@ describe("boundaryInteractionReplacementPlanner (Phase 3D)", () => {
       (p) => p.originalConceptId === "reflex_arc_pathway"
     );
     expect(reflex).toBeTruthy();
-    expect(reflex.replacementTemplateKey).toBe("neurone_structure_drag_drop");
+    expect(reflex.replacementTemplateKey).toBe("impulse_transmission_sequence");
+    expect(reflex.authorityRerouted).toBe(true);
     expect(reflex.originalActivityKind).toBe("dragDrop");
   });
 

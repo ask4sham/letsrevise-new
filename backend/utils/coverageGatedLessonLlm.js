@@ -8,6 +8,7 @@ const {
   attachCoverageMetadata,
 } = require("./teacherBrainCoverageGate");
 const { formatBoundaryReplacementAppendix } = require("../../lib/teacherBrain/boundaryReplacementPlanner");
+const { formatInteractionAuthorityAppendix } = require("../../lib/teacherBrain/interactionAuthorityLayer");
 
 /**
  * @param {object} opts — lesson asset generator opts
@@ -32,13 +33,21 @@ function appendBoundaryReplacementToUserPrompt(baseUserPrompt, gate) {
   return `${section}\n\n${baseUserPrompt}`;
 }
 
+function appendInteractionAuthorityToUserPrompt(baseUserPrompt, gate) {
+  const authority = gate?.interactionAuthority || gate?.boundary?.interactionAuthority;
+  const section = formatInteractionAuthorityAppendix(authority);
+  if (!section) return baseUserPrompt;
+  return `${section}\n\n${baseUserPrompt}`;
+}
+
 function appendCoveragePlanToUserPrompt(baseUserPrompt, gate, count, generationKind) {
-  if (!gate || count <= 0) return baseUserPrompt;
+  if (!gate || count <= 0) return appendInteractionAuthorityToUserPrompt(baseUserPrompt, gate);
   const plans = planCoverageGatedQuestionBatch(gate, count, generationKind);
   const section = formatCoveragePlanForPrompt(plans);
   let out = baseUserPrompt;
   if (section) out = `${section}\n\n${out}`;
-  return appendBoundaryReplacementToUserPrompt(out, gate);
+  out = appendBoundaryReplacementToUserPrompt(out, gate);
+  return appendInteractionAuthorityToUserPrompt(out, gate);
 }
 
 /**
@@ -58,5 +67,6 @@ module.exports = {
   ensureCoverageGate,
   appendCoveragePlanToUserPrompt,
   appendBoundaryReplacementToUserPrompt,
+  appendInteractionAuthorityToUserPrompt,
   tagItemsWithCoverageDiagnostics,
 };

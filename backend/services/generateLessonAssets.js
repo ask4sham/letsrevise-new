@@ -406,6 +406,15 @@ async function generateLessonAssets(opts) {
   const boundaryReplacementPlan = boundaryReplacementResponseMeta(
     coverageGate?.replacementPlan || coverageGate?.boundary?.replacementPlan
   );
+  const { auditInteractionAuthorityFromLesson } = require("../../lib/teacherBrain/interactionAuthorityLayer");
+  const interactionAuthority = auditInteractionAuthorityFromLesson({
+    pages: lesson.pages,
+    authority: coverageGate?.interactionAuthority || coverageGate?.boundary?.interactionAuthority,
+    topicKey: namespacedTopicKey,
+    subTopic: lesson.subTopic,
+    subTopicProfile: coverageGate?.boundary?.subTopicProfile,
+    boundaryMode: coverageGate?.boundary?.boundaryMode,
+  });
 
   return {
     lessonId: lid,
@@ -429,6 +438,7 @@ async function generateLessonAssets(opts) {
     status: summary.errors.length ? "partial" : "ok",
     ...(boundaryAudit ? { boundaryAudit } : {}),
     ...(boundaryReplacementPlan ? { boundaryReplacementPlan } : {}),
+    ...(interactionAuthority?.enabled ? { interactionAuthority } : {}),
   };
 }
 
