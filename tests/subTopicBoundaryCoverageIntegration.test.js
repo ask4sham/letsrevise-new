@@ -111,6 +111,16 @@ describe("SubTopicBoundary × CoverageGate", () => {
     expect(gate.boundary.boundaryStatus).toBe("enforce");
   });
 
+  test("one-shot coverage appendix includes boundary replacement plan when mode >= 1", () => {
+    process.env.TEACHER_BRAIN_SUBTOPIC_BOUNDARY = "1";
+    const { appendix } = buildOneShotLessonCoveragePlanAppendix({
+      ...STRUCTURE_INPUT,
+      pages: contaminatedPages,
+    });
+    expect(appendix).toContain("BOUNDARY REPLACEMENT PLAN");
+    expect(appendix).toMatch(/Instead of/i);
+  });
+
   test("one-shot coverage appendix includes forbidden concept list when profile resolved", () => {
     process.env.TEACHER_BRAIN_SUBTOPIC_BOUNDARY = "1";
     const { appendix } = buildOneShotLessonCoveragePlanAppendix({

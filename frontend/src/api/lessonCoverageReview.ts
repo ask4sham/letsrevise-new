@@ -47,6 +47,29 @@ export type BoundaryAuditFinding = {
   suggestedReplacementFocus?: string;
 };
 
+export type BoundaryReplacementPlanItem = {
+  originalConceptId: string;
+  originalConceptName: string;
+  violationType: string;
+  suggestedReplacementConceptId: string;
+  suggestedReplacementConceptName: string;
+  suggestedActivityKind: string;
+  cognitiveSkill: string;
+  reason: string;
+};
+
+export type LessonBoundaryReplacementPlan = {
+  boundaryProfileKey?: string;
+  boundaryMode?: number;
+  rerouteActive?: boolean;
+  reportOnly?: boolean;
+  blockedConceptIds?: string[];
+  preferredConceptIds?: string[];
+  replacementCount?: number;
+  replacementPlans?: BoundaryReplacementPlanItem[];
+  promptInstructions?: string[];
+};
+
 export type LessonBoundaryAudit = {
   boundaryProfileKey: string | null;
   boundaryMode: number;
@@ -97,6 +120,7 @@ export type LessonCoverageReview = {
   scopeContaminationScore?: number;
   boundaryWarnings?: string[];
   boundaryAudit?: LessonBoundaryAudit;
+  boundaryReplacementPlan?: LessonBoundaryReplacementPlan;
   generatedAt: string;
 };
 

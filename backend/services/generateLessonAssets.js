@@ -30,6 +30,8 @@ const {
   auditLessonBoundary,
   boundaryAuditResponseMeta,
 } = require("../../lib/teacherBrain/lessonBoundaryAudit");
+const { boundaryReplacementResponseMeta } = require("../../lib/teacherBrain/boundaryReplacementPlanner");
+const { createCoverageGateFromLesson } = require("../utils/teacherBrainCoverageGate");
 
 const META_SOURCE = "ai_lesson_assets";
 
@@ -156,6 +158,8 @@ async function generateLessonAssets(opts) {
       ? (lesson.updatedAt instanceof Date ? lesson.updatedAt : new Date(lesson.updatedAt)).toISOString()
       : new Date().toISOString();
 
+  const coverageGate = createCoverageGateFromLesson(lesson);
+
   const runOpts = {
     lesson,
     lessonText,
@@ -163,6 +167,7 @@ async function generateLessonAssets(opts) {
     namespacedTopicKey,
     specKey,
     maxItems: 8,
+    coverageGate,
   };
 
   /** @type {Array<{ front: string; back: string; pageId?: string }>} */
@@ -398,6 +403,9 @@ async function generateLessonAssets(opts) {
     bankExamQuestions,
   });
   const boundaryAudit = boundaryAuditResponseMeta(boundaryAuditFull);
+  const boundaryReplacementPlan = boundaryReplacementResponseMeta(
+    coverageGate?.replacementPlan || coverageGate?.boundary?.replacementPlan
+  );
 
   return {
     lessonId: lid,
@@ -420,6 +428,7 @@ async function generateLessonAssets(opts) {
     errors: summary.errors,
     status: summary.errors.length ? "partial" : "ok",
     ...(boundaryAudit ? { boundaryAudit } : {}),
+    ...(boundaryReplacementPlan ? { boundaryReplacementPlan } : {}),
   };
 }
 

@@ -77,6 +77,11 @@ const {
   boundaryAuditResponseMeta,
 } = require("../../lib/teacherBrain/lessonBoundaryAudit");
 const {
+  planBoundaryReplacements,
+  boundaryReplacementResponseMeta,
+} = require("../../lib/teacherBrain/boundaryReplacementPlanner");
+const { resolveSubTopicProfile } = require("../../lib/teacherBrain/subTopicProfiles");
+const {
   createCoverageGateFromLesson,
   createCoverageGenerationGate,
   planCoverageGatedQuestion,
@@ -5942,6 +5947,17 @@ router.post("/generate-and-save", auth, async (req, res) => {
       });
       const boundaryAuditMeta = boundaryAuditResponseMeta(boundaryAuditFull);
       if (boundaryAuditMeta) responsePayload.boundaryAudit = boundaryAuditMeta;
+      const profile = resolveSubTopicProfile({
+        topicKey: canonicalTopicKey,
+        subTopic: subTopicDisplay,
+        topic,
+      });
+      const replacementPlan = planBoundaryReplacements({
+        boundaryAudit: boundaryAuditFull,
+        subTopicProfile: profile,
+      });
+      const replacementMeta = boundaryReplacementResponseMeta(replacementPlan);
+      if (replacementMeta) responsePayload.boundaryReplacementPlan = replacementMeta;
     } catch (boundaryAuditErr) {
       console.warn(
         "[generate-and-save] boundary audit skipped:",

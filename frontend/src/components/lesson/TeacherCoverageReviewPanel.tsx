@@ -226,6 +226,31 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.boundaryReplacementPlan?.replacementPlans?.length ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Replacement plan</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.boundaryReplacementPlan.rerouteActive
+                    ? "Reroute active for next generation"
+                    : "Advisory for next generation"}
+                </span>
+              </summary>
+              <ul className="teacher-coverage-review__list">
+                {review.boundaryReplacementPlan.replacementPlans.slice(0, 6).map((p) => (
+                  <li key={`${p.originalConceptId}-${p.suggestedReplacementConceptId}`}>
+                    {p.originalConceptName} → {p.suggestedReplacementConceptName}
+                    <span className="teacher-coverage-review__muted">
+                      {" "}
+                      ({p.violationType})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>
