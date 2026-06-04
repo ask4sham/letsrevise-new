@@ -141,6 +141,50 @@ export function TeacherCoverageReviewPanel({
             </div>
           ) : null}
 
+          {review.boundaryProfileKey && review.boundaryStatus !== "off" ? (
+            <div className="teacher-coverage-review__section">
+              <h4>Sub-topic boundary</h4>
+              <p className="teacher-coverage-review__muted">
+                Profile: {review.boundaryProfileKey} · mode: {review.boundaryStatus}
+                {typeof review.scopeContaminationScore === "number"
+                  ? ` · contamination: ${review.scopeContaminationScore}%`
+                  : null}
+              </p>
+              {review.inScopeConcepts && review.inScopeConcepts.length > 0 ? (
+                <>
+                  <div className="teacher-coverage-review__muted">In-scope concepts:</div>
+                  <ul className="teacher-coverage-review__list">
+                    {review.inScopeConcepts.map((c) => (
+                      <li key={c.id}>{c.name}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {review.outOfScopeConcepts && review.outOfScopeConcepts.length > 0 ? (
+                <>
+                  <div className="teacher-coverage-review__muted">Out-of-scope (primary targets):</div>
+                  <ul className="teacher-coverage-review__list">
+                    {review.outOfScopeConcepts.map((c) => (
+                      <li key={c.id}>
+                        {c.name} ({c.scope})
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {review.boundaryWarnings && review.boundaryWarnings.length > 0 ? (
+                <>
+                  <div className="teacher-coverage-review__muted">Boundary warnings:</div>
+                  <ul className="teacher-coverage-review__list">
+                    {review.boundaryWarnings.slice(0, 6).map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
           {review.conceptsTested.length > 0 ? (
             <div className="teacher-coverage-review__section">
               <h4>Concepts tested</h4>

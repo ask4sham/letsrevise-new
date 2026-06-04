@@ -27,6 +27,12 @@ export type CoverageReviewWarning = {
   isCentral?: boolean;
 };
 
+export type BoundaryScopeConcept = {
+  id: string;
+  name: string;
+  scope: "in_scope" | "forbidden" | "neighbouring";
+};
+
 export type LessonCoverageReview = {
   centralConceptId: string | null;
   centralConceptName: string | null;
@@ -44,6 +50,13 @@ export type LessonCoverageReview = {
     bankExamQuestions: number;
   };
   dominanceWarnings: string[];
+  boundaryProfileKey?: string | null;
+  boundaryMode?: number;
+  boundaryStatus?: string;
+  inScopeConcepts?: BoundaryScopeConcept[];
+  outOfScopeConcepts?: BoundaryScopeConcept[];
+  scopeContaminationScore?: number;
+  boundaryWarnings?: string[];
   generatedAt: string;
 };
 
