@@ -71,6 +71,11 @@ const {
 } = require("../services/lessonGeneratorV4Service");
 const { applyTeacherBrainBriefInjection } = require("../services/teacherBrainInjectionService");
 const { mergeOneShotCoveragePlanIntoInstructions } = require("../../lib/teacherBrain/oneShotLessonCoveragePlan");
+const {
+  isDashboardTeacherFirstEnabled,
+  buildDashboardTeacherFirstPromptSection,
+  enforceDashboardTeacherFirstOpening,
+} = require("../../lib/teacherBrain/dashboardTeacherFirstOpening");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const { buildReferenceLessonMaterialPrompt } = require("../../lib/referenceLessonMaterialPrompt");
 const {
@@ -1191,8 +1196,53 @@ ${referencePromptSection}
 `;
   }
 
-  // LETSREVISE LESSON CONTRACT v1.0 — locked instruction
-  out += `
+  const teacherFirstDashboard = isDashboardTeacherFirstEnabled();
+  const flowHintTopic = safeStr(subTopicDisplay, "") || safeStr(topic, "");
+
+  if (teacherFirstDashboard) {
+    out += `
+
+## LETSREVISE LESSON CONTRACT (MANDATORY — TEACHER-FIRST OPENING)
+
+You are generating a LetsRevise lesson. Follow the **EXECUTION PERSONA — CONVERSATIONAL TUTOR** rules in the teaching/style section below (think, behave, and execute like a step-by-step chat tutor; JSON is the transport only).
+
+Follow this exact lesson structure:
+
+1. Open with Lesson Objectives, Prior Knowledge, Definition, Why it matters, Core model, Key examples, and Exam vocabulary (blocks 1–7).
+2. Block 8 must be a SHORT Scenario (role hook, title "Scenario") — only after core knowledge is taught.
+3. Block 9 must be Core Teaching (role concept).
+4. Add one commonMistake block showing an incorrect idea and the corrected version.
+5. Add one keyIdea block for exam pattern recognition.
+6. For each major concept, follow this exact sequence:
+   - diagram (or text block with "image here" if diagram block not available)
+   - immediately next: a keyIdea block titled exactly: "What to Notice" (role whatToNotice where the schema allows)
+   - text explanation
+   - examTip
+   After EVERY diagram in the lesson, the very next block must be that "What to Notice" keyIdea (no other block type in between).
+7. Include at least one worked exam question with a full-mark answer (checkpoint with role workedExample or clearly the main worked example). Every other checkpoint must still contain a real exam-style question (not a placeholder) and a correct answer.
+8. End with:
+   - one keyIdea synthesis block
+   - one checkpoint multiple-choice or recall question
+   - one checkpoint short explain question
+   - one keyIdea final memory rule
+
+## STRUCTURE CONTRACT (MANDATORY — KEEP ALL)
+
+You must still deliver the full lesson skeleton:
+- Lesson Objectives → Prior Knowledge → Definition → Why it matters → Core model → Key examples → Exam vocabulary → Scenario → Core Teaching (first nine blocks)
+- Common mistake (commonMistake: wrong vs correct thinking)
+- Pattern recognition (keyIdea: repeatable exam patterns)
+- Concept loop (each major concept: diagram or "image here" → What to Notice keyIdea → text → examTip, per step 6)
+- Worked example (checkpoint with full-mark style model answer; role workedExample where applicable)
+- Synthesis (keyIdea synthesis before the final checks)
+- Final checkpoints (multiple-choice or recall, then short explain — per step 8)
+- Final memory rule (keyIdea closing memory rule)
+
+Use block roles where the output allows: lessonObjectives, priorKnowledge, definition, whyItMatters, coreModel, keyExamples, examVocabulary, hook (Scenario only at block 8), concept, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
+${buildDashboardTeacherFirstPromptSection({ topic: flowHintTopic, subTopic: subTopicDisplay, topicKey })}
+` + LESSON_BLOCK_FULL_KEYS_INSTRUCTION + LESSON_TEACHING_AND_STYLE_LOCKED;
+  } else {
+    out += `
 
 ## LETSREVISE LESSON CONTRACT (MANDATORY)
 
@@ -1234,9 +1284,9 @@ You must still deliver the full lesson skeleton:
 
 Use block roles where the output allows: hook, coreRule, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
 ` + LESSON_BLOCK_FULL_KEYS_INSTRUCTION + LESSON_TEACHING_AND_STYLE_LOCKED;
+  }
 
   {
-    const flowHintTopic = safeStr(subTopicDisplay, "") || safeStr(topic, "");
     out += `\n\n## TEACHING FLOW HINTS (V5 — follow this sequence)\n`;
     for (const h of buildTopicAwareFlowHints(flowHintTopic)) {
       out += `- ${h}\n`;
@@ -1765,10 +1815,12 @@ function applyRoleFallbacksToLesson(draft) {
     const blocks = page.blocks;
     if (!Array.isArray(blocks)) continue;
 
-    if (blocks[0] && roleStringEmpty(blocks[0].role)) blocks[0].role = "hook";
-    if (blocks[1] && roleStringEmpty(blocks[1].role)) blocks[1].role = "coreRule";
-    if (blocks[2] && roleStringEmpty(blocks[2].role)) blocks[2].role = "commonMistake";
-    if (blocks[3] && roleStringEmpty(blocks[3].role)) blocks[3].role = "patternRecognition";
+    if (!isDashboardTeacherFirstEnabled()) {
+      if (blocks[0] && roleStringEmpty(blocks[0].role)) blocks[0].role = "hook";
+      if (blocks[1] && roleStringEmpty(blocks[1].role)) blocks[1].role = "coreRule";
+      if (blocks[2] && roleStringEmpty(blocks[2].role)) blocks[2].role = "commonMistake";
+      if (blocks[3] && roleStringEmpty(blocks[3].role)) blocks[3].role = "patternRecognition";
+    }
 
     const checkpointBlocks = blocks.filter((b) => b.type === "checkpoint");
     const keyIdeaBlocks = blocks.filter((b) => b.type === "keyIdea");
@@ -4973,6 +5025,13 @@ function sanitizeDraft(draft, opts = {}) {
     clean.objectiveBoundary = objectiveBoundaryResult.objectiveBoundary;
   }
 
+  enforceDashboardTeacherFirstOpening(clean, {
+    topic,
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+    subject,
+  });
+
   return clean;
 }
 
@@ -5657,14 +5716,18 @@ router.post("/generate-and-save", auth, async (req, res) => {
       if (visualId && pagesMerged[0]) {
         const page0 = pagesMerged[0];
         const blocks = Array.isArray(page0.blocks) ? [...page0.blocks] : [];
-        blocks.unshift({
+        const diagramBlock = {
           type: "diagram",
           visualId,
           caption: "Basic cell structure",
           mode: "annotated",
           annotations: [],
           steps: [],
-        });
+        };
+        const insertAt = isDashboardTeacherFirstEnabled()
+          ? Math.min(9, blocks.length)
+          : 0;
+        blocks.splice(insertAt, 0, diagramBlock);
         pagesMerged[0] = { ...page0, blocks };
       } else if (!visualId) {
         console.warn("⚠️ No default cell visual found; skipping fallback diagram injection");
@@ -5799,6 +5862,19 @@ router.post("/generate-and-save", auth, async (req, res) => {
           ],
         };
       }
+    }
+
+    if (isDashboardTeacherFirstEnabled()) {
+      const enforced = enforceDashboardTeacherFirstOpening(
+        { pages: pagesPromoted },
+        {
+          topic,
+          topicKey: canonicalTopicKey,
+          subTopic: subTopicDisplay || topic,
+          subject,
+        }
+      );
+      pagesPromoted = enforced.pages;
     }
 
     const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;
