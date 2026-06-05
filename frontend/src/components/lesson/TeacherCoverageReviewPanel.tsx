@@ -310,6 +310,99 @@ export function TeacherCoverageReviewPanel({
             </details>
           ) : null}
 
+          {review.teacherFirstOpeningCoverage?.enabled ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Teacher-first opening</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.teacherFirstOpeningCoverage.openingScorePct}%
+                </span>
+              </summary>
+              <ul className="teacher-coverage-review__list">
+                <li>
+                  {review.teacherFirstOpeningCoverage.definitionAppearsEarly ? "✓" : "✗"} Definition appears early
+                </li>
+                <li>
+                  {review.teacherFirstOpeningCoverage.whyItMattersAppearsEarly ? "✓" : "✗"} Why it matters appears early
+                </li>
+                <li>
+                  {review.teacherFirstOpeningCoverage.coreModelAppearsEarly ? "✓" : "✗"} Core model appears early
+                </li>
+                <li>
+                  {review.teacherFirstOpeningCoverage.scenarioBeforeDefinition ? "✗" : "✓"} No scenario before definition
+                </li>
+                <li>
+                  {review.teacherFirstOpeningCoverage.scenarioBeforeCoreKnowledge ? "✗" : "✓"} No scenario before core knowledge
+                </li>
+              </ul>
+              {review.teacherFirstOpeningCoverage.flags?.length ? (
+                <ul className="teacher-coverage-review__list">
+                  {review.teacherFirstOpeningCoverage.flags.slice(0, 4).map((flag) => (
+                    <li key={flag} className="teacher-coverage-review__warning">
+                      {flag}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </details>
+          ) : null}
+
+          {review.teachingQualityReview?.enabled ? (
+            <details className="teacher-coverage-review__section teacher-coverage-review__collapse" open>
+              <summary>
+                <h4 style={{ display: "inline", margin: 0 }}>Teaching Quality Review</h4>
+                {" "}
+                <span className="teacher-coverage-review__muted">
+                  {review.teachingQualityReview.scoreLabel}
+                </span>
+              </summary>
+              <p className="teacher-coverage-review__muted">
+                Teaching Quality Score: {review.teachingQualityReview.scoreLabel}
+              </p>
+              {review.teachingQualityReview.strengths?.length ? (
+                <>
+                  <p><strong>Strengths</strong></p>
+                  <ul className="teacher-coverage-review__list">
+                    {review.teachingQualityReview.strengths.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {review.teachingQualityReview.weaknesses?.length ? (
+                <>
+                  <p><strong>Weaknesses</strong></p>
+                  <ul className="teacher-coverage-review__list">
+                    {review.teachingQualityReview.weaknesses.map((w) => (
+                      <li key={w} className="teacher-coverage-review__warning">{w}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {review.teachingQualityReview.missing?.length ? (
+                <>
+                  <p><strong>Missing</strong></p>
+                  <ul className="teacher-coverage-review__list">
+                    {review.teachingQualityReview.missing.map((m) => (
+                      <li key={m} className="teacher-coverage-review__warning">{m}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {review.teachingQualityReview.present?.length ? (
+                <>
+                  <p><strong>Present</strong></p>
+                  <ul className="teacher-coverage-review__list">
+                    {review.teachingQualityReview.present.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </details>
+          ) : null}
+
           {review.conceptCompressionCoverage?.enabled ? (
             <details className="teacher-coverage-review__section teacher-coverage-review__collapse">
               <summary>

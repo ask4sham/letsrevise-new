@@ -226,6 +226,49 @@ export type LessonBoundaryAudit = {
   };
 };
 
+export type TeacherFirstOpeningCoverageSummary = {
+  enabled?: boolean;
+  taxonomyKey?: string | null;
+  openingScorePct?: number;
+  definitionAppearsEarly?: boolean;
+  whyItMattersAppearsEarly?: boolean;
+  coreModelAppearsEarly?: boolean;
+  examVocabularyPresent?: boolean;
+  examVocabularyMatched?: string[];
+  examVocabularyTotal?: number;
+  scenarioBeforeDefinition?: boolean;
+  scenarioBeforeCoreKnowledge?: boolean;
+  keyExamplesAppearsEarly?: boolean;
+  openingTooScenarioHeavy?: boolean;
+  definitionDelayed?: boolean;
+  coreModelDelayed?: boolean;
+  examVocabularyMissing?: boolean;
+  flags?: string[];
+  warnings?: string[];
+};
+
+export type TeachingQualityDimensionScore = {
+  id: string;
+  label: string;
+  score: number;
+  maxScore: number;
+  signals?: string[];
+};
+
+export type TeachingQualityReviewSummary = {
+  enabled: boolean;
+  totalScore: number;
+  maxTotalScore: number;
+  scoreLabel: string;
+  scorePct: number;
+  strengths: string[];
+  weaknesses: string[];
+  missing: string[];
+  present: string[];
+  dimensions?: Record<string, TeachingQualityDimensionScore>;
+  coreTeachingIndex?: number;
+};
+
 export type ConceptCompressionCoverageSummary = {
   enabled: boolean;
   taxonomyKey?: string;
@@ -280,6 +323,8 @@ export type LessonCoverageReview = {
   reasoningCoverage?: GcseReasoningCoverageSummary;
   interactionAuthority?: InteractionAuthoritySummary;
   conceptCompressionCoverage?: ConceptCompressionCoverageSummary;
+  teacherFirstOpeningCoverage?: TeacherFirstOpeningCoverageSummary;
+  teachingQualityReview?: TeachingQualityReviewSummary;
   generatedAt: string;
 };
 

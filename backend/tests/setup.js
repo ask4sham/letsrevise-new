@@ -8,6 +8,8 @@ if (!process.env.OPENAI_API_KEY || !String(process.env.OPENAI_API_KEY).trim()) {
   process.env.OPENAI_API_KEY = "sk-test-ci-dummy";
 }
 process.env.NODE_ENV = process.env.NODE_ENV || "test";
+// Default off in integration tests — teacher-first tests opt in explicitly.
+process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "0";
 const mongoose = require("mongoose");
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
 
