@@ -85,7 +85,30 @@ describe("Interactive Diagram topic specialization", () => {
     expect(pages[0].blocks[0].note).toMatch(/Spinal cord/i);
   });
 
-  test("Nervous System topic resolves to brain brief", () => {
+  test("nervous-system-structure sub-topic uses generic diagram brief not brain/reflexArc", () => {
+    const topicKey = "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure";
+    const subTopic = "Structure and function of the nervous system";
+    expect(
+      resolveInteractiveDiagramTopicKind({ topic: subTopic, topicKey, subTopic })
+    ).toBe("generic");
+
+    const brain = runTeacherBrain({
+      topic: subTopic,
+      topicKey,
+      subTopic,
+      subject: "Biology",
+      examBoard: "AQA",
+      tier: "Higher",
+    });
+    const { pages } = injectDiagramAndActivityBriefs(sampleInteractiveDiagramPage(), brain, {
+      topic: subTopic,
+      topicKey,
+      subTopic,
+    });
+    expect(pages[0].blocks[0].note).not.toMatch(/BRAIN DIAGRAM BRIEF|REFLEX ARC DIAGRAM BRIEF/i);
+  });
+
+  test("Nervous System parent topic still resolves to brain brief when no leaf profile", () => {
     const brain = runTeacherBrain({ topic: "Nervous System", subject: "Biology" });
     const { pages } = injectDiagramAndActivityBriefs(sampleInteractiveDiagramPage(), brain);
     expect(pages[0].blocks[0].note).toMatch(/BRAIN DIAGRAM BRIEF/i);

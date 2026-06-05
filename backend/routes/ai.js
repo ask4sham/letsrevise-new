@@ -87,6 +87,7 @@ const {
   boundaryReplacementResponseMeta,
 } = require("../../lib/teacherBrain/boundaryReplacementPlanner");
 const { enforceObjectiveBoundariesOnDraft } = require("../../lib/teacherBrain/objectiveBoundaryEnforcer");
+const { enforceInteractionAuthorityOnDraft } = require("../../lib/teacherBrain/interactionAuthorityEnforcer");
 const { resolveSubTopicProfile } = require("../../lib/teacherBrain/subTopicProfiles");
 const {
   createCoverageGateFromLesson,
@@ -1567,6 +1568,9 @@ async function improveDraftWithSecondPass(
     additionalInstructions = "",
     retainTeachingIntentMetadata = false,
     teachingIntentTagOnly = false,
+    topicKey = null,
+    subTopic = null,
+    subTopicDisplay = null,
   } = context || {};
 
   const qualityIssuesList = Array.isArray(qualityIssues) ? qualityIssues : [];
@@ -1651,6 +1655,8 @@ async function improveDraftWithSecondPass(
     subject,
     level,
     topic,
+    topicKey,
+    subTopic: subTopic || subTopicDisplay || topic,
     strictBlueprint,
     retainTeachingIntentMetadata,
     teachingIntentTagOnly,
@@ -5025,6 +5031,19 @@ function sanitizeDraft(draft, opts = {}) {
     clean.objectiveBoundary = objectiveBoundaryResult.objectiveBoundary;
   }
 
+  const interactionAuthorityResult = enforceInteractionAuthorityOnDraft({
+    pages: clean.pages,
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+    topic,
+  });
+  if (interactionAuthorityResult.changed) {
+    clean.pages = interactionAuthorityResult.pages;
+  }
+  if (interactionAuthorityResult.enforcement?.blocksRerouted?.length) {
+    clean.interactionAuthorityEnforcement = interactionAuthorityResult.enforcement;
+  }
+
   enforceDashboardTeacherFirstOpening(clean, {
     topic,
     topicKey: opts.topicKey,
@@ -5581,6 +5600,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
             additionalInstructions,
             retainTeachingIntentMetadata,
             teachingIntentTagOnly,
+            topicKey: canonicalTopicKey,
+            subTopic: subTopicDisplay || topic,
           }
         );
         finalDraft = improved.sanitized;
@@ -5875,6 +5896,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
         }
       );
       pagesPromoted = enforced.pages;
+    }
+
+    const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
+      pages: pagesPromoted,
+      topicKey: canonicalTopicKey,
+      subTopic: subTopicDisplay || topic,
+      topic,
+    });
+    if (interactionAuthorityFinal.changed) {
+      pagesPromoted = interactionAuthorityFinal.pages;
     }
 
     const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;
