@@ -237,6 +237,8 @@ export type TeacherFirstOpeningCoverageSummary = {
   examVocabularyMatched?: string[];
   examVocabularyTotal?: number;
   scenarioBeforeDefinition?: boolean;
+  scenarioBeforeCoreKnowledge?: boolean;
+  keyExamplesAppearsEarly?: boolean;
   openingTooScenarioHeavy?: boolean;
   definitionDelayed?: boolean;
   coreModelDelayed?: boolean;

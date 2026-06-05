@@ -95,8 +95,13 @@ describe("teacherFirstKnowledgeIntegration (Phase 3H.1)", () => {
       pages: scenarioHeavyPages,
     });
     expect(review.teacherFirstOpeningCoverage?.scenarioBeforeDefinition).toBe(true);
+    expect(review.teacherFirstOpeningCoverage?.scenarioBeforeCoreKnowledge).toBe(true);
     expect(review.teacherFirstOpeningCoverage?.flags).toEqual(
-      expect.arrayContaining(["Opening too scenario-heavy", "Scenario before definition"])
+      expect.arrayContaining([
+        "Opening too scenario-heavy",
+        "Scenario before definition",
+        "Scenario before core knowledge",
+      ])
     );
   });
 

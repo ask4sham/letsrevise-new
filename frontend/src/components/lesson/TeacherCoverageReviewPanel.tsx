@@ -332,6 +332,9 @@ export function TeacherCoverageReviewPanel({
                 <li>
                   {review.teacherFirstOpeningCoverage.scenarioBeforeDefinition ? "✗" : "✓"} No scenario before definition
                 </li>
+                <li>
+                  {review.teacherFirstOpeningCoverage.scenarioBeforeCoreKnowledge ? "✗" : "✓"} No scenario before core knowledge
+                </li>
               </ul>
               {review.teacherFirstOpeningCoverage.flags?.length ? (
                 <ul className="teacher-coverage-review__list">
