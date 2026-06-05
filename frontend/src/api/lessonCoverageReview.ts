@@ -226,6 +226,25 @@ export type LessonBoundaryAudit = {
   };
 };
 
+export type TeacherFirstOpeningCoverageSummary = {
+  enabled?: boolean;
+  taxonomyKey?: string | null;
+  openingScorePct?: number;
+  definitionAppearsEarly?: boolean;
+  whyItMattersAppearsEarly?: boolean;
+  coreModelAppearsEarly?: boolean;
+  examVocabularyPresent?: boolean;
+  examVocabularyMatched?: string[];
+  examVocabularyTotal?: number;
+  scenarioBeforeDefinition?: boolean;
+  openingTooScenarioHeavy?: boolean;
+  definitionDelayed?: boolean;
+  coreModelDelayed?: boolean;
+  examVocabularyMissing?: boolean;
+  flags?: string[];
+  warnings?: string[];
+};
+
 export type ConceptCompressionCoverageSummary = {
   enabled: boolean;
   taxonomyKey?: string;
@@ -280,6 +299,7 @@ export type LessonCoverageReview = {
   reasoningCoverage?: GcseReasoningCoverageSummary;
   interactionAuthority?: InteractionAuthoritySummary;
   conceptCompressionCoverage?: ConceptCompressionCoverageSummary;
+  teacherFirstOpeningCoverage?: TeacherFirstOpeningCoverageSummary;
   generatedAt: string;
 };
 
