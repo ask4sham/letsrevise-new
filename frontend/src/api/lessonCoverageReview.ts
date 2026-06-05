@@ -247,6 +247,28 @@ export type TeacherFirstOpeningCoverageSummary = {
   warnings?: string[];
 };
 
+export type TeachingQualityDimensionScore = {
+  id: string;
+  label: string;
+  score: number;
+  maxScore: number;
+  signals?: string[];
+};
+
+export type TeachingQualityReviewSummary = {
+  enabled: boolean;
+  totalScore: number;
+  maxTotalScore: number;
+  scoreLabel: string;
+  scorePct: number;
+  strengths: string[];
+  weaknesses: string[];
+  missing: string[];
+  present: string[];
+  dimensions?: Record<string, TeachingQualityDimensionScore>;
+  coreTeachingIndex?: number;
+};
+
 export type ConceptCompressionCoverageSummary = {
   enabled: boolean;
   taxonomyKey?: string;
@@ -302,6 +324,7 @@ export type LessonCoverageReview = {
   interactionAuthority?: InteractionAuthoritySummary;
   conceptCompressionCoverage?: ConceptCompressionCoverageSummary;
   teacherFirstOpeningCoverage?: TeacherFirstOpeningCoverageSummary;
+  teachingQualityReview?: TeachingQualityReviewSummary;
   generatedAt: string;
 };
 
