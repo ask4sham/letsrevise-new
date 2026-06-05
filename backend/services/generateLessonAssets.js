@@ -26,6 +26,12 @@ const {
   scoreExamDraft,
   metadataQualityPatch,
 } = require("../utils/draftQualityScoring");
+const {
+  auditLessonBoundary,
+  boundaryAuditResponseMeta,
+} = require("../../lib/teacherBrain/lessonBoundaryAudit");
+const { boundaryReplacementResponseMeta } = require("../../lib/teacherBrain/boundaryReplacementPlanner");
+const { createCoverageGateFromLesson } = require("../utils/teacherBrainCoverageGate");
 
 const META_SOURCE = "ai_lesson_assets";
 
@@ -152,6 +158,8 @@ async function generateLessonAssets(opts) {
       ? (lesson.updatedAt instanceof Date ? lesson.updatedAt : new Date(lesson.updatedAt)).toISOString()
       : new Date().toISOString();
 
+  const coverageGate = createCoverageGateFromLesson(lesson);
+
   const runOpts = {
     lesson,
     lessonText,
@@ -159,6 +167,7 @@ async function generateLessonAssets(opts) {
     namespacedTopicKey,
     specKey,
     maxItems: 8,
+    coverageGate,
   };
 
   /** @type {Array<{ front: string; back: string; pageId?: string }>} */
@@ -359,8 +368,56 @@ async function generateLessonAssets(opts) {
 
   const examSkippedInvalid = summary.skipped.filter((s) => s.type === "exam");
 
+  const lid = String(lesson._id);
+  const bankFlashcards = await TopicFlashcard.find({
+    ownerId,
+    "metadata.source": META_SOURCE,
+    "metadata.lessonId": lid,
+  })
+    .select("front back metadata")
+    .lean();
+  const bankQuizQuestions = await TopicQuizQuestion.find({
+    ownerId,
+    "metadata.source": META_SOURCE,
+    "metadata.lessonId": lid,
+  })
+    .select("questionText explanation metadata")
+    .lean();
+  const bankExamQuestions = await ExamQuestion.find({
+    teacherId: ownerId,
+    "metadata.source": META_SOURCE,
+    "metadata.lessonId": lid,
+  })
+    .select("question markScheme metadata")
+    .lean();
+
+  const boundaryAuditFull = auditLessonBoundary({
+    topic: lesson.subTopic || lesson.topic || lesson.title,
+    topicKey: namespacedTopicKey,
+    subTopic: lesson.subTopic,
+    pages: lesson.pages,
+    quiz: lesson.quiz,
+    flashcards: lesson.flashcards,
+    bankFlashcards,
+    bankQuizQuestions,
+    bankExamQuestions,
+  });
+  const boundaryAudit = boundaryAuditResponseMeta(boundaryAuditFull);
+  const boundaryReplacementPlan = boundaryReplacementResponseMeta(
+    coverageGate?.replacementPlan || coverageGate?.boundary?.replacementPlan
+  );
+  const { auditInteractionAuthorityFromLesson } = require("../../lib/teacherBrain/interactionAuthorityLayer");
+  const interactionAuthority = auditInteractionAuthorityFromLesson({
+    pages: lesson.pages,
+    authority: coverageGate?.interactionAuthority || coverageGate?.boundary?.interactionAuthority,
+    topicKey: namespacedTopicKey,
+    subTopic: lesson.subTopic,
+    subTopicProfile: coverageGate?.boundary?.subTopicProfile,
+    boundaryMode: coverageGate?.boundary?.boundaryMode,
+  });
+
   return {
-    lessonId: String(lesson._id),
+    lessonId: lid,
     lessonUpdatedAtSnapshot,
     generated: {
       flashcards: summary.flashcards,
@@ -379,6 +436,9 @@ async function generateLessonAssets(opts) {
     skipped: summary.skipped,
     errors: summary.errors,
     status: summary.errors.length ? "partial" : "ok",
+    ...(boundaryAudit ? { boundaryAudit } : {}),
+    ...(boundaryReplacementPlan ? { boundaryReplacementPlan } : {}),
+    ...(interactionAuthority?.enabled ? { interactionAuthority } : {}),
   };
 }
 

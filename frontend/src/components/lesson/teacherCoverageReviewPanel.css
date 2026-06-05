@@ -80,3 +80,13 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+.teacher-coverage-review__collapse summary {
+  cursor: pointer;
+  list-style: disclosure-closed;
+  font-size: 12px;
+}
+
+.teacher-coverage-review__collapse[open] summary {
+  margin-bottom: 8px;
+}

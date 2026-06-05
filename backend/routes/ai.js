@@ -72,6 +72,17 @@ const {
 const { applyTeacherBrainBriefInjection } = require("../services/teacherBrainInjectionService");
 const { mergeOneShotCoveragePlanIntoInstructions } = require("../../lib/teacherBrain/oneShotLessonCoveragePlan");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
+const { buildReferenceLessonMaterialPrompt } = require("../../lib/referenceLessonMaterialPrompt");
+const {
+  auditLessonBoundary,
+  boundaryAuditResponseMeta,
+} = require("../../lib/teacherBrain/lessonBoundaryAudit");
+const {
+  planBoundaryReplacements,
+  boundaryReplacementResponseMeta,
+} = require("../../lib/teacherBrain/boundaryReplacementPlanner");
+const { enforceObjectiveBoundariesOnDraft } = require("../../lib/teacherBrain/objectiveBoundaryEnforcer");
+const { resolveSubTopicProfile } = require("../../lib/teacherBrain/subTopicProfiles");
 const {
   createCoverageGateFromLesson,
   createCoverageGenerationGate,
@@ -301,7 +312,7 @@ const LESSON_TEACHING_AND_STYLE_LOCKED = `
 
 ## TEACHING AND STYLE (MANDATORY)
 
-User-provided additional instructions override stylistic defaults where applicable.
+User-provided reference lesson material overrides stylistic defaults where applicable.
 
 ## EXECUTION PERSONA — CONVERSATIONAL TUTOR (CHATGPT-LIKE, MANDATORY)
 
@@ -1132,24 +1143,8 @@ function injectPromptVars(template, vars) {
   return out.trim();
 }
 
-/** Highest-priority teacher free-text; injected into system + user prompt (first pass + second pass). */
-function buildAdditionalInstructionsStrong(additionalInstructions) {
-  const raw =
-    additionalInstructions && typeof additionalInstructions === "string"
-      ? additionalInstructions.trim()
-      : "";
-  if (!raw) return "";
-  return `## USER REQUIREMENTS (HIGHEST PRIORITY)
-The following requirements MUST be followed exactly:
-
-${raw}
-
-If any conflict occurs between these instructions and other rules,
-PRIORITISE THESE USER REQUIREMENTS.`;
-}
-
-function buildSystemPrompt(subject, level, additionalInstructions = "") {
-  const userReq = buildAdditionalInstructionsStrong(additionalInstructions);
+function buildSystemPrompt(subject, level, referencePromptSection = "") {
+  const ref = String(referencePromptSection || "").trim();
   // Keep system prompt compact; behaviour detail lives in LESSON_TEACHING_AND_STYLE_LOCKED + MD template.
   const base = [
     `You are an expert UK curriculum tutor teaching one student step-by-step — like a leading conversational tutor: clear, patient, encouraging, never patronising.`,
@@ -1157,7 +1152,7 @@ function buildSystemPrompt(subject, level, additionalInstructions = "") {
     `Be exam-accurate and British English. JSON is only the wire format — titles and content strings carry natural tutor voice.`,
     `Return ONLY valid JSON matching the schema. No text before or after the JSON.`,
   ].join(" ");
-  return userReq ? `${base}\n\n${userReq}` : base;
+  return ref ? `${base}\n\n${ref}` : base;
 }
 
 function buildUserPromptFromMd({
@@ -1174,6 +1169,7 @@ function buildUserPromptFromMd({
   requiredKeywords = [],
   requiredMisconceptions = [],
   additionalInstructions = "",
+  engineInstructions = "",
   strictSpec = false,
 }) {
   const lvl = normalizeLevel(level);
@@ -1187,11 +1183,11 @@ function buildUserPromptFromMd({
     tier: tierFinal,
   });
 
-  const ADDITIONAL_INSTRUCTIONS_STRONG = buildAdditionalInstructionsStrong(additionalInstructions);
-  if (ADDITIONAL_INSTRUCTIONS_STRONG) {
+  const referencePromptSection = buildReferenceLessonMaterialPrompt(additionalInstructions);
+  if (referencePromptSection) {
     out += `
 
-${ADDITIONAL_INSTRUCTIONS_STRONG}
+${referencePromptSection}
 `;
   }
 
@@ -1290,6 +1286,10 @@ Use block roles where the output allows: hook, coreRule, commonMistake, patternR
   if (strictSpec === true) {
     out += "\n\n## CRITICAL: Strictly follow specification\n";
     out += "The teacher has requested STRICT spec alignment. Do NOT add any content beyond the specification points. No extra topics, no out-of-spec detail. Stay strictly within the curriculum scope.\n";
+  }
+  const engineBlock = String(engineInstructions || "").trim();
+  if (engineBlock) {
+    out += `\n\n${engineBlock}\n`;
   }
   out += buildBoardPromptFragment(board);
   return out;
@@ -1524,13 +1524,13 @@ async function improveDraftWithSecondPass(
   const curriculumLines = Array.isArray(curriculumIssues) ? curriculumIssues : [];
   const structureLines = Array.isArray(structureIssues) ? structureIssues.map((s) => `- ${s}`) : [];
 
-  const ADDITIONAL_INSTRUCTIONS_STRONG = buildAdditionalInstructionsStrong(additionalInstructions);
+  const referencePromptSection = buildReferenceLessonMaterialPrompt(additionalInstructions);
   const systemPrompt = [
     "You are an expert UK GCSE teacher and examiner improving an existing LetsRevise lesson draft.",
     "Target: conversational tutor in chat — step-by-step understanding and exam success (ChatGPT-like flow), NOT structured notes or document outlines.",
     "Each block should read like the next message in a patient tutorial: connect to the previous idea, anticipate confusion, then advance.",
     "Return ONLY valid JSON. Match the lesson draft schema exactly. Block types: text, keyIdea, examTip, commonMistake, stretch, checkpoint, diagram. Assign role and title on blocks where applicable (e.g. role: \"hook\", role: \"whatToNotice\", title: \"What to Notice\").",
-    ADDITIONAL_INSTRUCTIONS_STRONG,
+    referencePromptSection,
   ]
     .filter(Boolean)
     .join(" ");
@@ -1571,8 +1571,8 @@ async function improveDraftWithSecondPass(
     "## REASONING CHAIN + COMPRESSION (V6)",
     ...buildTopicAwareReasoningChainHints(safeStr(topic, "")).map((h) => `- ${h}`),
   ];
-  if (ADDITIONAL_INSTRUCTIONS_STRONG) {
-    userPromptParts.unshift("", ADDITIONAL_INSTRUCTIONS_STRONG);
+  if (referencePromptSection) {
+    userPromptParts.unshift("", referencePromptSection);
   }
   if (curriculumLines.length || structureLines.length) {
     userPromptParts.push("", "ADDITIONAL VALIDATION FEEDBACK (fix these too):");
@@ -4960,6 +4960,19 @@ function sanitizeDraft(draft, opts = {}) {
   // Required by validateLessonStructure; V10.5 / dedupe may drop a keyIdea that held this role earlier.
   ensureSynthesisRole(clean, topic);
 
+  const objectiveBoundaryResult = enforceObjectiveBoundariesOnDraft({
+    pages: clean.pages,
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+    topic,
+  });
+  if (objectiveBoundaryResult.changed) {
+    clean.pages = objectiveBoundaryResult.pages;
+  }
+  if (objectiveBoundaryResult.objectiveBoundary?.outOfScopeObjectiveCount > 0) {
+    clean.objectiveBoundary = objectiveBoundaryResult.objectiveBoundary;
+  }
+
   return clean;
 }
 
@@ -5012,11 +5025,13 @@ async function generateSanitizedDraft({
   requiredKeywords = [],
   requiredMisconceptions = [],
   additionalInstructions = "",
+  engineInstructions = "",
   strictSpec = false,
   retainTeachingIntentMetadata = false,
   teachingIntentTagOnly = false,
 }) {
-  const systemPrompt = buildSystemPrompt(subject, level, additionalInstructions);
+  const referencePromptSection = buildReferenceLessonMaterialPrompt(additionalInstructions);
+  const systemPrompt = buildSystemPrompt(subject, level, referencePromptSection);
   const userPrompt = buildUserPromptFromMd({
     topic,
     subject,
@@ -5031,6 +5046,7 @@ async function generateSanitizedDraft({
     requiredKeywords,
     requiredMisconceptions,
     additionalInstructions,
+    engineInstructions,
     strictSpec,
   });
 
@@ -5049,6 +5065,8 @@ async function generateSanitizedDraft({
     subject,
     level,
     topic,
+    topicKey,
+    subTopic: subTopicDisplay || topic,
     strictBlueprint,
     retainTeachingIntentMetadata,
     teachingIntentTagOnly,
@@ -5105,8 +5123,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
       );
     }
 
-    const additionalInstructionsWithCoverage = mergeOneShotCoveragePlanIntoInstructions(
-      additionalInstructions,
+    const engineInstructionsWithCoverage = mergeOneShotCoveragePlanIntoInstructions(
+      "",
       {
         topic,
         subject,
@@ -5126,7 +5144,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
       tier,
       specPoints,
       pastPaperSnippets,
-      additionalInstructions: additionalInstructionsWithCoverage,
+      additionalInstructions,
+      engineInstructions: engineInstructionsWithCoverage,
       retainTeachingIntentMetadata,
       teachingIntentTagOnly,
     });
@@ -5150,7 +5169,8 @@ router.post("/generate-lesson", auth, async (req, res) => {
           specPoints,
           pastPaperSnippets,
           extraCoveragePoints: missingPoints,
-          additionalInstructions: additionalInstructionsWithCoverage,
+          additionalInstructions,
+          engineInstructions: engineInstructionsWithCoverage,
           retainTeachingIntentMetadata,
           teachingIntentTagOnly,
         });
@@ -5168,6 +5188,7 @@ router.post("/generate-lesson", auth, async (req, res) => {
       success: true,
       message: "Lesson draft generated successfully.",
       draft: sanitized,
+      ...(sanitized.objectiveBoundary ? { objectiveBoundary: sanitized.objectiveBoundary } : {}),
       mappingHint: {
         lesson: {
           title: sanitized.title,
@@ -5351,7 +5372,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const v2Enabled = resolveV2Enabled({ requestFlag: useLessonGeneratorV2 });
     let lessonBlueprintV2 = null;
     let blueprintDiagnostics = null;
-    let instructionsForGeneration = additionalInstructions;
+    let engineInstructions = "";
 
     if (v2Enabled) {
       const v2Plan = planLessonV2(
@@ -5366,8 +5387,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
         { requestFlag: true }
       );
       lessonBlueprintV2 = v2Plan.blueprint;
-      instructionsForGeneration = mergeV2IntoAdditionalInstructions(
-        additionalInstructions,
+      engineInstructions = mergeV2IntoAdditionalInstructions(
+        engineInstructions,
         v2Plan.promptAppendix
       );
       if (process.env.NODE_ENV !== "production") {
@@ -5382,8 +5403,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const useLessonGeneratorV4 = req.body?.useLessonGeneratorV4 === true;
     const v4Enabled = resolveV4Enabled({ requestFlag: useLessonGeneratorV4 });
     if (v4Enabled && lessonBlueprintV2) {
-      instructionsForGeneration = mergeV4IntoAdditionalInstructions(
-        instructionsForGeneration,
+      engineInstructions = mergeV4IntoAdditionalInstructions(
+        engineInstructions,
         buildV4PromptForBlueprint(lessonBlueprintV2, {
           tier,
           subject,
@@ -5409,8 +5430,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
         ).blueprint || null;
       if (v4Blueprint) {
         lessonBlueprintV2 = lessonBlueprintV2 || v4Blueprint;
-        instructionsForGeneration = mergeV4IntoAdditionalInstructions(
-          instructionsForGeneration,
+        engineInstructions = mergeV4IntoAdditionalInstructions(
+          engineInstructions,
           buildV4PromptForBlueprint(v4Blueprint, {
             tier,
             subject,
@@ -5424,7 +5445,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
-    instructionsForGeneration = mergeOneShotCoveragePlanIntoInstructions(instructionsForGeneration, {
+    engineInstructions = mergeOneShotCoveragePlanIntoInstructions(engineInstructions, {
       topic: subTopicDisplay || topic,
       topicKey: canonicalTopicKey,
       subject,
@@ -5448,7 +5469,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
       topicKey: canonicalTopicKey,
       requiredKeywords,
       requiredMisconceptions,
-      additionalInstructions: instructionsForGeneration,
+      additionalInstructions,
+      engineInstructions,
       strictSpec,
       retainTeachingIntentMetadata,
       teachingIntentTagOnly,
@@ -5925,6 +5947,37 @@ router.post("/generate-and-save", auth, async (req, res) => {
     const v12AdvisorySave = collectV12VisualAdvisoryNotes(finalDraftForQuality);
     const mergedAdvisorySave = [...v7AdvisorySave, ...v12AdvisorySave];
     if (mergedAdvisorySave.length) responsePayload.teachingAdvisory = mergedAdvisorySave;
+
+    try {
+      const boundaryAuditFull = auditLessonBoundary({
+        topic: subTopicDisplay || topic,
+        topicKey: canonicalTopicKey,
+        subTopic: subTopicDisplay,
+        pages: pagesForDb,
+        quiz: lessonDoc.quiz,
+        flashcards: lessonDoc.flashcards,
+        practiceQuestions: lessonDoc.examQuestions,
+      });
+      const boundaryAuditMeta = boundaryAuditResponseMeta(boundaryAuditFull);
+      if (boundaryAuditMeta) responsePayload.boundaryAudit = boundaryAuditMeta;
+      const profile = resolveSubTopicProfile({
+        topicKey: canonicalTopicKey,
+        subTopic: subTopicDisplay,
+        topic,
+      });
+      const replacementPlan = planBoundaryReplacements({
+        boundaryAudit: boundaryAuditFull,
+        subTopicProfile: profile,
+      });
+      const replacementMeta = boundaryReplacementResponseMeta(replacementPlan);
+      if (replacementMeta) responsePayload.boundaryReplacementPlan = replacementMeta;
+    } catch (boundaryAuditErr) {
+      console.warn(
+        "[generate-and-save] boundary audit skipped:",
+        boundaryAuditErr?.message || boundaryAuditErr
+      );
+    }
+
     return res.json(responsePayload);
   } catch (error) {
     if (process.env.NODE_ENV !== "production" && error?.stack) {

@@ -149,6 +149,7 @@ async function runPracticeSetGeneration({
   const topicLabel = topic.split(":").pop() || topic;
   const coverageGate = createCoverageGenerationGate({
     topic: topicLabel,
+    topicKey: topic,
     subject: "Biology",
     examBoard: "AQA",
     tier: "Higher",

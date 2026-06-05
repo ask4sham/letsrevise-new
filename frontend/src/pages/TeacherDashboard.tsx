@@ -2155,13 +2155,16 @@ const TeacherDashboard: React.FC = () => {
 
                 <div style={{ gridColumn: "1 / -1", marginTop: 12 }}>
                   <label style={{ fontSize: "0.85rem", color: "#374151", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                    Additional instructions for this lesson
+                    Reference lesson material (optional)
                   </label>
+                  <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 8, lineHeight: 1.45 }}>
+                    Paste lesson notes, definitions, models, or exam vocabulary. The AI extracts definition, why it matters, core model, and exam vocabulary — it will not copy your wording verbatim.
+                  </p>
                   <textarea
                     value={aiForm.additionalInstructions || ""}
                     onChange={(e) => setAiForm((p) => ({ ...p, additionalInstructions: e.target.value }))}
-                    placeholder="Only include content relevant to cell structure, differences between plant and animal cells, and functions of organelles. Do not include out-of-spec content. Match GCSE exam expectations."
-                    rows={3}
+                    placeholder="e.g. Homeostasis keeps internal conditions stable. Negative feedback: receptor → coordination centre → effector. Include blood glucose as an example."
+                    rows={5}
                     style={{
                       width: "100%",
                       padding: "10px 12px",

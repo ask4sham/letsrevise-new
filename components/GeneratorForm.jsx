@@ -36,7 +36,6 @@ function buildExtras({
   qualityMode,
   tier,
   autoFixMissingBlocks,
-  lessonSuggestions,
   useLessonGeneratorV2,
   useLessonGeneratorV3,
 }) {
@@ -49,9 +48,6 @@ ${qualityMode}
 
 TIER:
 ${tier}
-
-LESSON CONTENT SUGGESTIONS FROM TEACHER:
-${lessonSuggestions || "None"}
 
 INTERACTIVE REQUIREMENTS:
 - Include at least 1 Drag and drop match.
@@ -135,7 +131,7 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
   const [useLessonGeneratorV2, setUseLessonGeneratorV2] = useState(false);
   const [useLessonGeneratorV3, setUseLessonGeneratorV3] = useState(false);
   const [useLessonGeneratorV4, setUseLessonGeneratorV4] = useState(false);
-  const [lessonSuggestions, setLessonSuggestions] = useState("");
+  const [referenceMaterial, setReferenceMaterial] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const extras = useMemo(
@@ -144,7 +140,6 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
         qualityMode,
         tier,
         autoFixMissingBlocks,
-        lessonSuggestions,
         useLessonGeneratorV2,
         useLessonGeneratorV3,
         useLessonGeneratorV4,
@@ -153,7 +148,6 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
       qualityMode,
       tier,
       autoFixMissingBlocks,
-      lessonSuggestions,
       useLessonGeneratorV2,
       useLessonGeneratorV3,
       useLessonGeneratorV4,
@@ -195,6 +189,7 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
           tier: showTier ? tier : "",
           qualificationType: qualificationTypeFromSubject(subject),
           extras,
+          additionalInstructions: referenceMaterial.trim(),
           useLessonGeneratorV2: useLessonGeneratorV2 === true,
           useLessonGeneratorV3: useLessonGeneratorV3 === true,
           useLessonGeneratorV4: useLessonGeneratorV4 === true,
@@ -436,12 +431,15 @@ export default function GeneratorForm({ onResult, onLoading, onLessonContext }) 
 
       <div>
         <label className="mb-2 block text-sm font-medium">
-          Lesson Content Suggestions
+          Reference lesson material (optional)
         </label>
+        <p className="mb-2 text-xs text-slate-600">
+          Paste lesson notes, definitions, models, or exam vocabulary. The AI extracts key ideas — it will not copy your wording verbatim.
+        </p>
         <textarea
-          value={lessonSuggestions}
-          onChange={(e) => setLessonSuggestions(e.target.value)}
-          placeholder="Paste your lesson notes, SS1-style guidance, required examples, keywords, practical links, or anything you want included."
+          value={referenceMaterial}
+          onChange={(e) => setReferenceMaterial(e.target.value)}
+          placeholder="e.g. Homeostasis keeps internal conditions stable. Negative feedback: receptor → coordination centre → effector. Include blood glucose as an example."
           className="min-h-[160px] w-full rounded-lg border px-3 py-2 text-sm"
         />
       </div>
