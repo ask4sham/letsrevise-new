@@ -1,0 +1,744 @@
+{
+  "phase": "3H.1.8b.1-robustness",
+  "generatedAt": "2026-06-06T13:58:12.716Z",
+  "flags": {
+    "TEACHER_BRAIN_TEACHER_FIRST_OPENING": "1",
+    "TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE": "1",
+    "TEACHER_BRAIN_SUBTOPIC_BOUNDARY": "2",
+    "TEACHER_BRAIN_OBJECTIVES_AUTHORITY": "1"
+  },
+  "runsPerTopic": 5,
+  "topicDriftDefinitions": [
+    {
+      "id": "nervous-system",
+      "label": "Structure and function of the nervous system",
+      "driftTerms": [
+        "cerebellum",
+        "cortex",
+        "medulla",
+        "thermoregulation",
+        "hypothalamus",
+        "accommodation",
+        "retina",
+        "iris",
+        "pupil",
+        "lens",
+        "vasodilation",
+        "vasoconstriction",
+        "sweating",
+        "shivering"
+      ]
+    },
+    {
+      "id": "homeostasis",
+      "label": "Homeostasis",
+      "driftTerms": [
+        "cerebellum",
+        "cerebral cortex",
+        "medulla",
+        "accommodation",
+        "cornea",
+        "reflex arc",
+        "synapse",
+        "myelin sheath",
+        "motor neurone",
+        "sensory neurone"
+      ]
+    },
+    {
+      "id": "eye",
+      "label": "The eye",
+      "driftTerms": [
+        "thermoregulation",
+        "hypothalamus",
+        "vasodilation",
+        "vasoconstriction",
+        "sweating",
+        "shivering",
+        "cerebellum",
+        "medulla",
+        "myelin sheath",
+        "synapse",
+        "reflex arc"
+      ]
+    }
+  ],
+  "summary": {
+    "totalPlanned": 15,
+    "totalCompleted": 15,
+    "apiErrors": 0,
+    "lessonCleanCount": 12,
+    "lessonCleanPassRate": 80,
+    "objectivesGatePassCount": 15,
+    "objectivesGatePassRate": 100,
+    "byTopic": {
+      "nervous-system": {
+        "label": "Structure and function of the nervous system",
+        "runs": 5,
+        "clean": 2,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 3
+      },
+      "homeostasis": {
+        "label": "Homeostasis",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "eye": {
+        "label": "The eye",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      }
+    },
+    "failures": [
+      {
+        "topic": "Structure and function of the nervous system",
+        "runIndex": 1,
+        "after": {
+          "objectivesGatePass": true,
+          "framingDriftTerms": [],
+          "checkpointDriftTerms": [],
+          "examPracticeDriftTerms": [],
+          "summaryDriftTerms": [
+            "cerebellum",
+            "cortex",
+            "medulla",
+            "thermoregulation"
+          ],
+          "memoryRuleDriftTerms": []
+        },
+        "excerpts": {
+          "cerebellum": "y impulses from the CNS to effectors like muscles or glands.</li> <li>Neurones are adapted with axons, dendrites, and myelin sheath for fast transmission.</li> <li>Brain regions like cerebral cortex, cerebellum, and medulla have specific functions (covered next lesson).</li> <li>The eye contains receptors sensitive to light (also covered in detail separately).</li> <li>Thermoregulation involves temperature",
+          "cortex": "nes carry impulses from the CNS to effectors like muscles or glands.</li> <li>Neurones are adapted with axons, dendrites, and myelin sheath for fast transmission.</li> <li>Brain regions like cerebral cortex, cerebellum, and medulla have specific functions (covered next lesson).</li> <li>The eye contains receptors sensitive to light (also covered in detail separately).</li> <li>Thermoregulation involves",
+          "medulla": "the CNS to effectors like muscles or glands.</li> <li>Neurones are adapted with axons, dendrites, and myelin sheath for fast transmission.</li> <li>Brain regions like cerebral cortex, cerebellum, and medulla have specific functions (covered next lesson).</li> <li>The eye contains receptors sensitive to light (also covered in detail separately).</li> <li>Thermoregulation involves temperature receptors in",
+          "thermoregulation": "gions like cerebral cortex, cerebellum, and medulla have specific functions (covered next lesson).</li> <li>The eye contains receptors sensitive to light (also covered in detail separately).</li> <li>Thermoregulation involves temperature receptors in the skin and processing by the CNS.</li> </ul> <p>👉 Remember, precise use of terms and describing pathways fully helps you gain top marks.</p> 25— KEY WORDS Paste"
+        }
+      },
+      {
+        "topic": "Structure and function of the nervous system",
+        "runIndex": 4,
+        "after": {
+          "objectivesGatePass": true,
+          "framingDriftTerms": [],
+          "checkpointDriftTerms": [
+            "cerebellum",
+            "cortex",
+            "medulla",
+            "hypothalamus"
+          ],
+          "examPracticeDriftTerms": [
+            "cerebellum",
+            "cortex"
+          ],
+          "summaryDriftTerms": [
+            "cerebellum",
+            "cortex",
+            "medulla",
+            "thermoregulation"
+          ],
+          "memoryRuleDriftTerms": []
+        },
+        "excerpts": {
+          "cerebellum": "ker responses from effectors. </details> 18— QUICK CHECK Paste into: Quick check (checkpoint) Question: Which part of the brain controls balance and coordination? Option 1: Cerebral cortex Option 2: Cerebellum Option 3: Medulla Option 4: Hypothalamus Answer: Cerebellum 19— SYNTHESIS Paste into: Synthesis (key idea) <h2><strong>Synthesis: Brain regions and their functions</strong></h2> <p>👉 The brain is a",
+          "cortex": "er, allowing quicker responses from effectors. </details> 18— QUICK CHECK Paste into: Quick check (checkpoint) Question: Which part of the brain controls balance and coordination? Option 1: Cerebral cortex Option 2: Cerebellum Option 3: Medulla Option 4: Hypothalamus Answer: Cerebellum 19— SYNTHESIS Paste into: Synthesis (key idea) <h2><strong>Synthesis: Brain regions and their functions</strong></h2>",
+          "medulla": "fectors. </details> 18— QUICK CHECK Paste into: Quick check (checkpoint) Question: Which part of the brain controls balance and coordination? Option 1: Cerebral cortex Option 2: Cerebellum Option 3: Medulla Option 4: Hypothalamus Answer: Cerebellum 19— SYNTHESIS Paste into: Synthesis (key idea) <h2><strong>Synthesis: Brain regions and their functions</strong></h2> <p>👉 The brain is a key part of the C",
+          "hypothalamus": "> 18— QUICK CHECK Paste into: Quick check (checkpoint) Question: Which part of the brain controls balance and coordination? Option 1: Cerebral cortex Option 2: Cerebellum Option 3: Medulla Option 4: Hypothalamus Answer: Cerebellum 19— SYNTHESIS Paste into: Synthesis (key idea) <h2><strong>Synthesis: Brain regions and their functions</strong></h2> <p>👉 The brain is a key part of the CNS with specialised are",
+          "thermoregulation": "ex manages conscious thought; cerebellum controls coordination; medulla regulates unconscious activities.</li> <li>The eye’s structure includes components that detect light and focus images.</li> <li>Thermoregulation involves skin receptors detecting temperature and the brain’s thermoregulatory centre coordinating responses.</li> </ul> <p>👉 Remember: clear cause → effect chains and naming correct structures earn"
+        }
+      },
+      {
+        "topic": "Structure and function of the nervous system",
+        "runIndex": 5,
+        "after": {
+          "objectivesGatePass": true,
+          "framingDriftTerms": [],
+          "checkpointDriftTerms": [
+            "cerebellum",
+            "cortex",
+            "medulla",
+            "hypothalamus"
+          ],
+          "examPracticeDriftTerms": [
+            "cortex"
+          ],
+          "summaryDriftTerms": [
+            "cerebellum",
+            "cortex",
+            "medulla",
+            "thermoregulation"
+          ],
+          "memoryRuleDriftTerms": []
+        },
+        "excerpts": {
+          "cerebellum": "→ Motor neurone → Effector → Response 11— DRAG AND DROP MATCH Paste into: Drag and drop match Instruction: Match each nervous system part to its correct function. Items to drag: - Cerebral cortex - Cerebellum - Medulla - Sensory neurone Drop zones: - Controls higher brain functions like memory and consciousness → ______ - Coordinates balance and muscle control → ______ - Controls automatic activities such",
+          "cortex": "one → CNS → Motor neurone → Effector → Response 11— DRAG AND DROP MATCH Paste into: Drag and drop match Instruction: Match each nervous system part to its correct function. Items to drag: - Cerebral cortex - Cerebellum - Medulla - Sensory neurone Drop zones: - Controls higher brain functions like memory and consciousness → ______ - Coordinates balance and muscle control → ______ - Controls automatic ac",
+          "medulla": "one → Effector → Response 11— DRAG AND DROP MATCH Paste into: Drag and drop match Instruction: Match each nervous system part to its correct function. Items to drag: - Cerebral cortex - Cerebellum - Medulla - Sensory neurone Drop zones: - Controls higher brain functions like memory and consciousness → ______ - Coordinates balance and muscle control → ______ - Controls automatic activities such as heartb",
+          "hypothalamus": "— QUICK CHECK Paste into: Quick check (checkpoint) Question: Which part of the brain coordinates balance and muscle control? Option 1: Cerebral cortex Option 2: Cerebellum Option 3: Medulla Option 4: Hypothalamus Answer: Cerebellum 19— SYNTHESIS Paste into: Synthesis (key idea) <h2><strong>Synthesis</strong></h2> <p>👉 The nervous system is a highly organised communication network where receptors detect stim",
+          "thermoregulation": "ns.</li> <li>The motor neurone carries impulses to effectors, which produce a response.</li> <li>The eye contains light receptors detecting changes in light, and skin receptors detect temperature for thermoregulation.</li> </ul> <p>👉 Remember: Precise use of terms and explaining cause → effect chains earns full marks in exams.</p> 25— KEY WORDS Paste into: Key words <p><strong>👉 Keywords</strong></p> <strong>R"
+        }
+      }
+    ],
+    "intermittency": {
+      "nervous-system": {
+        "cleanRuns": 2,
+        "dirtyRuns": 3,
+        "intermittent": true,
+        "driftCountsPerRun": [
+          4,
+          0,
+          0,
+          5,
+          5
+        ]
+      },
+      "homeostasis": {
+        "cleanRuns": 5,
+        "dirtyRuns": 0,
+        "intermittent": false,
+        "driftCountsPerRun": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "eye": {
+        "cleanRuns": 5,
+        "dirtyRuns": 0,
+        "intermittent": false,
+        "driftCountsPerRun": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "runs": [
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 1,
+      "apiError": null,
+      "generationSeconds": "23.9",
+      "lessonClean": false,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 1,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 4,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 4,
+        "summaryDriftTerms": [
+          "cerebellum",
+          "cortex",
+          "medulla",
+          "thermoregulation"
+        ],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 4
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote contaminated SHORT SUMMARY FIELD."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/nervous-system-run1-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 2,
+      "apiError": null,
+      "generationSeconds": "32.0",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/nervous-system-run2-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 3,
+      "apiError": null,
+      "generationSeconds": "36.1",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 1,
+        "checkpointDriftCount": 3,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 4,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote 2 out-of-scope framing item(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/nervous-system-run3-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 4,
+      "apiError": null,
+      "generationSeconds": "24.8",
+      "lessonClean": false,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 4,
+        "checkpointDriftCount": 4,
+        "examPracticeDriftCount": 2,
+        "summaryDriftCount": 4,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 4,
+        "checkpointDriftTerms": [
+          "cerebellum",
+          "cortex",
+          "medulla",
+          "hypothalamus"
+        ],
+        "examPracticeDriftCount": 2,
+        "examPracticeDriftTerms": [
+          "cerebellum",
+          "cortex"
+        ],
+        "summaryDriftCount": 4,
+        "summaryDriftTerms": [
+          "cerebellum",
+          "cortex",
+          "medulla",
+          "thermoregulation"
+        ],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 5
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote 3 out-of-scope framing item(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/nervous-system-run4-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 5,
+      "apiError": null,
+      "generationSeconds": "23.9",
+      "lessonClean": false,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 4,
+        "checkpointDriftCount": 4,
+        "examPracticeDriftCount": 1,
+        "summaryDriftCount": 4,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 4,
+        "checkpointDriftTerms": [
+          "cerebellum",
+          "cortex",
+          "medulla",
+          "hypothalamus"
+        ],
+        "examPracticeDriftCount": 1,
+        "examPracticeDriftTerms": [
+          "cortex"
+        ],
+        "summaryDriftCount": 4,
+        "summaryDriftTerms": [
+          "cerebellum",
+          "cortex",
+          "medulla",
+          "thermoregulation"
+        ],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 5
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote 4 out-of-scope framing item(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/nervous-system-run5-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 1,
+      "apiError": null,
+      "generationSeconds": "35.3",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/homeostasis-run1-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 2,
+      "apiError": null,
+      "generationSeconds": "31.6",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/homeostasis-run2-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 3,
+      "apiError": null,
+      "generationSeconds": "31.8",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/homeostasis-run3-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 4,
+      "apiError": null,
+      "generationSeconds": "29.0",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/homeostasis-run4-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 5,
+      "apiError": null,
+      "generationSeconds": "26.9",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/homeostasis-run5-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 1,
+      "apiError": null,
+      "generationSeconds": "25.4",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/eye-run1-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 2,
+      "apiError": null,
+      "generationSeconds": "25.8",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/eye-run2-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 3,
+      "apiError": null,
+      "generationSeconds": "30.8",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/eye-run3-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 4,
+      "apiError": null,
+      "generationSeconds": "30.5",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/eye-run4-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 5,
+      "apiError": null,
+      "generationSeconds": "24.2",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness/eye-run5-fixed.txt"
+    }
+  ]
+}

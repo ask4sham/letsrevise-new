@@ -1,0 +1,693 @@
+{
+  "phase": "3H.1.8b.2b",
+  "generatedAt": "2026-06-06T17:22:31.071Z",
+  "flags": {
+    "TEACHER_BRAIN_TEACHER_FIRST_OPENING": "1",
+    "TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE": "1",
+    "TEACHER_BRAIN_SUBTOPIC_BOUNDARY": "2",
+    "TEACHER_BRAIN_OBJECTIVES_AUTHORITY": "1",
+    "TEACHER_BRAIN_CHECKPOINT_AUTHORITY": "1",
+    "TEACHER_BRAIN_EXAM_PRACTICE_AUTHORITY": "1",
+    "TEACHER_BRAIN_SUMMARY_AUTHORITY": "1",
+    "TEACHER_BRAIN_MEMORY_RULE_AUTHORITY": "1"
+  },
+  "runsPerTopic": 5,
+  "topicDriftDefinitions": [
+    {
+      "id": "nervous-system",
+      "label": "Structure and function of the nervous system",
+      "driftTerms": [
+        "cerebellum",
+        "cortex",
+        "medulla",
+        "thermoregulation",
+        "hypothalamus",
+        "accommodation",
+        "retina",
+        "iris",
+        "pupil",
+        "lens",
+        "vasodilation",
+        "vasoconstriction",
+        "sweating",
+        "shivering"
+      ]
+    },
+    {
+      "id": "homeostasis",
+      "label": "Homeostasis",
+      "driftTerms": [
+        "cerebellum",
+        "cerebral cortex",
+        "medulla",
+        "accommodation",
+        "cornea",
+        "reflex arc",
+        "synapse",
+        "myelin sheath",
+        "motor neurone",
+        "sensory neurone"
+      ]
+    },
+    {
+      "id": "eye",
+      "label": "The eye",
+      "driftTerms": [
+        "thermoregulation",
+        "hypothalamus",
+        "vasodilation",
+        "vasoconstriction",
+        "sweating",
+        "shivering",
+        "cerebellum",
+        "medulla",
+        "myelin sheath",
+        "synapse",
+        "reflex arc"
+      ]
+    }
+  ],
+  "summary": {
+    "totalPlanned": 15,
+    "totalCompleted": 15,
+    "apiErrors": 0,
+    "lessonCleanCount": 15,
+    "lessonCleanPassRate": 100,
+    "objectivesGatePassCount": 15,
+    "objectivesGatePassRate": 100,
+    "byTopic": {
+      "nervous-system": {
+        "label": "Structure and function of the nervous system",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "homeostasis": {
+        "label": "Homeostasis",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "eye": {
+        "label": "The eye",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      }
+    },
+    "failures": [],
+    "intermittency": {
+      "nervous-system": {
+        "cleanRuns": 5,
+        "dirtyRuns": 0,
+        "intermittent": false,
+        "driftCountsPerRun": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "homeostasis": {
+        "cleanRuns": 5,
+        "dirtyRuns": 0,
+        "intermittent": false,
+        "driftCountsPerRun": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "eye": {
+        "cleanRuns": 5,
+        "dirtyRuns": 0,
+        "intermittent": false,
+        "driftCountsPerRun": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "nsAuthorityChecks": {
+    "memoryRuleDriftRuns": 0,
+    "summaryDriftRuns": 0,
+    "checkpointDriftRuns": 0,
+    "examPracticeDriftRuns": 0
+  },
+  "comparisonToStep2a": {
+    "step2aPhase": "3H.1.8b.2a",
+    "step2aLessonCleanPassRate": 100,
+    "step2aByTopic": {
+      "nervous-system": {
+        "label": "Structure and function of the nervous system",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "homeostasis": {
+        "label": "Homeostasis",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "eye": {
+        "label": "The eye",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      }
+    },
+    "step2bLessonCleanPassRate": 100,
+    "step2bByTopic": {
+      "nervous-system": {
+        "label": "Structure and function of the nervous system",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "homeostasis": {
+        "label": "Homeostasis",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      },
+      "eye": {
+        "label": "The eye",
+        "runs": 5,
+        "clean": 5,
+        "objectivesGatePass": 5,
+        "anyDownstreamDrift": 0
+      }
+    },
+    "deltaOverallCleanRate": 0,
+    "deltaNervousSystemClean": 0
+  },
+  "runs": [
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 1,
+      "apiError": null,
+      "generationSeconds": "25.5",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 1,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote 3 out-of-scope framing item(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/nervous-system-run1-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 2,
+      "apiError": null,
+      "generationSeconds": "25.5",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 1,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote 1 out-of-scope framing item(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/nervous-system-run2-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 3,
+      "apiError": null,
+      "generationSeconds": "31.2",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote contaminated SHORT SUMMARY FIELD."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/nervous-system-run3-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 4,
+      "apiError": null,
+      "generationSeconds": "21.7",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [
+        "Exam Practice authority: rewrote 1 contaminated exam practice block(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/nervous-system-run4-fixed.txt"
+    },
+    {
+      "topic": "Structure and function of the nervous system",
+      "topicId": "nervous-system",
+      "runIndex": 5,
+      "apiError": null,
+      "generationSeconds": "25.8",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": false,
+        "framingDriftCount": 1,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [
+        "Objectives scope authority: rewrote 1 out-of-scope framing item(s).",
+        "Exam Practice authority: rewrote 1 contaminated exam practice block(s)."
+      ],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/nervous-system-run5-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 1,
+      "apiError": null,
+      "generationSeconds": "22.3",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/homeostasis-run1-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 2,
+      "apiError": null,
+      "generationSeconds": "25.5",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/homeostasis-run2-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 3,
+      "apiError": null,
+      "generationSeconds": "21.6",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/homeostasis-run3-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 4,
+      "apiError": null,
+      "generationSeconds": "24.6",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/homeostasis-run4-fixed.txt"
+    },
+    {
+      "topic": "Homeostasis",
+      "topicId": "homeostasis",
+      "runIndex": 5,
+      "apiError": null,
+      "generationSeconds": "23.8",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/homeostasis-run5-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 1,
+      "apiError": null,
+      "generationSeconds": "21.4",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/eye-run1-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 2,
+      "apiError": null,
+      "generationSeconds": "22.6",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/eye-run2-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 3,
+      "apiError": null,
+      "generationSeconds": "33.3",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/eye-run3-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 4,
+      "apiError": null,
+      "generationSeconds": "28.5",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/eye-run4-fixed.txt"
+    },
+    {
+      "topic": "The eye",
+      "topicId": "eye",
+      "runIndex": 5,
+      "apiError": null,
+      "generationSeconds": "26.8",
+      "lessonClean": true,
+      "before": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "checkpointDriftCount": 0,
+        "examPracticeDriftCount": 0,
+        "summaryDriftCount": 0,
+        "memoryRuleDriftCount": 0
+      },
+      "after": {
+        "objectivesGatePass": true,
+        "framingDriftCount": 0,
+        "framingDriftTerms": [],
+        "checkpointDriftCount": 0,
+        "checkpointDriftTerms": [],
+        "examPracticeDriftCount": 0,
+        "examPracticeDriftTerms": [],
+        "summaryDriftCount": 0,
+        "summaryDriftTerms": [],
+        "memoryRuleDriftCount": 0,
+        "memoryRuleDriftTerms": [],
+        "totalDownstreamDrift": 0
+      },
+      "scopeFixesApplied": [],
+      "artifactFixed": "docs/design/validation/3H18b1-robustness-step2b/eye-run5-fixed.txt"
+    }
+  ]
+}

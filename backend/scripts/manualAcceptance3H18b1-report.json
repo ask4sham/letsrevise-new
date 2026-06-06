@@ -1,0 +1,61 @@
+{
+  "phase": "3H.1.8b.1",
+  "generatedAt": "2026-06-06T13:22:02.474Z",
+  "generationSeconds": "30.5",
+  "pass": true,
+  "promptHasObjectivesMandate": true,
+  "promptHasObjectiveBoundary": true,
+  "objectivesBefore": {
+    "text": "LESSON OBJECTIVE FIELD:  \nExplain how the nervous system is structured and how its parts work together to detect stimuli and produce rapid responses.\n\n1 — LESSON OBJECTIVES  \nPaste into: Text (concept)\n\n<h2><strong>Lesson objectives</strong></h2>  \n<p>At the end of this lesson, you should be able to:</p>  \n<ul>  \n<li><strong>👉</strong> Define the nervous system as the body's rapid communication network.</li>  \n<li><strong>👉</strong> Describe the organisation of the central nervous system (CNS) and peripheral nervous system (PNS).</li>  \n<li><strong>👉</strong> Explain the structure of neurones, including axons, dendrites, and the myelin sheath, and how these relate to their function.</li>  \n<li><strong>👉</strong> Describe how electrical impulses are transmitted along neurones and across synapses.</li>  \n<li><strong>👉</strong> Use the pathway receptor → sensory neurone → CNS → motor neurone → effector → response in explanations.</li>  \n</ul>",
+    "driftTerms": []
+  },
+  "objectivesAfter": {
+    "text": "LESSON OBJECTIVE FIELD:\nExplain how the nervous system is structured and how its parts work together to detect stimuli and produce rapid responses.\n1— LESSON OBJECTIVES\nPaste into: Text (concept)\n<h2><strong>Lesson objectives</strong></h2>\n<p>At the end of this lesson, you should be able to:</p>\n<ul>\n<li><strong>👉</strong> Define the nervous system as the body's rapid communication network.</li>\n<li><strong>👉</strong> Describe the organisation of the central nervous system (CNS) and peripheral nervous system (PNS).</li>\n<li><strong>👉</strong> Explain the structure of neurones, including axons, dendrites, and the myelin sheath, and how these relate to their function.</li>\n<li><strong>👉</strong> Describe how electrical impulses are transmitted along neurones and across synapses.</li>\n<li><strong>👉</strong> Use the pathway receptor → sensory neurone → CNS → motor neurone → effector → response in explanations.</li>\n</ul>",
+    "driftTerms": [],
+    "gate": {
+      "pass": true,
+      "driftTermsFound": [],
+      "violations": [],
+      "warnings": [
+        "Scope autofix ran but made no changes."
+      ],
+      "objectiveCount": 5,
+      "priorKnowledgeCount": 3,
+      "lessonObjectiveField": "Explain how the nervous system is structured and how its parts work together to detect stimuli and produce rapid responses.",
+      "objectives": [
+        "👉 Define the nervous system as the body's rapid communication network.",
+        "👉 Describe the organisation of the central nervous system (CNS) and peripheral nervous system (PNS).",
+        "👉 Explain the structure of neurones, including axons, dendrites, and the myelin sheath, and how these relate to their function.",
+        "👉 Describe how electrical impulses are transmitted along neurones and across synapses.",
+        "👉 Use the pathway receptor → sensory neurone → CNS → motor neurone → effector → response in explanations."
+      ],
+      "priorKnowledge": [
+        "What cells and tissues are and their general roles in organisms.",
+        "Basic idea of how organisms respond to surroundings (stimuli).",
+        "That muscles can contract and glands can secrete."
+      ]
+    }
+  },
+  "downstreamBefore": {
+    "examPractice": [],
+    "checkpoints": [],
+    "summary": [],
+    "memoryRule": []
+  },
+  "downstreamAfter": {
+    "examPractice": [],
+    "checkpoints": [],
+    "summary": [],
+    "memoryRule": []
+  },
+  "cascadeHypothesis": {
+    "objectivesCleaned": false,
+    "downstreamImprovedWithoutExtraAuthority": false,
+    "downstreamFullyClean": true
+  },
+  "scopeFixesApplied": [],
+  "artifacts": {
+    "raw": "docs/design/validation/3H18b1/nervous-system-raw.txt",
+    "fixed": "docs/design/validation/3H18b1/structure-and-function-of-the-nervous-system.txt"
+  }
+}

@@ -1,0 +1,382 @@
+LESSON OBJECTIVE FIELD:  
+I can explain the structure of the eye, how it focuses light, and how accommodation helps us see clearly at different distances.
+
+SHORT SUMMARY FIELD:  
+This lesson covers how the eye detects light, focuses images on the retina, and adapts to see near and far objects using accommodation.
+
+<strong>The eye – Organisation (AQA KS4 - GCSE)</strong>
+
+PAGE 1
+
+1 — LESSON OBJECTIVES  
+Paste into: Text (concept)
+
+<h2><strong>Lesson objectives</strong></h2>  
+<p>At the end of this lesson, you should be able to:</p>  
+<ul>  
+<li><strong>👉</strong> State the definition of <strong>the eye</strong> in clear GCSE language.</li>  
+<li><strong>👉</strong> Explain <strong>why the eye’s focusing system matters</strong> for clear vision and survival.</li>  
+<li><strong>👉</strong> Use the core model <strong>cornea → lens → retina</strong> to explain how light is focused.</li>  
+<li><strong>👉</strong> Describe <strong>accommodation</strong> and explain how the shape of the lens changes.</li>  
+<li><strong>👉</strong> Apply key exam vocabulary correctly in answers.</li>  
+</ul>  
+
+2 — PRIOR KNOWLEDGE  
+Paste into: Text (concept)
+
+<h2><strong>Prior knowledge</strong></h2>  
+<p>Before we start, you should already know:</p>  
+<ul>  
+<li>How light travels in straight lines.</li>  
+<li>Basic idea of refraction: light bending when crossing different materials.</li>  
+<li>The role of cells in detecting stimuli (photoreceptors as light detectors).</li>  
+</ul>  
+
+3 — DEFINITION  
+Paste into: Text (concept)
+
+<h2><strong>Definition</strong></h2>  
+<p>👉 <strong>The eye is an organ that detects light and forms focused images on the retina to allow vision.</strong></p>  
+
+4 — WHY IT MATTERS  
+Paste into: Text (concept)
+
+<h2><strong>Why it matters</strong></h2>  
+<p>👉 <strong>Clear vision depends on light being focused precisely onto the retina so the brain receives accurate signals.</strong></p>  
+
+5 — CORE MODEL  
+Paste into: Core rule (key idea)
+
+<h2><strong>Core model</strong></h2>  
+<p>👉 <strong>Light enters the eye through the cornea → is refracted and focused by the lens → and forms an image on the retina.</strong></p>  
+<p>👉 Here is a detailed chain to help explain focusing:</p>  
+<ol>  
+<li>Light enters the eye through the cornea.</li>  
+<li>The cornea refracts (bends) the light rays towards the pupil.</li>  
+<li>The iris controls pupil size to regulate light intensity entering.</li>  
+<li>The lens further refracts light, fine-tuning focus by changing shape through accommodation.</li>  
+<li>The light converges on the retina.</li>  
+<li>Photoreceptor cells in the retina detect light and send impulses via the optic nerve to the brain.</li>  
+</ol>  
+
+6 — KEY EXAMPLES  
+Paste into: Text (concept)
+
+<h2><strong>Key examples</strong></h2>  
+<ul>  
+<li><strong>Cornea refraction:</strong> The cornea bends incoming light to begin focusing it.</li>  
+<li><strong>Lens accommodation:</strong> The lens changes shape to focus light from near or distant objects.</li>  
+<li><strong>Retina image formation:</strong> The retina receives light and contains photoreceptors that detect the image.</li>  
+</ul>  
+
+7 — EXAM VOCABULARY  
+Paste into: Text (concept)
+
+<h2><strong>Exam vocabulary</strong></h2>  
+<p><strong>Cornea</strong>, <strong>lens</strong>, <strong>retina</strong>, <strong>iris</strong>, <strong>pupil</strong>, <strong>ciliary muscles</strong>, <strong>suspensory ligaments</strong>, <strong>accommodation</strong></p>  
+
+8 — SCENARIO  
+Paste into: Hook (text)
+
+<h2><strong>Apply the model</strong></h2>  
+<p>👉 <strong>When you look at a book close to your eyes, your lens changes shape to focus the words clearly on your retina.</strong> This process uses ciliary muscles and suspensory ligaments to adjust the lens curvature and lets you read comfortably.</p>  
+
+9 — CORE TEACHING  
+Paste into: Text (concept)
+
+<h2><strong>Teaching: The eye</strong></h2>  
+<p>👉 <strong>Key idea:</strong> The eye focuses light so the brain can form a clear image, enabling us to see.</p>  
+
+<h3><strong>What happens:</strong></h3>  
+<ul>  
+<li>Light enters the eye through the cornea, which is transparent and curved to bend the light rays.</li>  
+<li>The iris controls the size of the pupil, regulating how much light enters depending on brightness.</li>  
+<li>The lens fine-tunes the focus by changing shape using the ciliary muscles and suspensory ligaments. This process is called accommodation.</li>  
+<li>Light rays focus onto the retina, where photoreceptors detect the image and send signals to the brain.</li>  
+</ul>  
+
+<h3><strong>Structure → function / Process → effect:</strong></h3>  
+<ul>  
+<li>The <strong>cornea’s curved surface</strong> refracts light sharply → this starts focusing light towards the retina.</li>  
+<li><strong>Iris</strong> adjusts pupil size → controls light intensity entering the eye → protects retina from damage and improves vision.</li>  
+<li><strong>Ciliary muscles</strong> contract → suspensory ligaments relax → lens becomes thicker and more curved → light refracts more strongly → near object focused on retina.</li>  
+<li>Opposite happens for distant objects → ciliary muscles relax → ligaments tighten → lens is thinner → light refracted less.</li>  
+</ul>  
+
+<h3><strong>Think like an examiner:</strong></h3>  
+<p>👉 In the exam, don’t just say “the lens focuses light.” Instead, explain how <strong>ciliary muscles contract to change lens shape</strong>, adjusting focus to make the image clear on the retina.</p>  
+
+10 — CHECKPOINT  
+Paste into: Checkpoint block
+
+Question:  
+What happens to the lens when you look at a near object?
+
+Option 1: It becomes thinner to refract light less.  
+Option 2: It becomes thicker to refract light more.  
+Option 3: It moves backwards away from the retina.  
+Option 4: It stops refracting light entirely.  
+
+Answer:  
+It becomes thicker to refract light more.  
+
+11 — DRAG AND DROP MATCH  
+Paste into: Drag and drop match
+
+Instruction:  
+Match each part of the eye to its correct function.  
+
+Items to drag:  
+- Cornea  
+- Iris  
+- Lens  
+- Retina  
+
+Drop zones:  
+- Controls how much light enters the eye → ______  
+- Detects light and sends impulses to the brain → ______  
+- Bends light rays to begin focusing → ______  
+- Changes shape to focus light from near and distant objects → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- Controls how much light enters the eye → Iris  
+- Detects light and sends impulses to the brain → Retina  
+- Bends light rays to begin focusing → Cornea  
+- Changes shape to focus light from near and distant objects → Lens  
+
+</details>  
+
+12 — COMMON MISTAKE  
+Paste into: Common mistake
+
+<h2><strong>Common mistake</strong></h2>  
+<p>👉 A common mistake is to say <em>"The lens zooms in to focus."</em> This is incorrect in exam answers.</p>  
+<p>👉 The correct explanation is that the <strong>ciliary muscles contract or relax to change the lens shape</strong>, altering how much light is refracted so the image focuses on the retina.</p>  
+<p>👉 <strong>Exam link:</strong> Saying “the lens zooms” loses marks because it is vague and does not explain the biological mechanism.</p>  
+
+13 — DIAGRAM / VISUAL SETUP  
+Paste into: Diagram (concept)
+
+Instruction:  
+Label this diagram of the eye showing the main parts involved in focusing light.  
+
+Type:  
+Diagram  
+
+What it should show:  
+Eye section with labels for cornea, iris, pupil, lens, retina, ciliary muscles, and suspensory ligaments.  
+
+Why it helps:  
+Helps students visualize how light travels through the eye’s structures and links function to location.  
+
+Brand/style:  
+- LET’S REVISE header  
+- Exam-board ready  
+- White background  
+- Thick black outlines  
+- Minimal colours  
+- Large uppercase labels  
+
+Key labels / features:  
+- Cornea  
+- Iris  
+- Pupil  
+- Lens  
+- Retina  
+- Ciliary muscles  
+- Suspensory ligaments  
+
+14 — STEP-BY-STEP PROCESS  
+Paste into: Step-by-step diagram (process)
+
+Process:  
+Accommodation of the eye when focusing on a near object  
+
+Step 1:  
+Ciliary muscles contract  
+
+↓  
+
+Step 2:  
+Suspensory ligaments slacken  
+
+↓  
+
+Step 3:  
+Lens becomes thicker and more curved  
+
+↓  
+
+Step 4:  
+Light is refracted more strongly, focusing the near object image on the retina  
+
+Exam link:  
+This chain explains how the eye adjusts for near vision, a common exam question topic.  
+
+15 — INTERACTIVE DIAGRAM  
+Paste into: Interactive diagram
+
+Instruction:  
+Label the parts of the eye involved in focusing light.  
+
+Labels to use:  
+- Cornea  
+- Iris  
+- Lens  
+- Retina  
+
+Hotspots / parts:  
+- A → ______  
+- B → ______  
+- C → ______  
+- D → ______  
+
+Answer key:  
+<details>  
+<summary>Reveal Answer</summary>  
+
+- A → Cornea  
+- B → Iris  
+- C → Lens  
+- D → Retina  
+
+</details>  
+
+16 — EXAM TIP  
+Paste into: Exam tip (concept)
+
+<h2><strong>🌍 Why this matters</strong></h2>  
+<p>👉 Clear vision relies on the eye focusing light accurately on the retina. If the focus is wrong, images are blurry, leading to poor vision or even blindness.</p>  
+<p>👉 Understanding accommodation is essential because it explains how we see clearly at different distances.</p>  
+
+<h2><strong>🎯 Premium Exam Tip</strong></h2>  
+<p>👉 When answering exam questions, always explain mechanism steps — for example, "Ciliary muscles contract causing suspensory ligaments to slacken, making the lens thicker and increasing refraction."</p>  
+<p>👉 Avoid vague phrases like "the eye focuses" without explaining how.</p>  
+
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>  
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>  
+
+<h3><strong>Weak answer:</strong></h3>  
+<p>The eye focuses light to help us see.</p>  
+
+<h3><strong>Better answer:</strong></h3>  
+<p>The eye focuses light because the lens changes shape.</p>  
+
+<h3><strong>Full-mark answer:</strong></h3>  
+<p>Light is refracted by the cornea and then the lens. The ciliary muscles contract to slacken suspensory ligaments, making the lens thicker to refract light more strongly, so the image focuses precisely on the retina.</p>  
+
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>  
+<ul>  
+<li>It describes the role of both cornea and lens in refraction.</li>  
+<li>It explains the process of accommodation with specific structures.</li>  
+<li>It shows clear cause and effect leading to the final result of focusing light on the retina.</li>  
+</ul>  
+
+17 — WORKED EXAMPLE  
+Paste into: Worked example (checkpoint)
+
+Question:  
+Explain how the eye focuses light on the retina when looking at a near object. (4 marks)  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+1. Ciliary muscles contract, causing suspensory ligaments to slacken.  
+2. The lens becomes thicker and more curved.  
+3. This causes light to refract more strongly.  
+4. The near object's image is then focused clearly on the retina.  
+</details>  
+
+18 — QUICK CHECK  
+Paste into: Checkpoint block
+
+Question:  
+Which part of the eye controls the amount of light entering?  
+
+Option 1: Lens  
+Option 2: Retina  
+Option 3: Iris  
+Option 4: Cornea  
+
+Answer:  
+Iris  
+
+19 — SYNTHESIS  
+Paste into: Synthesis (key idea)
+
+<h2><strong>Synthesis</strong></h2>  
+<p>👉 The eye is a complex organ where each part’s structure supports its function to create clear vision.</p>  
+<p>👉 The cornea starts focusing light by bending rays.</p>  
+<p>👉 The iris adjusts how much light enters for protection and sensitivity.</p>  
+<p>👉 The lens fine-tunes focus by changing thickness via accommodation.</p>  
+<p>👉 The retina detects the focused light to allow the brain to process images.</p>  
+
+20 — SELF-CHECK QUESTION  
+Paste into: Self-check question
+
+Question:  
+Why do ciliary muscles contract when looking at a near object?  
+
+Answer:  
+<details>  
+<summary>Reveal Answer</summary>  
+Because contracting ciliary muscles slacken suspensory ligaments, allowing the lens to become thicker and refract light more strongly to focus near objects onto the retina.  
+</details>  
+
+21 — FINAL MEMORY RULE  
+Paste into: Final memory rule (key idea)
+
+<h2><strong>💡 Key Insight</strong></h2>  
+<p>👉 The eye focuses light clearly on the retina by using the cornea and lens to refract light, and accommodation changes lens shape through ciliary muscles and suspensory ligaments to switch focus between near and distant objects.</p>  
+
+22 — EXAM PRACTICE  
+Paste into: Text (concept)
+
+<h2><strong>Exam practice</strong></h2>  
+
+<p><strong>Q1 (1 mark):</strong> What structure in the eye detects light?</p>  
+<p><strong>Q2 (2 marks):</strong> Name two parts of the eye involved in focusing light.</p>  
+
+<p><strong>Q3 (3 marks):</strong> Explain how the iris helps the eye adapt to bright light.</p>  
+<details>  
+<summary>Reveal Model Answer</summary>  
+The iris contracts in bright light which makes the pupil smaller. This reduces the amount of light entering the eye, protecting the retina from damage and improving vision clarity.  
+</details>  
+
+<p><strong>Q4 (4 marks):</strong> Describe the process of accommodation when looking at a near object.</p>  
+<details>  
+<summary>Reveal Model Answer</summary>  
+When looking at a near object, the ciliary muscles contract, causing the suspensory ligaments to slacken. This makes the lens thicker and more curved, increasing the refraction of light. As a result, the image of the near object is focused clearly on the retina.  
+</details>  
+
+23 — SUMMARY  
+Paste into: Text (concept)
+
+<h2><strong>Summary</strong></h2>  
+<ul>  
+<li>Light enters the eye through the cornea, which refracts light towards the pupil.</li>  
+<li>The iris adjusts pupil size to control light intensity.</li>  
+<li>The lens changes shape through accommodation to focus light from near or far objects.</li>  
+<li>Ciliary muscles and suspensory ligaments work together to alter lens shape.</li>  
+<li>The retina contains photoreceptors that detect focused light and send signals to the brain.</li>  
+</ul>  
+<p>👉 Remember: Clear vision depends on light being focused precisely onto the retina by both the cornea and the lens.</p>  
+<p>👉 In exams, always explain <em>how</em> structure affects function and causes clear images.</p>  
+
+24 — KEY WORDS  
+Paste into: Key words
+
+<h2><strong>Key words</strong></h2>  
+<strong>Cornea</strong> – transparent, curved front surface that refracts light entering the eye  
+<strong>Iris</strong> – coloured part of the eye that controls the size of the pupil  
+<strong>Pupil</strong> – opening in the iris that allows light to enter the eye  
+<strong>Lens</strong> – flexible structure that changes shape to focus light on the retina  
+<strong>Retina</strong> – light-sensitive layer at the back of the eye containing photoreceptors  
+<strong>Ciliary muscles</strong> – muscles that contract or relax to change lens shape during accommodation  
+<strong>Suspensory ligaments</strong> – fibres that connect the lens to ciliary muscles and adjust lens tension  
+<strong>Accommodation</strong> – the process of changing lens shape to focus light from different distances  
+<strong>Refraction</strong> – bending of light as it passes through different materials  
+<strong>Photoreceptor</strong> – light-detecting cell in the retina that sends nerve impulses to the brain

@@ -1,0 +1,349 @@
+LESSON OBJECTIVE FIELD:
+Understand the structure and function of the nervous system, including how receptors, neurones, CNS, and effectors work together to produce responses.
+SHORT SUMMARY FIELD:
+Explain how the nervous system is structured and how neurones, the CNS and PNS coordinate rapid responses to stimuli.
+
+PAGE 1
+
+1— LESSON OBJECTIVES
+Paste into: Text (concept)
+<h2><strong>Lesson objectives</strong></h2>
+<p>At the end of this lesson, you should be able to:</p>
+<ul>
+<li>👉 Define the nervous system as the body's rapid communication network.</li>
+<li>👉 Describe the organisation of the CNS and PNS and explain how neurons are structured to carry impulses.</li>
+<li>👉 Explain the pathway from receptors to effectors, including the types of neurones involved.</li>
+<li><strong>👉</strong> Identify the main parts of a neurone, including dendrites, axon, cell body and myelin sheath.</li>
+<li><strong>👉</strong> Explain how axons and myelin help electrical impulses travel quickly.</li>
+<li><strong>👉</strong> Explain how receptors, neurones, the CNS and effectors work together in nervous coordination.</li>
+</ul>
+
+2— PRIOR KNOWLEDGE
+Paste into: Text (concept)
+<h2><strong>Prior knowledge</strong></h2>
+<p>Before we start, you should already know:</p>
+<ul>
+<li>What a stimulus is and examples of common stimuli (light, touch, temperature).</li>
+<li>Basic cell structure and function.</li>
+<li>That muscles can contract and glands can secrete as responses.</li>
+</ul>
+
+3— DEFINITION
+Paste into: Text (concept)
+<p>Let's build this step by step.</p>
+<h2><strong>Definition</strong></h2>
+<p>👉 <strong>The nervous system is the body's rapid communication network that detects stimuli, processes information in the CNS, and produces responses via effectors.</strong></p>
+<p>Let's think about how this idea connects to what examiners reward.</p>
+<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>
+<p>This is important because the marks are in the explanation chain, not the headline.</p>
+<p>👉 So what does this mean in an exam?</p>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 A full-mark answer must clearly link cause → process → effect.</p>
+
+4— WHY IT MATTERS
+Paste into: Text (concept)
+<p>Let's build this step by step.</p>
+<h2><strong>Why it matters</strong></h2>
+<p>👉 <strong>This system allows organisms to respond quickly to changes in their surroundings, increasing chances of survival.</strong></p>
+<p>Let's think about how this idea connects to what examiners reward.</p>
+<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>
+<p>This is important because the marks are in the explanation chain, not the headline.</p>
+<p>👉 So what does this mean in an exam?</p>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 A full-mark answer must clearly link cause → process → effect.</p>
+
+5— CORE MODEL
+Paste into: Core rule (key idea)
+<p>Let's build this step by step.</p>
+<h2><strong>Core model</strong></h2>
+<p>👉 <strong>Stimulus → receptor → sensory neurone → central nervous system (CNS) → motor neurone → effector → response</strong></p>
+<ol>
+<li>A stimulus is detected by receptors which convert it into an electrical impulse.</li>
+<li>The impulse travels along sensory neurones to the CNS (brain and spinal cord).</li>
+<li>The CNS processes the information and sends impulses via motor neurones.</li>
+<li>The impulses reach effectors which produce a response (muscle contraction or gland secretion).</li>
+</ol>
+<p>Let's think about how this idea connects to what examiners reward.</p>
+<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>
+<p>This is important because the marks are in the explanation chain, not the headline.</p>
+<p>👉 So what does this mean in an exam?</p>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 A full-mark answer must clearly link cause → process → effect.</p>
+
+6— KEY EXAMPLES
+Paste into: Text (concept)
+<p>Let's build this step by step.</p>
+<h2><strong>Key examples</strong></h2>
+<ul>
+<li>Reflex actions such as quickly withdrawing a hand from a hot object.</li>
+<li>Withdrawal reflex involving pain receptors detecting stimuli to withdraw limbs fast.</li>
+<li>Touch receptors in the skin detecting pressure or texture.</li>
+<li>Light receptors in the eye detecting changes in brightness and colour.</li>
+<li>Temperature receptors detecting changes to help regulate body temperature.</li>
+</ul>
+<p>Let's think about how this idea connects to what examiners reward.</p>
+<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>
+<p>This is important because the marks are in the explanation chain, not the headline.</p>
+<p>👉 So what does this mean in an exam?</p>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 A full-mark answer must clearly link cause → process → effect.</p>
+<p>👉 Say it aloud like you're teaching a partner: cause, then process, then effect.</p>
+
+7— EXAM VOCABULARY
+Paste into: Text (concept)
+<p>Let's build this step by step.</p>
+<h2><strong>Exam vocabulary</strong></h2>
+<p><strong>receptor</strong>, <strong>sensory neurone</strong>, <strong>relay neurone</strong>, <strong>motor neurone</strong>, <strong>synapse</strong>, <strong>CNS</strong>, <strong>PNS</strong>, <strong>effector</strong>, <strong>response</strong>, <strong>stimulus</strong></p>
+<p>Let's think about how this idea connects to what examiners reward.</p>
+<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>
+<p>This is important because the marks are in the explanation chain, not the headline.</p>
+<p>👉 So what does this mean in an exam?</p>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 A full-mark answer must clearly link cause → process → effect.</p>
+<p>👉 Say it aloud like you're teaching a partner: cause, then process, then effect.</p>
+
+8— SCENARIO
+Paste into: Hook (text)
+<h2><strong>Apply the model</strong></h2>
+<p>👉 <strong>When you accidentally touch something hot, heat receptors in your skin detect the stimulus. They send electrical impulses via sensory neurones to your spinal cord in the CNS. The CNS sends impulses back through motor neurones to muscles in your arm, causing you to pull your hand away quickly.</strong></p>
+
+9— CORE TEACHING
+Paste into: Text (concept)
+<p>Let's build this step by step.</p>
+<h2><strong>Teaching: Structure and function of the nervous system</strong></h2>
+<p>👉 The key idea is that the nervous system coordinates rapid responses to environment changes by transmitting electrical impulses.</p>
+<h3><strong>What happens:</strong></h3>
+<ul>
+<li>A receptor detects a specific stimulus such as light, temperature, or touch.</li>
+<li>The receptor converts the stimulus into an electrical impulse transmitted by a sensory neurone.</li>
+<li>The impulse travels to the CNS (brain and spinal cord), where it is processed.</li>
+<li>The CNS sends an impulse along a motor neurone to an effector (muscle contracts or gland secretes).</li>
+<li>This causes an immediate response, such as moving away from harm.</li>
+</ul>
+<h3><strong>Structure → function / Process → effect:</strong></h3>
+<ul>
+<li>Receptors have cell membranes sensitive to specific stimuli, enabling detection.</li>
+<li>Sensory neurones have long dendrites and axons carrying impulses quickly to the CNS.</li>
+<li>The CNS acts as a coordination centre, integrating information from many sensory inputs.</li>
+<li>Motor neurones have long axons to send impulses rapidly to effectors.</li>
+<li>Effectors (muscles/glands) are adapted to perform quick contractions or secretion.</li>
+</ul>
+<h3><strong>Think like an examiner:</strong></h3>
+<p>👉 When answering, use the structure → function link and describe the pathway step-by-step: receptor detects stimulus → sensory neurone transmits to CNS → motor neurone transmits to effector → response produced.</p>
+<p>Use terms like sensory neurone carries impulses “to” the CNS and motor neurone carries impulses “away” from the CNS.</p>
+<p>Avoid vague phrases like “messages are sent” without specifying electrical impulses or neurones involved.</p>
+<p>Let's think about how this idea connects to what examiners reward.</p>
+<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>
+<p>This is important because the marks are in the explanation chain, not the headline.</p>
+<p>👉 So what does this mean in an exam?</p>
+
+10— CHECKPOINT
+Paste into: Checkpoint block
+Question:
+What is the correct order of the nervous system pathway when responding to a stimulus?
+Option 1: Motor neurone → receptor → CNS → sensory neurone → effector
+Option 2: Receptor → sensory neurone → CNS → motor neurone → effector
+Option 3: Sensory neurone → receptor → motor neurone → CNS → effector
+Option 4: Effector → motor neurone → CNS → sensory neurone → receptor
+Answer:
+Receptor → sensory neurone → CNS → motor neurone → effector
+
+11— DRAG AND DROP MATCH
+Paste into: Drag and drop match
+Instruction:
+Match each neurone part to its correct function.
+Items to drag:
+- Dendrites
+- Axon
+- Myelin sheath
+- Synapse
+Drop zones:
+- Receives impulses from other neurones → ______
+- Carries impulses away from the cell body → ______
+- Insulates the axon to speed up impulses → ______
+- Gap where neurotransmitters cross between neurones → ______
+Answer key:
+<details>
+<summary>Reveal Answer</summary>
+- Receives impulses from other neurones → Dendrites
+- Carries impulses away from the cell body → Axon
+- Insulates the axon to speed up impulses → Myelin sheath
+- Gap where neurotransmitters cross between neurones → Synapse
+</details>
+
+12— COMMON MISTAKE
+Paste into: Common mistake
+<h2><strong>Common mistakes in nervous system explanations</strong></h2>
+<p>👉 A common mistake is just naming “nerves send messages” without explaining the type of impulses or pathway.</p>
+<p><strong>Correction:</strong> The nervous system uses electrical impulses, which travel along sensory neurones to the CNS, then along motor neurones to effectors.</p>
+<p><strong>Exam link:</strong> Examiners expect "electrical impulses" and the correct pathway terms to award full marks.</p>
+<p>👉 Students often confuse motor and sensory neurones.</p>
+<p><strong>Correction:</strong> Sensory neurones carry impulses to the CNS; motor neurones carry impulses away from the CNS to effectors.</p>
+<p><strong>Exam link:</strong> Mixing up these neurones loses marks for inaccurate descriptions.</p>
+
+13— DIAGRAM / VISUAL SETUP
+Paste into: Diagram (concept)
+Placement: Early teaching, alongside core teaching block 9
+Type: Diagram
+What it should show:
+A labelled diagram of the nervous system pathway: receptor → sensory neurone → relay neurone in CNS → motor neurone → effector (muscle/gland).
+Key labels / features:
+- Receptor on skin
+- Sensory neurone sending impulse to spinal cord
+- Relay neurone inside CNS
+- Motor neurone to effector
+- Muscle as effector
+Why it helps:
+Visualising the pathway clarifies the sequence and roles of each part, aiding memory and understanding.
+Brand/style:
+LET’S REVISE header, exam-board ready, white background, thick black outlines, minimal colours, large uppercase labels
+
+14— STEP-BY-STEP PROCESS
+Paste into: Step-by-step diagram (process)
+Process:
+Transmission of electrical impulse along a neurone
+Step 1:
+Receptor detects stimulus and converts it into electrical impulse.
+↓
+Step 2:
+Impulse travels along dendrites and cell body.
+↓
+Step 3:
+Impulse passes quickly along the axon, insulated by myelin sheath.
+↓
+Step 4:
+Impulse reaches synapse and crosses to next neurone via neurotransmitters.
+Exam link:
+Explain how electrical impulses pass along neurones and cross synapses to coordinate a response.
+
+15— INTERACTIVE DIAGRAM
+Paste into: Interactive diagram
+Instruction:
+Label the parts of a sensory neurone.
+Labels to use:
+- Dendrites
+- Cell body
+- Axon
+- Myelin sheath
+Hotspots / parts:
+- A → ______
+- B → ______
+- C → ______
+- D → ______
+Answer key:
+<details>
+<summary>Reveal Answer</summary>
+- A → Dendrites
+- B → Cell body
+- C → Axon
+- D → Myelin sheath
+</details>
+
+16— EXAM TIP
+Paste into: Exam tip (concept)
+<h2><strong>🌍 Why this matters</strong></h2>
+<p>👉 The nervous system controls how organisms quickly react to dangers and changes in their environment, increasing survival chances.</p>
+<h2><strong>🎯 Premium Exam Tip</strong></h2>
+<p>👉 When the exam question asks to explain or describe the nervous system pathway, always include the direction of impulses and name the neurones.</p>
+<p>👉 Use exact terms like “sensory neurone carries impulses to the CNS” and “motor neurone carries impulses away from the CNS.”</p>
+<p>👉 Avoid vague phrases such as “messages” or “signals” without specifying electrical impulses or neurone types.</p>
+<h2><strong>🎯 Answer Quality Modelling</strong></h2>
+<p>👉 This is how to move from a basic answer to a full-mark explanation.</p>
+<h3><strong>Weak answer:</strong></h3>
+<p>Nerves send messages to muscles so the body responds.</p>
+<h3><strong>Better answer:</strong></h3>
+<p>The sensory neurone carries impulses to the brain, then motor neurones send impulses to muscles to contract.</p>
+<h3><strong>Full-mark answer:</strong></h3>
+<p>The receptor detects the stimulus and sends an electrical impulse along the sensory neurone to the CNS (brain or spinal cord). The CNS processes the information and sends impulses along the motor neurone to the effector (muscle), which contracts to produce a response.</p>
+<h3><strong>Why the full-mark answer is stronger:</strong></h3>
+<ul>
+<li>Clearly uses correct terminology: receptor, sensory neurone, CNS, motor neurone, effector.</li>
+<li>Shows the direction of impulse transmission step-by-step.</li>
+<li>Links cause (stimulus detection) to effect (muscle contraction) through process.</li>
+</ul>
+
+17— WORKED EXAMPLE
+Paste into: Worked example (checkpoint)
+Question:
+Explain why myelinated neurones transmit impulses faster than unmyelinated neurones. (4 marks)
+Answer:
+<details>
+<summary>Reveal Answer</summary>
+1. The myelin sheath insulates the axon preventing electrical impulse loss.
+2. Impulses jump between gaps called nodes of Ranvier in a process called saltatory conduction.
+3. This speeds up the transmission of impulses along the neurone.
+4. Faster transmission allows quicker responses to stimuli, increasing survival chances.
+</details>
+
+18— QUICK CHECK
+Paste into: Quick check (checkpoint)
+Question:
+Which part of the nervous system processes information and decides how to respond?
+Option 1: Sensory neurone
+Option 2: Motor neurone
+Option 3: Central nervous system (CNS)
+Option 4: Effector
+Answer:
+Central nervous system (CNS)
+
+19— SYNTHESIS
+Paste into: Synthesis (key idea)
+<h2><strong>Synthesis</strong></h2>
+<p>👉 The nervous system works as a fast chain: receptors detect stimuli → sensory neurones send impulses to the CNS → CNS coordinates the response → motor neurones send impulses to effectors → muscles contract or glands secrete, producing a rapid response that keeps the organism safe.</p>
+
+20— SELF-CHECK QUESTION
+Paste into: Self-check question
+Question:
+Describe the role of motor neurones in the nervous system.
+
+21— FINAL MEMORY RULE
+Paste into: Final memory rule (key idea)
+<h2><strong>💡 Key Insight</strong></h2>
+<p>👉 Remember the pathway: Stimulus → receptor → sensory neurone → CNS → motor neurone → effector → response. Each part is specialised to do its job fast and accurately so organisms survive by reacting quickly to changes.</p>
+
+22— KEY INSIGHT
+Paste into: Final memory rule (key idea)
+<p><strong>💡 Key Insight</strong></p>
+<p><strong>👉</strong> The most important idea is that <strong>Structure and function of the nervous system</strong> links clear cause → effect reasoning to how examiners award marks.</p>
+
+23— EXAM PRACTICE
+Paste into: Text (concept)
+<h2><strong>Exam practice questions</strong></h2>
+<p><strong>Q1 (1 mark):</strong> What detects a stimulus?</p>
+<p><strong>Q2 (2 marks):</strong> Describe the role of motor neurones in the nervous system.</p>
+<p><strong>Q3 (3 marks):</strong> Explain how electrical impulses travel from receptors to effectors.</p>
+<p><strong>Q4 (4 marks):</strong> Explain why quick transmission of impulses along neurones is important for survival.</p>
+<details>
+<summary>Reveal model answers</summary>
+<p><strong>Q1 answer:</strong> Receptors detect a stimulus.</p>
+<p><strong>Q2 answer:</strong> Motor neurones carry electrical impulses away from the CNS to effectors such as muscles to produce a response.</p>
+<p><strong>Q3 answer:</strong> Receptors detect a stimulus and convert it into an electrical impulse. The impulse travels along sensory neurones to the CNS. The CNS processes the information and sends impulses via motor neurones to effectors. Effectors produce a response.</p>
+<p><strong>Q4 answer:</strong> Quick transmission of impulses allows the organism to respond rapidly to dangers or changes, increasing chances of survival by avoiding harm or maintaining internal conditions.</p>
+</details>
+
+24— SUMMARY
+Paste into: Text (concept)
+<h2><strong>Summary</strong></h2>
+<ul>
+<li>The nervous system detects changes via receptors and sends electrical impulses along neurones.</li>
+<li>Impulses travel through the CNS (brain and spinal cord) where responses are coordinated.</li>
+<li>Sensory neurones carry impulses to the CNS; motor neurones carry impulses from the CNS to effectors.</li>
+<li>Effectors (muscles and glands) produce rapid responses to stimuli.</li>
+<li>Structures like myelin sheaths speed up impulse transmission.</li>
+<li>Understanding these pathways helps explain reflex actions and rapid responses in humans.</li>
+</ul>
+<p><strong>Remember:</strong> In exams, always link structure to function and explain processes with cause → effect chains.</p>
+
+25— KEY WORDS
+Paste into: Key words
+<p><strong>👉 Keywords</strong></p>
+<strong>Receptor</strong> – Cells that detect stimuli in the environment.
+<strong>Stimulus</strong> – A change in the environment that is detected by receptors.
+<strong>Response</strong> – The action taken by an organism after receiving a stimulus.
+<strong>Sensory neurone</strong> – A neurone that carries impulses from receptors to the CNS.
+<strong>Relay neurone</strong> – A neurone within the CNS that passes impulses between sensory and motor neurones.
+<strong>Motor neurone</strong> – A neurone that carries impulses from the CNS to effectors.
+<strong>Synapse</strong> – The gap between neurones where chemical neurotransmitters cross.
+<strong>CNS</strong> – Central Nervous System; brain and spinal cord that coordinate responses.
+<strong>PNS</strong> – Peripheral Nervous System; all neurones outside the CNS.
+<strong>Effector</strong> – Muscles or glands that carry out the response.

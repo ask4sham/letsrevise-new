@@ -4,7 +4,7 @@
     "start:backend": "npm start --prefix backend",
     "start:frontend": "npm start --prefix frontend",
     "test": "jest --runInBand --forceExit",
-    "test:contracts": "jest --runInBand --forceExit tests/keyWordsAuthority.test.js tests/teacherFirstKnowledgeEngine.test.js tests/teachingQualityPlaceholderGate.test.js tests/teacherBrain.dragDropVisualContract.test.js",
+    "test:contracts": "jest --runInBand --forceExit tests/keyWordsAuthority.test.js tests/objectivesAuthority.test.js tests/assessmentScopeAuthority.test.js tests/summaryAuthority.test.js tests/memoryRuleAuthority.test.js tests/teacherFirstKnowledgeEngine.test.js tests/teachingQualityPlaceholderGate.test.js tests/teacherBrain.dragDropVisualContract.test.js",
     "test:backend": "jest -c jest.backend.config.js --runInBand",
     "test:backend:list": "jest -c jest.backend.config.js --listTests",
     "validate:bundle": "node scripts/validate-lesson-bundle.js",
