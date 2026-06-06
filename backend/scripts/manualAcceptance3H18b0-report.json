@@ -1,0 +1,112 @@
+{
+  "phase": "3H.1.8b.0",
+  "generatedAt": "2026-06-06T11:28:39.830Z",
+  "allPass": true,
+  "results": [
+    {
+      "name": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "pass": true,
+      "generationSeconds": "25.3",
+      "promptHasKeywordsMandate": true,
+      "openingOk": true,
+      "keyWordsGate": {
+        "pass": true,
+        "keywordCount": 10,
+        "frameworkTermCount": 0,
+        "frameworkRatio": 0,
+        "frameworkTermsFound": [],
+        "usedGenericFallback": false,
+        "keywords": [
+          "Homeostasis",
+          "Stimulus",
+          "Receptor",
+          "Coordination centre",
+          "Effector",
+          "Response",
+          "Optimum",
+          "Negative feedback",
+          "Hormone",
+          "Enzyme"
+        ],
+        "warnings": []
+      },
+      "frameworkInAfter": [],
+      "keywordsBeforeSnippet": "24 — KEY WORDS  \nPaste into: Key words\n\n<h2><strong>Key words</strong></h2>  \n<p><strong>Homeostasis</strong> – Keeping internal conditions stable for healthy cell function.</p>  \n<p><strong>Stimulus</strong> – A change in the environment detected by the body.</p>  \n<p><strong>Receptor</strong> – A cell or organ that detects a stimulus.</p>  \n<p><strong>Coordination centre</strong> – Part of the body that processes information and sends out instructions.</p>  \n<p><strong>Effector</strong> – Musc",
+      "keywordsAfterSnippet": "25— KEY WORDS\nPaste into: Key words\n<p><strong>👉 Keywords</strong></p>\n<strong>Homeostasis</strong> – Keeping internal conditions stable for healthy cell function.\n<strong>Stimulus</strong> – A change in the environment detected by the body.\n<strong>Receptor</strong> – A cell or organ that detects a stimulus.\n<strong>Coordination centre</strong> – Part of the body that processes information and sends out instructions.\n<strong>Effector</strong> – Muscle or gland that produces a response to restore balance.\n<strong>Response</strong> – The action done by the effector to counteract the stimulus.\n<strong>Optimum</strong> – The best condition for enzyme and cell function.\n<strong>Negative feedback</strong> – A process that reverses a change to return conditions to optimum.\n<strong>Hormone</stro",
+      "fixesApplied": [
+        "Normalised Keywords to exactly 10 term–definition lines."
+      ]
+    },
+    {
+      "name": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "pass": true,
+      "generationSeconds": "26.6",
+      "promptHasKeywordsMandate": true,
+      "openingOk": true,
+      "keyWordsGate": {
+        "pass": true,
+        "keywordCount": 10,
+        "frameworkTermCount": 0,
+        "frameworkRatio": 0,
+        "frameworkTermsFound": [],
+        "usedGenericFallback": false,
+        "keywords": [
+          "Receptor",
+          "Stimulus",
+          "Response",
+          "Sensory neurone",
+          "Relay neurone",
+          "Motor neurone",
+          "Synapse",
+          "CNS",
+          "PNS",
+          "Effector"
+        ],
+        "warnings": []
+      },
+      "frameworkInAfter": [],
+      "keywordsBeforeSnippet": "24 — KEY WORDS  \nPaste into: Key words  \n\n<h2><strong>Key words</strong></h2>  \n<strong>Receptor</strong> – A specialized cell that detects a stimulus in the environment.  \n<strong>Stimulus</strong> – A change in the environment that is detected by receptors.  \n<strong>Response</strong> – The action carried out by an effector as a result of a nervous impulse.  \n<strong>Sensory neurone</strong> – A nerve cell that carries impulses from receptors to the CNS.  \n<strong>Relay neurone</strong> – A ne",
+      "keywordsAfterSnippet": "25— KEY WORDS\nPaste into: Key words\n<p><strong>👉 Keywords</strong></p>\n<strong>Receptor</strong> – A specialized cell that detects a stimulus in the environment.\n<strong>Stimulus</strong> – A change in the environment that is detected by receptors.\n<strong>Response</strong> – The action carried out by an effector as a result of a nervous impulse.\n<strong>Sensory neurone</strong> – A nerve cell that carries impulses from receptors to the CNS.\n<strong>Relay neurone</strong> – A nerve cell in the CNS that connects sensory and motor neurones.\n<strong>Motor neurone</strong> – A nerve cell that carries impulses from the CNS to effectors.\n<strong>Synapse</strong> – The gap where impulses pass between neurones using chemicals.\n<strong>CNS</strong> – Central nervous system consisting of the brain ",
+      "fixesApplied": [
+        "Normalised Keywords to exactly 10 term–definition lines."
+      ]
+    },
+    {
+      "name": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "pass": true,
+      "generationSeconds": "26.9",
+      "promptHasKeywordsMandate": true,
+      "openingOk": true,
+      "keyWordsGate": {
+        "pass": true,
+        "keywordCount": 10,
+        "frameworkTermCount": 0,
+        "frameworkRatio": 0,
+        "frameworkTermsFound": [],
+        "usedGenericFallback": false,
+        "keywords": [
+          "Cornea",
+          "Iris",
+          "Pupil",
+          "Lens",
+          "Retina",
+          "Ciliary muscles",
+          "Suspensory ligaments",
+          "Accommodation",
+          "Refraction",
+          "Photoreceptor"
+        ],
+        "warnings": []
+      },
+      "frameworkInAfter": [],
+      "keywordsBeforeSnippet": "24 — KEY WORDS  \nPaste into: Key words  \n\n<h2><strong>Key words</strong></h2>  \n<strong>Cornea</strong> – The transparent front layer of the eye that bends light rays as they enter.  \n<br />  \n<strong>Iris</strong> – The coloured part of the eye that adjusts pupil size to regulate light entering.  \n<br />  \n<strong>Pupil</strong> – The opening in the iris through which light passes into the eye.  \n<br />  \n<strong>Lens</strong> – A flexible structure that changes shape to focus light on the reti",
+      "keywordsAfterSnippet": "25— KEY WORDS\nPaste into: Key words\n<p><strong>👉 Keywords</strong></p>\n<strong>Cornea</strong> – The transparent front layer of the eye that bends light rays as they enter.\n<strong>Iris</strong> – The coloured part of the eye that adjusts pupil size to regulate light entering.\n<strong>Pupil</strong> – The opening in the iris through which light passes into the eye.\n<strong>Lens</strong> – A flexible structure that changes shape to focus light on the retina.\n<strong>Retina</strong> – The light-sensitive layer at the back of the eye containing photoreceptor cells.\n<strong>Ciliary muscles</strong> – Muscles that contract or relax to change the lens shape for accommodation.\n<strong>Suspensory ligaments</strong> – Fibres that attach to the lens and pull on it to alter its shape.\n<strong>Accomm",
+      "fixesApplied": [
+        "Normalised Keywords to exactly 10 term–definition lines."
+      ]
+    }
+  ]
+}
