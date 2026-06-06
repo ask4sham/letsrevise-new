@@ -1,0 +1,305 @@
+{
+  "generatedAt": "2026-06-06T08:30:17.873Z",
+  "phase": "3H.1.8a.1",
+  "flags": {
+    "TEACHER_BRAIN_TEACHER_FIRST_OPENING": "1",
+    "TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE": "1"
+  },
+  "results": [
+    {
+      "name": "Homeostasis",
+      "topic": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "generationSeconds": "23.5",
+      "first10Titles": [
+        "LESSON OBJECTIVES",
+        "PRIOR KNOWLEDGE",
+        "DEFINITION",
+        "WHY IT MATTERS",
+        "CORE MODEL",
+        "KEY EXAMPLES",
+        "EXAM VOCABULARY",
+        "SCENARIO",
+        "CORE TEACHING",
+        "CHECKPOINT"
+      ],
+      "opening": {
+        "pass": true,
+        "scenarioIndex": 8,
+        "definitionIndex": 3
+      },
+      "quality": {
+        "enabled": true,
+        "profileKey": "homeostasis",
+        "reasoning": {
+          "arrowChainMatches": 64,
+          "numberedSteps": 12,
+          "causalMarkerCount": 2,
+          "profileCoveragePct": 92,
+          "hasExplicitChain": true,
+          "pass": true
+        },
+        "examiner": {
+          "patternHits": {
+            "studentsOftenWrite": false,
+            "examinersExpect": true,
+            "useThePhrase": false,
+            "avoidSaying": false,
+            "aqaWording": true,
+            "markLosing": true,
+            "thinkLikeExaminer": true,
+            "premiumExamTip": true,
+            "weakBetterFull": true
+          },
+          "distinctPatterns": 6,
+          "blocksWithExaminerLanguage": 2,
+          "pass": true
+        },
+        "gate": {
+          "profileKey": "homeostasis",
+          "placeholders": {
+            "pass": true,
+            "hits": [],
+            "openingBlockSample": "<p>Let's build this step by step.</p>\n<h2><strong>Definition</strong></h2>\n<p>👉 <strong>Homeostasis is the regulation of internal conditions to keep them optimum for cells and enzymes, even when there are changes inside or outside the body.</strong></p>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it."
+          },
+          "dualOutput": {
+            "pass": true,
+            "preambleLines": 8,
+            "strippedPreambleLength": 255,
+            "strippedPreambleSample": "State what homeostasis means in biology, explain its importance, and use the exam pathway (receptor → coordination centre → effector) in context.\nUnderstand how homeostasis keeps conditions in the body stable and why this is vital for health and survival."
+          },
+          "openingSlots": {
+            "pass": true,
+            "coreModel": {
+              "bodyLength": 1123,
+              "missingTerms": []
+            },
+            "keyExamples": {
+              "missing": []
+            },
+            "examVocabulary": {
+              "missing": []
+            },
+            "blocks": {
+              "coreModel": 5,
+              "keyExamples": 6,
+              "examVocabulary": 7
+            }
+          },
+          "pass": true
+        },
+        "pass": true
+      },
+      "snippets": {
+        "coreModel": "<p>Let's build this step by step.</p>\n<h2><strong>Core model</strong></h2>\n<p>👉 <strong>The basic homeostasis pathway:</strong></p>\n<ul>\n<li><strong>Receptors</strong> detect a stimulus (change in internal/external environment).</li>\n<li>Information goes to a <strong>coordination centre</strong> (brain/spinal cord/pancreas).</li>\n<li><strong>Effectors</strong> (muscles/glands) act to restore conditions to the <strong>optimum</strong>.</li>\n</ul>\n<ol>\n  <li>Change happens (e.g. temperature rises)</li>\n  <li>Receptors sense the change</li>\n  <li>Coordination centre processes the signal</li>\n  <li>Effector responds (e.g. sweats or releases hormone)</li>\n  <li>Internal condition returns to optimum</li>\n</ol>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice t…",
+        "keyExamples": "<p>Let's build this step by step.</p>\n<h2><strong>Key examples</strong></h2>\n<ul>\n<li>Body temperature control (thermoregulation)</li>\n<li>Blood glucose regulation (glucose homeostasis)</li>\n<li>Water balance (osmoregulation)</li>\n</ul>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the explanation chain, not the headline.</p>\n<p>👉 So what does this mean in an exam?</p>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>👉 A full-mark answer must clearly link cause → process → effect.</p>\n<p>👉 Say it aloud like you're teaching a partner: cause, then process, then effect.</p>",
+        "examVocabulary": "<p>Let's build this step by step.</p>\n<h2><strong>Exam vocabulary</strong></h2>\n<p><strong>receptor</strong>, <strong>coordination centre</strong>, <strong>effector</strong>, <strong>stimulus</strong>, <strong>response</strong>, <strong>optimum</strong>, <strong>enzyme</strong></p>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the explanation chain, not the headline.</p>\n<p>👉 So what does this mean in an exam?</p>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>👉 A full-mark answer must clearly link cause → process → effect.</p>\n<p>👉 Say it aloud like you're teaching a partner: cause, then process, then effect.</p>",
+        "coreTeaching": "<p>Let's build this step by step.</p>\n<h2><strong>Teaching: Homeostasis</strong></h2>\n<p>👉 Homeostasis is about keeping your body’s internal environment stable — not fixed, but in its “sweet spot”.</p>\n<h3><strong>Key idea:</strong></h3>\n<p>The body must keep things like temperature, water, and blood sugar within narrow limits for cells and enzymes to work.</p>\n<h3><strong>What happens:</strong></h3>\n<ul>\n<li>A change (stimulus) threatens the optimum condition (e.g. temp rises, blood glucose drops).</li>\n<li>Special cells (receptors) pick up this change.</li>\n<li>The brain, spinal cord, or pancreas (coordination centres) decide what to do.</li>\n<li>Effectors (like sweat glands or the pancreas) make a change to restore the balance.</li>\n</ul>\n<h3><strong>Structure → function / Process → ef…",
+        "commonMistake": "<h2><strong>Common mistake</strong></h2>\n<p>👉 A common mistake is just naming a body part or response without linking the structure and function.</p>\n<ul>\n<li><strong>Wrong:</strong> “The brain makes you sweat if you get hot.”</li>\n<li><strong>Correct:</strong> “Thermoreceptors detect a rise in temperature. The hypothalamus (coordination centre) processes this, and sweat glands (effectors) produce sweat to lower body temperature.”</li>\n</ul>\n<p><strong>Exam link:</strong> Marks are lost if you skip steps — examiners want to see a clear sequence: receptor → coordination centre → effector → return to optimum.</p>\n<p>👉 Students often confuse the <strong>stimulus</strong> (the change) and the <strong>response</strong> (the body’s action). Get the order right for top marks!</p>",
+        "examTip": "<h2><strong>🌍 Why this matters</strong></h2>\n<p>👉 If your body didn’t use homeostasis, even small changes in temperature or blood sugar could quickly make you sick. Homeostasis lets animals, including humans, survive in lots of different conditions. For the exam, this topic links to every major system the body uses to keep you alive.</p>\n<h2><strong>🎯 Premium Exam Tip</strong></h2>\n<p>👉 Always use the full chain: <strong>“Receptor detects… Coordination centre processes… Effector returns to optimum.”</strong> Examiners will not award full marks for partial descriptions, e.g. “brain tells sweat glands.” Name all three steps!</p>\n<p>👉 Common mark-losing phrases: “the body cools itself” or “the enzymes work less” (too vague). Instead, use: “homeostasis restores optimum conditions so enzym…",
+        "workedExample": "Question:\nExplain how the body responds if blood glucose (sugar) becomes higher than the optimum level after eating a meal. (4 marks)\nAnswer:\n<details>\n<summary>Reveal Answer</summary>\n1. Eating increases blood glucose (stimulus).\n2. Receptors in the pancreas detect this rise.\n3. The pancreas (coordination centre) releases insulin (hormone).\n4. Insulin triggers the liver and muscle cells (effectors) to remove glucose from the blood and store it as glycogen.\n5. Blood glucose falls back to the optimum.\n</details>"
+      },
+      "pass": true,
+      "lessonFile": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\3H18a\\homeostasis-upgrade.txt"
+    },
+    {
+      "name": "Structure and function of the nervous system",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "generationSeconds": "23.2",
+      "first10Titles": [
+        "LESSON OBJECTIVES",
+        "PRIOR KNOWLEDGE",
+        "DEFINITION",
+        "WHY IT MATTERS",
+        "CORE MODEL",
+        "KEY EXAMPLES",
+        "EXAM VOCABULARY",
+        "SCENARIO",
+        "CORE TEACHING",
+        "CHECKPOINT"
+      ],
+      "opening": {
+        "pass": true,
+        "scenarioIndex": 8,
+        "definitionIndex": 3
+      },
+      "quality": {
+        "enabled": true,
+        "profileKey": "nervous-system-structure",
+        "reasoning": {
+          "arrowChainMatches": 83,
+          "numberedSteps": 8,
+          "causalMarkerCount": 2,
+          "profileCoveragePct": 100,
+          "hasExplicitChain": true,
+          "pass": true
+        },
+        "examiner": {
+          "patternHits": {
+            "studentsOftenWrite": false,
+            "examinersExpect": true,
+            "useThePhrase": false,
+            "avoidSaying": false,
+            "aqaWording": true,
+            "markLosing": true,
+            "thinkLikeExaminer": true,
+            "premiumExamTip": true,
+            "weakBetterFull": true
+          },
+          "distinctPatterns": 6,
+          "blocksWithExaminerLanguage": 2,
+          "pass": true
+        },
+        "gate": {
+          "profileKey": "nervous-system-structure",
+          "placeholders": {
+            "pass": true,
+            "hits": [],
+            "openingBlockSample": "<p>Let's build this step by step.</p>\n<h2><strong>Definition</strong></h2>\n<p>👉 <strong>The nervous system is your body’s rapid communication system that detects changes (stimuli) in your environment and allows you to respond quickly by transmitting electrical impulses through specialised cells called neurones.</strong></p>\n<p>Let's think about how this idea connects to what examiners reward.</p>"
+          },
+          "dualOutput": {
+            "pass": true,
+            "preambleLines": 8,
+            "strippedPreambleLength": 390,
+            "strippedPreambleSample": "Understand the structure and function of the nervous system, including how information is detected, transmitted, processed, and leads to rapid responses, with reference to reflexes, the brain, eye structure, and thermoregulation.\nExplore how the nervous system detects changes, transmits electrical i"
+          },
+          "openingSlots": {
+            "pass": true,
+            "coreModel": {
+              "bodyLength": 1149,
+              "missingTerms": []
+            },
+            "keyExamples": {
+              "missing": []
+            },
+            "examVocabulary": {
+              "missing": []
+            },
+            "blocks": {
+              "coreModel": 5,
+              "keyExamples": 6,
+              "examVocabulary": 7
+            }
+          },
+          "pass": true
+        },
+        "pass": true
+      },
+      "snippets": {
+        "coreModel": "<p>Let's build this step by step.</p>\n<h2><strong>Core model</strong></h2>\n<p>👉 <strong>Stimulus → Receptor → Sensory neurone → CNS (brain or spinal cord) → Motor neurone → Effector → Response</strong></p>\n<ol>\n<li>A change (stimulus) is detected by a receptor (e.g. in the skin or eye).</li>\n<li>The receptor sends an electrical impulse along a sensory neurone to the central nervous system (CNS).</li>\n<li>The impulse is processed in the CNS (sometimes via a relay neurone).</li>\n<li>An impulse travels along a motor neurone to an effector (muscle or gland).</li>\n<li>The effector creates a response (muscle contracts or gland secretes).</li>\n<li>This process is extremely rapid—sometimes forming a reflex to protect the body.</li>\n</ol>\n<p>Let's think about how this idea connects to what examine…",
+        "keyExamples": "<p>Let's build this step by step.</p>\n<h2><strong>Key examples</strong></h2>\n<ul>\n<li>Reflex actions, like quickly pulling your hand away from something hot.</li>\n<li>Withdrawal reflex, such as blinking when something comes near your eyes.</li>\n<li>Touch receptors in the skin detecting pressure or pain.</li>\n<li>Light receptors in the eyes detecting changes in brightness.</li>\n<li>Temperature receptors in the skin sensing changes in external temperature.</li>\n</ul>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the explanation chain, not the headline.</p>\n<p>👉 So what does this mean in an exam?</p>\n<h3><strong>Think like an examiner:</strong>…",
+        "examVocabulary": "<p>Let's build this step by step.</p>\n<h2><strong>Exam vocabulary</strong></h2>\n<p><strong>receptor</strong>, <strong>sensory neurone</strong>, <strong>relay neurone</strong>, <strong>motor neurone</strong>, <strong>synapse</strong>, <strong>CNS</strong>, <strong>PNS</strong>, <strong>effector</strong>, <strong>response</strong>, <strong>stimulus</strong></p>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the explanation chain, not the headline.</p>\n<p>👉 So what does this mean in an exam?</p>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>👉 A full-mark answer must clearly link cause → process → effect.</p>\n<p>👉 Say it aloud like you'r…",
+        "coreTeaching": "<p>Let's build this step by step.</p>\n<h2><strong>Teaching: Structure and function of the nervous system</strong></h2>\n<p>👉 The core idea is that the nervous system is structured to be fast and precise—linking receptors, neurones, the CNS, and effectors in a chain.</p>\n<h3><strong>Key idea:</strong></h3>\n<p>Each part of the pathway is specialised (adapted) for its role.</p>\n<h3><strong>What happens:</strong></h3>\n<ul>\n<li>Receptors (like nerve endings in skin or cells in the eyes) are highly sensitive to specific types of stimulus—like touch, light, or temperature.</li>\n<li>When a receptor is stimulated, it produces an electrical impulse, which is carried along a sensory neurone.</li>\n<li>Sensory neurones bring information into the CNS (brain or spinal cord).</li>\n<li>The impulse may pass…",
+        "commonMistake": "<h2><strong>Common mistake</strong></h2>\n<p>👉 A common mistake is writing “nerves send messages to the brain” without specifying <em>how</em> or in which direction.</p>\n<ul>\n<li>Wrong: “The nerve sends messages to the brain.”</li>\n<li>Correct: “The sensory neurone carries electrical impulses from the receptor to the CNS.”</li>\n</ul>\n<p><strong>Exam link:</strong> In the exam, just saying “messages” doesn’t score; you must mention electrical impulses, name the neurone, and say which way the impulse travels!</p>\n<p>👉 Students often confuse muscles (which contract) and glands (which secrete) as effectors. Always specify the correct response for the type of effector in your answer.</p>",
+        "examTip": "<h2><strong>🌍 Why this matters</strong></h2>\n<p>👉 The ability to detect danger and respond rapidly can save your life—like avoiding getting burned or detecting low body temperature before you’re harmed.</p>\n<p>👉 Exams test this because it shows you understand how your body maintains survival and homeostasis—fast, automatic responses are crucial!</p>\n<h2><strong>🎯 Premium Exam Tip</strong></h2>\n<p>👉 “Describe how…” and “Explain why…” questions want <strong>structure AND function</strong>. Always link “because the structure is… it allows the function to be…” For full marks, use chain language like “this leads to…” or “as a result…”.</p>\n<ul>\n<li>Use “electrical impulses” for what neurones carry, not “messages”.</li>\n<li>Always specify direction for sensory and motor neurones.</li>\n<li>N…",
+        "workedExample": "Question:\nDescribe the pathway by which your body withdraws your hand from a sharp object, and explain why this response is so rapid. (4 marks)\nAnswer:\n<details>\n<summary>Reveal Answer</summary>\n1. The sharp object (stimulus) is detected by pain receptors in the skin.\n2. The receptors send an electrical impulse along a sensory neurone to the spinal cord (CNS).\n3. In the spinal cord, the impulse passes across a relay neurone and then to a motor neurone.\n4. The motor neurone carries the impulse to an effector (muscle), causing it to contract, which withdraws the hand quickly—this is a rapid reflex, meaning the brain is not directly involved so the response is almost instant.\n</details>"
+      },
+      "pass": true,
+      "lessonFile": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\3H18a\\nervous-system-structure-upgrade.txt"
+    },
+    {
+      "name": "The eye",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "generationSeconds": "19.3",
+      "first10Titles": [
+        "LESSON OBJECTIVES",
+        "PRIOR KNOWLEDGE",
+        "DEFINITION",
+        "WHY IT MATTERS",
+        "CORE MODEL",
+        "KEY EXAMPLES",
+        "EXAM VOCABULARY",
+        "SCENARIO",
+        "CORE TEACHING",
+        "CHECKPOINT"
+      ],
+      "opening": {
+        "pass": true,
+        "scenarioIndex": 8,
+        "definitionIndex": 3
+      },
+      "quality": {
+        "enabled": true,
+        "profileKey": "the-eye",
+        "reasoning": {
+          "arrowChainMatches": 48,
+          "numberedSteps": 10,
+          "causalMarkerCount": 2,
+          "profileCoveragePct": 100,
+          "hasExplicitChain": true,
+          "pass": true
+        },
+        "examiner": {
+          "patternHits": {
+            "studentsOftenWrite": false,
+            "examinersExpect": true,
+            "useThePhrase": false,
+            "avoidSaying": false,
+            "aqaWording": true,
+            "markLosing": true,
+            "thinkLikeExaminer": true,
+            "premiumExamTip": true,
+            "weakBetterFull": true
+          },
+          "distinctPatterns": 6,
+          "blocksWithExaminerLanguage": 2,
+          "pass": true
+        },
+        "gate": {
+          "profileKey": "the-eye",
+          "placeholders": {
+            "pass": true,
+            "hits": [],
+            "openingBlockSample": "<p>Let's build this step by step.</p>\n<h2><strong>Definition</strong></h2>\n<p>👉 <strong>The eye is a specialised sensory organ that detects light and focuses it onto the retina to produce a clear image for the brain to interpret.</strong></p>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>Thi"
+          },
+          "dualOutput": {
+            "pass": true,
+            "preambleLines": 8,
+            "strippedPreambleLength": 267,
+            "strippedPreambleSample": "Understand and explain how the eye is structured, how it focuses light, and how its adaptations enable clear vision at different distances.\nLearn the function and structure of the eye, how light is focused, and how to use correct exam vocabulary and reasoning chains."
+          },
+          "openingSlots": {
+            "pass": true,
+            "coreModel": {
+              "bodyLength": 1007,
+              "missingTerms": []
+            },
+            "keyExamples": {
+              "missing": []
+            },
+            "examVocabulary": {
+              "missing": []
+            },
+            "blocks": {
+              "coreModel": 5,
+              "keyExamples": 6,
+              "examVocabulary": 7
+            }
+          },
+          "pass": true
+        },
+        "pass": true
+      },
+      "snippets": {
+        "coreModel": "<p>Let's build this step by step.</p>\n<h2><strong>Core model</strong></h2>\n<p>👉 <strong>Cornea → Lens → Retina</strong></p>\n<ol>\n<li>Light enters the eye through the cornea.</li>\n<li>Cornea bends (refracts) most of the incoming light rays.</li>\n<li>Iris controls the amount of light that passes through the pupil.</li>\n<li>Lens changes shape (accommodation) to focus the image by exactly the right amount.</li>\n<li>Focused light falls onto the retina at the back of the eye.</li>\n<li>Special cells in the retina detect light and send electrical impulses to the brain for interpretation.</li>\n</ol>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the e…",
+        "keyExamples": "<p>Let's build this step by step.</p>\n<h2><strong>Key examples</strong></h2>\n<ul>\n<li>Cornea refraction: The cornea bends most of the light entering the eye.</li>\n<li>Lens accommodation: The lens changes shape to focus on near or distant objects.</li>\n<li>Retina image formation: The retina contains photoreceptors that detect focused light and start the process of seeing.</li>\n</ul>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the explanation chain, not the headline.</p>\n<p>👉 So what does this mean in an exam?</p>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>👉 A full-mark answer must clearly link cause → process → effect.</p>\n<p>👉 …",
+        "examVocabulary": "<p>Let's build this step by step.</p>\n<h2><strong>Exam vocabulary</strong></h2>\n<p><strong>cornea</strong>, <strong>lens</strong>, <strong>retina</strong>, <strong>iris</strong>, <strong>pupil</strong>, <strong>ciliary muscles</strong>, <strong>suspensory ligaments</strong>, <strong>accommodation</strong></p>\n<p>Let's think about how this idea connects to what examiners reward.</p>\n<p>Notice that a strong answer names the idea <em>and</em> explains it.</p>\n<p>This is important because the marks are in the explanation chain, not the headline.</p>\n<p>👉 So what does this mean in an exam?</p>\n<h3><strong>Think like an examiner:</strong></h3>\n<p>👉 A full-mark answer must clearly link cause → process → effect.</p>\n<p>👉 Say it aloud like you're teaching a partner: cause, then process, then eff…",
+        "coreTeaching": "<p>Let's build this step by step.</p>\n<h2><strong>Teaching: The eye</strong></h2>\n<p>👉 The key idea is structure leads to function: each part of the eye is adapted to a specific role in vision.</p>\n<h3><strong>Key idea:</strong></h3>\n<p>The cornea, iris, lens, and retina work together to focus light and create clear images.</p>\n<h3><strong>What happens:</strong></h3>\n<ul>\n<li>Cornea and lens refract (bend) light so it focuses on the retina.</li>\n<li>Iris and pupil control the amount of light entering.</li>\n<li>Lens can change shape (accommodation) to allow focusing on near or distant objects.</li>\n<li>Retina’s photoreceptor cells detect light and convert it to electrical impulses.</li>\n</ul>\n<h3><strong>Structure → function / Process → effect:</strong></h3>\n<ul>\n<li><strong>Cornea:</stron…",
+        "commonMistake": "<h2><strong>Common mistake</strong></h2>\n<p>👉 A common mistake is saying, “The lens does all the focusing” without mentioning the cornea, or saying \"the retina sees the image\".</p>\n<ul>\n<li><strong>Wrong:</strong> “The lens focuses the image so we can see.”</li>\n<li><strong>Correct:</strong> “The cornea bends most light entering the eye, and the lens fine-focuses it onto the retina, which detects the light.”</li>\n</ul>\n<p><strong>Exam link:</strong> Examiners deduct marks for missing steps. You must link cornea → lens → retina, and state the retina detects, not “sees”, the image.</p>\n<p>👉 Students often forget to explain <strong>how</strong> the lens focuses (mentioning ciliary muscles and ligaments for top marks on accommodation).</p>",
+        "examTip": "<h2><strong>🌍 Why this matters</strong></h2>\n<p>👉 The eye lets us respond to changing environments – finding food, avoiding danger, and carrying out daily life. Vision is a fast feedback system for survival. In exams, structure and process links are often tested in 4–6 mark questions, so nailing these connections is key to top grades.</p>\n<h2><strong>🎯 Premium Exam Tip</strong></h2>\n<p>👉 When explaining focusing (accommodation), <strong>always mention ciliary muscles AND suspensory ligaments</strong>. For highest marks, describe their action AND the lens change AND the effect on light rays. Use correct AQA terms: “accommodation”, “photoreceptors”, “refracts light”, “focused on the retina”. Avoid casual language like “the eye zooms in”.</p>\n<h2><strong>🎯 Answer Quality Modelling</stron…",
+        "workedExample": "Question:\nExplain how the eye focuses light from a near object onto the retina. (4 marks)\nAnswer:\n<details>\n<summary>Reveal Answer</summary>\n1. When focusing on a near object, the ciliary muscles contract.<br />\n2. This causes the suspensory ligaments to slacken (loosen).<br />\n3. The lens becomes thicker and more curved.<br />\n4. The thicker lens refracts the light rays more, so they are focused exactly onto the retina for a sharp image.\n</details>"
+      },
+      "pass": true,
+      "lessonFile": "C:\\Users\\ask4s\\Desktop\\dev\\letsrevise-new\\docs\\design\\validation\\3H18a\\the-eye-upgrade.txt"
+    }
+  ],
+  "summary": {
+    "allPass": true,
+    "allOpeningPass": true,
+    "allPlaceholderPass": true,
+    "allDualOutputPass": true,
+    "allOpeningSlotsPass": true
+  }
+}

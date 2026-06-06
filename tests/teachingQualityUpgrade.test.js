@@ -131,5 +131,6 @@ Paste into: Common mistake
       topic: "Homeostasis",
     });
     expect(evalGood.profileKey).toBe("homeostasis");
+    expect(evalGood.gate).toBeDefined();
   });
 });

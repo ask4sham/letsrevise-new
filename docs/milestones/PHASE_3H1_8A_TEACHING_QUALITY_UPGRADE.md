@@ -17,6 +17,13 @@
 - Core Learning Progression Engine
 - Teaching Quality Autofix Engine
 
+## Phase 3H.1.8a.1 (Layer 2 wiring + quality gate)
+
+- Wire Teacher-First Layer 2 into SS1 `buildPrompt.js`
+- Enrich Nervous System opening profile
+- Placeholder + dual-output + opening-slot gate (`teachingQualityPlaceholderGate.js`)
+- Anti-duplication prompt rule
+
 ## Architecture lock
 
 Opening order remains **3H.1.6-locked** (Definition before Scenario). No interaction authority, topic boundary, or student renderer changes.
