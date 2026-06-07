@@ -5512,7 +5512,7 @@ const EditLessonPage: React.FC = () => {
                 }}
               >
                 <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>
-                  Lesson details
+                  Revision Lesson Details
                 </div>
 
                 <div

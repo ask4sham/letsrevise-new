@@ -31,6 +31,8 @@ import {
   buildHotspotsFromGeneratorScript,
   hydrateInteractiveSequenceStepsForEditor,
 } from "./parseGeneratorVisualScript";
+import { formatExamPracticeContentForImport } from "./formatExamPracticeContent";
+import { resolveImportedCheckpointExplanation } from "./deriveCheckpointWhyExplanation";
 
 const VALID_STARTER_PAGE_CHECKPOINT = {
   question: "Which statement is correct?",
@@ -250,7 +252,12 @@ function elevateExtraImportedCheckpointsToSelfCheck(
   });
 }
 
-function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unknown> {
+type ImportLessonMeta = { topic?: string; title?: string };
+
+function recordToLessonBlock(
+  record: GeneratorExportV1Block,
+  lessonMeta: ImportLessonMeta = {}
+): Record<string, unknown> {
   const t = resolveImportEditorType(record);
   const payload = record.payload ?? {};
   const title = generatorImportBlockTitle(record);
@@ -307,7 +314,11 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
       opts = enriched.options;
       prompt = enriched.prompt;
       correctAnswer = enriched.correctAnswer || opts[0] || "";
-      explanation = enriched.explanation;
+      explanation = resolveImportedCheckpointExplanation(
+        enriched.explanation,
+        correctAnswer,
+        lessonMeta
+      );
       const tier = normalizeCheckpointDifficultyTier(
         (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
           (payload as { difficulty?: unknown }).difficulty
@@ -351,7 +362,17 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
         opts = enriched.options;
         prompt = enriched.prompt;
         correctAnswer = normalizeMcqCorrectAnswer(enriched.correctAnswer, opts);
-        explanation = enriched.explanation;
+        explanation = resolveImportedCheckpointExplanation(
+          enriched.explanation,
+          correctAnswer,
+          lessonMeta
+        );
+      } else {
+        explanation = resolveImportedCheckpointExplanation(
+          explanation,
+          correctAnswer,
+          lessonMeta
+        );
       }
       const tier = normalizeCheckpointDifficultyTier(
         (payload as { difficultyTier?: unknown; difficulty?: unknown }).difficultyTier ??
@@ -575,16 +596,22 @@ function recordToLessonBlock(record: GeneratorExportV1Block): Record<string, unk
         },
         record
       );
-    default:
+    default: {
+      const contentRaw = String(payload.content ?? "");
+      const content =
+        role === "examPractice"
+          ? formatExamPracticeContentForImport(contentRaw)
+          : contentRaw;
       return attachBlockNumber(
         {
           type: t,
-          content: String(payload.content ?? ""),
+          content,
           title,
           ...(role ? { role } : {}),
         },
         record
       );
+    }
   }
 }
 
@@ -613,10 +640,13 @@ export function buildPagesFromGeneratorExport(doc: GeneratorExportV1Document): C
           : lessonBlockOrdinal;
       return { ...record, blockNumber };
     });
-    const blocksRaw = numberedRecords.map(recordToLessonBlock).filter(Boolean) as Record<
-      string,
-      unknown
-    >[];
+    const lessonMeta: ImportLessonMeta = {
+      topic: doc.lesson?.topic,
+      title: doc.lesson?.title,
+    };
+    const blocksRaw = numberedRecords
+      .map((record) => recordToLessonBlock(record, lessonMeta))
+      .filter(Boolean) as Record<string, unknown>[];
     const blocks = elevateExtraImportedCheckpointsToSelfCheck(blocksRaw);
     return {
       pageId: newPid(),

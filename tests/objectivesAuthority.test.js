@@ -25,9 +25,9 @@ Covers cerebellum, cortex and accommodation.
 
 PAGE 1
 
-1 — LESSON OBJECTIVES
+1 — REVISION OBJECTIVES
 Paste into: Text (concept)
-<h2><strong>Lesson objectives</strong></h2>
+<h2><strong>Revision objectives</strong></h2>
 <ul>
 <li><strong>👉</strong> Identify main brain regions: cerebral cortex, cerebellum, medulla.</li>
 <li><strong>👉</strong> Describe the structure of the eye and accommodation.</li>

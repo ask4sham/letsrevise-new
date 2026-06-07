@@ -62,6 +62,60 @@ describe("Phase 3H.1.8b.0 — Key Words authority", () => {
     expect(terms).not.toContain("mark scheme");
   });
 
+  test("profileAwareKeywordFallback resolves generator display title for nervous system", () => {
+    const { rows, usedGenericFallback } = profileAwareKeywordFallback({
+      topic: "Nervous System: Basics – Structure & Fun",
+      subject: "Biology",
+      count: 10,
+    });
+    expect(usedGenericFallback).toBe(false);
+    const terms = rows.map((r) => r.term.toLowerCase());
+    expect(terms).toContain("receptor");
+    expect(terms).toContain("synapse");
+    expect(terms).not.toContain("mark scheme");
+  });
+
+  test("reconcileKeywordRows replaces generic autofix fallback with biology terms", () => {
+    const { reconcileKeywordRows } = require("../lib/teacherBrain/keyWordsAuthority");
+    const generic = genericKeywordFallbackRows("Nervous System: Basics – Structure & Fun", 10);
+    const { rows, replaced, usedGenericFallback } = reconcileKeywordRows({
+      existingRows: generic,
+      topic: "Nervous System: Basics – Structure & Fun",
+      subject: "Biology",
+      count: 10,
+    });
+    expect(replaced).toBe(true);
+    expect(usedGenericFallback).toBe(false);
+    expect(rows.map((r) => r.term.toLowerCase())).toContain("motor neurone");
+    expect(rows.map((r) => r.term.toLowerCase())).not.toContain("cause");
+  });
+
+  test("reconcileKeywordRows preserves strong existing biology keywords", () => {
+    const { reconcileKeywordRows } = require("../lib/teacherBrain/keyWordsAuthority");
+    const existing = [
+      { term: "Stimulus", def: "A change in the environment that is detected." },
+      { term: "Receptor", def: "A cell or organ that detects a stimulus." },
+      { term: "Neurone", def: "A specialised nerve cell that carries electrical impulses." },
+      { term: "Nerve", def: "A bundle of many neurones together." },
+      { term: "CNS", def: "Central nervous system: brain and spinal cord." },
+      { term: "PNS", def: "Peripheral nervous system." },
+      { term: "Effector", def: "A muscle or gland that carries out a response." },
+      { term: "Myelin sheath", def: "Fatty insulation around an axon." },
+      { term: "Axon", def: "Carries impulses away from the cell body." },
+      { term: "Reflex", def: "A fast, automatic response." },
+    ];
+    const { rows, replaced, usedGenericFallback } = reconcileKeywordRows({
+      existingRows: existing,
+      topic: "Nervous System: Basics – Structure & Fun",
+      subject: "Biology",
+      count: 10,
+    });
+    expect(replaced).toBe(false);
+    expect(usedGenericFallback).toBe(false);
+    expect(rows.map((r) => r.term.toLowerCase())).toContain("stimulus");
+    expect(rows.map((r) => r.term.toLowerCase())).not.toContain("cause");
+  });
+
   test("profileAwareKeywordFallback uses Homeostasis biology terms", () => {
     const { rows, usedGenericFallback } = profileAwareKeywordFallback({
       topic: "Homeostasis",

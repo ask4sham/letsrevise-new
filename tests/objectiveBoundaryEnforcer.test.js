@@ -39,7 +39,7 @@ const objectivePages = [
       {
         type: "keyIdea",
         role: "lessonObjectives",
-        title: "LESSON OBJECTIVES",
+        title: "REVISION OBJECTIVES",
         content: [
           "At the end of this lesson, you should be able to:",
           ...contaminatedObjectives.map((o) => `• ${o}`),

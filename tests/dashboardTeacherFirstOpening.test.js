@@ -88,6 +88,49 @@ describe("dashboardTeacherFirstOpening (Phase 3H.1.6)", () => {
     expect(tf.openingScorePct).toBeGreaterThan(25);
   });
 
+  test("definition block wins over core teaching that mentions definition in body", () => {
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+    const draft = {
+      pages: [
+        {
+          blocks: [
+            { type: "text", title: "Revision Objectives", role: "lessonObjectives", content: "Objectives" },
+            { type: "text", title: "Prior Knowledge", role: "priorKnowledge", content: "Prior" },
+            {
+              type: "text",
+              title: "Core Teaching",
+              role: "concept",
+              content:
+                "The **definition** of homeostasis is the regulation of internal conditions. Step by step teaching.",
+            },
+            { type: "text", title: "Why it matters", role: "whyItMatters", content: "Why" },
+            { type: "keyIdea", title: "Core model", role: "coreRule", content: "Model" },
+            {
+              type: "text",
+              title: "Definition",
+              role: "definition",
+              content: "Homeostasis is the regulation of internal conditions.",
+            },
+            { type: "text", title: "Scenario", role: "hook", content: "Short scenario" },
+          ],
+        },
+      ],
+    };
+
+    enforceDashboardTeacherFirstOpening(draft, {
+      topic: "Homeostasis",
+      topicKey: "aqa-gcse-biology:homeostasis",
+      subject: "Biology",
+    });
+
+    const blocks = draft.pages[0].blocks;
+    expect(blocks[2].title).toBe("Definition");
+    expect(blocks[2].role).toBe("definition");
+    expect(String(blocks[2].content)).toMatch(/regulation of internal conditions/i);
+    expect(blocks[8].title).toBe("Core Teaching");
+    expect(blocks.findIndex((b) => b.title === "Definition")).toBe(2);
+  });
+
   test("flag off does not mutate draft", () => {
     delete process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING;
     const draft = hookFirstDraft();

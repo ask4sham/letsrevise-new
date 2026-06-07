@@ -42,7 +42,7 @@ describe("teacherFirstSs1Architecture (Phase 3H.1.5)", () => {
     process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
     expect(getSs1CanonicalSlots()).toHaveLength(24);
     expect(slotTitles().slice(0, 9)).toEqual([
-      "LESSON OBJECTIVES",
+      "REVISION OBJECTIVES",
       "PRIOR KNOWLEDGE",
       "DEFINITION",
       "WHY IT MATTERS",
@@ -103,7 +103,7 @@ describe("teacherFirstSs1Architecture (Phase 3H.1.5)", () => {
     const pages = [
       {
         blocks: [
-          { type: "text", title: "LESSON OBJECTIVES", content: "Lesson objectives" },
+          { type: "text", title: "REVISION OBJECTIVES", content: "Revision objectives" },
           { type: "text", title: "PRIOR KNOWLEDGE", content: "Prior knowledge" },
           { type: "text", title: "DEFINITION", content: plan.definition },
           { type: "text", title: "WHY IT MATTERS", content: plan.whyItMatters },

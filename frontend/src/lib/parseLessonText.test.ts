@@ -2,8 +2,8 @@ import { parseLessonText } from "./parseLessonText";
 
 describe("parseLessonText", () => {
   it("extracts a bold-only line as a heading segment", () => {
-    const s = parseLessonText("Intro\n\n**📘 1. Lesson Objectives**\n\nBody");
-    expect(s.some((x) => x.type === "heading" && x.text.includes("Lesson Objectives"))).toBe(true);
+    const s = parseLessonText("Intro\n\n**📘 1. Revision Objectives**\n\nBody");
+    expect(s.some((x) => x.type === "heading" && x.text.includes("Revision Objectives"))).toBe(true);
     expect(s.find((x) => x.type === "markdown")?.type).toBe("markdown");
   });
 

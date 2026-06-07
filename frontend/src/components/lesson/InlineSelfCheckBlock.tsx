@@ -4,6 +4,7 @@ import {
   isPlaceholderMcqOptions,
   recoverMcqFieldsFromBlockContent,
 } from "../../utils/mcqPlaceholderOptions";
+import { resolveImportedCheckpointExplanation } from "../../utils/deriveCheckpointWhyExplanation";
 
 /** Legacy paste/html conversion sometimes left summary UI text in the stem — strip so the purple reveal button is the only reveal. */
 function sanitizeSelfCheckPrompt(text: string): string {
@@ -64,7 +65,7 @@ export function InlineSelfCheckBlock({
       prompt: p,
       options: opts.filter(Boolean),
       correctAnswer: ca,
-      explanation: expl,
+      explanation: resolveImportedCheckpointExplanation(expl, ca),
     };
   }, [contentFallback, correctAnswer, explanation, isMcq, options, prompt]);
 

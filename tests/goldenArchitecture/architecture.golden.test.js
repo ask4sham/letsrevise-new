@@ -157,7 +157,7 @@ describe("Golden lesson architecture (V3)", () => {
             title: "Lesson",
             order: 1,
             blocks: [
-              { type: "keyIdea", role: "lessonObjectives", title: "LESSON OBJECTIVES", content: "At the end of this lesson, you should be able to:" },
+              { type: "keyIdea", role: "lessonObjectives", title: "REVISION OBJECTIVES", content: "At the end of this lesson, you should be able to:" },
               { type: "text", role: "priorKnowledge", title: "PRIOR KNOWLEDGE", content: "Prior knowledge check" },
               { type: "text", role: "hook", title: "SCENARIO", content: "Hook scenario" },
               { type: "keyIdea", role: "coreRule", title: "CORE RULE", content: "Core rule" },

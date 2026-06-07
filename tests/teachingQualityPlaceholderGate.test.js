@@ -41,13 +41,13 @@ describe("Phase 3H.1.8a.1 — placeholder gate and Layer 2", () => {
     const dual = `LESSON OBJECTIVE FIELD: Learn homeostasis
 <h2><strong>Core model</strong></h2>
 <p>Receptor pathway here</p>
-1 — LESSON OBJECTIVES
+1 — REVISION OBJECTIVES
 Paste into: Text (concept)
 `;
     const single = `LESSON OBJECTIVE FIELD: Learn homeostasis
 SHORT SUMMARY FIELD: Summary
 <strong>Homeostasis – Organisation (AQA KS4 - GCSE)</strong>
-1 — LESSON OBJECTIVES
+1 — REVISION OBJECTIVES
 Paste into: Text (concept)
 `;
     expect(detectDualOutput(dual).pass).toBe(false);

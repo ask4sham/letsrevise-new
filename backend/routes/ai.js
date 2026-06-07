@@ -1209,7 +1209,7 @@ You are generating a LetsRevise lesson. Follow the **EXECUTION PERSONA — CONVE
 
 Follow this exact lesson structure:
 
-1. Open with Lesson Objectives, Prior Knowledge, Definition, Why it matters, Core model, Key examples, and Exam vocabulary (blocks 1–7).
+1. Open with Revision Objectives, Prior Knowledge, Definition, Why it matters, Core model, Key examples, and Exam vocabulary (blocks 1–7).
 2. Block 8 must be a SHORT Scenario (role hook, title "Scenario") — only after core knowledge is taught.
 3. Block 9 must be Core Teaching (role concept).
 4. Add one commonMistake block showing an incorrect idea and the corrected version.
@@ -1230,7 +1230,7 @@ Follow this exact lesson structure:
 ## STRUCTURE CONTRACT (MANDATORY — KEEP ALL)
 
 You must still deliver the full lesson skeleton:
-- Lesson Objectives → Prior Knowledge → Definition → Why it matters → Core model → Key examples → Exam vocabulary → Scenario → Core Teaching (first nine blocks)
+- Revision Objectives → Prior Knowledge → Definition → Why it matters → Core model → Key examples → Exam vocabulary → Scenario → Core Teaching (first nine blocks)
 - Common mistake (commonMistake: wrong vs correct thinking)
 - Pattern recognition (keyIdea: repeatable exam patterns)
 - Concept loop (each major concept: diagram or "image here" → What to Notice keyIdea → text → examTip, per step 6)
@@ -4665,8 +4665,21 @@ function collapseWeakKeyIdeas(draft, topicHint = "") {
 
 /** Coarse teaching band; original index breaks ties so in-band order is preserved. */
 function v7TeachingFlowBand(block) {
-  const r = safeStr(block?.role, "");
+  const r = safeStr(block?.role, "").toLowerCase();
   const t = normalizeBlockType(block?.type);
+
+  if (isDashboardTeacherFirstEnabled()) {
+    const title = safeStr(block?.title, "").toLowerCase();
+    if (r === "lessonobjectives" || r === "objectives" || /lesson objectives/.test(title)) return 0;
+    if (r === "priorknowledge" || /prior knowledge/.test(title)) return 1;
+    if (r === "definition" || title === "definition" || /^definition\b/.test(title)) return 2;
+    if (r === "whyitmatters" || /why it matters/.test(title)) return 3;
+    if (r === "coremodel" || r === "corerule" || /core model/.test(title)) return 4;
+    if (r === "keyexamples" || /key examples/.test(title)) return 5;
+    if (r === "examvocabulary" || /exam vocabulary/.test(title)) return 6;
+    if (r === "hook" || r === "scenario" || /^scenario\b/.test(title)) return 7;
+    if (r === "concept" || r === "coreteaching" || /core teaching/.test(title)) return 8;
+  }
 
   if (r === "hook") return 0;
   if (r === "coreRule") return 1;
@@ -5886,6 +5899,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
     }
 
     if (isDashboardTeacherFirstEnabled()) {
+      const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
+        pages: pagesPromoted,
+        topicKey: canonicalTopicKey,
+        subTopic: subTopicDisplay || topic,
+        topic,
+      });
+      if (interactionAuthorityFinal.changed) {
+        pagesPromoted = interactionAuthorityFinal.pages;
+      }
+
       const enforced = enforceDashboardTeacherFirstOpening(
         { pages: pagesPromoted },
         {
@@ -5896,16 +5919,16 @@ router.post("/generate-and-save", auth, async (req, res) => {
         }
       );
       pagesPromoted = enforced.pages;
-    }
-
-    const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
-      pages: pagesPromoted,
-      topicKey: canonicalTopicKey,
-      subTopic: subTopicDisplay || topic,
-      topic,
-    });
-    if (interactionAuthorityFinal.changed) {
-      pagesPromoted = interactionAuthorityFinal.pages;
+    } else {
+      const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
+        pages: pagesPromoted,
+        topicKey: canonicalTopicKey,
+        subTopic: subTopicDisplay || topic,
+        topic,
+      });
+      if (interactionAuthorityFinal.changed) {
+        pagesPromoted = interactionAuthorityFinal.pages;
+      }
     }
 
     const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;

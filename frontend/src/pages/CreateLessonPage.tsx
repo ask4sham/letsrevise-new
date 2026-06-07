@@ -2007,7 +2007,7 @@ const CreateLessonPage: React.FC = () => {
                     marginBottom: 12,
                   }}
                 >
-                  <div style={{ ...ui.sectionTitle, marginBottom: 0 }}>Lesson details</div>
+                  <div style={{ ...ui.sectionTitle, marginBottom: 0 }}>Revision Lesson Details</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <input
                       ref={generatorImportInputRef}
