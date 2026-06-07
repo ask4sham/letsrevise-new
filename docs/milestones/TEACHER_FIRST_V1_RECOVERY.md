@@ -35,7 +35,7 @@ git checkout milestone-teacher-first-v1-stable
 |-------|----------------|----------------------|
 | **Repo** | `https://github.com/ask4sham/letsrevise-new.git` | `https://github.com/ask4sham/letsrevise-generator.git` |
 | **Branch** | `phase-3g8-authority-enforcement` | `fix/interactive-learning-stability` |
-| **Commit** | `67aa0416` | `861645b` |
+| **Commit** | `e5f732c9` (includes recovery doc) | `861645b` |
 | **Tag** | `milestone-teacher-first-v1-recovery` | `milestone-teacher-first-v1-recovery` |
 | **Message** | Strip redundant Teacher-First section headings for cleaner lesson UI. | Strip redundant Teacher-First section headings for cleaner lesson UI. |
 
