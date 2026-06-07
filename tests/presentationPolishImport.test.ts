@@ -2,6 +2,7 @@ import {
   extractQ5ModelDetailsBlock,
   formatExamPracticeContentForImport,
 } from "../frontend/src/utils/formatExamPracticeContent";
+import { formatLessonBlockContentForImport } from "../frontend/src/utils/formatLessonBlockContent";
 import {
   deriveCheckpointWhyExplanation,
   explanationsAreDuplicate,
@@ -55,6 +56,14 @@ ${q5Answer}
     expect(q1Answer).not.toEqual(
       q5Section.match(/<details>[\s\S]*?<\/details>/i)?.[0] || ""
     );
+  });
+
+  it("strips redundant Teacher-First section headings on import", () => {
+    const noisy = `<h2><strong>Summary</strong></h2>
+<ul><li>Receptors detect stimuli.</li></ul>`;
+    const out = formatLessonBlockContentForImport(noisy);
+    expect(out).not.toMatch(/<h2><strong>Summary<\/strong><\/h2>/i);
+    expect(out).toMatch(/Receptors detect stimuli/i);
   });
 
   it("replaces duplicate self-check explanations with WHY text", () => {

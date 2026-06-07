@@ -41,7 +41,7 @@ const objectivePages = [
         role: "lessonObjectives",
         title: "REVISION OBJECTIVES",
         content: [
-          "At the end of this lesson, you should be able to:",
+          "Define the nervous system as the body's rapid communication network.",
           ...contaminatedObjectives.map((o) => `• ${o}`),
           ...inScopeObjectives.map((o) => `• ${o}`),
         ].join("\n"),

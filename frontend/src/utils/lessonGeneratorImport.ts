@@ -32,6 +32,7 @@ import {
   hydrateInteractiveSequenceStepsForEditor,
 } from "./parseGeneratorVisualScript";
 import { formatExamPracticeContentForImport } from "./formatExamPracticeContent";
+import { formatLessonBlockContentForImport } from "./formatLessonBlockContent";
 import { resolveImportedCheckpointExplanation } from "./deriveCheckpointWhyExplanation";
 
 const VALID_STARTER_PAGE_CHECKPOINT = {
@@ -586,22 +587,28 @@ function recordToLessonBlock(
     case "keyWords":
     case "examTips":
     case "misconceptions":
-    case "deeperKnowledge":
+    case "deeperKnowledge": {
+      const contentRaw = String(payload.content ?? "");
+      const content =
+        role === "examPractice"
+          ? formatExamPracticeContentForImport(contentRaw)
+          : formatLessonBlockContentForImport(contentRaw);
       return attachBlockNumber(
         {
           type: t,
-          content: String(payload.content ?? ""),
+          content,
           title,
           ...(role ? { role } : {}),
         },
         record
       );
+    }
     default: {
       const contentRaw = String(payload.content ?? "");
       const content =
         role === "examPractice"
           ? formatExamPracticeContentForImport(contentRaw)
-          : contentRaw;
+          : formatLessonBlockContentForImport(contentRaw);
       return attachBlockNumber(
         {
           type: t,
