@@ -1,0 +1,248 @@
+{
+  "phase": "3H.1.8b.3a",
+  "generatedAt": "2026-06-07T17:56:19.127Z",
+  "protectedBaseline": "milestone-teacher-first-v1-recovery",
+  "preImplementationTag": "milestone-pre-3h18b3a",
+  "subprocess": [
+    {
+      "label": "generator-export-pipeline",
+      "pass": true
+    },
+    {
+      "label": "generator-scope",
+      "pass": true
+    },
+    {
+      "label": "generator-worked-reasoning",
+      "pass": true
+    },
+    {
+      "label": "generator-presentation",
+      "pass": true
+    },
+    {
+      "label": "new-repo-jest",
+      "pass": true
+    }
+  ],
+  "baseline": [
+    {
+      "topic": "Nervous System",
+      "v2Enabled": false,
+      "teachingQualityScore": 50,
+      "scopeAuthorityScore": 3,
+      "structureScore": 12,
+      "exportImportParityPct": 100,
+      "workedReasoningPass": true,
+      "checklist": {
+        "A_definitionPresent": true,
+        "B_definitionBlock3": true,
+        "C_scenarioPresent": true,
+        "D_scenarioBlock4": true,
+        "E_keywordsPopulated": true,
+        "F_summaryPopulated": true,
+        "G_scopeAuthority": true,
+        "H_exportImportParity": true,
+        "I_selfCheckPopulated": true,
+        "J_workedExamplePopulated": true,
+        "K_examTechniquePopulated": true,
+        "L_examPracticePopulated": true
+      },
+      "allChecklistPass": true,
+      "workedReasoningViolations": []
+    },
+    {
+      "topic": "Homeostasis",
+      "v2Enabled": false,
+      "teachingQualityScore": 50,
+      "scopeAuthorityScore": 3,
+      "structureScore": 12,
+      "exportImportParityPct": 100,
+      "workedReasoningPass": true,
+      "checklist": {
+        "A_definitionPresent": true,
+        "B_definitionBlock3": true,
+        "C_scenarioPresent": true,
+        "D_scenarioBlock4": true,
+        "E_keywordsPopulated": true,
+        "F_summaryPopulated": true,
+        "G_scopeAuthority": true,
+        "H_exportImportParity": true,
+        "I_selfCheckPopulated": true,
+        "J_workedExamplePopulated": true,
+        "K_examTechniquePopulated": true,
+        "L_examPracticePopulated": true
+      },
+      "allChecklistPass": true,
+      "workedReasoningViolations": []
+    },
+    {
+      "topic": "The Eye",
+      "v2Enabled": false,
+      "teachingQualityScore": 50,
+      "scopeAuthorityScore": 3,
+      "structureScore": 12,
+      "exportImportParityPct": 100,
+      "workedReasoningPass": true,
+      "checklist": {
+        "A_definitionPresent": true,
+        "B_definitionBlock3": true,
+        "C_scenarioPresent": true,
+        "D_scenarioBlock4": true,
+        "E_keywordsPopulated": true,
+        "F_summaryPopulated": true,
+        "G_scopeAuthority": true,
+        "H_exportImportParity": true,
+        "I_selfCheckPopulated": true,
+        "J_workedExamplePopulated": true,
+        "K_examTechniquePopulated": true,
+        "L_examPracticePopulated": true
+      },
+      "allChecklistPass": true,
+      "workedReasoningViolations": []
+    }
+  ],
+  "withV2": [
+    {
+      "topic": "Nervous System",
+      "v2Enabled": true,
+      "teachingQualityScore": 50,
+      "scopeAuthorityScore": 3,
+      "structureScore": 12,
+      "exportImportParityPct": 100,
+      "workedReasoningPass": true,
+      "checklist": {
+        "A_definitionPresent": true,
+        "B_definitionBlock3": true,
+        "C_scenarioPresent": true,
+        "D_scenarioBlock4": true,
+        "E_keywordsPopulated": true,
+        "F_summaryPopulated": true,
+        "G_scopeAuthority": true,
+        "H_exportImportParity": true,
+        "I_selfCheckPopulated": true,
+        "J_workedExamplePopulated": true,
+        "K_examTechniquePopulated": true,
+        "L_examPracticePopulated": true
+      },
+      "allChecklistPass": true,
+      "workedReasoningViolations": []
+    },
+    {
+      "topic": "Homeostasis",
+      "v2Enabled": true,
+      "teachingQualityScore": 50,
+      "scopeAuthorityScore": 3,
+      "structureScore": 12,
+      "exportImportParityPct": 100,
+      "workedReasoningPass": true,
+      "checklist": {
+        "A_definitionPresent": true,
+        "B_definitionBlock3": true,
+        "C_scenarioPresent": true,
+        "D_scenarioBlock4": true,
+        "E_keywordsPopulated": true,
+        "F_summaryPopulated": true,
+        "G_scopeAuthority": true,
+        "H_exportImportParity": true,
+        "I_selfCheckPopulated": true,
+        "J_workedExamplePopulated": true,
+        "K_examTechniquePopulated": true,
+        "L_examPracticePopulated": true
+      },
+      "allChecklistPass": true,
+      "workedReasoningViolations": []
+    },
+    {
+      "topic": "The Eye",
+      "v2Enabled": true,
+      "teachingQualityScore": 50,
+      "scopeAuthorityScore": 3,
+      "structureScore": 12,
+      "exportImportParityPct": 100,
+      "workedReasoningPass": true,
+      "checklist": {
+        "A_definitionPresent": true,
+        "B_definitionBlock3": true,
+        "C_scenarioPresent": true,
+        "D_scenarioBlock4": true,
+        "E_keywordsPopulated": true,
+        "F_summaryPopulated": true,
+        "G_scopeAuthority": true,
+        "H_exportImportParity": true,
+        "I_selfCheckPopulated": true,
+        "J_workedExamplePopulated": true,
+        "K_examTechniquePopulated": true,
+        "L_examPracticePopulated": true
+      },
+      "allChecklistPass": true,
+      "workedReasoningViolations": []
+    }
+  ],
+  "metricRegression": true,
+  "parityPass": true,
+  "beforeAfter": [
+    {
+      "topic": "Nervous System",
+      "teachingQuality": {
+        "before": 50,
+        "after": 50
+      },
+      "scopeAuthority": {
+        "before": 3,
+        "after": 3
+      },
+      "structure": {
+        "before": 12,
+        "after": 12
+      },
+      "exportImportParityPct": {
+        "before": 100,
+        "after": 100
+      },
+      "workedReasoningPass": true
+    },
+    {
+      "topic": "Homeostasis",
+      "teachingQuality": {
+        "before": 50,
+        "after": 50
+      },
+      "scopeAuthority": {
+        "before": 3,
+        "after": 3
+      },
+      "structure": {
+        "before": 12,
+        "after": 12
+      },
+      "exportImportParityPct": {
+        "before": 100,
+        "after": 100
+      },
+      "workedReasoningPass": true
+    },
+    {
+      "topic": "The Eye",
+      "teachingQuality": {
+        "before": 50,
+        "after": 50
+      },
+      "scopeAuthority": {
+        "before": 3,
+        "after": 3
+      },
+      "structure": {
+        "before": 12,
+        "after": 12
+      },
+      "exportImportParityPct": {
+        "before": 100,
+        "after": 100
+      },
+      "workedReasoningPass": true
+    }
+  ],
+  "teacherFirstBaselineIntact": true,
+  "overallPass": true
+}

@@ -14,7 +14,13 @@ const {
 const {
   buildTeachingQualityUpgradePromptSection,
   evaluateTeachingQualityUpgrade,
+  computeTeachingQualityScore,
+  isWorkedReasoningV2Enabled,
 } = require("../lib/teacherBrain/teachingQualityUpgrade");
+const {
+  buildWorkedReasoningPromptSection,
+  WORKED_REASONING_MARKER,
+} = require("../lib/teacherBrain/workedReasoningEngine");
 const {
   TEACHER_FIRST_OPENING_ORDER_VERSION,
   getSs1BlockNumber,
@@ -23,12 +29,15 @@ const {
 describe("Phase 3H.1.8a — Teaching Quality Upgrade", () => {
   const prevTf = process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING;
   const prevUp = process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE;
+  const prevV2 = process.env.TEACHER_BRAIN_WORKED_REASONING_V2;
 
   afterEach(() => {
     if (prevTf === undefined) delete process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING;
     else process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = prevTf;
     if (prevUp === undefined) delete process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE;
     else process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE = prevUp;
+    if (prevV2 === undefined) delete process.env.TEACHER_BRAIN_WORKED_REASONING_V2;
+    else process.env.TEACHER_BRAIN_WORKED_REASONING_V2 = prevV2;
   });
 
   test("opening order version is locked", () => {
@@ -132,5 +141,37 @@ Paste into: Common mistake
     });
     expect(evalGood.profileKey).toBe("homeostasis");
     expect(evalGood.gate).toBeDefined();
+  });
+
+  test("V2 worked reasoning appends when flag on", () => {
+    process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE = "1";
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+    process.env.TEACHER_BRAIN_WORKED_REASONING_V2 = "1";
+
+    expect(isWorkedReasoningV2Enabled()).toBe(true);
+    const section = buildWorkedReasoningPromptSection({ topic: "Homeostasis" });
+    expect(section).toMatch(WORKED_REASONING_MARKER);
+
+    const combined = buildTeachingQualityUpgradePromptSection({ topic: "Homeostasis" });
+    expect(combined).toMatch(/WORKED REASONING ENGINE/);
+  });
+
+  test("V2 scoring included in teaching quality score when enabled", () => {
+    process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE = "1";
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+    process.env.TEACHER_BRAIN_WORKED_REASONING_V2 = "1";
+
+    const worked = `
+17 — WORKED EXAMPLE
+Paste into: Worked example (checkpoint)
+Question: Explain how the body responds when core temperature rises. (4 marks)
+1. Thermoreceptors detect rising temperature because core conditions move away from optimum.
+2. The hypothalamus acts as a coordination centre therefore it processes the change.
+3. Sweat glands release sweat so that evaporation can occur from the skin surface.
+4. Evaporation removes heat energy consequently core temperature returns towards optimum.
+`;
+    const evalResult = evaluateTeachingQualityUpgrade(worked, { topic: "Homeostasis" });
+    expect(evalResult.workedReasoning.pass).toBe(true);
+    expect(computeTeachingQualityScore(evalResult)).toBeGreaterThan(0);
   });
 });
