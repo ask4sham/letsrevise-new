@@ -24,6 +24,16 @@
   flex-shrink: 0;
 }
 
+/*
+ * TTI main: image + overlay share .drag-drop-match__diagram-image-container (inset:0 overlay).
+ * Keep container width tied to the rendered image footprint (~94% of panel) so zone % coords stay aligned.
+ */
+.drag-drop-match--tti-main .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-image-container {
+  width: 94%;
+  max-width: 95%;
+  margin-inline: auto;
+}
+
 @media (min-width: 768px) {
   .drag-drop-match--diagram
     .drag-drop-match__diagram-worksheet[data-ddm-diagram-layout="side-by-side-v1"]
@@ -36,16 +46,23 @@
     min-width: 0;
   }
 
-  /* Text-to-image main: wider diagram column for larger printed answer boxes (72/28). */
+  /* Text-to-image main: diagram + wider answer rail for comfortable concept cards (62/38). */
   .drag-drop-match--tti-main
     .drag-drop-match__diagram-worksheet[data-ddm-diagram-layout="side-by-side-v1"]
     .drag-drop-match__diagram-worksheet-stage {
     display: grid;
-    grid-template-columns: minmax(0, 72%) minmax(200px, 28%);
+    grid-template-columns: minmax(0, 62%) minmax(220px, 38%);
     gap: 12px 14px;
     align-items: start;
     width: 100%;
     min-width: 0;
+  }
+
+  .drag-drop-match--tti-main
+    .drag-drop-match__diagram-worksheet[data-ddm-diagram-layout="side-by-side-v1"]
+    .drag-drop-match__diagram-bank {
+    padding-inline: 6px;
+    box-sizing: border-box;
   }
 
   .drag-drop-match--diagram
@@ -130,7 +147,8 @@
     .drag-drop-match__diagram-worksheet
     .lesson-image-card.drag-drop-match__diagram-frame
     > img.drag-drop-match__diagram-img {
-    max-height: min(54vh, 540px) !important;
+    /* Width drives square .display.png; avoid 540px cap that letterboxed inside the panel */
+    max-height: min(78vh, 720px) !important;
     width: 100%;
     height: auto;
     object-fit: contain;
@@ -146,9 +164,13 @@
     gap: 7px;
   }
 
-  .drag-drop-match--diagram .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-img,
-  .drag-drop-match--tti-main .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-img {
+  .drag-drop-match--diagram .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-img {
     max-height: min(58vh, 560px);
+    object-position: top center;
+  }
+
+  .drag-drop-match--tti-main .drag-drop-match__diagram-worksheet .drag-drop-match__diagram-img {
+    max-height: min(72vh, 680px);
     object-position: top center;
   }
 }
@@ -171,7 +193,7 @@
   .drag-drop-match__diagram-worksheet
   .lesson-image-card
   > img.drag-drop-match__diagram-img {
-  max-height: min(54vh, 540px) !important;
+  max-height: min(78vh, 720px) !important;
   object-position: top center !important;
 }
 
@@ -190,6 +212,6 @@
     .drag-drop-match__diagram-worksheet
     .lesson-image-card
     > img.drag-drop-match__diagram-img {
-    max-height: min(58vh, 560px) !important;
+    max-height: min(72vh, 680px) !important;
   }
 }
