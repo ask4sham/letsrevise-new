@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1350" width="900" height="1350" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <rect width="600" height="600" fill="#FFFFFF"/>
+  <defs>
+    <clipPath id="left-diagram">
+      <rect x="0" y="0" width="335" height="600"/>
+    </clipPath>
+  </defs>
+  <g transform="scale(0.4444444444444444)" clip-path="url(#left-diagram)">
+    
   <title id="title">Reflex arc - drag and drop match (GCSE AQA Biology)</title>
   <desc id="desc">Vertical reflex pathway with empty drop zones A-D on the right for sensory neurone, relay neurone, motor neurone, and effector.</desc>
 
@@ -22,20 +30,6 @@
   <text x="450" y="168" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#333333">Match each structure to its function.</text>
 
   <!-- Drop zones A-D (right rail) — canonical tti-box-geometry-v1: 234×114 @ centre X 744 -->
-  <g id="drop-zones" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#111111">
-    <rect x="627" y="286" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
-    <text x="744" y="355" text-anchor="middle" font-size="36">A</text>
-
-    <rect x="627" y="580" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
-    <text x="744" y="649" text-anchor="middle" font-size="36">B</text>
-
-    <rect x="627" y="859" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
-    <text x="744" y="928" text-anchor="middle" font-size="36">C</text>
-
-    <rect x="627" y="1141" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
-    <text x="744" y="1210" text-anchor="middle" font-size="36">D</text>
-  </g>
-
   <!-- 1. Stimulus / receptor -->
   <g id="stimulus">
     <text x="48" y="228" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111111">1. STIMULUS / RECEPTOR</text>
@@ -121,4 +115,13 @@
       <path d="M0 0 L10 5 L0 10 Z" fill="#111111"/>
     </marker>
   </defs>
+
+  </g>
+  <line x1="335" y1="88" x2="335" y2="580" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="6 6"/>
+  <g id="drop-zones-v1" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#111111">
+    <rect x="343.5" y="114.5" width="156" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="3"/><text x="339.5" y="104.5" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#111111">A</text>
+    <rect x="343.5" y="245" width="156" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="3"/><text x="339.5" y="235" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#111111">B</text>
+    <rect x="343.5" y="369" width="156" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="3"/><text x="339.5" y="359" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#111111">C</text>
+    <rect x="343.5" y="494.5" width="156" height="76" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="3"/><text x="339.5" y="484.5" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#111111">D</text>
+  </g>
 </svg>

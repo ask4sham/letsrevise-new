@@ -1,0 +1,75 @@
+{
+  "version": "tti-box-geometry-v1",
+  "displayArtboard": { "width": 600, "height": 600 },
+  "squareDisplay": {
+    "box": {
+      "widthPx": 156,
+      "heightPx": 76,
+      "centerXPx": 421.5,
+      "centerXPct": 70.25,
+      "widthPct": 26,
+      "heightPct": 12.67
+    },
+    "zones": [
+      { "letter": "A", "centerYPx": 152.5, "centerYPct": 25.42 },
+      { "letter": "B", "centerYPx": 283, "centerYPct": 47.17 },
+      { "letter": "C", "centerYPx": 407, "centerYPct": 67.83 },
+      { "letter": "D", "centerYPx": 532.5, "centerYPct": 88.75 }
+    ],
+    "filledCardNudgePx": 6
+  },
+  "portrait": {
+    "artboard": { "width": 900, "height": 1350 },
+    "box": {
+      "widthPx": 234,
+      "heightPx": 114,
+      "centerXPx": 744,
+      "centerXPct": 82.67,
+      "widthPct": 26,
+      "heightPct": 8.44
+    },
+    "zones": [
+      { "letter": "A", "centerYPx": 343.2, "centerYPct": 25.42 },
+      { "letter": "B", "centerYPx": 636.8, "centerYPct": 47.17 },
+      { "letter": "C", "centerYPx": 915.7, "centerYPct": 67.83 },
+      { "letter": "D", "centerYPx": 1198.1, "centerYPct": 88.75 }
+    ],
+    "filledCardNudgePx": 6
+  },
+  "legacy": {
+    "squareDisplay": {
+      "box": {
+        "widthPx": 156,
+        "heightPx": 84,
+        "centerXPx": 421.5,
+        "centerXPct": 70.25,
+        "widthPct": 26,
+        "heightPct": 14
+      },
+      "zones": [
+        { "letter": "A", "centerYPx": 155.5, "centerYPct": 25.92 },
+        { "letter": "B", "centerYPx": 288.5, "centerYPct": 48.08 },
+        { "letter": "C", "centerYPx": 420.5, "centerYPct": 70.08 },
+        { "letter": "D", "centerYPx": 546.5, "centerYPct": 91.08 }
+      ],
+      "filledCardNudgePx": 6
+    },
+    "portrait": {
+      "box": {
+        "widthPx": 248,
+        "heightPx": 110,
+        "centerXPx": 744,
+        "centerXPct": 82.67,
+        "widthPct": 27.56,
+        "heightPct": 8.15
+      },
+      "zones": [
+        { "letter": "A", "centerYPx": 446, "centerYPct": 33.04 },
+        { "letter": "B", "centerYPx": 700, "centerYPct": 51.85 },
+        { "letter": "C", "centerYPx": 886, "centerYPct": 65.63 },
+        { "letter": "D", "centerYPx": 1086, "centerYPct": 80.44 }
+      ],
+      "filledCardNudgePx": 8
+    }
+  }
+}

@@ -7,7 +7,9 @@ import {
   buildContractTextToImageBoxedDropZones,
   buildDefaultTextToImageDropZones,
   buildTextToImageMainDropZones,
+  getTtiBoxGeometryLayout,
   isContractPortraitImageAspect,
+  normalizeTtiBoxGeometryVersion,
   TTI_BOXED_ZONE_HEIGHT_PCT,
   TTI_BOXED_ZONE_WIDTH_PCT,
   coalesceDragDropMatchBlockPatch,
@@ -248,8 +250,8 @@ describe("dragDropMatchDiagram", () => {
       expect(z).toHaveLength(4);
       expect(z[0]).toMatchObject({ id: "tti-boxed-0", correctPairId: "p1" });
       expect(z[0].x).toBeCloseTo(82.67, 1);
-      expect(z[0].y).toBeCloseTo(33.04, 1);
-      expect(z[3].y).toBeGreaterThan(z[0].y);
+      expect(z[0].y).toBeCloseTo(25.42, 1);
+      expect(z[3].y).toBeCloseTo(88.75, 1);
     });
 
     it("falls back to default grid when pair count is not four", () => {
@@ -269,8 +271,10 @@ describe("dragDropMatchDiagram", () => {
       const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], "square-display");
       expect(z[0].id).toBe("tti-boxed-0");
       expect(z[0].x).toBeCloseTo(70.25, 1);
-      expect(z[0].y).toBeCloseTo(25.92, 1);
-      expect(z[3].y).toBeCloseTo(91.08, 1);
+      expect(z[0].y).toBeCloseTo(25.42, 1);
+      expect(z[1].y).toBeCloseTo(47.17, 1);
+      expect(z[2].y).toBeCloseTo(67.83, 1);
+      expect(z[3].y).toBeCloseTo(88.75, 1);
     });
 
     it("uses fallback grid when layout is null", () => {
@@ -288,9 +292,29 @@ describe("dragDropMatchDiagram", () => {
   });
 
   describe("TTI boxed zone contract proportions", () => {
-    it("matches 600×600 display artboard ratios (Reflex Arc reference)", () => {
-      expect(TTI_BOXED_ZONE_WIDTH_PCT).toBeCloseTo(21.67, 2);
-      expect(TTI_BOXED_ZONE_HEIGHT_PCT).toBeCloseTo(10.33, 2);
+    it("matches canonical v1 600×600 display artboard ratios", () => {
+      expect(TTI_BOXED_ZONE_WIDTH_PCT).toBeCloseTo(26, 2);
+      expect(TTI_BOXED_ZONE_HEIGHT_PCT).toBeCloseTo(12.67, 2);
+    });
+
+    it("loads v1 square-display geometry from shared spec", () => {
+      const geo = getTtiBoxGeometryLayout("square-display");
+      expect(geo.box.widthPx).toBe(156);
+      expect(geo.box.heightPx).toBe(76);
+      expect(geo.box.centerXPct).toBeCloseTo(70.25, 2);
+      expect(geo.zones.map((z) => z.centerYPct)).toEqual([25.42, 47.17, 67.83, 88.75]);
+    });
+
+    it("supports legacy geometry version for older assets", () => {
+      const geo = getTtiBoxGeometryLayout("square-display", "legacy");
+      expect(geo.box.heightPct).toBeCloseTo(14, 2);
+      expect(geo.zones[3].centerYPct).toBeCloseTo(91.08, 2);
+    });
+
+    it("normalizes geometry version tokens", () => {
+      expect(normalizeTtiBoxGeometryVersion(undefined)).toBe("tti-box-geometry-v1");
+      expect(normalizeTtiBoxGeometryVersion("legacy")).toBe("legacy");
+      expect(normalizeTtiBoxGeometryVersion("tti-box-geometry-legacy")).toBe("legacy");
     });
   });
 

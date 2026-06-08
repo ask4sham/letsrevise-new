@@ -51,6 +51,7 @@ import {
   dragDropMatchModeFromBlockForProps,
   mapDragDropPairForBlockRender,
   readDragDropPairAnswerImageUrl,
+  TEXT_TO_IMAGE_PAIR_LIMIT,
 } from "../utils/dragDropMatchDiagram";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { GraphBlock } from "../components/lesson/GraphBlock";
@@ -3022,10 +3023,18 @@ const CreateLessonPage: React.FC = () => {
                                       />
                                     </label>
                                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                      {(() => {
+                                        const ddmMode = dragDropMatchModeFromBlockForProps(b);
+                                        const pairCap =
+                                          ddmMode === "text-to-image" ? TEXT_TO_IMAGE_PAIR_LIMIT : 20;
+                                        const curPairs = Array.isArray(b.pairs) ? b.pairs : [];
+                                        const atPairCap = curPairs.length >= pairCap;
+                                        return (
                                       <button
                                         type="button"
+                                        disabled={atPairCap}
                                         onClick={() => {
-                                          const cur = Array.isArray(b.pairs) ? [...b.pairs] : [];
+                                          const cur = [...curPairs];
                                           cur.push({
                                             id: newLessonBlockId(),
                                             prompt: "",
@@ -3039,13 +3048,16 @@ const CreateLessonPage: React.FC = () => {
                                           borderRadius: 8,
                                           border: "2px solid rgba(14,165,233,0.45)",
                                           background: "rgba(224,242,254,0.5)",
-                                          cursor: "pointer",
+                                          cursor: atPairCap ? "not-allowed" : "pointer",
                                           fontWeight: 700,
                                           fontSize: "0.8125rem",
+                                          opacity: atPairCap ? 0.55 : 1,
                                         }}
                                       >
                                         + Add pair
                                       </button>
+                                        );
+                                      })()}
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -3121,7 +3133,11 @@ const CreateLessonPage: React.FC = () => {
                                                     }));
                                                     return;
                                                   }
-                                                  const newPairs = aiPairs.slice(0, 20).map((p) => ({
+                                                  const pairCap =
+                                                    dragDropMatchModeFromBlockForProps(b) === "text-to-image"
+                                                      ? TEXT_TO_IMAGE_PAIR_LIMIT
+                                                      : 20;
+                                                  const newPairs = aiPairs.slice(0, pairCap).map((p) => ({
                                                     id: newLessonBlockId(),
                                                     prompt: p.prompt,
                                                     answer: p.answer,

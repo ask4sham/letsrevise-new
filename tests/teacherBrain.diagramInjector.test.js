@@ -224,7 +224,7 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     expect(pages[0].blocks[0].note).toMatch(/Hotspots:/);
     expect(pages[0].blocks[0].note).toMatch(/IMAGE DESIGN REQUIREMENTS/);
     expect(pages[0].blocks[0].note).toMatch(/900×1350 portrait/i);
-    expect(pages[0].blocks[0].note).toMatch(/320×110 px/);
+    expect(pages[0].blocks[0].note).toMatch(/156×76 px/);
     expect(pages[0].blocks[0].note).toMatch(/right functional matching rail/i);
     expect(pages[0].blocks[0].note).toMatch(/not a decorative panel/i);
     expect(pages[0].blocks[0].note).not.toMatch(/DRAG & DROP BRIEF/);
@@ -292,7 +292,7 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     expect(tti).toMatch(/IMAGE DESIGN REQUIREMENTS/);
     const dropZones = formatImageDropZonesBrief(null, economy, {});
     expect(dropZones).toMatch(/IMAGE \+ DROP ZONES/);
-    expect(dropZones).toMatch(/320×110 px/);
+    expect(dropZones).toMatch(/156×76 px/);
     expect(formatTextMatchBrief(null, economy, {})).toMatch(/DRAG & DROP BRIEF/);
     expect(formatTextMatchBrief(null, economy, {})).not.toMatch(/IMAGE DESIGN REQUIREMENTS/);
   });

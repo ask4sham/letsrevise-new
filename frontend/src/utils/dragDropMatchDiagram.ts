@@ -5,6 +5,10 @@
 
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
 import { withPersistedBlockNote } from "./lessonBlockPersist";
+import ttiBoxGeometrySpec from "../shared/ttiBoxGeometry.v1.json";
+
+/** Text-to-image main image uses printed drop boxes A–D only. */
+export const TEXT_TO_IMAGE_PAIR_LIMIT = 4;
 
 export type DragDropMatchPersistedMode = "text" | "diagram" | "text-to-image";
 /** Values written to Mongo / API (`textToImage` avoids hyphen enum issues). */
@@ -311,30 +315,76 @@ export function dragDropTextToImageCanRender(
   );
 }
 
-/** Printed drop box size on 600×600 display thumbnails (runtime only — not persisted). */
-export const TTI_BOXED_ZONE_WIDTH_PCT = 21.67;
-export const TTI_BOXED_ZONE_HEIGHT_PCT = 10.33;
-/** Portrait artboard reference (900×1350 SVG). */
-export const TTI_BOXED_ZONE_PORTRAIT_WIDTH_PCT = (232 / 900) * 100;
-export const TTI_BOXED_ZONE_PORTRAIT_HEIGHT_PCT = (76 / 1350) * 100;
+export type TtiBoxGeometryVersion = "tti-box-geometry-v1" | "legacy";
 
 export type TtiMainImageBoxedLayout = "portrait" | "square-display";
 
-/** Center points measured on 600×600 `.display.png` lesson assets (Reflex Arc reference). */
-const TTI_SQUARE_DISPLAY_BOX_CENTERS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: 70.25, y: 25.92 },
-  { x: 70.25, y: 48.08 },
-  { x: 70.25, y: 70.08 },
-  { x: 70.25, y: 91.08 },
-];
+type TtiBoxGeometryLayoutSpec = {
+  box: {
+    widthPx: number;
+    heightPx: number;
+    centerXPx: number;
+    centerXPct: number;
+    widthPct: number;
+    heightPct: number;
+  };
+  zones: ReadonlyArray<{ letter: string; centerYPx: number; centerYPct: number }>;
+  filledCardNudgePx: number;
+};
 
-/** Center points for 4 right-rail boxes on contract portrait artboard (reflex reference). */
-const TTI_CONTRACT_PORTRAIT_BOX_CENTERS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: ((628 + 116) / 900) * 100, y: ((408 + 38) / 1350) * 100 },
-  { x: ((628 + 116) / 900) * 100, y: ((662 + 38) / 1350) * 100 },
-  { x: ((628 + 116) / 900) * 100, y: ((848 + 38) / 1350) * 100 },
-  { x: ((628 + 116) / 900) * 100, y: ((1048 + 38) / 1350) * 100 },
-];
+/** Normalize optional block/runtime geometry version (default v1). */
+export function normalizeTtiBoxGeometryVersion(value: unknown): TtiBoxGeometryVersion {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (v === "legacy" || v === "tti-box-geometry-legacy") return "legacy";
+  return "tti-box-geometry-v1";
+}
+
+function getTtiBoxGeometryRoot(version: TtiBoxGeometryVersion): {
+  squareDisplay: TtiBoxGeometryLayoutSpec;
+  portrait: TtiBoxGeometryLayoutSpec;
+} {
+  return version === "legacy"
+    ? (ttiBoxGeometrySpec.legacy as {
+        squareDisplay: TtiBoxGeometryLayoutSpec;
+        portrait: TtiBoxGeometryLayoutSpec;
+      })
+    : {
+        squareDisplay: ttiBoxGeometrySpec.squareDisplay as TtiBoxGeometryLayoutSpec,
+        portrait: ttiBoxGeometrySpec.portrait as TtiBoxGeometryLayoutSpec,
+      };
+}
+
+export function getTtiBoxGeometryLayout(
+  layout: TtiMainImageBoxedLayout,
+  version: TtiBoxGeometryVersion = "tti-box-geometry-v1"
+): TtiBoxGeometryLayoutSpec {
+  const root = getTtiBoxGeometryRoot(version);
+  return layout === "portrait" ? root.portrait : root.squareDisplay;
+}
+
+/** v1 square-display box width/height % — derived from shared/ttiBoxGeometry.v1.json */
+export const TTI_BOXED_ZONE_WIDTH_PCT = ttiBoxGeometrySpec.squareDisplay.box.widthPct;
+export const TTI_BOXED_ZONE_HEIGHT_PCT = ttiBoxGeometrySpec.squareDisplay.box.heightPct;
+/** Portrait artboard reference (900×1350 SVG) — from canonical geometry v1. */
+export const TTI_BOXED_ZONE_PORTRAIT_WIDTH_PCT = ttiBoxGeometrySpec.portrait.box.widthPct;
+export const TTI_BOXED_ZONE_PORTRAIT_HEIGHT_PCT = ttiBoxGeometrySpec.portrait.box.heightPct;
+
+function buildBoxedDropZonesFromGeometry(
+  pairIds: ReadonlyArray<string>,
+  layout: TtiMainImageBoxedLayout,
+  version: TtiBoxGeometryVersion
+): PlacedDragDropDiagramZone[] {
+  const geo = getTtiBoxGeometryLayout(layout, version);
+  return pairIds.map((correctPairId, i) => {
+    const zone = geo.zones[i] ?? geo.zones[0];
+    return {
+      id: `tti-boxed-${i}`,
+      x: clampPct(geo.box.centerXPct),
+      y: clampPct(zone.centerYPct),
+      correctPairId,
+    };
+  });
+}
 
 /** True when image natural aspect matches 900×1350 portrait (±5%). */
 export function isContractPortraitImageAspect(naturalWidth: number, naturalHeight: number): boolean {
@@ -364,16 +414,16 @@ export function inferTtiMainImageLayoutFromUrl(imageUrl: unknown): TtiMainImageB
 }
 
 export function ttiBoxedZoneSizePct(
-  layout: TtiMainImageBoxedLayout | null | undefined
+  layout: TtiMainImageBoxedLayout | null | undefined,
+  version: TtiBoxGeometryVersion = "tti-box-geometry-v1"
 ): { widthPct: number; heightPct: number } | null {
   if (layout === "portrait") {
-    return {
-      widthPct: TTI_BOXED_ZONE_PORTRAIT_WIDTH_PCT,
-      heightPct: TTI_BOXED_ZONE_PORTRAIT_HEIGHT_PCT,
-    };
+    const geo = getTtiBoxGeometryLayout("portrait", version);
+    return { widthPct: geo.box.widthPct, heightPct: geo.box.heightPct };
   }
   if (layout === "square-display") {
-    return { widthPct: TTI_BOXED_ZONE_WIDTH_PCT, heightPct: TTI_BOXED_ZONE_HEIGHT_PCT };
+    const geo = getTtiBoxGeometryLayout("square-display", version);
+    return { widthPct: geo.box.widthPct, heightPct: geo.box.heightPct };
   }
   return null;
 }
@@ -383,35 +433,21 @@ export function ttiBoxedZoneSizePct(
  * Runtime only — text-to-image persist omits `dropZones`.
  */
 export function buildContractTextToImageBoxedDropZones(
-  pairIds: ReadonlyArray<string>
+  pairIds: ReadonlyArray<string>,
+  geometryVersion: TtiBoxGeometryVersion = "tti-box-geometry-v1"
 ): PlacedDragDropDiagramZone[] {
   const ids = pairIds.map((id) => String(id ?? "").trim()).filter(Boolean);
   if (ids.length !== 4) return buildDefaultTextToImageDropZones(pairIds);
-  return ids.map((correctPairId, i) => {
-    const center = TTI_CONTRACT_PORTRAIT_BOX_CENTERS[i] ?? TTI_CONTRACT_PORTRAIT_BOX_CENTERS[0];
-    return {
-      id: `tti-boxed-${i}`,
-      x: clampPct(center.x),
-      y: clampPct(center.y),
-      correctPairId,
-    };
-  });
+  return buildBoxedDropZonesFromGeometry(ids, "portrait", geometryVersion);
 }
 
 export function buildSquareDisplayTextToImageBoxedDropZones(
-  pairIds: ReadonlyArray<string>
+  pairIds: ReadonlyArray<string>,
+  geometryVersion: TtiBoxGeometryVersion = "tti-box-geometry-v1"
 ): PlacedDragDropDiagramZone[] {
   const ids = pairIds.map((id) => String(id ?? "").trim()).filter(Boolean);
   if (ids.length !== 4) return buildDefaultTextToImageDropZones(pairIds);
-  return ids.map((correctPairId, i) => {
-    const center = TTI_SQUARE_DISPLAY_BOX_CENTERS[i] ?? TTI_SQUARE_DISPLAY_BOX_CENTERS[0];
-    return {
-      id: `tti-boxed-${i}`,
-      x: clampPct(center.x),
-      y: clampPct(center.y),
-      correctPairId,
-    };
-  });
+  return buildBoxedDropZonesFromGeometry(ids, "square-display", geometryVersion);
 }
 
 /**
@@ -443,13 +479,14 @@ export function buildDefaultTextToImageDropZones(
 /** Runtime zone list for text-to-image main image (boxed layout vs fallback grid). */
 export function buildTextToImageMainDropZones(
   pairIds: ReadonlyArray<string>,
-  layout: TtiMainImageBoxedLayout | null | undefined
+  layout: TtiMainImageBoxedLayout | null | undefined,
+  geometryVersion: TtiBoxGeometryVersion = "tti-box-geometry-v1"
 ): PlacedDragDropDiagramZone[] {
   if (pairIds.length === 4 && layout === "portrait") {
-    return buildContractTextToImageBoxedDropZones(pairIds);
+    return buildContractTextToImageBoxedDropZones(pairIds, geometryVersion);
   }
   if (pairIds.length === 4 && layout === "square-display") {
-    return buildSquareDisplayTextToImageBoxedDropZones(pairIds);
+    return buildSquareDisplayTextToImageBoxedDropZones(pairIds, geometryVersion);
   }
   return buildDefaultTextToImageDropZones(pairIds);
 }
@@ -742,16 +779,18 @@ export function buildDragDropMatchBlockForPersist(
 ): Record<string, unknown> | null {
   if (resolveLessonDisplayBlockType(block) !== "dragDropMatch") return null;
   const b = block as Record<string, unknown>;
+  const blockMainImg = readDragDropBlockMainImageUrl(b);
+  const resolvedPersist = resolveDragDropPersistMode(b);
+  const pairLimit =
+    resolvedPersist === "text-to-image" ? TEXT_TO_IMAGE_PAIR_LIMIT : 20;
   const rawPairs = Array.isArray(b.pairs) ? b.pairs : [];
   const pairs = rawPairs
-    .slice(0, 20)
+    .slice(0, pairLimit)
     .map((row, ri) => normalizeDragDropPairRow(row, ri, opts.newId()))
     .filter((row): row is NormalizedDragDropPairRow => Boolean(row && String(row.id).trim()));
   const zonePairIds = pairs.map((row) => row.id);
   const rawZonesPersist = Array.isArray(b.dropZones) ? b.dropZones : [];
   const dropZonesPersist = sanitizeDiagramDropZonesForAuthoring(rawZonesPersist, zonePairIds).slice(0, 40);
-  const blockMainImg = readDragDropBlockMainImageUrl(b);
-  const resolvedPersist = resolveDragDropPersistMode(b);
   const ddmOut: Record<string, unknown> = {
     type: "dragDropMatch",
     title: typeof b.title === "string" ? b.title.trim() : "",

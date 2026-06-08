@@ -8,6 +8,7 @@ import {
   inferTtiMainImageLayoutFromUrl,
   isDragDropDiagramMode,
   isDragDropTextToImageMode,
+  normalizeTtiBoxGeometryVersion,
   ttiBoxedZoneSizePct,
   type TtiMainImageBoxedLayout,
   type DragDropMatchAuthoringMatchMode,
@@ -203,6 +204,8 @@ export type DragDropMatchBlockData = {
     correctPairId: string;
     explanation?: string;
   }>;
+  /** Optional: `legacy` keeps pre-v1 overlay geometry for older generated images. */
+  ttiBoxGeometryVersion?: string;
 };
 
 export type DragDropMatchBlockProps = {
@@ -325,6 +328,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
   const pairIds = useMemo(() => pairs.map((p) => p.id), [pairs]);
 
+  const ttiGeometryVersion = useMemo(
+    () => normalizeTtiBoxGeometryVersion(block.ttiBoxGeometryVersion),
+    [block.ttiBoxGeometryVersion]
+  );
+
   const ttiBoxedLayout = useMemo((): TtiMainImageBoxedLayout | null => {
     if (!textToImageMainMode || pairIds.length !== 4) return null;
     if (ttiMainImageLayout) return ttiMainImageLayout;
@@ -333,13 +341,13 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
 
   const ttiOverlayBoxStyle = useMemo((): React.CSSProperties | undefined => {
     if (!useTtiBoxedZones) return undefined;
-    const dims = ttiBoxedZoneSizePct(ttiBoxedLayout);
+    const dims = ttiBoxedZoneSizePct(ttiBoxedLayout, ttiGeometryVersion);
     if (!dims) return undefined;
     return {
       "--tti-boxed-w": `${dims.widthPct}%`,
       "--tti-boxed-h": `${dims.heightPct}%`,
     } as React.CSSProperties;
-  }, [useTtiBoxedZones, ttiBoxedLayout]);
+  }, [useTtiBoxedZones, ttiBoxedLayout, ttiGeometryVersion]);
 
   const zones: PlacedDragDropDiagramZone[] = useMemo(() => {
     if (diagramMode) {
@@ -348,10 +356,10 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
     if (textToImageMainMode) {
       const placed = sanitizePlacedDiagramDropZones(block.dropZones, pairIds);
       if (placed.length > 0) return placed;
-      return buildTextToImageMainDropZones(pairIds, ttiBoxedLayout);
+      return buildTextToImageMainDropZones(pairIds, ttiBoxedLayout, ttiGeometryVersion);
     }
     return [];
-  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds, ttiBoxedLayout]);
+  }, [diagramMode, textToImageMainMode, block.dropZones, pairIds, ttiBoxedLayout, ttiGeometryVersion]);
 
   const [placements, setPlacements] = useState<Placements>({});
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
@@ -942,7 +950,11 @@ export function DragDropMatchBlock({ block, resolveImageUrl }: DragDropMatchBloc
                               (sourcePlaced && !checked
                                 ? " drag-drop-match__diagram-zone--has-placement"
                                 : "");
-                            const chipLabel = card ? diagramZoneChipDisplay(card) : "";
+                            const chipLabel = card
+                              ? useTtiBoxedZones
+                                ? String(card.prompt ?? card.answer ?? "").trim() || "(No text)"
+                                : diagramZoneChipDisplay(card)
+                              : "";
                             return (
                               <button
                                 key={zone.id}

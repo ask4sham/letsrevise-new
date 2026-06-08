@@ -13,6 +13,7 @@ import {
   dragDropMatchModeFromUiSelect,
   readDragDropMatchModeFromBlock,
   resolveDragDropMatchModeForUi,
+  TEXT_TO_IMAGE_PAIR_LIMIT,
   type DragDropMatchAuthoringMatchMode,
 } from "../../utils/dragDropMatchDiagram";
 
@@ -401,36 +402,42 @@ export function DragDropMatchDiagramAuthoring({
                   </div>
                 );
               })}
-              <button
-                type="button"
-                onClick={() =>
-                  onPatch({
-                    pairs: [
-                      ...pairsDd,
-                      {
-                        id: newId(),
-                        prompt: "",
-                        answer: "",
-                        explanation: "",
-                      },
-                    ],
-                  })
-                }
-                style={{
-                  alignSelf: "flex-start",
-                  marginTop: 2,
-                  padding: "4px 0",
-                  border: "none",
-                  background: "transparent",
-                  color: "#047857",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                }}
-              >
-                + Add pair
-              </button>
+              {pairsDd.length < TEXT_TO_IMAGE_PAIR_LIMIT ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onPatch({
+                      pairs: [
+                        ...pairsDd,
+                        {
+                          id: newId(),
+                          prompt: "",
+                          answer: "",
+                          explanation: "",
+                        },
+                      ],
+                    })
+                  }
+                  style={{
+                    alignSelf: "flex-start",
+                    marginTop: 2,
+                    padding: "4px 0",
+                    border: "none",
+                    background: "transparent",
+                    color: "#047857",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  + Add pair
+                </button>
+              ) : (
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#047857", fontWeight: 600 }}>
+                  Text-to-image uses boxes A–D only ({TEXT_TO_IMAGE_PAIR_LIMIT} pairs maximum).
+                </p>
+              )}
             </div>
           )}
         </div>

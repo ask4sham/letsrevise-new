@@ -184,6 +184,7 @@ import {
   resolveDragDropMatchModeForPersist,
   resolveDragDropMatchModeForUi,
   sanitizeDiagramDropZonesForAuthoring,
+  TEXT_TO_IMAGE_PAIR_LIMIT,
 } from "../utils/dragDropMatchDiagram";
 import { parseGeneratorMcqForSelfCheckImport } from "../utils/parseGeneratorMcqForSelfCheckImport";
 
@@ -8917,12 +8918,21 @@ const EditLessonPage: React.FC = () => {
                                 />
                               </label>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                                {(() => {
+                                  const ddmMode = dragDropMatchModeFromBlockForProps(b as LessonPageBlock);
+                                  const ttiMode = ddmMode === "text-to-image";
+                                  const pairCap = ttiMode ? TEXT_TO_IMAGE_PAIR_LIMIT : 20;
+                                  const curPairs = Array.isArray((b as LessonPageBlock).pairs)
+                                    ? ((b as LessonPageBlock).pairs as NonNullable<LessonPageBlock["pairs"]>)
+                                    : [];
+                                  const atPairCap = curPairs.length >= pairCap;
+                                  return (
+                                    <>
                                 <button
                                   type="button"
+                                  disabled={atPairCap}
                                   onClick={() => {
-                                    const cur = Array.isArray((b as LessonPageBlock).pairs)
-                                      ? [...((b as LessonPageBlock).pairs as NonNullable<LessonPageBlock["pairs"]>)]
-                                      : [];
+                                    const cur = [...curPairs];
                                     cur.push({
                                       id: newId(),
                                       prompt: "",
@@ -8936,12 +8946,16 @@ const EditLessonPage: React.FC = () => {
                                     borderRadius: 8,
                                     border: "2px solid rgba(14,165,233,0.45)",
                                     background: "rgba(224,242,254,0.5)",
-                                    cursor: "pointer",
+                                    cursor: atPairCap ? "not-allowed" : "pointer",
                                     fontWeight: 700,
+                                    opacity: atPairCap ? 0.55 : 1,
                                   }}
                                 >
                                   + Add pair
                                 </button>
+                                    </>
+                                  );
+                                })()}
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -9008,7 +9022,10 @@ const EditLessonPage: React.FC = () => {
                                               }));
                                               return;
                                             }
-                                            const newPairs = aiPairs.slice(0, 20).map((p) => ({
+                                            const ddmMode = dragDropMatchModeFromBlockForProps(b as LessonPageBlock);
+                                            const pairCap =
+                                              ddmMode === "text-to-image" ? TEXT_TO_IMAGE_PAIR_LIMIT : 20;
+                                            const newPairs = aiPairs.slice(0, pairCap).map((p) => ({
                                               id: newId(),
                                               prompt: p.prompt,
                                               answer: p.answer,
