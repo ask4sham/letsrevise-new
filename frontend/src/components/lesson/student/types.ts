@@ -87,6 +87,10 @@ export type StudentLessonPageBlock = {
   explanation?: string;
   visualId?: string;
   caption?: string;
+  /** Diagram block: teacher explanation below the image */
+  subtitle?: string;
+  /** Diagram block: student questions / activities */
+  studentTask?: string;
   mode?: string;
   annotations?: unknown[];
   steps?: unknown[];

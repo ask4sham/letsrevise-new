@@ -14,7 +14,7 @@ exports[`DiagramBlockPedagogy spacing regression metabolism diagram block uses c
 Object {
   "order": Array [
     "media",
-    "task",
+    "student-task",
     "reveal",
   ],
   "spacing": Object {

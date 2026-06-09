@@ -5,19 +5,22 @@ import { METABOLISM_DEFINED_DIAGRAM_BLOCK } from "../../utils/diagramPedagogyDis
 
 jest.mock("./DiagramBlockPedagogy", () => ({
   DiagramBlockPedagogy: ({
-    subtitle,
+    instructions,
+    studentTask,
     caption,
     reveal,
     children,
   }: {
-    subtitle?: string;
+    instructions?: string;
+    studentTask?: string;
     caption?: string;
     reveal?: { body: string };
     children: React.ReactNode;
   }) => (
     <div data-testid="pedagogy">
       {children}
-      {subtitle ? <div data-testid="instructions">{subtitle}</div> : null}
+      {instructions ? <div data-testid="instructions">{instructions}</div> : null}
+      {studentTask ? <div data-testid="student-task">{studentTask}</div> : null}
       {reveal?.body ? <div data-testid="reveal">{reveal.body}</div> : null}
       {caption ? <div data-testid="caption">{caption}</div> : null}
     </div>
@@ -73,6 +76,41 @@ describe("LessonDiagramBlockDisplay", () => {
     expect(screen.queryByTestId("instructions")).toBeNull();
     expect(screen.getByTestId("caption")).toHaveTextContent("Metabolism defined");
     expect(screen.getByTestId("caption").textContent).not.toMatch(/economy|Catabolism/i);
+  });
+
+  it("falls back to raw authoring fields when display normalizer omits them", () => {
+    render(
+      <LessonDiagramBlockDisplay
+        block={{
+          subtitle: "Study the reflex arc shown in the diagram.",
+          studentTask: "Task\n\n1. Name the five stages.",
+          caption: "GCSE AQA Biology",
+        }}
+      >
+        <img alt="reflex" src="/reflex.png" />
+      </LessonDiagramBlockDisplay>
+    );
+    expect(screen.getByTestId("instructions")).toHaveTextContent("Study the reflex arc");
+    expect(screen.getByTestId("student-task")).toHaveTextContent("Name the five stages");
+    expect(screen.getByTestId("caption")).toHaveTextContent("GCSE AQA Biology");
+  });
+
+  it("passes dedicated student task below instructions", () => {
+    render(
+      <LessonDiagramBlockDisplay
+        block={{
+          title: "Reflex arc",
+          subtitle: "Study the reflex arc shown in the diagram.",
+          studentTask: "Task\n\n1. Name the five stages.",
+          caption: "GCSE AQA Biology",
+        }}
+      >
+        <img alt="reflex" src="/reflex.png" />
+      </LessonDiagramBlockDisplay>
+    );
+    expect(screen.getByTestId("instructions")).toHaveTextContent("Study the reflex arc");
+    expect(screen.getByTestId("student-task")).toHaveTextContent("Name the five stages");
+    expect(screen.getByTestId("caption")).toHaveTextContent("GCSE AQA Biology");
   });
 
   it("renders children only when block has no chrome fields", () => {

@@ -569,6 +569,8 @@ function recordToLessonBlock(
     case "diagram": {
       const imageUrl = String(payload.imageUrl ?? "").trim();
       const caption = String(payload.caption ?? "").trim();
+      const subtitle = String(payload.subtitle ?? "").trim();
+      const studentTask = String(payload.studentTask ?? "").trim();
       return attachBlockNumber(
         {
           type: "diagram" as const,
@@ -577,6 +579,8 @@ function recordToLessonBlock(
           ...(role ? { role } : { role: "concept" }),
           ...(imageUrl ? { imageUrl } : {}),
           ...(caption ? { caption } : {}),
+          ...(subtitle ? { subtitle } : {}),
+          ...(studentTask ? { studentTask } : {}),
           ...(payload.diagramVariant === "featured" ? { diagramVariant: "featured" as const } : {}),
           ...(importNoteFromPayload(payload) ? { note: importNoteFromPayload(payload) } : {}),
         },

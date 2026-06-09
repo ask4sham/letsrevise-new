@@ -8,7 +8,7 @@ import { InteractiveSequenceBlock } from "../components/lesson/InteractiveSequen
 import { InteractiveDiagramBlock } from "../components/lesson/InteractiveDiagramBlock";
 import { DragDropMatchBlock } from "../components/lesson/DragDropMatchBlock";
 import { GraphBlock } from "../components/lesson/GraphBlock";
-import { DiagramBlockPedagogy } from "../components/lesson/DiagramBlockPedagogy";
+import { LessonDiagramBlockDisplay } from "../components/lesson/LessonDiagramBlockDisplay";
 import { GraphBlockAuthoring } from "../components/lesson/GraphBlockAuthoring";
 import {
   emptyGraphBlock,
@@ -81,9 +81,9 @@ import {
 import {
   attachPersistedBlockNumber,
   diagramAuthoringInstructionsForEditor,
+  diagramAuthoringStudentTaskForEditor,
   diagramAuthoringInstructionsFromBlock,
   diagramInstructionsHiddenFromStudents,
-  diagramPedagogyDisplayFromBlock,
   diagramBlockForPersist,
   mergeSavedDiagramAuthoringInstructions,
   blockNoteForPersist,
@@ -239,8 +239,10 @@ interface LessonPageBlock {
   /** Diagram block fields (when type === "diagram") */
   visualId?: string;
   caption?: string;
-  /** Student-facing instructions / subtitle (diagram blocks) */
+  /** Teacher explanation / instructions (diagram blocks) */
   subtitle?: string;
+  /** Student questions / activities (diagram blocks) */
+  studentTask?: string;
   /** PR11: diagram depth */
   mode?: "static" | "annotated" | "step";
   annotations?: Array<{ id: string; kind?: "label" | "callout"; text?: string; x?: number; y?: number; color?: string; align?: "left" | "center" | "right" }>;
@@ -1569,6 +1571,7 @@ const EditLessonPage: React.FC = () => {
                     caption: safeStr(b.caption, ""),
                     title: safeStr(b.title, "") || undefined,
                     subtitle: diagramAuthoringInstructionsForEditor(b),
+                    studentTask: diagramAuthoringStudentTaskForEditor(b),
                     intro: safeStr(b.intro, "") || undefined,
                     note: safeStr(b.note, "") || undefined,
                     mode,
@@ -2227,6 +2230,7 @@ const EditLessonPage: React.FC = () => {
           caption: "",
           title: "",
           subtitle: "",
+          studentTask: "",
           mode: "static",
           annotations: [],
           steps: [],
@@ -6852,20 +6856,6 @@ const EditLessonPage: React.FC = () => {
                                 </div>
                               ));
                             })()}
-                              <label style={{ display: "block" }}>
-                                <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption / source note (optional)</div>
-                                <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>Small text below the image — source, credit, or brief figure note. For labels on the diagram, use Edit diagram → Place labels.</p>
-                                <LessonAutoTextarea
-                                  editorVariant="plain"
-                                  value={d.caption ?? ""}
-                                  onChange={(v) =>
-                                    updateBlock(currentPage!.pageId, idx, { caption: v })
-                                  }
-                                  placeholder="e.g. A single simple animal cell"
-                                  minHeightPx={80}
-                                  style={{ fontSize: "0.9375rem" }}
-                                />
-                              </label>
                               {/* PR11: diagram mode */}
                               <label style={{ display: "block" }}>
                                 <div style={{ fontWeight: 800, marginBottom: 6 }}>Mode</div>
@@ -7142,27 +7132,42 @@ const EditLessonPage: React.FC = () => {
                                 <label style={{ display: "block", marginBottom: 10 }}>
                                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Diagram instructions / subtitle</div>
                                   <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
-                                    Shown below the diagram for students only when you start with{" "}
-                                    <strong>Task:</strong>, <strong>Diagram task:</strong>, <strong>Instruction:</strong>, or{" "}
-                                    <strong>Student task:</strong>. Long teaching prose without those markers may be hidden.
-                                  </p>
-                                  <p
-                                    style={{
-                                      margin: "0 0 6px",
-                                      fontSize: 11,
-                                      color: "#6b7280",
-                                      fontFamily: "ui-monospace, monospace",
-                                      whiteSpace: "pre-wrap",
-                                    }}
-                                  >
-                                    {`Task:\n- Label the parts you can see\n- Explain one process\n\nInstruction: Name the three structures labelled A, B, and C.`}
+                                    Teacher explanation shown below the diagram — what to look for and how to read the image.
                                   </p>
                                   <LessonAutoTextarea
                                     editorVariant="plain"
                                     value={d.subtitle ?? ""}
                                     onChange={(v) => updateBlock(currentPage!.pageId, idx, { subtitle: v })}
-                                    placeholder={"Task:\n- ...\nInstruction: ..."}
+                                    placeholder="Study the reflex arc shown in the diagram. Follow the pathway of an electrical impulse from stimulus to response."
                                     minHeightPx={72}
+                                    style={{ fontSize: "0.9375rem" }}
+                                  />
+                                </label>
+                                <label style={{ display: "block", marginBottom: 10 }}>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Student task</div>
+                                  <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
+                                    Questions or activities for students — numbered steps, challenges, or exam-style prompts.
+                                  </p>
+                                  <LessonAutoTextarea
+                                    editorVariant="plain"
+                                    value={d.studentTask ?? ""}
+                                    onChange={(v) => updateBlock(currentPage!.pageId, idx, { studentTask: v })}
+                                    placeholder={"Task\n\n1. Name the five stages of the reflex arc.\n2. Describe the pathway from receptor to effector.\n3. Explain the role of each neurone."}
+                                    minHeightPx={96}
+                                    style={{ fontSize: "0.9375rem" }}
+                                  />
+                                </label>
+                                <label style={{ display: "block", marginBottom: 10 }}>
+                                  <div style={{ fontWeight: 800, marginBottom: 6 }}>Caption / source note (optional)</div>
+                                  <p style={{ margin: "0 0 6px", fontSize: 11, color: "#6b7280" }}>
+                                    Small text below the task — source, credit, or brief figure note.
+                                  </p>
+                                  <LessonAutoTextarea
+                                    editorVariant="plain"
+                                    value={d.caption ?? ""}
+                                    onChange={(v) => updateBlock(currentPage!.pageId, idx, { caption: v })}
+                                    placeholder="e.g. GCSE AQA Biology Higher Tier: Reflex Arc and Nervous System."
+                                    minHeightPx={56}
                                     style={{ fontSize: "0.9375rem" }}
                                   />
                                 </label>
@@ -10046,16 +10051,23 @@ const EditLessonPage: React.FC = () => {
                       );
                     }
                     if (blockType === "diagram") {
-                      const d = b as {
-                        imageUrl?: string;
-                        caption?: string;
-                        content?: string;
-                        title?: string;
-                        subtitle?: string;
-                      };
+                      if (process.env.NODE_ENV !== "production") {
+                        console.log("[EditLessonPage.preview.diagram]", {
+                          idx,
+                          component: "LessonDiagramBlockDisplay",
+                          subtitle:
+                            typeof b.subtitle === "string" ? b.subtitle.slice(0, 80) : b.subtitle ?? "MISSING",
+                          studentTask:
+                            typeof b.studentTask === "string"
+                              ? b.studentTask.slice(0, 80)
+                              : b.studentTask ?? "MISSING",
+                          caption:
+                            typeof b.caption === "string" ? b.caption.slice(0, 80) : b.caption ?? "MISSING",
+                        });
+                      }
+                      const d = b as LessonPageBlock;
                       const img = diagramImageUrlForPreview(d.imageUrl);
                       const imgSrc = img ? toAbsoluteAssetUrl(img) ?? img : "";
-                      const pedagogy = diagramPedagogyDisplayFromBlock(d);
                       return (
                         <div
                           key={`${currentPage!.pageId}_prev_${idx}`}
@@ -10070,17 +10082,12 @@ const EditLessonPage: React.FC = () => {
                               : {}),
                           }}
                         >
-                          <DiagramBlockPedagogy
-                            title={pedagogy.title}
-                            subtitle={pedagogy.visibleInstructions ?? pedagogy.instructions}
-                            caption={pedagogy.caption}
-                            reveal={pedagogy.hiddenAnswer ?? pedagogy.reveal}
-                          >
+                          <LessonDiagramBlockDisplay block={d}>
                             {imgSrc && hasRenderableLessonImageSrc(imgSrc) ? (
                               <LessonImageFrame variant="secondary" lightboxSrc={imgSrc}>
                                 <img
                                   src={imgSrc}
-                                  alt={pedagogy.caption || pedagogy.title || safeStr(d.title, "") || "Diagram"}
+                                  alt={d.caption || d.title || "Diagram"}
                                   style={lessonImageFrameImgStyle}
                                   onError={hideBrokenLessonImage}
                                 />
@@ -10097,7 +10104,7 @@ const EditLessonPage: React.FC = () => {
                                 Diagram image not set
                               </p>
                             )}
-                          </DiagramBlockPedagogy>
+                          </LessonDiagramBlockDisplay>
                         </div>
                       );
                     }

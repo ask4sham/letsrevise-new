@@ -10,6 +10,7 @@ export {
   diagramInstructionsForDisplayFromBlock,
   diagramInstructionsHiddenFromStudents,
   diagramPedagogyDisplayFromBlock,
+  diagramPedagogyRenderFromBlock,
 } from "./diagramPedagogyDisplay";
 
 function blockRecord(block: unknown): Record<string, unknown> {
@@ -57,9 +58,42 @@ export function diagramAuthoringInstructionsFromBlock(block: unknown): string | 
   return normalized || plainTextFromHtmlish(raw);
 }
 
-/** Student-facing diagram instructions (display-normalized; does not change stored data). */
+/** Student-facing diagram task (display-normalized; does not change stored data). */
 export function diagramSubtitleFromBlock(block: unknown): string | undefined {
   return diagramInstructionsForDisplayFromBlock(block);
+}
+
+/** Raw student task from persisted studentTask field. */
+export function diagramAuthoringStudentTaskFromBlock(block: unknown): string | undefined {
+  const b = blockRecord(block);
+  const raw = typeof b.studentTask === "string" ? b.studentTask.trim() : "";
+  if (!raw) return undefined;
+  const normalized = normalizeDiagramPedagogyAuthoringForPersist(raw);
+  return normalized || plainTextFromHtmlish(raw);
+}
+
+/** Editor hydrate for dedicated student task field. */
+export function diagramAuthoringStudentTaskForEditor(block: unknown): string | undefined {
+  return diagramAuthoringStudentTaskFromBlock(block);
+}
+
+/**
+ * Student/preview view: mirror editor hydrate so subtitle/studentTask/caption are on the block
+ * object passed to LessonDiagramBlockDisplay (API may mirror instructions on intro/note/content).
+ */
+export function hydrateDiagramBlockForDisplay<T>(block: T): T {
+  if (block == null || typeof block !== "object") return block;
+  const row = block as Record<string, unknown>;
+  if (String(row.type ?? "") !== "diagram") return block;
+  const instructions = diagramAuthoringInstructionsForEditor(block);
+  const studentTask = diagramAuthoringStudentTaskForEditor(block);
+  const caption = typeof row.caption === "string" ? row.caption.trim() : "";
+  return {
+    ...row,
+    ...(instructions ? { subtitle: instructions } : {}),
+    ...(studentTask ? { studentTask } : {}),
+    ...(caption ? { caption } : {}),
+  } as T;
 }
 
 function attachDiagramInstructionsForPersist(
@@ -124,6 +158,8 @@ export function diagramBlockForPersist(block: unknown): Record<string, unknown> 
   const instructions = diagramAuthoringInstructionsFromBlock(b);
   if (instructions) attachDiagramInstructionsForPersist(out, instructions);
   else if (content) out.content = content;
+  const studentTask = diagramAuthoringStudentTaskFromBlock(b);
+  if (studentTask) out.studentTask = studentTask;
   if (imageUrl) out.imageUrl = imageUrl;
   if (typeof b.imageSource === "string" && b.imageSource.trim()) {
     out.imageSource = b.imageSource.trim();
@@ -178,17 +214,24 @@ export function mergeSavedDiagramAuthoringInstructions(
       if (String(savedRow.type ?? "") !== "diagram") return block;
 
       const instructions = diagramAuthoringInstructionsFromBlock(savedRow);
-      if (!instructions) return block;
+      const studentTask = diagramAuthoringStudentTaskFromBlock(savedRow);
+      if (!instructions && !studentTask) return block;
 
       const loadedInstructions = diagramAuthoringInstructionsFromBlock(row);
-      if (loadedInstructions === instructions) return block;
+      const loadedStudentTask = diagramAuthoringStudentTaskFromBlock(row);
+      if (loadedInstructions === instructions && loadedStudentTask === studentTask) return block;
 
       return {
         ...row,
-        subtitle: instructions,
-        intro: instructions,
-        note: instructions,
-        content: instructions,
+        ...(instructions
+          ? {
+              subtitle: instructions,
+              intro: instructions,
+              note: instructions,
+              content: instructions,
+            }
+          : {}),
+        ...(studentTask ? { studentTask } : {}),
       };
     });
 
@@ -224,6 +267,8 @@ export function logLessonSaveBlocksDebug(
       title: row.title ?? null,
       imageUrl: t === "diagram" ? row.imageUrl ?? null : undefined,
       caption: t === "diagram" ? row.caption ?? null : undefined,
+      subtitle: t === "diagram" ? row.subtitle ?? null : undefined,
+      studentTask: t === "diagram" ? row.studentTask ?? null : undefined,
       diagramVariant: t === "diagram" ? row.diagramVariant ?? null : undefined,
       graphSeriesLen: t === "graph" && Array.isArray(row.graphSeries) ? row.graphSeries.length : undefined,
       contentLen: typeof row.content === "string" ? row.content.length : 0,

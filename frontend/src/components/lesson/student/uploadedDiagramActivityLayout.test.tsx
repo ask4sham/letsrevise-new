@@ -113,6 +113,6 @@ describe("uploaded diagram activity layout", () => {
     expect(slot).toBeTruthy();
     expect(wrapper).toBeTruthy();
     expect(container.querySelector(".lr-diagram-pedagogy__media")).toBeTruthy();
-    expect(container.querySelector('[data-testid="diagram-task"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="diagram-student-task"]')).toBeTruthy();
   });
 });

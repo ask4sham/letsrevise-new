@@ -59,6 +59,7 @@ import {
   normalizeGraphBlockForDisplay,
 } from "../components/lesson/graphBlockTypes";
 import { normalizePersistedBlockTitle, resolveSs1BlockNumber } from "../utils/formatBlockHeading";
+import { hydrateDiagramBlockForDisplay } from "../utils/lessonBlockPersist";
 import { studentCheckpointFromBlock } from "../utils/studentCheckpointFromBlock";
 import {
   coerceDiagramZonePct,
@@ -161,6 +162,10 @@ interface LessonPageBlock {
   explanation?: string;
   visualId?: string;
   caption?: string;
+  /** Diagram block: teacher explanation below the image */
+  subtitle?: string;
+  /** Diagram block: student questions / activities */
+  studentTask?: string;
   /** PR11 */
   mode?: "static" | "annotated" | "step";
   annotations?: DiagramAnnotation[];
@@ -2395,7 +2400,16 @@ const LessonViewPage: React.FC = () => {
           ? Number(data.totalRatings)
           : 0,
         createdAt: safeStr(data.createdAt, new Date().toISOString()),
-        pages: Array.isArray(data.pages) ? data.pages : [],
+        pages: Array.isArray(data.pages)
+          ? data.pages.map((p: LessonPage) => ({
+              ...p,
+              blocks: Array.isArray(p.blocks)
+                ? p.blocks.map((b) =>
+                    b?.type === "diagram" ? hydrateDiagramBlockForDisplay(b) : b
+                  )
+                : p.blocks,
+            }))
+          : [],
         isFreePreview: Boolean(data.isFreePreview),
         // ✅ ADDED: Revision data with proper array validation
         flashcards: Array.isArray(data.flashcards) ? data.flashcards : [],
@@ -2921,6 +2935,20 @@ const LessonViewPage: React.FC = () => {
     idx: number,
     options?: { suppressPedagogyTitle?: boolean }
   ) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LessonViewPage.renderDiagramBlock]", {
+        idx,
+        component: "LessonDiagramBlockDisplay",
+        title: block.title ?? null,
+        subtitle: typeof block.subtitle === "string" ? block.subtitle.slice(0, 80) : block.subtitle ?? "MISSING",
+        studentTask:
+          typeof block.studentTask === "string" ? block.studentTask.slice(0, 80) : block.studentTask ?? "MISSING",
+        caption: typeof block.caption === "string" ? block.caption.slice(0, 80) : block.caption ?? "MISSING",
+        intro: typeof block.intro === "string" ? block.intro.slice(0, 40) : block.intro ?? null,
+        content:
+          typeof block.content === "string" ? block.content.slice(0, 40) : block.content ?? null,
+      });
+    }
     const caption = block.caption ?? "";
     const diagramVariant = block.diagramVariant === "featured" ? "featured" : "standard";
     const rawDiagramUrl = block.imageUrl != null ? String(block.imageUrl) : "";
@@ -3381,6 +3409,9 @@ const LessonViewPage: React.FC = () => {
             ? { ...b, number }
             : b;
         let enriched = normalizePersistedBlockTitle(withNumber);
+        if (resolveLessonDisplayBlockType(enriched) === "diagram") {
+          enriched = hydrateDiagramBlockForDisplay(enriched);
+        }
         if (
           resolveLessonDisplayBlockType(enriched) === "graph" ||
           contentLooksLikeGraphJson((enriched as { content?: unknown }).content)

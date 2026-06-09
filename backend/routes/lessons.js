@@ -550,6 +550,11 @@ function sanitisePageInput(p, isUpdate = false) {
             diagramBlock.note = trimmed;
             diagramBlock.content = trimmed;
           }
+          const diagramStudentTask =
+            (typeof b?.studentTask === "string" && b.studentTask.trim()) || "";
+          if (diagramStudentTask) {
+            diagramBlock.studentTask = diagramStudentTask.trim().slice(0, 4000);
+          }
           if (typeof b?.number === "number" && Number.isFinite(b.number) && b.number > 0) {
             diagramBlock.number = Math.trunc(b.number);
           }

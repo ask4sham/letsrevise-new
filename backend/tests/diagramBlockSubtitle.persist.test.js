@@ -37,6 +37,59 @@ describe("diagram block subtitle persistence", () => {
     expect(diagram.imageUrl).toBe("/uploads/lesson-media/diagram.png");
   });
 
+  test("sanitisePagesInput preserves diagram studentTask", () => {
+    const studentTask =
+      "Task\n\n1. Name the five stages of the reflex arc.\n2. Describe the pathway from receptor to effector.";
+    const pages = sanitisePagesInput(
+      [
+        {
+          pageId: "page-1",
+          title: "Nervous system",
+          order: 1,
+          blocks: [
+            {
+              type: "diagram",
+              title: "The reflex arc",
+              subtitle: "Study the reflex arc shown in the diagram.",
+              studentTask,
+              caption: "GCSE AQA Biology Higher Tier",
+              imageUrl: "/uploads/lesson-media/reflex.png",
+              mode: "static",
+            },
+          ],
+        },
+      ],
+      true
+    );
+
+    const diagram = pages[0].blocks[0];
+    expect(diagram.studentTask).toBe(studentTask);
+    expect(diagram.subtitle).toBe("Study the reflex arc shown in the diagram.");
+  });
+
+  test("omits studentTask when empty (backward compatible)", () => {
+    const pages = sanitisePagesInput(
+      [
+        {
+          pageId: "page-1",
+          title: "Old lesson",
+          order: 1,
+          blocks: [
+            {
+              type: "diagram",
+              title: "Cell diagram",
+              subtitle: SUBTITLE,
+              caption: "Cell diagram",
+              mode: "static",
+            },
+          ],
+        },
+      ],
+      true
+    );
+    expect(pages[0].blocks[0].studentTask).toBeUndefined();
+  });
+
   test("omits subtitle when empty (backward compatible)", () => {
     const pages = sanitisePagesInput(
       [

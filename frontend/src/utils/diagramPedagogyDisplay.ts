@@ -17,13 +17,15 @@ export type DiagramRevealDisplay = {
 
 export type DiagramPedagogyDisplay = {
   title?: string;
-  /** Student task / question shown above the diagram */
+  /** Teacher explanation shown below the diagram (subtitle field). */
+  instructions?: string;
+  /** Student questions / activities (studentTask field, or legacy task extraction). */
+  studentTask?: string;
+  /** @deprecated Use studentTask — legacy task extraction from subtitle */
   visibleInstructions?: string;
   /** Model answer in accordion (not shown until expanded) */
   hiddenAnswer?: DiagramRevealDisplay;
   caption?: string;
-  /** @deprecated Use visibleInstructions */
-  instructions?: string;
   /** @deprecated Use hiddenAnswer */
   reveal?: DiagramRevealDisplay;
 };
@@ -57,6 +59,13 @@ function blockRecord(block: unknown): Record<string, unknown> {
 }
 
 const PEDAGOGY_BODY_FIELD_KEYS = ["subtitle", "intro", "note", "content"] as const;
+
+function cleanedStudentTaskField(block: Record<string, unknown>): string {
+  const raw = fieldTrim(block, "studentTask");
+  if (!raw || /^image\s+here$/i.test(raw)) return "";
+  const { remainder } = extractDiagramRevealSections(raw);
+  return cleanDiagramInstructionsForDisplay(remainder);
+}
 
 function normalizeCompare(text: string): string {
   return cleanDiagramInstructionsForDisplay(text).replace(/\s+/g, " ").trim().toLowerCase();
@@ -183,6 +192,24 @@ function isDiagramTaskLikeCaption(cleaned: string): boolean {
 function fieldTrim(block: Record<string, unknown>, key: string): string {
   const v = block[key];
   return typeof v === "string" ? v.trim() : "";
+}
+
+/** First non-empty diagram body field (subtitle → intro → note → content). */
+function rawDiagramSubtitleFromBlock(block: Record<string, unknown>): string {
+  for (const key of PEDAGOGY_BODY_FIELD_KEYS) {
+    const v = fieldTrim(block, key);
+    if (v && !/^image\s+here$/i.test(v)) return v;
+  }
+  return "";
+}
+
+/** Authoring instructions field only (subtitle / intro — not mirrored content). */
+function rawDiagramInstructionsAuthoringField(block: Record<string, unknown>): string {
+  for (const key of ["subtitle", "intro"] as const) {
+    const v = fieldTrim(block, key);
+    if (v && !/^image\s+here$/i.test(v)) return v;
+  }
+  return "";
 }
 
 /** Extract <details> reveal sections; returns stripped remainder. */
@@ -358,21 +385,55 @@ export function diagramPedagogyDisplayFromBlock(block: unknown): DiagramPedagogy
   const b = blockRecord(block);
   const allReveals: DiagramRevealDisplay[] = [];
   let visibleInstructions: string | undefined;
+  let instructions: string | undefined;
+  let studentTask: string | undefined;
+
+  const dedicatedStudentTaskRaw = fieldTrim(b, "studentTask");
+  const hasDedicatedStudentTask = Boolean(dedicatedStudentTaskRaw);
+
+  if (hasDedicatedStudentTask) {
+    const cleanedTask = cleanedStudentTaskField(b);
+    if (cleanedTask && !containsDiagramAnswerMaterial(cleanedTask)) {
+      studentTask = cleanedTask;
+    }
+    const { reveals } = extractDiagramRevealSections(dedicatedStudentTaskRaw);
+    allReveals.push(...reveals);
+
+    const subtitleCleaned = cleanedPedagogyField(b, "subtitle");
+    if (subtitleCleaned && !containsDiagramAnswerMaterial(subtitleCleaned)) {
+      instructions = subtitleCleaned;
+    }
+  }
 
   const teachingHeavy = blockHasDiagramTeachingProse(b);
 
-  for (const key of PEDAGOGY_BODY_FIELD_KEYS) {
-    const raw = fieldTrim(b, key);
-    if (!raw || /^image\s+here$/i.test(raw)) continue;
-    const { visibleInstructions: visible, reveals } = parseFieldForVisibleAndReveal(raw);
-    allReveals.push(...reveals);
-    if (!visible) continue;
-    if (teachingHeavy && !isDiagramStudentTask(visible)) continue;
-    visibleInstructions = pickRicherVisibleInstructions(visibleInstructions, visible);
+  if (!hasDedicatedStudentTask) {
+    for (const key of PEDAGOGY_BODY_FIELD_KEYS) {
+      const raw = fieldTrim(b, key);
+      if (!raw || /^image\s+here$/i.test(raw)) continue;
+      const { visibleInstructions: visible, reveals } = parseFieldForVisibleAndReveal(raw);
+      allReveals.push(...reveals);
+      if (!visible) continue;
+      if (teachingHeavy && !isDiagramStudentTask(visible)) continue;
+      visibleInstructions = pickRicherVisibleInstructions(visibleInstructions, visible);
+    }
+
+    if (!visibleInstructions && teachingHeavy) {
+      visibleInstructions = findExplicitDiagramInstruction(b);
+    }
+
+    studentTask = visibleInstructions;
   }
 
-  if (!visibleInstructions && teachingHeavy) {
-    visibleInstructions = findExplicitDiagramInstruction(b);
+  // Authoring split model: subtitle is teacher instructions (short prose), not legacy task markers.
+  const subtitleForInstructions = cleanedPedagogyField(b, "subtitle");
+  if (
+    subtitleForInstructions &&
+    !containsDiagramAnswerMaterial(subtitleForInstructions) &&
+    !isDiagramStudentTask(subtitleForInstructions) &&
+    (!isDiagramTeachingProse(subtitleForInstructions) || hasDedicatedStudentTask)
+  ) {
+    instructions = pickRicherVisibleInstructions(instructions, subtitleForInstructions);
   }
 
   const titleRaw = fieldTrim(b, "title");
@@ -450,23 +511,143 @@ export function diagramPedagogyDisplayFromBlock(block: unknown): DiagramPedagogy
     }
   }
 
+  const activeTaskText = studentTask ?? visibleInstructions;
+  if (!hasDedicatedStudentTask && visibleInstructions) {
+    studentTask = visibleInstructions;
+  }
+  if (caption && activeTaskText && textsSemanticallyDuplicate(caption, activeTaskText)) {
+    caption = undefined;
+  }
+  if (caption && instructions && textsSemanticallyDuplicate(caption, instructions)) {
+    caption = undefined;
+  }
+
+  if (instructions && studentTask && textsSemanticallyDuplicate(instructions, studentTask)) {
+    instructions = undefined;
+  }
+  if (instructions && title && textsSemanticallyDuplicate(instructions, title)) {
+    instructions = undefined;
+  }
+  if (studentTask && title && textsSemanticallyDuplicate(studentTask, title)) {
+    studentTask = undefined;
+  }
+
   const display: DiagramPedagogyDisplay = {
-    ...(title && !textsSemanticallyDuplicate(title, visibleInstructions) ? { title } : {}),
-    ...(visibleInstructions && !textsSemanticallyDuplicate(visibleInstructions, title)
-      ? { visibleInstructions }
-      : {}),
+    ...(title && !textsSemanticallyDuplicate(title, studentTask) ? { title } : {}),
+    ...(instructions ? { instructions } : {}),
+    ...(studentTask && !textsSemanticallyDuplicate(studentTask, title) ? { studentTask } : {}),
+    ...(visibleInstructions && !studentTask ? { visibleInstructions } : {}),
     ...(caption ? { caption } : {}),
     ...(hiddenAnswer ? { hiddenAnswer } : {}),
   };
-  if (display.visibleInstructions) display.instructions = display.visibleInstructions;
+  if (!display.studentTask && display.visibleInstructions) {
+    display.studentTask = display.visibleInstructions;
+  }
   if (display.hiddenAnswer) display.reveal = display.hiddenAnswer;
   return display;
+}
+
+export type DiagramPedagogyRender = {
+  title?: string;
+  instructions?: string;
+  studentTask?: string;
+  caption?: string;
+  reveal?: DiagramRevealDisplay;
+};
+
+function cleanAuthoringFieldForRender(raw: string): string {
+  const { remainder } = extractDiagramRevealSections(raw);
+  return cleanDiagramInstructionsForDisplay(remainder);
+}
+
+/**
+ * Student/editor render: display normalizer first, then explicit authoring fields (subtitle, studentTask, caption).
+ */
+export function diagramPedagogyRenderFromBlock(
+  block: unknown,
+  options?: { suppressTitle?: boolean }
+): DiagramPedagogyRender {
+  const display = diagramPedagogyDisplayFromBlock(block);
+  const b = blockRecord(block);
+  const rawSubtitle = rawDiagramSubtitleFromBlock(b);
+  const rawInstructionsAuthoring = rawDiagramInstructionsAuthoringField(b);
+  const rawStudentTask = fieldTrim(b, "studentTask");
+  const rawCaption = fieldTrim(b, "caption");
+  const hasSplitAuthoring = Boolean(rawStudentTask);
+
+  let instructions = display.instructions;
+  let studentTask = display.studentTask ?? display.visibleInstructions;
+  let caption = display.caption;
+
+  const applyAuthoringField = (raw: string): string | undefined => {
+    if (!raw) return undefined;
+    const cleaned = cleanAuthoringFieldForRender(raw);
+    if (!cleaned || containsDiagramAnswerMaterial(cleaned)) return undefined;
+    return cleaned;
+  };
+
+  // Dedicated caption field — always honour authoring intent.
+  if (rawCaption && !caption) {
+    caption = applyAuthoringField(rawCaption);
+  }
+
+  // Split model: subtitle → Instructions box, studentTask → Task box.
+  if (hasSplitAuthoring) {
+    if (!instructions) {
+      const fromSubtitle = applyAuthoringField(rawInstructionsAuthoring);
+      const fromBody = !fromSubtitle && rawSubtitle ? applyAuthoringField(rawSubtitle) : undefined;
+      instructions = fromSubtitle ?? fromBody;
+    }
+    if (!studentTask) {
+      studentTask = applyAuthoringField(rawStudentTask);
+    }
+  } else if (!instructions && rawInstructionsAuthoring) {
+    // Legacy: honour subtitle/intro when short, explicitly marked, or Task-prefixed authoring.
+    const cleaned = applyAuthoringField(rawInstructionsAuthoring);
+    if (
+      cleaned &&
+      (!isDiagramTeachingProse(cleaned) ||
+        hasExplicitDiagramStudentMarker(cleaned) ||
+        /^task\b/i.test(cleaned))
+    ) {
+      instructions = cleaned;
+    }
+  }
+
+  if (instructions && studentTask && textsSemanticallyDuplicate(instructions, studentTask)) {
+    studentTask = undefined;
+  }
+  if (caption && instructions && textsSemanticallyDuplicate(caption, instructions)) {
+    caption = undefined;
+  }
+  if (caption && studentTask && textsSemanticallyDuplicate(caption, studentTask)) {
+    caption = undefined;
+  }
+
+  const title = options?.suppressTitle ? undefined : display.title;
+  const reveal = display.hiddenAnswer ?? display.reveal;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[diagram-pedagogy-render]", {
+      hasRawSubtitle: Boolean(rawSubtitle),
+      hasRawStudentTask: Boolean(rawStudentTask),
+      hasRawCaption: Boolean(rawCaption),
+      rendered: {
+        title: Boolean(title),
+        instructions: Boolean(instructions),
+        studentTask: Boolean(studentTask),
+        caption: Boolean(caption),
+      },
+    });
+  }
+
+  return { title, instructions, studentTask, caption, reveal };
 }
 
 /** @deprecated Use diagramPedagogyDisplayFromBlock */
 export function diagramInstructionsForDisplayFromBlock(block: unknown): string | undefined {
   const d = diagramPedagogyDisplayFromBlock(block);
-  return d.visibleInstructions ?? d.instructions;
+  return d.studentTask ?? d.visibleInstructions;
 }
 
 /** @deprecated Use diagramPedagogyDisplayFromBlock */

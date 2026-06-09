@@ -78,6 +78,25 @@ describe("sanitizePageForPreview", () => {
     );
   });
 
+  test("keeps diagram studentTask in preview payload", () => {
+    const page = {
+      pageId: "p1",
+      blocks: [
+        {
+          type: "diagram",
+          visualId: "507f1f77bcf86cd799439011",
+          subtitle: "Study the diagram.",
+          studentTask: "Task\n\n1. Label structure A.",
+          caption: "Figure 1",
+        },
+      ],
+    };
+    const out = sanitizePageForPreview(page);
+    const diagramBlock = out.blocks[0];
+    expect(diagramBlock.studentTask).toBe("Task\n\n1. Label structure A.");
+    expect(diagramBlock.subtitle).toBe("Study the diagram.");
+  });
+
   test("diagram block without mode/annotations/steps gets mode default only", () => {
     const page = {
       pageId: "p1",

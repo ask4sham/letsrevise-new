@@ -21,7 +21,8 @@ function pedagogyLayoutSnapshot(container: HTMLElement): {
   const order: string[] = [];
   if (root?.querySelector(".lr-diagram-pedagogy__title")) order.push("title");
   if (root?.querySelector(".lr-diagram-pedagogy__media")) order.push("media");
-  if (root?.querySelector('[data-testid="diagram-task"]')) order.push("task");
+  if (root?.querySelector('[data-testid="diagram-instructions"]')) order.push("instructions");
+  if (root?.querySelector('[data-testid="diagram-student-task"]')) order.push("student-task");
   if (root?.querySelector(".lr-diagram-pedagogy-reveal")) order.push("reveal");
   if (root?.querySelector(".lr-diagram-pedagogy__caption")) order.push("caption");
   return { spacing: DIAGRAM_PEDAGOGY_SPACING, order };
@@ -40,7 +41,10 @@ describe("DiagramBlockPedagogy spacing regression", () => {
   it("metabolism diagram block uses compact layout snapshot", () => {
     const display = diagramPedagogyDisplayFromBlock(METABOLISM_GLUCOSE_JOURNEY_TASK_BLOCK);
     const { container } = render(
-      <DiagramBlockPedagogy subtitle={display.visibleInstructions} reveal={display.hiddenAnswer}>
+      <DiagramBlockPedagogy
+        studentTask={display.studentTask ?? display.visibleInstructions}
+        reveal={display.hiddenAnswer}
+      >
         <img alt="metabolism map" src="/map.png" />
       </DiagramBlockPedagogy>
     );
@@ -48,21 +52,24 @@ describe("DiagramBlockPedagogy spacing regression", () => {
     expect(pedagogyLayoutSnapshot(container)).toMatchSnapshot();
   });
 
-  it("keeps DOM order title → image → task → reveal with no duplicate task above image", () => {
+  it("keeps DOM order title → image → student task → reveal with no duplicate task above image", () => {
     const display = diagramPedagogyDisplayFromBlock(METABOLISM_GLUCOSE_JOURNEY_TASK_BLOCK);
     const { container } = render(
-      <DiagramBlockPedagogy subtitle={display.visibleInstructions} reveal={display.hiddenAnswer}>
+      <DiagramBlockPedagogy
+        studentTask={display.studentTask ?? display.visibleInstructions}
+        reveal={display.hiddenAnswer}
+      >
         <img alt="metabolism map" src="/map.png" />
       </DiagramBlockPedagogy>
     );
 
     const img = screen.getByAltText("metabolism map");
-    const task = container.querySelector('[data-testid="diagram-task"]');
+    const studentTask = container.querySelector('[data-testid="diagram-student-task"]');
     const reveal = container.querySelector(".lr-diagram-pedagogy-reveal");
 
-    expect(container.querySelectorAll('[data-testid="diagram-task"]')).toHaveLength(1);
-    expect(nodeFollows(img, task)).toBe(true);
-    expect(nodeFollows(task!, reveal)).toBe(true);
+    expect(container.querySelectorAll('[data-testid="diagram-student-task"]')).toHaveLength(1);
+    expect(nodeFollows(img, studentTask)).toBe(true);
+    expect(nodeFollows(studentTask!, reveal)).toBe(true);
 
     const title = container.querySelector(".lr-diagram-pedagogy__title");
     if (title) expect(nodeFollows(title, img)).toBe(true);

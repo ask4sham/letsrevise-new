@@ -1,12 +1,15 @@
 import React from "react";
+
 import { DiagramBlockPedagogy } from "./DiagramBlockPedagogy";
-import { diagramPedagogyDisplayFromBlock } from "../../utils/diagramPedagogyDisplay";
+
+import { diagramPedagogyRenderFromBlock } from "../../utils/diagramPedagogyDisplay";
 
 export type LessonDiagramBlockDisplayProps = {
   block: {
     title?: string | null;
     caption?: string | null;
     subtitle?: string | null;
+    studentTask?: string | null;
     intro?: string | null;
     note?: string | null;
     content?: string | null;
@@ -29,13 +32,16 @@ export function LessonDiagramBlockDisplay({
   children,
   className,
 }: LessonDiagramBlockDisplayProps): React.ReactElement {
-  const display = diagramPedagogyDisplayFromBlock(block);
-  const caption = showPedagogyCaption ? display.caption : undefined;
+  const { title, instructions, studentTask, caption, reveal } = diagramPedagogyRenderFromBlock(
+    block,
+    { suppressTitle: suppressPedagogyTitle }
+  );
+  const pedagogyCaption = showPedagogyCaption ? caption : undefined;
 
-  const visibleInstructions = display.visibleInstructions ?? display.instructions;
-  const hiddenAnswer = display.hiddenAnswer ?? display.reveal;
-  const pedagogyTitle = suppressPedagogyTitle ? undefined : display.title;
-  const hasChrome = Boolean(pedagogyTitle || visibleInstructions || caption || hiddenAnswer);
+  const hasChrome = Boolean(
+    title || instructions || studentTask || pedagogyCaption || reveal
+  );
+
   if (!hasChrome) {
     return <>{children}</>;
   }
@@ -43,10 +49,11 @@ export function LessonDiagramBlockDisplay({
   return (
     <DiagramBlockPedagogy
       className={className}
-      title={pedagogyTitle}
-      subtitle={visibleInstructions}
-      caption={caption}
-      reveal={hiddenAnswer}
+      title={title}
+      instructions={instructions}
+      studentTask={studentTask}
+      caption={pedagogyCaption}
+      reveal={reveal}
     >
       {children}
     </DiagramBlockPedagogy>

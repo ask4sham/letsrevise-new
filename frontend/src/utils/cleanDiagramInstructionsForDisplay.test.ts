@@ -57,18 +57,18 @@ describe("cleanDiagramInstructionsForDisplay", () => {
 });
 
 describe("diagramInstructionsForDisplayFromBlock", () => {
-  it("reads subtitle then intro then note", () => {
+  it("reads marked subtitle then intro then note", () => {
     expect(
       diagramInstructionsForDisplayFromBlock({
         type: "diagram",
-        intro: "<p>From intro</p>",
+        intro: "<p>Task: From intro</p>",
         note: "<p>From note</p>",
       })
-    ).toBe("From intro");
+    ).toContain("From intro");
   });
 
-  it("falls back to legacy content when long enough", () => {
-    const content = `<p>${"x".repeat(40)}</p>`;
+  it("surfaces marked legacy content when long enough", () => {
+    const content = `<p>Task: ${"x".repeat(40)}</p>`;
     const out = diagramInstructionsForDisplayFromBlock({
       type: "diagram",
       content,
@@ -90,7 +90,7 @@ describe("diagramInstructionsForDisplayFromBlock", () => {
   it("uses the same cleaned output for editor-style and student-style blocks", () => {
     const block = {
       type: "diagram",
-      subtitle: "<ul><li>Point A</li><li>Point B</li></ul>",
+      subtitle: "<p>Task:</p><ul><li>Point A</li><li>Point B</li></ul>",
     };
     const fromDisplay = diagramInstructionsForDisplayFromBlock(block);
     const fromRaw = cleanDiagramInstructionsForDisplay(

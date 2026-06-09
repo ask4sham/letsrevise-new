@@ -23,6 +23,25 @@ describe("diagramBlockForPersist", () => {
     expect(String(out.content)).toContain("Study the diagram");
   });
 
+  it("persists dedicated studentTask field separately from subtitle", () => {
+    const out = diagramBlockForPersist({
+      type: "diagram",
+      title: "Reflex arc",
+      subtitle: "Study the reflex arc shown in the diagram.",
+      studentTask: "Task\n\n1. Name the five stages.",
+      caption: "GCSE AQA Biology",
+      imageUrl: "https://cdn.example.com/reflex.png",
+    });
+    expect(out).toMatchObject({
+      type: "diagram",
+      title: "Reflex arc",
+      subtitle: "Study the reflex arc shown in the diagram.",
+      studentTask: "Task\n\n1. Name the five stages.",
+      caption: "GCSE AQA Biology",
+      imageUrl: "https://cdn.example.com/reflex.png",
+    });
+  });
+
   it("does not inject image here placeholder when imageUrl is set", () => {
     const out = diagramBlockForPersist({
       type: "diagram",

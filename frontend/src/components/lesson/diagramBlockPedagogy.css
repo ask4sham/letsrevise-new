@@ -1,91 +1,295 @@
 /* Compact diagram pedagogy rhythm — diagram blocks only (see diagramPedagogySpacing.ts). */
+
 .lr-diagram-pedagogy {
+
   --lr-diagram-gap-title-media: 14px;
+
   --lr-diagram-gap-media-task: 16px;
+
   --lr-diagram-gap-task-paragraph: 8px;
+
   --lr-diagram-gap-task-reveal: 12px;
+
   --lr-diagram-gap-caption-top: 8px;
+
   margin: 0;
+
 }
+
+
 
 .lr-diagram-pedagogy__title {
+
   font-weight: 800;
+
   font-size: 1rem;
+
   margin: 0 0 var(--lr-diagram-gap-title-media);
+
   color: #0f172a;
+
   text-align: center;
+
 }
+
+
 
 .lr-diagram-pedagogy__media {
+
   margin: 0 0 var(--lr-diagram-gap-media-task);
+
 }
+
+
 
 /* Neutralise figure wrapper margins inside pedagogy shell (image size unchanged). */
+
 .lr-diagram-pedagogy__media .lesson-uploaded-diagram,
+
 .lr-diagram-pedagogy__media .lesson-diagram-frame,
+
 .lr-diagram-pedagogy__media [data-lesson-image-frame].lesson-image-card,
+
 .lr-diagram-pedagogy__media .lesson-image-card {
+
   margin-top: 0;
+
   margin-bottom: 0;
+
 }
+
+
 
 .lr-diagram-pedagogy__media .lesson-uploaded-diagram {
+
   margin-left: auto;
+
   margin-right: auto;
+
 }
+
+
 
 .lr-diagram-pedagogy__media .lesson-diagram-frame {
+
   --lesson-diagram-body-pad: 4px;
+
 }
+
+
 
 .lr-diagram-pedagogy__media .lesson-diagram-frame--featured {
+
   --lesson-diagram-body-pad: 6px;
+
 }
+
+
+
+.lr-diagram-pedagogy__instructions-heading {
+
+  margin: 0 0 8px;
+
+  font-size: 0.82rem;
+
+  font-weight: 800;
+
+  letter-spacing: 0.04em;
+
+  text-transform: uppercase;
+
+  color: #1e40af;
+
+}
+
+
+
+.lr-diagram-pedagogy__instructions {
+
+  margin: 0;
+
+  padding: 12px 14px;
+
+  border-radius: 10px;
+
+  border: 1px solid #bfdbfe;
+
+  background: #eff6ff;
+
+  font-size: 0.9rem;
+
+  line-height: 1.45;
+
+  color: #1e3a5f;
+
+  text-align: left;
+
+}
+
+
+
+.lr-diagram-pedagogy__student-task {
+
+  margin: var(--lr-diagram-gap-task-reveal) 0 0;
+
+  padding: 12px 14px;
+
+  border-radius: 10px;
+
+  border: 1px solid #cbd5e1;
+
+  background: #f8fafc;
+
+  font-size: 0.9rem;
+
+  line-height: 1.45;
+
+  color: #0f172a;
+
+  text-align: left;
+
+}
+
+
+
+.lr-diagram-pedagogy__student-task-heading {
+
+  margin: 0 0 8px;
+
+  font-size: 0.82rem;
+
+  font-weight: 800;
+
+  letter-spacing: 0.04em;
+
+  text-transform: uppercase;
+
+  color: #334155;
+
+}
+
+
 
 .lr-diagram-pedagogy__subtitle {
+
   margin: 0;
+
   font-size: 0.9rem;
+
   line-height: 1.45;
+
   color: #334155;
+
   text-align: left;
+
 }
+
+
+
+.lr-diagram-pedagogy__instructions .lesson-md-body,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body,
 
 .lr-diagram-pedagogy__subtitle .lesson-md-body {
+
   text-align: left;
+
   line-height: 1.45;
+
 }
+
+
+
+.lr-diagram-pedagogy__instructions .lesson-md-body p,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body p,
 
 .lr-diagram-pedagogy__subtitle .lesson-md-body p {
+
   margin: 0 0 var(--lr-diagram-gap-task-paragraph);
+
 }
+
+
+
+.lr-diagram-pedagogy__instructions .lesson-md-body p:last-child,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body p:last-child,
 
 .lr-diagram-pedagogy__subtitle .lesson-md-body p:last-child {
+
   margin-bottom: 0;
+
 }
+
+
+
+.lr-diagram-pedagogy__instructions .lesson-md-body ul,
+
+.lr-diagram-pedagogy__instructions .lesson-md-body ol,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body ul,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body ol,
 
 .lr-diagram-pedagogy__subtitle .lesson-md-body ul,
+
 .lr-diagram-pedagogy__subtitle .lesson-md-body ol {
+
   margin: 0 0 var(--lr-diagram-gap-task-paragraph);
+
   padding-left: 1.25em;
+
 }
+
+
+
+.lr-diagram-pedagogy__instructions .lesson-md-body ul:last-child,
+
+.lr-diagram-pedagogy__instructions .lesson-md-body ol:last-child,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body ul:last-child,
+
+.lr-diagram-pedagogy__student-task .lesson-md-body ol:last-child,
 
 .lr-diagram-pedagogy__subtitle .lesson-md-body ul:last-child,
+
 .lr-diagram-pedagogy__subtitle .lesson-md-body ol:last-child {
+
   margin-bottom: 0;
+
 }
+
+
 
 .lr-diagram-pedagogy__caption {
+
   margin: var(--lr-diagram-gap-caption-top) 0 0;
-  font-size: 0.85rem;
+
+  font-size: 0.8rem;
+
   color: #64748b;
+
   font-style: italic;
+
   text-align: left;
+
 }
+
+
 
 .lr-diagram-pedagogy__caption .lesson-md-body {
+
   text-align: left;
+
 }
 
+
+
 .lr-diagram-pedagogy__caption .lesson-md-body p {
+
   margin: 0;
+
 }
+
+

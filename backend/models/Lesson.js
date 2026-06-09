@@ -184,8 +184,10 @@ const LessonPageBlockSchema = new mongoose.Schema(
     // diagram block (when type === "diagram") — references VisualModel; PR11: mode, annotations, steps
     visualId: { type: mongoose.Schema.Types.ObjectId, ref: "VisualModel", default: undefined },
     caption: { type: String, default: "" },
-    /** Diagram block: student-facing instructions above the image */
+    /** Diagram block: teacher explanation below the image */
     subtitle: { type: String, default: undefined },
+    /** Diagram block: student questions / activities below instructions */
+    studentTask: { type: String, default: undefined },
     mode: { type: String, enum: ["static", "annotated", "step"], default: "static" },
     annotations: { type: [DiagramAnnotationSchema], default: undefined },
     steps: { type: [DiagramStepSchema], default: undefined },

@@ -5,6 +5,7 @@ import {
   diagramInstructionsForDisplayFromBlock,
   diagramInstructionsHiddenFromStudents,
   diagramPedagogyDisplayFromBlock,
+  diagramPedagogyRenderFromBlock,
   extractDiagramRevealSections,
   extractExplicitDiagramStudentInstructions,
   extractVisibleInstructionsFromCleaned,
@@ -56,7 +57,7 @@ describe("metabolism diagram regression", () => {
       ...METABOLISM_DEFINED_DIAGRAM_BLOCK,
       intro: "Instruction: Name the three inputs to respiration.",
     });
-    expect(display.visibleInstructions).toMatch(/Instruction:\s*Name the three inputs to respiration/i);
+    expect(display.studentTask).toMatch(/Instruction:\s*Name the three inputs to respiration/i);
     expect(display.caption).toBe("Metabolism defined");
   });
 
@@ -89,7 +90,7 @@ describe("metabolism diagram regression", () => {
     expect(pedagogyTitleDuplicatesBlockHeading(block, "metabolism in a nutshell!")).toBe(true);
     const display = diagramPedagogyDisplayFromBlock(block);
     expect(display.title).toBeUndefined();
-    expect(display.visibleInstructions).toContain("Identify one pathway");
+    expect(display.studentTask).toContain("Identify one pathway");
   });
 
   it("does not treat unrelated labels as duplicates", () => {
@@ -105,7 +106,7 @@ describe("metabolism diagram regression", () => {
 
   it("shows student task with bullets and hides preamble plus model answer in reveal", () => {
     const display = diagramPedagogyDisplayFromBlock(METABOLISM_GLUCOSE_JOURNEY_TASK_BLOCK);
-    const visible = display.visibleInstructions ?? "";
+    const visible = display.studentTask ?? display.visibleInstructions ?? "";
     expect(visible).toMatch(/Task:/i);
     expect(visible).toContain("- Identify one pathway where glucose is broken down");
     expect(visible).toContain("Then explain how ATP links");
@@ -119,6 +120,86 @@ describe("metabolism diagram regression", () => {
   });
 });
 
+describe("diagramPedagogyRenderFromBlock", () => {
+  it("renders caption from dedicated field even without studentTask", () => {
+    const rendered = diagramPedagogyRenderFromBlock({
+      type: "diagram",
+      subtitle: "Task\n\n1. Name the five stages.",
+      caption: "GCSE AQA Biology Higher Tier: Reflex Arc",
+      imageUrl: "https://example.com/reflex.png",
+    });
+    expect(rendered.instructions).toContain("Name the five stages");
+    expect(rendered.caption).toBe("GCSE AQA Biology Higher Tier: Reflex Arc");
+  });
+
+  it("reads instructions from content when studentTask is set but subtitle key is empty", () => {
+    const rendered = diagramPedagogyRenderFromBlock({
+      type: "diagram",
+      content: "Study the reflex arc shown in the diagram.",
+      studentTask: "Task\n\n1. Name the five stages.",
+      caption: "GCSE AQA Biology Higher Tier",
+    });
+    expect(rendered.instructions).toContain("Study the reflex arc");
+    expect(rendered.studentTask).toContain("Name the five stages");
+    expect(rendered.caption).toBe("GCSE AQA Biology Higher Tier");
+  });
+
+  it("falls back to raw authoring fields when display normalizer omits them", () => {
+    const rendered = diagramPedagogyRenderFromBlock({
+      type: "diagram",
+      subtitle: "Study the reflex arc shown in the diagram.",
+      studentTask: "Task\n\n1. Name the five stages.",
+      caption: "GCSE AQA Biology Higher Tier",
+    });
+    expect(rendered.instructions).toContain("Study the reflex arc");
+    expect(rendered.studentTask).toContain("Name the five stages");
+    expect(rendered.caption).toBe("GCSE AQA Biology Higher Tier");
+  });
+});
+
+describe("dedicated studentTask field", () => {
+  it("shows short subtitle as instructions even when legacy content is teaching-heavy", () => {
+    const display = diagramPedagogyDisplayFromBlock({
+      type: "diagram",
+      title: "Metabolism map",
+      subtitle: "Study the reflex arc shown in the diagram.",
+      studentTask: "Task\n\n1. Name the five stages.",
+      content:
+        "Think like an examiner\n- long legacy teaching prose\n- more teaching\n- even more teaching content that used to hide student-facing copy",
+      imageUrl: "https://example.com/map.png",
+    });
+    expect(display.instructions).toContain("Study the reflex arc");
+    expect(display.studentTask).toContain("Name the five stages");
+  });
+  it("splits instructions and student task when studentTask is set", () => {
+    const display = diagramPedagogyDisplayFromBlock({
+      type: "diagram",
+      title: "The reflex arc",
+      subtitle: "Study the reflex arc shown in the diagram.",
+      studentTask:
+        "Task\n\n1. Name the five stages.\n2. Describe the pathway from receptor to effector.",
+      caption: "GCSE AQA Biology Higher Tier",
+      imageUrl: "https://example.com/reflex.png",
+    });
+    expect(display.instructions).toContain("Study the reflex arc");
+    expect(display.studentTask).toContain("Name the five stages");
+    expect(display.caption).toBe("GCSE AQA Biology Higher Tier");
+    expect(display.visibleInstructions).toBeUndefined();
+  });
+
+  it("renders nothing for student task when field is absent", () => {
+    const display = diagramPedagogyDisplayFromBlock({
+      type: "diagram",
+      title: "Cell diagram",
+      subtitle: "Instruction: Label the organelles.",
+      caption: "Figure 1",
+      imageUrl: "https://example.com/cell.png",
+    });
+    expect(display.instructions).toBeUndefined();
+    expect(display.studentTask).toMatch(/Instruction:/i);
+  });
+});
+
 describe("explicit diagram student markers", () => {
   it("renders Task: marked instructions only", () => {
     const display = diagramPedagogyDisplayFromBlock({
@@ -128,8 +209,8 @@ describe("explicit diagram student markers", () => {
       caption: "Reflex arc",
       subtitle: "Task:\n- Label the sensory neurone\n- Describe the relay neurone",
     });
-    expect(display.visibleInstructions).toMatch(/Task:/i);
-    expect(display.visibleInstructions).toContain("sensory neurone");
+    expect(display.studentTask).toMatch(/Task:/i);
+    expect(display.studentTask).toContain("sensory neurone");
     expect(display.caption).toBe("Reflex arc");
   });
 
@@ -144,7 +225,7 @@ describe("explicit diagram student markers", () => {
         type: "diagram",
         imageUrl: "https://example.com/x.png",
         subtitle: "Student task:\n- Name structure A",
-      }).visibleInstructions
+      }).studentTask
     ).toMatch(/Student task:/i);
   });
 
@@ -171,8 +252,8 @@ describe("reveal answer handling", () => {
       ...DIAGRAM_WITH_REVEAL_BLOCK,
       subtitle: "Instruction: Label the organelles on the diagram.",
     });
-    expect(display.visibleInstructions).toMatch(/Instruction:/i);
-    expect(display.visibleInstructions).toContain("Label the organelles");
+    expect(display.studentTask).toMatch(/Instruction:/i);
+    expect(display.studentTask).toContain("Label the organelles");
     expect(display.caption).toBeUndefined();
     expect(display.hiddenAnswer?.body).toContain("mitochondria");
     expect(display.hiddenAnswer?.body).not.toMatch(/<p>/i);

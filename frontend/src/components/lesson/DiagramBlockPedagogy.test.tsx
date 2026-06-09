@@ -23,50 +23,64 @@ function nodeFollows(reference: Node, target: Node | null): boolean {
 describe("DiagramBlockPedagogy", () => {
   it("renders instructions below the image, not above", () => {
     const { container } = render(
-      <DiagramBlockPedagogy subtitle="Label the diagram.">
+      <DiagramBlockPedagogy instructions="Label the diagram.">
         <img alt="fig" src="/x.png" />
       </DiagramBlockPedagogy>
     );
     const img = screen.getByAltText("fig");
-    const instructions = container.querySelector('[data-testid="diagram-task"]');
+    const instructions = container.querySelector('[data-testid="diagram-instructions"]');
     const media = container.querySelector(".lr-diagram-pedagogy__media");
 
+    expect(container.querySelector(".lr-diagram-pedagogy__instructions-heading")).toHaveTextContent(
+      "Instructions"
+    );
     expect(instructions).toHaveTextContent("Label the diagram.");
     expect(media?.contains(img)).toBe(true);
     expect(nodeFollows(img, instructions!)).toBe(true);
-    expect(container.querySelectorAll('[data-testid="diagram-task"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-testid="diagram-instructions"]')).toHaveLength(1);
   });
 
-  it("left-aligns task/instructions", () => {
+  it("renders student task box with Task heading", () => {
     const { container } = render(
-      <DiagramBlockPedagogy subtitle={"Task:\n- Identify one pathway\n- Identify another"}>
+      <DiagramBlockPedagogy studentTask={"Task:\n- Identify one pathway\n- Identify another"}>
         <img alt="fig" src="/x.png" />
       </DiagramBlockPedagogy>
     );
-    const task = container.querySelector('[data-testid="diagram-task"]');
-    expect(task).toHaveStyle({ textAlign: "left" });
-    expect(task).toHaveClass("lr-diagram-pedagogy__subtitle");
+    const task = container.querySelector('[data-testid="diagram-student-task"]');
+    expect(task).toHaveClass("lr-diagram-pedagogy__student-task");
+    expect(container.querySelector(".lr-diagram-pedagogy__student-task-heading")).toHaveTextContent(
+      "Task"
+    );
+    expect(task).toHaveTextContent("Identify one pathway");
   });
 
-  it("places reveal answer directly below instructions", () => {
+  it("places reveal answer directly below student task", () => {
     const display = diagramPedagogyDisplayFromBlock({
       ...DIAGRAM_WITH_REVEAL_BLOCK,
       subtitle: "Instruction: Label the organelles on the diagram.",
     });
     const { container } = render(
-      <DiagramBlockPedagogy subtitle={display.instructions} reveal={display.reveal}>
+      <DiagramBlockPedagogy
+        instructions={display.instructions}
+        studentTask={display.studentTask}
+        reveal={display.reveal}
+      >
         <img alt="fig" src="/x.png" />
       </DiagramBlockPedagogy>
     );
-    const instructions = container.querySelector('[data-testid="diagram-task"]');
+    const studentTask = container.querySelector('[data-testid="diagram-student-task"]');
     const reveal = container.querySelector(".lr-diagram-pedagogy-reveal");
-    expect(nodeFollows(instructions!, reveal)).toBe(true);
+    expect(nodeFollows(studentTask!, reveal)).toBe(true);
   });
 
   it("hides reveal body until summary is opened", async () => {
     const display = diagramPedagogyDisplayFromBlock(DIAGRAM_WITH_REVEAL_BLOCK);
     render(
-      <DiagramBlockPedagogy subtitle={display.instructions} reveal={display.reveal}>
+      <DiagramBlockPedagogy
+        instructions={display.instructions}
+        studentTask={display.studentTask}
+        reveal={display.reveal}
+      >
         <img alt="fig" src="/x.png" />
       </DiagramBlockPedagogy>
     );
@@ -80,23 +94,45 @@ describe("DiagramBlockPedagogy", () => {
     const { container } = render(
       <DiagramBlockPedagogy
         title={display.title}
-        subtitle={display.visibleInstructions}
+        studentTask={display.studentTask ?? display.visibleInstructions}
         reveal={display.hiddenAnswer}
       >
         <img alt="metabolism map" src="/map.png" />
       </DiagramBlockPedagogy>
     );
     const img = screen.getByAltText("metabolism map");
-    const instructions = container.querySelector('[data-testid="diagram-task"]');
+    const studentTask = container.querySelector('[data-testid="diagram-student-task"]');
     const reveal = container.querySelector(".lr-diagram-pedagogy-reveal");
 
-    expect(nodeFollows(img, instructions!)).toBe(true);
-    expect(nodeFollows(instructions!, reveal)).toBe(true);
-    expect(instructions).toHaveTextContent(/Task:/i);
-    expect(instructions).toHaveTextContent(/Identify one pathway where glucose is broken down/i);
+    expect(nodeFollows(img, studentTask!)).toBe(true);
+    expect(nodeFollows(studentTask!, reveal)).toBe(true);
+    expect(container.querySelector(".lr-diagram-pedagogy__student-task-heading")).toHaveTextContent(
+      "Task"
+    );
+    expect(studentTask).toHaveTextContent(/Identify one pathway where glucose is broken down/i);
     expect(screen.getByText(/Catabolic reactions such as respiration/i)).not.toBeVisible();
     await userEvent.click(screen.getByText(/Reveal answer/i));
     expect(screen.getByText(/Catabolic reactions such as respiration/i)).toBeVisible();
+  });
+
+  it("renders instructions and student task as separate sections", () => {
+    const { container } = render(
+      <DiagramBlockPedagogy
+        instructions="Study the reflex arc shown in the diagram."
+        studentTask={"Task\n\n1. Name the five stages."}
+      >
+        <img alt="fig" src="/x.png" />
+      </DiagramBlockPedagogy>
+    );
+    expect(container.querySelector(".lr-diagram-pedagogy__instructions-heading")).toHaveTextContent(
+      "Instructions"
+    );
+    expect(container.querySelector('[data-testid="diagram-instructions"]')).toHaveTextContent(
+      "Study the reflex arc shown in the diagram."
+    );
+    expect(container.querySelector('[data-testid="diagram-student-task"]')).toHaveTextContent(
+      "Name the five stages."
+    );
   });
 
   it("does not render pedagogy title when it duplicates the block heading", () => {
@@ -108,6 +144,7 @@ describe("DiagramBlockPedagogy", () => {
     );
     expect(display.title).toBeUndefined();
     expect(container.querySelector(".lr-diagram-pedagogy__title")).toBeNull();
-    expect(screen.queryByTestId("diagram-task")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("diagram-instructions")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("diagram-student-task")).not.toBeInTheDocument();
   });
 });
