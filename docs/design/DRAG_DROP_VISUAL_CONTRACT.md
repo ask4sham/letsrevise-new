@@ -10,11 +10,11 @@
 
 LetsRevise drag-and-drop and text-to-image activities depend on **aligned dimensions** between:
 
-1. **Activity images** (printed empty drop rectangles A–D on the diagram)
+1. **Activity images** (diagram + marker letters A–D on the right rail for text-to-image; printed empty drop rectangles for diagram mode)
 2. **In-app concept cards** (right-hand panel, rendered by the application)
-3. **Interactive overlay markers** (HTML hit targets on the diagram — separate from printed artwork)
+3. **Interactive overlay markers** (HTML drop-zone rectangles on the diagram — **runtime only** for text-to-image)
 
-When image assets are designed without these numbers, the diagram and UI fight each other (e.g. placeholders too small, inconsistent spacing, cards ~260×60–80px while image boxes do not match).
+When image assets are designed without these numbers, the diagram and UI fight each other (e.g. misaligned printed boxes vs runtime overlays, inconsistent spacing, cards ~260×60–80px while reserved overlay areas do not match).
 
 This contract freezes **measured** dimensions from the current renderer and a reference portrait asset (`reflex-arc-drag-drop-match-portrait.svg`, artboard 900×1350) so future work can align **Teacher Brain and image generation** to what the UI already uses — without changing working code in Phase 1.
 
@@ -72,14 +72,76 @@ These values document **what exists today**. Phase 1 does not change them.
 
 ### Interactive overlay (HTML — runtime, not artwork)
 
-- Text-to-image main uses **transparent rectangular** hit targets aligned to printed boxes (not circular A–D markers)
-- Diagram mode retains teacher-placed circular/ chip markers (unchanged)
+- Text-to-image main uses **runtime rectangular** drop-zone overlays (dotted borders, filled cards) aligned to **marker letters** and reserved blank space — **not** printed boxes in the image
+- Diagram mode retains teacher-placed circular/chip markers or printed boxes (unchanged)
 
-**Important:** Image prompts and Teacher Brain must target **printed 320×110 minimum** rectangles. Generated artwork must not rely on the app to draw answer text inside boxes.
+**Important (text-to-image):** Image prompts and Teacher Brain must **not** draw empty rectangles, dashed boxes, or answer-card shapes. Generated artwork shows **marker letters A–D only** plus clean blank white space where the app renders overlays. The app owns box size, position, dotted border, and placed-card appearance.
+
+**Important (diagram / image-drop-zones):** Image prompts may still target **printed 320×110 minimum** rectangles when that mode requires on-image drop boxes.
 
 ---
 
-## Image design requirements (copy for Phase 2 briefs)
+## Text-to-image image design requirements (markers only — June 2026)
+
+**Canonical rule:** The **application owns the drop boxes**. The generated image must **not** draw hard-line answer boxes. The image shows **only large A, B, C, D labels** (or 1–4) centred where the app’s dotted targets will appear, with clean white space around each label. One source of truth for the target box — the app, not the image.
+
+Use this block in Teacher Brain / generator / image prompts for **text-to-image main image** mode. Implemented in `formatTextToImageImageDesignRequirements()` (`lib/teacherBrain/dragDropVisualContract.js`).
+
+```text
+IMAGE DESIGN REQUIREMENTS
+
+Drop-zone ownership (text-to-image):
+The application owns the drop boxes. The generated image must NOT draw hard-line answer boxes.
+Do NOT draw answer rectangles or hard-line drop boxes inside the image. The application will render the dotted target boxes. Only place large A, B, C, D labels centred at the intended drop-zone positions.
+Leave clean white space around each A–D label so the app's dotted target box can sit over it.
+No duplicate boxes. No hard-line rectangles. No answer text inside the image. Concept cards are rendered by the application.
+
+Artboard:
+900 × 1350 portrait
+
+Layout:
+68% diagram (left) — pathway or labelled structures
+32% right functional matching rail (not a decorative panel)
+A, B, C, D vertically stacked in the right functional rail on the 900×1350 artboard
+Each letter centred where the application drop target will appear
+Do not draw borders around A–D
+
+Markers:
+Four marker letters only: A, B, C, D (or 1, 2, 3, 4 — not both)
+
+MUST NOT draw:
+- Hard-line answer rectangles or drop boxes
+- Empty answer boxes
+- Printed target rectangles
+- Drop-zone outlines (dotted boxes are app-rendered)
+- Answer-card shapes
+- Concept card text
+
+Reserved blank space (per marker):
+156 × 76 px on 600×600 display (.display.png)
+234 × 114 px on 900×1350 portrait artboard
+Centre X: 70.25% (421.5 px on 600×600)
+Marker Y (A/B/C/D): 25.42% / 47.17% / 67.83% / 88.75%
+~62 px minimum vertical gap between reserved overlay areas
+
+Alignment:
+Each A–D marker shares the same horizontal centreline as its matching structure on the left
+Leave clean white space around each label for the app's dotted target box
+
+Rules:
+- White background; GCSE AQA LetsRevise style
+- Runtime application owns all drop-zone rectangles, dotted borders, and placed cards
+
+Before finalising:
+- Confirm NO hard-line answer rectangles or printed drop boxes
+- Confirm dotted target boxes are NOT in the image (app-rendered only)
+- Confirm only large A–D labels, centred at drop-zone positions
+- Check that each marker aligns horizontally with its matching structure
+```
+
+---
+
+## Diagram image design requirements (printed boxes — legacy brief block)
 
 Use this block in Teacher Brain / generator / image prompts. **Do not** embed concept-card answer text inside the image.
 
@@ -162,7 +224,7 @@ Phase 1 is **documentation only**. Do not modify as part of this contract:
 
 | Mode | Layout notes |
 |------|----------------|
-| **Text-to-image main** (`block.imageUrl` + `--tti-main`) | This contract applies. Side-by-side 68/32. |
+| **Text-to-image main** (`block.imageUrl` + `--tti-main`) | **Markers-only** contract applies (no printed boxes). Side-by-side 68/32. Runtime overlays own drop zones. |
 | **Text-to-image per-pair** (`tti-grid`) | Same 68/32 column split; left column shows per-pair target images (different image height caps). Concept card sizes still follow this contract. |
 | **Diagram drop zones** | Same worksheet grid; diagram mode overlay markers unchanged. New artwork should use **320×110 minimum** printed boxes when applicable. |
 | **Standard text match** | No activity image; this contract does not apply. |
@@ -176,3 +238,5 @@ Phase 1 is **documentation only**. Do not modify as part of this contract:
 | 2026-06-01 | Initial freeze from measured CSS + reflex portrait SVG analysis. Documentation-only commit. |
 | 2026-06-01 | Prompt refinement: functional right rail, strict horizontal alignment, box sizing discipline, pre-delivery checklist. |
 | 2026-06-01 | Enlarge printed drop boxes to **320×110 px minimum** so dropped concept-card text fits inside printed rectangles at display scale. |
+| 2026-06-08 | **Text-to-image:** switch image-generation contract to **markers only** — no printed empty rectangles; app owns runtime drop-zone overlays (`formatTextToImageImageDesignRequirements`). Diagram mode retains printed-box brief. |
+| 2026-06-08 | **Text-to-image:** explicit rule — no hard-line answer boxes; only large A–D centred at drop positions; app renders dotted targets; white space around each label. |

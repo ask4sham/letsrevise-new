@@ -7,6 +7,7 @@ const {
   normalizeTtiBoxGeometryVersion,
   getTtiBoxGeometryLayout,
   formatTtiBoxGeometryContractLines,
+  formatTtiImageMarkerContractLines,
 } = require("../lib/ttiBoxGeometry");
 
 describe("ttiBoxGeometry", () => {
@@ -54,6 +55,16 @@ describe("ttiBoxGeometry", () => {
     expect(text).toMatch(/421\.5 px \(70\.25%\)/);
     expect(text).toMatch(/A 152\.5 px \(25\.42%\)/);
     expect(text).toMatch(/tti-box-geometry-v1/);
+  });
+
+  test("formatTtiImageMarkerContractLines forbids printed rectangles", () => {
+    const lines = formatTtiImageMarkerContractLines();
+    const text = lines.join("\n");
+    expect(text).toMatch(/Marker centre X on 600×600 display: 421\.5 px/);
+    expect(text).toMatch(/reserve clean blank white space 156×76 px/);
+    expect(text).toMatch(/do NOT draw a rectangle or border around it/i);
+    expect(text).toMatch(/application draws all drop-zone rectangles/i);
+    expect(text).not.toMatch(/four identical empty boxes/i);
   });
 
   test("shared JSON version field matches module constant", () => {

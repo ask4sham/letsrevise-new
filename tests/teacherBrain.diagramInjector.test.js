@@ -224,7 +224,10 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     expect(pages[0].blocks[0].note).toMatch(/Hotspots:/);
     expect(pages[0].blocks[0].note).toMatch(/IMAGE DESIGN REQUIREMENTS/);
     expect(pages[0].blocks[0].note).toMatch(/900×1350 portrait/i);
-    expect(pages[0].blocks[0].note).toMatch(/156×76 px/);
+    expect(pages[0].blocks[0].note).toMatch(/Do NOT draw answer rectangles or hard-line drop boxes inside the image/i);
+    expect(pages[0].blocks[0].note).toMatch(/The application owns all targets/i);
+    expect(pages[0].blocks[0].note).toMatch(/reserve four equal blank white zones in the right rail/i);
+    expect(pages[0].blocks[0].note).not.toMatch(/four empty drop boxes labelled A, B, C, D only/i);
     expect(pages[0].blocks[0].note).toMatch(/right functional matching rail/i);
     expect(pages[0].blocks[0].note).toMatch(/not a decorative panel/i);
     expect(pages[0].blocks[0].note).not.toMatch(/DRAG & DROP BRIEF/);
@@ -290,9 +293,12 @@ describe("Teacher Brain diagram brief injector (Phase 3)", () => {
     const tti = formatTextToImageBrief(null, compare, { title: "Compare panel" });
     expect(tti).toMatch(/TEXT → IMAGE/);
     expect(tti).toMatch(/IMAGE DESIGN REQUIREMENTS/);
+    expect(tti).toMatch(/Do NOT draw answer rectangles or hard-line drop boxes inside the image/i);
+    expect(tti).toMatch(/Do NOT draw A, B, C, D letters in the image/i);
+    expect(tti).toMatch(/runtime application owns all drop-zone rectangles/i);
     const dropZones = formatImageDropZonesBrief(null, economy, {});
     expect(dropZones).toMatch(/IMAGE \+ DROP ZONES/);
-    expect(dropZones).toMatch(/156×76 px/);
+    expect(dropZones).toMatch(/four empty drop boxes labelled A, B, C, D only/i);
     expect(formatTextMatchBrief(null, economy, {})).toMatch(/DRAG & DROP BRIEF/);
     expect(formatTextMatchBrief(null, economy, {})).not.toMatch(/IMAGE DESIGN REQUIREMENTS/);
   });

@@ -369,6 +369,31 @@ export const TTI_BOXED_ZONE_HEIGHT_PCT = ttiBoxGeometrySpec.squareDisplay.box.he
 export const TTI_BOXED_ZONE_PORTRAIT_WIDTH_PCT = ttiBoxGeometrySpec.portrait.box.widthPct;
 export const TTI_BOXED_ZONE_PORTRAIT_HEIGHT_PCT = ttiBoxGeometrySpec.portrait.box.heightPct;
 
+/**
+ * Runtime-only per-zone upward nudge for text-to-image main dotted boxes (600×600 display).
+ * Negative px moves up. Canonical ttiBoxGeometry.v1.json zone Y values are unchanged.
+ * Index 0=A … 3=D. A keeps prior −12px nudge; B/C/D get additional lift.
+ */
+export const TTI_MAIN_BOXED_ZONE_Y_OFFSETS_DISPLAY_PX: readonly number[] = [
+  -12, // A — unchanged
+  -22, // B — +10px up vs A baseline
+  -30, // C — +18px up vs A baseline
+  -40, // D — +28px up vs A baseline
+];
+
+/** @deprecated Use {@link TTI_MAIN_BOXED_ZONE_Y_OFFSETS_DISPLAY_PX} */
+export const TTI_MAIN_BOXED_ZONE_Y_OFFSET_DISPLAY_PX = TTI_MAIN_BOXED_ZONE_Y_OFFSETS_DISPLAY_PX[0];
+
+function applyTtiMainBoxedZoneYDisplayOffset(
+  zones: PlacedDragDropDiagramZone[]
+): PlacedDragDropDiagramZone[] {
+  return zones.map((z, i) => {
+    const offsetPx = TTI_MAIN_BOXED_ZONE_Y_OFFSETS_DISPLAY_PX[i] ?? 0;
+    const deltaPct = (offsetPx / 600) * 100;
+    return { ...z, y: clampPct(z.y + deltaPct) };
+  });
+}
+
 function buildBoxedDropZonesFromGeometry(
   pairIds: ReadonlyArray<string>,
   layout: TtiMainImageBoxedLayout,
@@ -483,10 +508,14 @@ export function buildTextToImageMainDropZones(
   geometryVersion: TtiBoxGeometryVersion = "tti-box-geometry-v1"
 ): PlacedDragDropDiagramZone[] {
   if (pairIds.length === 4 && layout === "portrait") {
-    return buildContractTextToImageBoxedDropZones(pairIds, geometryVersion);
+    return applyTtiMainBoxedZoneYDisplayOffset(
+      buildContractTextToImageBoxedDropZones(pairIds, geometryVersion)
+    );
   }
   if (pairIds.length === 4 && layout === "square-display") {
-    return buildSquareDisplayTextToImageBoxedDropZones(pairIds, geometryVersion);
+    return applyTtiMainBoxedZoneYDisplayOffset(
+      buildSquareDisplayTextToImageBoxedDropZones(pairIds, geometryVersion)
+    );
   }
   return buildDefaultTextToImageDropZones(pairIds);
 }

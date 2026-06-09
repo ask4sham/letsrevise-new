@@ -79,6 +79,34 @@ describe("InteractiveSequenceBlock compact image layout", () => {
     );
   });
 
+  it("step navigation and images still work when intro contains plain-text step lines", () => {
+    const stepIntro = [
+      "Process",
+      "Photosynthesis in a leaf",
+      "- Step 1 — Light is absorbed.",
+      "- Step 2 — Carbon dioxide enters.",
+    ].join("\n");
+
+    render(
+      <div data-visual-block="interactive-sequence">
+        <InteractiveSequenceBlock
+          blockTitle="Photosynthesis steps"
+          intro={stepIntro}
+          steps={steps}
+          resolveImageUrl={(u) => u}
+          enableAiTestMe={false}
+          viewMode="student"
+        />
+      </div>
+    );
+
+    expect(screen.getByRole("img", { name: /glucose uptake/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^next$/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /^next$/i }));
+    expect(screen.getByRole("img", { name: /respiration/i })).toBeInTheDocument();
+    expect(screen.getByText(/step 2 of 2/i)).toBeInTheDocument();
+  });
+
   it("step navigation and Test me reveal still work", () => {
     render(
       <div data-visual-block="interactive-sequence">

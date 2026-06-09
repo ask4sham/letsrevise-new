@@ -5,6 +5,7 @@ import {
   formatExamLinkIntroBody,
   introSectionBodyToHeadingMarkdown,
   parseInteractiveSequenceIntro,
+  parseInteractiveSequenceIntroStepList,
 } from "../../utils/parseInteractiveSequenceIntro";
 
 export type InteractiveSequenceIntroProps = {
@@ -14,8 +15,7 @@ export type InteractiveSequenceIntroProps = {
 };
 
 /**
- * Renders step-by-step intro: structured sections when teaching markers are present,
- * otherwise legacy single-field rich text.
+ * Renders step-by-step intro: teaching-marker sections, plain-text step lists, or rich text/HTML.
  */
 export function InteractiveSequenceIntro({
   intro,
@@ -23,9 +23,31 @@ export function InteractiveSequenceIntro({
   markdownClassName = "interactive-sequence__intro--md lesson-content lesson-md-body",
 }: InteractiveSequenceIntroProps): React.ReactElement | null {
   const sections = useMemo(() => parseInteractiveSequenceIntro(intro), [intro]);
+  const stepList = useMemo(() => parseInteractiveSequenceIntroStepList(intro), [intro]);
   const trimmed = String(intro ?? "").trim();
 
   if (!trimmed) return null;
+
+  if (stepList) {
+    return (
+      <div className={`interactive-sequence__intro-step-list-wrap ${className}`.trim()}>
+        {stepList.preamble ? (
+          <LessonRichText
+            text={stepList.preamble}
+            className="interactive-sequence__intro-preamble"
+            markdownClassName={markdownClassName}
+          />
+        ) : null}
+        <ul className="interactive-sequence__intro-step-list" aria-label="Process steps">
+          {stepList.steps.map((stepLine) => (
+            <li key={stepLine} className="interactive-sequence__intro-step-item">
+              {stepLine}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   if (!sections) {
     return (

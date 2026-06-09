@@ -12,6 +12,7 @@ import {
   normalizeTtiBoxGeometryVersion,
   TTI_BOXED_ZONE_HEIGHT_PCT,
   TTI_BOXED_ZONE_WIDTH_PCT,
+  TTI_MAIN_BOXED_ZONE_Y_OFFSETS_DISPLAY_PX,
   coalesceDragDropMatchBlockPatch,
   dragDropBlockHasRenderableMainImage,
   dragDropPairsHaveTargetImages,
@@ -261,20 +262,26 @@ describe("dragDropMatchDiagram", () => {
   });
 
   describe("buildTextToImageMainDropZones", () => {
+    it("applies per-zone runtime Y offsets (canonical spec unchanged)", () => {
+      expect(TTI_MAIN_BOXED_ZONE_Y_OFFSETS_DISPLAY_PX).toEqual([-12, -22, -30, -40]);
+    });
+
     it("uses portrait contract layout when layout is portrait and four pairs", () => {
       const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], "portrait");
       expect(z[0].id).toBe("tti-boxed-0");
       expect(z[0].x).toBeCloseTo(82.67, 1);
+      expect(z[0].y).toBeCloseTo(23.42, 1);
+      expect(z[3].y).toBeCloseTo(82.08, 1);
     });
 
     it("uses square-display layout when layout is square-display and four pairs", () => {
       const z = buildTextToImageMainDropZones(["p1", "p2", "p3", "p4"], "square-display");
       expect(z[0].id).toBe("tti-boxed-0");
       expect(z[0].x).toBeCloseTo(70.25, 1);
-      expect(z[0].y).toBeCloseTo(25.42, 1);
-      expect(z[1].y).toBeCloseTo(47.17, 1);
-      expect(z[2].y).toBeCloseTo(67.83, 1);
-      expect(z[3].y).toBeCloseTo(88.75, 1);
+      expect(z[0].y).toBeCloseTo(23.42, 1);
+      expect(z[1].y).toBeCloseTo(43.5, 1);
+      expect(z[2].y).toBeCloseTo(62.83, 1);
+      expect(z[3].y).toBeCloseTo(82.08, 1);
     });
 
     it("uses fallback grid when layout is null", () => {

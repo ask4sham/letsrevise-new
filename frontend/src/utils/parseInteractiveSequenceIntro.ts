@@ -68,6 +68,86 @@ export function introSectionBodyToHeadingMarkdown(body: string): string {
   return `## ${trimmed}`;
 }
 
+const INTRO_STEP_LINE_RE =
+  /^(?:[-•*]\s*)?Step\s+(\d+)\s*([—–\-:])\s*(.+)$/i;
+
+const INTRO_STEP_BLOB_RE =
+  /(?:[-•*]\s*)?Step\s+(\d+)\s*([—–\-:])\s*([\s\S]*?)(?=(?:\s+(?:[-•*]\s*)?Step\s+\d+\s*(?:[—–\-:]))|$)/gi;
+
+export type InteractiveSequenceIntroStepList = {
+  preamble: string;
+  steps: string[];
+};
+
+function formatIntroStepLine(num: string, separator: string, body: string): string {
+  const cleaned = String(body ?? "")
+    .replace(/\s*↓\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (separator === ":") {
+    return `Step ${num}: ${cleaned}`;
+  }
+  return `Step ${num} — ${cleaned}`;
+}
+
+function parseIntroStepLine(line: string): string | null {
+  const trimmed = String(line ?? "").trim();
+  if (!trimmed || trimmed === "↓") return null;
+  const m = trimmed.match(INTRO_STEP_LINE_RE);
+  if (!m) return null;
+  return formatIntroStepLine(m[1], m[2], m[3]);
+}
+
+/**
+ * Plain-text step-by-step intro overview (export puts "- Step N — …" lines in intro).
+ * Returns null when teaching markers, HTML, or no step lines are present.
+ */
+export function parseInteractiveSequenceIntroStepList(
+  intro: string
+): InteractiveSequenceIntroStepList | null {
+  const raw = String(intro ?? "").trim();
+  if (!raw) return null;
+  if (hasInteractiveSequenceIntroMarkers(raw)) return null;
+  if (/<[a-z][\s\S]*>/i.test(raw)) return null;
+
+  const lines = raw.split(/\r?\n/);
+  const steps: string[] = [];
+  let firstStepLineIndex = -1;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const parsed = parseIntroStepLine(lines[i]);
+    if (parsed) {
+      if (firstStepLineIndex < 0) firstStepLineIndex = i;
+      steps.push(parsed);
+    }
+  }
+
+  const stepMarkerCount = (raw.match(/(?:[-•*]\s*)?Step\s+\d+\s*(?:[—–\-:])/gi) || []).length;
+
+  if (steps.length > 0 && steps.length >= stepMarkerCount) {
+    const preamble = lines
+      .slice(0, firstStepLineIndex)
+      .map((l) => l.trim())
+      .filter((l) => l && l !== "↓")
+      .join("\n\n")
+      .trim();
+    return { preamble, steps };
+  }
+
+  const blobSteps: string[] = [];
+  let match: RegExpExecArray | null;
+  INTRO_STEP_BLOB_RE.lastIndex = 0;
+  while ((match = INTRO_STEP_BLOB_RE.exec(raw)) !== null) {
+    blobSteps.push(formatIntroStepLine(match[1], match[2], match[3]));
+  }
+
+  if (blobSteps.length === 0) return null;
+
+  const firstMatch = raw.search(/(?:[-•*]\s*)?Step\s+\d+\s*(?:[—–\-:])/i);
+  const preamble = firstMatch > 0 ? raw.slice(0, firstMatch).trim() : "";
+  return { preamble, steps: blobSteps };
+}
+
 /** Formats EXAM LINK pathway chains for readable line-by-line display. */
 export function formatExamLinkIntroBody(body: string): string {
   const trimmed = body.trim();

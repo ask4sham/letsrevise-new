@@ -8,7 +8,7 @@
 
 ## Summary
 
-Text-to-image main-image mode (`matchMode: textToImage`, `block.imageUrl`, four pairs) renders a side-by-side worksheet: diagram with printed A–D boxes on the left, concept cards on the right. Students drag or tap-to-place concept cards into rectangular overlay zones aligned to the printed boxes. After **Check answers**, correct placements show green filled cards with a magnifier; grading and explanations use persisted pair data.
+Text-to-image main-image mode (`matchMode: textToImage`, `block.imageUrl`, four pairs) renders a side-by-side worksheet: diagram with **marker letters A–D** on the right rail (no printed empty rectangles in the image), concept cards on the right. Students drag or tap-to-place concept cards into **runtime rectangular overlay zones** aligned to marker positions and reserved blank space. After **Check answers**, correct placements show green filled cards with a magnifier; grading and explanations use persisted pair data.
 
 ---
 
@@ -38,26 +38,28 @@ Text-to-image main-image mode (`matchMode: textToImage`, `block.imageUrl`, four 
 | Magnifier | `TtiPlacedAnswerMagnify.tsx` | Post-check correct boxes only |
 | Display image | `assetUrl.ts`, `DragDropMatchBlock.tsx` | Main `<img>` uses `.display.png`; lightbox uses full-res |
 | Persist | `dragDropMatchDiagram.ts` | `buildDragDropMatchBlockForPersist` strips `dropZones` for TTI |
-| Teacher Brain | `lib/teacherBrain/dragDropVisualContract.js` | Image design requirements in generation prompts |
+| Teacher Brain | `lib/teacherBrain/dragDropVisualContract.js` | **Markers-only** image design requirements in TTI generation prompts (`formatTextToImageImageDesignRequirements`) |
 
 ---
 
 ## Teacher Brain contract requirements
 
-Teacher Brain injects **IMAGE DESIGN REQUIREMENTS** from `formatDragDropImageDesignRequirements()` when layout is `textToImage`. The frozen artboard spec lives in [`DRAG_DROP_VISUAL_CONTRACT.md`](./DRAG_DROP_VISUAL_CONTRACT.md).
+Teacher Brain injects **IMAGE DESIGN REQUIREMENTS** from `formatTextToImageImageDesignRequirements()` when layout is `textToImage`. The frozen artboard spec lives in [`DRAG_DROP_VISUAL_CONTRACT.md`](./DRAG_DROP_VISUAL_CONTRACT.md).
 
 Key requirements for generated/uploaded main images:
 
 | Requirement | Value |
 |-------------|--------|
 | Artboard | **900 × 1350** portrait (2∶3); 2× export OK |
-| Printed boxes | **4 identical** empty rectangles, labels **A–D** |
-| Box size (artboard) | ≥ **320 × 110 px** each |
-| Box spacing | ≥ **140 px** between box tops |
+| Printed boxes | **MUST NOT** appear in the image — no empty rectangles, dashed boxes, or outlines |
+| Markers | **A, B, C, D** only (or 1–4 if numeric — not both) |
+| Reserved blank space (display) | **156 × 76 px** per marker @ 600×600 `.display.png` |
+| Marker spacing | ~**62 px** minimum between reserved overlay areas |
 | Layout in artwork | Diagram left (~68%), matching rail right (~32%) |
 | Background | White; GCSE AQA LetsRevise style |
+| Drop-zone UI | **Runtime only** — app draws rectangles, dotted borders, filled cards |
 
-Renderer overlay coordinates are calibrated separately for **600×600 `.display.png`** (see below). New artwork should match the contract so printed boxes align with runtime zones after upload normalization.
+Renderer overlay coordinates are calibrated separately for **600×600 `.display.png`** (see below). New artwork should place marker letters and reserve blank space so runtime zones align after upload normalization. Pre-v1 assets with printed boxes may carry `ttiBoxGeometryVersion: "legacy"`.
 
 ---
 
@@ -83,7 +85,7 @@ Constants in `dragDropMatchDiagram.ts` for **square-display** (Reflex Arc refere
 | Center Y | A **25.92**, B **48.08**, C **70.08**, D **91.08** | unchanged |
 | Width | **21.67%** | **× 1.32** (~28.6%) |
 | Height | **10.33%** | **× 1.16** (~12%) |
-| Filled Y nudge | — | **`translate(-50%, calc(-50% + 8px))`** — clears printed A–D labels |
+| Filled Y nudge | — | **`translate(-50%, calc(-50% + 8px))`** — clears marker letters when filled |
 
 Portrait full-res images use alternate centers (`TTI_CONTRACT_PORTRAIT_*`) when natural aspect ≈ 900∶1350.
 

@@ -21,18 +21,11 @@
   <text x="450" y="128" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#111111">DRAG AND DROP MATCH</text>
   <text x="450" y="168" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#333333">Match each structure to its function.</text>
 
-  <!-- Drop zones A-D (right rail) — canonical tti-box-geometry-v1: 234×114 @ centre X 744 -->
-  <g id="drop-zones" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#111111">
-    <rect x="627" y="286" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
+  <!-- Markers A-D only (right rail) — canonical tti-box-geometry-v1 marker centres; NO printed rectangles (app draws overlays) -->
+  <g id="drop-markers" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#111111">
     <text x="744" y="355" text-anchor="middle" font-size="36">A</text>
-
-    <rect x="627" y="580" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
     <text x="744" y="649" text-anchor="middle" font-size="36">B</text>
-
-    <rect x="627" y="859" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
     <text x="744" y="928" text-anchor="middle" font-size="36">C</text>
-
-    <rect x="627" y="1141" width="234" height="114" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="4"/>
     <text x="744" y="1210" text-anchor="middle" font-size="36">D</text>
   </g>
 

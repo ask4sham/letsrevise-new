@@ -241,12 +241,13 @@ describe("DragDropMatchBlock text-to-image main image mode", () => {
     expect(screen.queryByTestId("drag-drop-tti-grid")).toBeNull();
   });
 
-  it("uses rectangular boxed drop zones without circular marker letters", () => {
+  it("uses empty rectangular dotted drop zones without marker letters", () => {
     const { container } = render(
       <DragDropMatchBlock block={ttiMainBlock} resolveImageUrl={(u) => u} />
     );
     expect(container.querySelectorAll(".drag-drop-match__diagram-zone--tti-boxed").length).toBe(2);
     expect(container.querySelector(".drag-drop-match__diagram-zone-letter")).toBeNull();
+    expect(container.querySelector(".drag-drop-match__diagram-zone-letter--tti-boxed")).toBeNull();
     expect(screen.getByRole("button", { name: /drop concept in box a/i })).toBeInTheDocument();
   });
 

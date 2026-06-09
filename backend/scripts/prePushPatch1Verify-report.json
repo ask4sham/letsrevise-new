@@ -1,0 +1,48 @@
+{
+  "topic": "Respiration",
+  "generationSeconds": "27.1",
+  "blockCount": 22,
+  "firstTenTitles": [
+    "REVISION OBJECTIVES",
+    "PRIOR KNOWLEDGE",
+    "DEFINITION",
+    "SCENARIO",
+    "WHY IT MATTERS",
+    "CORE MODEL",
+    "KEY EXAMPLES",
+    "EXAM VOCABULARY",
+    "CORE LEARNING",
+    "CHECKPOINT"
+  ],
+  "orderChecks": {
+    "definitionIndex": 2,
+    "scenarioIndex": 3,
+    "hasRevisionObjectives": true,
+    "hasSummary": true,
+    "hasKeywords": true,
+    "hasSelfCheck": false,
+    "hasExamPractice": true,
+    "hasWorkedExample": true,
+    "hasDragDrop": true,
+    "hasInteractiveDiagram": true,
+    "hasStepByStep": true,
+    "definitionIsBlock3": true,
+    "scenarioIsBlock4": true,
+    "pass": true
+  },
+  "stepByStep": {
+    "found": true,
+    "editorType": "interactiveSequence",
+    "introPreview": "Work through each step in order.\n\nProcess\nAnaerobic respiration in muscle cells\n\nExam link\nExplain that when there isn’t enough oxygen, cells use anaerobic respiration, which quickly releases less energy and makes lactic acid—this is why muscles ache after intense exercise.\n\n- Step 1 — Hard exercise makes muscles use oxygen fast. ↓\n- Step 2 — Oxygen running low means cells can’t do aerobic respira",
+    "stepCount": 4,
+    "steps": [
+      "Step 1 — Hard exercise makes muscles use oxygen fast. ↓",
+      "Step 2 — Oxygen running low means cells can’t do aerobic respiration. ↓",
+      "Step 3 — Cells switch to anaerobic respiration: Glucose → lactic acid + little energy. ↓",
+      "Step 4 — Lactic acid builds up, causing muscle fatigue."
+    ],
+    "rendersAsList": true,
+    "notSingleParagraph": true
+  },
+  "pass": true
+}
