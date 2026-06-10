@@ -46,7 +46,7 @@ function mergeFlashcards(
 }
 
 /**
- * End-of-lesson retrieval: quiz, flashcards, and short exam practice — separated from inline checkpoints.
+ * End-of-lesson retrieval: quiz, flashcards, and short in-lesson exam check — separated from inline checkpoints.
  */
 export function StudentRetrievalSection({
   pages,
@@ -97,7 +97,7 @@ export function StudentRetrievalSection({
       <section className="student-retrieval student-retrieval--locked" aria-label="Revision practice">
         <h2 className="student-retrieval__title">Revision practice</h2>
         <p className="student-retrieval__locked">
-          Quiz, flashcards, and exam-style questions are included with full lesson access.
+          Quiz, flashcards, and in-lesson exam check are included with full lesson access.
         </p>
       </section>
     );
@@ -108,7 +108,9 @@ export function StudentRetrievalSection({
       <header className="student-retrieval__header">
         <h2 className="student-retrieval__title">Revision practice</h2>
         <p className="student-retrieval__lead">
-          Reinforcement quiz, flashcards, and exam-style questions — varied from in-lesson checkpoints.
+          Reinforcement quiz, flashcards, and a short in-lesson exam check — drawn from this lesson&apos;s exam
+          practice block. For a larger question set from the bank, use{" "}
+          <strong>Practice Questions</strong> further down the page.
         </p>
       </header>
 
@@ -143,7 +145,7 @@ export function StudentRetrievalSection({
             className={activeTab === "exam" ? "student-retrieval__tab student-retrieval__tab--active" : "student-retrieval__tab"}
             onClick={() => setTab("exam")}
           >
-            Exam practice ({examQuestions.length})
+            Exam check ({examQuestions.length})
           </button>
         ) : null}
       </div>

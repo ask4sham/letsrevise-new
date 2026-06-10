@@ -1081,7 +1081,10 @@ function PracticeSection({
       right={rightLabel ? <span style={{ fontSize: 12, color: "#6b7280" }}>{rightLabel}</span> : undefined}
       variant="plain"
     >
-      <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>Practice questions help students reinforce what they learned in the lesson.</p>
+      <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "#6b7280" }}>
+        A larger practice set from the question bank — separate from the short in-lesson{" "}
+        <strong>Exam check</strong> in Revision practice above.
+      </p>
       {practiceLoading && (
         <p style={{ color: "#6b7280", margin: 0 }}>Loading practice questions…</p>
       )}
