@@ -89,6 +89,185 @@ function getValidCellStructureBlocks() {
   ];
 }
 
+/**
+ * Homeostasis draft for teacher-first opening integration tests.
+ * Includes pre-built opening slots (3H.1.6) and ≥2 distinct diagram blocks that survive compression.
+ */
+function getValidHomeostasisTeacherFirstBlocks() {
+  return [
+    {
+      type: "text",
+      title: "Revision Objectives",
+      role: "lessonObjectives",
+      content:
+        "By the end of this lesson you will:\n• Define homeostasis\n• Explain negative feedback\n• Apply the model in exam answers",
+    },
+    {
+      type: "text",
+      title: "Prior Knowledge",
+      role: "priorKnowledge",
+      content: "Recall that cells need stable conditions and that receptors detect changes in the internal environment.",
+    },
+    {
+      type: "text",
+      title: "Definition",
+      role: "definition",
+      content:
+        "**Definition:** Homeostasis is the regulation of internal conditions to maintain optimum levels for cells.",
+    },
+    {
+      type: "text",
+      title: "Why it matters",
+      role: "whyItMatters",
+      content:
+        "**Why it matters:** Homeostasis keeps core temperature and blood glucose within ranges that allow enzymes to work efficiently.",
+    },
+    {
+      type: "keyIdea",
+      title: "Core model",
+      role: "coreRule",
+      content:
+        "**Core model:** Receptor detects change → coordination centre → effector response → return towards optimum (negative feedback).",
+    },
+    {
+      type: "text",
+      title: "Key examples",
+      role: "keyExamples",
+      content: "• Thermoregulation during exercise\n• Blood glucose control after a meal",
+    },
+    {
+      type: "text",
+      title: "Exam vocabulary",
+      role: "examVocabulary",
+      content:
+        "**Exam vocabulary:** homeostasis, negative feedback, receptor, effector, coordination centre, optimum",
+    },
+    {
+      type: "text",
+      title: "Scenario",
+      role: "hook",
+      content:
+        "After a long run, your body temperature rises. Use the homeostasis model to explain how your body responds.",
+    },
+    {
+      type: "text",
+      title: "Core Teaching",
+      role: "concept",
+      content:
+        "Homeostasis uses receptors, coordination centres and effectors to return internal conditions towards optimum levels.",
+    },
+    {
+      type: "commonMistake",
+      role: "commonMistake",
+      content:
+        "Wrong: Homeostasis only controls temperature.\nCorrect: Homeostasis regulates multiple internal conditions including temperature and blood glucose.\nExam link: State the full definition before giving examples.",
+    },
+    {
+      type: "keyIdea",
+      role: "patternRecognition",
+      content:
+        "Homeostasis exam questions often ask you to describe or explain negative feedback pathways step by step.",
+    },
+    {
+      type: "diagram",
+      role: "concept",
+      title: "Negative feedback overview",
+      caption: "Negative feedback overview diagram",
+      content: "Homeostasis negative feedback loop diagram placeholder",
+    },
+    {
+      type: "keyIdea",
+      role: "whatToNotice",
+      title: "What to Notice",
+      content:
+        "- In homeostasis, receptors detect changes in core temperature\n- The coordination centre triggers sweating during thermoregulation\n- Negative feedback returns conditions towards the optimum",
+    },
+    {
+      type: "text",
+      role: "concept",
+      content:
+        "Thermoreceptors detect rising core temperature. The coordination centre activates sweating so heat is lost by evaporation.",
+    },
+    { type: "examTip", role: "concept", content: "Name the receptor, coordination centre and effector in order for full marks." },
+    {
+      type: "diagram",
+      role: "concept",
+      title: "Thermoregulation diagram",
+      caption: "Thermoregulation diagram",
+      content: "Thermoregulation sweating and vasodilation diagram placeholder",
+    },
+    {
+      type: "keyIdea",
+      role: "whatToNotice",
+      title: "What to Notice",
+      content:
+        "- Homeostasis uses sweating to increase heat loss by evaporation\n- Vasodilation transfers heat to the skin during thermoregulation\n- Link each effector response to the temperature change detected",
+    },
+    {
+      type: "text",
+      role: "concept",
+      content:
+        "In exams, compare responses when temperature rises versus when it falls — effectors differ but the negative feedback pattern is the same.",
+    },
+    {
+      type: "checkpoint",
+      role: "workedExample",
+      prompt: "Explain how the body responds when core temperature rises during exercise. (4 marks)",
+      questionType: "short",
+      options: [],
+      correctAnswer:
+        "Thermoreceptors detect the rise. The coordination centre triggers sweating and vasodilation. Heat is lost so temperature returns towards the optimum.",
+      explanation: "Award marks for receptor, coordination centre, named effectors and negative feedback.",
+    },
+    {
+      type: "keyIdea",
+      role: "synthesis",
+      content:
+        "Homeostasis depends on negative feedback: receptors detect change, coordination centres process information, effectors restore optimum conditions.",
+    },
+    {
+      type: "text",
+      role: "concept",
+      content:
+        "Athletes train in hot conditions partly because efficient thermoregulation supports sustained enzyme activity during exercise.",
+    },
+    {
+      type: "checkpoint",
+      role: "quickCheck",
+      prompt: "Which term describes return to optimum after a change?",
+      questionType: "mcq",
+      options: ["Negative feedback", "Positive feedback", "Diffusion", "Osmosis"],
+      correctAnswer: "Negative feedback",
+      explanation: "",
+    },
+    {
+      type: "checkpoint",
+      role: "quickCheck",
+      prompt: "State one effector used in temperature control.",
+      questionType: "short",
+      options: [],
+      correctAnswer: "Sweat glands or muscles controlling shivering.",
+      explanation: "",
+    },
+    {
+      type: "keyIdea",
+      role: "finalMemoryRule",
+      content:
+        "Remember: homeostasis maintains optimum internal conditions using negative feedback between receptors, coordination centres and effectors.",
+    },
+  ];
+}
+
+function getValidHomeostasisTeacherFirstDraft(overrides = {}) {
+  return getValidCellStructureDraft({
+    title: "Homeostasis",
+    description: "Homeostasis and negative feedback in GCSE Biology.",
+    tags: ["homeostasis", "biology"],
+    blocks: getValidHomeostasisTeacherFirstBlocks(),
+    ...overrides,
+  });
+}
+
 function getValidCellStructureDraft(overrides = {}) {
   const blocks = overrides.blocks ?? getValidCellStructureBlocks();
   const pages =
@@ -114,5 +293,7 @@ function getValidCellStructureDraft(overrides = {}) {
 
 module.exports = {
   getValidCellStructureBlocks,
+  getValidHomeostasisTeacherFirstBlocks,
+  getValidHomeostasisTeacherFirstDraft,
   getValidCellStructureDraft,
 };

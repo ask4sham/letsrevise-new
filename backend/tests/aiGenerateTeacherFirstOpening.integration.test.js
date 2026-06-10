@@ -7,7 +7,7 @@ const axios = require("axios");
 const app = require("../app");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
-const { getValidCellStructureDraft } = require("./helpers/validAiStructureLessonDraft");
+const { getValidHomeostasisTeacherFirstDraft } = require("./helpers/validAiStructureLessonDraft");
 
 jest.mock("axios");
 
@@ -66,9 +66,10 @@ describe("AI generate-and-save: teacher-first dashboard opening (3H.1.6)", () =>
   });
 
   test("reorders opening to Definition before Scenario at block 8", async () => {
+    const homeostasisDraft = getValidHomeostasisTeacherFirstDraft();
     axios.post.mockResolvedValue({
       data: {
-        output_text: JSON.stringify(getValidCellStructureDraft()),
+        output_text: JSON.stringify(homeostasisDraft),
       },
     });
 
@@ -96,7 +97,7 @@ describe("AI generate-and-save: teacher-first dashboard opening (3H.1.6)", () =>
       .slice(0, 10)
       .map((b) => String(b.title || "").trim());
 
-    expect(titles[0]).toMatch(/lesson objectives/i);
+    expect(titles[0]).toMatch(/revision objectives/i);
     expect(titles[2]).toMatch(/definition/i);
     expect(titles[3]).toMatch(/why it matters/i);
     expect(titles[4]).toMatch(/core model/i);
