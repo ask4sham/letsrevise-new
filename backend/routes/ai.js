@@ -75,7 +75,12 @@ const {
   isDashboardTeacherFirstEnabled,
   buildDashboardTeacherFirstPromptSection,
   enforceDashboardTeacherFirstOpening,
+  enforceRequiredPracticalLessonStructure,
 } = require("../../lib/teacherBrain/dashboardTeacherFirstOpening");
+const {
+  isRequiredPracticalMode,
+  buildRequiredPracticalDashboardLessonContract,
+} = require("../../lib/teacherBrain/requiredPracticalMode");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const { buildReferenceLessonMaterialPrompt } = require("../../lib/referenceLessonMaterialPrompt");
 const {
@@ -1199,9 +1204,16 @@ ${referencePromptSection}
 
   const teacherFirstDashboard = isDashboardTeacherFirstEnabled();
   const flowHintTopic = safeStr(subTopicDisplay, "") || safeStr(topic, "");
+  const dashboardCtx = { topic: flowHintTopic, subTopic: subTopicDisplay, topicKey };
 
   if (teacherFirstDashboard) {
-    out += `
+    if (isRequiredPracticalMode(dashboardCtx)) {
+      out +=
+        buildRequiredPracticalDashboardLessonContract(dashboardCtx) +
+        LESSON_BLOCK_FULL_KEYS_INSTRUCTION +
+        LESSON_TEACHING_AND_STYLE_LOCKED;
+    } else {
+      out += `
 
 ## LETSREVISE LESSON CONTRACT (MANDATORY — TEACHER-FIRST OPENING)
 
@@ -1240,8 +1252,9 @@ You must still deliver the full lesson skeleton:
 - Final memory rule (keyIdea closing memory rule)
 
 Use block roles where the output allows: lessonObjectives, priorKnowledge, definition, whyItMatters, coreModel, keyExamples, examVocabulary, hook (Scenario only at block 8), concept, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
-${buildDashboardTeacherFirstPromptSection({ topic: flowHintTopic, subTopic: subTopicDisplay, topicKey })}
+${buildDashboardTeacherFirstPromptSection(dashboardCtx)}
 ` + LESSON_BLOCK_FULL_KEYS_INSTRUCTION + LESSON_TEACHING_AND_STYLE_LOCKED;
+    }
   } else {
     out += `
 
@@ -2445,11 +2458,17 @@ function mergeAdjacentRedundantBlocks(draft, options = {}) {
         safeStr(cur?.role, "") === "patternRecognition" ||
         safeStr(nxt?.role, "") === "patternRecognition";
 
+      const rpSpecialistRoles = new Set(["equipment", "method", "resultstable", "evaluationgrid"]);
+      const skipMergeForRpSpecialist =
+        rpSpecialistRoles.has(safeStr(cur?.role, "").toLowerCase()) ||
+        rpSpecialistRoles.has(safeStr(nxt?.role, "").toLowerCase());
+
       const skipMergeForBlueprint = v6PairTouchesBlueprintKeywords(cur, nxt);
 
       if (
         nxt &&
         !skipMergeForPatternRole &&
+        !skipMergeForRpSpecialist &&
         !skipMergeForBlueprint &&
         V6_MERGEABLE_TYPES.has(tCur) &&
         V6_MERGEABLE_TYPES.has(tNext)
@@ -2537,6 +2556,11 @@ function removeWeakBlocks(blocks) {
     "synthesis",
     "finalMemoryRule",
     "whatToNotice",
+    "equipment",
+    "method",
+    "resultsTable",
+    "evaluationGrid",
+    "processingResults",
   ]);
 
   return blocks.filter((block) => {
@@ -5057,12 +5081,25 @@ function sanitizeDraft(draft, opts = {}) {
     clean.interactionAuthorityEnforcement = interactionAuthorityResult.enforcement;
   }
 
-  enforceDashboardTeacherFirstOpening(clean, {
+  enforceRequiredPracticalLessonStructure(clean, {
     topic,
     topicKey: opts.topicKey,
     subTopic: opts.subTopic || opts.subTopicDisplay || topic,
     subject,
   });
+
+  if (!isRequiredPracticalMode({
+    topic,
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  })) {
+    enforceDashboardTeacherFirstOpening(clean, {
+      topic,
+      topicKey: opts.topicKey,
+      subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+      subject,
+    });
+  }
 
   return clean;
 }
@@ -5898,37 +5935,36 @@ router.post("/generate-and-save", auth, async (req, res) => {
       }
     }
 
-    if (isDashboardTeacherFirstEnabled()) {
-      const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
-        pages: pagesPromoted,
-        topicKey: canonicalTopicKey,
-        subTopic: subTopicDisplay || topic,
-        topic,
-      });
-      if (interactionAuthorityFinal.changed) {
-        pagesPromoted = interactionAuthorityFinal.pages;
-      }
+    const rpEnforcementCtx = {
+      topic,
+      topicKey: canonicalTopicKey,
+      subTopic: subTopicDisplay || topic,
+      subject,
+    };
+    const rpModeFinal = isRequiredPracticalMode(rpEnforcementCtx);
 
-      const enforced = enforceDashboardTeacherFirstOpening(
+    const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
+      pages: pagesPromoted,
+      topicKey: canonicalTopicKey,
+      subTopic: subTopicDisplay || topic,
+      topic,
+    });
+    if (interactionAuthorityFinal.changed) {
+      pagesPromoted = interactionAuthorityFinal.pages;
+    }
+
+    if (rpModeFinal) {
+      const enforced = enforceRequiredPracticalLessonStructure(
         { pages: pagesPromoted },
-        {
-          topic,
-          topicKey: canonicalTopicKey,
-          subTopic: subTopicDisplay || topic,
-          subject,
-        }
+        rpEnforcementCtx
       );
       pagesPromoted = enforced.pages;
-    } else {
-      const interactionAuthorityFinal = enforceInteractionAuthorityOnDraft({
-        pages: pagesPromoted,
-        topicKey: canonicalTopicKey,
-        subTopic: subTopicDisplay || topic,
-        topic,
-      });
-      if (interactionAuthorityFinal.changed) {
-        pagesPromoted = interactionAuthorityFinal.pages;
-      }
+    } else if (isDashboardTeacherFirstEnabled()) {
+      const enforced = enforceDashboardTeacherFirstOpening(
+        { pages: pagesPromoted },
+        rpEnforcementCtx
+      );
+      pagesPromoted = enforced.pages;
     }
 
     const pagesForDb = makeLessonDbSafe({ pages: pagesPromoted }).pages;

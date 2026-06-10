@@ -28,6 +28,8 @@ import {
 import { hasRenderableLessonImageSrc } from "../constants/lessonImageDisplay";
 import { getSpecKeyFromLesson, resolveLessonTopicKeyForBank } from "../utils/resolveLessonTopicKey";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
+import { detectRpSpecialistBlock } from "../utils/requiredPracticalBlockParse";
+import { RequiredPracticalSpecialistBlockDisplay } from "../components/lesson/student/RequiredPracticalSpecialistBlockDisplay";
 import {
   coerceDiagramZonePct,
   dragDropMatchModeFromBlockForProps,
@@ -903,8 +905,29 @@ const ClassroomModePage: React.FC = () => {
                         />
                       </div>
                     );
-                  default:
-                    return renderCallout(b.type, safeStr(b.content, ""), idx, safeStr((b as { role?: string }).role, ""));
+                  default: {
+                    const rpKind = detectRpSpecialistBlock({
+                      role: safeStr((b as { role?: string }).role, ""),
+                      title: safeStr(b.title, ""),
+                    });
+                    if (rpKind) {
+                      return (
+                        <RequiredPracticalSpecialistBlockDisplay
+                          key={idx}
+                          kind={rpKind}
+                          title={safeStr(b.title, "")}
+                          content={safeStr(b.content, "")}
+                          blockIndex={idx}
+                        />
+                      );
+                    }
+                    return renderCallout(
+                      b.type,
+                      safeStr(b.content, ""),
+                      idx,
+                      safeStr((b as { role?: string }).role, "")
+                    );
+                  }
                 }
               })}
             </div>

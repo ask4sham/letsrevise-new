@@ -54,6 +54,8 @@ import {
 import { mergeCheckpointExplanationParts } from "../utils/checkpointFeedback";
 import { normalizeInteractiveDiagramHotspot } from "../utils/interactiveDiagramHotspots";
 import { resolveLessonDisplayBlockType } from "../types/lessonBlocks";
+import { detectRpSpecialistBlock } from "../utils/requiredPracticalBlockParse";
+import { RequiredPracticalSpecialistBlockDisplay } from "../components/lesson/student/RequiredPracticalSpecialistBlockDisplay";
 import {
   contentLooksLikeGraphJson,
   normalizeGraphBlockForDisplay,
@@ -4206,9 +4208,28 @@ const LessonViewPage: React.FC = () => {
                                   : {}),
                               }}
                             />
-                          ) : (
-                            renderCallout(b.type, safeStr(b.content, ""), idx, safeStr((b as { role?: string }).role, ""))
-                          )}
+                          ) : (() => {
+                            const rpKind = detectRpSpecialistBlock({
+                              role: safeStr((b as { role?: string }).role, ""),
+                              title: safeStr(b.title, ""),
+                            });
+                            if (rpKind) {
+                              return (
+                                <RequiredPracticalSpecialistBlockDisplay
+                                  kind={rpKind}
+                                  title={safeStr(b.title, "")}
+                                  content={safeStr(b.content, "")}
+                                  blockIndex={idx}
+                                />
+                              );
+                            }
+                            return renderCallout(
+                              b.type,
+                              safeStr(b.content, ""),
+                              idx,
+                              safeStr((b as { role?: string }).role, "")
+                            );
+                          })()}
                           {user && id && (
                             <div style={{ marginTop: 6, fontSize: 12 }}>
                               <button

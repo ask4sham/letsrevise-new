@@ -1,0 +1,140 @@
+.rp-specialist-block {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 2px solid rgba(15, 118, 110, 0.35);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.08);
+  text-align: left;
+}
+
+.rp-specialist-block__title {
+  font-weight: 900;
+  font-size: 1.15rem;
+  color: #0f766e;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-specialist-block__icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.rp-specialist-block--equipment {
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.rp-specialist-block--equipment .rp-specialist-block__title {
+  color: #1d4ed8;
+}
+
+.rp-specialist-block--method {
+  border-color: rgba(124, 58, 237, 0.35);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.08);
+}
+
+.rp-specialist-block--method .rp-specialist-block__title {
+  color: #6d28d9;
+}
+
+.rp-specialist-block--results {
+  border-color: rgba(217, 119, 6, 0.4);
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.08);
+}
+
+.rp-specialist-block--results .rp-specialist-block__title {
+  color: #b45309;
+}
+
+.rp-specialist-block--evaluation {
+  border-color: rgba(219, 39, 119, 0.35);
+  box-shadow: 0 2px 8px rgba(219, 39, 119, 0.08);
+}
+
+.rp-specialist-block--evaluation .rp-specialist-block__title {
+  color: #be185d;
+}
+
+.rp-equipment-list {
+  margin: 0;
+  padding-left: 1.35rem;
+  line-height: 1.85;
+}
+
+.rp-equipment-list li {
+  margin-bottom: 0.35rem;
+}
+
+.rp-method-list {
+  margin: 0;
+  padding-left: 1.35rem;
+  line-height: 1.85;
+}
+
+.rp-method-list li {
+  margin-bottom: 0.5rem;
+}
+
+.rp-specialist-table-wrap {
+  overflow-x: auto;
+  margin-top: 4px;
+}
+
+.rp-specialist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.rp-specialist-table th,
+.rp-specialist-table td {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rp-specialist-table th {
+  background: rgba(15, 118, 110, 0.1);
+  font-weight: 800;
+  color: #134e4a;
+}
+
+.rp-specialist-table tr:nth-child(even) td {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.rp-specialist-table__input {
+  width: 100%;
+  min-width: 60px;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  background: #fffef8;
+  box-sizing: border-box;
+}
+
+.rp-specialist-table__input:focus {
+  outline: 2px solid rgba(217, 119, 6, 0.45);
+  border-color: transparent;
+  background: #fff;
+}
+
+.rp-specialist-table__hint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.rp-specialist-block__empty {
+  margin: 0;
+  color: #64748b;
+  font-style: italic;
+}
