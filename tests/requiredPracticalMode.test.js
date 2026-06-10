@@ -74,6 +74,14 @@ describe("requiredPracticalMode", () => {
     ).toBe(false);
   });
 
+  test("normalizeReactionTimeRulerOrientation replaces forbidden top orientation", () => {
+    const { normalizeReactionTimeRulerOrientation, REACTION_TIME_RULER_DROP_ORIENTATION } =
+      require("../lib/teacherBrain/requiredPracticalMode");
+    expect(
+      normalizeReactionTimeRulerOrientation("Hold ruler with 0 cm at the top above the hand.")
+    ).toBe(`Hold ruler with ${REACTION_TIME_RULER_DROP_ORIENTATION} above the hand.`);
+  });
+
   test("reaction time profile includes ruler-drop method and variables", () => {
     const profile = resolveRequiredPracticalProfile({
       topic: "Required Practical: Reaction time",
@@ -82,7 +90,10 @@ describe("requiredPracticalMode", () => {
     expect(isReactionTimePractical({ topicKey: "aqa-gcse-biology:rp-reaction-time" })).toBe(true);
     expect(profile.equipment).toContain("30 cm ruler");
     expect(profile.methodSteps[0]).toMatch(/forearm resting on the table/i);
+    expect(profile.methodSteps[1]).toMatch(/0 cm at the bottom aligned with the thumb/i);
+    expect(profile.methodSteps[1]).not.toMatch(/0 cm at the top/i);
     expect(profile.variables.control).toContain("same ruler");
+    expect(profile.variables.control.some((c) => /same ruler orientation/i.test(c))).toBe(true);
     expect(profile.analysis.join(" ")).toMatch(/smaller distance/i);
     expect(profile.evaluationGrid.some((r) => /light gate|electronic timer/i.test(r.improvement))).toBe(
       true

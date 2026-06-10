@@ -328,4 +328,54 @@ export const INTERACTIVE_DIAGRAM_TEMPLATES: InteractiveDiagramTemplate[] = [
       },
     ],
   },
+  {
+    id: "rp-reaction-time-ruler-drop",
+    label: "Required practical: Reaction time (ruler drop)",
+    subject: "Biology",
+    topic: "Required Practical: Reaction time",
+    title: "Practical Setup Diagram",
+    intro: "Click each label to identify parts of the ruler-drop test setup.",
+    imageUrl:
+      "/visuals/biology/aqa-gcse/homeostasis-and-response/the-human-nervous-system/required-practical-reaction-time.svg",
+    hotspots: [
+      {
+        id: "ruler",
+        x: 50,
+        y: 12,
+        label: "Ruler",
+        description:
+          "30 cm ruler held vertically above the catching hand; 0 cm at the bottom aligned with the thumb.",
+      },
+      {
+        id: "release-point",
+        x: 50,
+        y: 22,
+        label: "Release point",
+        description: "Where the partner releases the ruler without warning.",
+      },
+      {
+        id: "measurement-scale",
+        x: 58,
+        y: 45,
+        label: "Measurement scale",
+        description:
+          "Read the distance (cm) where the ruler was caught. Scale uses 0 cm at the bottom aligned with the thumb.",
+      },
+      {
+        id: "thumb",
+        x: 46,
+        y: 78,
+        label: "Thumb",
+        description:
+          "Part of the catching hand used with the forefinger; level with the 0 cm mark (0 cm at the bottom aligned with the thumb).",
+      },
+      {
+        id: "forefinger",
+        x: 54,
+        y: 78,
+        label: "Forefinger",
+        description: "Used with the thumb to catch the ruler as quickly as possible.",
+      },
+    ],
+  },
 ];
