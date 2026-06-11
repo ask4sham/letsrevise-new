@@ -3577,39 +3577,9 @@ function strengthenExamAnswers(draft, topicHint = "") {
 
 /**
  * V9: ensure key ideas and text blocks carry definitional / reasoning / example cues.
+ * Phase 5B.3f.3A: no-op — generic filler appends removed (profile/prompt supply depth).
  */
 function enforceTeacherBlockPurpose(draft) {
-  if (!draft || typeof draft !== "object") return draft;
-
-  for (const page of draft.pages || []) {
-    for (const block of page.blocks || []) {
-      if (block?.content == null || typeof block.content !== "string") continue;
-
-      const t = normalizeBlockType(block.type);
-
-      if (t === "keyIdea") {
-        const text = block.content.toLowerCase();
-        const hasDefinition = /is|are|means/.test(text);
-        const hasReasoning = /because|this matters|in contrast|whereas|however/.test(text);
-
-        if (!hasDefinition && !hasReasoning) {
-          block.content += "\nThis is a key idea because it helps explain how the topic works.";
-        }
-      }
-
-      if (t === "text") {
-        const text = block.content.toLowerCase();
-        const hasExample = /for example|such as/.test(text);
-        const hasWhy = /because|this matters/.test(text);
-
-        if (!hasExample || !hasWhy) {
-          block.content +=
-            "\nThis matters because students need to connect the idea to real biological examples.";
-        }
-      }
-    }
-  }
-
   return draft;
 }
 
@@ -3794,21 +3764,6 @@ const V10_TOPIC_AHA = [
     role: "patternRecognition",
     content:
       "Separate the two jobs in your head:\nMitosis — two diploid daughter cells, genetically identical; ties to growth, repair, and asexual reproduction.\nMeiosis — four haploid cells, not identical; crossing over and assortment create variation for sexual reproduction.\nMarks come from chromosome behaviour and why the outcomes differ, not from vague stage lists.",
-  },
-  {
-    match: () => true,
-    title: "The key idea",
-    role: "patternRecognition",
-    contentFn: (topicHint) => {
-      const label = safeStr(topicHint, "this topic").trim() || "this topic";
-      const short = label.length > 72 ? `${label.slice(0, 69)}…` : label;
-      return (
-        `Anchor ${short} in three moves:\n` +
-        "State the precise definition using spec vocabulary.\n" +
-        "Add one concrete example or comparison the examiner can recognise.\n" +
-        "Name the command word you would use to start an answer (explain, describe, compare) — then practise one sentence."
-      );
-    },
   },
 ];
 
@@ -4756,26 +4711,23 @@ function normalizeBulletLists(draft) {
 function addOneGlanceSummary(draft, topicHint = "") {
   if (!draft || typeof draft !== "object") return draft;
   const topic = String(topicHint || "").toLowerCase();
+  if (!topic.includes("stem cell")) return draft;
+
   for (const page of draft.pages || []) {
     if (!Array.isArray(page.blocks) || page.blocks.length < 10) continue;
     const alreadyExists = page.blocks.some((b) =>
       /one-glance summary|quick summary/i.test(`${b.title || ""} ${b.content || ""}`)
     );
     if (alreadyExists) continue;
-    let summary =
-      "💡 Quick summary:\n• Key idea\n• Main comparison\n• Main exam point";
-    if (topic.includes("stem cell")) {
-      summary =
-        "💡 Quick summary:\n" +
-        "• Stem cells are unspecialised cells that can differentiate\n" +
-        "• Embryonic stem cells are pluripotent; adult stem cells are multipotent\n" +
-        "• This difference is central to medicine and ethics questions";
-    }
     page.blocks.splice(1, 0, {
       type: "keyIdea",
       title: "One-glance summary",
       role: "coreRule",
-      content: summary,
+      content:
+        "💡 Quick summary:\n" +
+        "• Stem cells are unspecialised cells that can differentiate\n" +
+        "• Embryonic stem cells are pluripotent; adult stem cells are multipotent\n" +
+        "• This difference is central to medicine and ethics questions",
     });
   }
   return draft;
@@ -8051,3 +8003,4 @@ module.exports = router;
 module.exports.stripV8AuthoringTags = stripV8AuthoringTags;
 module.exports.resolveWorkedExampleFallback = resolveWorkedExampleFallback;
 module.exports.ensureWorkedExampleCheckpoint = ensureWorkedExampleCheckpoint;
+module.exports.sanitizeDraftForTest = sanitizeDraft;

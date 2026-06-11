@@ -5,8 +5,63 @@
 
 function getValidCellStructureBlocks() {
   return [
-    { type: "text", role: "hook", content: "Cells are the basic units of life. What makes them work?" },
-    { type: "keyIdea", role: "coreRule", content: "Eukaryotic cells have a nucleus and membrane-bound organelles." },
+    {
+      type: "text",
+      title: "Revision Objectives",
+      role: "lessonObjectives",
+      content:
+        "By the end of this lesson you will:\n• Describe cell structure in animal and plant cells\n• Compare eukaryotic and prokaryotic cells\n• Explain organelle functions in exams",
+    },
+    {
+      type: "text",
+      title: "Prior Knowledge",
+      role: "priorKnowledge",
+      content: "Recall that cells are the basic units of life and that organisms are made of cells.",
+    },
+    {
+      type: "text",
+      title: "Definition",
+      role: "definition",
+      content:
+        "**Definition:** Eukaryotic cells contain a nucleus and membrane-bound organelles; prokaryotic cells are smaller and lack a nucleus.",
+    },
+    {
+      type: "text",
+      title: "Why it matters",
+      role: "whyItMatters",
+      content:
+        "**Why it matters:** Cell structure questions test whether you can link organelles to their functions in plant and animal cells.",
+    },
+    {
+      type: "keyIdea",
+      title: "Core model",
+      role: "coreRule",
+      content: "Nucleus → cytoplasm → membrane → specialised organelles (e.g. mitochondria, chloroplasts in plant cells).",
+    },
+    {
+      type: "text",
+      title: "Key examples",
+      role: "keyExamples",
+      content: "• Animal cell: nucleus, mitochondria, cell membrane\n• Plant cell: adds cell wall, chloroplasts, large vacuole",
+    },
+    {
+      type: "text",
+      title: "Exam vocabulary",
+      role: "examVocabulary",
+      content: "**Exam vocabulary:** nucleus, cytoplasm, mitochondria, chloroplast, cell membrane, cell wall, organelle",
+    },
+    {
+      type: "text",
+      title: "Scenario",
+      role: "hook",
+      content: "A student views cheek cells and onion cells under a microscope — what structural differences would they expect?",
+    },
+    {
+      type: "text",
+      title: "Core Teaching",
+      role: "concept",
+      content: "Cells are the basic units of life. The nucleus controls activities; cytoplasm is where reactions occur.",
+    },
     {
       type: "commonMistake",
       role: "commonMistake",
