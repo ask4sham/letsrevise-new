@@ -48,9 +48,11 @@ function getValidCellStructureBlocks() {
       prompt: "Explain why plant cells have chloroplasts but animal cells do not. (3 marks)",
       questionType: "short",
       options: [],
-      correctAnswer:
-        "Plant cells carry out photosynthesis to make glucose. Chloroplasts contain chlorophyll and are the site of photosynthesis. Animal cells do not photosynthesise.",
-      explanation: "Full marks for linking structure to function.",
+      correctAnswer: "Plant cells photosynthesise; chloroplasts are the site; animal cells do not photosynthesise.",
+      explanation:
+        "- Plant cells carry out photosynthesis to make glucose.\n" +
+        "- Chloroplasts contain chlorophyll because light energy must be trapped for photosynthesis.\n" +
+        "- Animal cells do not photosynthesise therefore they do not need chloroplasts.",
     },
     {
       type: "keyIdea",
@@ -215,9 +217,11 @@ function getValidHomeostasisTeacherFirstBlocks() {
       prompt: "Explain how the body responds when core temperature rises during exercise. (4 marks)",
       questionType: "short",
       options: [],
-      correctAnswer:
-        "Thermoreceptors detect the rise. The coordination centre triggers sweating and vasodilation. Heat is lost so temperature returns towards the optimum.",
-      explanation: "Award marks for receptor, coordination centre, named effectors and negative feedback.",
+      correctAnswer: "Thermoreceptors detect rise; coordination centre triggers effectors; temperature returns to optimum.",
+      explanation:
+        "- Core temperature rises above the optimum during exercise.\n" +
+        "- Thermoreceptors detect the change because levels move away from the set point.\n" +
+        "- Sweat glands and vasodilation increase heat loss therefore temperature returns towards optimum.",
     },
     {
       type: "keyIdea",

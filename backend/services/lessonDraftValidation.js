@@ -30,24 +30,81 @@ function isRealExamStyleQuestion(text = "") {
 }
 
 /** True if checkpoint has a substantial model answer (bullets and/or long combined answer fields). */
+function workedAnswerBlob(block) {
+  if (!block || typeof block !== "object") return "";
+  return [block.answer, block.explanation, block.correctAnswer]
+    .filter(Boolean)
+    .map(String)
+    .join("\n")
+    .trim();
+}
+
+function topicHaystackFromDraft(draft = {}) {
+  return `${draft.topic || ""} ${draft.subTopic || ""} ${draft.topicKey || ""} ${draft.title || ""}`.toLowerCase();
+}
+
+function isStemCellTopicContext(haystack = "") {
+  return /stem\s+cell/i.test(String(haystack || ""));
+}
+
+function isMedicalTopicContext(haystack = "") {
+  const hay = String(haystack || "").toLowerCase();
+  return (
+    isStemCellTopicContext(hay) ||
+    /\b(medicine|medical|disease|health|drug|antibiotic|vaccin|immune|infection|hospital|therapy|transplant)\b/i.test(
+      hay
+    )
+  );
+}
+
+/** Legacy universal fallback stem — inappropriate outside medical topics. */
+function isFakeMedicineWorkedExampleStem(question = "", haystack = "") {
+  const q = String(question || "").trim();
+  if (!q) return false;
+  if (/explain one important use of .+ in medicine/i.test(q)) {
+    return !isMedicalTopicContext(haystack);
+  }
+  return false;
+}
+
+/** Legacy universal stem-cell model answer — inappropriate outside stem-cell topics. */
+function isFakeStemCellWorkedExampleContent(text = "", haystack = "") {
+  const value = String(text || "").trim();
+  if (!value) return false;
+  if (isStemCellTopicContext(haystack)) return false;
+  return (
+    /differentiate into specialised cells/i.test(value) &&
+    /bone marrow stem cells can be used to treat leukaemia/i.test(value)
+  );
+}
+
+function isPlaceholderWorkedCorrectAnswer(block) {
+  const correctAnswer = safeStr(block?.correctAnswer, "");
+  const explanation = workedAnswerBlob(block);
+  return /^see model answer$/i.test(correctAnswer) && explanation.length < 40;
+}
+
 function hasSubstantialWorkedAnswer(block) {
   if (!block || typeof block !== "object") return false;
 
-  const answerText = [
-    block.answer,
-    block.explanation,
-    block.correctAnswer,
-    Array.isArray(block.options) ? block.options.join(" ") : "",
-  ]
-    .filter(Boolean)
-    .map(String)
-    .join(" ")
-    .trim();
+  if (isPlaceholderWorkedCorrectAnswer(block)) return false;
+
+  const answerText = workedAnswerBlob(block);
 
   const bulletSource = [block.answer, block.explanation, block.correctAnswer].filter(Boolean).join("\n");
   const bulletLikeCount = (bulletSource.match(/(^|\n)\s*[-•*]\s*/g) || []).length;
+  const hasCausal = /because|therefore|so that|this means that|consequently|as a result/i.test(answerText);
 
-  return answerText.length >= 60 || bulletLikeCount >= 2;
+  return (answerText.length >= 60 && hasCausal) || bulletLikeCount >= 3;
+}
+
+function isQualityWorkedExampleBlock(block, haystack = "") {
+  const question = safeStr(block?.prompt, "") || safeStr(block?.question, "");
+  if (!isRealExamStyleQuestion(question)) return false;
+  if (!hasSubstantialWorkedAnswer(block)) return false;
+  if (isFakeMedicineWorkedExampleStem(question, haystack)) return false;
+  if (isFakeStemCellWorkedExampleContent(workedAnswerBlob(block), haystack)) return false;
+  return true;
 }
 
 /** V3: keyIdea looks like punchy bullets or very short lines (not a paragraph dump). */
@@ -746,6 +803,16 @@ function validateLessonStructure(draft, options = {}) {
     if (!hasSubstantialWorkedAnswer(workedExampleBlock)) {
       pushIssue("Worked example must include a substantial model answer");
     }
+    const topicHay = topicHaystackFromDraft(draft);
+    if (isFakeMedicineWorkedExampleStem(workedQuestion, topicHay)) {
+      pushIssue("Worked example must not use generic medicine fallback for this topic");
+    }
+    if (isFakeStemCellWorkedExampleContent(workedAnswerBlob(workedExampleBlock), topicHay)) {
+      pushIssue("Worked example must not use generic stem-cell fallback for this topic");
+    }
+    if (isPlaceholderWorkedCorrectAnswer(workedExampleBlock)) {
+      pushIssue("Worked example must include a real model answer, not placeholder text");
+    }
   }
 
   const checkpointBlocks = blocks.filter((b) => safeStr(b?.type, "") === "checkpoint");
@@ -1146,6 +1213,11 @@ module.exports = {
   validateBlockTypeRequirements,
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,
+  isQualityWorkedExampleBlock,
+  isFakeMedicineWorkedExampleStem,
+  isFakeStemCellWorkedExampleContent,
+  workedAnswerBlob,
+  topicHaystackFromDraft,
   looksLikePunchyKeyIdea,
   looksLikeProperCommonMistake,
   looksLikePracticalExamTip,

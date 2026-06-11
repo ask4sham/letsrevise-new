@@ -9,6 +9,7 @@ const app = require("../app");
 const User = require("../models/User");
 const Lesson = require("../models/Lesson");
 const { getValidCellStructureDraft } = require("./helpers/validAiStructureLessonDraft");
+const { isQualityWorkedExampleBlock } = require("../services/lessonDraftValidation");
 
 jest.mock("axios");
 
@@ -95,7 +96,7 @@ describe("AI generate-and-save: structure (hook, worked example, diagrams, exam 
     const hasWorkedExample = blocks.some(
       (b) =>
         String(b?.role ?? "").trim() === "workedExample" &&
-        [b?.explanation, b?.correctAnswer, b?.prompt, b?.answer].filter(Boolean).map(String).join(" ").length > 30
+        isQualityWorkedExampleBlock(b, `${lesson?.topic || ""} ${lesson?.title || ""}`)
     );
     expect(hasWorkedExample).toBe(true);
 

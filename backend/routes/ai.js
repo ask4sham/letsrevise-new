@@ -49,6 +49,11 @@ const {
   collectV7TeachingAdvisoryNotes,
   isRealExamStyleQuestion,
   hasSubstantialWorkedAnswer,
+  isQualityWorkedExampleBlock,
+  isFakeMedicineWorkedExampleStem,
+  isFakeStemCellWorkedExampleContent,
+  workedAnswerBlob,
+  topicHaystackFromDraft,
   examTipLooksSpecific,
   blockFlowText,
   v6TokenSetForOverlap,
@@ -98,6 +103,7 @@ const {
 const { enforceObjectiveBoundariesOnDraft } = require("../../lib/teacherBrain/objectiveBoundaryEnforcer");
 const { enforceInteractionAuthorityOnDraft } = require("../../lib/teacherBrain/interactionAuthorityEnforcer");
 const { resolveSubTopicProfile } = require("../../lib/teacherBrain/subTopicProfiles");
+const { resolveTeachingQualityProfile } = require("../../lib/teacherBrain/teachingQualityProfiles");
 const {
   createCoverageGateFromLesson,
   createCoverageGenerationGate,
@@ -1837,8 +1843,9 @@ function roleStringEmpty(role) {
  * Assign missing block roles by position / heuristics (tuning aid — real quality still validated later).
  * Mutates draft.pages[].blocks in place.
  */
-function applyRoleFallbacksToLesson(draft) {
+function applyRoleFallbacksToLesson(draft, meta = {}) {
   if (!draft || typeof draft !== "object") return draft;
+  const haystack = topicHaystackFromDraft({ ...meta, ...draft, title: draft.title });
   for (const page of draft.pages || []) {
     const blocks = page.blocks;
     if (!Array.isArray(blocks)) continue;
@@ -1857,9 +1864,8 @@ function applyRoleFallbacksToLesson(draft) {
       (b) => String(b.role || "").trim() === "workedExample"
     );
     if (!hasWorkedExampleRole) {
-      const qText = (b) => safeStr(b?.prompt, "") || safeStr(b?.question, "");
-      const examStyleSubstantial = checkpointBlocks.find(
-        (b) => isRealExamStyleQuestion(qText(b)) && hasSubstantialWorkedAnswer(b)
+      const examStyleSubstantial = checkpointBlocks.find((b) =>
+        isQualityWorkedExampleBlock(b, haystack)
       );
       const workedExampleTarget =
         examStyleSubstantial ||
@@ -2133,6 +2139,179 @@ function ensureProperCommonMistakeBlock(draft, topicHint = "") {
 
 const CHECKPOINT_PLACEHOLDER_PROMPT = /^(which statement is correct\??\s*|choose the correct\??\s*|option [1234]\??\s*|quick check\??\s*)$/i;
 
+/** Topic-pattern fallbacks when no teachingQualityProfile match exists. */
+const WORKED_EXAMPLE_TOPIC_FALLBACKS = [
+  {
+    patterns: [/reflex\s*arc/i, /reflex\s+action/i, /withdrawal\s+reflex/i, /stimulus.?response/i],
+    question: "Describe the pathway of a reflex arc from stimulus to response. (4 marks)",
+    explanation:
+      "- Receptors detect the stimulus in the sense organ.\n" +
+      "- Sensory neurone carries impulses to the CNS because the signal must reach the coordination centre quickly.\n" +
+      "- Motor neurone transmits impulses to the effector therefore the muscle or gland produces a response.\n" +
+      "- The response is rapid because the reflex arc often bypasses conscious processing in the brain.",
+    correctAnswer: "Receptors detect stimulus; sensory neurone to CNS; motor neurone to effector; rapid response.",
+  },
+  {
+    patterns: [/cell[\s-]structure/i, /eukaryot/i, /prokaryot/i, /animal[\s-]and[\s-]plant[\s-]cells/i],
+    question: "Explain why plant cells have chloroplasts but animal cells do not. (3 marks)",
+    explanation:
+      "- Plant cells carry out photosynthesis to make glucose.\n" +
+      "- Chloroplasts contain chlorophyll and are the site of photosynthesis because light energy is trapped there.\n" +
+      "- Animal cells do not photosynthesise therefore they do not need chloroplasts.",
+    correctAnswer: "Plant cells photosynthesise; chloroplasts are the site; animal cells do not photosynthesise.",
+  },
+  {
+    patterns: [/blood\s+glucose/i, /glucose\s+regulation/i, /control\s+of\s+blood\s+glucose/i, /insulin/i, /glucagon/i],
+    question: "Explain how the body responds when blood glucose rises above normal. (4 marks)",
+    explanation:
+      "- Receptors detect high blood glucose because levels move away from the set point.\n" +
+      "- The pancreas releases insulin therefore cells take up more glucose from the blood.\n" +
+      "- Glucose is converted to glycogen in the liver because excess glucose must be stored safely.\n" +
+      "- Blood glucose returns towards normal therefore negative feedback restores the optimum.",
+    correctAnswer: "High glucose detected; insulin released; glucose stored as glycogen; returns to optimum.",
+  },
+  {
+    patterns: [/mitosis/i, /cell\s+cycle/i, /meiosis/i],
+    question: "Describe what happens during mitosis. (4 marks)",
+    explanation:
+      "- DNA replicates before mitosis because each daughter cell needs a full set of chromosomes.\n" +
+      "- Chromosomes line up at the equator of the cell therefore they can be separated equally.\n" +
+      "- Chromatids are pulled to opposite poles because spindle fibres shorten.\n" +
+      "- Two genetically identical daughter cells form therefore growth and repair can occur.",
+    correctAnswer: "DNA replicates; chromosomes line up; chromatids separate; two identical daughter cells.",
+  },
+  {
+    patterns: [/carbon\s+cycle/i, /decomposer/i, /recycling\s+carbon/i],
+    question: "Explain the role of decomposers in the carbon cycle. (4 marks)",
+    explanation:
+      "- Decomposers break down dead organisms and waste because large organic molecules must be recycled.\n" +
+      "- Digestive enzymes release carbon compounds therefore nutrients return to the soil.\n" +
+      "- Respiration by decomposers releases carbon dioxide because carbon is returned to the atmosphere.\n" +
+      "- Carbon dioxide can be used in photosynthesis therefore carbon is cycled between living and non-living parts.",
+    correctAnswer: "Decomposers break down dead matter; release nutrients; respire CO2; carbon returns to atmosphere.",
+  },
+  {
+    patterns: [/stem\s+cell/i],
+    question: "Compare embryonic stem cells and adult stem cells. (4 marks)",
+    explanation:
+      "- Embryonic stem cells can differentiate into almost any cell type, whereas adult stem cells are more limited.\n" +
+      "- Embryonic stem cells come from early embryos because they are unspecialised.\n" +
+      "- Adult stem cells are found in tissues such as bone marrow therefore they repair specific cell types.\n" +
+      "- Embryonic stem cells have greater medical potential however their use raises ethical concerns.",
+    correctAnswer: "Embryonic cells are pluripotent; adult cells are limited; different sources; ethical issues.",
+  },
+];
+
+function workedExampleMetaFromHint(topicHint = "", meta = {}) {
+  const topic = safeStr(topicHint, "") || safeStr(meta.topic, "");
+  return {
+    topic,
+    subTopic: safeStr(meta.subTopic, "") || topic,
+    topicKey: safeStr(meta.topicKey, ""),
+    title: safeStr(meta.title, ""),
+  };
+}
+
+function resolvePrimaryReasoningChain(profile) {
+  const wr = profile?.workedReasoning;
+  if (!wr?.primaryChainId || !Array.isArray(profile?.reasoningChains)) return null;
+  return profile.reasoningChains.find((c) => c.id === wr.primaryChainId) || null;
+}
+
+function markingBulletsFromReasoningChain(chain, minPoints = 3) {
+  const steps = (chain?.steps || []).filter(Boolean);
+  if (steps.length < minPoints) return "";
+  const connectors = ["because", "therefore", "so that"];
+  return steps
+    .slice(0, Math.max(minPoints, 4))
+    .map((step, i) => {
+      const clean = String(step).replace(/\.$/, "").trim();
+      if (i === 0) return `- ${clean}.`;
+      const conn = connectors[(i - 1) % connectors.length];
+      return `- ${clean.charAt(0).toLowerCase()}${clean.slice(1)}, ${conn} the process continues.`;
+    })
+    .join("\n");
+}
+
+function firstMarkingPointFromExplanation(explanation = "", fallback = "") {
+  const line = String(explanation || "")
+    .split("\n")
+    .map((l) => l.replace(/^[-•*]\s*/, "").trim())
+    .find(Boolean);
+  return line || fallback;
+}
+
+function genericWorkedExampleFallback(safeTopic) {
+  const topic = safeStr(safeTopic, "this topic") || "this topic";
+  return {
+    question: `Explain one important process in ${topic}. (3 marks)`,
+    explanation:
+      `- Identify the main structure or process in ${topic}.\n` +
+      `- Explain how it works because examiners award marks for linked steps, not just naming parts.\n` +
+      `- Link mechanism to function in ${topic} therefore your answer shows understanding.`,
+    correctAnswer: "Name the process, explain the mechanism, link to function.",
+  };
+}
+
+/**
+ * Topic-aware GCSE worked-example fallback (profiles first, then pattern table, then generic).
+ */
+function resolveWorkedExampleFallback(meta = {}) {
+  const profile = resolveTeachingQualityProfile(meta);
+  if (profile?.workedReasoning?.defaultExamStem) {
+    const chain = resolvePrimaryReasoningChain(profile);
+    let explanation = markingBulletsFromReasoningChain(chain, profile.workedReasoning.minSteps || 4);
+    if (!explanation) {
+      const modelEx = safeStr(profile.examinerLanguageV2?.modelAnswerExample, "");
+      if (modelEx) {
+        explanation = modelEx
+          .split(/(?<=[.!?])\s+/)
+          .filter(Boolean)
+          .slice(0, 4)
+          .map((sentence, i) => {
+            if (i === 0) return `- ${sentence.trim()}`;
+            const conn = i === 1 ? "because" : "therefore";
+            return `- ${sentence.trim()} ${conn} this links to the next marking point.`;
+          })
+          .join("\n");
+      }
+    }
+    const question = profile.workedReasoning.defaultExamStem;
+    return {
+      question,
+      explanation,
+      correctAnswer: firstMarkingPointFromExplanation(explanation, question.slice(0, 120)),
+    };
+  }
+
+  const hay = `${meta.topic || ""} ${meta.subTopic || ""} ${meta.topicKey || ""} ${meta.title || ""}`;
+  for (const entry of WORKED_EXAMPLE_TOPIC_FALLBACKS) {
+    if (entry.patterns.some((rx) => rx.test(hay))) {
+      return {
+        question: entry.question,
+        explanation: entry.explanation,
+        correctAnswer: entry.correctAnswer,
+      };
+    }
+  }
+
+  return genericWorkedExampleFallback(meta.topic || meta.subTopic || "this topic");
+}
+
+function workedExampleNeedsReplacement(block, haystack = "") {
+  if (!block) return true;
+  if (isQualityWorkedExampleBlock(block, haystack)) return false;
+  const question = safeStr(block.prompt, "") || safeStr(block.question, "");
+  const answerText = workedAnswerBlob(block);
+  return (
+    !question ||
+    !hasSubstantialWorkedAnswer(block) ||
+    isFakeMedicineWorkedExampleStem(question, haystack) ||
+    isFakeStemCellWorkedExampleContent(answerText, haystack) ||
+    /^see model answer$/i.test(safeStr(block.correctAnswer, ""))
+  );
+}
+
 /** Upgrade placeholder / too-short checkpoint prompts so per-checkpoint structure validation passes. */
 function upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, workedBlock) {
   for (const b of checkpoints) {
@@ -2151,37 +2330,39 @@ function upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, workedBlock) {
   }
 }
 
-const WORKED_EXAMPLE_DEFAULT_QUESTION = (safeTopic) =>
-  `Explain one important use of ${safeTopic} in medicine (3 marks).`;
-
-const WORKED_EXAMPLE_DEFAULT_ANSWER =
-  "- Stem cells can differentiate into specialised cells.\n" +
-  "- This means they can replace damaged or diseased cells.\n" +
-  "- Example: bone marrow stem cells can be used to treat leukaemia.";
-
-/** Fill question / prompt / answer / explanation / correctAnswer on workedExample checkpoints (sanitized shape). */
-function syncWorkedExampleFields(b, safeTopic) {
+/** Fill question / prompt / explanation / correctAnswer on workedExample checkpoints (sanitized shape). */
+function syncWorkedExampleFields(b, safeTopic, meta = {}) {
   if (!b || b.type !== "checkpoint" || safeStr(b.role, "") !== "workedExample") return;
 
-  const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
-  const defaultAns = WORKED_EXAMPLE_DEFAULT_ANSWER;
+  const fullMeta = workedExampleMetaFromHint(safeTopic, meta);
+  const haystack = `${fullMeta.topic} ${fullMeta.subTopic} ${fullMeta.topicKey} ${fullMeta.title}`.toLowerCase();
+  const fallback = resolveWorkedExampleFallback(fullMeta);
+
+  if (workedExampleNeedsReplacement(b, haystack)) {
+    b.question = fallback.question;
+    b.prompt = fallback.question;
+    b.explanation = fallback.explanation;
+    b.correctAnswer = fallback.correctAnswer;
+    return;
+  }
 
   if (!safeStr(b.question, "")) {
-    b.question = safeStr(b.prompt, "") || defaultQ;
+    b.question = safeStr(b.prompt, "") || fallback.question;
   }
   if (!safeStr(b.prompt, "")) {
     b.prompt = b.question;
   }
-  if (!safeStr(b.answer, "") && !safeStr(b.explanation, "")) {
-    b.answer = defaultAns;
-    b.explanation = defaultAns;
-  } else if (!safeStr(b.answer, "")) {
-    b.answer = safeStr(b.explanation, "");
-  } else if (!safeStr(b.explanation, "")) {
-    b.explanation = safeStr(b.answer, "");
+  if (!safeStr(b.explanation, "")) {
+    b.explanation = safeStr(b.answer, "") || fallback.explanation;
   }
-  if (!safeStr(b.correctAnswer, "")) {
-    b.correctAnswer = "See model answer";
+  if (
+    !safeStr(b.correctAnswer, "") ||
+    /^see model answer$/i.test(safeStr(b.correctAnswer, ""))
+  ) {
+    b.correctAnswer = firstMarkingPointFromExplanation(
+      safeStr(b.explanation, ""),
+      fallback.correctAnswer
+    );
   }
 }
 
@@ -2189,12 +2370,13 @@ function syncWorkedExampleFields(b, safeTopic) {
  * Ensure one checkpoint is a valid worked example (exam-style question + substantial bullet answer).
  * Mutates draft.pages[].blocks. Uses sanitized checkpoint shape (prompt, questionType, options, correctAnswer, explanation).
  */
-function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
+function ensureWorkedExampleCheckpoint(draft, topicHint = "", meta = {}) {
   if (!draft || typeof draft !== "object") return draft;
 
   const safeTopic = safeStr(topicHint, "this topic").trim() || "this topic";
-  const defaultQ = WORKED_EXAMPLE_DEFAULT_QUESTION(safeTopic);
-  const modelBullets = WORKED_EXAMPLE_DEFAULT_ANSWER;
+  const fullMeta = workedExampleMetaFromHint(safeTopic, meta);
+  const haystack = `${fullMeta.topic} ${fullMeta.subTopic} ${fullMeta.topicKey} ${fullMeta.title}`.toLowerCase();
+  const fallback = resolveWorkedExampleFallback(fullMeta);
 
   for (const page of draft.pages || []) {
     const blocks = page.blocks;
@@ -2202,11 +2384,7 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
 
     const checkpoints = blocks.filter((b) => b.type === "checkpoint");
 
-    const existingGood = checkpoints.find(
-      (b) =>
-        isRealExamStyleQuestion(safeStr(b.prompt, "") || safeStr(b.question, "")) &&
-        hasSubstantialWorkedAnswer(b)
-    );
+    const existingGood = checkpoints.find((b) => isQualityWorkedExampleBlock(b, haystack));
 
     if (existingGood) {
       existingGood.role = "workedExample";
@@ -2226,7 +2404,7 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
         }
       }
       upgradeWeakNonWorkedCheckpoints(checkpoints, safeTopic, existingGood);
-      syncWorkedExampleFields(existingGood, safeTopic);
+      syncWorkedExampleFields(existingGood, safeTopic, fullMeta);
       continue;
     }
 
@@ -2251,25 +2429,24 @@ function ensureWorkedExampleCheckpoint(draft, topicHint = "") {
     }
 
     target.role = "workedExample";
-    target.question = defaultQ;
-    target.prompt = defaultQ;
-    target.answer = modelBullets;
-    target.explanation = modelBullets;
+    target.question = fallback.question;
+    target.prompt = fallback.question;
+    target.explanation = fallback.explanation;
     target.questionType = "short";
     target.options = [];
-    target.correctAnswer = "See model answer";
+    target.correctAnswer = fallback.correctAnswer;
     upgradeWeakNonWorkedCheckpoints(
       blocks.filter((b) => b.type === "checkpoint"),
       safeTopic,
       target
     );
-    syncWorkedExampleFields(target, safeTopic);
+    syncWorkedExampleFields(target, safeTopic, fullMeta);
   }
 
   for (const page of draft.pages || []) {
     for (const b of page.blocks || []) {
       if (b?.type === "checkpoint" && safeStr(b.role, "") === "workedExample") {
-        syncWorkedExampleFields(b, safeTopic);
+        syncWorkedExampleFields(b, safeTopic, fullMeta);
       }
     }
   }
@@ -2717,19 +2894,19 @@ function ensureMinimumBlockCount(draft, topicHint = "", minCount = 10) {
 /**
  * V6 merge/trim runs after the first ensure-* pass; re-apply structure so validation can pass.
  */
-function repairLessonStructureAfterCompression(draft, topicHint = "") {
+function repairLessonStructureAfterCompression(draft, topicHint = "", meta = {}) {
   if (!draft || typeof draft !== "object") return draft;
 
-  applyRoleFallbacksToLesson(draft);
+  applyRoleFallbacksToLesson(draft, meta);
   ensureMinimumDiagramBlocks(draft);
   ensureWhatToNoticeBlocks(draft, topicHint);
   ensureProperCommonMistakeBlock(draft, topicHint);
   ensurePatternRecognitionBlock(draft, topicHint);
-  ensureWorkedExampleCheckpoint(draft, topicHint);
+  ensureWorkedExampleCheckpoint(draft, topicHint, meta);
   ensureFinalMemoryRuleBlock(draft, topicHint);
   dedupeNearDuplicateKeyIdeasOnPage(draft);
   ensureSynthesisRole(draft, topicHint);
-  applyRoleFallbacksToLesson(draft);
+  applyRoleFallbacksToLesson(draft, meta);
   ensureMinimumBlockCount(draft, topicHint, 10);
   ensurePatternRecognitionBlock(draft, topicHint);
 
@@ -3385,9 +3562,11 @@ function strengthenExamAnswers(draft, topicHint = "") {
 
       block.question = q;
       block.prompt = q;
-      block.answer = model;
       block.explanation = model;
-      block.correctAnswer = "See model answer";
+      block.correctAnswer = firstMarkingPointFromExplanation(
+        model,
+        "Embryonic stem cells can become almost any cell type."
+      );
       block.questionType = "short";
       if (Array.isArray(block.options)) block.options = [];
     }
@@ -4961,11 +5140,18 @@ function sanitizeDraft(draft, opts = {}) {
     ];
   }
 
-  applyRoleFallbacksToLesson(clean);
+  applyRoleFallbacksToLesson(clean, {
+    topic,
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
   ensureMinimumDiagramBlocks(clean);
   ensureWhatToNoticeBlocks(clean, topic);
   ensureProperCommonMistakeBlock(clean, topic);
-  ensureWorkedExampleCheckpoint(clean, topic);
+  ensureWorkedExampleCheckpoint(clean, topic, {
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
   ensureFinalMemoryRuleBlock(clean, topic);
   dedupeNearDuplicateKeyIdeasOnPage(clean);
   ensureSpecificExamTipBlock(clean, topic);
@@ -4991,7 +5177,10 @@ function sanitizeDraft(draft, opts = {}) {
     }
   }
 
-  repairLessonStructureAfterCompression(clean, topic);
+  repairLessonStructureAfterCompression(clean, topic, {
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
   ensureSpecificExamTipBlock(clean, topic);
 
   applyV7TeachingPresentationLayer(clean, topic);
@@ -7860,3 +8049,5 @@ router.get("/health", (req, res) => {
 
 module.exports = router;
 module.exports.stripV8AuthoringTags = stripV8AuthoringTags;
+module.exports.resolveWorkedExampleFallback = resolveWorkedExampleFallback;
+module.exports.ensureWorkedExampleCheckpoint = ensureWorkedExampleCheckpoint;
