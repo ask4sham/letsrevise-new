@@ -15,8 +15,14 @@ const {
   HOMEOSTASIS_OPENING,
   NERVOUS_SYSTEM_STRUCTURE_OPENING,
   THE_EYE_OPENING,
+  REFLEX_ARC_OPENING,
+  CELL_STRUCTURE_OPENING,
+  CONTROL_BLOOD_GLUCOSE_OPENING,
+  MITOSIS_CELL_CYCLE_OPENING,
+  HOW_MATERIALS_CYCLED_OPENING,
   SUBJECT_TEACHING_PROFILES,
   resolveSubjectTeachingProfile,
+  resolveTeacherFirstKnowledgeProfile,
 } = require("../lib/teacherBrain/teacherFirstKnowledgeProfiles");
 
 describe("teacherFirstKnowledgeEngine (Phase 3H.1)", () => {
@@ -183,6 +189,69 @@ describe("teacherFirstKnowledgeEngine (Phase 3H.1)", () => {
     expect(plan.usesUniversalFrameworkOnly).toBe(true);
     expect(plan.subjectProfile?.implemented).toBe(false);
     expect(plan.definition).toBe("");
+  });
+
+  test.each([
+    {
+      topicKey: "aqa-gcse-biology:reflex-arc",
+      subTopic: "The reflex arc",
+      profile: REFLEX_ARC_OPENING,
+      definitionMatch: /automatic response/i,
+    },
+    {
+      topicKey: "aqa-gcse-biology:cell-structure",
+      subTopic: "Cell structure",
+      profile: CELL_STRUCTURE_OPENING,
+      definitionMatch: /parts of cells/i,
+    },
+    {
+      topicKey: "aqa-gcse-biology:control-blood-glucose",
+      subTopic: "Control of blood glucose concentration",
+      profile: CONTROL_BLOOD_GLUCOSE_OPENING,
+      definitionMatch: /glucose concentration/i,
+    },
+    {
+      topicKey: "aqa-gcse-biology:mitosis-cell-cycle",
+      subTopic: "Mitosis and the cell cycle",
+      profile: MITOSIS_CELL_CYCLE_OPENING,
+      definitionMatch: /genetically identical/i,
+    },
+    {
+      topicKey: "aqa-gcse-biology:how-materials-cycled",
+      subTopic: "How materials are cycled",
+      profile: HOW_MATERIALS_CYCLED_OPENING,
+      definitionMatch: /carbon cycle/i,
+    },
+  ])(
+    "layer 2 profile resolves for $topicKey",
+    ({ topicKey, subTopic, profile, definitionMatch }) => {
+      expect(
+        resolveTeacherFirstKnowledgeProfile({ topicKey, subTopic, subject: "Biology" })
+      ).toBe(profile);
+
+      process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+      const plan = buildTeacherFirstOpeningPlan({
+        topicKey,
+        subTopic,
+        topic: subTopic,
+        subject: "Biology",
+      });
+      expect(plan.enabled).toBe(true);
+      expect(plan.usesUniversalFrameworkOnly).toBe(false);
+      expect(plan.topicProfile?.taxonomyKey).toBe(profile.taxonomyKey);
+      expect(plan.definition).toMatch(definitionMatch);
+      expect(plan.coreModel.length).toBeGreaterThan(10);
+    }
+  );
+
+  test("blood glucose resolves to dedicated profile not homeostasis", () => {
+    const profile = resolveTeacherFirstKnowledgeProfile({
+      topicKey: "aqa-gcse-biology:control-blood-glucose",
+      subTopic: "Control of blood glucose concentration",
+      subject: "Biology",
+    });
+    expect(profile?.taxonomyKey).toBe("control-blood-glucose");
+    expect(profile?.taxonomyKey).not.toBe("homeostasis");
   });
 
   test("blockHasScenarioOpening detects imagine openings", () => {

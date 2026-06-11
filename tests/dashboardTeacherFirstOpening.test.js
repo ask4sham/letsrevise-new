@@ -303,12 +303,12 @@ describe("dashboardTeacherFirstOpening placeholder remediation (Phase 3b.3f.3B)"
   test("unprofiled topic keeps generic fallbacks", () => {
     const draft = hookFirstDraft();
     enforceDashboardTeacherFirstOpening(draft, {
-      topic: "The Carbon Cycle",
-      topicKey: "aqa-gcse-biology:carbon-cycle",
+      topic: "Photosynthesis",
+      topicKey: "aqa-gcse-biology:photosynthesis",
       subject: "Biology",
     });
 
-    expect(draft.pages[0].blocks[0].content).toMatch(/state the definition of the carbon cycle/i);
+    expect(draft.pages[0].blocks[0].content).toMatch(/state the definition of photosynthesis/i);
     expect(draft.pages[0].blocks[1].content).toMatch(/how organisms detect and respond to changes/i);
   });
 
@@ -327,6 +327,31 @@ describe("dashboardTeacherFirstOpening placeholder remediation (Phase 3b.3f.3B)"
       label: "The Eye",
       topicKey: "aqa-gcse-biology:the-eye",
       definitionMatch: /detects light/i,
+    },
+    {
+      label: "The reflex arc",
+      topicKey: "aqa-gcse-biology:reflex-arc",
+      definitionMatch: /automatic response/i,
+    },
+    {
+      label: "Cell structure",
+      topicKey: "aqa-gcse-biology:cell-structure",
+      definitionMatch: /parts of cells/i,
+    },
+    {
+      label: "Control of blood glucose concentration",
+      topicKey: "aqa-gcse-biology:control-blood-glucose",
+      definitionMatch: /glucose concentration/i,
+    },
+    {
+      label: "Mitosis and the cell cycle",
+      topicKey: "aqa-gcse-biology:mitosis-cell-cycle",
+      definitionMatch: /genetically identical/i,
+    },
+    {
+      label: "How materials are cycled",
+      topicKey: "aqa-gcse-biology:how-materials-cycled",
+      definitionMatch: /carbon cycle/i,
     },
   ];
 
