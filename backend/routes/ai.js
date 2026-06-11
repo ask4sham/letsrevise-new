@@ -87,6 +87,10 @@ const {
   enforceRequiredPracticalLessonStructure,
 } = require("../../lib/teacherBrain/dashboardTeacherFirstOpening");
 const {
+  buildTeacherFirstOpeningPlan,
+  formatTeacherFirstOpeningAppendix,
+} = require("../../lib/teacherBrain/teacherFirstKnowledgeEngine");
+const {
   isRequiredPracticalMode,
   buildRequiredPracticalDashboardLessonContract,
 } = require("../../lib/teacherBrain/requiredPracticalMode");
@@ -1176,6 +1180,22 @@ function buildSystemPrompt(subject, level, referencePromptSection = "") {
   return ref ? `${base}\n\n${ref}` : base;
 }
 
+/** Layer 2 opening appendix for dashboard Teacher-First (non-RP) prompt wiring — Phase 3b.3f.5B. */
+function buildTeacherFirstLayer2OpeningAppendix(ctx = {}) {
+  if (!isDashboardTeacherFirstEnabled() || isRequiredPracticalMode(ctx)) {
+    return "";
+  }
+  const appendix = formatTeacherFirstOpeningAppendix(
+    buildTeacherFirstOpeningPlan({
+      topic: ctx.topic,
+      subTopic: ctx.subTopic || ctx.topic,
+      topicKey: ctx.topicKey,
+      subject: ctx.subject,
+    })
+  );
+  return appendix ? `\n\n${appendix}\n` : "";
+}
+
 function buildUserPromptFromMd({
   topic,
   subject,
@@ -1263,7 +1283,7 @@ You must still deliver the full lesson skeleton:
 - Final memory rule (keyIdea closing memory rule)
 
 Use block roles where the output allows: lessonObjectives, priorKnowledge, definition, whyItMatters, coreModel, keyExamples, examVocabulary, hook (Scenario only at block 8), concept, commonMistake, patternRecognition, workedExample, synthesis, finalMemoryRule, whatToNotice (in addition to titles).
-${buildDashboardTeacherFirstPromptSection(dashboardCtx)}
+${buildDashboardTeacherFirstPromptSection(dashboardCtx)}${buildTeacherFirstLayer2OpeningAppendix({ ...dashboardCtx, subject })}
 ` + LESSON_BLOCK_FULL_KEYS_INSTRUCTION + LESSON_TEACHING_AND_STYLE_LOCKED;
     }
   } else {
@@ -8004,3 +8024,5 @@ module.exports.stripV8AuthoringTags = stripV8AuthoringTags;
 module.exports.resolveWorkedExampleFallback = resolveWorkedExampleFallback;
 module.exports.ensureWorkedExampleCheckpoint = ensureWorkedExampleCheckpoint;
 module.exports.sanitizeDraftForTest = sanitizeDraft;
+module.exports.buildUserPromptFromMdForTest = buildUserPromptFromMd;
+module.exports.buildTeacherFirstLayer2OpeningAppendixForTest = buildTeacherFirstLayer2OpeningAppendix;
