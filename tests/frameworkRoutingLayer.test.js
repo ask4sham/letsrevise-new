@@ -9,12 +9,14 @@ const {
   FRAMEWORK_ROUTING_TABLE,
   FRAMEWORK_ROUTING_KEYS,
   FRAMEWORK_ROUTING_APPENDIX_MARKER,
+  FRAMEWORK_TEACHING_MOVES,
   isFrameworkRoutingEnabled,
   buildFrameworkRoutingPlan,
   resolveFrameworkRouting,
   resolveFrameworkRoutingFromClassification,
   listFrameworkRoutingDefinitions,
   formatFrameworkRoutingAppendix,
+  formatTeachingMovesSection,
   buildFrameworkRoutingPromptSection,
 } = require("../lib/teacherBrain/frameworkRoutingLayer");
 
@@ -85,8 +87,14 @@ describe("Phase 5B — frameworkRoutingLayer", () => {
     expect(rows.map((r) => r.framework).sort()).toEqual([...FRAMEWORK_ROUTING_KEYS].sort());
   });
 
-  test("routing version is locked for Phase 5B.3", () => {
-    expect(FRAMEWORK_ROUTING_VERSION).toBe("5B.3");
+  test("routing version is locked for Phase 5B.3c", () => {
+    expect(FRAMEWORK_ROUTING_VERSION).toBe("5B.3c");
+  });
+
+  test("every routed framework has mandatory teaching moves", () => {
+    for (const key of FRAMEWORK_ROUTING_KEYS) {
+      expect(FRAMEWORK_TEACHING_MOVES[key]?.length).toBeGreaterThanOrEqual(5);
+    }
   });
 
   test("formatFrameworkRoutingAppendix — signal_pathway sample", () => {
@@ -99,11 +107,35 @@ describe("Phase 5B — frameworkRoutingLayer", () => {
     expect(appendix).toContain("PATHWAY_FIRST");
     expect(appendix).toContain("TEACHING PATTERN:");
     expect(appendix).toContain("FOLLOW_THE_SIGNAL");
+    expect(appendix).toContain("MANDATORY TEACHING MOVES");
+    expect(appendix).toContain("1. Identify stimulus and receptor location.");
     expect(appendix).toContain("VISUAL PATTERN:");
     expect(appendix).toContain("SIGNAL_FLOW_MAP");
     expect(appendix).toContain("REASONING PATTERN:");
     expect(appendix).toContain("STEP_BY_STEP_CAUSAL");
     expect(appendix).toMatch(/Do NOT change the mandated Teacher-First block order/i);
+  });
+
+  test("formatFrameworkRoutingAppendix — cellular_sequence includes stage moves", () => {
+    const appendix = formatFrameworkRoutingAppendix(buildFrameworkRoutingPlan("cellular_sequence"));
+    expect(appendix).toContain("STAGE_BY_STAGE");
+    expect(appendix).toContain("interphase → PMAT → cytokinesis");
+    expect(appendix).toContain("mitosis vs meiosis");
+  });
+
+  test("formatFrameworkRoutingAppendix — feedback_loop includes set-point moves", () => {
+    const appendix = formatFrameworkRoutingAppendix(buildFrameworkRoutingPlan("feedback_loop"));
+    expect(appendix).toContain("set point");
+    expect(appendix).toContain("negative-feedback");
+  });
+
+  test("formatFrameworkRoutingAppendix — practical_method defers to RP shell", () => {
+    const appendix = formatFrameworkRoutingAppendix(buildFrameworkRoutingPlan("practical_method"));
+    expect(appendix).toMatch(/RP V2\.2 specialist shell/i);
+  });
+
+  test("formatTeachingMovesSection returns empty for unknown framework", () => {
+    expect(formatTeachingMovesSection("molecular_process")).toBe("");
   });
 
   test("buildFrameworkRoutingPromptSection returns empty when flag OFF", () => {
