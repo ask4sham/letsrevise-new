@@ -1,6 +1,6 @@
 # Framework classification — AQA GCSE Biology (curriculum audit)
 
-**Generated:** 2026-06-02T12:46:32.888Z
+**Generated:** 2026-06-11T08:43:26.500Z
 **Source:** `backend/config/aqa_gcse_biology_topics.json`
 **Classifier:** `backend/services/topicFrameworkClassification.js` (read-only telemetry)
 
@@ -25,10 +25,10 @@
 | application_comparison | 6 |
 | signal_pathway | 5 |
 | feedback_loop | 5 |
+| cellular_sequence | 4 |
 | comparison | 3 |
-| cellular_sequence | 3 |
-| cycle_pathway | 3 |
 | sequence_pathway | 2 |
+| cycle_pathway | 2 |
 | inheritance_model | 1 |
 | data_interpretation | 1 |
 
@@ -45,7 +45,7 @@
 | Cell Biology | Required Practical: Microscopy | practical_method | practical_method_flow | high | cell_biology_practical_keywords |
 | Cell Biology | Cell Division | cellular_sequence | cellular_stage_sequence | high | cellular_sequence_keywords |
 | Cell Biology | Chromosomes | structure_function | structure_label_map | high | cell_biology_structure_keywords |
-| Cell Biology | Mitosis and the cell cycle | cycle_pathway | cycle_system_map | high | cycle_keywords |
+| Cell Biology | Mitosis and the cell cycle | cellular_sequence | cellular_stage_sequence | high | cellular_sequence_keywords |
 | Cell Biology | Stem cells | cause_effect | cause_effect_chain_map | high | cell_biology_cause_effect_keywords |
 | Cell Biology | Transport in Cells | molecular_process | molecular_process_map | high | cell_biology_transport_keywords |
 | Cell Biology | Diffusion | molecular_process | molecular_process_map | high | molecular_process_keywords |

@@ -272,6 +272,39 @@ describe("topic framework classifier", () => {
     });
   });
 
+  describe("Phase 5B.3b — mitosis / cell cycle precedence", () => {
+    test.each([
+      ["Mitosis", "cellular_sequence", "cellular_stage_sequence", "cellular_sequence_keywords"],
+      ["Cell Cycle", "cellular_sequence", "cellular_stage_sequence", "cellular_sequence_keywords"],
+      [
+        "Mitosis and the cell cycle",
+        "cellular_sequence",
+        "cellular_stage_sequence",
+        "cellular_sequence_keywords",
+      ],
+      ["Cell Division", "cellular_sequence", "cellular_stage_sequence", "cellular_sequence_keywords"],
+      ["Meiosis", "cellular_sequence", "cellular_stage_sequence", "cellular_sequence_keywords"],
+      ["Carbon cycle", "cycle_pathway", "cycle_system_map", "cycle_keywords"],
+      ["Nitrogen cycle", "cycle_pathway", "cycle_system_map", "cycle_keywords"],
+      ["Water cycle", "cycle_pathway", "cycle_system_map", "cycle_keywords"],
+    ])("%s -> %s (%s)", (topic, framework, visualModel, matchedBy) => {
+      const result = classifyTopicFramework({ topic, subject: "Biology" });
+      expect(result.framework).toBe(framework);
+      expect(result.visualModel).toBe(visualModel);
+      expect(result.matchedBy).toBe(matchedBy);
+    });
+
+    test("curriculum leaf mitosis-cell-cycle classifies as cellular_sequence", () => {
+      const result = classifyTopicFramework({
+        topic: "Mitosis and the cell cycle",
+        topicKey: "aqa-gcse-biology:mitosis-cell-cycle",
+        subject: "Biology",
+      });
+      expect(result.framework).toBe("cellular_sequence");
+      expect(result.matchedBy).toBe("cellular_sequence_keywords");
+    });
+  });
+
   describe("Cell Biology unit", () => {
     test.each([
       [

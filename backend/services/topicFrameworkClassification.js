@@ -537,19 +537,20 @@ function classifyTopicFramework(input = {}) {
     return out;
   }
 
-  if (/(carbon cycle|nitrogen cycle|water cycle|sulfur cycle|^carbon-cycle$|cycle)/i.test(hay)) {
-    out.framework = "cycle_pathway";
-    out.visualModel = "cycle_system_map";
-    out.confidence = "high";
-    out.matchedBy = "cycle_keywords";
-    return out;
-  }
-
+  // Cellular division sequences before biogeochemical cycle names — "cell cycle" must not match bare "cycle".
   if (/(mitosis|meiosis|cell cycle|cell division)/i.test(hay)) {
     out.framework = "cellular_sequence";
     out.visualModel = "cellular_stage_sequence";
     out.confidence = "high";
     out.matchedBy = "cellular_sequence_keywords";
+    return out;
+  }
+
+  if (/(carbon cycle|nitrogen cycle|water cycle|sulfur cycle|carbon-cycle|nitrogen-cycle|water-cycle|sulfur-cycle)/i.test(hay)) {
+    out.framework = "cycle_pathway";
+    out.visualModel = "cycle_system_map";
+    out.confidence = "high";
+    out.matchedBy = "cycle_keywords";
     return out;
   }
 
