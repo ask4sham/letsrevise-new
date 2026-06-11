@@ -5,9 +5,11 @@
 
 const {
   ensureMinimumDiagramBlocks,
+  ensureDiagramCountBeforeStructureValidation,
   ensureTopicSpecificWhatToNoticeBlocks,
   buildTopicAwareWhatToNotice,
   resolveTopicDiagramLabel,
+  sanitizeDraftForTest,
 } = require("../routes/ai");
 const {
   validateLessonStructure,
@@ -213,5 +215,176 @@ describe("resolveTopicDiagramLabel", () => {
         topicKey: "aqa-gcse-biology:mitosis-cell-cycle",
       }).title
     ).toBe("Stages of Mitosis");
+  });
+});
+
+describe("diagram ensure after Teacher-First (Phase 3b.3f.8D)", () => {
+  const { enforceDashboardTeacherFirstOpening } = require("../../lib/teacherBrain/dashboardTeacherFirstOpening");
+  const prevFlag = process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING;
+
+  beforeAll(() => {
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+  });
+
+  afterAll(() => {
+    if (prevFlag === undefined) delete process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING;
+    else process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = prevFlag;
+  });
+
+  function sparseLessonDraft(topic, topicKey) {
+    return {
+      title: topic,
+      topic,
+      pages: [
+        {
+          title: "Page 1",
+          order: 1,
+          blocks: [
+            { type: "text", role: "hook", content: `Hook about ${topic}.` },
+            { type: "text", role: "lessonObjectives", content: "Objectives list." },
+            { type: "text", role: "priorKnowledge", content: "Prior knowledge recap." },
+            { type: "text", role: "definition", content: `${topic} GCSE definition.` },
+            { type: "text", role: "whyItMatters", content: `Why ${topic} matters.` },
+            { type: "keyIdea", role: "coreRule", content: "Core model content." },
+            { type: "text", role: "keyExamples", content: "Example one." },
+            { type: "text", role: "examVocabulary", content: "Key terms." },
+            { type: "text", role: "hook", content: "Scenario block." },
+            { type: "text", role: "concept", content: "Core teaching." },
+            { type: "commonMistake", role: "commonMistake", content: "Wrong: x\nCorrect: y" },
+            { type: "keyIdea", role: "patternRecognition", content: "Pattern recognition." },
+            { type: "diagram", role: "concept", title: "Only diagram", content: "d1", caption: "d1" },
+            {
+              type: "keyIdea",
+              role: "whatToNotice",
+              title: "What to Notice",
+              content: "- Focus on the labelled parts or key features",
+            },
+            { type: "keyIdea", role: "synthesis", content: "Synthesis line." },
+            { type: "keyIdea", role: "finalMemoryRule", content: `Remember ${topic}.` },
+            {
+              type: "checkpoint",
+              role: "workedExample",
+              prompt: "Explain. (4 marks)",
+              questionType: "short",
+              options: [],
+              correctAnswer: "Point one.",
+              explanation: "- Point one.\n- Point two.\n- Point three.",
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  test.each(BENCHMARK_TOPICS)(
+    "$label — post-Teacher-First ensure restores diagram count to ≥2",
+    ({ topic, topicKey }) => {
+      const draft = sparseLessonDraft(topic, topicKey);
+      const ctx = { topic, topicKey, subTopic: topic, subject: "Biology" };
+
+      enforceDashboardTeacherFirstOpening(draft, ctx);
+      expect(diagramCount(draft)).toBeLessThan(2);
+
+      ensureMinimumDiagramBlocks(draft, topic, ctx);
+      ensureTopicSpecificWhatToNoticeBlocks(draft, topic, ctx);
+
+      expect(diagramCount(draft)).toBeGreaterThanOrEqual(2);
+      const issues = mergeStructureValidationForScoring(validateLessonStructure(draft, { isManual: false }));
+      expect(issues).not.toContain("Not enough diagrams");
+
+      const wtn = draft.pages[0].blocks.find((b) => /what to notice/i.test(String(b.title || "")));
+      expect(wtn).toBeTruthy();
+      expect(whatToNoticeLooksSpecific(wtn, draft)).toBe(true);
+    }
+  );
+
+  test("pre-Teacher-First diagram ensure is not sufficient when reshuffle leaves <2", () => {
+    const topic = "Cell structure";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:cell-structure",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = sparseLessonDraft(topic, ctx.topicKey);
+
+    ensureMinimumDiagramBlocks(draft, topic, ctx);
+    expect(diagramCount(draft)).toBe(2);
+
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+    const afterOpeningOnly = diagramCount(draft);
+
+    ensureMinimumDiagramBlocks(draft, topic, ctx);
+    expect(diagramCount(draft)).toBeGreaterThanOrEqual(2);
+    if (afterOpeningOnly < 2) {
+      expect(diagramCount(draft)).toBeGreaterThan(afterOpeningOnly);
+    }
+  });
+
+  test("ensureDiagramCountBeforeStructureValidation clears diagram failure on pre-validation draft", () => {
+    const topic = "Mitosis and the cell cycle";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:mitosis-cell-cycle",
+      subTopic: topic,
+    };
+    const draft = sparseLessonDraft(topic, ctx.topicKey);
+
+    enforceDashboardTeacherFirstOpening(draft, { ...ctx, subject: "Biology" });
+    expect(diagramCount(draft)).toBeLessThan(2);
+
+    ensureDiagramCountBeforeStructureValidation(draft, topic, ctx);
+
+    const issues = mergeStructureValidationForScoring(validateLessonStructure(draft, { isManual: false }));
+    expect(issues).not.toContain("Not enough diagrams");
+    expect(diagramCount(draft)).toBeGreaterThanOrEqual(2);
+  });
+
+  test("preserves two existing diagrams without adding a third after Teacher-First", () => {
+    const topic = "The reflex arc";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:reflex-arc",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = sparseLessonDraft(topic, ctx.topicKey);
+    draft.pages[0].blocks.splice(14, 0, {
+      type: "diagram",
+      role: "concept",
+      title: "Second existing",
+      content: "d2",
+      caption: "Second caption",
+    });
+
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+    const originals = draft.pages[0].blocks.filter(
+      (b) => b.type === "diagram" && (b.title === "Only diagram" || b.title === "Second existing")
+    );
+
+    ensureMinimumDiagramBlocks(draft, topic, ctx);
+
+    expect(diagramCount(draft)).toBe(2);
+    expect(draft.pages[0].blocks.filter((b) => b === originals[0]).length).toBe(1);
+    expect(draft.pages[0].blocks.filter((b) => b === originals[1]).length).toBe(1);
+  });
+
+  test("Required Practical — post-Teacher-First diagram ensure skipped", () => {
+    const topic = "Required practical: reaction time";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:rp-reaction-time",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = sparseLessonDraft(topic, ctx.topicKey);
+
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+    const before = diagramCount(draft);
+
+    ensureMinimumDiagramBlocks(draft, topic, ctx);
+    ensureDiagramCountBeforeStructureValidation(draft, topic, ctx);
+
+    expect(diagramCount(draft)).toBe(before);
   });
 });

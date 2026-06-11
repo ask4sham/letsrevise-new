@@ -2032,6 +2032,14 @@ function ensureMinimumDiagramBlocks(draft, topicHint = "", meta = {}) {
   return draft;
 }
 
+/**
+ * Final structure-gate safety: ensure ≥2 diagrams after Teacher-First reshuffle.
+ * Skips Required Practical; does not overwrite existing diagrams.
+ */
+function ensureDiagramCountBeforeStructureValidation(draft, topicHint = "", meta = {}) {
+  return ensureMinimumDiagramBlocks(draft, topicHint, meta);
+}
+
 function buildTopicAwareWhatToNotice(topicHint = "", meta = {}) {
   const hay = topicHaystackFromHint(topicHint, meta);
   if (/reflex\s*arc|reflex\s+action|withdrawal\s+reflex|stimulus.?response/.test(hay)) {
@@ -5715,14 +5723,14 @@ function sanitizeDraft(draft, opts = {}) {
   };
 
   if (!isRequiredPracticalMode(theoryLessonCtx)) {
-    ensureMinimumDiagramBlocks(clean, topic, theoryLessonCtx);
-    ensureTopicSpecificWhatToNoticeBlocks(clean, topic, theoryLessonCtx);
     enforceDashboardTeacherFirstOpening(clean, {
       topic,
       topicKey: opts.topicKey,
       subTopic: opts.subTopic || opts.subTopicDisplay || topic,
       subject,
     });
+    ensureMinimumDiagramBlocks(clean, topic, theoryLessonCtx);
+    ensureTopicSpecificWhatToNoticeBlocks(clean, topic, theoryLessonCtx);
     ensureRealWorldApplicationBlock(clean, topic, theoryLessonCtx);
     ensureGrade79StretchBlock(clean, topic, theoryLessonCtx);
   }
@@ -6295,6 +6303,10 @@ router.post("/generate-and-save", auth, async (req, res) => {
           requireExamQuestions: true,
           topic,
         });
+        ensureDiagramCountBeforeStructureValidation(finalDraft, topic, {
+          topicKey: canonicalTopicKey,
+          subTopic: subTopicDisplay || topic,
+        });
         const finalStruct = validateLessonStructure(finalDraft, { isManual: false });
         finalStructureIssues = [
           ...mergeStructureValidationForScoring(finalStruct),
@@ -6340,6 +6352,15 @@ router.post("/generate-and-save", auth, async (req, res) => {
           : "NONE"
       );
     }
+
+    ensureDiagramCountBeforeStructureValidation(finalDraft, topic, {
+      topicKey: canonicalTopicKey,
+      subTopic: subTopicDisplay || topic,
+    });
+    finalStructureIssues = [
+      ...mergeStructureValidationForScoring(validateLessonStructure(finalDraft, { isManual: false })),
+      ...validateBlockTypeRequirements(finalDraft),
+    ];
 
     if (finalStructureIssues.length > 0) {
       throw new Error(`Lesson failed structure validation: ${finalStructureIssues.join("; ")}`);
@@ -8456,6 +8477,7 @@ module.exports.buildTopicAwareRealWorldApplication = buildTopicAwareRealWorldApp
 module.exports.ensureGrade79StretchBlock = ensureGrade79StretchBlock;
 module.exports.buildTopicAwareGrade79Stretch = buildTopicAwareGrade79Stretch;
 module.exports.ensureMinimumDiagramBlocks = ensureMinimumDiagramBlocks;
+module.exports.ensureDiagramCountBeforeStructureValidation = ensureDiagramCountBeforeStructureValidation;
 module.exports.ensureTopicSpecificWhatToNoticeBlocks = ensureTopicSpecificWhatToNoticeBlocks;
 module.exports.buildTopicAwareWhatToNotice = buildTopicAwareWhatToNotice;
 module.exports.resolveTopicDiagramLabel = resolveTopicDiagramLabel;
