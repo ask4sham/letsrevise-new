@@ -5608,13 +5608,13 @@ function sanitizeDraft(draft, opts = {}) {
   if (!isRequiredPracticalMode(theoryLessonCtx)) {
     ensureMinimumDiagramBlocks(clean, topic, theoryLessonCtx);
     ensureTopicSpecificWhatToNoticeBlocks(clean, topic, theoryLessonCtx);
-    ensureRealWorldApplicationBlock(clean, topic, theoryLessonCtx);
     enforceDashboardTeacherFirstOpening(clean, {
       topic,
       topicKey: opts.topicKey,
       subTopic: opts.subTopic || opts.subTopicDisplay || topic,
       subject,
     });
+    ensureRealWorldApplicationBlock(clean, topic, theoryLessonCtx);
   }
 
   stripV8AuthoringTags(clean);

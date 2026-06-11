@@ -167,3 +167,163 @@ describe("ensureRealWorldApplicationBlock (Phase 3b.3f.6A)", () => {
     expect(fb.content).not.toMatch(/this is important in real life/i);
   });
 });
+
+describe("ensureRealWorldApplicationBlock after Teacher-First (Phase 3b.3f.7A)", () => {
+  const { enforceDashboardTeacherFirstOpening } = require("../../lib/teacherBrain/dashboardTeacherFirstOpening");
+  const { resolveTeacherFirstKnowledgeProfile } = require("../../lib/teacherBrain/teacherFirstKnowledgeProfiles");
+
+  beforeAll(() => {
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+  });
+
+  function lessonLikeDraft(topic) {
+    const profile = resolveTeacherFirstKnowledgeProfile({
+      topic,
+      topicKey: "aqa-gcse-biology:cell-structure",
+      subject: "Biology",
+    });
+    const def = profile?.definition || `${topic} is a core GCSE Biology topic.`;
+    return {
+      title: topic,
+      topic,
+      pages: [
+        {
+          title: "Page 1",
+          order: 1,
+          blocks: [
+            { type: "text", role: "hook", content: `Hook about ${topic}.` },
+            { type: "text", role: "lessonObjectives", content: "Objectives list." },
+            { type: "text", role: "priorKnowledge", content: "Prior knowledge recap." },
+            { type: "text", role: "definition", content: def },
+            { type: "text", role: "whyItMatters", content: `Why ${topic} matters in exams.` },
+            { type: "keyIdea", role: "coreRule", content: "Core model content." },
+            { type: "text", role: "keyExamples", content: "Example one and example two." },
+            { type: "text", role: "examVocabulary", content: "Key vocabulary terms." },
+            { type: "text", role: "hook", content: "Scenario context block." },
+            { type: "text", role: "concept", content: "Core teaching paragraph one." },
+            { type: "text", role: "concept", content: "Core teaching paragraph two." },
+            { type: "commonMistake", role: "commonMistake", content: "Wrong: x\nCorrect: y\nExam link: z" },
+            { type: "keyIdea", role: "patternRecognition", content: "Pattern recognition." },
+            { type: "diagram", role: "concept", content: "d1", caption: "d1" },
+            { type: "keyIdea", role: "whatToNotice", title: "What to Notice", content: "- Feature A\n- Feature B" },
+            { type: "diagram", role: "concept", content: "d2", caption: "d2" },
+            { type: "keyIdea", role: "synthesis", content: "Synthesis line." },
+            { type: "keyIdea", role: "finalMemoryRule", content: `Remember ${topic} for exams.` },
+            {
+              type: "checkpoint",
+              role: "workedExample",
+              prompt: "Explain the process. (4 marks)",
+              questionType: "short",
+              options: [],
+              correctAnswer: "Point one.",
+              explanation: "- Point one because reason.\n- Point two therefore outcome.\n- Point three so that marks.",
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  function applicationIndexInSecondHalf(blocks) {
+    const mid = Math.ceil(blocks.length / 2);
+    return blocks.findIndex(
+      (b, i) => i >= mid && blockMentionsApplication(blockFlowText(b))
+    );
+  }
+
+  test("post-opening ensure inserts when Teacher-First leaves no second-half application", () => {
+    const topic = "Cell structure";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:cell-structure",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = lessonLikeDraft(topic);
+
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+
+    const blocksAfterOpening = draft.pages[0].blocks;
+    expect(applicationIndexInSecondHalf(blocksAfterOpening)).toBeLessThan(0);
+
+    ensureRealWorldApplicationBlock(draft, topic, ctx);
+
+    const idx = applicationIndexInSecondHalf(draft.pages[0].blocks);
+    expect(idx).toBeGreaterThanOrEqual(Math.ceil(draft.pages[0].blocks.length / 2));
+
+    const result = validateLessonStructure(draft, { isManual: false });
+    expect(result.blocking).not.toContain(
+      "Real-world or medical application is missing or appears too weakly."
+    );
+  });
+
+  test("pre-opening insert is not sufficient when Teacher-First reshuffles blocks", () => {
+    const topic = "Cell structure";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:cell-structure",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = lessonLikeDraft(topic);
+
+    ensureRealWorldApplicationBlock(draft, topic, ctx);
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+
+    const afterOpeningOnly = applicationIndexInSecondHalf(draft.pages[0].blocks);
+    ensureRealWorldApplicationBlock(draft, topic, ctx);
+    const afterPostEnsure = applicationIndexInSecondHalf(draft.pages[0].blocks);
+
+    expect(afterPostEnsure).toBeGreaterThanOrEqual(Math.ceil(draft.pages[0].blocks.length / 2));
+    if (afterOpeningOnly < 0) {
+      expect(draft.pages[0].blocks.length).toBeGreaterThan(lessonLikeDraft(topic).pages[0].blocks.length);
+    }
+  });
+
+  test("post-opening ensure preserves strong second-half application", () => {
+    const topic = "The reflex arc";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:reflex-arc",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = lessonLikeDraft(topic);
+    const strongApp = {
+      type: "text",
+      title: "Real-World Application",
+      role: "concept",
+      content:
+        "**Real-world application:** The withdrawal reflex is a real-world example of the reflex arc — for example, when you touch a hot pan you pull away quickly.",
+    };
+
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+    const blocks = draft.pages[0].blocks;
+    const mid = Math.ceil(blocks.length / 2);
+    blocks.splice(blocks.length - 2, 0, strongApp);
+    expect(blocks.indexOf(strongApp)).toBeGreaterThanOrEqual(mid);
+
+    const before = blocks.length;
+    ensureRealWorldApplicationBlock(draft, topic, ctx);
+
+    expect(draft.pages[0].blocks.length).toBe(before);
+    expect(draft.pages[0].blocks.filter((b) => b === strongApp).length).toBe(1);
+  });
+
+  test("Required Practical — Teacher-First runs but post-opening ensure skipped", () => {
+    const topic = "Required practical: reaction time";
+    const ctx = {
+      topic,
+      topicKey: "aqa-gcse-biology:rp-reaction-time",
+      subTopic: topic,
+      subject: "Biology",
+    };
+    const draft = lessonLikeDraft(topic);
+    enforceDashboardTeacherFirstOpening(draft, ctx);
+    const before = draft.pages[0].blocks.length;
+
+    ensureRealWorldApplicationBlock(draft, topic, ctx);
+
+    expect(draft.pages[0].blocks.length).toBe(before);
+  });
+});
