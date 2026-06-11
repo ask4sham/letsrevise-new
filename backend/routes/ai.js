@@ -57,6 +57,8 @@ const {
   examTipLooksSpecific,
   blockFlowText,
   blockMentionsApplication,
+  looksLikeWhatToNotice,
+  whatToNoticeLooksSpecific,
   v6TokenSetForOverlap,
   v6JaccardSimilarity,
 } = require("../services/lessonDraftValidation");
@@ -1939,9 +1941,75 @@ function applyRoleFallbacksToLesson(draft, meta = {}) {
 /**
  * Tuning safeguard: ensure at least two diagram blocks so structure validation can pass.
  * Mutates draft.pages[].blocks in place. Uses the same minimal shape as sanitizeDraft diagram output.
+ * Skips Required Practical lessons; does not overwrite existing diagrams.
  */
-function ensureMinimumDiagramBlocks(draft) {
+function topicHaystackFromHint(topicHint = "", meta = {}) {
+  return `${safeStr(topicHint, "")} ${safeStr(meta.subTopic, "")} ${safeStr(meta.topicKey, "")}`.toLowerCase();
+}
+
+const TOPIC_DIAGRAM_LABELS = [
+  {
+    patterns: [/reflex\s*arc/i, /reflex\s+action/i, /withdrawal\s+reflex/i],
+    title: "Reflex Arc Pathway",
+    caption: "Reflex arc pathway — label receptor, sensory neurone, relay neurone, motor neurone, and effector.",
+  },
+  {
+    patterns: [/cell[\s-]structure/i, /eukaryot/i, /prokaryot/i],
+    title: "Cell Structure Overview",
+    caption: "Cell structure overview — compare nucleus, cell membrane, cytoplasm, and plant-cell-only structures.",
+  },
+  {
+    patterns: [/blood\s+glucose/i, /control\s+of\s+blood\s+glucose/i, /glucose\s+regulation/i],
+    title: "Blood Glucose Control Loop",
+    caption: "Blood glucose control loop — show insulin, glucagon, and negative feedback.",
+  },
+  {
+    patterns: [/mitosis/i, /cell\s+cycle/i],
+    title: "Stages of Mitosis",
+    caption: "Stages of mitosis — identify chromosome behaviour at each stage.",
+  },
+  {
+    patterns: [/carbon\s+cycle/i, /how\s+materials\s+are\s+cycled/i, /materials\s+are\s+cycled/i],
+    title: "Carbon Cycle Overview",
+    caption: "Carbon cycle overview — follow carbon through photosynthesis, respiration, and decomposition.",
+  },
+];
+
+function resolveTopicDiagramLabel(topicHint = "", meta = {}) {
+  const hay = topicHaystackFromHint(topicHint, meta);
+  for (const entry of TOPIC_DIAGRAM_LABELS) {
+    if (entry.patterns.some((re) => re.test(hay))) {
+      return { title: entry.title, caption: entry.caption };
+    }
+  }
+  const label = safeStr(topicHint, "Topic Overview").trim() || "Topic Overview";
+  return {
+    title: `${label} Diagram`,
+    caption: `Diagram for ${label} — label the key features.`,
+  };
+}
+
+function findLateStructureInsertIndex(blocks) {
+  if (!Array.isArray(blocks)) return 0;
+  for (let i = 0; i < blocks.length; i++) {
+    const role = safeStr(blocks[i]?.role, "");
+    if (role === "finalMemoryRule" || role === "workedExample") return i;
+  }
+  return blocks.length;
+}
+
+function ensureMinimumDiagramBlocks(draft, topicHint = "", meta = {}) {
   if (!draft || typeof draft !== "object") return draft;
+
+  const rpCtx = {
+    topic: safeStr(topicHint, "") || safeStr(meta.topic, ""),
+    topicKey: safeStr(meta.topicKey, ""),
+    subTopic: safeStr(meta.subTopic, "") || safeStr(topicHint, ""),
+  };
+  if (isRequiredPracticalMode(rpCtx)) return draft;
+
+  const label = resolveTopicDiagramLabel(topicHint, meta);
+
   for (const page of draft.pages || []) {
     const blocks = page.blocks;
     if (!Array.isArray(blocks)) continue;
@@ -1950,33 +2018,153 @@ function ensureMinimumDiagramBlocks(draft) {
     if (diagramCount >= 2) continue;
 
     const missing = 2 - diagramCount;
+    const insertAt = findLateStructureInsertIndex(blocks);
     for (let i = 0; i < missing; i++) {
-      blocks.push({
+      blocks.splice(insertAt + i, 0, {
         type: "diagram",
-        title: "Diagram",
+        title: label.title,
         content: "image here",
         role: "concept",
-        caption: "image here",
+        caption: label.caption,
       });
     }
   }
   return draft;
 }
 
-function buildTopicAwareWhatToNotice(topicHint = "") {
-  const topic = String(topicHint || "").toLowerCase();
-  if (topic.includes("stem cell")) {
+function buildTopicAwareWhatToNotice(topicHint = "", meta = {}) {
+  const hay = topicHaystackFromHint(topicHint, meta);
+  if (/reflex\s*arc|reflex\s+action|withdrawal\s+reflex|stimulus.?response/.test(hay)) {
+    return [
+      "- Follow the direction of the nerve impulse through the reflex arc",
+      "- Identify receptor, sensory neurone, relay neurone, motor neurone, effector in the reflex arc",
+      "- In exams, trace the stimulus–response pathway in order",
+    ];
+  }
+  if (/cell[\s-]structure|eukaryot|prokaryot|animal[\s-]and[\s-]plant[\s-]cells/.test(hay)) {
+    return [
+      "- Compare nucleus, cell membrane, cytoplasm",
+      "- Notice plant-cell-only structures such as chloroplasts and a permanent vacuole",
+      "- Link each visible structure to its function in the cell",
+    ];
+  }
+  if (/blood\s+glucose|control\s+of\s+blood\s+glucose|glucose\s+regulation|insulin|glucagon/.test(hay)) {
+    return [
+      "- Observe insulin and glucagon effects on blood glucose",
+      "- Follow negative feedback control when glucose rises or falls",
+      "- Notice where the pancreas, liver, and cells fit in the control loop",
+    ];
+  }
+  if (/mitosis|cell\s+cycle/.test(hay)) {
+    return [
+      "- Identify chromosome behaviour at each stage of mitosis",
+      "- Compare interphase and mitosis on the diagram",
+      "- Notice when DNA replication happens versus when chromosomes separate",
+    ];
+  }
+  if (/carbon\s+cycle|how\s+materials\s+are\s+cycled|materials\s+are\s+cycled|decomposer/.test(hay)) {
+    return [
+      "- Follow movement of carbon through the carbon cycle and how materials are cycled",
+      "- Identify photosynthesis, respiration, and decomposition on the diagram",
+      "- Notice where carbon dioxide enters and leaves the cycle",
+    ];
+  }
+  if (hay.includes("stem cell")) {
     return [
       "- Notice embryonic stem cells can become any cell type",
       "- Notice adult stem cells can only form a limited range of cell types",
       "- In exams, compare these differences when explaining their medical uses",
     ];
   }
+  const label = safeStr(topicHint, "this topic").trim() || "this topic";
   return [
-    "- Focus on the labelled parts or key features",
-    "- Notice how each feature links to its job or meaning",
-    "- In exams, use these visible features as evidence in your answer",
+    `- Identify the key labelled features of ${label}`,
+    `- Notice how each structure links to its function in ${label}`,
+    `- In exams, use these visible details as evidence in your answer`,
   ];
+}
+
+function isWhatToNoticeBlock(block) {
+  if (!block || typeof block !== "object") return false;
+  return (
+    /what to notice/i.test(String(block.title || "")) ||
+    safeStr(block.role, "") === "whatToNotice"
+  );
+}
+
+function isGenericWhatToNoticeBlock(block, draft = {}) {
+  if (!isWhatToNoticeBlock(block)) return false;
+  if (whatToNoticeLooksSpecific(block, draft)) return false;
+  const content = String(block.content || "");
+  if (whatToNoticeBulletCount(content) < 2) return true;
+  return (
+    /focus on the labelled parts or key features/i.test(content) ||
+    /notice how each feature links to its job or meaning/i.test(content)
+  );
+}
+
+/**
+ * Replace generic What-to-Notice content with topic-specific bullets; preserve strong blocks.
+ */
+function ensureTopicSpecificWhatToNoticeBlocks(draft, topicHint = "", meta = {}) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const rpCtx = {
+    topic: safeStr(topicHint, "") || safeStr(meta.topic, ""),
+    topicKey: safeStr(meta.topicKey, ""),
+    subTopic: safeStr(meta.subTopic, "") || safeStr(topicHint, ""),
+  };
+  if (isRequiredPracticalMode(rpCtx)) return draft;
+
+  draft.topic = draft.topic || safeStr(topicHint, "");
+  const fallbackBullets = buildTopicAwareWhatToNotice(topicHint, meta).join("\n");
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    const diagramCount = blocks.filter((b) => b.type === "diagram").length;
+    if (diagramCount < 1) continue;
+
+    let hasSpecific = blocks.some(
+      (b) => isWhatToNoticeBlock(b) && whatToNoticeLooksSpecific(b, draft)
+    );
+
+    for (const block of blocks) {
+      if (!isWhatToNoticeBlock(block)) continue;
+      if (whatToNoticeLooksSpecific(block, draft)) continue;
+      if (!isGenericWhatToNoticeBlock(block, draft) && whatToNoticeBulletCount(block.content) >= 2) {
+        continue;
+      }
+      block.type = "keyIdea";
+      block.title = "What to Notice";
+      block.role = "whatToNotice";
+      block.content = fallbackBullets;
+      hasSpecific = whatToNoticeLooksSpecific(block, draft);
+    }
+
+    if (!hasSpecific) {
+      const firstDiagramIdx = blocks.findIndex((b) => b.type === "diagram");
+      if (firstDiagramIdx >= 0) {
+        const next = blocks[firstDiagramIdx + 1];
+        if (next && isWhatToNoticeBlock(next)) {
+          next.type = "keyIdea";
+          next.title = "What to Notice";
+          next.role = "whatToNotice";
+          next.content = fallbackBullets;
+        } else {
+          blocks.splice(firstDiagramIdx + 1, 0, {
+            type: "keyIdea",
+            title: "What to Notice",
+            content: fallbackBullets,
+            role: "whatToNotice",
+          });
+        }
+      }
+    }
+  }
+
+  return draft;
 }
 
 function buildTopicAwareCommonMistake(topicHint = "") {
@@ -2048,12 +2236,13 @@ function dedupeNearDuplicateKeyIdeasOnPage(draft) {
  * Stem-cell (and identical fallback): only one full canonical copy per page — extra diagrams point back.
  * Mutates draft.pages[].blocks in place.
  */
-function ensureWhatToNoticeBlocks(draft, topicHint = "") {
+function ensureWhatToNoticeBlocks(draft, topicHint = "", meta = {}) {
   if (!draft || typeof draft !== "object") return draft;
 
   const topic = String(topicHint || "").toLowerCase();
   const stemCellTopic = topic.includes("stem cell");
-  const fallbackBullets = buildTopicAwareWhatToNotice(topicHint).join("\n");
+  const fallbackBullets = buildTopicAwareWhatToNotice(topicHint, meta).join("\n");
+  draft.topic = draft.topic || safeStr(topicHint, "");
 
   for (const page of draft.pages || []) {
     const blocks = page.blocks;
@@ -2095,7 +2284,7 @@ function ensureWhatToNoticeBlocks(draft, topicHint = "") {
         continue;
       }
 
-      if (whatToNoticeBulletCount(next.content) < 2) {
+      if (whatToNoticeBulletCount(next.content) < 2 || isGenericWhatToNoticeBlock(next, draft)) {
         if (stemCellTopic && stemCanonicalWtnPlaced) {
           blocks.splice(i + 1, 1);
           continue;
@@ -3028,8 +3217,9 @@ function repairLessonStructureAfterCompression(draft, topicHint = "", meta = {})
   if (!draft || typeof draft !== "object") return draft;
 
   applyRoleFallbacksToLesson(draft, meta);
-  ensureMinimumDiagramBlocks(draft);
-  ensureWhatToNoticeBlocks(draft, topicHint);
+  ensureMinimumDiagramBlocks(draft, topicHint, meta);
+  ensureWhatToNoticeBlocks(draft, topicHint, meta);
+  ensureTopicSpecificWhatToNoticeBlocks(draft, topicHint, meta);
   ensureProperCommonMistakeBlock(draft, topicHint);
   ensurePatternRecognitionBlock(draft, topicHint);
   ensureWorkedExampleCheckpoint(draft, topicHint, meta);
@@ -5227,8 +5417,14 @@ function sanitizeDraft(draft, opts = {}) {
     topicKey: opts.topicKey,
     subTopic: opts.subTopic || opts.subTopicDisplay || topic,
   });
-  ensureMinimumDiagramBlocks(clean);
-  ensureWhatToNoticeBlocks(clean, topic);
+  ensureMinimumDiagramBlocks(clean, topic, {
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
+  ensureWhatToNoticeBlocks(clean, topic, {
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
   ensureProperCommonMistakeBlock(clean, topic);
   ensureWorkedExampleCheckpoint(clean, topic, {
     topicKey: opts.topicKey,
@@ -5277,7 +5473,14 @@ function sanitizeDraft(draft, opts = {}) {
   applyV11TeacherDialogueAndQuestioning(clean, topic);
   applyV12VisualHierarchyEngine(clean, topic);
 
-  ensureWhatToNoticeBlocks(clean, topic);
+  ensureWhatToNoticeBlocks(clean, topic, {
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
+  ensureTopicSpecificWhatToNoticeBlocks(clean, topic, {
+    topicKey: opts.topicKey,
+    subTopic: opts.subTopic || opts.subTopicDisplay || topic,
+  });
   ensureFinalMemoryRuleBlock(clean, topic);
   dedupeNearDuplicateKeyIdeasOnPage(clean);
 
@@ -5403,6 +5606,8 @@ function sanitizeDraft(draft, opts = {}) {
   };
 
   if (!isRequiredPracticalMode(theoryLessonCtx)) {
+    ensureMinimumDiagramBlocks(clean, topic, theoryLessonCtx);
+    ensureTopicSpecificWhatToNoticeBlocks(clean, topic, theoryLessonCtx);
     ensureRealWorldApplicationBlock(clean, topic, theoryLessonCtx);
     enforceDashboardTeacherFirstOpening(clean, {
       topic,
@@ -8138,6 +8343,10 @@ module.exports.resolveWorkedExampleFallback = resolveWorkedExampleFallback;
 module.exports.ensureWorkedExampleCheckpoint = ensureWorkedExampleCheckpoint;
 module.exports.ensureRealWorldApplicationBlock = ensureRealWorldApplicationBlock;
 module.exports.buildTopicAwareRealWorldApplication = buildTopicAwareRealWorldApplication;
+module.exports.ensureMinimumDiagramBlocks = ensureMinimumDiagramBlocks;
+module.exports.ensureTopicSpecificWhatToNoticeBlocks = ensureTopicSpecificWhatToNoticeBlocks;
+module.exports.buildTopicAwareWhatToNotice = buildTopicAwareWhatToNotice;
+module.exports.resolveTopicDiagramLabel = resolveTopicDiagramLabel;
 module.exports.sanitizeDraftForTest = sanitizeDraft;
 module.exports.buildUserPromptFromMdForTest = buildUserPromptFromMd;
 module.exports.buildTeacherFirstLayer2OpeningAppendixForTest = buildTeacherFirstLayer2OpeningAppendix;
