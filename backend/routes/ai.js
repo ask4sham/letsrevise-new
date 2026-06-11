@@ -2685,6 +2685,115 @@ function ensureRealWorldApplicationBlock(draft, topicHint = "", meta = {}) {
   return draft;
 }
 
+const GRADE_79_STRETCH_TOPIC_FALLBACKS = [
+  {
+    patterns: [/reflex\s*arc/i, /reflex\s+action/i, /withdrawal\s+reflex/i],
+    title: "Grade 7–9 Stretch",
+    content:
+      "**Grade 7–9 stretch:** Top-band answers explain that the reflex arc bypasses the brain because the spinal cord coordinates the response, therefore the reaction is faster than voluntary movement; this means the organism gains a survival advantage when avoiding injury.",
+  },
+  {
+    patterns: [/cell[\s-]structure/i, /eukaryot/i, /prokaryot/i, /animal[\s-]and[\s-]plant[\s-]cells/i],
+    title: "Grade 7–9 Stretch",
+    content:
+      "**Grade 7–9 stretch:** Higher-tier answers link structure to function because mitochondria provide ATP for active transport, therefore cells with high energy demands have more mitochondria; chloroplasts enable photosynthesis in plant cells, which means structure directly supports survival.",
+  },
+  {
+    patterns: [/blood\s+glucose/i, /glucose\s+regulation/i, /control\s+of\s+blood\s+glucose/i, /insulin/i, /glucagon/i],
+    title: "Grade 7–9 Stretch",
+    content:
+      "**Grade 7–9 stretch:** Grade 8–9 answers describe negative feedback because receptors detect high glucose, therefore the pancreas releases insulin and liver cells take up glucose; when glucose falls, glucagon is released, which means diabetes reflects failure of this control system.",
+  },
+  {
+    patterns: [/mitosis/i, /cell\s+cycle/i],
+    title: "Grade 7–9 Stretch",
+    content:
+      "**Grade 7–9 stretch:** Top-band explanations state that DNA replicates in interphase because each daughter cell must be genetically identical, therefore mitosis produces two diploid cells for growth and repair; uncontrolled mitosis can lead to cancer, which means regulation of the cell cycle is essential.",
+  },
+  {
+    patterns: [/carbon\s+cycle/i, /how\s+materials\s+are\s+cycled/i, /materials\s+are\s+cycled/i, /decomposer/i, /recycling\s+carbon/i],
+    title: "Grade 7–9 Stretch",
+    content:
+      "**Grade 7–9 stretch:** Grade 7–9 answers trace carbon through ecosystems because decomposers break down waste, therefore carbon returns to the atmosphere as carbon dioxide; photosynthesis removes CO₂, which means material cycling maintains ecosystem stability and links to climate.",
+  },
+];
+
+function grade79StretchMetaFromHint(topicHint = "", meta = {}) {
+  const topic = safeStr(topicHint, "") || safeStr(meta.topic, "");
+  return {
+    topic,
+    subTopic: safeStr(meta.subTopic, "") || topic,
+    topicKey: safeStr(meta.topicKey, ""),
+    haystack: `${topic} ${safeStr(meta.subTopic, "")} ${safeStr(meta.topicKey, "")}`.toLowerCase(),
+  };
+}
+
+function stretchBlockHasGrade79Signals(block) {
+  const text = blockFlowText(block);
+  if (!/grade\s*[789]|top[\s-]?band|higher tier|higher-tier|stretch/i.test(text)) return false;
+  if (!/because|therefore|this means|so that|which means/i.test(text)) return false;
+  return text.replace(/<[^>]+>/g, " ").trim().length >= 60;
+}
+
+function buildTopicAwareGrade79Stretch(topicHint = "", meta = {}) {
+  const { topic, haystack } = grade79StretchMetaFromHint(topicHint, meta);
+  const safeTopic = safeStr(topic, "this topic").trim() || "this topic";
+
+  for (const fb of GRADE_79_STRETCH_TOPIC_FALLBACKS) {
+    if (fb.patterns.some((re) => re.test(haystack))) {
+      return { title: fb.title, content: fb.content };
+    }
+  }
+
+  return {
+    title: "Grade 7–9 Stretch",
+    content: `**Grade 7–9 stretch:** Top-band answers on ${safeTopic} use a causal chain because examiners reward linked steps, therefore each sentence should build on the last; this means naming processes and explaining why they matter earns higher-tier marks.`,
+  };
+}
+
+function findGrade79StretchInsertIndex(blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    const role = safeStr(blocks[i]?.role, "");
+    if (role === "finalMemoryRule" || role === "synthesis") return i;
+  }
+  return blocks.length;
+}
+
+/**
+ * Ensure one topic-specific Grade 7–9 stretch block (TQ grade79Extension dimension).
+ * Skips Required Practical lessons and drafts that already have a strong stretch block.
+ */
+function ensureGrade79StretchBlock(draft, topicHint = "", meta = {}) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const rpCtx = {
+    topic: safeStr(topicHint, "") || safeStr(meta.topic, ""),
+    topicKey: safeStr(meta.topicKey, ""),
+    subTopic: safeStr(meta.subTopic, "") || safeStr(topicHint, ""),
+  };
+  if (isRequiredPracticalMode(rpCtx)) return draft;
+
+  const fallback = buildTopicAwareGrade79Stretch(topicHint, meta);
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    const existingStretch = blocks.find((b) => String(b?.type || "") === "stretch");
+    if (existingStretch && stretchBlockHasGrade79Signals(existingStretch)) continue;
+
+    const insertIndex = findGrade79StretchInsertIndex(blocks);
+    blocks.splice(insertIndex, 0, {
+      type: "stretch",
+      title: fallback.title,
+      content: fallback.content,
+      role: "concept",
+    });
+  }
+
+  return draft;
+}
+
 /**
  * Ensure one checkpoint is a valid worked example (exam-style question + substantial bullet answer).
  * Mutates draft.pages[].blocks. Uses sanitized checkpoint shape (prompt, questionType, options, correctAnswer, explanation).
@@ -5615,6 +5724,7 @@ function sanitizeDraft(draft, opts = {}) {
       subject,
     });
     ensureRealWorldApplicationBlock(clean, topic, theoryLessonCtx);
+    ensureGrade79StretchBlock(clean, topic, theoryLessonCtx);
   }
 
   stripV8AuthoringTags(clean);
@@ -8343,6 +8453,8 @@ module.exports.resolveWorkedExampleFallback = resolveWorkedExampleFallback;
 module.exports.ensureWorkedExampleCheckpoint = ensureWorkedExampleCheckpoint;
 module.exports.ensureRealWorldApplicationBlock = ensureRealWorldApplicationBlock;
 module.exports.buildTopicAwareRealWorldApplication = buildTopicAwareRealWorldApplication;
+module.exports.ensureGrade79StretchBlock = ensureGrade79StretchBlock;
+module.exports.buildTopicAwareGrade79Stretch = buildTopicAwareGrade79Stretch;
 module.exports.ensureMinimumDiagramBlocks = ensureMinimumDiagramBlocks;
 module.exports.ensureTopicSpecificWhatToNoticeBlocks = ensureTopicSpecificWhatToNoticeBlocks;
 module.exports.buildTopicAwareWhatToNotice = buildTopicAwareWhatToNotice;

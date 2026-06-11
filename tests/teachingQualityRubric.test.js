@@ -10,6 +10,7 @@ const {
   isTeachingQualityEnabled,
   hasMisconceptionFormat,
   hasReasoningChain,
+  findWorkedExampleBlock,
   MAX_TOTAL_SCORE,
   TEACHING_QUALITY_DIMENSIONS,
 } = require("../lib/teacherBrain/teachingQualityRubric");
@@ -170,5 +171,80 @@ describe("teachingQualityRubric (Phase 3H.1.7)", () => {
       subject: "Biology",
     });
     expect(appendix).toBe("");
+  });
+
+  describe("scoreWorkedReasoning — checkpoint preference (Phase 3b.3f.8A)", () => {
+    const duplicateWorkedBlocks = [
+      { type: "text", title: "Core Teaching", role: "concept", content: "Reflex arc teaching content." },
+      {
+        type: "text",
+        role: "workedExample",
+        title: "Worked Example",
+        content:
+          "Question: Explain why reflex arcs are faster than voluntary actions. (3 marks)\n• Reflex arcs bypass the brain.",
+      },
+      {
+        type: "checkpoint",
+        role: "workedExample",
+        question: "Describe the pathway of a reflex arc from stimulus to response. (4 marks)",
+        explanation:
+          "- Stimulus detected by receptors because this starts the arc.\n- Sensory neurone carries impulse therefore the signal reaches the spinal cord.\n- Motor neurone stimulates effector so that the response is rapid.",
+      },
+    ];
+
+    test("findWorkedExampleBlock prefers checkpoint over earlier text block", () => {
+      const picked = findWorkedExampleBlock(duplicateWorkedBlocks);
+      expect(picked?.type).toBe("checkpoint");
+      expect(picked?.question).toMatch(/Describe the pathway/);
+    });
+
+    test("scores higher when checkpoint has exam-style question and model bullets", () => {
+      process.env.TEACHER_BRAIN_TEACHING_QUALITY = "1";
+      const withDuplicate = scoreTeachingQuality(
+        { topic: "The reflex arc", pages: [{ blocks: duplicateWorkedBlocks }] },
+        { forceEnabled: true }
+      );
+      const checkpointOnly = scoreTeachingQuality(
+        {
+          topic: "The reflex arc",
+          pages: [
+            {
+              blocks: [
+                { type: "text", title: "Core Teaching", role: "concept", content: "Teaching." },
+                duplicateWorkedBlocks[2],
+              ],
+            },
+          ],
+        },
+        { forceEnabled: true }
+      );
+      expect(withDuplicate.dimensions.workedReasoning.score).toBeGreaterThanOrEqual(4);
+      expect(withDuplicate.dimensions.workedReasoning.score).toBe(
+        checkpointOnly.dimensions.workedReasoning.score
+      );
+      expect(withDuplicate.dimensions.workedReasoning.signals).toEqual(
+        expect.arrayContaining(["modelAnswer", "markCount", "markingPoints"])
+      );
+    });
+
+    test("falls back to non-checkpoint workedExample when no checkpoint exists", () => {
+      process.env.TEACHER_BRAIN_TEACHING_QUALITY = "1";
+      const blocks = [
+        { type: "text", title: "Core Teaching", role: "concept", content: "Teaching." },
+        {
+          type: "text",
+          role: "workedExample",
+          content:
+            "Explain the process. (4 marks)\n- Step one because reason.\n- Step two therefore outcome.\n- Step three so that result.",
+        },
+      ];
+      expect(findWorkedExampleBlock(blocks)?.type).toBe("text");
+      const scoring = scoreTeachingQuality(
+        { topic: "Test topic", pages: [{ blocks }] },
+        { forceEnabled: true }
+      );
+      expect(scoring.dimensions.workedReasoning.score).toBeGreaterThanOrEqual(2);
+      expect(scoring.dimensions.workedReasoning.signals).toContain("workedExampleRole");
+    });
   });
 });
