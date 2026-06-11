@@ -1,5 +1,5 @@
 /**
- * Phase 5B.1 — Framework routing layer (read-only definitions).
+ * Phase 5B — Framework routing layer (definitions + prompt appendix).
  */
 
 const fs = require("fs");
@@ -8,14 +8,17 @@ const {
   FRAMEWORK_ROUTING_VERSION,
   FRAMEWORK_ROUTING_TABLE,
   FRAMEWORK_ROUTING_KEYS,
+  FRAMEWORK_ROUTING_APPENDIX_MARKER,
   isFrameworkRoutingEnabled,
   buildFrameworkRoutingPlan,
   resolveFrameworkRouting,
   resolveFrameworkRoutingFromClassification,
   listFrameworkRoutingDefinitions,
+  formatFrameworkRoutingAppendix,
+  buildFrameworkRoutingPromptSection,
 } = require("../lib/teacherBrain/frameworkRoutingLayer");
 
-describe("Phase 5B.1 — frameworkRoutingLayer", () => {
+describe("Phase 5B — frameworkRoutingLayer", () => {
   const prevFlag = process.env.TEACHER_BRAIN_FRAMEWORK_ROUTING;
 
   afterEach(() => {
@@ -28,6 +31,7 @@ describe("Phase 5B.1 — frameworkRoutingLayer", () => {
     expect(isFrameworkRoutingEnabled()).toBe(false);
     expect(resolveFrameworkRouting("signal_pathway")).toBeNull();
     expect(resolveFrameworkRoutingFromClassification({ framework: "signal_pathway" })).toBeNull();
+    expect(buildFrameworkRoutingPromptSection({ framework: "signal_pathway" })).toBe("");
   });
 
   test("flag OFF — buildFrameworkRoutingPlan still available for audit", () => {
@@ -62,12 +66,11 @@ describe("Phase 5B.1 — frameworkRoutingLayer", () => {
     expect(resolveFrameworkRouting("molecular_process")).toBeNull();
     expect(resolveFrameworkRouting("process_sequence")).toBeNull();
     expect(resolveFrameworkRouting("")).toBeNull();
+    expect(buildFrameworkRoutingPromptSection({ framework: "molecular_process" })).toBe("");
   });
 
   test("resolveFrameworkRoutingFromClassification accepts string or object", () => {
     process.env.TEACHER_BRAIN_FRAMEWORK_ROUTING = "1";
-    const expected = buildFrameworkRoutingPlan("mitosis_wrong");
-    expect(expected).toBeNull();
 
     const viaObject = resolveFrameworkRoutingFromClassification({ framework: "cellular_sequence" });
     expect(viaObject?.openingPattern).toBe("SEQUENCE_FIRST");
@@ -82,19 +85,84 @@ describe("Phase 5B.1 — frameworkRoutingLayer", () => {
     expect(rows.map((r) => r.framework).sort()).toEqual([...FRAMEWORK_ROUTING_KEYS].sort());
   });
 
-  test("routing version is locked for Phase 5B.1", () => {
-    expect(FRAMEWORK_ROUTING_VERSION).toBe("5B.1");
+  test("routing version is locked for Phase 5B.3", () => {
+    expect(FRAMEWORK_ROUTING_VERSION).toBe("5B.3");
   });
 
-  test("generation pipeline not wired — buildPrompt and ai routes omit routing layer", () => {
-    const buildPromptSrc = fs.readFileSync(
-      path.join(__dirname, "../lib/buildPrompt.js"),
-      "utf8"
+  test("formatFrameworkRoutingAppendix — signal_pathway sample", () => {
+    const plan = buildFrameworkRoutingPlan("signal_pathway");
+    const appendix = formatFrameworkRoutingAppendix(plan);
+
+    expect(appendix).toContain(FRAMEWORK_ROUTING_APPENDIX_MARKER);
+    expect(appendix).toContain("Framework: signal_pathway");
+    expect(appendix).toContain("OPENING PATTERN:");
+    expect(appendix).toContain("PATHWAY_FIRST");
+    expect(appendix).toContain("TEACHING PATTERN:");
+    expect(appendix).toContain("FOLLOW_THE_SIGNAL");
+    expect(appendix).toContain("VISUAL PATTERN:");
+    expect(appendix).toContain("SIGNAL_FLOW_MAP");
+    expect(appendix).toContain("REASONING PATTERN:");
+    expect(appendix).toContain("STEP_BY_STEP_CAUSAL");
+    expect(appendix).toMatch(/Do NOT change the mandated Teacher-First block order/i);
+  });
+
+  test("buildFrameworkRoutingPromptSection returns empty when flag OFF", () => {
+    delete process.env.TEACHER_BRAIN_FRAMEWORK_ROUTING;
+    expect(buildFrameworkRoutingPromptSection({ framework: "feedback_loop" })).toBe("");
+  });
+
+  test("buildFrameworkRoutingPromptSection returns appendix when flag ON", () => {
+    process.env.TEACHER_BRAIN_FRAMEWORK_ROUTING = "1";
+    const appendix = buildFrameworkRoutingPromptSection({ framework: "signal_pathway" });
+    expect(appendix).toContain("PATHWAY_FIRST");
+    expect(appendix).toContain("FOLLOW_THE_SIGNAL");
+  });
+
+  test("flag OFF vs ON — buildPrompt appendix gating (ESM subprocess)", () => {
+    const { execFileSync } = require("child_process");
+    const payload = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { buildPrompt } from './lib/buildPrompt.js';
+const args = {
+  subject: 'Biology',
+  keyStage: 'KS4 - GCSE',
+  examBoard: 'AQA',
+  topic: 'The reflex arc',
+  topicKey: 'aqa-gcse-biology:the-reflex-arc',
+  subTopic: 'The reflex arc',
+};
+delete process.env.TEACHER_BRAIN_FRAMEWORK_ROUTING;
+process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = '1';
+const off = buildPrompt(args);
+process.env.TEACHER_BRAIN_FRAMEWORK_ROUTING = '1';
+const on = buildPrompt(args);
+console.log(JSON.stringify({
+  identical: off === on,
+  offHasMarker: off.includes('FRAMEWORK ROUTING'),
+  onHasMarker: on.includes('FRAMEWORK ROUTING'),
+  onHasPathway: on.includes('PATHWAY_FIRST'),
+  onLonger: on.length > off.length,
+}));`,
+      ],
+      { cwd: path.join(__dirname, ".."), encoding: "utf8" }
     );
+    const result = JSON.parse(payload.trim());
+    expect(result.identical).toBe(false);
+    expect(result.offHasMarker).toBe(false);
+    expect(result.onHasMarker).toBe(true);
+    expect(result.onHasPathway).toBe(true);
+    expect(result.onLonger).toBe(true);
+  });
+
+  test("ai.js wires metadata + prompt appendix helpers only", () => {
     const aiRoutesSrc = fs.readFileSync(path.join(__dirname, "../backend/routes/ai.js"), "utf8");
 
-    expect(buildPromptSrc).not.toMatch(/frameworkRoutingLayer/);
-    expect(aiRoutesSrc).not.toMatch(/frameworkRoutingLayer/);
-    expect(buildPromptSrc).not.toMatch(/FRAMEWORK ROUTING/i);
+    expect(aiRoutesSrc).toMatch(/resolveFrameworkRoutingFromClassification/);
+    expect(aiRoutesSrc).toMatch(/buildFrameworkRoutingPromptSection/);
+    expect(aiRoutesSrc).toMatch(/frameworkRouting/);
+    expect(aiRoutesSrc).not.toMatch(/formatFrameworkRoutingAppendix/);
   });
 });

@@ -36,6 +36,10 @@ const { queryCandidates, DEFAULT_SPEC_LEGACY, parseTopicKey } = require("../util
 const { autoAttachLessonContent } = require("../services/autoAttachLessonContentService");
 const { makeLessonDbSafe } = require("../utils/lessonDbSafe");
 const { classifyTopicFramework } = require("../services/topicFrameworkClassification");
+const {
+  resolveFrameworkRoutingFromClassification,
+  buildFrameworkRoutingPromptSection,
+} = require("../../lib/teacherBrain/frameworkRoutingLayer");
 const { buildBoardPromptFragment } = require("../config/aiLessonBoardConfig");
 const {
   validateLessonDraftAgainstCurriculum,
@@ -1182,6 +1186,7 @@ function buildUserPromptFromMd({
   additionalInstructions = "",
   engineInstructions = "",
   strictSpec = false,
+  frameworkClassification = null,
 }) {
   const lvl = normalizeLevel(level);
   const tierFinal = lvl === "GCSE" ? normalizeTier(tier) : ""; // non-GCSE => empty string
@@ -1354,6 +1359,10 @@ Use block roles where the output allows: hook, coreRule, commonMistake, patternR
   const engineBlock = String(engineInstructions || "").trim();
   if (engineBlock) {
     out += `\n\n${engineBlock}\n`;
+  }
+  const frameworkRoutingAppendix = buildFrameworkRoutingPromptSection(frameworkClassification);
+  if (frameworkRoutingAppendix) {
+    out += `\n\n${frameworkRoutingAppendix}\n`;
   }
   out += buildBoardPromptFragment(board);
   return out;
@@ -5157,6 +5166,7 @@ async function generateSanitizedDraft({
   strictSpec = false,
   retainTeachingIntentMetadata = false,
   teachingIntentTagOnly = false,
+  frameworkClassification = null,
 }) {
   const referencePromptSection = buildReferenceLessonMaterialPrompt(additionalInstructions);
   const systemPrompt = buildSystemPrompt(subject, level, referencePromptSection);
@@ -5176,6 +5186,7 @@ async function generateSanitizedDraft({
     additionalInstructions,
     engineInstructions,
     strictSpec,
+    frameworkClassification,
   });
 
   const ai = await callOpenAI({ systemPrompt, userPrompt });
@@ -5466,7 +5477,6 @@ router.post("/generate-and-save", auth, async (req, res) => {
       });
     }
 
-    // Additive classification telemetry only (no behavioural impact).
     const frameworkClassification = classifyTopicFramework({
       topic: subTopicDisplay || topic,
       topicKey: canonicalTopicKey || "",
@@ -5475,6 +5485,8 @@ router.post("/generate-and-save", auth, async (req, res) => {
     if (process.env.NODE_ENV !== "production") {
       console.log("[generate-and-save] framework classification:", frameworkClassification);
     }
+
+    const frameworkRouting = resolveFrameworkRoutingFromClassification(frameworkClassification);
 
     const topicKeyForGroupCheck = String(canonicalTopicKey || "").includes(":")
       ? canonicalTopicKey
@@ -5602,6 +5614,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       strictSpec,
       retainTeachingIntentMetadata,
       teachingIntentTagOnly,
+      frameworkClassification,
     })).sanitized;
 
     // ✅ 2b) Curriculum validation
@@ -6032,6 +6045,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
           },
         }),
         ...(teacherBrainInjection && { teacherBrainInjection }),
+        ...(frameworkRouting && { frameworkRouting }),
       },
     });
 
@@ -6080,6 +6094,7 @@ router.post("/generate-and-save", auth, async (req, res) => {
       ...(autoAttachResult && { attached: autoAttachResult }),
       ...(thinCoverage && { thinCoverage: true }),
       frameworkClassification,
+      ...(frameworkRouting && { frameworkRouting }),
       generationValidation,
       ...(v2Enabled && {
         lessonGeneratorV2: true,
