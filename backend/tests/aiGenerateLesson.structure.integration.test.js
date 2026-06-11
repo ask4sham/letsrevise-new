@@ -106,5 +106,9 @@ describe("AI generate-and-save: structure (hook, worked example, diagrams, exam 
       ["examTip", "examTips"].includes(String(b?.type ?? "").trim())
     ).length;
     expect(examTipCount).toBeGreaterThanOrEqual(1);
+
+    const v8TagRe = /\[v8 (?:definition|mechanism|comparison|application|evaluation)\]/i;
+    const savedText = blocks.map((b) => String(b?.content ?? "")).join("\n");
+    expect(v8TagRe.test(savedText)).toBe(false);
   });
 });

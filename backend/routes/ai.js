@@ -2940,6 +2940,34 @@ function stripTeachingIntentMetadata(blocks) {
   }
 }
 
+/** Matches V8 gentle-enforce authoring lines appended to student-facing block content. */
+const V8_AUTHORING_TAG_LINE_RE =
+  /\n?\[v8 (?:definition|mechanism|comparison|application|evaluation)\][^\n]*/gi;
+
+function stripV8FromText(text) {
+  if (typeof text !== "string" || !text) return text;
+  const stripped = text.replace(V8_AUTHORING_TAG_LINE_RE, "");
+  return stripped.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Remove V8 authoring tags from saved lesson block content (student-facing).
+ * Preserves block order, roles, and metadata; only strips tag lines from `content`.
+ */
+function stripV8AuthoringTags(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  for (const page of draft.pages || []) {
+    if (!Array.isArray(page.blocks)) continue;
+    for (const block of page.blocks) {
+      if (!block || typeof block !== "object") continue;
+      if (typeof block.content === "string" && block.content) {
+        block.content = stripV8FromText(block.content);
+      }
+    }
+  }
+  return draft;
+}
+
 /**
  * V8 — teaching intent engine (all topics: tag + gentle enforce; stem cell also strict enforce + dedupe).
  * @param {boolean} [opts.retainTeachingIntentMetadata] — if true, keep `_intent` on blocks (API/analytics); still stripped on DB save in makeLessonDbSafe.
@@ -5109,6 +5137,8 @@ function sanitizeDraft(draft, opts = {}) {
       subject,
     });
   }
+
+  stripV8AuthoringTags(clean);
 
   return clean;
 }
@@ -7829,3 +7859,4 @@ router.get("/health", (req, res) => {
 });
 
 module.exports = router;
+module.exports.stripV8AuthoringTags = stripV8AuthoringTags;
