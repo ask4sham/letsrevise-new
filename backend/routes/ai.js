@@ -56,6 +56,7 @@ const {
   topicHaystackFromDraft,
   examTipLooksSpecific,
   blockFlowText,
+  blockMentionsApplication,
   v6TokenSetForOverlap,
   v6JaccardSimilarity,
 } = require("../services/lessonDraftValidation");
@@ -2384,6 +2385,115 @@ function syncWorkedExampleFields(b, safeTopic, meta = {}) {
       fallback.correctAnswer
     );
   }
+}
+
+/** Topic-pattern fallbacks when the second half lacks a detectable real-world application block. */
+const REAL_WORLD_APPLICATION_TOPIC_FALLBACKS = [
+  {
+    patterns: [/reflex\s*arc/i, /reflex\s+action/i, /withdrawal\s+reflex/i, /stimulus.?response/i],
+    title: "Real-World Application",
+    content:
+      "**Real-world application:** The withdrawal reflex is a real-world example of the reflex arc — for example, when you touch a hot pan, receptors detect the stimulus and the reflex arc produces a rapid response that moves your hand away before you consciously feel pain, helping you avoid injury.",
+  },
+  {
+    patterns: [/cell[\s-]structure/i, /eukaryot/i, /prokaryot/i, /animal[\s-]and[\s-]plant[\s-]cells/i],
+    title: "Real-World Application",
+    content:
+      "**Real-world application:** Specialised cells are used in medicine every day — for example, doctors use microscopy to compare cell structure in blood and tissue samples so they can diagnose disease when cells look abnormal.",
+  },
+  {
+    patterns: [/blood\s+glucose/i, /glucose\s+regulation/i, /control\s+of\s+blood\s+glucose/i, /insulin/i, /glucagon/i],
+    title: "Real-World Application",
+    content:
+      "**Real-world application:** Blood glucose control is used in medicine to manage diabetes — for example, people with diabetes monitor glucose levels and use insulin treatment so cells can take up glucose safely and avoid dangerous highs and lows.",
+  },
+  {
+    patterns: [/mitosis/i, /cell\s+cycle/i],
+    title: "Real-World Application",
+    content:
+      "**Real-world application:** Mitosis is used in the body for growth and tissue repair — for example, wound healing depends on mitosis, whereas uncontrolled mitosis can contribute to cancer when cell division is not regulated.",
+  },
+  {
+    patterns: [/carbon\s+cycle/i, /how\s+materials\s+are\s+cycled/i, /materials\s+are\s+cycled/i, /decomposer/i, /recycling\s+carbon/i],
+    title: "Real-World Application",
+    content:
+      "**Real-world application:** Material cycles have environmental importance — for example, decomposition returns nutrients to soil on farms, and the carbon cycle links ecosystems to climate when carbon dioxide moves between living organisms and the atmosphere.",
+  },
+];
+
+function realWorldApplicationMetaFromHint(topicHint = "", meta = {}) {
+  const topic = safeStr(topicHint, "") || safeStr(meta.topic, "");
+  return {
+    topic,
+    subTopic: safeStr(meta.subTopic, "") || topic,
+    topicKey: safeStr(meta.topicKey, ""),
+    haystack: `${topic} ${safeStr(meta.subTopic, "")} ${safeStr(meta.topicKey, "")}`.toLowerCase(),
+  };
+}
+
+function buildTopicAwareRealWorldApplication(topicHint = "", meta = {}) {
+  const { topic, haystack } = realWorldApplicationMetaFromHint(topicHint, meta);
+  const safeTopic = safeStr(topic, "this topic").trim() || "this topic";
+
+  for (const fb of REAL_WORLD_APPLICATION_TOPIC_FALLBACKS) {
+    if (fb.patterns.some((re) => re.test(haystack))) {
+      return { title: fb.title, content: fb.content };
+    }
+  }
+
+  return {
+    title: "Real-World Application",
+    content: `**Real-world application:** Understanding ${safeTopic} is used in medicine and environmental science — for example, scientists apply this knowledge when diagnosing disease and protecting ecosystems.`,
+  };
+}
+
+function secondHalfHasRealWorldApplication(blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return false;
+  const mid = Math.ceil(blocks.length / 2);
+  return blocks.slice(mid).some((b) => blockMentionsApplication(blockFlowText(b)));
+}
+
+function findRealWorldApplicationInsertIndex(blocks) {
+  const mid = Math.ceil(blocks.length / 2);
+  for (let i = mid; i < blocks.length; i++) {
+    const role = safeStr(blocks[i]?.role, "");
+    if (role === "finalMemoryRule" || role === "workedExample") return i;
+  }
+  return blocks.length;
+}
+
+/**
+ * Ensure the second half contains a topic-specific real-world application block (structure gate).
+ * Skips Required Practical lessons and drafts that already have a detectable application in the second half.
+ */
+function ensureRealWorldApplicationBlock(draft, topicHint = "", meta = {}) {
+  if (!draft || typeof draft !== "object") return draft;
+
+  const rpCtx = {
+    topic: safeStr(topicHint, "") || safeStr(meta.topic, ""),
+    topicKey: safeStr(meta.topicKey, ""),
+    subTopic: safeStr(meta.subTopic, "") || safeStr(topicHint, ""),
+  };
+  if (isRequiredPracticalMode(rpCtx)) return draft;
+
+  const fallback = buildTopicAwareRealWorldApplication(topicHint, meta);
+
+  for (const page of draft.pages || []) {
+    const blocks = page.blocks;
+    if (!Array.isArray(blocks)) continue;
+
+    if (secondHalfHasRealWorldApplication(blocks)) continue;
+
+    const insertIndex = findRealWorldApplicationInsertIndex(blocks);
+    blocks.splice(insertIndex, 0, {
+      type: "text",
+      title: fallback.title,
+      content: fallback.content,
+      role: "concept",
+    });
+  }
+
+  return draft;
 }
 
 /**
@@ -5286,11 +5396,14 @@ function sanitizeDraft(draft, opts = {}) {
     subject,
   });
 
-  if (!isRequiredPracticalMode({
+  const theoryLessonCtx = {
     topic,
     topicKey: opts.topicKey,
     subTopic: opts.subTopic || opts.subTopicDisplay || topic,
-  })) {
+  };
+
+  if (!isRequiredPracticalMode(theoryLessonCtx)) {
+    ensureRealWorldApplicationBlock(clean, topic, theoryLessonCtx);
     enforceDashboardTeacherFirstOpening(clean, {
       topic,
       topicKey: opts.topicKey,
@@ -8023,6 +8136,8 @@ module.exports = router;
 module.exports.stripV8AuthoringTags = stripV8AuthoringTags;
 module.exports.resolveWorkedExampleFallback = resolveWorkedExampleFallback;
 module.exports.ensureWorkedExampleCheckpoint = ensureWorkedExampleCheckpoint;
+module.exports.ensureRealWorldApplicationBlock = ensureRealWorldApplicationBlock;
+module.exports.buildTopicAwareRealWorldApplication = buildTopicAwareRealWorldApplication;
 module.exports.sanitizeDraftForTest = sanitizeDraft;
 module.exports.buildUserPromptFromMdForTest = buildUserPromptFromMd;
 module.exports.buildTeacherFirstLayer2OpeningAppendixForTest = buildTeacherFirstLayer2OpeningAppendix;
