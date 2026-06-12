@@ -21,8 +21,15 @@ function resolveLessonId(req, allowBody = false) {
 }
 
 function isAdmin(user) {
-  const t = (user?.userType || user?.role || user?.isAdmin);
+  const t = user?.userType || user?.role || user?.isAdmin;
   return t === "admin" || t === true;
+}
+
+/** Admin dashboard reviewers — may preview any lesson (including drafts) without publishing. */
+function isLessonReviewer(user) {
+  if (isAdmin(user)) return true;
+  const staffRole = (user?.staffRole || "").toString().toLowerCase();
+  return staffRole === "content_manager";
 }
 
 function isTeacher(user) {
@@ -78,7 +85,7 @@ module.exports = function canAccessContent(options = {}) {
       const status = (lesson.status || (lesson.isPublished ? "published" : "draft")).toString().toLowerCase();
       const isPublished = status === "published";
 
-      if (allowAdmin && isAdmin(req.user)) {
+      if (allowAdmin && isLessonReviewer(req.user)) {
         req.lesson = lesson;
         req.accessDecision = { allowed: true, reason: "ADMIN" };
         if (process.env.NODE_ENV !== "production") {

@@ -937,7 +937,7 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
     const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
     const lessons = await Lesson.find(query)
-      .select("_id title subject level status isPublished teacherId views purchases averageRating createdAt isFreePreview")
+      .select("_id title subject level status isPublished teacherId views purchases averageRating createdAt updatedAt isFreePreview")
       .populate("teacherId", "firstName lastName email")
       .sort(sort)
       .skip(skip)
@@ -963,6 +963,7 @@ router.get("/lessons", auth, requireContentManager, async (req, res) => {
           purchases,
           averageRating: lesson.averageRating || 0,
           createdAt: lesson.createdAt,
+          updatedAt: lesson.updatedAt,
           isFreePreview: !!lesson.isFreePreview,
           teacher: lesson.teacherId
             ? {
