@@ -97,6 +97,9 @@ const {
   isRequiredPracticalMode,
   buildRequiredPracticalDashboardLessonContract,
 } = require("../../lib/teacherBrain/requiredPracticalMode");
+const {
+  ensureReactionTimeEducationalRefinement,
+} = require("../../lib/teacherBrain/requiredPracticalReactionTimeRefinement");
 const { buildLessonCoverageReview } = require("../../lib/teacherBrain/lessonCoverageReview");
 const { buildReferenceLessonMaterialPrompt } = require("../../lib/referenceLessonMaterialPrompt");
 const {
@@ -5721,6 +5724,9 @@ function sanitizeDraft(draft, opts = {}) {
     topicKey: opts.topicKey,
     subTopic: opts.subTopic || opts.subTopicDisplay || topic,
   };
+  if (isRequiredPracticalMode(theoryLessonCtx)) {
+    ensureReactionTimeEducationalRefinement(clean, { ...theoryLessonCtx, subject });
+  }
 
   if (!isRequiredPracticalMode(theoryLessonCtx)) {
     enforceDashboardTeacherFirstOpening(clean, {
@@ -8481,6 +8487,7 @@ module.exports.ensureDiagramCountBeforeStructureValidation = ensureDiagramCountB
 module.exports.ensureTopicSpecificWhatToNoticeBlocks = ensureTopicSpecificWhatToNoticeBlocks;
 module.exports.buildTopicAwareWhatToNotice = buildTopicAwareWhatToNotice;
 module.exports.resolveTopicDiagramLabel = resolveTopicDiagramLabel;
+module.exports.ensureReactionTimeEducationalRefinement = ensureReactionTimeEducationalRefinement;
 module.exports.sanitizeDraftForTest = sanitizeDraft;
 module.exports.buildUserPromptFromMdForTest = buildUserPromptFromMd;
 module.exports.buildTeacherFirstLayer2OpeningAppendixForTest = buildTeacherFirstLayer2OpeningAppendix;
