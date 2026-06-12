@@ -68,6 +68,7 @@ interface Lesson {
   purchases: number;
   averageRating: number;
   createdAt: string;
+  updatedAt?: string;
   teacher: {
     id: string;
     name: string;
@@ -101,6 +102,22 @@ interface Transaction {
 }
 
 type Msg = { type: "success" | "error"; text: string };
+
+function formatLessonDate(iso?: string): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+const LESSON_TABLE_COLUMNS =
+  "minmax(140px,2fr) minmax(120px,1.2fr) minmax(72px,0.7fr) minmax(72px,0.7fr) minmax(72px,0.7fr) minmax(84px,0.75fr) minmax(84px,0.75fr) minmax(88px,0.8fr) minmax(220px,1.6fr)";
 
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -1495,11 +1512,12 @@ const AdminDashboardPage: React.FC = () => {
               />
             </div>
 
-            <div style={{ border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
+            <div style={{ border: "1px solid #ddd", borderRadius: "8px", overflowX: "auto" }}>
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 0.8fr 1fr",
+                  gridTemplateColumns: LESSON_TABLE_COLUMNS,
+                  minWidth: "1100px",
                   backgroundColor: "#f8f9fa",
                   padding: "1rem",
                   borderBottom: "1px solid #ddd",
@@ -1511,7 +1529,9 @@ const AdminDashboardPage: React.FC = () => {
                 <div>Subject</div>
                 <div>Access</div>
                 <div>Status</div>
-                <div>Preview</div>
+                <div>Created</div>
+                <div>Updated</div>
+                <div>Free preview</div>
                 <div>Actions</div>
               </div>
 
@@ -1532,14 +1552,22 @@ const AdminDashboardPage: React.FC = () => {
                       key={lessonId}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 0.8fr 1fr",
+                        gridTemplateColumns: LESSON_TABLE_COLUMNS,
+                        minWidth: "1100px",
                         padding: "1rem",
                         borderBottom: "1px solid #ddd",
                         alignItems: "center",
                       }}
                     >
                       <div>{l.title}</div>
-                      <div>{l.teacher?.name || "Unknown"}</div>
+                      <div>
+                        <div>{l.teacher?.name || "Unknown"}</div>
+                        {l.teacher?.email ? (
+                          <div style={{ fontSize: "0.75rem", color: "#666", marginTop: 2 }}>
+                            {l.teacher.email}
+                          </div>
+                        ) : null}
+                      </div>
                       <div>{l.subject}</div>
                       <div>{l.lessonAccess === "subscription" ? "Subscription" : "—"}</div>
                       <div>
@@ -1570,12 +1598,22 @@ const AdminDashboardPage: React.FC = () => {
                           {l.status}
                         </span>
                       </div>
+                      <div style={{ fontSize: "0.8125rem", color: "#444" }}>
+                        {formatLessonDate(l.createdAt)}
+                      </div>
+                      <div style={{ fontSize: "0.8125rem", color: "#444" }}>
+                        {formatLessonDate(l.updatedAt)}
+                      </div>
                       <div>
                         <button
                           type="button"
                           onClick={() => handleTogglePreview(lessonId, !!l.isFreePreview)}
                           disabled={togglingPreviewId === lessonId}
-                          title={l.isFreePreview ? "Click to disable free preview" : "Click to enable free preview"}
+                          title={
+                            l.isFreePreview
+                              ? "Students may sample this lesson without subscription"
+                              : "Allow students to sample this lesson without subscription"
+                          }
                           style={{
                             padding: "4px 12px",
                             borderRadius: 6,
@@ -1589,10 +1627,27 @@ const AdminDashboardPage: React.FC = () => {
                             minWidth: 52,
                           }}
                         >
-                          {togglingPreviewId === lessonId ? "..." : l.isFreePreview ? "ON" : "Set"}
+                          {togglingPreviewId === lessonId ? "..." : l.isFreePreview ? "ON" : "Off"}
                         </button>
                       </div>
                       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <Link to={`/lesson/${lessonId}?entry=preview`}>
+                          <button
+                            type="button"
+                            style={{
+                              padding: "0.25rem 0.5rem",
+                              backgroundColor: "#4299e1",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px",
+                              fontSize: "0.875rem",
+                              cursor: "pointer",
+                            }}
+                            title="Open lesson preview (does not publish)"
+                          >
+                            Preview
+                          </button>
+                        </Link>
                         <button
                           onClick={() => handleAdminOpenLesson(l)}
                           style={{

@@ -31,6 +31,7 @@ export function hasFullLessonAccess(
   const isTeacherOrAdmin =
     user?.userType === "admin" ||
     user?.userType === "teacher" ||
+    user?.staffRole === "content_manager" ||
     Boolean(user?.isAdmin);
   if (isTeacherOrAdmin) return true;
   if (Boolean(user?.adminPassActive)) return true;

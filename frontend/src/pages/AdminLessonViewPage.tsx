@@ -98,8 +98,11 @@ const AdminLessonViewPage: React.FC = () => {
   const [error, setError] = useState<string>("");
   const { token, user } = useCurrentUser({ watchLocation: true });
 
+  const canReviewLessons =
+    user?.userType === "admin" || user?.staffRole === "content_manager";
+
   useEffect(() => {
-    if (user?.userType !== "admin") {
+    if (!canReviewLessons) {
       navigate("/dashboard");
       return;
     }
@@ -155,7 +158,7 @@ const AdminLessonViewPage: React.FC = () => {
       // state already has content/pages, treat as full
       setLoading(false);
     }
-  }, [id, navigate, stateLesson, token, user?.userType]);
+  }, [id, navigate, stateLesson, token, canReviewLessons]);
 
   const handleEdit = () => {
     if (!id && !(lesson?._id || lesson?.id)) return;
