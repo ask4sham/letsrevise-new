@@ -1,0 +1,363 @@
+{
+  "phase": "3H.1.8b.3b",
+  "title": "Examiner Language V2 Alignment & Validation",
+  "generatedAt": "2026-06-13T07:03:33.467Z",
+  "baseline": "main @ 11d926a9",
+  "recoveryTag": "pre-examiner-language-v2",
+  "targetBlocksOnly": [
+    "coreTeaching",
+    "commonMistake",
+    "examTechnique",
+    "workedExample"
+  ],
+  "v2OffByDefault": true,
+  "topics": [
+    {
+      "topic": "Homeostasis",
+      "flags": {
+        "TEACHER_BRAIN_TEACHER_FIRST_OPENING": "1",
+        "TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE": "1",
+        "TEACHER_BRAIN_EXAMINER_LANGUAGE_V2": "1"
+      },
+      "v2Enabled": true,
+      "promptAppendixBytes": 4292,
+      "before": {
+        "targetBlocks": {
+          "coreTeaching": "The body gets too hot so it helps you sweat to cool down.",
+          "commonMistake": "Students write that the brain makes you sweat without explaining why.",
+          "examTechnique": "Say sweating cools you down.",
+          "workedExample": "Step 1: Body hot. Step 2: Sweat. Step 3: Cooler. Step 4: Better."
+        },
+        "score": {
+          "skipped": false,
+          "pass": false,
+          "signals": {
+            "targetBlockCount": 4,
+            "connectiveCount": 0,
+            "scientificVerbCount": 0,
+            "vagueVerbCount": 3,
+            "vagueNounCount": 0,
+            "scientificNounCount": 0,
+            "examinerFramingCount": 0,
+            "contrastPairsMatched": 0,
+            "examSayHits": 0,
+            "modelStructureHits": 0,
+            "blocksWithGradeLanguage": 0
+          },
+          "violations": [
+            "Fewer than 2 examiner connectives in target blocks.",
+            "Fewer than 2 scientific verbs in target blocks.",
+            "No topic-specific contrast pair or exam-say phrasing detected.",
+            "Examiner-grade language in fewer than 2 target blocks.",
+            "Worked Example missing Observation/Evidence/Mechanism/Conclusion pattern."
+          ],
+          "protectedBlocksUntouched": {},
+          "targetBlocksOnly": [
+            "coreTeaching",
+            "commonMistake",
+            "examTechnique",
+            "workedExample"
+          ]
+        }
+      },
+      "after": {
+        "targetBlocks": {
+          "coreTeaching": "Core temperature rises above the optimum; thermoreceptors detect the change because conditions move away from the set point. The hypothalamus coordinates effectors therefore sweat glands are activated.",
+          "commonMistake": "Students often write: The body gets too hot so it sweats.\nCorrect: Thermoreceptors detect the change; the hypothalamus coordinates sweating therefore evaporation removes heat energy.",
+          "examTechnique": "Examiners expect receptor → coordination centre → effector → mechanism. To gain full marks: link negative feedback returning conditions towards the optimum.",
+          "workedExample": "Step 1 Observation: Core temperature rose to 38°C during exercise.\nStep 2 Data: Thermoreceptors detected the change.\nStep 3 Explanation: The hypothalamus coordinated sweating because evaporation removes heat energy.\nStep 4 Conclusion: Therefore negative feedback restores optimum temperature."
+        },
+        "score": {
+          "skipped": false,
+          "pass": true,
+          "signals": {
+            "targetBlockCount": 4,
+            "connectiveCount": 5,
+            "scientificVerbCount": 8,
+            "vagueVerbCount": 1,
+            "vagueNounCount": 0,
+            "scientificNounCount": 10,
+            "examinerFramingCount": 3,
+            "contrastPairsMatched": 2,
+            "examSayHits": 2,
+            "modelStructureHits": 4,
+            "blocksWithGradeLanguage": 4
+          },
+          "violations": [],
+          "protectedBlocksUntouched": {},
+          "targetBlocksOnly": [
+            "coreTeaching",
+            "commonMistake",
+            "examTechnique",
+            "workedExample"
+          ]
+        }
+      },
+      "improvements": {
+        "examinerFramingCount": {
+          "before": 0,
+          "after": 3
+        },
+        "contrastPairsMatched": {
+          "before": 0,
+          "after": 2
+        },
+        "scientificNounCount": {
+          "before": 0,
+          "after": 10
+        },
+        "connectiveCount": {
+          "before": 0,
+          "after": 5
+        },
+        "pass": {
+          "before": false,
+          "after": true
+        }
+      },
+      "protectedBlocksUnchanged": true,
+      "wordingExamples": [
+        {
+          "weak": "The body gets too hot so it helps you sweat to cool down.",
+          "strong": "Core temperature rises above the optimum; thermoreceptors detect the change because conditions move away from the set point. The hypothalamus coordinates effectors therefore sweat glands are activated."
+        },
+        {
+          "weak": "Students write that the brain makes you sweat without explaining why.",
+          "strong": "Students often write: The body gets too hot so it sweats.\nCorrect: Thermoreceptors detect the change; the hypothalamus coordinates sweating therefore evaporation removes heat energy."
+        }
+      ]
+    },
+    {
+      "topic": "Structure and Function of the Nervous System",
+      "flags": {
+        "TEACHER_BRAIN_TEACHER_FIRST_OPENING": "1",
+        "TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE": "1",
+        "TEACHER_BRAIN_EXAMINER_LANGUAGE_V2": "1"
+      },
+      "v2Enabled": true,
+      "promptAppendixBytes": 4166,
+      "before": {
+        "targetBlocks": {
+          "coreTeaching": "Messages travel through nerves to help the brain control responses.",
+          "commonMistake": "Students say nerves send messages without naming neurones.",
+          "examTechnique": "Describe how nerves work.",
+          "workedExample": "Step 1: Stimulus. Step 2: Message. Step 3: Brain. Step 4: Move."
+        },
+        "score": {
+          "skipped": false,
+          "pass": false,
+          "signals": {
+            "targetBlockCount": 4,
+            "connectiveCount": 0,
+            "scientificVerbCount": 1,
+            "vagueVerbCount": 1,
+            "vagueNounCount": 3,
+            "scientificNounCount": 2,
+            "examinerFramingCount": 0,
+            "contrastPairsMatched": 2,
+            "examSayHits": 0,
+            "modelStructureHits": 0,
+            "blocksWithGradeLanguage": 3
+          },
+          "violations": [
+            "Fewer than 2 examiner connectives in target blocks.",
+            "Fewer than 2 scientific verbs in target blocks.",
+            "Worked Example missing Observation/Evidence/Mechanism/Conclusion pattern."
+          ],
+          "protectedBlocksUntouched": {},
+          "targetBlocksOnly": [
+            "coreTeaching",
+            "commonMistake",
+            "examTechnique",
+            "workedExample"
+          ]
+        }
+      },
+      "after": {
+        "targetBlocks": {
+          "coreTeaching": "The nervous system coordinates responses through electrical impulses transmitted along neurones because receptors detect a stimulus.",
+          "commonMistake": "Students often write: Messages travel through nerves.\nCorrect: Electrical impulses travel along sensory and motor neurones.",
+          "examTechnique": "Examiners expect named neurones and impulse direction. Creditworthy answer: sensory neurone transmits impulses to the CNS; motor neurone stimulates the effector.",
+          "workedExample": "Step 1 Observation: A painful stimulus was detected by receptors.\nStep 2 Data: Impulses travelled along sensory neurones to the CNS.\nStep 3 Explanation: Motor neurones transmit impulses to the effector because synapses relay signals.\nStep 4 Conclusion: Therefore a rapid reflex response occurs."
+        },
+        "score": {
+          "skipped": false,
+          "pass": true,
+          "signals": {
+            "targetBlockCount": 4,
+            "connectiveCount": 3,
+            "scientificVerbCount": 7,
+            "vagueVerbCount": 0,
+            "vagueNounCount": 2,
+            "scientificNounCount": 16,
+            "examinerFramingCount": 3,
+            "contrastPairsMatched": 2,
+            "examSayHits": 2,
+            "modelStructureHits": 4,
+            "blocksWithGradeLanguage": 4
+          },
+          "violations": [],
+          "protectedBlocksUntouched": {},
+          "targetBlocksOnly": [
+            "coreTeaching",
+            "commonMistake",
+            "examTechnique",
+            "workedExample"
+          ]
+        }
+      },
+      "improvements": {
+        "examinerFramingCount": {
+          "before": 0,
+          "after": 3
+        },
+        "contrastPairsMatched": {
+          "before": 2,
+          "after": 2
+        },
+        "scientificNounCount": {
+          "before": 2,
+          "after": 16
+        },
+        "connectiveCount": {
+          "before": 0,
+          "after": 3
+        },
+        "pass": {
+          "before": false,
+          "after": true
+        }
+      },
+      "protectedBlocksUnchanged": true,
+      "wordingExamples": [
+        {
+          "weak": "Messages travel through nerves to help the brain control responses.",
+          "strong": "The nervous system coordinates responses through electrical impulses transmitted along neurones because receptors detect a stimulus."
+        },
+        {
+          "weak": "Students say nerves send messages without naming neurones.",
+          "strong": "Students often write: Messages travel through nerves.\nCorrect: Electrical impulses travel along sensory and motor neurones."
+        }
+      ]
+    },
+    {
+      "topic": "The Eye",
+      "flags": {
+        "TEACHER_BRAIN_TEACHER_FIRST_OPENING": "1",
+        "TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE": "1",
+        "TEACHER_BRAIN_EXAMINER_LANGUAGE_V2": "1"
+      },
+      "v2Enabled": true,
+      "promptAppendixBytes": 4111,
+      "before": {
+        "targetBlocks": {
+          "coreTeaching": "The lens focuses light and the eye zooms in on near objects.",
+          "commonMistake": "Students say the retina sees the image.",
+          "examTechnique": "Explain how the eye focuses.",
+          "workedExample": "Step 1: Light in. Step 2: Lens bends. Step 3: Retina sees. Step 4: Done."
+        },
+        "score": {
+          "skipped": false,
+          "pass": false,
+          "signals": {
+            "targetBlockCount": 4,
+            "connectiveCount": 0,
+            "scientificVerbCount": 0,
+            "vagueVerbCount": 0,
+            "vagueNounCount": 0,
+            "scientificNounCount": 2,
+            "examinerFramingCount": 0,
+            "contrastPairsMatched": 1,
+            "examSayHits": 0,
+            "modelStructureHits": 0,
+            "blocksWithGradeLanguage": 2
+          },
+          "violations": [
+            "Fewer than 2 examiner connectives in target blocks.",
+            "Fewer than 2 scientific verbs in target blocks.",
+            "Worked Example missing Observation/Evidence/Mechanism/Conclusion pattern."
+          ],
+          "protectedBlocksUntouched": {},
+          "targetBlocksOnly": [
+            "coreTeaching",
+            "commonMistake",
+            "examTechnique",
+            "workedExample"
+          ]
+        }
+      },
+      "after": {
+        "targetBlocks": {
+          "coreTeaching": "Light is refracted by the cornea and lens; ciliary muscles change lens shape during accommodation therefore rays converge on the retina.",
+          "commonMistake": "Students often write: The eye zooms in.\nCorrect: Ciliary muscles contract leading to a thicker lens and increased refraction.",
+          "examTechnique": "Examiners expect cornea and lens refraction plus accommodation sequence. Do not say: the retina sees the image.",
+          "workedExample": "Step 1 Observation: Light enters through the cornea.\nStep 2 Data: The lens refracts rays more strongly during accommodation.\nStep 3 Explanation: Photoreceptors in the retina detect the focused image because impulses are sent to the brain.\nStep 4 Conclusion: Therefore the eye maintains a clear image on the retina."
+        },
+        "score": {
+          "skipped": false,
+          "pass": true,
+          "signals": {
+            "targetBlockCount": 4,
+            "connectiveCount": 4,
+            "scientificVerbCount": 4,
+            "vagueVerbCount": 0,
+            "vagueNounCount": 0,
+            "scientificNounCount": 10,
+            "examinerFramingCount": 3,
+            "contrastPairsMatched": 2,
+            "examSayHits": 2,
+            "modelStructureHits": 4,
+            "blocksWithGradeLanguage": 4
+          },
+          "violations": [],
+          "protectedBlocksUntouched": {},
+          "targetBlocksOnly": [
+            "coreTeaching",
+            "commonMistake",
+            "examTechnique",
+            "workedExample"
+          ]
+        }
+      },
+      "improvements": {
+        "examinerFramingCount": {
+          "before": 0,
+          "after": 3
+        },
+        "contrastPairsMatched": {
+          "before": 1,
+          "after": 2
+        },
+        "scientificNounCount": {
+          "before": 2,
+          "after": 10
+        },
+        "connectiveCount": {
+          "before": 0,
+          "after": 4
+        },
+        "pass": {
+          "before": false,
+          "after": true
+        }
+      },
+      "protectedBlocksUnchanged": true,
+      "wordingExamples": [
+        {
+          "weak": "The lens focuses light and the eye zooms in on near objects.",
+          "strong": "Light is refracted by the cornea and lens; ciliary muscles change lens shape during accommodation therefore rays converge on the retina."
+        },
+        {
+          "weak": "Students say the retina sees the image.",
+          "strong": "Students often write: The eye zooms in.\nCorrect: Ciliary muscles contract leading to a thicker lens and increased refraction."
+        }
+      ]
+    }
+  ],
+  "acceptance": {
+    "targetBlocksImprove": true,
+    "protectedBlocksUnchanged": true,
+    "v2FlagGated": true,
+    "readyForManualReview": true
+  }
+}

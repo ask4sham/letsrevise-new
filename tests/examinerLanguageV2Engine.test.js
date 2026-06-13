@@ -7,6 +7,8 @@ const {
   scoreExaminerLanguageV2Coverage,
   isExaminerLanguageV2Enabled,
   EXAMINER_LANGUAGE_V2_MARKER,
+  V2_TARGET_BLOCK_KEYS,
+  extractBlockBodiesByPatterns,
 } = require("../lib/teacherBrain/examinerLanguageV2Engine");
 const { resolveTeachingQualityProfile } = require("../lib/teacherBrain/teachingQualityProfiles");
 const {
@@ -45,7 +47,14 @@ describe("Phase 3H.1.8b.3b — Examiner Language V2", () => {
     ).toBe("");
   });
 
-  test("V2 appendix includes language rules and topic contrasts", () => {
+  test("V2 targets only four blocks — not Summary or Exam Practice", () => {
+    expect(V2_TARGET_BLOCK_KEYS).toEqual([
+      "coreTeaching",
+      "commonMistake",
+      "examTechnique",
+      "workedExample",
+    ]);
+
     process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
     process.env.TEACHER_BRAIN_TEACHING_QUALITY_UPGRADE = "1";
     process.env.TEACHER_BRAIN_EXAMINER_LANGUAGE_V2 = "1";
@@ -54,14 +63,46 @@ describe("Phase 3H.1.8b.3b — Examiner Language V2", () => {
       topic: "Structure and function of the nervous system",
     });
     expect(section).toMatch(EXAMINER_LANGUAGE_V2_MARKER);
-    expect(section).toMatch(/RULE 1/);
+    expect(section).toMatch(/FOUR blocks/i);
+    expect(section).toMatch(/Students often write/i);
+    expect(section).toMatch(/Examiners expect/i);
+    expect(section).toMatch(/Do not say/i);
+    expect(section).toMatch(/Creditworthy answer/i);
+    expect(section).toMatch(/To gain full marks/i);
     expect(section).toMatch(/electrical impulses/i);
-    expect(section).toMatch(/coordinates responses through electrical impulses/i);
     expect(section).toMatch(/DO NOT add, remove, or reorder blocks/i);
-    expect(section).toMatch(/Equipment lists or Method steps/i);
+    expect(section).toMatch(/Do NOT modify Summary, Exam Practice/i);
+    expect(section).not.toMatch(/SUMMARY takeaway/i);
+    expect(section).not.toMatch(/EXAM PRACTICE model answers/i);
+    expect(section).not.toMatch(/EXAM TIP/i);
   });
 
-  test("scores strong examiner-grade lesson language", () => {
+  test("extractBlockBodies ignores Summary and Exam Practice", () => {
+    const text = `
+9 — CORE TEACHING
+Paste into: Text (concept)
+Core content here.
+
+15 — COMMON MISTAKE
+Paste into: Common mistake
+Mistake content.
+
+23 — SUMMARY
+Paste into: Text (concept)
+Summary text.
+
+19 — EXAM PRACTICE
+Paste into: Text (concept)
+Practice text.
+`;
+    const bodies = extractBlockBodiesByPatterns(text);
+    expect(bodies.coreTeaching).toBeTruthy();
+    expect(bodies.commonMistake).toBeTruthy();
+    expect(bodies.summary).toBeUndefined();
+    expect(bodies.examPractice).toBeUndefined();
+  });
+
+  test("scores strong examiner-grade lesson language in target blocks only", () => {
     const profile = resolveTeachingQualityProfile({
       topic: "Structure and function of the nervous system",
     });
@@ -74,8 +115,13 @@ The nervous system coordinates responses through electrical impulses transmitted
 15 — COMMON MISTAKE
 Paste into: Common mistake
 
-Weak: Messages travel through nerves.
+Students often write: Messages travel through nerves.
 Correct: Electrical impulses travel along sensory and motor neurones.
+
+16 — EXAM TECHNIQUE
+Paste into: Exam technique (exam skill)
+
+Examiners expect named neurones and impulse direction. To gain full marks: link stimulus to effector.
 
 17 — WORKED EXAMPLE
 Paste into: Worked example (checkpoint)
@@ -88,26 +134,23 @@ Step 4 Conclusion: Therefore the data supports faster responses.
 23 — SUMMARY
 Paste into: Text (concept)
 
-Reaction time is the interval between stimulus and response and is influenced by transmission along neurones and across synapses.
+Remember this.
 `;
     const score = scoreExaminerLanguageV2Coverage(strong, profile);
     expect(score.pass).toBe(true);
     expect(score.signals.scientificVerbCount).toBeGreaterThanOrEqual(2);
     expect(score.signals.connectiveCount).toBeGreaterThanOrEqual(2);
+    expect(score.signals.examinerFramingCount).toBeGreaterThanOrEqual(2);
+    expect(score.signals.targetBlockCount).toBe(4);
   });
 
-  test("fails vague student-friendly wording", () => {
+  test("fails vague student-friendly wording in target blocks", () => {
     const profile = resolveTeachingQualityProfile({ topic: "Homeostasis" });
     const weak = `
 9 — CORE TEACHING
 Paste into: Text (concept)
 
 The body needs to get cool so it helps you sweat.
-
-23 — SUMMARY
-Paste into: Text (concept)
-
-Remember this.
 `;
     const score = scoreExaminerLanguageV2Coverage(weak, profile);
     expect(score.pass).toBe(false);
@@ -136,6 +179,15 @@ describe("Phase 3H.1.8b.3b — structural non-regression", () => {
     expect(TEACHER_FIRST_OPENING_ORDER_VERSION).toBe("3H.1.6-locked");
   });
 
+  test("Definition and Scenario slots present when Teacher-First flag on", () => {
+    process.env.TEACHER_BRAIN_TEACHER_FIRST_OPENING = "1";
+    const slots = getSs1CanonicalSlots({ topic: "Homeostasis" });
+    expect(slots.find((s) => s.key === "definition")).toBeTruthy();
+    expect(slots.find((s) => s.key === "scenario")).toBeTruthy();
+    expect(slots.find((s) => s.key === "summary")).toBeTruthy();
+    expect(slots.find((s) => s.key === "keywords")).toBeTruthy();
+  });
+
   test("Required Practical V2.2 baseline slot count unchanged", () => {
     expect(REQUIRED_PRACTICAL_MODE_VERSION).toBe("V2.2");
     expect(REQUIRED_PRACTICAL_SS1_CANONICAL_SLOTS).toHaveLength(19);
@@ -149,6 +201,8 @@ describe("Phase 3H.1.8b.3b — structural non-regression", () => {
     expect(slots.length).toBeGreaterThanOrEqual(24);
     expect(slots[0].key).toBe("objectives");
     expect(slots.some((s) => s.key === "coreTeaching")).toBe(true);
+    expect(slots.some((s) => s.key === "summary")).toBe(true);
+    expect(slots.some((s) => s.key === "keywords")).toBe(true);
   });
 
   test("RP SS1 slot count unchanged", () => {
