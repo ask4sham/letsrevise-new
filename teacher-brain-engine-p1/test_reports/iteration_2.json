@@ -1,0 +1,54 @@
+{
+  "summary": "P0.6 release-readiness gate. Brutal end-to-end re-validation of P0.1 (JWT auth), P0.2 (budget cap), P0.3 (schema validation + 1 retry), P0.4 (ErrorBoundary), P0.5 (LLM failure / idempotency). Result: 39/39 P0-relevant pytest pass, 2 expected legacy-test failures in backend_test.py (auth now correctly gates DELETE and mark — old tests asserted 404/400, new behaviour is 401, which is the intended P0.1 outcome). All API smoke tests return correct status codes (401/200/429/422/503/409) with clean envelopes (no stack/path leak). No secrets in served bundle.js. ErrorBoundary fallback renders correctly at /__boom with Try again + Return to Library and no raw stack trace. Final recommendation: SAFE TO INTEGRATE (Option A).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "tests/backend_test.py::TestLessonCRUD::test_delete_lesson_404", "issue": "Legacy test asserts 404 but now gets 401 because DELETE /api/lessons/{id} is correctly auth-gated by P0.1. EXPECTED — rewrite legacy test to authenticate first."},
+      {"endpoint": "tests/backend_test.py::TestMarkItNow::test_mark_empty_answer_400", "issue": "Legacy test asserts 400 but now gets 401 because mark route is correctly auth-gated by P0.1. EXPECTED — rewrite legacy test to authenticate first then assert 400 on empty answer."},
+      {"endpoint": "/api/lessons/generate", "issue": "EMERGENT_LLM_KEY upstream may return 'Budget has been exceeded' transient. Server correctly converts to HTTP 503 envelope (LLM_PROVIDER_UNAVAILABLE) with no provider message leak. Confirms P0.5 envelope handling — not a fail."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/pytest/p06_results.xml",
+    "/app/test_reports/p06_smoke.sh",
+    "/app/test_reports/p06_revalidation_report.md",
+    "/app/backend/tests/test_pipeline.py",
+    "/app/backend/tests/test_usage.py",
+    "/app/backend/tests/test_validator.py"
+  ],
+  "action_items": [
+    "OPTIONAL (not blocker): Rewrite the 2 legacy tests in /app/backend/tests/backend_test.py (test_delete_lesson_404, test_mark_empty_answer_400) to authenticate before asserting 404/400 — current 401 behaviour is correct, only the test expectations are stale.",
+    "OPTIONAL (post-MVP): Replace in-memory inflight registry with Redis-based lock before multi-pod scale-out — current in-process lock won't survive horizontal scaling on Render.",
+    "OPTIONAL: Suppress CRA dev red-overlay in production builds (already auto-suppressed in NODE_ENV=production builds; confirmed via ErrorBoundary code) — no action needed for prod."
+  ],
+  "critical_code_review_comments": [
+    "server.py exception handlers return clean envelopes for 401/422/429/503/409 — verified no stack trace, file paths, prompts, provider strings leaked. PASS.",
+    "Landing.jsx line 76 explicitly guards `if (!lesson?.id)` before navigating, preventing /lesson/undefined regression. PASS.",
+    "ErrorBoundary.jsx sanitize() strips `sk-*` keys, file paths, and stack frames before rendering safe-message; production builds skip componentStack logging. PASS.",
+    "auth.py seed_admin() is idempotent (uses upsert pattern); JWT signed with HS256 + JWT_SECRET from env (not bundled). PASS.",
+    "usage.py check_budget() runs BEFORE the LLM call in lesson_pipeline.py (verified by test_budget_exceeded_before_first_attempt_no_llm_call). PASS.",
+    "idempotency.py InflightRegistry releases lock in both success and failure paths (verified by test_inflight_lock_released_after_failure). PASS.",
+    "Bundle scan confirms zero occurrences of EMERGENT_LLM_KEY / JWT_SECRET / MONGO_URL / sk-emergent / sk-ant- / mongodb:// in served /static/js/bundle.js. PASS."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_2.json",
+    "/app/test_reports/p06_smoke.sh",
+    "/app/test_reports/p06_revalidation_report.md",
+    "/app/test_reports/pytest/p06_results.xml"
+  ],
+  "success_rate": {
+    "backend": "100% on P0-relevant suites (39/39 in test_pipeline + test_usage + test_validator). 8/10 in legacy backend_test.py — 2 failures are expected/intended P0.1 gating side-effects.",
+    "frontend": "100% on critical flows (Landing renders, login works, JWT stored as tb.access_token, header chips show user email + usage gauge, Library renders seeded lesson, /__boom renders ErrorBoundary fallback with Try again + Return to Library and no stack leak)."
+  },
+  "test_credentials": "teacher@letsrevise.dev / LetsRevise!2026 (seeded; verified working). JWT stored at localStorage['tb.access_token'].",
+  "seed_data_creation": "One seeded lesson present (Homeostasis, AQA 4.5.1, score 9.8). Used as fallback if LLM budget is exhausted.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All P0 hardening verified. The user explicitly instructed NOT to rewrite legacy backend_test.py tests — those 2 failures are intentional evidence that P0.1 auth gating is working. Full human-readable 10-section report at /app/test_reports/p06_revalidation_report.md. Final recommendation: Option A — safe to integrate into main LetsRevise repo. Reminder: TEACHER_BRAIN_EXAMINER_LANGUAGE_V2 must remain 0 in user's real Render production until full migration tested.",
+  "rca of the issue": "No critical defects found. The two legacy test failures in backend_test.py are not bugs — they are correct evidence that P0.1 auth gating now blocks anonymous DELETE/mark requests with 401 BEFORE reaching the 404/400 paths the legacy tests assumed. Reproduction: run `pytest tests/backend_test.py::TestLessonCRUD::test_delete_lesson_404` — gets 401 not 404. Mitigation (when ready): add Bearer token to those tests, then assert 404/400 on already-authenticated requests. Do NOT mark as bug — this is the explicitly intended hardened behaviour."
+}
