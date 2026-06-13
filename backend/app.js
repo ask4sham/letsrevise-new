@@ -216,6 +216,9 @@ app.use("/api/knowledge", require("./routes/knowledgeDocuments"));
 // PR-007: Feature flags (auth required)
 app.use("/api/feature-flags", require("./routes/featureFlags"));
 
+// P1: GCSE Visual Explanation (teacher/admin, flag-gated)
+app.use("/api/visual-explanations", require("./routes/visualExplanation"));
+
 // PR-009: Coverage engine (teacher + admin)
 app.use("/api/coverage", require("./routes/coverage.routes"));
 

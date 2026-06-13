@@ -85,6 +85,8 @@ import {
 import { recordMastery, getMastery } from "../api/mastery";
 import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
+import { getVisualExplanationEnabled } from "../api/featureFlags";
+import VisualExplanationPanel from "../components/lesson/VisualExplanationPanel";
 import { updateUser } from "../utils/authStorage";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
@@ -1541,6 +1543,7 @@ const LessonViewPage: React.FC = () => {
   // PR-FE-REVIEWS-COLLAPSE-1: Student Reviews collapsed by default, expand on pill click
   const [showReviews, setShowReviews] = useState(false);
   const reviewsRef = useRef<HTMLDivElement>(null);
+  const [visualExplanationEnabled, setVisualExplanationEnabled] = useState(false);
   useEffect(() => {
     if (previewLockRef.current) {
       if (process.env.NODE_ENV !== "production") {
@@ -1552,6 +1555,29 @@ const LessonViewPage: React.FC = () => {
       reviewsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [showReviews]);
+
+  useEffect(() => {
+    const userType = (user?.userType ?? "").toString().toLowerCase();
+    const isTa =
+      userType === "teacher" ||
+      userType === "admin" ||
+      (user as { isAdmin?: boolean })?.isAdmin === true;
+    if (!token || !isTa) {
+      setVisualExplanationEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    getVisualExplanationEnabled()
+      .then((enabled) => {
+        if (!cancelled) setVisualExplanationEnabled(enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setVisualExplanationEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, token]);
 
   // PR — Adaptive Testing Loop: topic mastery for adaptive feedback
   const [masteryData, setMasteryData] = useState<{ attempts: number; correct: number; masteryScore: number } | null>(null);
@@ -3953,6 +3979,19 @@ const LessonViewPage: React.FC = () => {
                   </h2>
                   {/* Page kicker: hero caption not rendered (SHOW_PAGE_KICKER is false). Same caption in renderHero. */}
                 </div>
+
+                {visualExplanationEnabled && isTeacherOrAdmin && lesson ? (
+                  <VisualExplanationPanel
+                    lesson={{
+                      id: lesson.id,
+                      title: lesson.title,
+                      topic: lesson.topic,
+                      subject: lesson.subject,
+                      level: lesson.level,
+                      examBoardName: lesson.examBoardName,
+                    }}
+                  />
+                ) : null}
 
                 {curriculumConfidence && (
                   <div>
