@@ -87,6 +87,10 @@ import type { SpecKey } from "../api/taxonomy";
 import { useCurrentUser, type CurrentUser } from "../hooks/useCurrentUser";
 import { getVisualExplanationEnabled } from "../api/featureFlags";
 import VisualExplanationPanel from "../components/lesson/VisualExplanationPanel";
+import {
+  buildVisualExplanationContext,
+  findVisualExplanationAnchor,
+} from "../utils/visualExplanationAnchor";
 import { updateUser } from "../utils/authStorage";
 import { getUserDisplayName } from "../utils/userDisplayName";
 import { normalizeQuizQuestion } from "../utils/normalizeQuizQuestion";
@@ -3291,6 +3295,67 @@ const LessonViewPage: React.FC = () => {
     return null;
   };
 
+  const isTeacherOrAdmin =
+    user?.userType === "admin" ||
+    user?.userType === "teacher" ||
+    (user as any)?.isAdmin === true;
+
+  const visualExplanationAnchor = useMemo(() => {
+    if (!lesson || !currentPage) return null;
+    return findVisualExplanationAnchor(currentPage, {
+      title: lesson.title,
+      topic: lesson.topic,
+      subject: lesson.subject,
+      level: lesson.level,
+      examBoardName: lesson.examBoardName,
+    }, {
+      showDeeperKnowledge,
+      showPageKicker: false,
+    });
+  }, [currentPage, lesson, showDeeperKnowledge]);
+
+  const visualExplanationTeachingContext = useMemo(() => {
+    if (!lesson || !currentPage || !visualExplanationAnchor) return "";
+    return buildVisualExplanationContext(currentPage, visualExplanationAnchor.anchorIndex, {
+      title: lesson.title,
+      topic: lesson.topic,
+      subject: lesson.subject,
+      level: lesson.level,
+      examBoardName: lesson.examBoardName,
+    });
+  }, [currentPage, lesson, visualExplanationAnchor]);
+
+  const renderVisualExplanationAfterBlock = useCallback(
+    (blockIdx: number) => {
+      if (!visualExplanationEnabled || !isTeacherOrAdmin || !lesson || !visualExplanationAnchor) {
+        return null;
+      }
+      if (visualExplanationAnchor.anchorIndex !== blockIdx) return null;
+      return (
+        <VisualExplanationPanel
+          lesson={{
+            id: lesson.id,
+            title: lesson.title,
+            topic: lesson.topic,
+            subject: lesson.subject,
+            level: lesson.level,
+            examBoardName: lesson.examBoardName,
+          }}
+          anchorTitle={visualExplanationAnchor.anchorTitle}
+          teachingContext={visualExplanationTeachingContext}
+          blockKey={visualExplanationAnchor.blockKey}
+        />
+      );
+    },
+    [
+      visualExplanationEnabled,
+      isTeacherOrAdmin,
+      lesson,
+      visualExplanationAnchor,
+      visualExplanationTeachingContext,
+    ]
+  );
+
   // ============================
   // Render states
   // ============================
@@ -3380,11 +3445,6 @@ const LessonViewPage: React.FC = () => {
     user?.userType === "parent" ||
     (user as { isAdmin?: boolean })?.isAdmin === true;
   const v12StudentPresentation = isV12StudentLessonPresentation(v12LearnerPresentation);
-
-  const isTeacherOrAdmin =
-    user?.userType === "admin" ||
-    user?.userType === "teacher" ||
-    (user as any)?.isAdmin === true;
 
   // Single source of truth: backend accessDecision.allowed; fallbacks only if backend missing (see lessonAccess.ts).
   const hasFullLessonAccess = computeFullLessonAccess(accessDecision, user);
@@ -3980,19 +4040,6 @@ const LessonViewPage: React.FC = () => {
                   {/* Page kicker: hero caption not rendered (SHOW_PAGE_KICKER is false). Same caption in renderHero. */}
                 </div>
 
-                {visualExplanationEnabled && isTeacherOrAdmin && lesson ? (
-                  <VisualExplanationPanel
-                    lesson={{
-                      id: lesson.id,
-                      title: lesson.title,
-                      topic: lesson.topic,
-                      subject: lesson.subject,
-                      level: lesson.level,
-                      examBoardName: lesson.examBoardName,
-                    }}
-                  />
-                ) : null}
-
                 {curriculumConfidence && (
                   <div>
                     <h3>Curriculum Coverage</h3>
@@ -4088,6 +4135,7 @@ const LessonViewPage: React.FC = () => {
                                   v12StudentPresentation ? "v12" : "default"
                                 }
                               />
+                              {renderVisualExplanationAfterBlock(idx)}
                               {user && id && (
                                 <div style={{ marginTop: 6, fontSize: 12 }}>
                                   <button
@@ -4269,6 +4317,7 @@ const LessonViewPage: React.FC = () => {
                               safeStr((b as { role?: string }).role, "")
                             );
                           })()}
+                          {renderVisualExplanationAfterBlock(idx)}
                           {user && id && (
                             <div style={{ marginTop: 6, fontSize: 12 }}>
                               <button

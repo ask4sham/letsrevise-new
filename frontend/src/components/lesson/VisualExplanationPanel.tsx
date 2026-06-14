@@ -2,8 +2,12 @@
  * P1 GCSE Visual Explanation panel — teacher/admin only, flag-gated.
  * Response-only v1: no save/attach.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { generateVisualExplanation, GenerateVisualExplanationResponse } from "../../api/visualExplanation";
+import {
+  trimContextToMaxLength,
+  VISUAL_EXPLANATION_CONTEXT_MAX_CHARS,
+} from "../../utils/visualExplanationAnchor";
 
 const SECTIONS: Array<{ key: keyof GenerateVisualExplanationResponse["explanation"]; label: string }> = [
   { key: "what_image_shows", label: "What this image shows" },
@@ -27,6 +31,11 @@ export type VisualExplanationLessonProps = {
 
 type Props = {
   lesson: VisualExplanationLessonProps;
+  /** P1.3A: auto-selected teaching anchor */
+  anchorTitle?: string;
+  /** Pre-filled from anchor block (passed to API; not shown in full). */
+  teachingContext?: string;
+  blockKey?: string | null;
 };
 
 function formatApiError(err: unknown): string {
@@ -41,13 +50,26 @@ function formatApiError(err: unknown): string {
   return e?.message || "Failed to generate visual explanation.";
 }
 
-const VisualExplanationPanel: React.FC<Props> = ({ lesson }) => {
+const VisualExplanationPanel: React.FC<Props> = ({
+  lesson,
+  anchorTitle,
+  teachingContext = "",
+  blockKey = null,
+}) => {
   const [open, setOpen] = useState(false);
-  const [topic, setTopic] = useState(lesson?.topic || lesson?.title || "");
-  const [context, setContext] = useState("");
+  const defaultTopic = anchorTitle?.trim() || lesson?.topic || lesson?.title || "";
+  const [topic, setTopic] = useState(defaultTopic);
+  const [extraContext, setExtraContext] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateVisualExplanationResponse | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTopic(defaultTopic);
+    setExtraContext("");
+    setResult(null);
+    setError("");
+  }, [defaultTopic, teachingContext, blockKey]);
 
   const subjectLabel = lesson?.subject
     ? `${lesson.level || "GCSE"} ${lesson.subject}`.trim()
@@ -59,13 +81,18 @@ const VisualExplanationPanel: React.FC<Props> = ({ lesson }) => {
     setError("");
     setResult(null);
     try {
+      const mergedContext = trimContextToMaxLength(
+        [teachingContext.trim(), extraContext.trim()].filter(Boolean).join(" "),
+        VISUAL_EXPLANATION_CONTEXT_MAX_CHARS
+      );
       const res = await generateVisualExplanation({
         topic: topic.trim(),
-        context: context.trim() || null,
+        context: mergedContext || null,
         subject: subjectLabel,
         exam_board: lesson?.examBoardName || "AQA",
         tier: lesson?.level === "Foundation" ? "Foundation" : "Higher",
         lesson_id: lesson?.id || null,
+        block_key: blockKey,
       });
       setResult(res);
     } catch (e) {
@@ -110,6 +137,14 @@ const VisualExplanationPanel: React.FC<Props> = ({ lesson }) => {
           <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: 2 }}>
             GCSE-style diagram + 8-section examiner explanation
           </div>
+          {anchorTitle ? (
+            <div
+              data-testid="visual-explanation-anchor-hint"
+              style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: 4 }}
+            >
+              Based on: {anchorTitle}
+            </div>
+          ) : null}
         </div>
         <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{open ? "Hide" : "Open"}</span>
       </button>
@@ -189,8 +224,8 @@ const VisualExplanationPanel: React.FC<Props> = ({ lesson }) => {
             </label>
             <input
               type="text"
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
+              value={extraContext}
+              onChange={(e) => setExtraContext(e.target.value)}
               disabled={loading}
               placeholder="e.g. focus on accommodation for near objects"
               data-testid="visual-explanation-context-input"
