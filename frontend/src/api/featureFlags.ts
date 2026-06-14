@@ -17,3 +17,12 @@ export async function getAiTutorEnabled(specKey: string): Promise<boolean> {
   });
   return res.data?.enabled === true;
 }
+
+export type VisualExplanationFlagResponse = {
+  enabled: boolean;
+};
+
+export async function getVisualExplanationEnabled(): Promise<boolean> {
+  const res = await api.get<VisualExplanationFlagResponse>("/feature-flags/visual-explanation");
+  return res.data?.enabled === true;
+}

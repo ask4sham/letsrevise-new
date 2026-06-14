@@ -375,6 +375,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/ai-generation-jobs", aiGenerationJobsRoutes);
 app.use("/api/content-tree", contentTreeRoutes);
 app.use("/api/visuals", require("./routes/visuals"));
+app.use("/api/visual-explanations", require("./routes/visualExplanation"));
 app.use("/api/taxonomy", require("./routes/taxonomy"));
 app.use("/api/quizzes", quizzesRoutes);
 app.use("/api/assessment-papers", assessmentPapersRoutes);
