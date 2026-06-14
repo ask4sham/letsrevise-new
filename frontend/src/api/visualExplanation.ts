@@ -1,7 +1,42 @@
 /**
  * P1 GCSE Visual Explanation API.
+ *
+ * Generate bypasses the Netlify /api proxy (26s limit) and calls Render directly.
+ * Feature flag and other routes still use same-origin proxy via services/api.
  */
-import api from "../services/api";
+import axios from "axios";
+
+const RENDER_API_FALLBACK = "https://letsrevise-new.onrender.com";
+
+function normalizeApiHost(raw: string): string {
+  const trimmed = (raw || "").trim().replace(/\/+$/, "");
+  return trimmed.endsWith("/api") ? trimmed.slice(0, -4) : trimmed;
+}
+
+/**
+ * Backend host for the long-running generate call only (no trailing /api).
+ * Prefers REACT_APP_API_BASE / REACT_APP_API_URL; falls back to Render on production Netlify.
+ */
+export function getVisualExplanationApiHost(): string {
+  const raw = (process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_URL || "").trim();
+  const fromEnv = normalizeApiHost(raw);
+  if (fromEnv) return fromEnv;
+
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+  }
+
+  return RENDER_API_FALLBACK;
+}
+
+/** Absolute URL for POST /visual-explanations/generate (direct to backend, not Netlify proxy). */
+export function getVisualExplanationGenerateUrl(): string {
+  const host = getVisualExplanationApiHost().replace(/\/+$/, "");
+  return `${host}/api/visual-explanations/generate`;
+}
 
 export type VisualExplanationKeyPart = {
   label: string;
@@ -47,10 +82,16 @@ export type GenerateVisualExplanationResponse = {
 export async function generateVisualExplanation(
   payload: GenerateVisualExplanationParams
 ): Promise<GenerateVisualExplanationResponse> {
-  const res = await api.post<GenerateVisualExplanationResponse>(
-    "/visual-explanations/generate",
-    payload,
-    { timeout: 150_000 }
-  );
+  const url = getVisualExplanationGenerateUrl();
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await axios.post<GenerateVisualExplanationResponse>(url, payload, {
+    timeout: 150_000,
+    headers,
+  });
   return res.data;
 }
