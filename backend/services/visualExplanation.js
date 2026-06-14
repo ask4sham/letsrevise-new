@@ -1,7 +1,7 @@
 /**
  * P1 GCSE Visual Explanation — two-stage generator (response-only v1).
  * Stage 1: structured 8-section JSON via OpenAI.
- * Stage 2: labelled diagram via DALL·E 3 (best-effort; never fails the request).
+ * Stage 2: labelled diagram via OpenAI gpt-image-1-mini (best-effort; never fails the request).
  */
 const axios = require("axios");
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
@@ -151,8 +151,13 @@ async function generateImageFromPrompt(imagePrompt) {
       return null;
     }
 
-    const remoteUrl = await callOpenAIImages(prompt);
-    const resp = await axios.get(remoteUrl, {
+    const imageRef = await callOpenAIImages(prompt);
+    if (String(imageRef).startsWith("data:image/")) {
+      const mime = imageRef.slice(5, imageRef.indexOf(";")) || "image/png";
+      return { data_url: imageRef, mime_type: mime };
+    }
+
+    const resp = await axios.get(imageRef, {
       responseType: "arraybuffer",
       timeout: 30000,
       maxContentLength: 10 * 1024 * 1024,
