@@ -1,6 +1,6 @@
 /**
  * Context-aware diagram generation (Algorithm 4 lightweight + Phase 2 alignment).
- * Uses DALL·E 3; results can be inconsistent (wrong labels, style). See docs/ai/DIAGRAM_GENERATION_RESEARCH.md
+ * Uses OpenAI gpt-image-1-mini (Images API b64_json). See docs/ai/DIAGRAM_GENERATION_RESEARCH.md
  * for alternatives (Flux, template diagrams, dedicated science APIs). "Replace diagram" is the recommended path.
  */
 const axios = require("axios");
@@ -16,8 +16,9 @@ const {
 const { tryPutBuffer } = require("./uploadObjectStorage");
 const UPLOADS_BASE = FILE_STORAGE_PATH;
 const AI_DIAGRAMS_FOLDER = "ai-diagrams";
-const IMAGE_MODEL = "dall-e-3";
+const IMAGE_MODEL = "gpt-image-1-mini";
 const IMAGE_SIZE = "1024x1024";
+const IMAGE_MIME = "image/png";
 const ALIGNMENT_THRESHOLD = 7; // 0-10 scale; retry if below
 const ALIGNMENT_MODEL = "gpt-4o"; // vision-capable for image + text
 
@@ -52,9 +53,25 @@ function buildDiagramPrompt(ctx) {
 }
 
 /**
- * Call OpenAI Images API (DALL·E 3), return first image URL.
+ * Parse a data:image/...;base64,... ref into a buffer.
+ * @param {string} dataUrl
+ * @returns {{ buffer: Buffer, mimeType: string }}
+ */
+function parseImageDataUrl(dataUrl) {
+  const match = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error("Invalid image data URL");
+  }
+  return {
+    buffer: Buffer.from(match[2], "base64"),
+    mimeType: match[1] || IMAGE_MIME,
+  };
+}
+
+/**
+ * Call OpenAI Images API (gpt-image-1-mini), return a data URL or legacy remote URL.
  * @param {string} prompt
- * @returns {Promise<string>} temporary URL (must be downloaded promptly)
+ * @returns {Promise<string>} data:image/png;base64,... or temporary http URL
  */
 async function callOpenAIImages(prompt) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -67,44 +84,55 @@ async function callOpenAIImages(prompt) {
       prompt,
       n: 1,
       size: IMAGE_SIZE,
-      response_format: "url",
-      quality: "hd",
-      style: "natural",
     },
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      timeout: 60000,
+      timeout: 120000,
     }
   );
 
-  const url = resp.data?.data?.[0]?.url;
-  if (!url) throw new Error("OpenAI Images API did not return an image URL");
-  return url;
+  const item = resp.data?.data?.[0];
+  const b64 = item?.b64_json;
+  if (b64) {
+    return `data:${IMAGE_MIME};base64,${b64}`;
+  }
+
+  const url = item?.url;
+  if (url) return url;
+
+  throw new Error("OpenAI Images API did not return image data");
 }
 
 /**
- * Download image from URL and save under uploads/ai-diagrams/{userId}/{filename}.png.
+ * Download image from data URL or remote URL and save under uploads/ai-diagrams/{userId}/{filename}.png.
  * Returns public path (e.g. /uploads/ai-diagrams/xxx/file.png).
- * @param {string} remoteUrl
+ * @param {string} imageRef - data:image/...;base64,... or http(s) URL
  * @param {string} userId - for namespacing (owner or "shared")
  * @returns {Promise<{ publicPath: string, localPath: string }>}
  */
-async function downloadAndSaveImage(remoteUrl, userId) {
+async function downloadAndSaveImage(imageRef, userId) {
   const filename = `diagram-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.png`;
   const storageRel = `${AI_DIAGRAMS_FOLDER}/${userId || "shared"}/${filename}`.replace(/\\/g, "/");
 
-  const resp = await axios.get(remoteUrl, {
-    responseType: "arraybuffer",
-    timeout: 30000,
-    maxContentLength: 10 * 1024 * 1024,
-  });
+  let buffer;
+  let contentType = IMAGE_MIME;
+  if (String(imageRef).startsWith("data:")) {
+    const parsed = parseImageDataUrl(imageRef);
+    buffer = parsed.buffer;
+    contentType = parsed.mimeType;
+  } else {
+    const resp = await axios.get(imageRef, {
+      responseType: "arraybuffer",
+      timeout: 30000,
+      maxContentLength: 10 * 1024 * 1024,
+    });
+    buffer = Buffer.from(resp.data);
+  }
 
-  const buffer = Buffer.from(resp.data);
-
-  const cloud = await tryPutBuffer(buffer, storageRel, "image/png");
+  const cloud = await tryPutBuffer(buffer, storageRel, contentType);
   if (cloud) {
     return { publicPath: cloud.url, localPath: null, storage: cloud.storage };
   }
