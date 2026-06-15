@@ -6,6 +6,7 @@
 const axios = require("axios");
 const { callOpenAiJson } = require("../utils/lessonAssetLlm");
 const { callOpenAIImages } = require("./diagramGeneration");
+const { buildFinalImagePrompt } = require("../../lib/visualExplanation/buildVisualExplanationPrompt");
 
 const EXPLAIN_SCHEMA_DESC = `
 Return a SINGLE JSON object (no markdown fences, no commentary):
@@ -188,7 +189,17 @@ async function buildVisualExplanation({
     tier,
     context,
   });
-  const image = await generateImageFromPrompt(explanation.image_prompt);
+
+  const { finalImagePrompt } = buildFinalImagePrompt({
+    topic,
+    context,
+    subject,
+    examBoard,
+    tier,
+    llmImagePrompt: explanation.image_prompt,
+  });
+
+  const image = await generateImageFromPrompt(finalImagePrompt);
   const providerStatus = image ? "image_generated" : "image_provider_unavailable";
   return { explanation, image, providerStatus };
 }
@@ -202,5 +213,6 @@ module.exports = {
   generateExplanationAndPrompt,
   generateImageFromPrompt,
   buildVisualExplanation,
+  buildFinalImagePrompt,
   ValueError,
 };
