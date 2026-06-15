@@ -46,6 +46,8 @@ const { getDiagramSuggestionsForLesson } = require("../utils/diagramSuggestions"
 const { grantTrialIfEligible } = require("../utils/grantTrialIfEligible");
 const { sendInternalError } = require("../utils/safeErrorResponse");
 const { normalizeLessonDescription } = require("../utils/lessonDescriptionLimits");
+const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
+const { hydrateDiagramAssetsOnPages } = require("../services/diagramAssetService");
 
 // ✅ ADDED: Import for revision validation
 const { validateAndNormalizeRevision } = require("../services/validateRevision");
@@ -3499,6 +3501,9 @@ router.get("/:id", auth, applyLessonAccess({ requirePublished: true }), async (r
     Lesson.updateOne({ _id: lessonId }, { $inc: { views: 1 } }).catch(() => {});
 
     lesson = await attachVisualsToPagesIfPossible(lesson);
+    if (isDiagramAssetLibraryEnabled() && Array.isArray(lesson.pages)) {
+      lesson.pages = await hydrateDiagramAssetsOnPages(lesson.pages);
+    }
     lesson = promoteHeroOnLesson(lesson);
 
     // Enrich Microscopy lessons with magnification video (for existing lessons that have old hero or none)

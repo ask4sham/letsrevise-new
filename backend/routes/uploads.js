@@ -618,3 +618,4 @@ router.use((err, req, res, next) => {
 
 module.exports = router;
 module.exports.videoUploadRoute = videoUploadRoute;
+module.exports.finishImageUploadToStorage = finishImageUploadToStorage;
