@@ -1,0 +1,502 @@
+{
+  "taxonomyVersion": "V1",
+  "description": "Curated VTIA fixture corpus — 20 known-good + 10 known-bad Biology blocks (Phase 3H.1.8b.4d)",
+  "fixtures": [
+    {
+      "id": "bad-rp-analysis-label-pathway",
+      "category": "required_practical",
+      "topic": "Reaction Time Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-reaction-time",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "analysis",
+        "title": "Analysis",
+        "content": "Label the nervous pathway involved in the ruler-drop response."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "LABEL_PATHWAY" }
+    },
+    {
+      "id": "bad-rp-analysis-explain-pathway-suppressed",
+      "category": "required_practical",
+      "topic": "Reaction Time Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-reaction-time",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "analysis",
+        "title": "Analysis",
+        "content": "Link your results to the nervous system pathway."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "bad-eye-label-parts",
+      "category": "teacher_first",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "concept",
+        "title": "Core Teaching",
+        "content": "Label the parts of the eye shown using the correct terms."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "LABEL_DIAGRAM" }
+    },
+    {
+      "id": "bad-place-labels-text",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "concept",
+        "title": "Core Teaching",
+        "content": "Place the labels on the diagram to show the reflex arc."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "MATCH_LABELS_TO_IMAGE" }
+    },
+    {
+      "id": "bad-match-labels-text",
+      "category": "teacher_first",
+      "topic": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "concept",
+        "content": "Match labels to the diagram of the control pathway."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "MATCH_LABELS_TO_IMAGE" }
+    },
+    {
+      "id": "bad-label-reflex-arc",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Label the reflex arc from stimulus to effector."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "LABEL_PATHWAY" }
+    },
+    {
+      "id": "bad-homeostasis-pathway",
+      "category": "teacher_first",
+      "topic": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Label the homeostasis pathway in the diagram."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "LABEL_PATHWAY" }
+    },
+    {
+      "id": "bad-label-neurone",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Label the main parts of a neurone."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "LABEL_DIAGRAM" }
+    },
+    {
+      "id": "bad-drag-labels-onto",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Drag each label onto the reflex arc diagram."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "MATCH_LABELS_TO_IMAGE" }
+    },
+    {
+      "id": "bad-label-diagram-terms",
+      "category": "teacher_first",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Label the diagram using the correct terms."
+      },
+      "groundTruth": { "shouldViolate": true, "intent": "LABEL_DIAGRAM" }
+    },
+    {
+      "id": "good-tti-dragdrop",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "dragDropMatch",
+        "matchMode": "diagram",
+        "imageUrl": "https://example.com/reflex.png",
+        "content": "Match labels to the image."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-rp-variables-match",
+      "category": "required_practical",
+      "topic": "Osmosis Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-osmosis",
+      "subject": "Biology",
+      "block": {
+        "type": "dragDropMatch",
+        "role": "match",
+        "content": "Match each variable type to its example."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-classify-metabolism",
+      "category": "teacher_first",
+      "topic": "Metabolism",
+      "topicKey": "aqa-gcse-biology:metabolism",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Classify each reaction as anabolic or catabolic."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-labelled-diagram-shows",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "This labelled diagram shows the reflex arc from stimulus to response."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-interactive-diagram-complete",
+      "category": "teacher_first",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "subject": "Biology",
+      "block": {
+        "type": "interactiveDiagram",
+        "imageUrl": "https://example.com/eye.png",
+        "hotspots": [{ "id": "cornea" }, { "id": "lens" }],
+        "content": "Label the diagram using the hotspots."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-graph-axes",
+      "category": "required_practical",
+      "topic": "Photosynthesis Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-photosynthesis",
+      "subject": "Biology",
+      "block": {
+        "type": "graph",
+        "content": "Plot your results and label your axes correctly."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-interactive-sequence",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "interactiveSequence",
+        "steps": ["stimulus", "receptor", "sensory neurone", "CNS", "motor neurone", "effector"],
+        "content": "Order the steps of impulse transmission."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-plain-teach-chunk",
+      "category": "teacher_first",
+      "topic": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "title": "Core Teaching",
+        "content": "Negative feedback reverses a change in internal conditions."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-explain-pathway-prose",
+      "category": "required_practical",
+      "topic": "Reaction Time Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-reaction-time",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "analysis",
+        "content": "Explain how the nervous pathway enables the ruler-drop response."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-describe-structure",
+      "category": "teacher_first",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "Describe the function of the cornea and lens."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-state-definition",
+      "category": "teacher_first",
+      "topic": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "title": "Definition",
+        "content": "Homeostasis is the regulation of internal conditions."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-checkpoint-retrieval",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "checkpoint",
+        "question": "State the role of the receptor (1 mark)."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-pre-labelled-exclude",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "content": "The pre-labelled diagram shows sensory and motor neurones."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-rp-method-steps",
+      "category": "required_practical",
+      "topic": "Enzyme Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-enzymes",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "method",
+        "content": "Order the steps of the method: heat water bath, add enzyme, measure time."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-identify-variable-rp",
+      "category": "required_practical",
+      "topic": "Osmosis Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-osmosis",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "variables",
+        "content": "Identify the independent variable in this investigation."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-chemistry-out-of-scope",
+      "category": "out_of_scope",
+      "topic": "Atomic structure",
+      "topicKey": "aqa-gcse-chemistry:atomic-structure",
+      "subject": "Chemistry",
+      "block": {
+        "type": "text",
+        "content": "Label the diagram of an atom."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-link-results-outline",
+      "category": "required_practical",
+      "topic": "Reaction Time Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-reaction-time",
+      "subject": "Biology",
+      "block": {
+        "type": "text",
+        "role": "analysis",
+        "content": "Outline how your results support the hypothesis."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-diagram-static",
+      "category": "required_practical",
+      "topic": "Photosynthesis Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-photosynthesis",
+      "subject": "Biology",
+      "block": {
+        "type": "diagram",
+        "imageUrl": "https://example.com/pondweed.png",
+        "caption": "Experimental setup for photosynthesis."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "good-drop-labels-on-visual-block",
+      "category": "teacher_first",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "block": {
+        "type": "dragDropMatch",
+        "matchMode": "image",
+        "imageUrl": "https://example.com/neurone.png",
+        "pairs": ["axon → carries impulse", "dendrite → receives impulse"],
+        "content": "Drop labels on the neurone diagram."
+      },
+      "groundTruth": { "shouldViolate": false }
+    },
+    {
+      "id": "contract-incomplete-eye",
+      "category": "teacher_first",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "subject": "Biology",
+      "block": {
+        "type": "interactiveDiagram",
+        "content": "Label the diagram using the correct terms."
+      },
+      "groundTruth": { "shouldViolate": false, "visualContractIncomplete": true }
+    }
+  ],
+  "lessons": [
+    {
+      "name": "Reaction Time RP",
+      "topic": "Reaction Time Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-reaction-time",
+      "subject": "Biology",
+      "expectedCategory": "required_practical",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "text", "role": "lessonObjectives", "title": "Revision Objectives", "content": "Understand reaction time practical." },
+            { "type": "text", "role": "priorKnowledge", "title": "Prior Knowledge", "content": "Nervous system basics." },
+            { "type": "text", "role": "practicalPurpose", "title": "Practical Purpose", "content": "Measure reaction time." },
+            { "type": "text", "role": "hypothesis", "title": "Hypothesis", "content": "Reaction time decreases with practice." },
+            { "type": "dragDropMatch", "role": "match", "content": "Match each variable type." },
+            { "type": "interactiveDiagram", "imageUrl": "https://example.com/ruler.png", "hotspots": [{ "id": "ruler" }], "content": "Ruler drop setup." },
+            { "type": "text", "role": "analysis", "title": "Analysis", "content": "Label the nervous pathway involved in the ruler-drop response." },
+            { "type": "text", "role": "analysis", "title": "Analysis", "content": "Link your results to the nervous system pathway." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Nervous System Structure",
+      "topic": "Structure and function of the nervous system",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "subject": "Biology",
+      "expectedCategory": "teacher_first",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "text", "title": "Definition", "content": "The nervous system coordinates responses using neurones." },
+            { "type": "text", "title": "Why it matters", "content": "Rapid responses protect the body from harm." },
+            { "type": "keyIdea", "title": "Core model", "content": "Stimulus → receptor → coordinator → effector → response." },
+            { "type": "text", "title": "Key examples", "content": "Reflex arc in finger withdrawal." },
+            { "type": "text", "title": "Exam vocabulary", "content": "CNS, PNS, stimulus, response." },
+            { "type": "text", "title": "Core Teaching", "content": "Label the diagram using the correct terms for neurone structure." },
+            { "type": "dragDropMatch", "matchMode": "diagram", "imageUrl": "https://example.com/reflex.png", "content": "Match labels to the image." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "The Eye",
+      "topic": "The eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "subject": "Biology",
+      "expectedCategory": "teacher_first",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "text", "title": "Definition", "content": "The eye is a sense organ that detects light." },
+            { "type": "text", "title": "Why it matters", "content": "Vision enables survival and learning." },
+            { "type": "keyIdea", "title": "Core model", "content": "Light is refracted to focus on the retina." },
+            { "type": "text", "title": "Core Teaching", "content": "This labelled diagram shows the main structures." },
+            { "type": "interactiveDiagram", "content": "Label the diagram using the correct terms." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Homeostasis",
+      "topic": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "subject": "Biology",
+      "expectedCategory": "teacher_first",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "text", "title": "Definition", "content": "Homeostasis maintains internal conditions." },
+            { "type": "text", "title": "Why it matters", "content": "Cells need stable conditions to function." },
+            { "type": "keyIdea", "title": "Core model", "content": "Negative feedback reverses change." },
+            { "type": "text", "title": "Core Teaching", "content": "Explain the control pathway for blood glucose." },
+            { "type": "text", "title": "Core Teaching", "content": "Label the homeostasis pathway in the diagram." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Photosynthesis RP",
+      "topic": "Photosynthesis Required Practical",
+      "topicKey": "aqa-gcse-biology:rp-photosynthesis",
+      "subject": "Biology",
+      "expectedCategory": "required_practical",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "text", "role": "lessonObjectives", "title": "Revision Objectives", "content": "Investigate light intensity." },
+            { "type": "text", "role": "method", "title": "Method", "content": "Use pondweed and count bubbles." },
+            { "type": "diagram", "imageUrl": "https://example.com/pondweed.png", "caption": "Setup diagram." },
+            { "type": "text", "role": "analysis", "content": "Describe the trend shown on your graph." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chemistry (out of scope)",
+      "topic": "Atomic structure",
+      "topicKey": "aqa-gcse-chemistry:atomic-structure",
+      "subject": "Chemistry",
+      "expectedCategory": "out_of_scope",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "text", "title": "Definition", "content": "Atoms contain protons, neutrons and electrons." },
+            { "type": "text", "content": "Label the diagram of an atom." }
+          ]
+        }
+      ]
+    }
+  ]
+}
