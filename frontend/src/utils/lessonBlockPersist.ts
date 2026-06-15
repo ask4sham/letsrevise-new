@@ -170,6 +170,9 @@ export function diagramBlockForPersist(block: unknown): Record<string, unknown> 
   if (b.visualId != null && String(b.visualId).trim()) {
     out.visualId = String(b.visualId).trim();
   }
+  if (b.diagramAssetId != null && String(b.diagramAssetId).trim()) {
+    out.diagramAssetId = String(b.diagramAssetId).trim();
+  }
 
   const annotations = Array.isArray(b.annotations) ? b.annotations : [];
   if (annotations.length) out.annotations = annotations;

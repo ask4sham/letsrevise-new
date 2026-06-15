@@ -213,6 +213,8 @@ const LessonPageBlockSchema = new mongoose.Schema(
     // No default so Mongoose persists when set; must survive save + GET for editor to render
     imageUrl: { type: String },
     imageSource: { type: String },
+    /** P2.1 — reusable Diagram Asset Library reference (ChatGPT-first pipeline) */
+    diagramAssetId: { type: mongoose.Schema.Types.ObjectId, ref: "DiagramAsset", default: undefined },
     alt: { type: String },
     /** featured = key visual emphasis in student lesson layout */
     diagramVariant: { type: String, enum: ["standard", "featured"], required: false },
