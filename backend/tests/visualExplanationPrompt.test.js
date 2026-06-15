@@ -137,10 +137,10 @@ describe("buildFinalImagePrompt — topic profiles", () => {
     });
     expect(profileId).toBeNull();
     expect(finalImagePrompt).toMatch(/clear labelled GCSE diagram/i);
-    expect(finalImagePrompt).toMatch(/Let's Revise visual style/i);
+    expect(finalImagePrompt).toMatch(/Let[\u2019']s Revise visual style/i);
   });
 
-  test("Final prompt includes Let's Revise visual style rules", () => {
+  test("Final prompt includes LetsRevise visual style rules", () => {
     const style = buildVisualStyleContract({ subject: "GCSE Biology", examBoard: "AQA" });
     expect(style).toMatch(/White background/i);
     expect(style).toMatch(/No photorealism/i);
@@ -151,7 +151,7 @@ describe("buildFinalImagePrompt — topic profiles", () => {
       subject: "GCSE Biology",
       examBoard: "AQA",
     });
-    expect(finalImagePrompt).toMatch(/Let's Revise visual style/i);
+    expect(finalImagePrompt).toMatch(/Let[\u2019']s Revise visual style/i);
     expect(finalImagePrompt).toMatch(/White background/i);
     expect(finalImagePrompt).toMatch(/No photorealism/i);
   });
