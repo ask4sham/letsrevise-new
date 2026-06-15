@@ -1,0 +1,98 @@
+{
+  "generatedAt": "2026-06-15T08:44:11.392Z",
+  "mode": "VTIA=0_report_only",
+  "taxonomyVersion": "V1",
+  "lessonsScanned": 6,
+  "lessonsInScope": 5,
+  "lessonsWithHighConfidenceViolation": 3,
+  "violationRatePct": 60,
+  "violationCountsByIntent": {
+    "MATCH_LABELS_TO_IMAGE": 0,
+    "LABEL_PATHWAY": 2,
+    "LABEL_DIAGRAM": 1
+  },
+  "lessonCategoriesAffected": {
+    "required_practical": 1,
+    "teacher_first": 2
+  },
+  "topOffendingSlots": [
+    {
+      "slotKey": "teachChunk",
+      "count": 2
+    },
+    {
+      "slotKey": "analysis",
+      "count": 1
+    }
+  ],
+  "confidenceDistribution": {
+    "high": 3,
+    "medium": 0,
+    "low": 0
+  },
+  "intentPrecisionEstimate": {
+    "MATCH_LABELS_TO_IMAGE": {
+      "truePositive": 3,
+      "falsePositive": 0,
+      "groundTruthPositive": 3,
+      "precisionPct": 100,
+      "precisionLabel": "100%"
+    },
+    "LABEL_PATHWAY": {
+      "truePositive": 3,
+      "falsePositive": 0,
+      "groundTruthPositive": 3,
+      "precisionPct": 100,
+      "precisionLabel": "100%"
+    },
+    "LABEL_DIAGRAM": {
+      "truePositive": 3,
+      "falsePositive": 0,
+      "groundTruthPositive": 3,
+      "precisionPct": 100,
+      "precisionLabel": "100%"
+    }
+  },
+  "falsePositiveRiskIndicators": {
+    "highConfidenceWithSuppressorNearby": 2,
+    "mediumConfidenceRatePct": 0,
+    "visualContractIncompleteCount": 1
+  },
+  "perLesson": [
+    {
+      "name": "Reaction Time RP",
+      "topicKey": "aqa-gcse-biology:rp-reaction-time",
+      "lessonCategory": "required_practical",
+      "highConfidenceViolations": 1
+    },
+    {
+      "name": "Nervous System Structure",
+      "topicKey": "aqa-gcse-biology:homeostasis-and-response:nervous-system-structure",
+      "lessonCategory": "teacher_first",
+      "highConfidenceViolations": 1
+    },
+    {
+      "name": "The Eye",
+      "topicKey": "aqa-gcse-biology:the-eye",
+      "lessonCategory": "teacher_first",
+      "highConfidenceViolations": 0
+    },
+    {
+      "name": "Homeostasis",
+      "topicKey": "aqa-gcse-biology:homeostasis",
+      "lessonCategory": "teacher_first",
+      "highConfidenceViolations": 1
+    },
+    {
+      "name": "Photosynthesis RP",
+      "topicKey": "aqa-gcse-biology:rp-photosynthesis",
+      "lessonCategory": "required_practical",
+      "highConfidenceViolations": 0
+    },
+    {
+      "name": "Chemistry (out of scope)",
+      "topicKey": "aqa-gcse-chemistry:atomic-structure",
+      "highConfidenceViolations": 0
+    }
+  ]
+}
