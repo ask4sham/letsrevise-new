@@ -5,9 +5,11 @@ const {
   SCHEMA_VERSION,
   DIAGRAM_TYPES,
   INTERACTION_TYPES,
+  ACTIVITY_PEDAGOGY_TYPES,
   validateDiagramSpecification,
   EXAMPLE_SPECS,
   REFLEX_ARC_SPEC,
+  BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC,
 } = require("../services/diagramSpecificationEngine");
 
 describe("diagramSpecificationEngine", () => {
@@ -22,14 +24,34 @@ describe("diagramSpecificationEngine", () => {
     expect(INTERACTION_TYPES).toContain("drag-drop");
   });
 
-  test("all four example specifications validate", () => {
-    expect(EXAMPLE_SPECS).toHaveLength(4);
+  test("schema exports activity pedagogy types", () => {
+    expect(ACTIVITY_PEDAGOGY_TYPES).toContain("structure-to-function");
+    expect(ACTIVITY_PEDAGOGY_TYPES).toContain("label-to-structure");
+    expect(EXAMPLE_SPECS).toHaveLength(5);
+  });
+
+  test("all example specifications validate", () => {
     for (const spec of EXAMPLE_SPECS) {
       const result = validateDiagramSpecification(spec);
       expect(result.ok).toBe(true);
       expect(result.errors).toHaveLength(0);
       expect(result.normalized?.schemaVersion).toBe(SCHEMA_VERSION);
     }
+  });
+
+  test("drag-drop specs require activityPedagogyType and imageElements", () => {
+    const result = validateDiagramSpecification(BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC);
+    expect(result.normalized?.activityPedagogyType).toBe("structure-to-function");
+    expect(result.normalized?.imageElements?.length).toBeGreaterThanOrEqual(2);
+    expect(result.normalized?.conceptCards?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("rejects drag-drop without activityPedagogyType", () => {
+    const broken = { ...BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC };
+    delete broken.activityPedagogyType;
+    const result = validateDiagramSpecification(broken);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.path === "activityPedagogyType")).toBe(true);
   });
 
   test("reflex arc example has process diagram type and ordered labels", () => {

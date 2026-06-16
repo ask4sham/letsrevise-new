@@ -1,8 +1,8 @@
-# P3.0A — Diagram Specification Engine Foundation
+# P3.0A–D — Diagram Specification Engine
 
-**Status:** Architecture foundation only  
+**Status:** P3.0A/B committed; P3.0C/D implemented (not committed)  
 **Date:** June 2026  
-**Scope:** Schema, validator, examples — **no production wiring**
+**Scope:** Schema, validator, examples, brief composer — **no production wiring**
 
 ---
 
@@ -115,13 +115,16 @@ Teacher Brain never changes when the provider changes. Only the adapter translat
 | `learningGoal` | yes | Student outcome |
 | `diagramType` | yes | One of six types above |
 | `interactionTypes` | yes | Non-empty array |
+| `activityPedagogyType` | when drag-drop/tti | Cognitive task switch (P3.0C) |
+| `imageElements` | when pedagogy set | What appears on image (regions, hotspots) |
+| `conceptCards` | when pedagogy set | Draggable card text — never in image |
 | `title` | yes | Display + image brief title |
 | `instruction` | no | Provider-specific brief |
 | `examFocus` | no | Examinable skills |
 | `difficulty` | no | `foundation` \| `standard` \| `higher` |
 | `teacherNotes` | no | Teacher-only notes |
 | `labels` | yes | Array of label objects |
-| `layout` | yes | Orientation, flow, regions |
+| `layout` | yes | Orientation, flow, regions; `complexAnatomy` triggers hotspot mapping |
 | `activities` | no | Hotspot, drag-drop, exam seeds |
 | `visualStyle` | no | Provider style hints |
 | `status` | no | `draft` \| `validated` |
@@ -158,7 +161,11 @@ Implemented in `backend/services/diagramSpecificationEngine/validator.js`:
    - `process` / `flowchart`: ≥2 labels with `order`
    - `hotspot` type: should include `hotspot` interaction type
    - `practical-setup` / drag-drop: ≥2 required labels
-8. **Strict mode** — rejects unknown top-level keys (optional `{ strict: true }`)
+8. **Pedagogy rules (P3.0C)** — when `interactionTypes` includes `drag-drop` or `tti`:
+   - `activityPedagogyType` required (one of six values)
+   - `imageElements` required (≥2 items)
+   - `conceptCards` required (≥2 items)
+9. **Strict mode** — rejects unknown top-level keys (optional `{ strict: true }`)
 
 Returns `{ ok, errors[], normalized }` — never throws.
 
@@ -172,8 +179,9 @@ Returns `{ ok, errors[], normalized }` — never throws.
 | `reaction-time-practical` | `practical-setup` | `examples.js` → `REACTION_TIME_PRACTICAL_SPEC` |
 | `photosynthesis` | `labelled` | `examples.js` → `PHOTOSYNTHESIS_SPEC` |
 | `diffusion-membrane` | `compare-contrast` | `examples.js` → `DIFFUSION_SPEC` |
+| `brain-regions-structure-function` | `hotspot` | `examples.js` → `BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC` |
 
-All four validate with zero errors.
+All five validate with zero errors.
 
 ---
 
@@ -197,16 +205,18 @@ All four validate with zero errors.
 
 ```
 backend/services/diagramSpecificationEngine/
-  schema.js         — enums + JSDoc types
-  validator.js      — validateDiagramSpecification()
-  examples.js       — four GCSE Biology examples
-  briefComposer.js  — composeDiagramBrief() (P3.0B)
-  index.js          — barrel export
+  schema.js              — enums + JSDoc types
+  validator.js             — validateDiagramSpecification()
+  examples.js              — five GCSE Biology examples
+  briefComposer.js         — composeDiagramBrief() (P3.0B/D)
+  pedagogyBriefRules.js    — pedagogy profiles + brief sections (P3.0C/D)
+  index.js                 — barrel export
 
 backend/tests/diagramSpecificationEngine.test.js
 backend/tests/diagramBriefComposer.test.js
 
-docs/design/diagram-specification-engine.md   ← this document
+docs/design/diagram-specification-engine.md          ← this document
+docs/design/STRUCTURE_FUNCTION_DRAG_DROP_IMAGE_RULES.md  ← canonical DnD image rules
 ```
 
 ---
@@ -235,7 +245,7 @@ docs/design/diagram-specification-engine.md   ← this document
 | Diagram Asset Library unchanged | ✅ |
 | No production behaviour changed | ✅ |
 | No secrets committed | ✅ |
-| **Commit status** | **Not committed — awaiting review** |
+| **Commit status** | **P3.0A/B committed; P3.0C/D not committed — awaiting review** |
 
 ---
 
@@ -243,7 +253,7 @@ docs/design/diagram-specification-engine.md   ← this document
 
 ```bash
 cd backend
-npx jest tests/diagramSpecificationEngine.test.js
+npx jest tests/diagramSpecificationEngine.test.js tests/diagramBriefComposer.test.js
 ```
 
 ---
@@ -257,6 +267,7 @@ npx jest tests/diagramSpecificationEngine.test.js
 | P2.4 verdict | ChatGPT manual workflow preserved; spec feeds prompt export |
 | P2.5 | API ≠ ChatGPT native path; spec is provider-agnostic by design |
 | **P3.0B** | `composeDiagramBrief()` — spec → ChatGPT-ready prompt text |
+| **P3.0C/D** | `activityPedagogyType` + pedagogy-driven brief branching |
 
 ---
 
@@ -397,4 +408,141 @@ npx jest tests/diagramBriefComposer.test.js
 npx jest tests/diagramSpecificationEngine.test.js
 ```
 
-**P3.0B commit status:** Not committed — awaiting review.
+**P3.0B commit status:** Committed (`f11ed49`).
+
+---
+
+## P3.0C — Activity pedagogy type
+
+**Status:** Implemented (not committed)  
+**Module:** `schema.js`, `validator.js`, `pedagogyBriefRules.js`
+
+### Problem
+
+Teacher Brain knows content but not the **cognitive task**. Without `activityPedagogyType`, drag-and-drop image briefs use the same "Labels to use" strategy as static diagrams — revealing answers and removing retrieval practice.
+
+### New fields
+
+| Field | Type | When required |
+|-------|------|---------------|
+| `activityPedagogyType` | enum | When `interactionTypes` includes `drag-drop` or `tti` |
+| `imageElements` | `string[]` | When pedagogy type set (≥2 items) |
+| `conceptCards` | `string[]` | When pedagogy type set (≥2 items) |
+| `layout.complexAnatomy` | `boolean` | Optional — triggers hotspot mapping rule |
+
+### Pedagogy types
+
+| Value | Student recalls | Cards contain |
+|-------|-----------------|---------------|
+| `structure-to-function` | Structure from function | Functions only |
+| `function-to-structure` | Function from structure | Structure names |
+| `label-to-structure` | Structure from label prompt | Structure names |
+| `process-step-to-order` | Correct step order | Stage descriptions |
+| `cause-to-effect` | Effect from cause | Effects or causes |
+| `variable-to-definition` | Definition from variable | Definitions |
+
+Internal `labels[]` remain for answer keys, asset metadata, and reveal text — but **must not be copied into the image brief** for retrieval activities.
+
+See [STRUCTURE_FUNCTION_DRAG_DROP_IMAGE_RULES.md](./STRUCTURE_FUNCTION_DRAG_DROP_IMAGE_RULES.md) for the canonical Structure→Function pattern.
+
+---
+
+## P3.0D — Pedagogy-driven brief composer
+
+**Status:** Implemented (not committed)  
+**Module:** `briefComposer.js`, `pedagogyBriefRules.js`
+
+### Branching
+
+`composeDiagramBrief()` validates first, then branches:
+
+| Condition | Brief path |
+|-----------|------------|
+| `activityPedagogyType` set | `composePedagogyDrivenBrief()` — Image Elements + Concept Cards + MUST NOT list |
+| No pedagogy type | `composeLabelledDiagramBrief()` — legacy "Labels to use" path |
+
+### Pedagogy brief sections
+
+1. Opening line + activity pedagogy type
+2. Instruction (learning goal, topic, exam focus)
+3. **PEDAGOGY VALIDATION** — recall task + MUST NOT list
+4. **Image Elements** — visual regions and numbered hotspots
+5. **Concept Cards** — application-rendered text (never in image)
+6. Student task description
+7. **HOTSPOT MAPPING RULE** — when `layout.complexAnatomy` or brain/eye/heart topics
+8. Teacher answer key — hotspot ↔ card numbers only (no label text)
+9. Interaction notes, STYLE, LAYOUT, OUTPUT, COPYRIGHT, frame
+
+### Example: brain regions (`structure-to-function`)
+
+Key differences from legacy brief:
+
+- Uses **Image Elements** and **Concept Cards**, not **Labels to use**
+- No `HYPOTHALAMUS` or function text in sections sent before Concept Cards
+- Numbered hotspot mapping for complex anatomy
+- Answer key uses hotspot/card indices — structure names stay in spec metadata only
+
+### Tests
+
+```bash
+cd backend
+npx jest tests/diagramBriefComposer.test.js
+npx jest tests/diagramSpecificationEngine.test.js
+```
+
+**24 tests passing** (13 engine + 11 brief composer).
+
+**P3.0C/D commit status:** Not committed — awaiting review.
+
+---
+
+## P3.0D.1 — Region-ID abstraction (structure-to-function)
+
+**Status:** Implemented  
+**Module:** `pedagogyBriefRules.js`, `briefComposer.js`
+
+### Problem
+
+Image models may render biological structure names as visible labels when they appear in Image Elements or Exam focus — even when marked as design instructions.
+
+### Solution
+
+For `activityPedagogyType: "structure-to-function"` only:
+
+| Output | Content |
+|--------|---------|
+| `brief` | Region 1–N IDs only — no biological names, no concept cards, no exam focus with structure names |
+| `teacherMetadata` | Region ↔ structure mappings, concept cards, full answer key — **never sent to image generator** |
+
+### API change
+
+```js
+const result = composeDiagramBrief(spec);
+// result.brief            → paste into ChatGPT
+// result.teacherMetadata  → teacher/app only
+// result.metadata.regionIdAbstracted → true for structure-to-function
+```
+
+### Example image brief excerpt
+
+```
+Image Elements:
+• Region 1 highlighted
+• Region 2 highlighted
+• Numbered hotspot 1 on Region 1 + matching 1 beside overlay row
+…
+```
+
+### Example teacher metadata excerpt
+
+```
+TEACHER METADATA (NOT FOR IMAGE):
+
+Region 1 = Hypothalamus
+Region 2 = Pituitary Gland
+…
+
+Concept Cards (application-rendered):
+• Thermoregulation control centre
+…
+```

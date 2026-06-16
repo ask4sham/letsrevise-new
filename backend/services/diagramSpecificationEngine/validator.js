@@ -6,6 +6,7 @@ const {
   SCHEMA_VERSION,
   DIAGRAM_TYPES,
   INTERACTION_TYPES,
+  ACTIVITY_PEDAGOGY_TYPES,
   DIFFICULTY_LEVELS,
   EXAM_BOARDS,
   ORIENTATIONS,
@@ -66,6 +67,9 @@ function validateDiagramSpecification(input, opts = {}) {
       "learningGoal",
       "diagramType",
       "interactionTypes",
+      "activityPedagogyType",
+      "imageElements",
+      "conceptCards",
       "title",
       "instruction",
       "examFocus",
@@ -120,6 +124,52 @@ function validateDiagramSpecification(input, opts = {}) {
   }
 
   const interactionTypes = Array.isArray(spec.interactionTypes) ? spec.interactionTypes : [];
+  const needsPedagogyType = interactionTypes.some((t) => ["drag-drop", "tti"].includes(safeStr(t)));
+  const activityPedagogyType = spec.activityPedagogyType != null ? safeStr(spec.activityPedagogyType) : "";
+
+  if (needsPedagogyType && !activityPedagogyType) {
+    pushError(
+      errors,
+      "activityPedagogyType",
+      "activityPedagogyType is required when interactionTypes includes drag-drop or tti",
+      "REQUIRED"
+    );
+  }
+  if (activityPedagogyType && !ACTIVITY_PEDAGOGY_TYPES.includes(activityPedagogyType)) {
+    pushError(
+      errors,
+      "activityPedagogyType",
+      `Must be one of: ${ACTIVITY_PEDAGOGY_TYPES.join(", ")}`,
+      "INVALID_ENUM"
+    );
+  }
+
+  const imageElements = Array.isArray(spec.imageElements)
+    ? spec.imageElements.map(safeStr).filter(Boolean)
+    : [];
+  const conceptCards = Array.isArray(spec.conceptCards)
+    ? spec.conceptCards.map(safeStr).filter(Boolean)
+    : [];
+
+  if (activityPedagogyType) {
+    if (imageElements.length < 2) {
+      pushError(
+        errors,
+        "imageElements",
+        "At least two imageElements required for pedagogy-driven drag-and-drop specs",
+        "REQUIRED"
+      );
+    }
+    if (conceptCards.length < 2) {
+      pushError(
+        errors,
+        "conceptCards",
+        "At least two conceptCards required for pedagogy-driven drag-and-drop specs",
+        "REQUIRED"
+      );
+    }
+  }
+
   if (interactionTypes.length === 0) {
     pushError(errors, "interactionTypes", "At least one interaction type is required", "REQUIRED");
   } else {
@@ -214,6 +264,7 @@ function validateDiagramSpecification(input, opts = {}) {
     regions: Array.isArray(layout.regions)
       ? layout.regions.map(safeStr).filter(Boolean)
       : undefined,
+    complexAnatomy: layout.complexAnatomy === true ? true : undefined,
   };
 
   // Diagram-type-specific rules
@@ -358,6 +409,9 @@ function validateDiagramSpecification(input, opts = {}) {
     learningGoal: safeStr(spec.learningGoal),
     diagramType,
     interactionTypes: interactionTypes.map(safeStr),
+    activityPedagogyType: activityPedagogyType || undefined,
+    imageElements: imageElements.length ? imageElements : undefined,
+    conceptCards: conceptCards.length ? conceptCards : undefined,
     title: safeStr(spec.title),
     instruction: spec.instruction != null ? safeStr(spec.instruction) : undefined,
     examFocus: examFocus.length ? examFocus : undefined,

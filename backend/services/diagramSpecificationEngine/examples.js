@@ -16,7 +16,7 @@ const REFLEX_ARC_SPEC = {
   learningGoal:
     "Students can describe the ordered components of a reflex arc and the direction of nerve impulse transmission from stimulus to response.",
   diagramType: "process",
-  interactionTypes: ["view", "hotspot", "drag-drop", "exam-question"],
+  interactionTypes: ["view", "hotspot", "exam-question"],
   title: "Reflex Arc Pathway",
   instruction:
     "Exam-ready labelled pathway diagram from stimulus to response. Show receptor, sensory neurone, relay neurone in spinal cord cross-section, motor neurone, and effector with impulse direction arrows.",
@@ -96,6 +96,22 @@ const REACTION_TIME_PRACTICAL_SPEC = {
     "Students can describe the ruler-drop setup, identify key measurements, and explain how reaction time is derived from drop distance.",
   diagramType: "practical-setup",
   interactionTypes: ["view", "hotspot", "drag-drop", "tti", "exam-question"],
+  activityPedagogyType: "label-to-structure",
+  imageElements: [
+    "Vertical centimetre ruler highlighted",
+    "Dropper hand and catcher hand shown",
+    "Drop distance indicated visually (no text label)",
+    "Numbered hotspots 1–6 on key practical parts",
+    "Matching numbers 1–6 beside overlay rows",
+  ],
+  conceptCards: [
+    "Vertical centimetre ruler",
+    "0 cm aligned with thumb top",
+    "Hand ready to catch the ruler",
+    "Distance the ruler falls before being caught",
+    "Reaction time derived from drop distance",
+    "Repeat readings and calculate mean",
+  ],
   title: "Reaction Time — Ruler Drop Method",
   instruction:
     "Vertical cm ruler with 0 cm at bottom aligned with top of catcher's thumb (AQA convention). Show dropper hand, catcher hand, drop distance, and how reaction time is calculated.",
@@ -299,11 +315,91 @@ const DIFFUSION_SPEC = {
   status: "validated",
 };
 
+/** @type {import("./schema").DiagramSpecification} */
+const BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC = {
+  schemaVersion: SCHEMA_VERSION,
+  id: "brain-regions-structure-function",
+  subject: "GCSE Biology",
+  examBoard: "AQA",
+  tier: "Higher",
+  topic: "The Brain",
+  subtopic: "Brain Regions and Functions",
+  learningGoal:
+    "Students can match major brain regions to their functions without structure names being visible during the activity.",
+  diagramType: "hotspot",
+  interactionTypes: ["view", "hotspot", "drag-drop", "tti"],
+  activityPedagogyType: "structure-to-function",
+  imageElements: [
+    "Region 1 highlighted",
+    "Region 2 highlighted",
+    "Region 3 highlighted",
+    "Region 4 highlighted",
+    "Numbered hotspot 1 on Region 1",
+    "Numbered hotspot 2 on Region 2",
+    "Numbered hotspot 3 on Region 3",
+    "Numbered hotspot 4 on Region 4",
+  ],
+  conceptCards: [
+    "Thermoregulation control centre",
+    "Master gland for endocrine control",
+    "Controls breathing and heart rate",
+    "Coordinates balance and movement",
+  ],
+  title: "Brain Regions — Structure to Function",
+  instruction:
+    "Sagittal brain diagram with four regions colour-highlighted. Numbered markers only — no structure or function text on the image.",
+  examFocus: [
+    "Match brain regions to functions",
+    "Explain roles of hypothalamus, pituitary, medulla, cerebellum",
+  ],
+  difficulty: "higher",
+  teacherNotes: "Canonical structure-to-function pattern. Reveal structure names after check only.",
+  labels: [
+    { id: "hypothalamus", text: "HYPOTHALAMUS", role: "structure", order: 1, hotspotId: "1", mapsTo: "thermoregulation control centre" },
+    { id: "pituitary", text: "PITUITARY GLAND", role: "structure", order: 2, hotspotId: "2", mapsTo: "master endocrine gland" },
+    { id: "medulla", text: "MEDULLA", role: "structure", order: 3, hotspotId: "3", mapsTo: "controls breathing and heart rate" },
+    { id: "cerebellum", text: "CEREBELLUM", role: "structure", order: 4, hotspotId: "4", mapsTo: "balance and coordination" },
+  ],
+  layout: {
+    orientation: "landscape",
+    flow: "left-to-right",
+    processType: "anatomy-regions",
+    composition: "single-panel-with-rail",
+    regions: ["brain-diagram", "overlay-rail"],
+    complexAnatomy: true,
+  },
+  activities: {
+    hotspots: [
+      { id: "1", labelId: "hypothalamus", region: "brain-diagram" },
+      { id: "2", labelId: "pituitary", region: "brain-diagram" },
+      { id: "3", labelId: "medulla", region: "brain-diagram" },
+      { id: "4", labelId: "cerebellum", region: "brain-diagram" },
+    ],
+    dragDrop: [
+      { pairId: "dd-1", prompt: "Thermoregulation control centre", labelId: "hypothalamus" },
+      { pairId: "dd-2", prompt: "Master gland for endocrine control", labelId: "pituitary" },
+      { pairId: "dd-3", prompt: "Controls breathing and heart rate", labelId: "medulla" },
+      { pairId: "dd-4", prompt: "Coordinates balance and movement", labelId: "cerebellum" },
+    ],
+  },
+  visualStyle: {
+    examDiagram: true,
+    whiteBackground: true,
+    flatVector: true,
+    highContrast: true,
+    uppercaseLabels: true,
+    minimalColour: true,
+    letsReviseFrame: true,
+  },
+  status: "validated",
+};
+
 const EXAMPLE_SPECS = [
   REFLEX_ARC_SPEC,
   REACTION_TIME_PRACTICAL_SPEC,
   PHOTOSYNTHESIS_SPEC,
   DIFFUSION_SPEC,
+  BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC,
 ];
 
 const EXAMPLE_SPECS_BY_ID = Object.fromEntries(EXAMPLE_SPECS.map((s) => [s.id, s]));
@@ -313,6 +409,7 @@ module.exports = {
   REACTION_TIME_PRACTICAL_SPEC,
   PHOTOSYNTHESIS_SPEC,
   DIFFUSION_SPEC,
+  BRAIN_REGIONS_STRUCTURE_FUNCTION_SPEC,
   EXAMPLE_SPECS,
   EXAMPLE_SPECS_BY_ID,
 };

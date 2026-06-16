@@ -59,6 +59,41 @@ const LABEL_ROLES = Object.freeze([
 ]);
 
 /**
+ * P3.0C — Cognitive task type for drag-and-drop / TTI activities.
+ * Controls image brief strategy (what appears on image vs concept cards).
+ * @readonly
+ */
+const ACTIVITY_PEDAGOGY_TYPES = Object.freeze([
+  "structure-to-function",
+  "function-to-structure",
+  "label-to-structure",
+  "process-step-to-order",
+  "cause-to-effect",
+  "variable-to-definition",
+]);
+
+/** Topics that require numbered hotspot mapping (not alignment-only). @readonly */
+const COMPLEX_ANATOMY_TOPIC_HINTS = Object.freeze([
+  "brain",
+  "eye",
+  "heart",
+  "nephron",
+  "reflex",
+  "endocrine",
+  "hormonal",
+]);
+
+/**
+ * @typedef {object} DiagramSpecLayout
+ * @property {string} orientation — landscape | portrait | square
+ * @property {string} [flow] — primary process direction
+ * @property {string} [processType] — e.g. pathway, reactants-to-products, practical-setup
+ * @property {string} [composition] — e.g. single-panel, multi-panel, inset-detail
+ * @property {string[]} [regions] — named layout regions for hotspot/drag-drop placement
+ * @property {boolean} [complexAnatomy] — use numbered hotspot mapping rule (brain, eye, heart, etc.)
+ */
+
+/**
  * @typedef {object} DiagramSpecLabel
  * @property {string} id — stable slug within spec (e.g. "sensory-neurone")
  * @property {string} text — display label (typically UPPERCASE for GCSE diagrams)
@@ -69,15 +104,6 @@ const LABEL_ROLES = Object.freeze([
  * @property {string} [mapsTo] — what structure or concept this label identifies
  * @property {string} [hotspotId] — letter id (A, B, C…) linking to activity seed
  * @property {string} [description] — student-facing explanation when revealed
- */
-
-/**
- * @typedef {object} DiagramSpecLayout
- * @property {string} orientation — landscape | portrait | square
- * @property {string} [flow] — primary process direction
- * @property {string} [processType] — e.g. pathway, reactants-to-products, practical-setup
- * @property {string} [composition] — e.g. single-panel, multi-panel, inset-detail
- * @property {string[]} [regions] — named layout regions for hotspot/drag-drop placement
  */
 
 /**
@@ -135,6 +161,9 @@ const LABEL_ROLES = Object.freeze([
  * @property {string} learningGoal — what the student must understand after viewing
  * @property {string} diagramType — one of DIAGRAM_TYPES
  * @property {string[]} interactionTypes — intended downstream activity modes
+ * @property {string} [activityPedagogyType] — cognitive task (required for drag-drop / tti)
+ * @property {string[]} [imageElements] — visual elements on image (not card text)
+ * @property {string[]} [conceptCards] — draggable card text (never rendered in image)
  * @property {string} title — diagram title for display and image brief
  * @property {string} [instruction] — image-provider brief (optional; derived from spec if omitted)
  * @property {string[]} [examFocus] — examinable skills or command words
@@ -151,6 +180,8 @@ module.exports = {
   SCHEMA_VERSION,
   DIAGRAM_TYPES,
   INTERACTION_TYPES,
+  ACTIVITY_PEDAGOGY_TYPES,
+  COMPLEX_ANATOMY_TOPIC_HINTS,
   DIFFICULTY_LEVELS,
   EXAM_BOARDS,
   ORIENTATIONS,

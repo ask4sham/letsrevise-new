@@ -1,9 +1,21 @@
 /**
- * P3.0B — Diagram Brief Composer.
+ * P3.0B/D — Diagram Brief Composer.
  * Converts a validated DiagramSpecification into a ChatGPT-ready diagram brief.
- * No image generation, no API calls, no production wiring.
+ * Branches on activityPedagogyType for drag-and-drop cognitive tasks (P3.0D).
  */
 const { validateDiagramSpecification } = require("./validator");
+const {
+  isPedagogyDrivenBrief,
+  usesRegionIdAbstraction,
+  inferComplexAnatomy,
+  buildHotspotMappingSection,
+  buildPedagogyValidationSection,
+  buildImageElementsSection,
+  buildConceptCardsSection,
+  buildTeacherAnswerKeySection,
+  buildTeacherMetadataSection,
+  PEDAGOGY_PROFILES,
+} = require("./pedagogyBriefRules");
 
 /** @typedef {import("./schema").DiagramSpecification} DiagramSpecification */
 
@@ -28,12 +40,11 @@ function buildExamStyleLine(spec, options) {
   return `${board} ${tier} Tier ${subject.replace(/^GCSE\s+/i, "")}`.replace(/\s+/g, " ").trim();
 }
 
-function buildOpeningLine(spec, options) {
-  const examLine = buildExamStyleLine(spec, options);
+function buildOpeningLine(spec) {
   return `Create a GCSE ${spec.examBoard} ${spec.tier} Tier ${spec.subject.replace(/^GCSE\s+/i, "")} diagram.`;
 }
 
-function buildInstructionSection(spec) {
+function buildInstructionSection(spec, { imageBrief = false } = {}) {
   const lines = [];
   if (spec.title) lines.push(`Title: ${spec.title}`);
   if (spec.subtopic) lines.push(`Subtopic: ${spec.subtopic}`);
@@ -42,10 +53,10 @@ function buildInstructionSection(spec) {
   lines.push("Learning goal:");
   lines.push(spec.learningGoal);
   lines.push("");
-  if (spec.instruction) {
-    lines.push(spec.instruction);
-  }
-  if (spec.examFocus?.length) {
+  if (spec.instruction) lines.push(spec.instruction);
+  const omitExamFocus =
+    imageBrief && usesRegionIdAbstraction(spec.activityPedagogyType);
+  if (spec.examFocus?.length && !omitExamFocus) {
     lines.push("");
     lines.push("Exam focus:");
     lines.push(bulletList(spec.examFocus));
@@ -105,37 +116,16 @@ function buildAnswerKeySection(spec) {
   ].join("\n");
 }
 
-function buildDragDropSection(spec) {
-  const dragDrop = spec.activities?.dragDrop || [];
-  if (!dragDrop.length) return "";
-
-  const labelById = Object.fromEntries(spec.labels.map((l) => [l.id, l]));
-  const lines = dragDrop.map((d) => {
-    const label = labelById[d.labelId];
-    return `- "${d.prompt}" → label: ${label?.text || d.labelId}`;
-  });
-
-  return [
-    "Leave clear drop-target regions for these drag-and-drop cards:",
-    "",
-    ...lines,
-  ].join("\n");
-}
-
 function buildInteractionNotesSection(spec) {
   const types = spec.interactionTypes || [];
   const notes = [];
-  if (types.includes("hotspot")) {
-    notes.push("Diagram must support click-to-reveal hotspot activities.");
-  }
+  if (types.includes("hotspot")) notes.push("Diagram must support click-to-reveal hotspot activities.");
   if (types.includes("drag-drop") || types.includes("tti")) {
-    notes.push("Diagram must support drag-and-drop label placement (diagram or TTI mode).");
+    notes.push("Diagram must support drag-and-drop — application owns drop zones and cards.");
   }
-  if (types.includes("label-overlay")) {
-    notes.push("Leave space for label overlay / reveal activities.");
-  }
+  if (types.includes("label-overlay")) notes.push("Leave space for label overlay / reveal activities.");
   if (types.includes("exam-question")) {
-    notes.push("Layout should make examinable structures easy to test (do not render exam questions in the image).");
+    notes.push("Layout should support exam questions (do not render questions in the image).");
   }
   if (!notes.length) return "";
   return notes.join("\n");
@@ -153,13 +143,20 @@ function buildLayoutSection(spec) {
     "Layout requirements:",
     "- Single coherent diagram — not disconnected clip-art icons",
     "- Clear visual hierarchy with generous white space",
-    "- Leader lines from labels to exact structures",
     "- Arrows show direction of process, impulse, or flow where relevant",
   ].filter((l) => l != null);
   return lines.join("\n");
 }
 
-function buildStyleSection() {
+function buildStyleSection(pedagogyDriven = false) {
+  const labelRules = pedagogyDriven
+    ? [
+        "LABELS:",
+        "- Use numbered hotspot markers only (1, 2, 3, 4…)",
+        "- NO structure names or function text on the image",
+      ]
+    : ["LABELS:", "- UPPERCASE", "- Short", "- AQA terminology only"];
+
   return [
     "GCSE EXAM DIAGRAM (NOT infographic)",
     "",
@@ -171,10 +168,7 @@ function buildStyleSection() {
     "- No shadows",
     "- No decorative UI elements",
     "",
-    "LABELS:",
-    "- UPPERCASE",
-    "- Short",
-    "- AQA terminology only",
+    ...labelRules,
   ].join("\n");
 }
 
@@ -186,17 +180,12 @@ function buildOutputSection(spec) {
     "- Exam ready — suitable for GCSE revision handouts",
     "- Copyright safe — original artwork only",
   ];
-  if (style.noPhotorealism !== false) {
-    lines.push("- NO photorealism, NO 3D rendering");
-  }
-  if (style.minimalColour !== false) {
-    lines.push("- Colour only where it aids learning");
-  }
+  if (style.noPhotorealism !== false) lines.push("- NO photorealism, NO 3D rendering");
+  if (style.minimalColour !== false) lines.push("- Colour only where it aids learning");
   return lines.join("\n");
 }
 
 function buildFrameSection(spec, options) {
-  const examLine = buildExamStyleLine(spec, options);
   const brand = options.brandName || "LetsRevise";
   return [
     `Place inside ${brand} frame:`,
@@ -207,8 +196,6 @@ function buildFrameSection(spec, options) {
     `- Diagram title centred above inner panel: ${spec.title}`,
     `- Large readable scaling for classroom and print use`,
     `- Do not alter diagram content inside the frame`,
-    "",
-    `(Exam style line: ${examLine})`,
   ].join("\n");
 }
 
@@ -222,9 +209,7 @@ function buildCopyrightSection() {
 
 function collectWarnings(spec, options) {
   const warnings = [];
-  if (!spec.instruction) {
-    warnings.push("No instruction field — brief uses learningGoal only");
-  }
+  if (!spec.instruction) warnings.push("No instruction field — brief uses learningGoal only");
   if (
     options.includeHotspots &&
     spec.interactionTypes?.includes("hotspot") &&
@@ -232,83 +217,68 @@ function collectWarnings(spec, options) {
   ) {
     warnings.push("interactionTypes includes hotspot but no activities.hotspots defined");
   }
-  if (spec.teacherNotes) {
-    warnings.push("teacherNotes omitted from brief (teacher-only metadata)");
-  }
+  if (spec.teacherNotes) warnings.push("teacherNotes omitted from brief (teacher-only metadata)");
   return warnings;
 }
 
 /**
- * @param {unknown} specInput
- * @param {Partial<typeof DEFAULT_OPTIONS>} [options]
+ * P3.0D — pedagogy-driven brief (drag-and-drop / TTI retrieval activities).
+ * @param {DiagramSpecification} spec
+ * @param {typeof DEFAULT_OPTIONS} opts
  */
-function composeDiagramBrief(specInput, options = {}) {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
-  const validation = validateDiagramSpecification(specInput);
-
-  if (!validation.ok || !validation.normalized) {
-    return {
-      ok: false,
-      brief: "",
-      errors: validation.errors,
-      warnings: [],
-      metadata: null,
-    };
-  }
-
-  const spec = validation.normalized;
-  const warnings = collectWarnings(spec, opts);
-
+function composePedagogyDrivenBrief(spec, opts) {
   const sections = [];
+  const profile = PEDAGOGY_PROFILES[spec.activityPedagogyType];
+  const regionAbstracted = usesRegionIdAbstraction(spec.activityPedagogyType);
 
-  sections.push(buildOpeningLine(spec, opts));
+  sections.push(buildOpeningLine(spec));
+  sections.push("");
+  sections.push(`Activity pedagogy type: ${spec.activityPedagogyType}`);
   sections.push("");
   sections.push("Instruction:");
-  sections.push(buildInstructionSection(spec));
+  sections.push(buildInstructionSection(spec, { imageBrief: true }));
   sections.push("");
-  sections.push("Labels to use:");
-  sections.push(buildLabelsSection(spec));
+  sections.push(buildPedagogyValidationSection(spec));
+  sections.push("");
+  sections.push("Image Elements:");
+  sections.push(buildImageElementsSection(spec));
 
-  const showHotspots =
-    opts.includeHotspots &&
-    (spec.interactionTypes.includes("hotspot") ||
-      spec.interactionTypes.includes("drag-drop") ||
-      spec.interactionTypes.includes("tti")) &&
-    (spec.activities?.hotspots?.length || spec.activities?.dragDrop?.length);
-
-  if (showHotspots && spec.activities?.hotspots?.length) {
+  if (!regionAbstracted) {
     sections.push("");
-    sections.push("Hotspots / parts:");
-    sections.push(buildHotspotsSection(spec));
+    sections.push("Concept Cards (application-rendered — NOT in image):");
+    sections.push(buildConceptCardsSection(spec));
   }
 
-  if (opts.includeAnswerKey && spec.activities?.hotspots?.length) {
+  if (profile) {
     sections.push("");
-    sections.push("Answer key:");
-    sections.push(buildAnswerKeySection(spec));
+    sections.push(`Student task: ${profile.recallTask}`);
   }
 
-  if (
-    spec.interactionTypes.includes("drag-drop") &&
-    spec.activities?.dragDrop?.length
-  ) {
+  if (opts.includeHotspots && inferComplexAnatomy(spec)) {
     sections.push("");
-    sections.push("Drag-and-drop targets:");
-    sections.push(buildDragDropSection(spec));
+    sections.push(buildHotspotMappingSection(spec));
+  }
+
+  if (opts.includeAnswerKey && !regionAbstracted) {
+    const teacherKey = buildTeacherAnswerKeySection(spec);
+    if (teacherKey) {
+      sections.push("");
+      sections.push(teacherKey);
+    }
   }
 
   if (opts.includeInteractionNotes) {
-    const interactionNotes = buildInteractionNotesSection(spec);
-    if (interactionNotes) {
+    const notes = buildInteractionNotesSection(spec);
+    if (notes) {
       sections.push("");
-      sections.push("Interaction notes (do not render as image text):");
-      sections.push(interactionNotes);
+      sections.push("Interaction notes:");
+      sections.push(notes);
     }
   }
 
   sections.push("");
   sections.push("STYLE:");
-  sections.push(buildStyleSection());
+  sections.push(buildStyleSection(true));
   sections.push("");
   sections.push("LAYOUT:");
   sections.push(buildLayoutSection(spec));
@@ -325,19 +295,120 @@ function composeDiagramBrief(specInput, options = {}) {
     sections.push(buildFrameSection(spec, opts));
   }
 
-  const brief = sections.join("\n").trim();
-  const hotspotCount = spec.activities?.hotspots?.length || 0;
+  return sections.join("\n").trim();
+}
+
+/**
+ * Legacy labelled-diagram brief (static / hotspot / no pedagogy type).
+ * @param {DiagramSpecification} spec
+ * @param {typeof DEFAULT_OPTIONS} opts
+ */
+function composeLabelledDiagramBrief(spec, opts) {
+  const sections = [];
+
+  sections.push(buildOpeningLine(spec));
+  sections.push("");
+  sections.push("Instruction:");
+  sections.push(buildInstructionSection(spec));
+  sections.push("");
+  sections.push("Labels to use:");
+  sections.push(buildLabelsSection(spec));
+
+  const showHotspots =
+    opts.includeHotspots &&
+    (spec.interactionTypes.includes("hotspot") ||
+      spec.interactionTypes.includes("drag-drop") ||
+      spec.interactionTypes.includes("tti")) &&
+    spec.activities?.hotspots?.length;
+
+  if (showHotspots) {
+    sections.push("");
+    sections.push("Hotspots / parts:");
+    sections.push(buildHotspotsSection(spec));
+  }
+
+  if (opts.includeAnswerKey && spec.activities?.hotspots?.length) {
+    sections.push("");
+    sections.push("Answer key:");
+    sections.push(buildAnswerKeySection(spec));
+  }
+
+  if (opts.includeInteractionNotes) {
+    const notes = buildInteractionNotesSection(spec);
+    if (notes) {
+      sections.push("");
+      sections.push("Interaction notes (do not render as image text):");
+      sections.push(notes);
+    }
+  }
+
+  sections.push("");
+  sections.push("STYLE:");
+  sections.push(buildStyleSection(false));
+  sections.push("");
+  sections.push("LAYOUT:");
+  sections.push(buildLayoutSection(spec));
+  sections.push("");
+  sections.push("OUTPUT:");
+  sections.push(buildOutputSection(spec));
+  sections.push("");
+  sections.push("COPYRIGHT:");
+  sections.push(buildCopyrightSection());
+
+  if (opts.includeFrame) {
+    sections.push("");
+    sections.push("THEN:");
+    sections.push(buildFrameSection(spec, opts));
+  }
+
+  return sections.join("\n").trim();
+}
+
+/**
+ * @param {unknown} specInput
+ * @param {Partial<typeof DEFAULT_OPTIONS>} [options]
+ */
+function composeDiagramBrief(specInput, options = {}) {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const validation = validateDiagramSpecification(specInput);
+
+  if (!validation.ok || !validation.normalized) {
+    return {
+      ok: false,
+      brief: "",
+      teacherMetadata: null,
+      errors: validation.errors,
+      warnings: [],
+      metadata: null,
+    };
+  }
+
+  const spec = validation.normalized;
+  const warnings = collectWarnings(spec, opts);
+  const pedagogyDriven = isPedagogyDrivenBrief(spec.activityPedagogyType);
+
+  const brief = pedagogyDriven
+    ? composePedagogyDrivenBrief(spec, opts)
+    : composeLabelledDiagramBrief(spec, opts);
+
+  const teacherMetadata = usesRegionIdAbstraction(spec.activityPedagogyType)
+    ? buildTeacherMetadataSection(spec)
+    : null;
 
   return {
     ok: true,
     brief,
+    teacherMetadata,
     warnings,
     metadata: {
       specId: spec.id,
       diagramType: spec.diagramType,
+      activityPedagogyType: spec.activityPedagogyType || null,
       interactionTypes: [...spec.interactionTypes],
       labelCount: spec.labels.length,
-      hotspotCount,
+      hotspotCount: spec.activities?.hotspots?.length || 0,
+      pedagogyDriven,
+      regionIdAbstracted: usesRegionIdAbstraction(spec.activityPedagogyType),
     },
     errors: [],
   };
@@ -345,5 +416,7 @@ function composeDiagramBrief(specInput, options = {}) {
 
 module.exports = {
   composeDiagramBrief,
+  composePedagogyDrivenBrief,
+  composeLabelledDiagramBrief,
   DEFAULT_OPTIONS,
 };
