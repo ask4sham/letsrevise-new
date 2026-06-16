@@ -16,6 +16,17 @@ const {
   buildTeacherMetadataSection,
   PEDAGOGY_PROFILES,
 } = require("./pedagogyBriefRules");
+const {
+  hasActivityBrief,
+  buildActivityOpeningLine,
+  buildActivityInstructionSection,
+  buildImageMustShowSection,
+  buildAnswerDisplayRuleSection,
+  buildLetterHotspotElementsSection,
+  buildActivityHotspotsSection,
+  buildActivityTeacherMetadataSection,
+  buildActivityStyleSection,
+} = require("./activityBriefRules");
 
 /** @typedef {import("./schema").DiagramSpecification} DiagramSpecification */
 
@@ -299,6 +310,117 @@ function composePedagogyDrivenBrief(spec, opts) {
 }
 
 /**
+ * P3.0E — activity-contract brief from lesson blocks (activity-specific, not generic topic).
+ * @param {DiagramSpecification} spec
+ * @param {typeof DEFAULT_OPTIONS} opts
+ */
+function composeActivityContractBrief(spec, opts) {
+  const sections = [];
+  const profile = PEDAGOGY_PROFILES[spec.activityPedagogyType];
+  const mode = spec.activityBrief?.answerOnImage;
+  const pedagogyDriven = isPedagogyDrivenBrief(spec.activityPedagogyType);
+  const regionAbstracted = usesRegionIdAbstraction(spec.activityPedagogyType);
+  const hideAnswersOnImage =
+    mode === "letters-only" || mode === "region-ids" || mode === "overlay-cards";
+
+  sections.push(buildActivityOpeningLine(spec));
+  sections.push("");
+  if (spec.activityBrief?.sourceBlockType) {
+    sections.push(`Source block type: ${spec.activityBrief.sourceBlockType}`);
+    sections.push("");
+  }
+  if (spec.activityPedagogyType) {
+    sections.push(`Activity pedagogy type: ${spec.activityPedagogyType}`);
+    sections.push("");
+  }
+  sections.push(buildActivityInstructionSection(spec));
+  sections.push("");
+  const imageMustShow = buildImageMustShowSection(spec);
+  if (imageMustShow) {
+    sections.push(imageMustShow);
+    sections.push("");
+  }
+  const answerRule = buildAnswerDisplayRuleSection(spec);
+  if (answerRule) {
+    sections.push(answerRule);
+    sections.push("");
+  }
+
+  if (pedagogyDriven && hideAnswersOnImage) {
+    if (mode === "letters-only") {
+      sections.push([
+        "PEDAGOGY VALIDATION (before generating):",
+        "What is the student trying to recall? Match each pathway label to the correct lettered hotspot (Label → Structure).",
+        "The image must NEVER contain the answer.",
+        "",
+        "MUST NOT appear on the image:",
+        "- Answer label text (Stimulus, Receptor, etc.)",
+        "- Function descriptions as visible labels",
+        "- Concept card text",
+        "- Dotted boxes or drop zones",
+      ].join("\n"));
+    } else {
+      sections.push(buildPedagogyValidationSection(spec));
+    }
+    sections.push("");
+    sections.push("Image Elements:");
+    sections.push(buildImageElementsSection(spec));
+  } else if (mode === "full-labels") {
+    sections.push("Instruction:");
+    sections.push(buildInstructionSection(spec));
+    sections.push("");
+    sections.push("Labels to use:");
+    sections.push(buildLabelsSection(spec));
+  }
+
+  if (opts.includeHotspots && spec.activities?.hotspots?.length) {
+    sections.push("");
+    sections.push(buildActivityHotspotsSection(spec));
+  }
+
+  const studentTask = spec.activityBrief?.studentTask || profile?.recallTask;
+  if (studentTask) {
+    sections.push("");
+    sections.push(`Student task: ${studentTask}`);
+  }
+
+  if (opts.includeHotspots && inferComplexAnatomy(spec) && regionAbstracted) {
+    sections.push("");
+    sections.push(buildHotspotMappingSection(spec));
+  }
+
+  if (opts.includeInteractionNotes) {
+    const notes = buildInteractionNotesSection(spec);
+    if (notes) {
+      sections.push("");
+      sections.push("Interaction notes:");
+      sections.push(notes);
+    }
+  }
+
+  sections.push("");
+  sections.push("STYLE:");
+  sections.push(buildActivityStyleSection(spec));
+  sections.push("");
+  sections.push("LAYOUT:");
+  sections.push(buildLayoutSection(spec));
+  sections.push("");
+  sections.push("OUTPUT:");
+  sections.push(buildOutputSection(spec));
+  sections.push("");
+  sections.push("COPYRIGHT:");
+  sections.push(buildCopyrightSection());
+
+  if (opts.includeFrame) {
+    sections.push("");
+    sections.push("THEN:");
+    sections.push(buildFrameSection(spec, opts));
+  }
+
+  return sections.join("\n").trim();
+}
+
+/**
  * Legacy labelled-diagram brief (static / hotspot / no pedagogy type).
  * @param {DiagramSpecification} spec
  * @param {typeof DEFAULT_OPTIONS} opts
@@ -386,14 +508,19 @@ function composeDiagramBrief(specInput, options = {}) {
   const spec = validation.normalized;
   const warnings = collectWarnings(spec, opts);
   const pedagogyDriven = isPedagogyDrivenBrief(spec.activityPedagogyType);
+  const fromActivityContract = hasActivityBrief(spec);
 
-  const brief = pedagogyDriven
-    ? composePedagogyDrivenBrief(spec, opts)
-    : composeLabelledDiagramBrief(spec, opts);
+  const brief = fromActivityContract
+    ? composeActivityContractBrief(spec, opts)
+    : pedagogyDriven
+      ? composePedagogyDrivenBrief(spec, opts)
+      : composeLabelledDiagramBrief(spec, opts);
 
-  const teacherMetadata = usesRegionIdAbstraction(spec.activityPedagogyType)
-    ? buildTeacherMetadataSection(spec)
-    : null;
+  const teacherMetadata = fromActivityContract
+    ? buildActivityTeacherMetadataSection(spec)
+    : usesRegionIdAbstraction(spec.activityPedagogyType)
+      ? buildTeacherMetadataSection(spec)
+      : null;
 
   return {
     ok: true,
@@ -409,6 +536,8 @@ function composeDiagramBrief(specInput, options = {}) {
       hotspotCount: spec.activities?.hotspots?.length || 0,
       pedagogyDriven,
       regionIdAbstracted: usesRegionIdAbstraction(spec.activityPedagogyType),
+      activityContract: fromActivityContract,
+      answerOnImage: spec.activityBrief?.answerOnImage || null,
     },
     errors: [],
   };
@@ -417,6 +546,7 @@ function composeDiagramBrief(specInput, options = {}) {
 module.exports = {
   composeDiagramBrief,
   composePedagogyDrivenBrief,
+  composeActivityContractBrief,
   composeLabelledDiagramBrief,
   DEFAULT_OPTIONS,
 };

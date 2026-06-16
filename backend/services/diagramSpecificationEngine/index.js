@@ -3,6 +3,7 @@ module.exports = {
   ...require("./validator"),
   ...require("./examples"),
   ...require("./pedagogyBriefRules"),
+  ...require("./activityBriefRules"),
   ...require("./briefComposer"),
   ...require("./lessonBlockToSpec"),
   ...require("./briefFromBlock"),

@@ -80,6 +80,7 @@ function validateDiagramSpecification(input, opts = {}) {
       "activities",
       "visualStyle",
       "status",
+      "activityBrief",
     ]);
     for (const key of Object.keys(spec)) {
       if (!allowed.has(key)) {
@@ -388,6 +389,26 @@ function validateDiagramSpecification(input, opts = {}) {
   const visualStyle =
     spec.visualStyle && typeof spec.visualStyle === "object" ? { ...spec.visualStyle } : undefined;
 
+  let activityBrief;
+  if (spec.activityBrief && typeof spec.activityBrief === "object") {
+    const answerOnImage = safeStr(spec.activityBrief.answerOnImage);
+    if (answerOnImage && !["letters-only", "region-ids", "full-labels", "overlay-cards"].includes(answerOnImage)) {
+      pushError(errors, "activityBrief.answerOnImage", "Invalid answerOnImage mode", "INVALID_ENUM");
+    }
+    activityBrief = {
+      sourceBlockType:
+        spec.activityBrief.sourceBlockType != null ? safeStr(spec.activityBrief.sourceBlockType) : undefined,
+      activityInstruction:
+        spec.activityBrief.activityInstruction != null ? safeStr(spec.activityBrief.activityInstruction) : undefined,
+      imageMustShow:
+        spec.activityBrief.imageMustShow != null ? safeStr(spec.activityBrief.imageMustShow) : undefined,
+      studentTask: spec.activityBrief.studentTask != null ? safeStr(spec.activityBrief.studentTask) : undefined,
+      answerOnImage: answerOnImage || undefined,
+    };
+    const hasAny = Object.values(activityBrief).some(Boolean);
+    if (!hasAny) activityBrief = undefined;
+  }
+
   const status = safeStr(spec.status) || "draft";
   if (!["draft", "validated"].includes(status)) {
     pushError(errors, "status", "status must be draft or validated", "INVALID_ENUM");
@@ -421,6 +442,7 @@ function validateDiagramSpecification(input, opts = {}) {
     layout: normalizedLayout,
     activities: Object.keys(normalizedActivities).length ? normalizedActivities : undefined,
     visualStyle,
+    activityBrief,
     status,
   };
 
