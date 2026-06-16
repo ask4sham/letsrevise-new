@@ -492,7 +492,47 @@ npx jest tests/diagramSpecificationEngine.test.js
 
 **24 tests passing** (13 engine + 11 brief composer).
 
-**P3.0C/D commit status:** Not committed — awaiting review.
+**P3.0C/D commit status:** Committed (`ee2aeb18`) — pedagogy schema + region-ID hardening.
+
+---
+
+## P3.0E — Generate Diagram Brief from lesson block (teacher UI)
+
+**Status:** Implemented (not committed)  
+**Flag:** `DIAGRAM_BRIEF_FROM_BLOCK=1`
+
+### Teacher workflow
+
+```
+Lesson → select diagram / drag-drop / interactive diagram block
+      → Generate Diagram Brief
+      → Copy prompt → ChatGPT → upload to Diagram Asset Library
+```
+
+### API
+
+`POST /api/diagram-briefs/from-block` (teacher/admin, flag-gated)
+
+```json
+{
+  "block": { "type": "dragDropMatch", "pairs": [...] },
+  "lesson": { "subject": "Biology", "board": "AQA", "tier": "Higher", "topic": "The Brain" },
+  "page": { "title": "Brain Regions" }
+}
+```
+
+Returns `{ brief, teacherMetadata, spec, metadata, warnings }`.
+
+### Modules
+
+| File | Role |
+|------|------|
+| `lessonBlockToSpec.js` | Rule-based block → DiagramSpecification |
+| `briefFromBlock.js` | block → spec → `composeDiagramBrief()` |
+| `routes/diagramBriefs.js` | HTTP route |
+| `GenerateDiagramBriefPanel.tsx` | Editor UI on diagram activity blocks |
+
+No OpenAI calls. No image generation.
 
 ---
 

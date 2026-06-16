@@ -24,7 +24,7 @@ import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank, listTopicFlashcards } from "../api/topicFlashcards";
 import { listTopicQuizQuestions } from "../api/topicQuizQuestions";
-import { getDiagramAssetLibraryEnabled } from "../api/featureFlags";
+import { getDiagramAssetLibraryEnabled, getDiagramBriefFromBlockEnabled } from "../api/featureFlags";
 import type { DiagramAssetRecord } from "../api/diagramAssets";
 import DiagramAssetLibraryPanel from "../components/diagrams/DiagramAssetLibraryPanel";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
@@ -94,6 +94,7 @@ import {
 } from "../utils/lessonBlockPersist";
 import { LearningIntelligenceSummaryPanel } from "../components/lesson/LearningIntelligenceSummaryPanel";
 import { TeacherBrainDesignBriefPanel } from "../components/lesson/TeacherBrainDesignBriefPanel";
+import { GenerateDiagramBriefPanel } from "../components/lesson/GenerateDiagramBriefPanel";
 import { TeacherCoverageReviewPanel } from "../components/lesson/TeacherCoverageReviewPanel";
 import { hasTeacherBrainDesignBrief } from "../utils/teacherBrainDesignBrief";
 import { injectTeacherBrainBriefs } from "../api/teacherBrainBriefs";
@@ -826,6 +827,7 @@ const EditLessonPage: React.FC = () => {
   const [examBulkText, setExamBulkText] = useState("");
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
   const [diagramAssetLibraryEnabled, setDiagramAssetLibraryEnabled] = useState(false);
+  const [diagramBriefFromBlockEnabled, setDiagramBriefFromBlockEnabled] = useState(false);
   const [diagramAssetLibraryTarget, setDiagramAssetLibraryTarget] = useState<{
     pageId: string;
     blockIndex: number;
@@ -1299,6 +1301,13 @@ const EditLessonPage: React.FC = () => {
       })
       .catch(() => {
         if (!cancelled) setDiagramAssetLibraryEnabled(false);
+      });
+    getDiagramBriefFromBlockEnabled()
+      .then((enabled) => {
+        if (!cancelled) setDiagramBriefFromBlockEnabled(enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setDiagramBriefFromBlockEnabled(false);
       });
     return () => {
       cancelled = true;
@@ -6507,6 +6516,20 @@ const EditLessonPage: React.FC = () => {
                                 injectLoading={teacherBrainInjectLoading}
                                 refreshKey={teacherBrainBriefRefreshKey}
                               />
+                              {diagramBriefFromBlockEnabled && lesson ? (
+                                <GenerateDiagramBriefPanel
+                                  block={b as unknown as Record<string, unknown>}
+                                  lesson={{
+                                    subject: lesson.subject,
+                                    board: lesson.examBoardName,
+                                    tier: lesson.tier || lesson.level,
+                                    topic: lesson.topic,
+                                    subTopic: lesson.subTopic,
+                                    level: lesson.level,
+                                  }}
+                                  page={{ title: currentPage?.title }}
+                                />
+                              ) : null}
                               {!hasTeacherBrainDesignBrief((b as LessonPageBlock).note) ? (
                                 <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
                                   {d.note ?? "Move labels and adjust as needed."}
@@ -7946,6 +7969,20 @@ const EditLessonPage: React.FC = () => {
                                 injectLoading={teacherBrainInjectLoading}
                                 refreshKey={teacherBrainBriefRefreshKey}
                               />
+                              {diagramBriefFromBlockEnabled && lesson ? (
+                                <GenerateDiagramBriefPanel
+                                  block={b as unknown as Record<string, unknown>}
+                                  lesson={{
+                                    subject: lesson.subject,
+                                    board: lesson.examBoardName,
+                                    tier: lesson.tier || lesson.level,
+                                    topic: lesson.topic,
+                                    subTopic: lesson.subTopic,
+                                    level: lesson.level,
+                                  }}
+                                  page={{ title: currentPage?.title }}
+                                />
+                              ) : null}
                               <div
                                 data-testid="interactive-diagram-step-1-upload"
                                 style={{
@@ -8872,6 +8909,20 @@ const EditLessonPage: React.FC = () => {
                                 injectLoading={teacherBrainInjectLoading}
                                 refreshKey={teacherBrainBriefRefreshKey}
                               />
+                              {diagramBriefFromBlockEnabled && lesson ? (
+                                <GenerateDiagramBriefPanel
+                                  block={b as unknown as Record<string, unknown>}
+                                  lesson={{
+                                    subject: lesson.subject,
+                                    board: lesson.examBoardName,
+                                    tier: lesson.tier || lesson.level,
+                                    topic: lesson.topic,
+                                    subTopic: lesson.subTopic,
+                                    level: lesson.level,
+                                  }}
+                                  page={{ title: currentPage?.title }}
+                                />
+                              ) : null}
                               <DragDropMatchDiagramAuthoring
                                 blk={b as LessonPageBlock}
                                 newId={newId}

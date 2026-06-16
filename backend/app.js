@@ -219,6 +219,7 @@ app.use("/api/feature-flags", require("./routes/featureFlags"));
 // P1: GCSE Visual Explanation (teacher/admin, flag-gated)
 app.use("/api/visual-explanations", require("./routes/visualExplanation"));
 app.use("/api/diagram-assets", require("./routes/diagramAssets"));
+app.use("/api/diagram-briefs", require("./routes/diagramBriefs"));
 
 // PR-009: Coverage engine (teacher + admin)
 app.use("/api/coverage", require("./routes/coverage.routes"));

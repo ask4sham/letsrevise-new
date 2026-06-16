@@ -4,4 +4,6 @@ module.exports = {
   ...require("./examples"),
   ...require("./pedagogyBriefRules"),
   ...require("./briefComposer"),
+  ...require("./lessonBlockToSpec"),
+  ...require("./briefFromBlock"),
 };

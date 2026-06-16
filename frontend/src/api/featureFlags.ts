@@ -35,3 +35,12 @@ export async function getDiagramAssetLibraryEnabled(): Promise<boolean> {
   const res = await api.get<DiagramAssetLibraryFlagResponse>("/feature-flags/diagram-assets");
   return res.data?.enabled === true;
 }
+
+export type DiagramBriefFromBlockFlagResponse = {
+  enabled: boolean;
+};
+
+export async function getDiagramBriefFromBlockEnabled(): Promise<boolean> {
+  const res = await api.get<DiagramBriefFromBlockFlagResponse>("/feature-flags/diagram-brief-from-block");
+  return res.data?.enabled === true;
+}

@@ -8,6 +8,7 @@ const auth = require("../middleware/auth");
 const { isAiTutorEnabledForSpec } = require("../config/featureFlags");
 const { isVisualExplanationEnabled } = require("../config/visualExplanationFlags");
 const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
+const { isDiagramBriefFromBlockEnabled } = require("../config/diagramBriefFlags");
 
 router.get("/ai-tutor", auth, (req, res) => {
   const specKey = req.query.specKey;
@@ -21,6 +22,10 @@ router.get("/visual-explanation", auth, (_req, res) => {
 
 router.get("/diagram-assets", auth, (_req, res) => {
   return res.json({ enabled: isDiagramAssetLibraryEnabled() });
+});
+
+router.get("/diagram-brief-from-block", auth, (_req, res) => {
+  return res.json({ enabled: isDiagramBriefFromBlockEnabled() });
 });
 
 module.exports = router;
