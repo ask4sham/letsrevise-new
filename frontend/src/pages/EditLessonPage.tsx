@@ -24,6 +24,9 @@ import { supabase } from "../lib/supabaseClient";
 import api, { listVisuals, getVisualById } from "../services/api";
 import { generateFlashcardsFromTopic, syncFlashcardsFromTopicBank, listTopicFlashcards } from "../api/topicFlashcards";
 import { listTopicQuizQuestions } from "../api/topicQuizQuestions";
+import { getDiagramAssetLibraryEnabled } from "../api/featureFlags";
+import type { DiagramAssetRecord } from "../api/diagramAssets";
+import DiagramAssetLibraryPanel from "../components/diagrams/DiagramAssetLibraryPanel";
 import { makeAbsoluteAssetUrl } from "../utils/assetUrl";
 import {
   checkpointMarkSchemeEditorText,
@@ -238,6 +241,8 @@ interface LessonPageBlock {
   question?: string;
   /** Diagram block fields (when type === "diagram") */
   visualId?: string;
+  /** P2.1 — reusable Diagram Asset Library reference */
+  diagramAssetId?: string;
   caption?: string;
   /** Teacher explanation / instructions (diagram blocks) */
   subtitle?: string;
@@ -820,6 +825,11 @@ const EditLessonPage: React.FC = () => {
   const [syncFlashcardsSuccess, setSyncFlashcardsSuccess] = useState<string | null>(null);
   const [examBulkText, setExamBulkText] = useState("");
   const [diagramPickerTarget, setDiagramPickerTarget] = useState<{ pageId: string; blockIndex: number } | null>(null);
+  const [diagramAssetLibraryEnabled, setDiagramAssetLibraryEnabled] = useState(false);
+  const [diagramAssetLibraryTarget, setDiagramAssetLibraryTarget] = useState<{
+    pageId: string;
+    blockIndex: number;
+  } | null>(null);
   const [visualsList, setVisualsList] = useState<Array<{ _id: string; conceptKey: string; topic?: string }>>([]);
 
   const [attachedExamQuestions, setAttachedExamQuestions] = useState<Array<{ _id: string; question: string; type?: string; marks?: number; topicKey?: string; topic?: string }>>([]);
@@ -1276,6 +1286,26 @@ const EditLessonPage: React.FC = () => {
   }, [diagramPickerTarget]);
 
   useEffect(() => {
+    const ut = (user?.userType || (user as { type?: string })?.type || "").toString().toLowerCase();
+    const isTeacherOrAdmin = ut === "teacher" || ut === "admin";
+    if (!token || !isTeacherOrAdmin) {
+      setDiagramAssetLibraryEnabled(false);
+      return;
+    }
+    let cancelled = false;
+    getDiagramAssetLibraryEnabled()
+      .then((enabled) => {
+        if (!cancelled) setDiagramAssetLibraryEnabled(enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setDiagramAssetLibraryEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user]);
+
+  useEffect(() => {
     if (!id || !lesson) return;
     api.get(`/lessons/${id}/exam-questions`).then((res: any) => {
       setAttachedExamQuestions(Array.isArray(res?.data?.questions) ? res.data.questions : []);
@@ -1580,6 +1610,8 @@ const EditLessonPage: React.FC = () => {
                     connectors: connectors.length ? connectors : undefined,
                     imageUrl: b.imageUrl != null ? String(b.imageUrl).trim() || undefined : undefined,
                     imageSource: b.imageSource != null ? String(b.imageSource).trim() || undefined : undefined,
+                    diagramAssetId:
+                      b.diagramAssetId != null ? String(b.diagramAssetId).trim() || undefined : undefined,
                     alt: b.alt != null ? String(b.alt).trim() || undefined : undefined,
                     ...(role && { role }),
                   };
@@ -7172,6 +7204,11 @@ const EditLessonPage: React.FC = () => {
                                   />
                                 </label>
                                 <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: "#374151" }}>Add diagram</p>
+                                {diagramAssetLibraryEnabled && d.diagramAssetId ? (
+                                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "#166534" }}>
+                                    Linked to Diagram Library asset.
+                                  </p>
+                                ) : null}
                                 <p style={{ margin: "0 0 8px", fontSize: 11, color: "#6b7280" }}>Recommended: upload your own image (you must have rights to use it). AI is instructed to create original work only; do not use AI output if it resembles existing diagrams.</p>
                                 <input
                                   ref={(el) => {
@@ -7186,6 +7223,7 @@ const EditLessonPage: React.FC = () => {
                                     uploadImageForLessonDiagramBlock(f, currentPage!.pageId, idx, (url) =>
                                       updateBlock(currentPage!.pageId, idx, {
                                         visualId: undefined,
+                                        diagramAssetId: undefined,
                                         imageUrl: url,
                                         imageSource: "upload",
                                         source: undefined,
@@ -7196,6 +7234,29 @@ const EditLessonPage: React.FC = () => {
                                   }}
                                 />
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                {diagramAssetLibraryEnabled ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setDiagramAssetLibraryTarget({
+                                        pageId: currentPage!.pageId,
+                                        blockIndex: idx,
+                                      })
+                                    }
+                                    style={{
+                                      padding: "8px 14px",
+                                      borderRadius: 10,
+                                      border: "2px solid rgba(124,58,237,0.4)",
+                                      background: "rgba(124,58,237,0.08)",
+                                      color: "#5b21b6",
+                                      cursor: "pointer",
+                                      fontWeight: 700,
+                                      fontSize: 13,
+                                    }}
+                                  >
+                                    Choose from Diagram Library
+                                  </button>
+                                ) : null}
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -7254,6 +7315,7 @@ const EditLessonPage: React.FC = () => {
                                         const userCaption = d.caption?.trim();
                                         updateBlock(currentPage.pageId, idx, {
                                           visualId: undefined,
+                                          diagramAssetId: undefined,
                                           imageUrl: res.data.imageUrl,
                                           imageSource: res.data.imageSource ?? "ai",
                                           alt: res.data.altText ?? userCaption ?? undefined,
@@ -7286,6 +7348,7 @@ const EditLessonPage: React.FC = () => {
                                   onClick={() => {
                                     updateBlock(currentPage!.pageId, idx, {
                                       visualId: undefined,
+                                      diagramAssetId: undefined,
                                       imageUrl: undefined,
                                       imageSource: undefined,
                                       alt: undefined,
@@ -11111,6 +11174,39 @@ const EditLessonPage: React.FC = () => {
             const d = suggestKeyTermsDialog;
             if (!d) return;
             applyBulkSuggestedKeyTerms(d.pageId, d.blockIndex, items);
+          }}
+        />
+      ) : null}
+
+      {diagramAssetLibraryEnabled && diagramAssetLibraryTarget ? (
+        <DiagramAssetLibraryPanel
+          open={Boolean(diagramAssetLibraryTarget)}
+          onClose={() => setDiagramAssetLibraryTarget(null)}
+          defaults={{
+            subject: lesson?.subject,
+            topic: lesson?.topic,
+            examBoard: lesson?.examBoardName ?? undefined,
+            tier: lesson?.tier,
+          }}
+          onAttach={(asset: DiagramAssetRecord) => {
+            const target = diagramAssetLibraryTarget;
+            if (!target) return;
+            const page = lesson?.pages?.find((p) => String(p.pageId) === String(target.pageId));
+            const block = page?.blocks?.[target.blockIndex] as LessonPageBlock | undefined;
+            const captionTrim = typeof block?.caption === "string" ? block.caption.trim() : "";
+            const titleTrim = typeof block?.title === "string" ? block.title.trim() : "";
+            updateBlock(target.pageId, target.blockIndex, {
+              diagramAssetId: asset.id,
+              imageUrl: asset.imageUrl,
+              imageSource: "diagram-asset",
+              visualId: undefined,
+              alt: asset.title,
+              caption: captionTrim || asset.title,
+              title: titleTrim || asset.title,
+              source: undefined,
+              elements: undefined,
+            });
+            setDiagramAssetLibraryTarget(null);
           }}
         />
       ) : null}

@@ -59,6 +59,14 @@ describe("P2.1 Diagram Asset Library prototype", () => {
     process.env.DIAGRAM_ASSET_LIBRARY = "1";
   });
 
+  test("GET /api/feature-flags/diagram-assets returns enabled state", async () => {
+    const res = await request(app)
+      .get("/api/feature-flags/diagram-assets")
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.enabled).toBe(true);
+  });
+
   test("parseActivityTypes normalizes and defaults to view", () => {
     expect(parseActivityTypes(["hotspot", "invalid", "tti"])).toEqual(["hotspot", "tti"]);
     expect(parseActivityTypes("dragdrop,view")).toEqual(["dragdrop", "view"]);
@@ -154,6 +162,115 @@ describe("P2.1 Diagram Asset Library prototype", () => {
 
     const assetDoc = await DiagramAsset.findById(assetId).lean();
     expect(assetDoc.usageCount).toBe(1);
+  });
+
+  test("PUT save → GET reload preserves diagramAssetId and hydrates imageUrl", async () => {
+    const createRes = await request(app)
+      .post("/api/diagram-assets")
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        title: "Save reload diagram",
+        subject: "Biology",
+        topic: "Reflex Arc",
+        imageUrl: "https://cdn.example.com/save-reload-reflex.png",
+        source: "chatgpt",
+      });
+    expect(createRes.status).toBe(201);
+    const assetId = createRes.body.asset.id;
+
+    const lesson = await Lesson.create({
+      title: "Save reload lesson",
+      description: "P2.2 smoke",
+      content: "Content",
+      teacherId,
+      teacherName: "D Teacher",
+      subject: "Biology",
+      level: "GCSE",
+      board: "AQA",
+      topic: "Reflex Arc",
+      status: "draft",
+      pages: [
+        {
+          pageId: "p-save",
+          title: "Page 1",
+          order: 0,
+          blocks: [
+            {
+              type: "diagram",
+              caption: "Legacy inline",
+              imageUrl: "https://cdn.example.com/legacy-only.png",
+              imageSource: "upload",
+            },
+            {
+              type: "diagram",
+              caption: "Library linked",
+              diagramAssetId: assetId,
+              imageUrl: "https://cdn.example.com/stale-before-save.png",
+              imageSource: "diagram-asset",
+            },
+          ],
+        },
+      ],
+      quiz: { timeSeconds: 600, questions: [] },
+      assessment: { timeSeconds: 600, questions: [] },
+    });
+
+    const putRes = await request(app)
+      .put(`/api/lessons/${lesson._id}`)
+      .set("Authorization", `Bearer ${teacherToken}`)
+      .send({
+        pages: [
+          {
+            pageId: "p-save",
+            title: "Page 1",
+            order: 0,
+            blocks: [
+              {
+                type: "diagram",
+                caption: "Legacy inline",
+                imageUrl: "https://cdn.example.com/legacy-only.png",
+                imageSource: "upload",
+              },
+              {
+                type: "diagram",
+                caption: "Library linked",
+                diagramAssetId: assetId,
+                imageUrl: "https://cdn.example.com/stale-before-save.png",
+                imageSource: "diagram-asset",
+                alt: "Save reload diagram",
+              },
+            ],
+          },
+        ],
+      });
+    expect(putRes.status).toBe(200);
+
+    const getRes = await request(app)
+      .get(`/api/lessons/${lesson._id}`)
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect(getRes.status).toBe(200);
+
+    const legacyBlock = getRes.body.pages?.[0]?.blocks?.[0];
+    expect(legacyBlock?.type).toBe("diagram");
+    expect(legacyBlock?.diagramAssetId).toBeUndefined();
+    expect(legacyBlock?.imageUrl).toBe("https://cdn.example.com/legacy-only.png");
+    expect(legacyBlock?.imageSource).toBe("upload");
+
+    const libraryBlock = getRes.body.pages?.[0]?.blocks?.[1];
+    expect(libraryBlock?.type).toBe("diagram");
+    expect(String(libraryBlock?.diagramAssetId)).toBe(assetId);
+    expect(libraryBlock?.imageUrl).toBe("https://cdn.example.com/save-reload-reflex.png");
+    expect(libraryBlock?.imageSource).toBe("diagram-asset");
+  });
+
+  test("feature flag OFF returns disabled for diagram-assets UI endpoint", async () => {
+    process.env.DIAGRAM_ASSET_LIBRARY = "0";
+    const res = await request(app)
+      .get("/api/feature-flags/diagram-assets")
+      .set("Authorization", `Bearer ${teacherToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.enabled).toBe(false);
+    process.env.DIAGRAM_ASSET_LIBRARY = "1";
   });
 
   test("rejects create without title or imageUrl", async () => {

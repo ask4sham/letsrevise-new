@@ -476,6 +476,10 @@ function sanitisePageInput(p, isUpdate = false) {
             b?.visualId && mongoose.Types.ObjectId.isValid(String(b.visualId))
               ? b.visualId
               : undefined;
+          const diagramAssetId =
+            b?.diagramAssetId && mongoose.Types.ObjectId.isValid(String(b.diagramAssetId))
+              ? b.diagramAssetId
+              : undefined;
           const mode = ["static", "annotated", "step"].includes(String(b?.mode || "").trim())
             ? String(b.mode).trim()
             : "static";
@@ -525,6 +529,7 @@ function sanitisePageInput(p, isUpdate = false) {
           const diagramBlock = {
             type: "diagram",
             visualId: visualId || undefined,
+            diagramAssetId: diagramAssetId || undefined,
             caption: typeof b?.caption === "string" ? b.caption : "",
             content: typeof b?.content === "string" && b.content.trim() ? b.content.trim() : "image here",
             mode,
