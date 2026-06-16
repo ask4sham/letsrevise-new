@@ -26,3 +26,12 @@ export async function getVisualExplanationEnabled(): Promise<boolean> {
   const res = await api.get<VisualExplanationFlagResponse>("/feature-flags/visual-explanation");
   return res.data?.enabled === true;
 }
+
+export type DiagramAssetLibraryFlagResponse = {
+  enabled: boolean;
+};
+
+export async function getDiagramAssetLibraryEnabled(): Promise<boolean> {
+  const res = await api.get<DiagramAssetLibraryFlagResponse>("/feature-flags/diagram-assets");
+  return res.data?.enabled === true;
+}

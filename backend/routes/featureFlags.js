@@ -7,6 +7,7 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const { isAiTutorEnabledForSpec } = require("../config/featureFlags");
 const { isVisualExplanationEnabled } = require("../config/visualExplanationFlags");
+const { isDiagramAssetLibraryEnabled } = require("../config/diagramAssetFlags");
 
 router.get("/ai-tutor", auth, (req, res) => {
   const specKey = req.query.specKey;
@@ -16,6 +17,10 @@ router.get("/ai-tutor", auth, (req, res) => {
 
 router.get("/visual-explanation", auth, (_req, res) => {
   return res.json({ enabled: isVisualExplanationEnabled() });
+});
+
+router.get("/diagram-assets", auth, (_req, res) => {
+  return res.json({ enabled: isDiagramAssetLibraryEnabled() });
 });
 
 module.exports = router;

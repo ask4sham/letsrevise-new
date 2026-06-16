@@ -51,6 +51,21 @@ describe("diagramBlockForPersist", () => {
     expect(out.imageUrl).toBe("https://cdn.example.com/leaf.png");
     expect(out.content).toBe("");
   });
+
+  it("preserves diagramAssetId for library-linked diagram blocks", () => {
+    const out = diagramBlockForPersist({
+      type: "diagram",
+      diagramAssetId: "64f1c2a3b4e5f6789012345",
+      imageUrl: "https://cdn.example.com/reflex.png",
+      imageSource: "diagram-asset",
+      caption: "Reflex arc",
+    });
+    expect(out).toMatchObject({
+      diagramAssetId: "64f1c2a3b4e5f6789012345",
+      imageUrl: "https://cdn.example.com/reflex.png",
+      imageSource: "diagram-asset",
+    });
+  });
 });
 
 describe("graphBlockForLessonSave", () => {
