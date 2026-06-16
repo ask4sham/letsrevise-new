@@ -197,12 +197,14 @@ All four validate with zero errors.
 
 ```
 backend/services/diagramSpecificationEngine/
-  schema.js       — enums + JSDoc types
-  validator.js    — validateDiagramSpecification()
-  examples.js     — four GCSE Biology examples
-  index.js        — barrel export
+  schema.js         — enums + JSDoc types
+  validator.js      — validateDiagramSpecification()
+  examples.js       — four GCSE Biology examples
+  briefComposer.js  — composeDiagramBrief() (P3.0B)
+  index.js          — barrel export
 
 backend/tests/diagramSpecificationEngine.test.js
+backend/tests/diagramBriefComposer.test.js
 
 docs/design/diagram-specification-engine.md   ← this document
 ```
@@ -254,3 +256,145 @@ npx jest tests/diagramSpecificationEngine.test.js
 | P2.1 Diagram Asset Library | Asset metadata will eventually mirror spec fields |
 | P2.4 verdict | ChatGPT manual workflow preserved; spec feeds prompt export |
 | P2.5 | API ≠ ChatGPT native path; spec is provider-agnostic by design |
+| **P3.0B** | `composeDiagramBrief()` — spec → ChatGPT-ready prompt text |
+
+---
+
+## P3.0B — Diagram Brief Composer
+
+**Status:** Implemented (not wired to production)  
+**Module:** `backend/services/diagramSpecificationEngine/briefComposer.js`
+
+### Purpose
+
+Convert a **validated** `DiagramSpecification` into a structured, human-readable, ChatGPT-ready diagram brief — matching the style of prompts already proven successful for LetsRevise GCSE diagrams.
+
+```
+DiagramSpecification
+        ↓ validateDiagramSpecification()
+        ↓ composeDiagramBrief(spec, options)
+        ↓
+ChatGPT-ready brief (string)
+        ↓
+Teacher pastes into ChatGPT → high-quality diagram
+        ↓
+Upload to Diagram Asset Library
+```
+
+### API
+
+```js
+const { composeDiagramBrief } = require("./services/diagramSpecificationEngine");
+
+const result = composeDiagramBrief(spec, {
+  includeFrame: true,
+  includeAnswerKey: true,
+  includeHotspots: true,
+  includeInteractionNotes: true,
+  brandName: "LetsRevise",
+  examStyle: "GCSE AQA Higher Tier Biology", // optional override
+});
+```
+
+**Success:**
+
+```json
+{
+  "ok": true,
+  "brief": "…",
+  "warnings": [],
+  "metadata": {
+    "specId": "reflex-arc",
+    "diagramType": "process",
+    "interactionTypes": ["view", "hotspot", "drag-drop", "exam-question"],
+    "labelCount": 8,
+    "hotspotCount": 8
+  }
+}
+```
+
+**Failure (invalid spec):**
+
+```json
+{
+  "ok": false,
+  "brief": "",
+  "errors": [{ "path": "…", "message": "…", "code": "…" }],
+  "warnings": [],
+  "metadata": null
+}
+```
+
+### Brief structure
+
+The composer assembles these sections in order:
+
+1. Opening line (`Create a GCSE AQA Higher Tier Biology diagram.`)
+2. **Instruction** — learning goal, topic, provider brief
+3. **Labels to use** — required labels with `mapsTo` hints
+4. **Hotspots / parts** — when `hotspot`, `drag-drop`, or `tti` interaction types apply
+5. **Answer key** — letter → label mapping (optional)
+6. **Drag-and-drop targets** — card prompts (optional)
+7. **Interaction notes** — teacher-facing; not rendered in image
+8. **STYLE** — GCSE exam diagram rules (white background, thick outlines, etc.)
+9. **LAYOUT** — orientation, flow, regions
+10. **OUTPUT** — flat vector, exam ready, copyright safe
+11. **COPYRIGHT** — originality rules
+12. **THEN** — LetsRevise frame rules (optional)
+
+### How spec → brief works
+
+| Spec field | Brief section |
+|------------|---------------|
+| `subject`, `examBoard`, `tier` | Opening line |
+| `learningGoal`, `instruction`, `examFocus` | Instruction |
+| `labels[]` | Labels to use |
+| `activities.hotspots[]` | Hotspots / parts + Answer key |
+| `activities.dragDrop[]` | Drag-and-drop targets |
+| `layout` | LAYOUT |
+| `visualStyle` | OUTPUT style hints |
+| `interactionTypes` | Controls which activity sections appear |
+| `teacherNotes` | Omitted (warning only) |
+
+The composer **always validates first** via `validateDiagramSpecification()`. Invalid specs never produce a brief.
+
+### Manual ChatGPT workflow (today)
+
+After P2.4 and P2.5, production diagram quality comes from **manual ChatGPT generation**. P3.0B closes the gap between Teacher Brain's structured intent and ChatGPT's prompt format:
+
+1. Teacher Brain eventually emits a `DiagramSpecification`
+2. `composeDiagramBrief()` produces the paste-ready prompt
+3. Teacher clicks **Generate Diagram Prompt** (future UI) → opens ChatGPT
+4. Teacher downloads image → Diagram Asset Library → lesson block
+
+No in-app image generation. No OpenAI API calls in P3.0B.
+
+### API generation (later)
+
+The same spec can feed other adapters without changing Teacher Brain:
+
+| Adapter | Input | Output |
+|---------|-------|--------|
+| `briefComposer` (P3.0B) | spec | ChatGPT paste prompt |
+| `gpt-image-2` adapter (future) | spec | API image request |
+| SVG template adapter (future) | spec | Programmatic diagram |
+
+Only the adapter changes. The specification stays the source of truth.
+
+### Why the specification stays provider-independent
+
+- **Labels** are structured objects, not prose buried in a prompt
+- **Hotspots** reference `labelId`, not pixel coordinates
+- **Exam questions** are seeds, not image text
+- **Style rules** are defaults with provider overrides in options
+- Swapping ChatGPT for API or manual upload does not require re-authoring pedagogy
+
+### Tests
+
+```bash
+cd backend
+npx jest tests/diagramBriefComposer.test.js
+npx jest tests/diagramSpecificationEngine.test.js
+```
+
+**P3.0B commit status:** Not committed — awaiting review.
