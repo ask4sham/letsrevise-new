@@ -11,6 +11,7 @@ import {
   coerceLessonMcqOptionsFour,
   convertLegacyHtmlCheckpointExportToCanonicalPlain,
 } from "./parseFlexibleCheckpointPaste";
+import { sanitizeLiveMcqOptions } from "./lessonMcqOptionsEditor";
 
 /** If the whole string is two identical halves, return one half (backup for duplicate-paste glitches). */
 export function collapseExactDuplicatePaste(value: string | undefined | null): string {
@@ -491,8 +492,19 @@ const PASTE_GUARD_STRING_KEYS = [
   "note",
 ] as const;
 
+export type LessonBlockPatchGuardMode = "paste" | "live";
+
+export type LessonBlockPatchGuardOptions = {
+  /** "paste" (default) coerces MCQ options to four slots; "live" preserves 2–6 for editor edits. */
+  mode?: LessonBlockPatchGuardMode;
+};
+
 /** Apply collapseExactDuplicatePaste to known long-text fields on block update patches. */
-export function guardLessonBlockPatchForDuplicatePaste<T extends Record<string, unknown>>(patch: T): T {
+export function guardLessonBlockPatchForDuplicatePaste<T extends Record<string, unknown>>(
+  patch: T,
+  opts?: LessonBlockPatchGuardOptions
+): T {
+  const mode = opts?.mode ?? "paste";
   const out: Record<string, unknown> = { ...patch };
   for (const k of PASTE_GUARD_STRING_KEYS) {
     if (typeof out[k] === "string") {
@@ -505,7 +517,11 @@ export function guardLessonBlockPatchForDuplicatePaste<T extends Record<string, 
           typeof o === "string" ? collapseExactDuplicatePaste(o) : String(o ?? ""),
         )
       : [];
-    out.options = [...coerceLessonMcqOptionsFour(raw)] as unknown as T[keyof T];
+    if (mode === "live") {
+      out.options = sanitizeLiveMcqOptions(raw) as unknown as T[keyof T];
+    } else {
+      out.options = [...coerceLessonMcqOptionsFour(raw)] as unknown as T[keyof T];
+    }
   }
   return out as T;
 }
