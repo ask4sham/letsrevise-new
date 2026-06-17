@@ -155,6 +155,11 @@ import {
   guardLessonBlockPatchForDuplicatePaste,
 } from "../utils/lessonEditorPaste";
 import {
+  patchMcqAddOption,
+  patchMcqOptionText,
+  patchMcqRemoveOption,
+} from "../utils/lessonMcqOptionsEditor";
+import {
   coerceLessonMcqOptionsFour,
   lessonCheckpointWholeCellPaste,
   tryParseFlexibleCheckpointMcq,
@@ -2071,7 +2076,9 @@ const EditLessonPage: React.FC = () => {
       }) => void;
     }
   ) => {
-    const guarded = guardLessonBlockPatchForDuplicatePaste(patch as Record<string, unknown>);
+    const guarded = guardLessonBlockPatchForDuplicatePaste(patch as Record<string, unknown>, {
+      mode: "live",
+    });
     setLesson((prev) => {
       if (!prev) return prev;
       const pages = Array.isArray(prev.pages) ? [...prev.pages] : [];
@@ -6382,10 +6389,16 @@ const EditLessonPage: React.FC = () => {
                                         type="text"
                                         value={opt ?? ""}
                                         onChange={(e) => {
-                                          const next = [...(cp.options ?? ["", "", "", ""])];
-                                          while (next.length <= oi) next.push("");
-                                          next[oi] = e.target.value;
-                                          updateBlock(currentPage!.pageId, idx, { options: next });
+                                          updateBlock(
+                                            currentPage!.pageId,
+                                            idx,
+                                            patchMcqOptionText(
+                                              cp.options ?? ["", "", "", ""],
+                                              oi,
+                                              e.target.value,
+                                              cp.correctAnswer ?? ""
+                                            )
+                                          );
                                         }}
                                         placeholder={`Option ${oi + 1}`}
                                         style={{
@@ -6402,8 +6415,11 @@ const EditLessonPage: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          const next = [...(cp.options ?? ["", "", "", ""]), ""];
-                                          updateBlock(currentPage!.pageId, idx, { options: next });
+                                          updateBlock(
+                                            currentPage!.pageId,
+                                            idx,
+                                            patchMcqAddOption(cp.options ?? ["", "", "", ""])
+                                          );
                                         }}
                                         style={{
                                           padding: "6px 12px",
@@ -6421,15 +6437,14 @@ const EditLessonPage: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          const next = (cp.options ?? ["", "", "", ""]).slice(0, -1);
-                                          const wasCorrect = (cp.correctAnswer ?? "").trim();
-                                          const removed = (cp.options ?? [])[(cp.options ?? []).length - 1] ?? "";
-                                          updateBlock(currentPage!.pageId, idx, {
-                                            options: next,
-                                            ...(String(removed).trim() === wasCorrect
-                                              ? { correctAnswer: (next[0] ?? "").trim() }
-                                              : {}),
-                                          });
+                                          updateBlock(
+                                            currentPage!.pageId,
+                                            idx,
+                                            patchMcqRemoveOption(
+                                              cp.options ?? ["", "", "", ""],
+                                              cp.correctAnswer ?? ""
+                                            )
+                                          );
                                         }}
                                         style={{
                                           padding: "6px 12px",
