@@ -4,6 +4,13 @@
  * Deterministic, rule-based — mirrors backend/utils/shortAnswerMarking.js
  */
 
+import {
+  type BiologyConceptGroup,
+  inferConceptGroupsForText,
+  normaliseMarkingText,
+  textMatchesConceptGroup,
+} from "./biologyConceptGroups";
+
 const STOP = new Set([
   "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
   "be", "been", "being", "have", "has", "had", "do", "does", "did",
@@ -18,13 +25,10 @@ const NEGATION_PHRASES = [
 ];
 
 function normalise(s = ""): string {
-  return String(s)
-    .toLowerCase()
-    .replace(/'/g, "")
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normaliseMarkingText(s);
 }
+
+const DISTINCTIVE_MIN_LEN = 5;
 
 function extractConceptTokens(text: string): string[] {
   return normalise(text)
@@ -120,6 +124,48 @@ export interface MarkShortAnswerResult {
   reason?: "contradiction" | "no_concept_match" | "low_overlap" | "no_model_answer" | "empty";
   negatedConcept?: string;
   overlap?: number;
+}
+
+function isDistinctiveToken(token: string): boolean {
+  return token.length >= DISTINCTIVE_MIN_LEN;
+}
+
+/** Match a mark-scheme line using concept groups and stronger token overlap. */
+export function matchMarkSchemePoint(
+  studentAnswer: string,
+  markPoint: string,
+  linkedGroups: BiologyConceptGroup[] = inferConceptGroupsForText(markPoint)
+): boolean {
+  const ua = normalise(studentAnswer);
+  if (!ua) return false;
+
+  if (linkedGroups.some((g) => textMatchesConceptGroup(ua, g))) return true;
+
+  const pointNorm = normalise(markPoint);
+  if (pointNorm.length >= 8 && ua.includes(pointNorm)) return true;
+
+  const uTokens = extractConceptTokens(studentAnswer);
+  const pointTokens = extractConceptTokens(markPoint).filter((t) => !STOP.has(t));
+  if (!pointTokens.length) return false;
+
+  let matched = 0;
+  for (const token of pointTokens) {
+    if (fuzzyHasToken(uTokens, token) || ua.includes(token)) matched++;
+  }
+
+  const distinctive = pointTokens.filter(isDistinctiveToken);
+  const matchedDistinctive = distinctive.filter(
+    (t) => fuzzyHasToken(uTokens, t) || ua.includes(t)
+  ).length;
+
+  if (distinctive.length > 0 && matchedDistinctive >= 1 && matchedDistinctive === distinctive.length) {
+    return true;
+  }
+  if (matched >= 2) return true;
+  if (pointTokens.length === 1 && matched === 1 && isDistinctiveToken(pointTokens[0])) return true;
+  if (pointTokens.length > 1 && matched / pointTokens.length >= 0.5 && matched >= 2) return true;
+
+  return false;
 }
 
 export function markShortAnswer(

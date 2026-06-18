@@ -47,3 +47,35 @@ export function mergeCheckpointExplanationParts(parts: {
   const merged = chunks.join("\n\n").trim();
   return merged || undefined;
 }
+
+/** True when practice `explanation` repeats mark-scheme content (common in bank API payloads). */
+export function isPracticeExplanationRedundant(
+  explanation?: string | null,
+  markScheme?: string[] | null
+): boolean {
+  const exp = typeof explanation === "string" ? explanation.replace(/\r\n/g, "\n").trim() : "";
+  const lines = checkpointMarkSchemeLines(markScheme);
+  if (!exp) return true;
+  if (!lines.length) return false;
+
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const expNorm = norm(exp);
+  const flatScheme = norm(lines.join(" "));
+
+  if (expNorm === flatScheme) return true;
+  if (exp.replace(/\r\n/g, "\n").trim() === lines.join("\n")) return true;
+
+  const numbered = lines.map((line, i) => `${i + 1}. ${line}`).join("\n");
+  if (exp.replace(/\r\n/g, "\n").trim() === numbered) return true;
+
+  const allLinesPresent = lines.every((line) => expNorm.includes(norm(line)));
+  if (allLinesPresent && expNorm.length <= flatScheme.length * 1.25 + 12) return true;
+
+  return false;
+}
