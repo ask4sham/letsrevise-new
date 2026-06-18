@@ -751,6 +751,51 @@ const EDIT_LESSON_WIDE_MIN_PX = 1220;
 /** At or below this width (px): Edit / Preview tabs (single column). */
 const EDIT_LESSON_NARROW_MAX_PX = 767;
 
+/** Self-check / checkpoint MCQ option row — overrides global `input { width: 100% }` in App.css. */
+const EDIT_LESSON_MCQ_OPTION_ROW_BASE: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+  marginBottom: 6,
+  minWidth: 0,
+  width: "100%",
+  padding: "6px 8px",
+  borderRadius: 8,
+  boxSizing: "border-box",
+};
+/** Neutral row layout only — prefer editLessonMcqOptionRowStyle(isSelected) for correct-answer highlight. */
+const EDIT_LESSON_MCQ_OPTION_ROW_STYLE = EDIT_LESSON_MCQ_OPTION_ROW_BASE;
+function editLessonMcqOptionRowStyle(isSelected: boolean): React.CSSProperties {
+  return {
+    ...EDIT_LESSON_MCQ_OPTION_ROW_BASE,
+    background: isSelected ? "#eff6ff" : "transparent",
+    border: isSelected ? "1px solid #3b82f6" : "1px solid transparent",
+  };
+}
+function isEditLessonMcqOptionCorrect(
+  optionText: string | undefined | null,
+  correctAnswer: string | undefined | null
+): boolean {
+  const opt = String(optionText ?? "").trim();
+  return opt !== "" && opt === String(correctAnswer ?? "").trim();
+}
+const EDIT_LESSON_MCQ_RADIO_STYLE: React.CSSProperties = {
+  flexShrink: 0,
+  width: "auto",
+  padding: 0,
+  margin: 0,
+};
+const EDIT_LESSON_MCQ_TEXT_INPUT_STYLE: React.CSSProperties = {
+  flex: "1 1 0",
+  minWidth: 0,
+  width: "auto",
+  padding: "8px 10px",
+  borderRadius: 8,
+  border: "2px solid rgba(0,0,0,0.14)",
+  backgroundColor: "#fff",
+  boxSizing: "border-box",
+};
+
 const EditLessonPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -6378,21 +6423,24 @@ const EditLessonPage: React.FC = () => {
                               ) : (
                                 <>
                                   <div style={{ fontWeight: 800, marginBottom: 6 }}>Options (correct answer)</div>
-                                  {(cp.options ?? ["", "", "", ""]).map((opt, oi) => (
-                                    <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                                  {(cp.options ?? ["", "", "", ""]).map((opt, oi) => {
+                                    const isCorrectRow = isEditLessonMcqOptionCorrect(
+                                      opt,
+                                      cp.correctAnswer
+                                    );
+                                    return (
+                                    <div key={oi} style={editLessonMcqOptionRowStyle(isCorrectRow)}>
                                       <input
                                         type="radio"
                                         name={`${key}-correct`}
-                                        checked={
-                                          (cp.correctAnswer ?? "").trim() === String(opt ?? "").trim() &&
-                                          String(opt ?? "").trim() !== ""
-                                        }
+                                        checked={isCorrectRow}
                                         onChange={() =>
                                           updateBlock(currentPage!.pageId, idx, {
                                             correctAnswer: String(opt ?? "").trim(),
                                           })
                                         }
-                                        style={{ flexShrink: 0 }}
+                                        style={EDIT_LESSON_MCQ_RADIO_STYLE}
+                                        aria-label={`Mark option ${oi + 1} as correct`}
                                       />
                                       <input
                                         type="text"
@@ -6410,15 +6458,12 @@ const EditLessonPage: React.FC = () => {
                                           );
                                         }}
                                         placeholder={`Option ${oi + 1}`}
-                                        style={{
-                                          flex: 1,
-                                          padding: "8px 10px",
-                                          borderRadius: 8,
-                                          border: "2px solid rgba(0,0,0,0.14)",
-                                        }}
+                                        style={EDIT_LESSON_MCQ_TEXT_INPUT_STYLE}
+                                        aria-label={`Option ${oi + 1} text`}
                                       />
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                     {(cp.options ?? []).length < 6 && (
                                       <button
