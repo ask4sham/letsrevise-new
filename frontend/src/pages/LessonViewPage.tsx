@@ -47,6 +47,10 @@ import { isLessonError } from "../utils/typeGuards";
 import { logPaywallEvent } from "../utils/events";
 import { logAttempt } from "../utils/attempts";
 import {
+  PracticeShortQuestion,
+  type PracticeQuestionLite,
+} from "../components/practice/PracticeShortQuestion";
+import {
   makeAbsoluteAssetUrl,
   preprocessMarkdownAssetUrls,
   resolveUploadedDiagramImageSrc,
@@ -324,20 +328,6 @@ interface User {
 }
 
 type ExamBoardRow = { name: string };
-
-/** PR3b: Practice endpoint response item (exam question lite). */
-interface PracticeQuestionLite {
-  id: string;
-  question: string;
-  type: string;
-  marks: number;
-  options?: string[];
-  correctAnswer?: string;
-  explanation?: string;
-  markScheme?: string[];
-  topicKey?: string;
-  topic?: string;
-}
 
 /** Published exam bank row from GET /api/exam-questions/for-topic (lesson Exam Practice). */
 interface ExamPracticeQuestionLite {
@@ -864,164 +854,6 @@ function PracticeMCQQuestion({
               onClick={() => { setSelected(null); setChecked(false); setConfidence(null); setRecorded(false); }}
               style={{
                 marginTop: 6,
-                padding: "8px 14px",
-                borderRadius: 8,
-                border: "2px solid rgba(0,0,0,0.14)",
-                background: "white",
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
-            >
-              Try again
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PracticeShortQuestion({
-  q,
-  lessonId,
-  hideExplanationLabel,
-}: {
-  q: PracticeQuestionLite;
-  lessonId?: string;
-  hideExplanationLabel?: boolean;
-}) {
-  const [answer, setAnswer] = useState("");
-  const [checked, setChecked] = useState(false);
-  const [selfMarked, setSelfMarked] = useState<boolean | null>(null);
-  const [confidence, setConfidence] = useState<1 | 2 | 3 | null>(null);
-  const [recorded, setRecorded] = useState(false);
-  const hasAnswer = answer.trim() !== "";
-
-  useEffect(() => {
-    if (!lessonId || !q.id || selfMarked === null || confidence === null || recorded) return;
-    logAttempt({
-      lessonId,
-      source: "practice",
-      questionId: q.id,
-      questionType: "short",
-      answerText: answer.trim(),
-      isCorrect: selfMarked,
-      confidence,
-    });
-    setRecorded(true);
-  }, [lessonId, q.id, selfMarked, confidence, recorded, answer]);
-
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ marginTop: 8 }}>
-        <input
-          type="text"
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Your answer..."
-          disabled={checked}
-          style={{
-            width: "100%",
-            maxWidth: 500,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid #d1d5db",
-            fontSize: BASE_FONT_SIZE,
-          }}
-        />
-      </div>
-      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-        {!checked ? (
-          <button
-            type="button"
-            disabled={!hasAnswer}
-            onClick={() => setChecked(true)}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 10,
-              border: "2px solid rgba(59,130,246,0.4)",
-              background: hasAnswer ? "rgba(59,130,246,0.12)" : "#f1f5f9",
-              cursor: hasAnswer ? "pointer" : "not-allowed",
-              fontWeight: 700,
-            }}
-          >
-            Check answer
-          </button>
-        ) : (
-          <>
-            <div style={{ marginTop: 2, color: "#374151", fontSize: "0.95rem" }}>
-              Compare your answer to the model answer below.
-            </div>
-            <div style={{ marginTop: 10, padding: 12, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-              <strong style={{ color: "#374151" }}>Model answer:</strong>
-              <div style={{ marginTop: 6, color: "#4b5563", fontSize: BASE_FONT_SIZE }}>
-                {q.correctAnswer != null ? String(q.correctAnswer).trim() : "—"}
-              </div>
-            </div>
-            {selfMarked === null ? (
-              <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 14, color: "#374151" }}>Was your answer correct?</span>
-                <button
-                  type="button"
-                  onClick={() => setSelfMarked(true)}
-                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #22c55e", background: "rgba(34,197,94,0.1)", color: "#15803d", cursor: "pointer", fontWeight: 700 }}
-                >
-                  I was correct
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelfMarked(false)}
-                  style={{ padding: "8px 14px", borderRadius: 8, border: "2px solid #dc2626", background: "rgba(220,38,38,0.1)", color: "#b91c1c", cursor: "pointer", fontWeight: 700 }}
-                >
-                  I was incorrect
-                </button>
-              </div>
-            ) : !recorded ? (
-              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, color: "#374151" }}>Confidence?</span>
-                {([1, 2, 3] as const).map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setConfidence(c)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 8,
-                      border: `2px solid ${confidence === c ? "rgba(59,130,246,0.8)" : "rgba(0,0,0,0.14)"}`,
-                      background: confidence === c ? "rgba(59,130,246,0.12)" : "white",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
-                  >
-                    {c === 1 ? "Low (1)" : c === 2 ? "Medium (2)" : "High (3)"}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
-            )}
-            {q.explanation ? (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
-                {!hideExplanationLabel ? (
-                  <strong style={{ color: "#374151" }}>Explanation:</strong>
-                ) : null}
-                <div
-                  style={{
-                    marginTop: hideExplanationLabel ? 0 : 4,
-                    color: "#4b5563",
-                    fontSize: BASE_FONT_SIZE,
-                  }}
-                >
-                  {q.explanation}
-                </div>
-              </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => { setAnswer(""); setChecked(false); setSelfMarked(null); setConfidence(null); setRecorded(false); }}
-              style={{
-                marginTop: 12,
                 padding: "8px 14px",
                 borderRadius: 8,
                 border: "2px solid rgba(0,0,0,0.14)",
