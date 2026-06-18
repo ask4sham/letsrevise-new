@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { logAttempt } from "../../utils/attempts";
+import { isPracticeExplanationRedundant } from "../../utils/checkpointFeedback";
 import { gradeShortAnswer } from "../../utils/gradeShortAnswer";
 
 export type PracticeQuestionLite = {
@@ -60,12 +61,15 @@ export function PracticeShortQuestion({
     ? q.markScheme.map((line) => String(line ?? "").trim()).filter(Boolean)
     : [];
   const maxMarks = typeof q.marks === "number" && q.marks > 0 ? q.marks : 0;
+  const showExplanation =
+    !!q.explanation?.trim() && !isPracticeExplanationRedundant(q.explanation, markSchemeLines);
 
   const estimatedGrade = useMemo(() => {
     if (!checked || !submittedAnswer.trim()) return null;
     if (!modelAnswer && markSchemeLines.length === 0) return null;
     return gradeShortAnswer({
       userAnswer: submittedAnswer,
+      question: q.question,
       markScheme: markSchemeLines.length ? markSchemeLines : undefined,
       correctAnswer: modelAnswer || undefined,
       marks: maxMarks > 0 ? maxMarks : 1,
@@ -167,12 +171,78 @@ export function PracticeShortQuestion({
             ) : null}
 
             {estimatedGrade ? (
-              <p style={{ margin: 0, fontSize: 14, color: "#4b5563" }}>
-                Estimated score (guide): {estimatedGrade.score} / {estimatedGrade.maxMarks}
-                <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                  Not an official mark — use self-check below.
-                </span>
-              </p>
+              <>
+                {estimatedGrade.showEstimatedScore ? (
+                  <>
+                    <p style={{ margin: 0, fontSize: 14, color: "#4b5563" }}>
+                      Estimated score (guide): {estimatedGrade.score} / {estimatedGrade.maxMarks}
+                      <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                        Not an official mark — use self-check below.
+                      </span>
+                    </p>
+
+                    {estimatedGrade.included && estimatedGrade.included.length > 0 ? (
+                      <div data-testid="practice-short-included">
+                        <span style={sectionLabelStyle}>You included:</span>
+                        <ul
+                          style={{
+                            margin: "6px 0 0",
+                            paddingLeft: 20,
+                            color: "#15803d",
+                            fontSize: "0.95rem",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {estimatedGrade.included.map((line, i) => (
+                            <li key={i}>✓ {line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {estimatedGrade.toImprove && estimatedGrade.toImprove.length > 0 ? (
+                      <div data-testid="practice-short-to-improve">
+                        <span style={sectionLabelStyle}>To improve:</span>
+                        <ul
+                          style={{
+                            margin: "6px 0 0",
+                            paddingLeft: 20,
+                            color: "#b45309",
+                            fontSize: "0.95rem",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {estimatedGrade.toImprove.map((line, i) => (
+                            <li key={i}>✗ {line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <div data-testid="practice-short-guided-self-check">
+                    <span style={sectionLabelStyle}>Guided self-check</span>
+                    <p style={{ margin: "4px 0 8px", fontSize: 14, color: "#6b7280" }}>
+                      No estimated score shown because this answer needs teacher/examiner judgement.
+                    </p>
+                    {estimatedGrade.guidedSelfCheck && estimatedGrade.guidedSelfCheck.length > 0 ? (
+                      <ul
+                        style={{
+                          margin: 0,
+                          paddingLeft: 20,
+                          color: "#4b5563",
+                          fontSize: "0.95rem",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {estimatedGrade.guidedSelfCheck.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                )}
+              </>
             ) : null}
 
             <div style={{ marginTop: 4 }}>
@@ -284,7 +354,7 @@ export function PracticeShortQuestion({
               <div style={{ marginTop: 10, fontSize: 14, color: "#6b7280" }}>Recorded. Thanks.</div>
             )}
 
-            {q.explanation ? (
+            {showExplanation ? (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
                 {!hideExplanationLabel ? (
                   <strong style={{ color: "#374151" }}>Explanation:</strong>
@@ -295,6 +365,7 @@ export function PracticeShortQuestion({
                     color: "#4b5563",
                     fontSize: "1rem",
                   }}
+                  data-testid="practice-short-explanation"
                 >
                   {q.explanation}
                 </div>
