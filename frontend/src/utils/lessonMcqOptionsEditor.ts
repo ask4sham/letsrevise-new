@@ -66,6 +66,11 @@ export function patchMcqOptionText(
   return patch;
 }
 
+/** Mirror EditLessonPage fetchLessonFromBackend selfCheck MCQ hydration (2–6 slots). */
+export function selfCheckMcqOptionsForEditorHydrate(input: unknown): string[] {
+  return sanitizeLiveMcqOptions(input);
+}
+
 /** Mirror EditLessonPage selfCheck persist row for save/reload tests. */
 export function selfCheckBlockForPersist(b: {
   prompt?: string;

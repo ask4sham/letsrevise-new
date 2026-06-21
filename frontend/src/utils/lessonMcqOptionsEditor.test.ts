@@ -6,6 +6,7 @@ import {
   patchMcqRemoveOption,
   sanitizeLiveMcqOptions,
   selfCheckBlockForPersist,
+  selfCheckMcqOptionsForEditorHydrate,
   LIVE_MCQ_OPTIONS_MAX,
   LIVE_MCQ_OPTIONS_MIN,
 } from "./lessonMcqOptionsEditor";
@@ -81,6 +82,49 @@ describe("lessonMcqOptionsEditor", () => {
     const patch = patchMcqRemoveOption(opts, "D");
     expect(patch.options).toHaveLength(3);
     expect(patch.correctAnswer).toBe("A");
+  });
+
+  it("selfCheckMcqOptionsForEditorHydrate preserves 3, 5, and 6 saved options on reload", () => {
+    expect(selfCheckMcqOptionsForEditorHydrate(["A", "B", "C"])).toEqual(["A", "B", "C"]);
+    expect(selfCheckMcqOptionsForEditorHydrate(["One", "Two", "Three", "Four", "Five"])).toEqual([
+      "One",
+      "Two",
+      "Three",
+      "Four",
+      "Five",
+    ]);
+    expect(
+      selfCheckMcqOptionsForEditorHydrate(["1", "2", "3", "4", "5", "6"])
+    ).toEqual(["1", "2", "3", "4", "5", "6"]);
+  });
+
+  it("selfCheckMcqOptionsForEditorHydrate clamps invalid arrays to minimum 2 slots", () => {
+    expect(selfCheckMcqOptionsForEditorHydrate(["only"])).toEqual(["only", ""]);
+    expect(selfCheckMcqOptionsForEditorHydrate(null)).toEqual(["", ""]);
+  });
+
+  it("save/reload round-trip keeps 3, 5, and 6 selfCheck options through backend + hydration", () => {
+    for (const count of [3, 5, 6] as const) {
+      const labels = Array.from({ length: count }, (_, i) => `Opt-${count}-${i + 1}`);
+      const edited = {
+        type: "selfCheck" as const,
+        prompt: `Question with ${count} options?`,
+        questionType: "mcq" as const,
+        options: labels,
+        correctAnswer: labels[labels.length - 1],
+      };
+      const payload = selfCheckBlockForPersist(edited);
+      const backend = backendSelfCheckSanitizeForTest({
+        prompt: String(payload.prompt),
+        questionType: String(payload.questionType),
+        options: payload.options as string[],
+        correctAnswer: String(payload.correctAnswer),
+      });
+      expect("placeholder" in backend).toBe(false);
+      if ("placeholder" in backend) continue;
+      const hydrated = selfCheckMcqOptionsForEditorHydrate(backend.options);
+      expect(hydrated).toEqual(labels);
+    }
   });
 
   it("save/reload preserves edited selfCheck options (5 filled MCQ)", () => {

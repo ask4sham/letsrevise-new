@@ -158,6 +158,7 @@ import {
   patchMcqAddOption,
   patchMcqOptionText,
   patchMcqRemoveOption,
+  selfCheckMcqOptionsForEditorHydrate,
 } from "../utils/lessonMcqOptionsEditor";
 import {
   coerceLessonMcqOptionsFour,
@@ -1610,7 +1611,7 @@ const EditLessonPage: React.FC = () => {
                         ? Array.isArray(b.options)
                           ? b.options.map((o: any) => String(o ?? ""))
                           : ["", "", "", ""]
-                        : [...coerceLessonMcqOptionsFour(b.options)],
+                        : [...selfCheckMcqOptionsForEditorHydrate(b.options)],
                     correctAnswer: safeStr(b.correctAnswer, ""),
                     explanation: safeStr(b.explanation, ""),
                   } as Record<string, unknown>;
